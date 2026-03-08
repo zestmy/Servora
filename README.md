@@ -1,59 +1,96 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Servora
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A multi-tenant Food & Beverage operations management system built with Laravel 12, Livewire 3, and Tailwind CSS.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Ingredients & Recipes
+- Ingredient master list with UOM conversions, supplier pricing, and cost tracking
+- Recipe builder with costing, yield calculations, and prep item support
+- 2-level shared category hierarchy (cost centers)
+- CSV import for bulk ingredient and recipe uploads
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Purchasing
+- Full procurement flow: **PO > Approval > DO > GRN > Receive**
+- Optional PO approval workflow (configurable per company)
+- PO approver assignments per outlet (Operations Manager, Manager, Chef)
+- PDF generation for Purchase Orders, Delivery Orders, and Goods Received Notes
+- Form templates for quick PO creation
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Sales
+- Daily sales entry by sales category with meal period and pax tracking
+- Z-report import (image/PDF with AI-powered extraction)
+- File attachments on sales records with lightbox preview
+- CSV export
 
-## Learning Laravel
+### Inventory
+- Stock takes with cost-by-category breakdown
+- Wastage recording (ingredient and recipe-level)
+- Inter-outlet transfers
+- Prep item tracking
+- Staff meal recording
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### Reports & Dashboard
+- Monthly P&L cost summary (Revenue, Opening, Purchases, Transfers, Closing, COGS, Cost %)
+- Role-based dashboards (Business Manager, Operations, Chef, Purchasing, Finance)
+- 6-month revenue vs purchases trend chart
+- Cost % gauges per category
+- CSV export on reports, sales, and purchasing
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Multi-Tenancy & Access Control
+- Company-scoped data isolation via Eloquent global scopes
+- Role-based access: Super Admin, Company Admin, Business Manager, Operations Manager, Manager, Chef, Staff, Purchasing, Finance
+- Multi-outlet support with session-based outlet switcher
+- Per-outlet PO approver assignments
 
-## Laravel Sponsors
+### Settings
+- Company details with logo, registration number, billing address
+- Outlet/branch management
+- User management with role and multi-outlet assignment
+- Ingredient categories, recipe categories, sales categories, cost types
+- PO form templates
+- API keys management
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Tech Stack
 
-### Premium Partners
+- **Backend:** Laravel 12, PHP 8.2
+- **Frontend:** Livewire 3, Volt, Alpine.js, Tailwind CSS, Vite
+- **Database:** MySQL 8
+- **Auth:** Laravel Breeze (Livewire stack)
+- **Roles:** Spatie Laravel Permission
+- **PDF:** barryvdh/laravel-dompdf
+- **Export:** maatwebsite/excel, custom CSV service
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Installation
 
-## Contributing
+```bash
+# Clone the repository
+git clone https://github.com/zestmy/Servora.git
+cd Servora
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Install dependencies
+composer install
+npm install
 
-## Code of Conduct
+# Environment setup
+cp .env.example .env
+php artisan key:generate
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Configure your database in .env, then:
+php artisan migrate --seed
+php artisan storage:link
 
-## Security Vulnerabilities
+# Start development servers
+php artisan serve
+npm run dev
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Default Login
+
+After seeding:
+- **Email:** admin@servora.test
+- **Password:** password
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proprietary. All rights reserved.
