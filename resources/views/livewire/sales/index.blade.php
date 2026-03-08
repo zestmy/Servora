@@ -1,0 +1,308 @@
+<div x-data="{ preview: null, previewType: null, previewName: null, attachments: [], showAttachments: false }">
+    {{-- Z-Report Import Component --}}
+    @livewire('sales.z-report-import')
+
+    {{-- Flash --}}
+    @if (session()->has('success'))
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    {{-- Header --}}
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-semibold text-gray-700">Sales</h2>
+        <div class="flex items-center gap-2">
+            <button wire:click="exportCsv"
+                    class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Export CSV
+            </button>
+            <button wire:click="$dispatch('open-z-import')"
+                    class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Import Z-Report
+            </button>
+            <a href="{{ route('sales.create') }}"
+               class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                + New Entry
+            </a>
+        </div>
+    </div>
+
+    {{-- Stats --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Today Revenue</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($todayRevenue, 2) }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ now()->format('d M Y') }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Today Pax</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ $todayPax > 0 ? number_format($todayPax) : '—' }}</p>
+            <p class="text-xs text-gray-400 mt-1">covers today</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Today Avg Check</p>
+            @if ($todayAvgCheck !== null)
+                <p class="text-2xl font-bold text-indigo-600 mt-1 tabular-nums">RM {{ number_format($todayAvgCheck, 2) }}</p>
+            @else
+                <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
+            @endif
+            <p class="text-xs text-gray-400 mt-1">per person</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">{{ now()->format('M Y') }} Revenue</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($monthRevenue, 2) }}</p>
+            <p class="text-xs text-gray-400 mt-1">this month</p>
+        </div>
+    </div>
+
+    {{-- Filter Bar --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-1">
+                <input type="text" wire:model.live.debounce.300ms="search"
+                       placeholder="Search reference number…"
+                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+            </div>
+            <div>
+                <select wire:model.live="mealPeriodFilter"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Periods</option>
+                    @foreach ($mealPeriodOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-center gap-1">
+                <input type="date" wire:model.live="dateFrom"
+                       class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                <span class="text-gray-400 text-xs">to</span>
+                <input type="date" wire:model.live="dateTo"
+                       class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+            </div>
+        </div>
+    </div>
+
+    {{-- Table --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <tr>
+                    <th class="px-4 py-3 text-left">Date</th>
+                    <th class="px-4 py-3 text-left">Meal Period</th>
+                    <th class="px-4 py-3 text-center">Pax</th>
+                    <th class="px-4 py-3 text-left">Categories</th>
+                    <th class="px-4 py-3 text-right">Total Revenue</th>
+                    <th class="px-4 py-3 text-right">Avg Check</th>
+                    <th class="px-4 py-3 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                @forelse ($records as $record)
+                    @php
+                        $avgCheck = ($record->pax > 0 && floatval($record->total_revenue) > 0)
+                            ? floatval($record->total_revenue) / $record->pax
+                            : null;
+
+                        $periodColors = [
+                            'all_day'   => 'bg-gray-100 text-gray-600',
+                            'breakfast' => 'bg-yellow-100 text-yellow-700',
+                            'lunch'     => 'bg-orange-100 text-orange-700',
+                            'tea_time'  => 'bg-teal-100 text-teal-700',
+                            'dinner'    => 'bg-indigo-100 text-indigo-700',
+                            'supper'    => 'bg-purple-100 text-purple-700',
+                        ];
+                        $periodColor = $periodColors[$record->meal_period ?? 'all_day'] ?? 'bg-gray-100 text-gray-600';
+
+                        // Group lines by ingredient category
+                        $catGroups = $record->lines
+                            ->filter(fn ($l) => $l->ingredient_category_id !== null)
+                            ->groupBy('ingredient_category_id');
+                    @endphp
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3 text-gray-700 font-medium">
+                            <div class="flex items-center gap-1.5">
+                                {{ $record->sale_date->format('d M Y') }}
+                                @if ($record->sale_date->isToday())
+                                    <span class="text-xs text-indigo-400">Today</span>
+                                @endif
+                                @if ($record->attachments_count > 0)
+                                    <button type="button" title="{{ $record->attachments_count }} attachment(s) — click to preview"
+                                            class="text-gray-400 hover:text-indigo-500 transition"
+                                            @click="attachments = {{ Js::from($record->attachments->map(fn ($a) => ['name' => $a->file_name, 'url' => $a->url(), 'is_image' => $a->isImage(), 'size' => $a->humanSize()])) }}; showAttachments = true">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                    </button>
+                                @endif
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $periodColor }}">
+                                {{ $record->mealPeriodLabel() }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center text-gray-700 font-medium">
+                            {{ $record->pax ?? 1 }}
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-1">
+                                @forelse ($catGroups as $catId => $catLines)
+                                    @php
+                                        $cat    = $catLines->first()->ingredientCategory;
+                                        $catRev = $catLines->sum(fn ($l) => floatval($l->total_revenue));
+                                    @endphp
+                                    @if ($cat)
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-gray-50 border border-gray-200"
+                                              title="{{ $cat->name }}: RM {{ number_format($catRev, 2) }}">
+                                            <span class="w-2 h-2 rounded-full inline-block flex-shrink-0"
+                                                  style="background-color: {{ $cat->color ?? '#9ca3af' }}"></span>
+                                            <span class="text-gray-600">{{ $cat->name }}</span>
+                                            <span class="tabular-nums text-gray-500">{{ number_format($catRev, 0) }}</span>
+                                        </span>
+                                    @endif
+                                @empty
+                                    <span class="text-xs text-gray-400">—</span>
+                                @endforelse
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-right tabular-nums font-semibold text-gray-800">
+                            RM {{ number_format($record->total_revenue, 2) }}
+                        </td>
+                        <td class="px-4 py-3 text-right tabular-nums text-indigo-600 font-medium">
+                            @if ($avgCheck !== null)
+                                RM {{ number_format($avgCheck, 2) }}
+                            @else
+                                <span class="text-gray-300">—</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-center gap-2">
+                                <a href="{{ route('sales.edit', $record->id) }}" title="Edit"
+                                   class="text-indigo-500 hover:text-indigo-700 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </a>
+                                <button wire:click="delete({{ $record->id }})"
+                                        wire:confirm="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
+                                        title="Delete"
+                                        class="text-red-400 hover:text-red-600 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                            <div class="text-3xl mb-2">💰</div>
+                            <p class="font-medium">No sales records yet</p>
+                            <p class="text-xs mt-1">
+                                <a href="{{ route('sales.create') }}" class="text-indigo-500 underline">Record today's sales</a>
+                            </p>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+
+            @if ($records->count() > 0)
+                @php
+                    $sumRevenue = $records->sum('total_revenue');
+                    $sumPax     = $records->sum('pax');
+                    $sumAvg     = ($sumPax > 0 && $sumRevenue > 0) ? $sumRevenue / $sumPax : null;
+                @endphp
+                <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold text-gray-700">
+                    <tr>
+                        <td colspan="3" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
+                            Page total ({{ $records->count() }} records · {{ number_format($sumPax) }} pax)
+                        </td>
+                        <td class="px-4 py-3"></td>
+                        <td class="px-4 py-3 text-right tabular-nums">RM {{ number_format($sumRevenue, 2) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums text-indigo-600">
+                            @if ($sumAvg !== null)
+                                RM {{ number_format($sumAvg, 2) }}
+                            @endif
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            @endif
+        </table>
+
+        @if ($records->hasPages())
+            <div class="px-4 py-3 border-t border-gray-100">
+                {{ $records->links() }}
+            </div>
+        @endif
+    </div>
+
+    {{-- Attachments Slide-over --}}
+    <div x-show="showAttachments" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4" @keydown.escape.window="showAttachments = false; preview = null">
+        <div class="fixed inset-0 bg-gray-900/60" @click="showAttachments = false; preview = null"></div>
+
+        <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden" x-show="!preview">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-700">Attachments</h3>
+                <button type="button" @click="showAttachments = false" class="text-gray-400 hover:text-gray-600 transition p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-auto p-4 space-y-2">
+                <template x-for="(att, i) in attachments" :key="i">
+                    <div class="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition"
+                         @click="preview = att.url; previewType = att.is_image ? 'image' : 'pdf'; previewName = att.name">
+                        <template x-if="att.is_image">
+                            <img :src="att.url" :alt="att.name" class="w-10 h-10 object-cover rounded" />
+                        </template>
+                        <template x-if="!att.is_image">
+                            <div class="w-10 h-10 bg-red-50 rounded flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            </div>
+                        </template>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-gray-700 truncate" x-text="att.name"></p>
+                            <p class="text-xs text-gray-400" x-text="att.size"></p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        {{-- Full preview (from attachment list) --}}
+        <div class="relative z-10 bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" x-show="preview" x-transition>
+            <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button type="button" @click="preview = null" class="text-gray-400 hover:text-gray-600 transition p-1 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <p class="text-sm font-medium text-gray-700 truncate" x-text="previewName"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a :href="preview" target="_blank" class="text-gray-400 hover:text-indigo-600 transition p-1" title="Open in new tab">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    </a>
+                    <button type="button" @click="preview = null; showAttachments = false" class="text-gray-400 hover:text-gray-600 transition p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-50">
+                <template x-if="previewType === 'image'">
+                    <img :src="preview" :alt="previewName" class="max-w-full max-h-[75vh] object-contain rounded" />
+                </template>
+                <template x-if="previewType === 'pdf'">
+                    <iframe :src="preview" class="w-full h-[75vh] rounded border border-gray-200"></iframe>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>

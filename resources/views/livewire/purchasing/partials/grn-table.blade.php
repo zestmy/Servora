@@ -1,0 +1,72 @@
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-100 text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <tr>
+                <th class="px-4 py-3 text-left">GRN Number</th>
+                <th class="px-4 py-3 text-left">DO Reference</th>
+                <th class="px-4 py-3 text-left">Outlet</th>
+                <th class="px-4 py-3 text-left">Supplier</th>
+                <th class="px-4 py-3 text-center">Date</th>
+                <th class="px-4 py-3 text-center">Items</th>
+                <th class="px-4 py-3 text-right">Total (RM)</th>
+                <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3 text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            @forelse ($grns as $grn)
+                @php
+                    $badge = match($grn->status) {
+                        'pending'  => 'bg-yellow-100 text-yellow-700',
+                        'received' => 'bg-green-100 text-green-700',
+                        'partial'  => 'bg-blue-100 text-blue-700',
+                        'rejected' => 'bg-red-100 text-red-600',
+                        default    => 'bg-gray-100 text-gray-500',
+                    };
+                @endphp
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 font-mono text-xs font-medium text-gray-700">{{ $grn->grn_number }}</td>
+                    <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ $grn->deliveryOrder?->do_number ?? '—' }}</td>
+                    <td class="px-4 py-3 text-gray-600 text-xs">{{ $grn->outlet?->name ?? '—' }}</td>
+                    <td class="px-4 py-3 text-gray-700">{{ $grn->supplier?->name ?? '—' }}</td>
+                    <td class="px-4 py-3 text-center text-gray-500">{{ $grn->received_date?->format('d M Y') ?? '—' }}</td>
+                    <td class="px-4 py-3 text-center text-gray-600">{{ $grn->lines_count }}</td>
+                    <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($grn->total_amount, 2) }}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badge }}">
+                            {{ ucfirst($grn->status) }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center justify-center gap-1">
+                            <a href="{{ route('purchasing.pdf', ['type' => 'grn', 'id' => $grn->id]) }}" target="_blank" title="Download PDF"
+                               class="text-gray-400 hover:text-gray-600 transition p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </a>
+                            @if ($grn->status === 'pending' && ! $isPurchasing)
+                                <a href="{{ route('purchasing.grn.receive', $grn->id) }}" title="Receive"
+                                   class="text-green-500 hover:text-green-700 transition p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </a>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                        <p class="font-medium">No goods received notes found</p>
+                    </td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    @if ($grns->hasPages())
+        <div class="px-4 py-3 border-t border-gray-100">{{ $grns->links() }}</div>
+    @endif
+</div>

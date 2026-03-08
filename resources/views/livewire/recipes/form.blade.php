@@ -1,0 +1,382 @@
+<div>
+    {{-- Top bar --}}
+    <div class="flex items-center gap-3 mb-6">
+        <a href="{{ route('recipes.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+        </a>
+        <div class="flex-1 min-w-0">
+            <p class="text-xs text-gray-400"><a href="{{ route('recipes.index') }}" class="hover:underline">Recipes</a> / {{ $recipeId ? $name : 'New Recipe' }}</p>
+        </div>
+        <button wire:click="save"
+                class="flex-shrink-0 px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+            Save Recipe
+        </button>
+    </div>
+
+    {{-- Validation errors summary --}}
+    @if ($errors->any())
+        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            <p class="font-medium mb-1">Please fix the following:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {{-- ── Details card (2/3) ── --}}
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4">Recipe Details</h3>
+
+                {{-- Name --}}
+                <div>
+                    <x-input-label for="r_name" value="Recipe Name *" />
+                    <x-text-input id="r_name" wire:model="name" type="text"
+                                  class="mt-1 block w-full text-base font-medium"
+                                  placeholder="e.g. Garlic Butter Prawn" />
+                    <x-input-error :messages="$errors->get('name')" class="mt-1" />
+                </div>
+
+                {{-- Code | Category --}}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <x-input-label for="r_code" value="Code" />
+                        <x-text-input id="r_code" wire:model="code" type="text"
+                                      class="mt-1 block w-full" placeholder="e.g. RCP-001" />
+                        <x-input-error :messages="$errors->get('code')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="r_category" value="Menu Category" />
+                        <select id="r_category" wire:model="category"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— No Category —</option>
+                            @foreach ($recipeCategories as $cat)
+                                <option value="{{ $cat->name }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                        @if ($recipeCategories->isEmpty())
+                            <p class="mt-0.5 text-xs text-gray-400">
+                                <a href="{{ route('settings.recipe-categories') }}" class="text-indigo-500 hover:underline" target="_blank">Add recipe categories</a> in Settings.
+                            </p>
+                        @endif
+                        <x-input-error :messages="$errors->get('category')" class="mt-1" />
+                    </div>
+                </div>
+
+                {{-- Cost Center --}}
+                <div>
+                    <x-input-label for="r_cost_center" value="Cost Center" />
+                    <select id="r_cost_center" wire:model="ingredient_category_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">— No Cost Center —</option>
+                        @foreach ($categories as $main)
+                            <option value="{{ $main->id }}">{{ $main->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-0.5 text-xs text-gray-400">Used for food cost % reporting.</p>
+                    <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
+                </div>
+
+                {{-- Description --}}
+                <div>
+                    <x-input-label for="r_desc" value="Description" />
+                    <textarea id="r_desc" wire:model="description" rows="2"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                              placeholder="Optional notes or preparation instructions…"></textarea>
+                </div>
+
+                {{-- Yield | UOM | Selling Price --}}
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <x-input-label for="r_yield" value="Yield Qty *" />
+                        <x-text-input id="r_yield" wire:model.live="yield_quantity"
+                                      type="number" step="0.01" min="0.01"
+                                      class="mt-1 block w-full" />
+                        <x-input-error :messages="$errors->get('yield_quantity')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="r_uom" value="Yield UOM *" />
+                        <select id="r_uom" wire:model.live="yield_uom_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— select —</option>
+                            @foreach ($uoms as $uom)
+                                <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('yield_uom_id')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="r_price" value="Selling Price" />
+                        <x-text-input id="r_price" wire:model.live="selling_price"
+                                      type="number" step="0.01" min="0"
+                                      class="mt-1 block w-full" />
+                        <p class="mt-0.5 text-xs text-gray-400">Per {{ $yield_quantity ?: '1' }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving' }}</p>
+                        <x-input-error :messages="$errors->get('selling_price')" class="mt-1" />
+                    </div>
+                </div>
+
+                {{-- Is Active --}}
+                <div>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" wire:model="is_active"
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700 font-medium">Active</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Cost Summary card (1/3, sticky) ── --}}
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4">Cost Summary</h3>
+
+                <dl class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Total Cost</dt>
+                        <dd class="font-semibold text-gray-800 tabular-nums">
+                            {{ number_format($totalCost, 2) }}
+                        </dd>
+                    </div>
+
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">
+                            Cost /
+                            {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving' }}
+                        </dt>
+                        <dd class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</dd>
+                    </div>
+
+                    @if (floatval($selling_price) > 0)
+                        <div class="flex justify-between border-t border-gray-100 pt-3">
+                            <dt class="text-gray-500">Selling Price</dt>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format(floatval($selling_price), 2) }}</dd>
+                        </div>
+
+                        @php
+                            $fcColor = match(true) {
+                                $foodCostPct === null => 'text-gray-400',
+                                $foodCostPct <= 25   => 'text-green-600',
+                                $foodCostPct <= 35   => 'text-yellow-600',
+                                $foodCostPct <= 45   => 'text-orange-500',
+                                default              => 'text-red-600',
+                            };
+                            $fcBg = match(true) {
+                                $foodCostPct === null => 'bg-gray-50',
+                                $foodCostPct <= 25   => 'bg-green-50',
+                                $foodCostPct <= 35   => 'bg-yellow-50',
+                                $foodCostPct <= 45   => 'bg-orange-50',
+                                default              => 'bg-red-50',
+                            };
+                        @endphp
+
+                        <div class="rounded-lg {{ $fcBg }} px-3 py-2">
+                            <div class="flex justify-between">
+                                <dt class="text-gray-600 font-medium">Food Cost %</dt>
+                                <dd class="font-bold text-lg {{ $fcColor }} tabular-nums">
+                                    {{ number_format($foodCostPct, 1) }}%
+                                </dd>
+                            </div>
+                            <div class="flex justify-between mt-1 text-xs">
+                                <span class="text-gray-500">Gross Profit</span>
+                                <span class="{{ $grossProfit >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">
+                                    {{ number_format($grossProfit, 2) }}
+                                    ({{ number_format($grossProfitPct, 1) }}%)
+                                </span>
+                            </div>
+                        </div>
+
+                        {{-- Benchmark guide --}}
+                        <div class="text-xs text-gray-400 space-y-0.5 pt-1">
+                            <p class="font-medium text-gray-500 mb-1">Food cost guide:</p>
+                            <p><span class="text-green-600">≤25%</span> Excellent &nbsp;
+                               <span class="text-yellow-600">25–35%</span> Good</p>
+                            <p><span class="text-orange-500">35–45%</span> High &nbsp;
+                               <span class="text-red-600">&gt;45%</span> Review</p>
+                        </div>
+                    @else
+                        <div class="text-xs text-gray-400 mt-2 italic">
+                            Enter a selling price to see food cost %.
+                        </div>
+                    @endif
+                </dl>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- ── Ingredient Lines ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
+
+        {{-- Section header --}}
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Ingredients</h3>
+                <p class="text-xs text-gray-400 mt-0.5">{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }}</p>
+            </div>
+        </div>
+
+        {{-- Search / Add --}}
+        <div class="px-6 py-4 border-b border-gray-100" x-data="{ focused: false }">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                    </svg>
+                </div>
+                <input type="text"
+                       wire:model.live.debounce.300ms="ingredientSearch"
+                       @focus="focused = true" @click.away="focused = false"
+                       placeholder="Search ingredients to add… (type at least 2 characters)"
+                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+            </div>
+
+            {{-- Search results --}}
+            @if ($searchResults->isNotEmpty())
+                <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
+                    @foreach ($searchResults as $ingredient)
+                        <button type="button"
+                                wire:click="addIngredient({{ $ingredient->id }})"
+                                class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
+                                @if ($ingredient->is_prep)
+                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                @endif
+                                @if ($ingredient->code)
+                                    <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                @endif
+                                @if ($ingredient->category)
+                                    <span class="text-xs text-gray-400">· {{ $ingredient->category }}</span>
+                                @endif
+                            </div>
+                            <div class="text-right flex-shrink-0 ml-4">
+                                <span class="text-xs text-indigo-600 font-medium">
+                                    {{ $ingredient->recipeUom->abbreviation }}
+                                </span>
+                                <span class="text-xs text-gray-400 ml-1">
+                                    @php $rc = $ingredient->recipeCost(); @endphp
+                                    @if ($rc !== null)
+                                        RM {{ number_format($rc, 4) }}/{{ $ingredient->recipeUom->abbreviation }}
+                                    @else
+                                        RM {{ number_format($ingredient->current_cost, 4) }}/{{ $ingredient->baseUom->abbreviation }}
+                                    @endif
+                                </span>
+                                <span class="ml-2 text-xs text-indigo-400">+ Add</span>
+                            </div>
+                        </button>
+                    @endforeach
+                </div>
+            @elseif (strlen($ingredientSearch) >= 2)
+                <p class="mt-2 text-sm text-gray-400 text-center py-2">No ingredients found for "{{ $ingredientSearch }}".</p>
+            @endif
+        </div>
+
+        {{-- Lines table --}}
+        @if (count($lines))
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="px-4 py-2 text-left w-8">#</th>
+                            <th class="px-4 py-2 text-left">Ingredient</th>
+                            <th class="px-4 py-2 text-right w-28">Qty</th>
+                            <th class="px-4 py-2 text-left w-36">UOM</th>
+                            <th class="px-4 py-2 text-right w-24">Waste %</th>
+                            <th class="px-4 py-2 text-right w-32">Line Cost</th>
+                            <th class="px-4 py-2 w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @foreach ($lines as $idx => $line)
+                            <tr class="hover:bg-gray-50 transition group">
+                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                <td class="px-4 py-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</span>
+                                        @if ($line['is_prep'] ?? false)
+                                            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                        @endif
+                                    </div>
+                                    <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input type="number" step="0.0001" min="0.0001"
+                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
+                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                    <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
+                                </td>
+                                <td class="px-4 py-2">
+                                    <select wire:model.live="lines.{{ $idx }}.uom_id"
+                                            class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        @foreach ($uoms as $uom)
+                                            <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('lines.'.$idx.'.uom_id')" class="mt-0.5" />
+                                </td>
+                                <td class="px-4 py-2">
+                                    <div class="relative">
+                                        <input type="number" step="0.1" min="0" max="100"
+                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
+                                               class="w-full text-right pr-6 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">%</span>
+                                    </div>
+                                    <x-input-error :messages="$errors->get('lines.'.$idx.'.waste_percentage')" class="mt-0.5" />
+                                </td>
+                                <td class="px-4 py-2 text-right tabular-nums">
+                                    @if ($lineCosts[$idx] !== null)
+                                        <span class="font-medium text-gray-800">{{ number_format($lineCosts[$idx], 4) }}</span>
+                                    @else
+                                        <span class="text-gray-300 text-xs italic">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 transition">
+                                    <button type="button" wire:click="removeLine({{ $idx }})"
+                                            class="text-red-400 hover:text-red-600 transition">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                            <td colspan="5" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Total Recipe Cost</td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
+                                {{ number_format($totalCost, 2) }}
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @else
+            <div class="px-6 py-12 text-center text-gray-400">
+                <p class="text-3xl mb-2">🔍</p>
+                <p class="font-medium">No ingredients added yet</p>
+                <p class="text-xs mt-1">Use the search above to find and add ingredients.</p>
+            </div>
+        @endif
+
+        {{-- Footer --}}
+        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+            <a href="{{ route('recipes.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">
+                Cancel
+            </a>
+            <button wire:click="save"
+                    class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                Save Recipe
+            </button>
+        </div>
+
+    </div>
+</div>
