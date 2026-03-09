@@ -269,10 +269,14 @@ ok "Permissions set"
 if [[ "${ENABLE_SSL,,}" == "y" ]]; then
     info "Setting up SSL with Let's Encrypt..."
     apt-get install -y -qq certbot python3-certbot-nginx
-    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect
-    sed -i "s|APP_URL=http://${DOMAIN}|APP_URL=https://${DOMAIN}|" "${APP_DIR}/.env"
-    cd "$APP_DIR" && php artisan config:cache
-    ok "SSL certificate installed"
+    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect; then
+        sed -i "s|APP_URL=http://${DOMAIN}|APP_URL=https://${DOMAIN}|" "${APP_DIR}/.env"
+        cd "$APP_DIR" && php artisan config:cache
+        ok "SSL certificate installed"
+    else
+        warn "SSL setup failed — DNS may not point to this server yet."
+        warn "After updating DNS, run: certbot --nginx -d ${DOMAIN}"
+    fi
 fi
 
 # ── 15. Queue worker (systemd) ──────────────────────────────────────────────
