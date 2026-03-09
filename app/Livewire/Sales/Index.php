@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sales;
 
+use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use App\Services\CsvExportService;
 use App\Traits\ScopesToActiveOutlet;
@@ -37,7 +38,7 @@ class Index extends Component
 
     public function exportCsv()
     {
-        $query = SalesRecord::with('lines.ingredientCategory');
+        $query = SalesRecord::with('lines.salesCategory');
         $this->scopeByOutlet($query);
 
         if ($this->dateFrom) {
@@ -52,14 +53,31 @@ class Index extends Component
 
         $records = $query->orderByDesc('sale_date')->get();
 
-        $headers = ['Date', 'Reference', 'Meal Period', 'Pax', 'Revenue'];
-        $rows = $records->map(fn ($r) => [
-            $r->sale_date->format('Y-m-d'),
-            $r->reference_number ?? '',
-            $r->mealPeriodLabel(),
-            $r->pax ?? '',
-            $r->total_revenue,
-        ]);
+        // Get all active sales categories for column headers
+        $categories = SalesCategory::active()->ordered()->get();
+        $categoryNames = $categories->pluck('name')->toArray();
+        $categoryIds = $categories->pluck('id')->toArray();
+
+        $headers = array_merge(['Date', 'Reference', 'Meal Period', 'Pax'], $categoryNames, ['Total Revenue']);
+
+        $rows = $records->map(function ($r) use ($categoryIds) {
+            $linesByCat = $r->lines->keyBy('sales_category_id');
+
+            $categoryRevenues = [];
+            foreach ($categoryIds as $catId) {
+                $line = $linesByCat->get($catId);
+                $categoryRevenues[] = $line ? $line->total_revenue : '0';
+            }
+
+            return array_merge([
+                $r->sale_date->format('Y-m-d'),
+                $r->reference_number ?? '',
+                $r->mealPeriodLabel(),
+                $r->pax ?? '',
+            ], $categoryRevenues, [
+                $r->total_revenue,
+            ]);
+        });
 
         return CsvExportService::download('sales-records.csv', $headers, $rows);
     }
