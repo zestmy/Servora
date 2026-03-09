@@ -43,29 +43,51 @@
     {{-- Stats --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Today Revenue</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($todayRevenue, 2) }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ now()->format('d M Y') }}</p>
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Revenue</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($filteredRevenue, 2) }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ $periodLabel }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Today Pax</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ $todayPax > 0 ? number_format($todayPax) : '—' }}</p>
-            <p class="text-xs text-gray-400 mt-1">covers today</p>
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Pax</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ $filteredPax > 0 ? number_format($filteredPax) : '—' }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ $periodLabel }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Today Avg Check</p>
-            @if ($todayAvgCheck !== null)
-                <p class="text-2xl font-bold text-indigo-600 mt-1 tabular-nums">RM {{ number_format($todayAvgCheck, 2) }}</p>
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Avg Check</p>
+            @if ($filteredAvgCheck !== null)
+                <p class="text-2xl font-bold text-indigo-600 mt-1 tabular-nums">RM {{ number_format($filteredAvgCheck, 2) }}</p>
             @else
                 <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
             @endif
             <p class="text-xs text-gray-400 mt-1">per person</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">{{ now()->format('M Y') }} Revenue</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($monthRevenue, 2) }}</p>
-            <p class="text-xs text-gray-400 mt-1">this month</p>
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Records</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ number_format($filteredCount) }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ $periodLabel }}</p>
         </div>
+    </div>
+
+    {{-- Quick Range --}}
+    <div class="flex items-center gap-1.5 mb-3 flex-wrap">
+        @foreach ([
+            'today'      => 'Today',
+            'yesterday'  => 'Yesterday',
+            'last_7'     => 'Last 7 Days',
+            'this_week'  => 'This Week',
+            'this_month' => 'This Month',
+            'last_month' => 'Last Month',
+            'this_year'  => 'This Year',
+            'all'        => 'All',
+        ] as $rangeKey => $rangeLabel)
+            <button wire:click="setQuickRange('{{ $rangeKey }}')"
+                    class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                           {{ $quickRange === $rangeKey
+                               ? 'bg-indigo-600 text-white border-indigo-600'
+                               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                {{ $rangeLabel }}
+            </button>
+        @endforeach
     </div>
 
     {{-- Filter Bar --}}

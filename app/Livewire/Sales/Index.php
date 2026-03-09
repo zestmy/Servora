@@ -18,11 +18,38 @@ class Index extends Component
     public string $dateFrom         = '';
     public string $dateTo           = '';
     public string $mealPeriodFilter = '';
+    public string $quickRange       = 'today';
 
     public function updatedSearch(): void           { $this->resetPage(); }
-    public function updatedDateFrom(): void         { $this->resetPage(); }
-    public function updatedDateTo(): void           { $this->resetPage(); }
+    public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPage(); }
+    public function updatedDateTo(): void           { $this->quickRange = 'custom'; $this->resetPage(); }
     public function updatedMealPeriodFilter(): void { $this->resetPage(); }
+
+    public function setQuickRange(string $range): void
+    {
+        $this->quickRange = $range;
+
+        $today = now();
+        match ($range) {
+            'today'      => [$this->dateFrom, $this->dateTo] = [$today->format('Y-m-d'), $today->format('Y-m-d')],
+            'yesterday'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDay()->format('Y-m-d'), $today->copy()->subDay()->format('Y-m-d')],
+            'last_7'     => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDays(6)->format('Y-m-d'), $today->format('Y-m-d')],
+            'last_30'    => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDays(29)->format('Y-m-d'), $today->format('Y-m-d')],
+            'this_week'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfWeek()->format('Y-m-d'), $today->format('Y-m-d')],
+            'this_month' => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfMonth()->format('Y-m-d'), $today->format('Y-m-d')],
+            'last_month' => [$this->dateFrom, $this->dateTo] = [$today->copy()->subMonth()->startOfMonth()->format('Y-m-d'), $today->copy()->subMonth()->endOfMonth()->format('Y-m-d')],
+            'this_year'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfYear()->format('Y-m-d'), $today->format('Y-m-d')],
+            'all'        => [$this->dateFrom, $this->dateTo] = ['', ''],
+            default      => null,
+        };
+
+        $this->resetPage();
+    }
+
+    public function mount(): void
+    {
+        $this->setQuickRange('today');
+    }
 
     #[On('z-report-saved')]
     public function refreshAfterImport(): void
@@ -111,27 +138,45 @@ class Index extends Component
 
         $records = $query->orderByDesc('sale_date')->orderByDesc('id')->paginate(20);
 
-        // Stats
-        $todayRevQ = SalesRecord::whereDate('sale_date', today());
-        $this->scopeByOutlet($todayRevQ);
-        $todayRevenue = $todayRevQ->sum('total_revenue');
+        // Stats — reflect current filters
+        $statsQ = SalesRecord::query();
+        $this->scopeByOutlet($statsQ);
+        if ($this->dateFrom) {
+            $statsQ->where('sale_date', '>=', $this->dateFrom);
+        }
+        if ($this->dateTo) {
+            $statsQ->where('sale_date', '<=', $this->dateTo);
+        }
+        if ($this->mealPeriodFilter) {
+            $statsQ->where('meal_period', $this->mealPeriodFilter);
+        }
 
-        $todayPaxQ = SalesRecord::whereDate('sale_date', today());
-        $this->scopeByOutlet($todayPaxQ);
-        $todayPax = $todayPaxQ->sum('pax');
-
-        $todayAvgCheck = ($todayPax > 0 && $todayRevenue > 0)
-            ? round($todayRevenue / $todayPax, 2)
+        $filteredRevenue = (clone $statsQ)->sum('total_revenue');
+        $filteredPax     = (clone $statsQ)->sum('pax');
+        $filteredCount   = (clone $statsQ)->count();
+        $filteredAvgCheck = ($filteredPax > 0 && $filteredRevenue > 0)
+            ? round($filteredRevenue / $filteredPax, 2)
             : null;
 
-        $monthRevQ = SalesRecord::whereMonth('sale_date', now()->month)->whereYear('sale_date', now()->year);
-        $this->scopeByOutlet($monthRevQ);
-        $monthRevenue = $monthRevQ->sum('total_revenue');
+        // Period label for stats cards
+        $periodLabel = match ($this->quickRange) {
+            'today'      => 'Today',
+            'yesterday'  => 'Yesterday',
+            'last_7'     => 'Last 7 Days',
+            'last_30'    => 'Last 30 Days',
+            'this_week'  => 'This Week',
+            'this_month' => 'This Month',
+            'last_month' => 'Last Month',
+            'this_year'  => 'This Year',
+            'all'        => 'All Time',
+            'custom'     => 'Custom Range',
+            default      => 'Today',
+        };
 
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
 
         return view('livewire.sales.index', compact(
-            'records', 'todayRevenue', 'todayPax', 'todayAvgCheck', 'monthRevenue', 'mealPeriodOptions'
+            'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount', 'periodLabel', 'mealPeriodOptions'
         ))->layout('layouts.app', ['title' => 'Sales']);
     }
 }
