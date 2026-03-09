@@ -6,7 +6,7 @@
     <div class="header">
         <div class="header-left">
             <div class="company-name">{{ $company?->name ?? 'Servora' }}</div>
-            <div class="company-detail">Sales Report</div>
+            <div class="company-detail">Outlet: {{ $outlet?->name ?? 'All Outlets' }}</div>
         </div>
         <div class="header-right">
             <div class="doc-title">Sales Report</div>

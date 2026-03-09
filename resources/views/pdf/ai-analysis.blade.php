@@ -6,9 +6,7 @@
     <div class="header">
         <div class="header-left">
             <div class="company-name">{{ $company?->name ?? 'Servora' }}</div>
-            @if ($outletName && $outletName !== 'All Outlets')
-                <div class="company-detail">Outlet: {{ $outletName }}</div>
-            @endif
+            <div class="company-detail">Outlet: {{ $outletName ?? 'All Outlets' }}</div>
         </div>
         <div class="header-right">
             <div class="doc-title">AI Analysis Report</div>

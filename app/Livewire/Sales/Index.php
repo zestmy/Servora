@@ -271,6 +271,8 @@ class Index extends Component
     {
         $user    = Auth::user();
         $company = Company::find($user->company_id);
+        $outletId = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+        $outlet  = $outletId ? Outlet::find($outletId) : null;
 
         $query = SalesRecord::with('lines.salesCategory');
         $this->scopeByOutlet($query);
@@ -327,7 +329,7 @@ class Index extends Component
         $periodLabel = $this->getPeriodLabel();
 
         $pdf = Pdf::loadView('pdf.sales-report', compact(
-            'company', 'records', 'categories', 'categoryRevenues',
+            'company', 'outlet', 'records', 'categories', 'categoryRevenues',
             'totalRevenue', 'totalPax', 'avgCheck', 'dailySales',
             'missingDates', 'missingDatesData', 'events', 'periodLabel'
         ))->setPaper('a4', 'portrait');
