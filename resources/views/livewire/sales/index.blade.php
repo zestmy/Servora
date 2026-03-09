@@ -14,6 +14,12 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Sales</h2>
         <div class="flex items-center gap-2">
+            <button wire:click="exportPdf" wire:loading.attr="disabled"
+                    class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2 disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                <span wire:loading.remove wire:target="exportPdf">Export PDF</span>
+                <span wire:loading wire:target="exportPdf">Generating...</span>
+            </button>
             <button wire:click="exportCsv"
                     class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -78,6 +84,7 @@
             'this_month' => 'This Month',
             'last_month' => 'Last Month',
             'this_year'  => 'This Year',
+            'last_year'  => 'Last Year',
             'all'        => 'All',
         ] as $rangeKey => $rangeLabel)
             <button wire:click="setQuickRange('{{ $rangeKey }}')"
@@ -114,6 +121,90 @@
                 <input type="date" wire:model.live="dateTo"
                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
+        </div>
+    </div>
+
+    {{-- Category Breakdown + Events + Missing Dates --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        {{-- Sales by Category --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales by Category</h3>
+            @if (!empty($categoryRevenues))
+                <div class="space-y-2">
+                    @foreach ($categoryRevenues as $catRev)
+                        <div>
+                            <div class="flex items-center justify-between text-sm mb-1">
+                                <span class="text-gray-700 font-medium">{{ $catRev['name'] }}</span>
+                                <span class="tabular-nums text-gray-600">RM {{ number_format($catRev['revenue'], 2) }} <span class="text-xs text-gray-400">({{ $catRev['pct'] }}%)</span></span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="h-2 rounded-full" style="width: {{ $catRev['pct'] }}%; background-color: {{ $catRev['color'] }};"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-gray-300">No category data</p>
+            @endif
+        </div>
+
+        {{-- Calendar Events --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Events in Period</h3>
+            @if (!empty($events))
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                    @foreach ($events as $event)
+                        @php
+                            $impactColors = [
+                                'positive' => 'border-green-300 bg-green-50',
+                                'negative' => 'border-red-300 bg-red-50',
+                                'neutral'  => 'border-gray-200 bg-gray-50',
+                            ];
+                            $impactDot = [
+                                'positive' => 'bg-green-500',
+                                'negative' => 'bg-red-500',
+                                'neutral'  => 'bg-gray-400',
+                            ];
+                        @endphp
+                        <div class="px-3 py-2 rounded-lg border text-xs {{ $impactColors[$event['impact']] ?? 'border-gray-200 bg-gray-50' }}">
+                            <div class="flex items-start gap-2">
+                                <span class="w-2 h-2 rounded-full mt-1 flex-shrink-0 {{ $impactDot[$event['impact']] ?? 'bg-gray-400' }}"></span>
+                                <div class="min-w-0">
+                                    <p class="font-medium text-gray-800 truncate">{{ $event['title'] }}</p>
+                                    <p class="text-gray-500">{{ $event['date'] }}{{ $event['end_date'] ? ' — ' . $event['end_date'] : '' }} · {{ $event['category'] }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-gray-300">No events in this period</p>
+            @endif
+        </div>
+
+        {{-- Missing Dates --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Missing Sales Dates</h3>
+            @if (!empty($missingDates))
+                <div class="space-y-1 max-h-48 overflow-y-auto">
+                    @foreach ($missingDates as $date)
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+                            <span class="text-gray-600">{{ $date }}</span>
+                        </div>
+                    @endforeach
+                </div>
+                <p class="text-xs text-amber-600 mt-2 font-medium">{{ count($missingDates) }} date{{ count($missingDates) !== 1 ? 's' : '' }} with no sales recorded</p>
+            @else
+                @if ($dateFrom && $dateTo)
+                    <div class="flex items-center gap-2 text-sm text-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        All dates have sales data
+                    </div>
+                @else
+                    <p class="text-sm text-gray-300">Select a date range to check</p>
+                @endif
+            @endif
         </div>
     </div>
 
