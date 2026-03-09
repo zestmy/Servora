@@ -134,8 +134,8 @@
 
     {{-- Create / Edit Modal --}}
     @if ($showModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="closeModal">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto py-6" wire:click.self="closeModal">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 my-auto">
                 <div class="flex items-center justify-between mb-5">
                     <h3 class="text-base font-semibold text-gray-800">
                         {{ $editingId ? 'Edit Template' : 'New Template' }}

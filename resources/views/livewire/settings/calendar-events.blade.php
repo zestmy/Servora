@@ -117,8 +117,8 @@
 
     {{-- Modal --}}
     @if ($showModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:keydown.escape="closeModal">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" @click.away="$wire.closeModal()">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto py-6" wire:keydown.escape="closeModal">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto my-auto" @click.away="$wire.closeModal()">
                 <div class="px-6 py-4 border-b border-gray-100">
                     <h3 class="text-lg font-semibold text-gray-800">{{ $editingId ? 'Edit Event' : 'Add Event' }}</h3>
                 </div>
@@ -198,8 +198,8 @@
 
     {{-- Import Modal --}}
     @if ($showImportModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:keydown.escape="closeImportModal">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col" @click.away="$wire.closeImportModal()">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto py-6" wire:keydown.escape="closeImportModal">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col my-auto" @click.away="$wire.closeImportModal()">
                 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-800">Import Calendar Events</h3>
                     <button wire:click="closeImportModal" class="text-gray-400 hover:text-gray-600">
