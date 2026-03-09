@@ -27,21 +27,27 @@
     {{-- Role reference --}}
     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         @php
+            $isSystemRole = auth()->user()->hasRole(['Super Admin', 'System Admin']);
             $roleMatrix = [
-                'System Admin'     => ['settings' => true,  'users' => true,  'modules' => '—'],
-                'Business Manager' => ['settings' => true,  'users' => true,  'modules' => 'All modules'],
-                'Manager'          => ['settings' => false, 'users' => false, 'modules' => 'Ingredients, Recipes, Sales, Inventory, Purchasing, Reports'],
-                'Chef'             => ['settings' => false, 'users' => false, 'modules' => 'Ingredients, Recipes, Inventory, Purchasing'],
-                'Purchasing'       => ['settings' => false, 'users' => false, 'modules' => 'Purchasing'],
-                'Finance'          => ['settings' => false, 'users' => false, 'modules' => 'Sales, Inventory, Purchasing, Reports'],
+                'System Admin'        => ['settings' => true,  'users' => true,  'modules' => '—'],
+                'Business Manager'    => ['settings' => true,  'users' => true,  'modules' => 'All modules'],
+                'Operations Manager'  => ['settings' => false, 'users' => false, 'modules' => 'All operational modules'],
+                'Branch Manager'      => ['settings' => false, 'users' => false, 'modules' => 'Ingredients, Recipes, Sales, Inventory, Purchasing, Reports'],
+                'Chef'                => ['settings' => false, 'users' => false, 'modules' => 'Ingredients, Recipes, Inventory, Purchasing'],
+                'Purchasing'          => ['settings' => false, 'users' => false, 'modules' => 'Purchasing'],
+                'Finance'             => ['settings' => false, 'users' => false, 'modules' => 'Sales, Inventory, Purchasing, Reports'],
             ];
+            if (! $isSystemRole) {
+                unset($roleMatrix['System Admin']);
+            }
             $roleColors = [
-                'System Admin'     => 'border-gray-300 bg-gray-50',
-                'Business Manager' => 'border-indigo-200 bg-indigo-50',
-                'Manager'          => 'border-blue-200 bg-blue-50',
-                'Chef'             => 'border-orange-200 bg-orange-50',
-                'Purchasing'       => 'border-yellow-200 bg-yellow-50',
-                'Finance'          => 'border-green-200 bg-green-50',
+                'System Admin'        => 'border-gray-300 bg-gray-50',
+                'Business Manager'    => 'border-indigo-200 bg-indigo-50',
+                'Operations Manager'  => 'border-teal-200 bg-teal-50',
+                'Branch Manager'      => 'border-blue-200 bg-blue-50',
+                'Chef'                => 'border-orange-200 bg-orange-50',
+                'Purchasing'          => 'border-yellow-200 bg-yellow-50',
+                'Finance'             => 'border-green-200 bg-green-50',
             ];
         @endphp
         @foreach ($roleMatrix as $roleName => $info)
@@ -88,13 +94,14 @@
                         $userRole = $user->roles->first()?->name ?? '—';
                         $isMe = $user->id === auth()->id();
                         $roleBadgeColors = [
-                            'Super Admin'      => 'bg-gray-800 text-white',
-                            'System Admin'     => 'bg-gray-200 text-gray-700',
-                            'Business Manager' => 'bg-indigo-100 text-indigo-700',
-                            'Manager'          => 'bg-blue-100 text-blue-700',
-                            'Chef'             => 'bg-orange-100 text-orange-700',
-                            'Purchasing'       => 'bg-yellow-100 text-yellow-700',
-                            'Finance'          => 'bg-green-100 text-green-700',
+                            'Super Admin'         => 'bg-gray-800 text-white',
+                            'System Admin'        => 'bg-gray-200 text-gray-700',
+                            'Business Manager'    => 'bg-indigo-100 text-indigo-700',
+                            'Operations Manager'  => 'bg-teal-100 text-teal-700',
+                            'Branch Manager'      => 'bg-blue-100 text-blue-700',
+                            'Chef'                => 'bg-orange-100 text-orange-700',
+                            'Purchasing'          => 'bg-yellow-100 text-yellow-700',
+                            'Finance'             => 'bg-green-100 text-green-700',
                         ];
                         $badgeClass = $roleBadgeColors[$userRole] ?? 'bg-gray-100 text-gray-600';
                     @endphp

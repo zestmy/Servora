@@ -40,7 +40,7 @@ class TestUsersSeeder extends Seeder
             [
                 'name'  => 'Branch Manager',
                 'email' => 'branchmanager@servora.test',
-                'role'  => 'Manager',
+                'role'  => 'Branch Manager',
                 'company_id' => $companyId,
                 'outlet_id'  => $outletId,
             ],

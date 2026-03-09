@@ -47,21 +47,24 @@ class Dashboard extends Component
     public function render()
     {
         $user = auth()->user();
-        $roleName = $user->roles->first()?->name ?? '';
+        $roleNames = $user->getRoleNames()->toArray();
+        // Prefer business role name for display
+        $rolePriority = ['Business Manager', 'Super Admin', 'System Admin', 'Purchasing', 'Finance', 'Operations Manager', 'Chef', 'Branch Manager'];
+        $roleName = collect($rolePriority)->first(fn ($r) => in_array($r, $roleNames)) ?? ($roleNames[0] ?? '');
 
         // Check if user has PO approver appointments (any role)
         $approverOutletIds = PoApprover::approverOutletIds($user->id);
         $isAppointed = count($approverOutletIds) > 0;
 
         $data = match (true) {
-            in_array($roleName, ['Super Admin', 'System Admin']) => $this->systemDashboard($user),
-            $roleName === 'Business Manager'    => $this->businessManagerDashboard($user),
-            $roleName === 'Purchasing'          => $this->purchasingDashboard($user),
-            $roleName === 'Finance'             => $this->financeDashboard($user),
-            $roleName === 'Chef' && ! $isAppointed => $this->chefDashboard($user),
-            default                             => $isAppointed
-                                                    ? $this->appointedDashboard($user, $approverOutletIds)
-                                                    : $this->managerDashboard($user),
+            $user->hasRole('Business Manager')                   => $this->businessManagerDashboard($user),
+            $user->hasRole(['Super Admin', 'System Admin'])      => $this->systemDashboard($user),
+            $user->hasRole('Purchasing')                         => $this->purchasingDashboard($user),
+            $user->hasRole('Finance')                            => $this->financeDashboard($user),
+            $user->hasRole('Chef') && ! $isAppointed             => $this->chefDashboard($user),
+            default                                              => $isAppointed
+                                                                    ? $this->appointedDashboard($user, $approverOutletIds)
+                                                                    : $this->managerDashboard($user),
         };
 
         $data['roleName'] = $roleName;

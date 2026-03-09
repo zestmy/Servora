@@ -37,10 +37,10 @@ class Users extends Component
         $user = Auth::user();
 
         if ($user->hasRole('Super Admin') || $user->hasRole('System Admin')) {
-            return ['System Admin', 'Business Manager', 'Manager', 'Chef', 'Purchasing', 'Finance'];
+            return ['System Admin', 'Business Manager', 'Operations Manager', 'Branch Manager', 'Chef', 'Purchasing', 'Finance'];
         }
 
-        return ['Manager', 'Chef', 'Purchasing', 'Finance'];
+        return ['Operations Manager', 'Branch Manager', 'Chef', 'Purchasing', 'Finance'];
     }
 
     // ── Open / Close ─────────────────────────────────────────────────────────

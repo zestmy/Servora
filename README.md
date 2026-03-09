@@ -13,7 +13,7 @@ A multi-tenant Food & Beverage operations management system built with Laravel 1
 ### Purchasing
 - Full procurement flow: **PO > Approval > DO > GRN > Receive**
 - Optional PO approval workflow (configurable per company)
-- PO approver assignments per outlet (Operations Manager, Manager, Chef)
+- PO approver assignments per outlet (Operations Manager, Branch Manager, Chef)
 - PDF generation for Purchase Orders, Delivery Orders, and Goods Received Notes
 - Form templates for quick PO creation
 
@@ -52,7 +52,7 @@ A multi-tenant Food & Beverage operations management system built with Laravel 1
 
 ### Multi-Tenancy & Access Control
 - Company-scoped data isolation via Eloquent global scopes
-- Role-based access: Super Admin, System Admin, Company Admin, Business Manager, Operations Manager, Manager, Chef, Staff, Purchasing, Finance
+- Role-based access: Super Admin, System Admin, Business Manager, Operations Manager, Branch Manager, Chef, Purchasing, Finance
 - Multi-outlet support with outlet switcher on profile page
 - Per-outlet PO approver assignments
 
@@ -128,6 +128,50 @@ bash deploy/update.sh
 ```
 
 This pulls latest code, rebuilds assets, runs migrations, and clears caches with zero-downtime maintenance mode.
+
+### Troubleshooting
+
+**503 Service Unavailable after update:**
+The app may be stuck in maintenance mode if the update script was interrupted. Run:
+
+```bash
+cd /var/www/servora
+php artisan up
+```
+
+**Local changes blocking git pull:**
+If the server has local file changes that conflict with the update:
+
+```bash
+cd /var/www/servora
+git checkout -- .
+bash deploy/update.sh
+```
+
+**Queue worker not found:**
+If the queue worker service hasn't been set up yet:
+
+```bash
+cat > /etc/systemd/system/servora-queue.service <<'EOF'
+[Unit]
+Description=Servora Queue Worker
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+WorkingDirectory=/var/www/servora
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now servora-queue
+```
 
 ## Default Login
 

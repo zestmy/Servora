@@ -50,8 +50,8 @@ class PoApprovers extends Component
         $user = User::findOrFail($this->selectedUserId);
 
         // Ensure user has an eligible role
-        if (! $user->hasRole(['Operations Manager', 'Manager', 'Chef'])) {
-            session()->flash('error', 'Only Operations Manager, Outlet Manager, or Chef roles can be appointed as PO approvers.');
+        if (! $user->hasRole(['Operations Manager', 'Branch Manager', 'Chef'])) {
+            session()->flash('error', 'Only Operations Manager, Branch Manager, or Chef roles can be appointed as PO approvers.');
             return;
         }
 
@@ -90,9 +90,9 @@ class PoApprovers extends Component
             ->get()
             ->groupBy('outlet_id');
 
-        // Eligible users: Operations Manager, Manager, Chef within this company
+        // Eligible users: Operations Manager, Branch Manager, Chef within this company
         $eligibleUsers = User::where('company_id', $companyId)
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Operations Manager', 'Manager', 'Chef']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Operations Manager', 'Branch Manager', 'Chef']))
             ->orderBy('name')
             ->get();
 
