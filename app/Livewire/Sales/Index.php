@@ -60,24 +60,33 @@ class Index extends Component
 
         $headers = array_merge(['Date', 'Reference', 'Meal Period', 'Pax'], $categoryNames, ['Total Revenue']);
 
-        $rows = $records->map(function ($r) use ($categoryIds) {
-            $linesByCat = $r->lines->keyBy('sales_category_id');
-
-            $categoryRevenues = [];
-            foreach ($categoryIds as $catId) {
-                $line = $linesByCat->get($catId);
-                $categoryRevenues[] = $line ? $line->total_revenue : '0';
-            }
-
-            return array_merge([
-                $r->sale_date->format('Y-m-d'),
-                $r->reference_number ?? '',
-                $r->mealPeriodLabel(),
-                $r->pax ?? '',
-            ], $categoryRevenues, [
-                $r->total_revenue,
+        if ($records->isEmpty()) {
+            // Include sample rows so the format is clear
+            $sampleCatRevenues = array_map(fn () => '0', $categoryIds);
+            $rows = collect([
+                array_merge(['2026-03-10', 'INV-001', 'Lunch', '50'], array_fill(0, count($categoryIds), '1500.00'), ['4500.00']),
+                array_merge(['2026-03-10', 'INV-002', 'Dinner', '80'], array_fill(0, count($categoryIds), '2000.00'), ['6000.00']),
             ]);
-        });
+        } else {
+            $rows = $records->map(function ($r) use ($categoryIds) {
+                $linesByCat = $r->lines->keyBy('sales_category_id');
+
+                $categoryRevenues = [];
+                foreach ($categoryIds as $catId) {
+                    $line = $linesByCat->get($catId);
+                    $categoryRevenues[] = $line ? $line->total_revenue : '0';
+                }
+
+                return array_merge([
+                    $r->sale_date->format('Y-m-d'),
+                    $r->reference_number ?? '',
+                    $r->mealPeriodLabel(),
+                    $r->pax ?? '',
+                ], $categoryRevenues, [
+                    $r->total_revenue,
+                ]);
+            });
+        }
 
         return CsvExportService::download('sales-records.csv', $headers, $rows);
     }
