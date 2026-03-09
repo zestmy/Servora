@@ -228,7 +228,10 @@ class Import extends Component
                 if (! $cat) continue;
 
                 $value = trim($raw[$header] ?? '0');
-                $value = str_replace(',', '', $value);
+                $value = str_replace([',', ' '], '', $value);
+                if ($value === '' || $value === '-') {
+                    $value = '0';
+                }
                 if (! is_numeric($value)) {
                     $rowErrors[] = $cat->name . ' must be a number';
                     $value = 0;
