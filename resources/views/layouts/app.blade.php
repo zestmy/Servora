@@ -16,6 +16,29 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         [x-cloak] { display: none !important; }
+
+        /* ── Page transition: top progress bar ──────────────────────────── */
+        #nav-progress {
+            position: fixed; top: 0; left: 0; height: 3px; z-index: 9999;
+            background: linear-gradient(90deg, #6366f1, #818cf8);
+            width: 0; opacity: 0;
+            transition: none;
+            pointer-events: none;
+        }
+        #nav-progress.running {
+            opacity: 1;
+            animation: nav-grow 8s cubic-bezier(.2,.6,.4,1) forwards;
+        }
+        #nav-progress.done {
+            width: 100% !important; opacity: 0;
+            transition: opacity .3s .05s;
+            animation: none;
+        }
+        @keyframes nav-grow { 0%{width:0} 30%{width:55%} 60%{width:78%} 100%{width:92%} }
+
+        /* ── Page transition: content fade-in ───────────────────────────── */
+        @keyframes page-enter { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .page-enter { animation: page-enter .25s ease-out both; }
     </style>
 </head>
 <body class="font-sans antialiased bg-gray-100">
@@ -107,7 +130,6 @@
             @foreach ($navItems as $item)
                 @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
                 <a href="{{ route($item['route']) }}"
-                   wire:navigate
                    :title="!sidebarOpen ? '{{ $item['label'] }}' : ''"
                    class="flex items-center rounded-lg text-sm font-medium transition-colors
                           {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
@@ -188,7 +210,9 @@
 
     {{-- ── Main content ─────────────────────────────────────────────────── --}}
     <main class="flex-1 overflow-y-auto p-6">
-        {{ $slot }}
+        <div class="page-enter">
+            {{ $slot }}
+        </div>
     </main>
 
     {{-- ── User menu (teleported to body to escape overflow clipping) ────── --}}
@@ -214,7 +238,6 @@
 
             <div class="py-1">
                 <a href="{{ route('profile') }}"
-                   wire:navigate
                    @click="userMenuOpen = false"
                    class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -223,7 +246,6 @@
                     Profile
                 </a>
                 <a href="{{ route('profile') }}#switch-outlet"
-                   wire:navigate
                    @click="userMenuOpen = false"
                    class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -250,6 +272,48 @@
     </template>
 
 </div>
+
+{{-- Progress bar element --}}
+<div id="nav-progress"></div>
+
+<script>
+(function(){
+    const bar = document.getElementById('nav-progress');
+
+    // Show progress bar when any internal link is clicked
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+        const href = link.getAttribute('href');
+        // Skip external links, anchors, javascript:, and new-tab links
+        if (!href || href.startsWith('#') || href.startsWith('javascript:')
+            || link.target === '_blank' || e.ctrlKey || e.metaKey) return;
+        // Only same-origin links
+        try { if (new URL(href, location.origin).origin !== location.origin) return; } catch(e){ return; }
+
+        bar.classList.remove('done');
+        bar.style.width = '0';
+        // Force reflow so animation restarts cleanly
+        void bar.offsetWidth;
+        bar.classList.add('running');
+    });
+
+    // Also trigger on form submissions
+    document.addEventListener('submit', function() {
+        bar.classList.remove('done');
+        bar.style.width = '0';
+        void bar.offsetWidth;
+        bar.classList.add('running');
+    });
+
+    // Complete the bar when the new page loads (handled by next page's inline script)
+    // For the current page load, animate in the content
+    window.addEventListener('DOMContentLoaded', function() {
+        bar.classList.remove('running');
+        bar.classList.add('done');
+    });
+})();
+</script>
 
 </body>
 </html>

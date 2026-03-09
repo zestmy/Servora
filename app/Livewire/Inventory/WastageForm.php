@@ -292,7 +292,7 @@ class WastageForm extends Component
             ]);
         }
 
-        $this->redirectRoute('inventory.index', navigate: true);
+        $this->redirectRoute('inventory.index');
     }
 
     public function render()

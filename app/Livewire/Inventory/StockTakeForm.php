@@ -216,7 +216,7 @@ class StockTakeForm extends Component
 
         $verb = $action === 'complete' ? 'completed' : ($this->recordId ? 'updated' : 'created');
         session()->flash('success', "Stock take {$verb}.");
-        $this->redirectRoute('inventory.index', navigate: true);
+        $this->redirectRoute('inventory.index');
     }
 
     public function render()

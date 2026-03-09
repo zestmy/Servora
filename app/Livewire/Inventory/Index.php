@@ -3,6 +3,8 @@
 namespace App\Livewire\Inventory;
 
 use App\Models\Ingredient;
+use App\Models\Outlet;
+use App\Models\OutletTransfer;
 use App\Models\Recipe;
 use App\Models\StaffMealRecord;
 use App\Models\StockTake;
@@ -15,12 +17,14 @@ class Index extends Component
 {
     use WithPagination, ScopesToActiveOutlet;
 
-    public string $tab      = 'prep-items';
-    public string $search   = '';
-    public string $dateFrom = '';
-    public string $dateTo   = '';
+    public string $tab          = 'prep-items';
+    public string $search       = '';
+    public string $dateFrom     = '';
+    public string $dateTo       = '';
+    public string $statusFilter = '';
 
-    public function updatedTab(): void      { $this->resetPage(); $this->search = ''; $this->dateFrom = ''; $this->dateTo = ''; }
+    public function updatedTab(): void      { $this->resetPage(); $this->search = ''; $this->dateFrom = ''; $this->dateTo = ''; $this->statusFilter = ''; }
+    public function updatedStatusFilter(): void { $this->resetPage(); }
     public function updatedSearch(): void   { $this->resetPage(); }
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void   { $this->resetPage(); }
@@ -41,6 +45,17 @@ class Index extends Component
     {
         StaffMealRecord::findOrFail($id)->delete();
         session()->flash('success', 'Staff meal record deleted.');
+    }
+
+    public function deleteTransfer(int $id): void
+    {
+        $transfer = OutletTransfer::findOrFail($id);
+        if ($transfer->status !== 'draft') {
+            session()->flash('error', 'Only draft transfers can be deleted.');
+            return;
+        }
+        $transfer->delete();
+        session()->flash('success', 'Transfer deleted.');
     }
 
     public function deletePrepItem(int $recipeId): void
@@ -121,6 +136,35 @@ class Index extends Component
                 ->paginate(15)
             : collect();
 
+        // ── Transfers ────────────────────────────────────────────────────
+        $outletId = $this->activeOutletId();
+        $transferQuery = OutletTransfer::withCount('lines')
+            ->with(['fromOutlet', 'toOutlet']);
+
+        if ($outletId) {
+            $transferQuery->where(function ($q) use ($outletId) {
+                $q->where('from_outlet_id', $outletId)
+                  ->orWhere('to_outlet_id', $outletId);
+            });
+        }
+
+        if ($this->statusFilter && $this->tab === 'transfers') {
+            $transferQuery->where('status', $this->statusFilter);
+        }
+        if ($this->search && $this->tab === 'transfers') {
+            $transferQuery->where('transfer_number', 'like', '%' . $this->search . '%');
+        }
+        if ($this->dateFrom && $this->tab === 'transfers') {
+            $transferQuery->where('transfer_date', '>=', $this->dateFrom);
+        }
+        if ($this->dateTo && $this->tab === 'transfers') {
+            $transferQuery->where('transfer_date', '<=', $this->dateTo);
+        }
+
+        $transfers = $this->tab === 'transfers'
+            ? $transferQuery->orderByDesc('transfer_date')->orderByDesc('id')->paginate(15)
+            : collect();
+
         // ── Stats ─────────────────────────────────────────────────────────
         $wastageStatQ = WastageRecord::whereMonth('wastage_date', now()->month)
             ->whereYear('wastage_date', now()->year);
@@ -146,6 +190,14 @@ class Index extends Component
         $monthStaffMealCost = $staffMealStatQ->sum('total_cost');
 
         $prepItemCount = Recipe::where('is_prep', true)->count();
+
+        $inTransitQ = OutletTransfer::where('status', 'in_transit');
+        if ($outletId) {
+            $inTransitQ->where(function ($q) use ($outletId) {
+                $q->where('from_outlet_id', $outletId)->orWhere('to_outlet_id', $outletId);
+            });
+        }
+        $inTransitCount = $inTransitQ->count();
 
         $latestStQ = StockTake::where('status', 'completed');
         $this->scopeByOutlet($latestStQ);
@@ -220,9 +272,9 @@ class Index extends Component
         }
 
         return view('livewire.inventory.index', compact(
-            'stockTakes', 'wastageRecords', 'staffMealRecords', 'prepItems',
+            'stockTakes', 'wastageRecords', 'staffMealRecords', 'prepItems', 'transfers',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'prepItemCount', 'latestStockTake', 'categoryBreakdown'
+            'prepItemCount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown'
         ))->layout('layouts.app', ['title' => 'Inventory']);
     }
 }
