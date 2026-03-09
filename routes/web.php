@@ -11,6 +11,7 @@ use App\Livewire\Purchasing\Index as PurchasingIndex;
 use App\Livewire\Purchasing\OrderForm as PurchasingOrderForm;
 use App\Livewire\Purchasing\ReceiveForm as PurchasingReceiveForm;
 use App\Livewire\Sales\Index as SalesIndex;
+use App\Livewire\Sales\Import as SalesImport;
 use App\Livewire\Sales\SalesForm;
 use App\Livewire\Inventory\Index as InventoryIndex;
 use App\Livewire\Inventory\StockTakeForm;
@@ -59,6 +60,7 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/purchasing/pdf/{type}/{id}', PurchaseDocumentPdfController::class)->name('purchasing.pdf')->middleware('can:purchasing.view');
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
     Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.view');
+    Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.view');
     Route::get('/sales/{id}/edit', SalesForm::class)->name('sales.edit')->middleware('can:sales.view');
     Route::get('/inventory', InventoryIndex::class)->name('inventory.index')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/create', StockTakeForm::class)->name('inventory.stock-takes.create')->middleware('can:inventory.view');
