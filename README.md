@@ -24,23 +24,36 @@ A multi-tenant Food & Beverage operations management system built with Laravel 1
 - CSV export
 
 ### Inventory
-- Stock takes with cost-by-category breakdown
+- Stock takes with cost-by-category breakdown and variance tracking
 - Wastage recording (ingredient and recipe-level)
-- Inter-outlet transfers
-- Prep item tracking
-- Staff meal recording
+- Staff meal recording with cost tracking
+- Prep item management (semi-finished goods with yield and costing)
+- **Inter-outlet transfers** with full status workflow: Draft > In Transit > Received / Cancelled
+- Transfer scoping by outlet (shows transfers where outlet is sender or receiver)
 
-### Reports & Dashboard
+### Reports
+- Multi-tab reports dashboard: Performance, Cost Analysis, Wastage & Staff Meals
 - Monthly P&L cost summary (Revenue, Opening, Purchases, Transfers, Closing, COGS, Cost %)
-- Role-based dashboards (Business Manager, Operations, Chef, Purchasing, Finance)
+- PDF export for Performance Report, Cost Analysis Report, and Wastage Report
 - 6-month revenue vs purchases trend chart
 - Cost % gauges per category
 - CSV export on reports, sales, and purchasing
 
+### AI Analytics
+- AI-powered business insights using Claude API
+- Performance analysis, cost analysis, and wastage analysis
+- Cached analysis results with refresh capability
+- Role-restricted access (Admin, Business Manager, Operations Manager)
+
+### Dashboard
+- Role-based dashboards (Business Manager, Operations, Chef, Purchasing, Finance)
+- Calendar events and reminders
+- Quick-access stats and recent activity
+
 ### Multi-Tenancy & Access Control
 - Company-scoped data isolation via Eloquent global scopes
-- Role-based access: Super Admin, Company Admin, Business Manager, Operations Manager, Manager, Chef, Staff, Purchasing, Finance
-- Multi-outlet support with session-based outlet switcher
+- Role-based access: Super Admin, System Admin, Company Admin, Business Manager, Operations Manager, Manager, Chef, Staff, Purchasing, Finance
+- Multi-outlet support with outlet switcher on profile page
 - Per-outlet PO approver assignments
 
 ### Settings
@@ -49,19 +62,23 @@ A multi-tenant Food & Beverage operations management system built with Laravel 1
 - User management with role and multi-outlet assignment
 - Ingredient categories, recipe categories, sales categories, cost types
 - PO form templates
+- Calendar events management
 - API keys management
 
 ## Tech Stack
 
-- **Backend:** Laravel 12, PHP 8.2
-- **Frontend:** Livewire 3, Volt, Alpine.js, Tailwind CSS, Vite
+- **Backend:** Laravel 12, PHP 8.2+
+- **Frontend:** Livewire 3, Alpine.js, Tailwind CSS, Vite
 - **Database:** MySQL 8
 - **Auth:** Laravel Breeze (Livewire stack)
 - **Roles:** Spatie Laravel Permission
 - **PDF:** barryvdh/laravel-dompdf
 - **Export:** maatwebsite/excel, custom CSV service
+- **AI:** Claude API (Anthropic) for analytics
 
 ## Installation
+
+### Local Development
 
 ```bash
 # Clone the repository
@@ -84,6 +101,33 @@ php artisan storage:link
 php artisan serve
 npm run dev
 ```
+
+### Production Deployment (DigitalOcean)
+
+Spin up an Ubuntu droplet (22.04 LTS recommended), SSH in as root, then:
+
+```bash
+git clone https://github.com/zestmy/Servora.git /var/www/servora
+cd /var/www/servora
+bash deploy/install.sh
+```
+
+The install script handles everything:
+- Nginx, PHP (8.3/8.4 auto-detected), MySQL 8, Node 22, Composer
+- Database creation and configuration
+- Frontend build (Vite)
+- Migrations and seeding
+- SSL via Let's Encrypt (optional)
+- Queue worker (systemd) and scheduler (cron)
+- File permissions and firewall (UFW)
+
+For subsequent updates:
+
+```bash
+bash deploy/update.sh
+```
+
+This pulls latest code, rebuilds assets, runs migrations, and clears caches with zero-downtime maintenance mode.
 
 ## Default Login
 
