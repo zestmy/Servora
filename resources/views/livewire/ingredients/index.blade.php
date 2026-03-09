@@ -210,13 +210,15 @@
     <div x-data="{}"
          x-show="$wire.showModal"
          x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+         class="fixed inset-0 z-50">
 
         {{-- Backdrop --}}
         <div class="fixed inset-0 bg-gray-900/50" @click="$wire.closeModal()"></div>
 
         {{-- Card --}}
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 my-6 z-10">
+        <div class="fixed inset-0 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl z-10">
 
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -584,6 +586,8 @@
                 </div>
             </form>
 
+        </div>
+        </div>
         </div>
     </div>
 </div>

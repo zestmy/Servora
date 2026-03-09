@@ -254,9 +254,11 @@
 
     {{-- Modal --}}
     <div x-data="{}" x-show="$wire.showModal" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6">
+         class="fixed inset-0 z-50">
         <div class="fixed inset-0 bg-gray-900/50" @click="$wire.closeModal()"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 my-auto z-10">
+        <div class="fixed inset-0 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10">
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <div>
@@ -367,6 +369,8 @@
                 </div>
             </form>
 
+        </div>
+        </div>
         </div>
     </div>
 </div>

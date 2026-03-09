@@ -1,10 +1,12 @@
 {{-- Z-Report Import Modal --}}
 <div>
     @if ($showModal)
-    <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6">
+    <div class="fixed inset-0 z-50">
         <div class="fixed inset-0 bg-gray-900/60" wire:click="close"></div>
+        <div class="fixed inset-0 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
 
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 my-auto z-10 max-h-[92vh] flex flex-col">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-3xl z-10 max-h-[92vh] flex flex-col">
 
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
@@ -294,6 +296,8 @@
                 @endif
             </div>
 
+        </div>
+        </div>
         </div>
     </div>
     @endif

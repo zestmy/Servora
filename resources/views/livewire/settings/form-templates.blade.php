@@ -134,8 +134,11 @@
 
     {{-- Create / Edit Modal --}}
     @if ($showModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto py-6" wire:click.self="closeModal">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 my-auto">
+        <div class="fixed inset-0 z-50">
+            <div class="fixed inset-0 bg-black/40" wire:click="closeModal"></div>
+            <div class="fixed inset-0 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10">
                 <div class="flex items-center justify-between mb-5">
                     <h3 class="text-base font-semibold text-gray-800">
                         {{ $editingId ? 'Edit Template' : 'New Template' }}
@@ -208,6 +211,8 @@
                         {{ $editingId ? 'Save Changes' : 'Create Template' }}
                     </button>
                 </div>
+            </div>
+            </div>
             </div>
         </div>
     @endif
