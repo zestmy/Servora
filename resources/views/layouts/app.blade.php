@@ -62,7 +62,7 @@
             this.userMenuOpen = true;
         }
      }"
-     class="flex h-screen overflow-hidden">
+     class="flex h-screen">
 
     {{-- ── Sidebar ──────────────────────────────────────────────────────── --}}
     <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
