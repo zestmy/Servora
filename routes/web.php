@@ -31,6 +31,8 @@ use App\Livewire\Settings\Users as SettingsUsers;
 use App\Livewire\Settings\CompanyDetails as SettingsCompanyDetails;
 use App\Livewire\Settings\CostTypes as SettingsCostTypes;
 use App\Livewire\Settings\PoApprovers as SettingsPoApprovers;
+use App\Livewire\Settings\CalendarEvents as SettingsCalendarEvents;
+use App\Livewire\Analytics\Index as AnalyticsIndex;
 use App\Livewire\Purchasing\ConvertToDoForm as PurchasingConvertToDoForm;
 use App\Livewire\Purchasing\GrnReceiveForm as PurchasingGrnReceiveForm;
 use App\Http\Controllers\PurchaseDocumentPdfController;
@@ -76,10 +78,12 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:settings.view');
     Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:settings.view');
     Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.view');
-    Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware('can:settings.view');
+    Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin');
     Route::get('/settings/users', SettingsUsers::class)->name('settings.users')->middleware('can:users.manage');
     Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.view');
     Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:settings.view');
+    Route::get('/settings/calendar-events', SettingsCalendarEvents::class)->name('settings.calendar-events')->middleware('can:settings.view');
+    Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager');
 });
 
 Route::view('profile', 'profile')

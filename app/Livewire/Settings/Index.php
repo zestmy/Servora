@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Models\CalendarEvent;
 use App\Models\FormTemplate;
 use App\Models\IngredientCategory;
 use App\Models\Outlet;
@@ -29,6 +30,7 @@ class Index extends Component
         $salesCategoryCount  = SalesCategory::count();
         $formTemplateCount   = FormTemplate::count();
         $poApproverCount     = PoApprover::count();
+        $calendarEventCount  = CalendarEvent::count();
         $userCount           = $isSystemLevel
             ? User::count()
             : User::where('company_id', $user->company_id)->count();
@@ -39,7 +41,7 @@ class Index extends Component
         return view('livewire.settings.index', compact(
             'isSystemLevel', 'isBusinessLevel',
             'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
-            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'userCount', 'outletCount'
+            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'userCount', 'outletCount'
         ))->layout('layouts.app', ['title' => 'Settings']);
     }
 }

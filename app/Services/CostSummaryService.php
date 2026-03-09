@@ -34,11 +34,25 @@ class CostSummaryService
      *  - period: 'YYYY-MM'
      *  - outlet_id: int|null
      */
-    public function generate(string $period, ?int $outletId = null): array
+    /**
+     * Generate a cost summary for the given period.
+     *
+     * For monthly mode: pass $period as 'Y-m', leave $startDate/$endDate null.
+     * For weekly/custom mode: pass $startDate and $endDate (stock takes will be skipped).
+     */
+    public function generate(string $period, ?int $outletId = null, ?string $startDate = null, ?string $endDate = null): array
     {
-        $date = Carbon::createFromFormat('Y-m', $period);
-        $startOfMonth = $date->copy()->startOfMonth();
-        $endOfMonth = $date->copy()->endOfMonth();
+        $isCustomRange = $startDate && $endDate;
+
+        if ($isCustomRange) {
+            $from = Carbon::parse($startDate)->startOfDay();
+            $to = Carbon::parse($endDate)->endOfDay();
+        } else {
+            $date = Carbon::createFromFormat('Y-m', $period);
+            $from = $date->copy()->startOfMonth();
+            $to = $date->copy()->endOfMonth();
+        }
+
         $companyId = auth()->user()->company_id;
 
         // Get ALL active root categories (revenue + non-revenue)
@@ -75,18 +89,23 @@ class CostSummaryService
         $categoryGroups = $revenueCategoryGroups;
 
         // ── Revenue (from SalesRecordLines grouped by ingredient_category_id) ──
-        $revenueByCategory = $this->getRevenue($startOfMonth, $endOfMonth, $outletId);
+        $revenueByCategory = $this->getRevenue($from, $to, $outletId);
 
         // ── Purchases (from PurchaseRecordLines → ingredient → ingredient_category_id) ──
-        $purchasesByCategory = $this->getPurchases($startOfMonth, $endOfMonth, $outletId);
+        $purchasesByCategory = $this->getPurchases($from, $to, $outletId);
 
         // ── Transfers ──
-        $transferInByCategory = $this->getTransfers($startOfMonth, $endOfMonth, $outletId, 'in');
-        $transferOutByCategory = $this->getTransfers($startOfMonth, $endOfMonth, $outletId, 'out');
+        $transferInByCategory = $this->getTransfers($from, $to, $outletId, 'in');
+        $transferOutByCategory = $this->getTransfers($from, $to, $outletId, 'out');
 
-        // ── Stock Takes (opening = previous month's completed, closing = this month's completed) ──
-        $openingByCategory = $this->getStockValues($period, $outletId, 'opening');
-        $closingByCategory = $this->getStockValues($period, $outletId, 'closing');
+        // ── Stock Takes (only for monthly — weekly/custom ranges skip this) ──
+        if ($isCustomRange) {
+            $openingByCategory = collect();
+            $closingByCategory = collect();
+        } else {
+            $openingByCategory = $this->getStockValues($period, $outletId, 'opening');
+            $closingByCategory = $this->getStockValues($period, $outletId, 'closing');
+        }
 
         // ── Build per-category summary rows ──
         $categories = [];
@@ -163,20 +182,21 @@ class CostSummaryService
             : 0;
 
         // ── Wastage & Staff Meal totals (reference only) ──
-        $totals['wastage']     = $this->getWastageTotalCost($startOfMonth, $endOfMonth, $outletId);
-        $totals['staff_meals'] = $this->getStaffMealTotalCost($startOfMonth, $endOfMonth, $outletId);
+        $totals['wastage']     = $this->getWastageTotalCost($from, $to, $outletId);
+        $totals['staff_meals'] = $this->getStaffMealTotalCost($from, $to, $outletId);
 
         // ── Detailed breakdowns by item ──
-        $wastageDetail    = $this->getItemDetail('wastage', $startOfMonth, $endOfMonth, $outletId);
-        $staffMealsDetail = $this->getItemDetail('staff_meal', $startOfMonth, $endOfMonth, $outletId);
+        $wastageDetail    = $this->getItemDetail('wastage', $from, $to, $outletId);
+        $staffMealsDetail = $this->getItemDetail('staff_meal', $from, $to, $outletId);
 
         return [
-            'categories'        => $categories,
-            'totals'            => $totals,
-            'wastage_detail'    => $wastageDetail,
+            'categories'         => $categories,
+            'totals'             => $totals,
+            'wastage_detail'     => $wastageDetail,
             'staff_meals_detail' => $staffMealsDetail,
-            'period'            => $period,
-            'outlet_id'         => $outletId,
+            'period'             => $period,
+            'outlet_id'          => $outletId,
+            'is_custom_range'    => $isCustomRange,
         ];
     }
 

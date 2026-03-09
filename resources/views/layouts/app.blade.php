@@ -14,8 +14,6 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
-
     <style>
         [x-cloak] { display: none !important; }
     </style>
@@ -89,23 +87,27 @@
                     ['route' => 'sales.index',       'icon' => '💰', 'label' => 'Sales',        'permission' => 'sales.view'],
                     ['route' => 'inventory.index',   'icon' => '📦', 'label' => 'Inventory',    'permission' => 'inventory.view'],
                     ['route' => 'reports.index',     'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
+                    ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager']],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
                 ];
 
                 if ($isSystemRole) {
-                    // System roles: Dashboard + Settings only
-                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'settings.index']));
+                    // System roles: Dashboard + Settings + AI Analytics
+                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'analytics.index', 'settings.index']));
                 } else {
                     // Business roles: filter by actual role permissions (not Gate::before)
-                    $navItems = array_filter($allNavItems, fn($i) =>
-                        $i['permission'] === null || $authUser->hasPermissionTo($i['permission'])
-                    );
+                    $navItems = array_filter($allNavItems, function($i) use ($authUser) {
+                        if (!empty($i['role']) && !$authUser->hasRole($i['role'])) return false;
+                        if ($i['permission'] !== null && !$authUser->hasPermissionTo($i['permission'])) return false;
+                        return true;
+                    });
                 }
             @endphp
 
             @foreach ($navItems as $item)
                 @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
                 <a href="{{ route($item['route']) }}"
+                   wire:navigate
                    :title="!sidebarOpen ? '{{ $item['label'] }}' : ''"
                    class="flex items-center rounded-lg text-sm font-medium transition-colors
                           {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
@@ -203,6 +205,7 @@
 
             <div class="py-1">
                 <a href="{{ route('profile') }}"
+                   wire:navigate
                    @click="userMenuOpen = false"
                    class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -229,6 +232,5 @@
 
 </div>
 
-@livewireScripts
 </body>
 </html>

@@ -15,18 +15,27 @@ class OutletSwitcher extends Component
         $this->activeOutletId = (string) (Auth::user()->activeOutletId() ?? '');
     }
 
-    public function switchOutlet(): void
+    public function updatedActiveOutletId(): void
     {
         $user = Auth::user();
         $id = $this->activeOutletId !== '' ? (int) $this->activeOutletId : null;
 
         // Validate access
         if ($id && ! $user->canAccessOutlet($id)) {
+            // Revert to session value
+            $this->activeOutletId = (string) (session('active_outlet_id') ?? '');
             return;
         }
 
         // "All Outlets" only for Business Manager / Super Admin
         if ($id === null && ! $user->canViewAllOutlets()) {
+            $this->activeOutletId = (string) (session('active_outlet_id') ?? '');
+            return;
+        }
+
+        // Skip redirect if value hasn't actually changed
+        $currentSessionId = session('active_outlet_id');
+        if ($id === $currentSessionId || ($id === null && $currentSessionId === null)) {
             return;
         }
 

@@ -162,6 +162,19 @@
                     </div>
                 </a>
 
+                {{-- Calendar Events --}}
+                <a href="{{ route('settings.calendar-events') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Calendar Events</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Holidays, promotions & events for AI analytics</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $calendarEventCount }} {{ Str::plural('event', $calendarEventCount) }}</p>
+                    </div>
+                </a>
+
                 {{-- Form Templates --}}
                 <a href="{{ route('settings.form-templates') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
