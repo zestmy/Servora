@@ -9,6 +9,8 @@ use App\Models\SalesCategory;
 use App\Models\SalesClosure;
 use App\Models\SalesRecord;
 use App\Models\SalesRecordLine;
+use App\Models\SalesTarget;
+use App\Services\AiAnalyticsService;
 use App\Services\CsvExportService;
 use App\Traits\ScopesToActiveOutlet;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -40,6 +42,11 @@ class Index extends Component
     public string $closureCustom    = '';
     public string $closureNotes     = '';
     public ?int   $editingClosureId = null;
+
+    // AI Predictive
+    public bool   $loadingPrediction = false;
+    public ?array $prediction        = null;
+    public ?string $predictionError  = null;
 
     public function updatedSearch(): void           { $this->resetPage(); }
     public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPage(); }
@@ -334,6 +341,43 @@ class Index extends Component
         );
     }
 
+    // ── AI Predictive ─────────────────────────────────────────────────
+
+    public function generatePrediction(): void
+    {
+        $this->loadingPrediction = true;
+        $this->prediction = null;
+        $this->predictionError = null;
+
+        try {
+            $user      = Auth::user();
+            $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+
+            // Use current month for context
+            $period = now()->format('Y-m');
+
+            $service = app(AiAnalyticsService::class);
+            $result = $service->analyze(
+                $period,
+                $outletId,
+                'custom',
+                "Based on the historical sales data provided, generate a predictive sales forecast for the next month. Include:\n"
+                . "1. **Predicted Revenue Range** — provide a low/mid/high estimate\n"
+                . "2. **Predicted Daily Average** — expected average daily revenue\n"
+                . "3. **Best & Worst Days** — which days of week are likely strongest/weakest\n"
+                . "4. **Key Factors** — what will influence next month's performance (events, trends, seasonality)\n"
+                . "5. **Confidence Level** — how reliable is this prediction based on available data\n"
+                . "Keep it concise and actionable. Use bullet points."
+            );
+
+            $this->prediction = $result;
+        } catch (\Throwable $e) {
+            $this->predictionError = $e->getMessage();
+        } finally {
+            $this->loadingPrediction = false;
+        }
+    }
+
     // ── Render ──────────────────────────────────────────────────────────
 
     public function render()
@@ -413,10 +457,40 @@ class Index extends Component
         $commonReasons     = SalesClosure::commonReasons();
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
 
+        // Sales target for the selected period
+        $targetData = null;
+        if ($this->dateFrom) {
+            $user      = Auth::user();
+            $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+            $targetPeriod = Carbon::parse($this->dateFrom)->format('Y-m');
+
+            $target = SalesTarget::where('period', $targetPeriod)
+                ->where(fn ($q) => $q->where('outlet_id', $outletId)->orWhereNull('outlet_id'))
+                ->orderByRaw('outlet_id IS NULL ASC') // prefer outlet-specific
+                ->first();
+
+            if ($target) {
+                $pct = $target->target_revenue > 0
+                    ? round($filteredRevenue / $target->target_revenue * 100, 1)
+                    : 0;
+                $paxPct = ($target->target_pax && $target->target_pax > 0)
+                    ? round($filteredPax / $target->target_pax * 100, 1)
+                    : null;
+
+                $targetData = [
+                    'revenue'     => (float) $target->target_revenue,
+                    'pax'         => $target->target_pax,
+                    'revenue_pct' => $pct,
+                    'pax_pct'     => $paxPct,
+                    'notes'       => $target->notes,
+                ];
+            }
+        }
+
         return view('livewire.sales.index', compact(
             'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount',
             'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'missingDatesData',
-            'events', 'commonReasons'
+            'events', 'commonReasons', 'targetData'
         ))->layout('layouts.app', ['title' => 'Sales']);
     }
 

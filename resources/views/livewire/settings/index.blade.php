@@ -175,6 +175,19 @@
                     </div>
                 </a>
 
+                {{-- Sales Targets --}}
+                <a href="{{ route('settings.sales-targets') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Sales Targets</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Set monthly revenue & pax targets</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $salesTargetCount }} {{ Str::plural('target', $salesTargetCount) }}</p>
+                    </div>
+                </a>
+
                 {{-- Form Templates --}}
                 <a href="{{ route('settings.form-templates') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">

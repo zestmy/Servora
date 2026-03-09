@@ -241,6 +241,106 @@
         </div>
     </div>
 
+    {{-- Target Progress + AI Predictive --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {{-- Sales Target Progress --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales Target</h3>
+            @if (!empty($targetData))
+                <div class="space-y-3">
+                    {{-- Revenue Target --}}
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="text-gray-600">Revenue</span>
+                            <span class="tabular-nums font-medium">
+                                <span class="{{ $targetData['revenue_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">RM {{ number_format($filteredRevenue, 2) }}</span>
+                                <span class="text-gray-400"> / RM {{ number_format($targetData['revenue'], 2) }}</span>
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-3">
+                            <div class="h-3 rounded-full transition-all duration-500 {{ $targetData['revenue_pct'] >= 100 ? 'bg-green-500' : ($targetData['revenue_pct'] >= 75 ? 'bg-indigo-500' : ($targetData['revenue_pct'] >= 50 ? 'bg-amber-500' : 'bg-red-400')) }}"
+                                 style="width: {{ min($targetData['revenue_pct'], 100) }}%"></div>
+                        </div>
+                        <p class="text-xs mt-1 {{ $targetData['revenue_pct'] >= 100 ? 'text-green-600 font-medium' : 'text-gray-400' }}">
+                            {{ $targetData['revenue_pct'] }}% achieved
+                            @if ($targetData['revenue_pct'] < 100)
+                                · RM {{ number_format($targetData['revenue'] - $filteredRevenue, 2) }} remaining
+                            @endif
+                        </p>
+                    </div>
+
+                    {{-- Pax Target --}}
+                    @if ($targetData['pax_pct'] !== null)
+                        <div>
+                            <div class="flex items-center justify-between text-sm mb-1">
+                                <span class="text-gray-600">Pax</span>
+                                <span class="tabular-nums font-medium">
+                                    <span class="{{ $targetData['pax_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">{{ number_format($filteredPax) }}</span>
+                                    <span class="text-gray-400"> / {{ number_format($targetData['pax']) }}</span>
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="h-2 rounded-full transition-all duration-500 {{ $targetData['pax_pct'] >= 100 ? 'bg-green-500' : 'bg-indigo-400' }}"
+                                     style="width: {{ min($targetData['pax_pct'], 100) }}%"></div>
+                            </div>
+                            <p class="text-xs mt-1 text-gray-400">{{ $targetData['pax_pct'] }}% achieved</p>
+                        </div>
+                    @endif
+
+                    @if ($targetData['notes'])
+                        <p class="text-xs text-gray-400 italic">{{ $targetData['notes'] }}</p>
+                    @endif
+                </div>
+            @else
+                <div class="text-sm text-gray-300">
+                    <p>No target set for this period</p>
+                    <a href="{{ route('settings.sales-targets') }}" class="text-xs text-indigo-400 hover:text-indigo-600 underline mt-1 inline-block">Set sales target</a>
+                </div>
+            @endif
+        </div>
+
+        {{-- AI Predictive Sales --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs text-gray-400 uppercase tracking-wider">Predictive Sales</h3>
+                <button wire:click="generatePrediction" wire:loading.attr="disabled" wire:target="generatePrediction"
+                        class="px-2.5 py-1 text-xs font-medium rounded-lg border transition
+                               {{ $prediction ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50' : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' }}
+                               disabled:opacity-50">
+                    <span wire:loading.remove wire:target="generatePrediction">{{ $prediction ? 'Refresh' : 'Generate' }}</span>
+                    <span wire:loading wire:target="generatePrediction">Analyzing...</span>
+                </button>
+            </div>
+
+            @if ($loadingPrediction)
+                <div class="flex items-center gap-2 text-sm text-gray-400 py-4">
+                    <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    AI is analyzing historical data...
+                </div>
+            @elseif ($predictionError)
+                <div class="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{{ $predictionError }}</div>
+            @elseif ($prediction)
+                <div class="prose prose-sm prose-gray max-w-none text-xs leading-relaxed max-h-64 overflow-y-auto">
+                    {!! \Illuminate\Support\Str::markdown($prediction['response']) !!}
+                </div>
+                <div class="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
+                    <span>{{ $prediction['model'] }}</span>
+                    @if ($prediction['cached'])
+                        <span class="text-amber-500">Cached</span>
+                    @endif
+                    <span>{{ $prediction['created_at'] }}</span>
+                </div>
+            @else
+                <div class="text-sm text-gray-300 py-4">
+                    <p>Click <span class="font-medium">Generate</span> to get AI-powered sales predictions based on your historical data</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
     {{-- Bulk Delete Bar --}}
     @if ($canDelete && count($selected) > 0)
         <div class="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
