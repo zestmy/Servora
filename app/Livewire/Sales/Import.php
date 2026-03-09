@@ -17,8 +17,17 @@ class Import extends Component
 
     public $file = null;
 
-    public string $step = 'upload'; // upload | preview | done
+    public string $step = 'upload'; // upload | mapping | preview | done
 
+    // Raw parsed data (kept between steps)
+    public array $rawRows       = [];
+    public array $fileHeaders   = [];
+
+    // Column mapping: fileHeader => system field key
+    // System fields: 'date', 'reference', 'meal_period', 'pax', 'ignore', 'cat:<id>'
+    public array $columnMap = [];
+
+    // Processed rows for preview/import
     public array $rows           = [];
     public array $categoryNames  = [];
     public int   $totalRows      = 0;
@@ -41,6 +50,8 @@ class Import extends Component
         ];
     }
 
+    // ── Step 1 → Step 2: Parse file and show mapping UI ───────────────────
+
     public function processUpload(): void
     {
         $this->validate();
@@ -49,41 +60,87 @@ class Import extends Component
         $ext  = strtolower($this->file->getClientOriginalExtension());
 
         try {
-            $rawRows = ($ext === 'xlsx') ? $this->parseXlsx($path) : $this->parseCsv($path);
+            $this->rawRows = ($ext === 'xlsx') ? $this->parseXlsx($path) : $this->parseCsv($path);
         } catch (\Throwable $e) {
             $this->addError('file', 'Could not parse file: ' . $e->getMessage());
             return;
         }
 
-        if (empty($rawRows)) {
+        if (empty($this->rawRows)) {
             $this->addError('file', 'The file appears to be empty or has no data rows after the header.');
             return;
         }
 
-        // Check required headers
-        $firstRow = $rawRows[0];
-        if (! array_key_exists('date', $firstRow)) {
-            $this->addError('file', 'Missing required "date" column.');
-            return;
-        }
+        $this->fileHeaders = array_keys($this->rawRows[0]);
 
-        // Load sales categories for matching
+        // Auto-map columns by best guess
         $categories = SalesCategory::active()->ordered()->get();
         $catByName = $categories->mapWithKeys(fn ($c) => [strtolower($c->name) => $c]);
         $this->categoryNames = $categories->pluck('name')->toArray();
 
-        // Detect which category columns exist in the file
-        $headers = array_keys($firstRow);
-        $matchedCategories = [];
-        foreach ($headers as $h) {
-            $cat = $catByName[strtolower($h)] ?? null;
-            if ($cat) {
-                $matchedCategories[$h] = $cat;
+        $systemFieldMap = [
+            'date'          => 'date',
+            'sale_date'     => 'date',
+            'sale date'     => 'date',
+            'reference'     => 'reference',
+            'ref'           => 'reference',
+            'reference_number' => 'reference',
+            'invoice'       => 'reference',
+            'meal_period'   => 'meal_period',
+            'meal period'   => 'meal_period',
+            'period'        => 'meal_period',
+            'pax'           => 'pax',
+            'covers'        => 'pax',
+            'total_revenue' => 'ignore', // calculated, not imported
+            'total revenue' => 'ignore',
+            'total'         => 'ignore',
+        ];
+
+        $this->columnMap = [];
+        foreach ($this->fileHeaders as $header) {
+            $lower = strtolower($header);
+
+            // Check system fields
+            if (isset($systemFieldMap[$lower])) {
+                $this->columnMap[$header] = $systemFieldMap[$lower];
+                continue;
             }
+
+            // Check sales categories
+            $cat = $catByName[$lower] ?? null;
+            if ($cat) {
+                $this->columnMap[$header] = 'cat:' . $cat->id;
+                continue;
+            }
+
+            // Default: ignore
+            $this->columnMap[$header] = 'ignore';
         }
 
-        // Valid meal period values
-        $validMealPeriods = ['all_day', 'breakfast', 'lunch', 'tea_time', 'dinner', 'supper'];
+        $this->step = 'mapping';
+    }
+
+    // ── Step 2 → Step 3: Apply mapping and build preview ──────────────────
+
+    public function applyMapping(): void
+    {
+        // Validate at least date is mapped
+        $mappedFields = array_values($this->columnMap);
+        if (! in_array('date', $mappedFields)) {
+            $this->addError('mapping', 'You must map at least one column to "Date".');
+            return;
+        }
+
+        // Check at least one category is mapped
+        $hasCat = collect($mappedFields)->contains(fn ($v) => str_starts_with($v, 'cat:'));
+        if (! $hasCat) {
+            $this->addError('mapping', 'You must map at least one column to a sales category.');
+            return;
+        }
+
+        // Load categories for mapped IDs
+        $categories = SalesCategory::active()->ordered()->get()->keyBy('id');
+
         $mealPeriodMap = [
             'all day' => 'all_day', 'allday' => 'all_day', 'all_day' => 'all_day',
             'breakfast' => 'breakfast', 'lunch' => 'lunch',
@@ -91,14 +148,41 @@ class Import extends Component
             'dinner' => 'dinner', 'supper' => 'supper',
         ];
 
-        $this->rows = [];
+        // Build reverse map: system field => file header(s)
+        $fieldToHeaders = [];
+        foreach ($this->columnMap as $header => $field) {
+            $fieldToHeaders[$field][] = $header;
+        }
 
-        foreach ($rawRows as $i => $raw) {
+        // Check if meal_period is mapped
+        $hasMealPeriod = isset($fieldToHeaders['meal_period']);
+
+        $this->rows = [];
+        $this->categoryNames = [];
+
+        // Collect mapped category names in order
+        $mappedCatIds = [];
+        foreach ($this->columnMap as $field) {
+            if (str_starts_with($field, 'cat:')) {
+                $catId = (int) substr($field, 4);
+                if (! in_array($catId, $mappedCatIds)) {
+                    $mappedCatIds[] = $catId;
+                }
+            }
+        }
+        foreach ($mappedCatIds as $catId) {
+            $cat = $categories->get($catId);
+            if ($cat) {
+                $this->categoryNames[] = $cat->name;
+            }
+        }
+
+        foreach ($this->rawRows as $i => $raw) {
             $rowNum    = $i + 2;
             $rowErrors = [];
 
-            // Date
-            $dateStr = trim($raw['date'] ?? '');
+            // Extract date
+            $dateStr = $this->getFieldValue($raw, $fieldToHeaders, 'date');
             $parsedDate = null;
             if (! $dateStr) {
                 $rowErrors[] = 'Date is required';
@@ -106,56 +190,71 @@ class Import extends Component
                 try {
                     $parsedDate = \Carbon\Carbon::parse($dateStr)->format('Y-m-d');
                 } catch (\Throwable $e) {
-                    $rowErrors[] = 'Invalid date format "' . $dateStr . '"';
+                    $rowErrors[] = 'Invalid date "' . $dateStr . '"';
                 }
             }
 
             // Meal period
-            $mealRaw = strtolower(trim($raw['meal period'] ?? $raw['meal_period'] ?? 'all_day'));
-            $mealPeriod = $mealPeriodMap[$mealRaw] ?? null;
-            if (! $mealPeriod) {
+            if ($hasMealPeriod) {
+                $mealRaw = strtolower(trim($this->getFieldValue($raw, $fieldToHeaders, 'meal_period')));
+                $mealPeriod = $mealPeriodMap[$mealRaw] ?? 'all_day';
+            } else {
                 $mealPeriod = 'all_day';
             }
 
             // Pax
-            $pax = trim($raw['pax'] ?? '0');
-            if (! is_numeric($pax) || (int) $pax < 0) {
-                $rowErrors[] = 'Pax must be a positive number';
-                $pax = 0;
+            $paxStr = $this->getFieldValue($raw, $fieldToHeaders, 'pax');
+            $pax = 0;
+            if ($paxStr !== '') {
+                if (! is_numeric($paxStr) || (int) $paxStr < 0) {
+                    $rowErrors[] = 'Pax must be a positive number';
+                } else {
+                    $pax = (int) $paxStr;
+                }
             }
-            $pax = (int) $pax;
 
             // Reference
-            $reference = trim($raw['reference'] ?? '');
+            $reference = $this->getFieldValue($raw, $fieldToHeaders, 'reference');
 
-            // Parse category revenues
+            // Category revenues
             $categoryRevenues = [];
             $totalRevenue = 0;
 
-            foreach ($matchedCategories as $headerName => $cat) {
-                $value = trim($raw[$headerName] ?? '0');
-                $value = str_replace(',', '', $value); // remove thousand separators
+            foreach ($this->columnMap as $header => $field) {
+                if (! str_starts_with($field, 'cat:')) continue;
+
+                $catId = (int) substr($field, 4);
+                $cat = $categories->get($catId);
+                if (! $cat) continue;
+
+                $value = trim($raw[$header] ?? '0');
+                $value = str_replace(',', '', $value);
                 if (! is_numeric($value)) {
-                    $rowErrors[] = $cat->name . ' revenue must be a number';
+                    $rowErrors[] = $cat->name . ' must be a number';
                     $value = 0;
                 }
                 $revenue = max(0, (float) $value);
-                $categoryRevenues[] = [
-                    'sales_category_id'      => $cat->id,
-                    'ingredient_category_id' => $cat->ingredient_category_id,
-                    'name'                   => $cat->name,
-                    'revenue'                => $revenue,
-                ];
-                $totalRevenue += $revenue;
-            }
 
-            // If no category columns matched, check for a "total revenue" or "revenue" column
-            if (empty($matchedCategories)) {
-                $rev = trim($raw['total revenue'] ?? $raw['revenue'] ?? '0');
-                $rev = str_replace(',', '', $rev);
-                if (is_numeric($rev)) {
-                    $totalRevenue = max(0, (float) $rev);
+                // If same category mapped from multiple columns, sum them
+                $existingIdx = null;
+                foreach ($categoryRevenues as $idx => $cr) {
+                    if ($cr['sales_category_id'] === $catId) {
+                        $existingIdx = $idx;
+                        break;
+                    }
                 }
+
+                if ($existingIdx !== null) {
+                    $categoryRevenues[$existingIdx]['revenue'] += $revenue;
+                } else {
+                    $categoryRevenues[] = [
+                        'sales_category_id'      => $cat->id,
+                        'ingredient_category_id' => $cat->ingredient_category_id,
+                        'name'                   => $cat->name,
+                        'revenue'                => $revenue,
+                    ];
+                }
+                $totalRevenue += $revenue;
             }
 
             if ($totalRevenue <= 0 && empty($rowErrors)) {
@@ -179,6 +278,15 @@ class Import extends Component
         $this->validRows = collect($this->rows)->where('skip', false)->count();
         $this->step      = 'preview';
     }
+
+    public function backToMapping(): void
+    {
+        $this->step = 'mapping';
+        $this->rows = [];
+        $this->resetErrorBag();
+    }
+
+    // ── Step 3 → Step 4: Import ───────────────────────────────────────────
 
     public function import(): void
     {
@@ -206,7 +314,6 @@ class Import extends Component
                 'created_by'       => $user->id,
             ]);
 
-            // Create lines per category
             foreach ($row['category_revenues'] as $catRev) {
                 if ($catRev['revenue'] <= 0) continue;
 
@@ -234,6 +341,9 @@ class Import extends Component
     {
         $this->file          = null;
         $this->step          = 'upload';
+        $this->rawRows       = [];
+        $this->fileHeaders   = [];
+        $this->columnMap     = [];
         $this->rows          = [];
         $this->categoryNames = [];
         $this->totalRows     = 0;
@@ -275,13 +385,46 @@ class Import extends Component
         );
     }
 
+    /**
+     * Get available mapping options for the dropdown.
+     */
+    public function getMappingOptionsProperty(): array
+    {
+        $options = [
+            'ignore'      => '— Ignore this column —',
+            'date'        => 'Date',
+            'reference'   => 'Reference / Invoice #',
+            'meal_period' => 'Meal Period',
+            'pax'         => 'Pax / Covers',
+        ];
+
+        $categories = SalesCategory::active()->ordered()->get();
+        foreach ($categories as $cat) {
+            $options['cat:' . $cat->id] = 'Revenue: ' . $cat->name;
+        }
+
+        return $options;
+    }
+
     public function render()
     {
         return view('livewire.sales.import')
             ->layout('layouts.app', ['title' => 'Import Sales']);
     }
 
-    // ── Parsers ───────────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    private function getFieldValue(array $raw, array $fieldToHeaders, string $field): string
+    {
+        $headers = $fieldToHeaders[$field] ?? [];
+        foreach ($headers as $h) {
+            $val = trim($raw[$h] ?? '');
+            if ($val !== '') return $val;
+        }
+        return '';
+    }
+
+    // ── Parsers ───────────────────────────────────────────────────────────
 
     private function parseCsv(string $path): array
     {

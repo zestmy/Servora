@@ -21,6 +21,17 @@
         </div>
     </div>
 
+    {{-- Step indicator --}}
+    <div class="mb-6 flex items-center gap-2 text-xs text-gray-400">
+        <span class="{{ $step === 'upload' ? 'text-indigo-600 font-semibold' : ($step !== 'upload' ? 'text-green-600' : '') }}">1. Upload</span>
+        <span>&rarr;</span>
+        <span class="{{ $step === 'mapping' ? 'text-indigo-600 font-semibold' : (in_array($step, ['preview', 'done']) ? 'text-green-600' : '') }}">2. Map Columns</span>
+        <span>&rarr;</span>
+        <span class="{{ $step === 'preview' ? 'text-indigo-600 font-semibold' : ($step === 'done' ? 'text-green-600' : '') }}">3. Preview</span>
+        <span>&rarr;</span>
+        <span class="{{ $step === 'done' ? 'text-indigo-600 font-semibold' : '' }}">4. Import</span>
+    </div>
+
     {{-- STEP 1: Upload --}}
     @if ($step === 'upload')
 
@@ -30,8 +41,8 @@
             <ol class="list-decimal list-inside space-y-1 text-blue-700">
                 <li>Download the sample template below and fill in your sales data.</li>
                 <li>Each row = one sales entry (one date + meal period).</li>
-                <li>Revenue columns must match your sales category names exactly.</li>
-                <li>Upload the completed CSV or Excel (.xlsx) file and review before confirming.</li>
+                <li>Upload a CSV or Excel (.xlsx) file — you'll map columns in the next step.</li>
+                <li>Review the preview and confirm the import.</li>
             </ol>
             <div class="pt-1">
                 <button wire:click="downloadTemplate"
@@ -41,43 +52,6 @@
                     </svg>
                     Download CSV Template
                 </button>
-            </div>
-        </div>
-
-        {{-- Column reference --}}
-        <div class="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-sm font-semibold text-gray-700 mb-3">Column Reference</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-xs text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider">
-                        <tr>
-                            <th class="px-3 py-2">Column</th>
-                            <th class="px-3 py-2">Required</th>
-                            <th class="px-3 py-2">Description</th>
-                            <th class="px-3 py-2">Example</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50 text-gray-600">
-                        <tr><td class="px-3 py-2 font-mono font-medium">date</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Sale date (YYYY-MM-DD)</td><td class="px-3 py-2 font-mono">2026-03-10</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">reference</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Invoice / reference number</td><td class="px-3 py-2 font-mono">INV-001</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">meal_period</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">all_day, breakfast, lunch, tea_time, dinner, supper</td><td class="px-3 py-2 font-mono">lunch</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">pax</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Number of covers</td><td class="px-3 py-2 font-mono">50</td></tr>
-                        <tr class="bg-indigo-50/50">
-                            <td class="px-3 py-2 font-mono font-medium text-indigo-700">
-                                <em>Sales Category Name</em>
-                            </td>
-                            <td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes*</span></td>
-                            <td class="px-3 py-2">
-                                Revenue for each category. Column name must match exactly.
-                                @if (!empty($this->categoryNames))
-                                    <br><span class="text-indigo-600 font-medium">Your categories: {{ implode(', ', SalesCategory::active()->ordered()->pluck('name')->toArray()) }}</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 font-mono">1500.00</td>
-                        </tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">total_revenue</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Auto-calculated from categories (included for reference)</td><td class="px-3 py-2 font-mono">4500.00</td></tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -117,14 +91,86 @@
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
                             class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
-                        <span wire:loading.remove wire:target="processUpload">Preview Import &rarr;</span>
+                        <span wire:loading.remove wire:target="processUpload">Map Columns &rarr;</span>
                         <span wire:loading wire:target="processUpload">Parsing file...</span>
                     </button>
                 </div>
             @endif
         </div>
 
-    {{-- STEP 2: Preview --}}
+    {{-- STEP 2: Column Mapping --}}
+    @elseif ($step === 'mapping')
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+            <div class="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-sm font-semibold text-gray-700">Map File Columns</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Choose what each column in your file represents. Columns set to "Ignore" will be skipped.</p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs">
+                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left w-48">File Column</th>
+                            <th class="px-4 py-2 text-left w-56">Map To</th>
+                            <th class="px-4 py-2 text-left">Sample Data (first 3 rows)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @foreach ($fileHeaders as $idx => $header)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3">
+                                    <span class="font-mono font-medium text-gray-800">{{ $header }}</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <select wire:model="columnMap.{{ $header }}"
+                                            class="w-full text-xs border-gray-200 rounded-lg shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50
+                                                   {{ ($columnMap[$header] ?? 'ignore') === 'ignore' ? 'text-gray-400' : 'text-gray-800 font-medium' }}">
+                                        @foreach ($this->mappingOptions as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-4 py-3 text-gray-500 font-mono">
+                                    @php
+                                        $samples = array_slice($rawRows, 0, 3);
+                                    @endphp
+                                    @foreach ($samples as $si => $sampleRow)
+                                        <span class="inline-block mr-3">{{ \Illuminate\Support\Str::limit($sampleRow[$header] ?? '—', 30) }}</span>
+                                        @if ($si < count($samples) - 1)
+                                            <span class="text-gray-300">|</span>
+                                        @endif
+                                    @endforeach
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Mapping info --}}
+        <div class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+            <strong>Tip:</strong> You must map at least one column to "Date" and one to a sales category. If no "Meal Period" column is mapped, all rows default to "All Day".
+        </div>
+
+        <x-input-error :messages="$errors->get('mapping')" class="mb-4" />
+
+        {{-- Action bar --}}
+        <div class="flex items-center justify-between">
+            <button wire:click="restart"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                &larr; Upload Different File
+            </button>
+
+            <button wire:click="applyMapping" wire:loading.attr="disabled"
+                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                <span wire:loading.remove wire:target="applyMapping">Preview Import &rarr;</span>
+                <span wire:loading wire:target="applyMapping">Processing...</span>
+            </button>
+        </div>
+
+    {{-- STEP 3: Preview --}}
     @elseif ($step === 'preview')
 
         {{-- Summary bar --}}
@@ -195,13 +241,13 @@
                                         <ul class="space-y-0.5">
                                             @foreach ($row['errors'] as $err)
                                                 <li class="text-red-600 flex items-start gap-1">
-                                                    <span class="mt-0.5">⚠</span>
+                                                    <span class="mt-0.5">!</span>
                                                     <span>{{ $err }}</span>
                                                 </li>
                                             @endforeach
                                         </ul>
                                     @else
-                                        <span class="text-green-500">✓</span>
+                                        <span class="text-green-500">OK</span>
                                     @endif
                                 </td>
                             </tr>
@@ -213,9 +259,9 @@
 
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
-            <button wire:click="restart"
+            <button wire:click="backToMapping"
                     class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                &larr; Upload Different File
+                &larr; Back to Mapping
             </button>
 
             @if ($validRows > 0)
@@ -226,15 +272,19 @@
                     <span wire:loading wire:target="import">Importing...</span>
                 </button>
             @else
-                <p class="text-sm text-red-600 font-medium">No valid rows to import. Fix the errors and re-upload.</p>
+                <p class="text-sm text-red-600 font-medium">No valid rows to import. Go back and adjust mappings.</p>
             @endif
         </div>
 
-    {{-- STEP 3: Done --}}
+    {{-- STEP 4: Done --}}
     @elseif ($step === 'done')
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
-            <div class="text-5xl mb-4">🎉</div>
+            <div class="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
             <h3 class="text-xl font-semibold text-gray-800 mb-2">Import Complete</h3>
 
             <div class="flex items-center justify-center gap-6 mt-4 mb-6">
