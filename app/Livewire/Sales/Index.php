@@ -27,6 +27,10 @@ class Index extends Component
     public string $mealPeriodFilter = '';
     public string $quickRange       = 'today';
 
+    public array $selected   = [];
+    public bool  $selectAll  = false;
+    public bool  $canDelete  = false;
+
     public function updatedSearch(): void           { $this->resetPage(); }
     public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPage(); }
     public function updatedDateTo(): void           { $this->quickRange = 'custom'; $this->resetPage(); }
@@ -56,7 +60,13 @@ class Index extends Component
 
     public function mount(): void
     {
+        $this->canDelete = Auth::user()->hasRole(['Super Admin', 'System Admin', 'Business Manager', 'Operations Manager']);
         $this->setQuickRange('today');
+    }
+
+    public function updatedSelectAll(bool $value): void
+    {
+        // This is handled by Alpine on the frontend — Livewire just tracks the state
     }
 
     #[On('z-report-saved')]
@@ -67,8 +77,30 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        if (! $this->canDelete) {
+            session()->flash('error', 'You do not have permission to delete sales records.');
+            return;
+        }
+
         SalesRecord::findOrFail($id)->delete();
         session()->flash('success', 'Sales record deleted.');
+    }
+
+    public function bulkDelete(): void
+    {
+        if (! $this->canDelete) {
+            session()->flash('error', 'You do not have permission to delete sales records.');
+            return;
+        }
+
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $count = SalesRecord::whereIn('id', $this->selected)->delete();
+        $this->selected  = [];
+        $this->selectAll = false;
+        session()->flash('success', $count . ' sales record(s) deleted.');
     }
 
     public function exportCsv()

@@ -9,6 +9,12 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
@@ -208,11 +214,43 @@
         </div>
     </div>
 
+    {{-- Bulk Delete Bar --}}
+    @if ($canDelete && count($selected) > 0)
+        <div class="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+            <span class="text-sm text-red-700 font-medium">{{ count($selected) }} record{{ count($selected) !== 1 ? 's' : '' }} selected</span>
+            <div class="flex items-center gap-2">
+                <button wire:click="$set('selected', [])"
+                        class="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition">
+                    Clear Selection
+                </button>
+                <button wire:click="bulkDelete"
+                        wire:confirm="Delete {{ count($selected) }} selected sales record(s)? This cannot be undone."
+                        class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                    Delete Selected
+                </button>
+            </div>
+        </div>
+    @endif
+
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
+                    @if ($canDelete)
+                        <th class="px-3 py-3 w-10">
+                            <input type="checkbox"
+                                   wire:model.live="selectAll"
+                                   x-on:change="
+                                       const checked = $event.target.checked;
+                                       document.querySelectorAll('input[name=row-select]').forEach(cb => {
+                                           cb.checked = checked;
+                                           cb.dispatchEvent(new Event('change'));
+                                       });
+                                   "
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                        </th>
+                    @endif
                     <th class="px-4 py-3 text-left">Date</th>
                     <th class="px-4 py-3 text-left">Meal Period</th>
                     <th class="px-4 py-3 text-center">Pax</th>
@@ -244,7 +282,15 @@
                             ->filter(fn ($l) => $l->ingredient_category_id !== null)
                             ->groupBy('ingredient_category_id');
                     @endphp
-                    <tr class="hover:bg-gray-50 transition">
+                    <tr class="hover:bg-gray-50 transition {{ in_array($record->id, $selected) ? 'bg-indigo-50' : '' }}">
+                        @if ($canDelete)
+                            <td class="px-3 py-3">
+                                <input type="checkbox" name="row-select"
+                                       value="{{ $record->id }}"
+                                       wire:model.live="selected"
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                            </td>
+                        @endif
                         <td class="px-4 py-3 text-gray-700 font-medium">
                             <div class="flex items-center gap-1.5">
                                 {{ $record->sale_date->format('d M Y') }}
@@ -307,20 +353,22 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
-                                <button wire:click="delete({{ $record->id }})"
-                                        wire:confirm="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
-                                        title="Delete"
-                                        class="text-red-400 hover:text-red-600 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
+                                @if ($canDelete)
+                                    <button wire:click="delete({{ $record->id }})"
+                                            wire:confirm="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
+                                            title="Delete"
+                                            class="text-red-400 hover:text-red-600 transition">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                @endif
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="{{ $canDelete ? 8 : 7 }}" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">💰</div>
                             <p class="font-medium">No sales records yet</p>
                             <p class="text-xs mt-1">
@@ -339,6 +387,9 @@
                 @endphp
                 <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold text-gray-700">
                     <tr>
+                        @if ($canDelete)
+                            <td class="px-3 py-3"></td>
+                        @endif
                         <td colspan="3" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
                             Page total ({{ $records->count() }} records · {{ number_format($sumPax) }} pax)
                         </td>
