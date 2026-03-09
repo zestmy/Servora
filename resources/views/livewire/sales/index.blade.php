@@ -327,7 +327,7 @@
                     {!! \Illuminate\Support\Str::markdown($prediction['response']) !!}
                 </div>
                 <div class="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
-                    <span>{{ $prediction['model'] }}</span>
+                    <span>Powered by Servora AI</span>
                     @if ($prediction['cached'])
                         <span class="text-amber-500">Cached</span>
                     @endif

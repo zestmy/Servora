@@ -148,7 +148,7 @@
                                 <div class="flex items-center gap-3">
                                     @if ($tokens)
                                         <div class="text-xs text-gray-400">
-                                            {{ $model }} &middot; {{ number_format($tokens['input'] ?? 0) }} in / {{ number_format($tokens['output'] ?? 0) }} out
+                                            Powered by Servora AI
                                         </div>
                                     @endif
                                     <button wire:click="exportPdf"
@@ -205,11 +205,7 @@
                             <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
                                 <span>{{ $report->created_at->format('d M Y, h:i A') }}</span>
                                 <span>&middot;</span>
-                                <span>{{ $report->model_used }}</span>
-                                @if ($report->input_tokens)
-                                    <span>&middot;</span>
-                                    <span>{{ number_format($report->input_tokens + $report->output_tokens) }} tokens</span>
-                                @endif
+                                <span>Powered by Servora AI</span>
                                 @if ($report->requestedBy)
                                     <span>&middot;</span>
                                     <span>by {{ $report->requestedBy->name }}</span>

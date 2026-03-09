@@ -13,9 +13,7 @@
             <div class="doc-number">{{ $periodLabel }}</div>
             <div style="font-size: 9px; color: #666; margin-top: 4px;">
                 {{ ucwords(str_replace('_', ' ', $analysisType)) }}
-                @if ($model)
-                    &middot; Model: {{ $model }}
-                @endif
+                &middot; Powered by Servora AI
             </div>
         </div>
     </div>
