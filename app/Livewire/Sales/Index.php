@@ -4,7 +4,9 @@ namespace App\Livewire\Sales;
 
 use App\Models\CalendarEvent;
 use App\Models\Company;
+use App\Models\Outlet;
 use App\Models\SalesCategory;
+use App\Models\SalesClosure;
 use App\Models\SalesRecord;
 use App\Models\SalesRecordLine;
 use App\Services\CsvExportService;
@@ -30,6 +32,14 @@ class Index extends Component
     public array $selected   = [];
     public bool  $selectAll  = false;
     public bool  $canDelete  = false;
+
+    // Closure form
+    public bool   $showClosureModal = false;
+    public string $closureDate      = '';
+    public string $closureReason    = '';
+    public string $closureCustom    = '';
+    public string $closureNotes     = '';
+    public ?int   $editingClosureId = null;
 
     public function updatedSearch(): void           { $this->resetPage(); }
     public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPage(); }
@@ -66,7 +76,7 @@ class Index extends Component
 
     public function updatedSelectAll(bool $value): void
     {
-        // This is handled by Alpine on the frontend — Livewire just tracks the state
+        // Handled by Alpine on the frontend
     }
 
     #[On('z-report-saved')]
@@ -102,6 +112,101 @@ class Index extends Component
         $this->selectAll = false;
         session()->flash('success', $count . ' sales record(s) deleted.');
     }
+
+    // ── Closure Management ──────────────────────────────────────────────
+
+    public function openClosureModal(string $date = ''): void
+    {
+        $this->resetClosureForm();
+        $this->closureDate = $date;
+
+        // Check if closure already exists for this date
+        if ($date) {
+            $user    = Auth::user();
+            $outletId = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+
+            $existing = SalesClosure::where('closure_date', $date)
+                ->where(fn ($q) => $q->where('outlet_id', $outletId)->orWhereNull('outlet_id'))
+                ->first();
+
+            if ($existing) {
+                $this->editingClosureId = $existing->id;
+                $this->closureNotes     = $existing->notes ?? '';
+
+                // Check if reason matches a common reason
+                if (in_array($existing->reason, SalesClosure::commonReasons())) {
+                    $this->closureReason = $existing->reason;
+                } else {
+                    $this->closureReason = 'custom';
+                    $this->closureCustom = $existing->reason;
+                }
+            }
+        }
+
+        $this->showClosureModal = true;
+    }
+
+    public function saveClosure(): void
+    {
+        $reason = $this->closureReason === 'custom'
+            ? trim($this->closureCustom)
+            : $this->closureReason;
+
+        if (! $reason) {
+            $this->addError('closureReason', 'Please select or enter a reason.');
+            return;
+        }
+
+        if (! $this->closureDate) {
+            $this->addError('closureDate', 'Please select a date.');
+            return;
+        }
+
+        $user      = Auth::user();
+        $companyId = $user->company_id;
+        $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $companyId)->value('id');
+
+        if ($this->editingClosureId) {
+            $closure = SalesClosure::findOrFail($this->editingClosureId);
+            $closure->update([
+                'reason' => $reason,
+                'notes'  => $this->closureNotes ?: null,
+            ]);
+        } else {
+            SalesClosure::updateOrCreate(
+                [
+                    'company_id'   => $companyId,
+                    'outlet_id'    => $outletId,
+                    'closure_date' => $this->closureDate,
+                ],
+                [
+                    'reason'     => $reason,
+                    'notes'      => $this->closureNotes ?: null,
+                    'created_by' => $user->id,
+                ]
+            );
+        }
+
+        $this->showClosureModal = false;
+        $this->resetClosureForm();
+    }
+
+    public function removeClosure(int $id): void
+    {
+        SalesClosure::findOrFail($id)->delete();
+    }
+
+    private function resetClosureForm(): void
+    {
+        $this->closureDate      = '';
+        $this->closureReason    = '';
+        $this->closureCustom    = '';
+        $this->closureNotes     = '';
+        $this->editingClosureId = null;
+        $this->resetErrorBag();
+    }
+
+    // ── Exports ─────────────────────────────────────────────────────────
 
     public function exportCsv()
     {
@@ -160,7 +265,6 @@ class Index extends Component
         $user    = Auth::user();
         $company = Company::find($user->company_id);
 
-        // Build filtered query
         $query = SalesRecord::with('lines.salesCategory');
         $this->scopeByOutlet($query);
 
@@ -176,10 +280,8 @@ class Index extends Component
 
         $records = $query->orderBy('sale_date')->orderByDesc('id')->get();
 
-        // Categories
         $categories = SalesCategory::active()->ordered()->get();
 
-        // Revenue by category
         $categoryRevenues = [];
         foreach ($categories as $cat) {
             $total = $records->flatMap->lines
@@ -193,12 +295,10 @@ class Index extends Component
             }
         }
 
-        // Totals
         $totalRevenue = $records->sum(fn ($r) => (float) $r->total_revenue);
         $totalPax     = $records->sum('pax');
         $avgCheck     = ($totalPax > 0 && $totalRevenue > 0) ? round($totalRevenue / $totalPax, 2) : 0;
 
-        // Daily breakdown
         $dailySales = $records->groupBy(fn ($r) => $r->sale_date->format('Y-m-d'))
             ->map(function ($dayRecords, $date) {
                 $rev = $dayRecords->sum(fn ($r) => (float) $r->total_revenue);
@@ -213,19 +313,16 @@ class Index extends Component
                 ];
             })->values()->toArray();
 
-        // Missing dates
-        $missingDates = $this->getMissingDates($records);
+        $missingDatesData = $this->getMissingDatesWithClosures($records);
+        $missingDates     = collect($missingDatesData)->pluck('label')->toArray();
 
-        // Calendar events
-        $events = $this->getCalendarEvents();
-
-        // Period label
+        $events      = $this->getCalendarEvents();
         $periodLabel = $this->getPeriodLabel();
 
         $pdf = Pdf::loadView('pdf.sales-report', compact(
             'company', 'records', 'categories', 'categoryRevenues',
             'totalRevenue', 'totalPax', 'avgCheck', 'dailySales',
-            'missingDates', 'events', 'periodLabel'
+            'missingDates', 'missingDatesData', 'events', 'periodLabel'
         ))->setPaper('a4', 'portrait');
 
         $filename = 'Sales-Report-' . ($this->dateFrom ?: 'all') . '-to-' . ($this->dateTo ?: 'all') . '.pdf';
@@ -236,6 +333,8 @@ class Index extends Component
             ['Content-Type' => 'application/pdf']
         );
     }
+
+    // ── Render ──────────────────────────────────────────────────────────
 
     public function render()
     {
@@ -257,7 +356,7 @@ class Index extends Component
 
         $records = $query->orderByDesc('sale_date')->orderByDesc('id')->paginate(20);
 
-        // Stats — reflect current filters
+        // Stats
         $statsQ = SalesRecord::query();
         $this->scopeByOutlet($statsQ);
         if ($this->dateFrom) {
@@ -302,20 +401,22 @@ class Index extends Component
             }
         }
 
-        // Missing dates notice
-        $missingDates = $this->getMissingDates(
+        // Missing dates with closure reasons
+        $missingDatesData = $this->getMissingDatesWithClosures(
             (clone $statsQ)->select('sale_date')->distinct()->get()
         );
 
-        // Calendar events in range
+        // Calendar events
         $events = $this->getCalendarEvents();
 
         $periodLabel       = $this->getPeriodLabel();
+        $commonReasons     = SalesClosure::commonReasons();
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
 
         return view('livewire.sales.index', compact(
             'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount',
-            'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'missingDates', 'events'
+            'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'missingDatesData',
+            'events', 'commonReasons'
         ))->layout('layouts.app', ['title' => 'Sales']);
     }
 
@@ -339,7 +440,7 @@ class Index extends Component
         };
     }
 
-    private function getMissingDates($records): array
+    private function getMissingDatesWithClosures($records): array
     {
         if (! $this->dateFrom || ! $this->dateTo) {
             return [];
@@ -348,7 +449,6 @@ class Index extends Component
         $start = Carbon::parse($this->dateFrom);
         $end   = Carbon::parse($this->dateTo);
 
-        // Don't check future dates or ranges > 366 days
         if ($start->isFuture() || $start->diffInDays($end) > 366) {
             return [];
         }
@@ -359,10 +459,23 @@ class Index extends Component
             ? $records->pluck('sale_date')->map(fn ($d) => Carbon::parse($d)->format('Y-m-d'))->unique()->toArray()
             : collect($records)->pluck('sale_date')->map(fn ($d) => Carbon::parse($d)->format('Y-m-d'))->unique()->toArray();
 
+        // Load closures for the date range
+        $closures = SalesClosure::whereBetween('closure_date', [$start->format('Y-m-d'), $endCapped->format('Y-m-d')])
+            ->get()
+            ->keyBy(fn ($c) => $c->closure_date->format('Y-m-d'));
+
         $missing = [];
         foreach (CarbonPeriod::create($start, $endCapped) as $date) {
-            if (! in_array($date->format('Y-m-d'), $existingDates)) {
-                $missing[] = $date->format('d M Y (l)');
+            $dateStr = $date->format('Y-m-d');
+            if (! in_array($dateStr, $existingDates)) {
+                $closure = $closures[$dateStr] ?? null;
+                $missing[] = [
+                    'date'       => $dateStr,
+                    'label'      => $date->format('d M Y (l)'),
+                    'closure_id' => $closure?->id,
+                    'reason'     => $closure?->reason,
+                    'notes'      => $closure?->notes,
+                ];
             }
         }
 

@@ -191,16 +191,43 @@
         {{-- Missing Dates --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Missing Sales Dates</h3>
-            @if (!empty($missingDates))
-                <div class="space-y-1 max-h-48 overflow-y-auto">
-                    @foreach ($missingDates as $date)
-                        <div class="flex items-center gap-2 text-xs">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
-                            <span class="text-gray-600">{{ $date }}</span>
+            @if (!empty($missingDatesData))
+                <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                    @foreach ($missingDatesData as $md)
+                        <div class="flex items-start gap-2 text-xs group">
+                            <span class="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 {{ $md['reason'] ? 'bg-blue-400' : 'bg-amber-400' }}"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-gray-600">{{ $md['label'] }}</span>
+                                    <button wire:click="openClosureModal('{{ $md['date'] }}')"
+                                            class="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-indigo-600 transition"
+                                            title="{{ $md['reason'] ? 'Edit reason' : 'Add reason' }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                </div>
+                                @if ($md['reason'])
+                                    <span class="text-blue-600 font-medium">{{ $md['reason'] }}</span>
+                                    @if ($md['notes'])
+                                        <span class="text-gray-400"> — {{ $md['notes'] }}</span>
+                                    @endif
+                                @endif
+                            </div>
                         </div>
                     @endforeach
                 </div>
-                <p class="text-xs text-amber-600 mt-2 font-medium">{{ count($missingDates) }} date{{ count($missingDates) !== 1 ? 's' : '' }} with no sales recorded</p>
+                @php
+                    $untagged = collect($missingDatesData)->whereNull('reason')->count();
+                    $tagged   = collect($missingDatesData)->whereNotNull('reason')->count();
+                @endphp
+                <div class="flex items-center gap-3 mt-2 text-xs">
+                    @if ($untagged > 0)
+                        <span class="text-amber-600 font-medium">{{ $untagged }} untagged</span>
+                    @endif
+                    @if ($tagged > 0)
+                        <span class="text-blue-600 font-medium">{{ $tagged }} tagged</span>
+                    @endif
+                    <span class="text-gray-400">{{ count($missingDatesData) }} total missing</span>
+                </div>
             @else
                 @if ($dateFrom && $dateTo)
                     <div class="flex items-center gap-2 text-sm text-green-600">
@@ -412,6 +439,92 @@
             </div>
         @endif
     </div>
+
+    {{-- Closure Reason Modal --}}
+    @teleport('body')
+    <div x-data="{}" x-show="$wire.showClosureModal" x-cloak class="fixed inset-0 z-50">
+        <div class="fixed inset-0 bg-gray-900/50" @click="$wire.showClosureModal = false"></div>
+        <div class="fixed inset-0 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10" @click.stop>
+                    <div class="px-6 py-4 border-b border-gray-100">
+                        <h3 class="text-sm font-semibold text-gray-800">
+                            {{ $editingClosureId ? 'Edit Closure Reason' : 'Tag Missing Date' }}
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            @if ($closureDate)
+                                {{ \Carbon\Carbon::parse($closureDate)->format('d M Y (l)') }}
+                            @endif
+                        </p>
+                    </div>
+                    <div class="px-6 py-4 space-y-4">
+                        {{-- Common reasons --}}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-2">Reason</label>
+                            <div class="flex flex-wrap gap-1.5 mb-2">
+                                @foreach (\App\Models\SalesClosure::commonReasons() as $reason)
+                                    <button type="button"
+                                            wire:click="$set('closureReason', '{{ $reason }}')"
+                                            class="px-2.5 py-1 text-xs rounded-lg border transition
+                                                   {{ $closureReason === $reason
+                                                       ? 'bg-indigo-600 text-white border-indigo-600'
+                                                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                                        {{ $reason }}
+                                    </button>
+                                @endforeach
+                                <button type="button"
+                                        wire:click="$set('closureReason', 'custom')"
+                                        class="px-2.5 py-1 text-xs rounded-lg border transition
+                                               {{ $closureReason === 'custom'
+                                                   ? 'bg-indigo-600 text-white border-indigo-600'
+                                                   : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                                    Custom...
+                                </button>
+                            </div>
+
+                            @if ($closureReason === 'custom')
+                                <input type="text" wire:model="closureCustom"
+                                       placeholder="Enter custom reason..."
+                                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @endif
+                            @error('closureReason')
+                                <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Notes --}}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
+                            <textarea wire:model="closureNotes" rows="2"
+                                      placeholder="Additional context..."
+                                      class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        </div>
+                    </div>
+                    <div class="px-6 py-3 bg-gray-50 rounded-b-xl flex items-center justify-between">
+                        <div>
+                            @if ($editingClosureId)
+                                <button wire:click="removeClosure({{ $editingClosureId }})" wire:confirm="Remove this closure reason?"
+                                        class="text-xs text-red-500 hover:text-red-700 transition">
+                                    Remove Reason
+                                </button>
+                            @endif
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button wire:click="$set('showClosureModal', false)"
+                                    class="px-4 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition">
+                                Cancel
+                            </button>
+                            <button wire:click="saveClosure"
+                                    class="px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                                Save Reason
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endteleport
 
     {{-- Attachments Slide-over --}}
     <div x-show="showAttachments" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"

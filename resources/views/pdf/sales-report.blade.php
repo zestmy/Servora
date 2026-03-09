@@ -92,21 +92,25 @@
     @endif
 
     {{-- Missing Dates --}}
-    @if (!empty($missingDates))
-        <h3 style="font-size: 12px; font-weight: bold; margin: 18px 0 8px 0; color: #dc2626;">Missing Sales Dates ({{ count($missingDates) }})</h3>
+    @if (!empty($missingDatesData))
+        <h3 style="font-size: 12px; font-weight: bold; margin: 18px 0 8px 0; color: #dc2626;">Missing Sales Dates ({{ count($missingDatesData) }})</h3>
         <div style="font-size: 9px; color: #666; margin-bottom: 6px;">No sales data recorded for these dates:</div>
         <table class="items">
             <thead>
                 <tr>
                     <th>#</th>
                     <th>Date</th>
+                    <th>Reason</th>
+                    <th>Notes</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach ($missingDates as $i => $date)
+                @foreach ($missingDatesData as $i => $md)
                     <tr>
                         <td>{{ $i + 1 }}</td>
-                        <td>{{ $date }}</td>
+                        <td>{{ $md['label'] }}</td>
+                        <td style="{{ $md['reason'] ? 'color: #2563eb; font-weight: 500;' : 'color: #999;' }}">{{ $md['reason'] ?? 'Not tagged' }}</td>
+                        <td style="color: #666;">{{ $md['notes'] ?? '' }}</td>
                     </tr>
                 @endforeach
             </tbody>
