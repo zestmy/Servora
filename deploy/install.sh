@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Servora — One-click installer for Ubuntu 22.04 / 24.04 (DigitalOcean)
+# Servora — One-click installer for Ubuntu (DigitalOcean)
+#
+# Supported: Ubuntu 22.04, 24.04, 24.10, 25.04, 25.10+
 #
 # Usage:
 #   1. Spin up an Ubuntu droplet on DigitalOcean
@@ -8,11 +10,8 @@
 #   3. Upload or clone this repo, then run:
 #        bash deploy/install.sh
 #
-#   Or run directly from GitHub:
-#        curl -sL https://raw.githubusercontent.com/zestmy/Servora/main/deploy/install.sh | bash
-#
 # What it installs:
-#   - Nginx, PHP 8.3 (FPM), MySQL 8, Node 22, Composer
+#   - Nginx, PHP 8.x (FPM), MySQL 8, Node 22, Composer
 #   - Certbot (Let's Encrypt SSL — optional)
 #   - Configures the app, runs migrations + seeder
 #
@@ -80,24 +79,51 @@ apt-get upgrade -y -qq
 info "Installing prerequisites..."
 apt-get install -y -qq software-properties-common curl git unzip acl ufw
 
-# ── 2. PHP 8.3 ──────────────────────────────────────────────────────────────
-info "Installing PHP 8.3..."
-add-apt-repository -y ppa:ondrej/php > /dev/null 2>&1
-apt-get update -qq
+# ── 2. PHP (auto-detect best version) ────────────────────────────────────────
+# Try to find PHP 8.3 or 8.4 in default repos first; fall back to ondrej PPA on LTS
+info "Detecting PHP version..."
+
+# Check what's available in default repos
+PHP_VER=""
+for v in 8.4 8.3; do
+    if apt-cache show "php${v}-fpm" > /dev/null 2>&1; then
+        PHP_VER="$v"
+        break
+    fi
+done
+
+# If nothing found in default repos, try the ondrej PPA (works on LTS releases)
+if [[ -z "$PHP_VER" ]]; then
+    info "Adding ondrej/php PPA..."
+    if add-apt-repository -y ppa:ondrej/php > /dev/null 2>&1; then
+        apt-get update -qq
+        for v in 8.4 8.3; do
+            if apt-cache show "php${v}-fpm" > /dev/null 2>&1; then
+                PHP_VER="$v"
+                break
+            fi
+        done
+    fi
+fi
+
+[[ -n "$PHP_VER" ]] || fail "Could not find PHP 8.3 or 8.4. Please install PHP manually."
+
+info "Installing PHP ${PHP_VER}..."
 apt-get install -y -qq \
-    php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml \
-    php8.3-bcmath php8.3-curl php8.3-zip php8.3-gd php8.3-intl \
-    php8.3-readline php8.3-dom php8.3-fileinfo php8.3-tokenizer
-ok "PHP 8.3 installed"
+    "php${PHP_VER}-fpm" "php${PHP_VER}-cli" "php${PHP_VER}-mysql" \
+    "php${PHP_VER}-mbstring" "php${PHP_VER}-xml" "php${PHP_VER}-bcmath" \
+    "php${PHP_VER}-curl" "php${PHP_VER}-zip" "php${PHP_VER}-gd" \
+    "php${PHP_VER}-intl" "php${PHP_VER}-readline"
+ok "PHP ${PHP_VER} installed"
 
 # Tune PHP for production
-PHP_INI="/etc/php/8.3/fpm/php.ini"
+PHP_INI="/etc/php/${PHP_VER}/fpm/php.ini"
 sed -i 's/^upload_max_filesize.*/upload_max_filesize = 20M/' "$PHP_INI"
 sed -i 's/^post_max_size.*/post_max_size = 25M/' "$PHP_INI"
 sed -i 's/^memory_limit.*/memory_limit = 256M/' "$PHP_INI"
 sed -i 's/^max_execution_time.*/max_execution_time = 60/' "$PHP_INI"
 
-systemctl restart php8.3-fpm
+systemctl restart "php${PHP_VER}-fpm"
 ok "PHP-FPM configured"
 
 # ── 3. MySQL 8 ──────────────────────────────────────────────────────────────
@@ -138,7 +164,7 @@ server {
     location = /robots.txt  { access_log off; log_not_found off; }
 
     location ~ \.php\$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/run/php/php${PHP_VER}-fpm.sock;
         fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_read_timeout 60;
