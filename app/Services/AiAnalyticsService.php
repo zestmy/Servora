@@ -6,6 +6,7 @@ use App\Models\AiAnalysisLog;
 use App\Models\AppSetting;
 use App\Models\CalendarEvent;
 use App\Models\SalesRecord;
+use App\Models\SalesTarget;
 use App\Models\WastageRecord;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -234,6 +235,37 @@ class AiAnalyticsService
         $company = Auth::user()->company;
         $outlet = $outletId ? \App\Models\Outlet::find($outletId) : null;
 
+        // Sales target for this period
+        $target = SalesTarget::where('period', $period)
+            ->where(fn ($q) => $outletId
+                ? $q->where('outlet_id', $outletId)->orWhereNull('outlet_id')
+                : $q->whereNull('outlet_id'))
+            ->orderByRaw('outlet_id IS NULL ASC')
+            ->first();
+
+        // Historical monthly totals (last 6 months for trend)
+        $historicalSales = [];
+        for ($i = 6; $i >= 1; $i--) {
+            $histDate = $date->copy()->subMonths($i);
+            $histStart = $histDate->copy()->startOfMonth();
+            $histEnd = $histDate->copy()->endOfMonth();
+            $histQuery = SalesRecord::whereBetween('sale_date', [$histStart, $histEnd]);
+            if ($outletId) {
+                $histQuery->where('outlet_id', $outletId);
+            }
+            $histRev = round((float) $histQuery->sum('total_revenue'), 2);
+            $histPax = (int) $histQuery->sum('pax');
+            if ($histRev > 0 || $histPax > 0) {
+                $historicalSales[] = [
+                    'period'  => $histDate->format('Y-m'),
+                    'label'   => $histDate->format('M Y'),
+                    'revenue' => $histRev,
+                    'pax'     => $histPax,
+                    'avg'     => $histPax > 0 ? round($histRev / $histPax, 2) : 0,
+                ];
+            }
+        }
+
         return [
             'company_name'       => $company->name ?? 'Unknown',
             'outlet_name'        => $outlet?->name ?? 'All Outlets',
@@ -247,6 +279,12 @@ class AiAnalyticsService
             'wastage_detail'     => $costSummary['wastage_detail'] ?? ['groups' => [], 'total' => 0],
             'staff_meals_detail' => $costSummary['staff_meals_detail'] ?? ['groups' => [], 'total' => 0],
             'staff_meals_total'  => $costSummary['totals']['staff_meals'] ?? 0,
+            'sales_target'       => $target ? [
+                'revenue' => (float) $target->target_revenue,
+                'pax'     => $target->target_pax,
+                'notes'   => $target->notes,
+            ] : null,
+            'historical_sales'   => $historicalSales,
         ];
     }
 
@@ -417,6 +455,38 @@ class AiAnalyticsService
             $sections[] = "";
         }
 
+        // Sales target
+        if (!empty($context['sales_target'])) {
+            $t = $context['sales_target'];
+            $sections[] = "## Sales Target for {$context['period_label']}";
+            $sections[] = "| Metric | Target |";
+            $sections[] = "|--------|--------|";
+            $sections[] = "| Revenue | RM " . number_format($t['revenue'], 2) . " |";
+            if ($t['pax']) {
+                $sections[] = "| Pax | " . number_format($t['pax']) . " |";
+            }
+            if ($t['notes']) {
+                $sections[] = "| Notes | {$t['notes']} |";
+            }
+
+            // Achievement
+            $actualRev = $totals['revenue'] ?? 0;
+            $pct = $t['revenue'] > 0 ? round($actualRev / $t['revenue'] * 100, 1) : 0;
+            $sections[] = "| Actual Revenue | RM " . number_format($actualRev, 2) . " ({$pct}% of target) |";
+            $sections[] = "";
+        }
+
+        // Historical monthly sales (for trend & prediction)
+        if (!empty($context['historical_sales'])) {
+            $sections[] = "## Historical Monthly Sales (Last 6 Months)";
+            $sections[] = "| Month | Revenue | Pax | Avg/Pax |";
+            $sections[] = "|-------|---------|-----|---------|";
+            foreach ($context['historical_sales'] as $hist) {
+                $sections[] = "| {$hist['label']} | RM " . number_format($hist['revenue'], 2) . " | {$hist['pax']} | RM " . number_format($hist['avg'], 2) . " |";
+            }
+            $sections[] = "";
+        }
+
         // Analysis instructions
         $sections[] = "## Analysis Request";
 
@@ -424,12 +494,14 @@ class AiAnalyticsService
             case 'monthly_review':
                 $sections[] = "Provide a comprehensive monthly operations review:\n"
                     . "1. **Revenue Performance** — overall trend, best/worst days, day-of-week patterns\n"
-                    . "2. **Cost Analysis** — cost % by category, areas of concern, month-over-month changes\n"
-                    . "3. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
-                    . "4. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
-                    . "5. **Purchase Efficiency** — purchase-to-revenue ratios by category, any signs of overpurchasing?\n"
-                    . "6. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
-                    . "7. **Key Recommendations** — 3-5 specific, actionable steps to improve next month";
+                    . "2. **Target Achievement** — if a sales target is set, how close are we? On track or behind? Projected end-of-month result\n"
+                    . "3. **Cost Analysis** — cost % by category, areas of concern, month-over-month changes\n"
+                    . "4. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
+                    . "5. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
+                    . "6. **Purchase Efficiency** — purchase-to-revenue ratios by category, any signs of overpurchasing?\n"
+                    . "7. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
+                    . "8. **Historical Comparison** — compare this month to previous months' trend, is performance improving or declining?\n"
+                    . "9. **Key Recommendations** — 3-5 specific, actionable steps to improve next month";
                 break;
 
             case 'weekly_review':
@@ -447,11 +519,13 @@ class AiAnalyticsService
             case 'trend_analysis':
                 $sections[] = "Focus on trend analysis:\n"
                     . "1. **Daily Revenue Patterns** — identify peak/low days, weekday vs weekend trends\n"
-                    . "2. **Pax & Average Check Trends** — are more people coming or spending more per visit?\n"
-                    . "3. **Event Impact Analysis** — quantify revenue lift/drop around calendar events\n"
-                    . "4. **Inventory Trends** — stock value changes, purchase patterns relative to sales\n"
-                    . "5. **Forecasting** — based on patterns, what should next month look like?\n"
-                    . "6. **Revenue Optimization** — specific suggestions for pricing, promotions, scheduling";
+                    . "2. **Monthly Trend** — use historical monthly data to identify growth/decline trajectory\n"
+                    . "3. **Pax & Average Check Trends** — are more people coming or spending more per visit?\n"
+                    . "4. **Event Impact Analysis** — quantify revenue lift/drop around calendar events\n"
+                    . "5. **Target Tracking** — if targets are set, plot progress and project achievement\n"
+                    . "6. **Inventory Trends** — stock value changes, purchase patterns relative to sales\n"
+                    . "7. **Forecasting** — based on historical patterns, what should next month look like?\n"
+                    . "8. **Revenue Optimization** — specific suggestions for pricing, promotions, scheduling";
                 break;
 
             case 'cost_optimization':
@@ -463,6 +537,20 @@ class AiAnalyticsService
                     . "5. **Inventory Optimization** — stock levels vs usage, dead stock indicators\n"
                     . "6. **Menu Engineering** — which categories should be promoted based on margin?\n"
                     . "7. **Action Plan** — ranked list of cost-saving opportunities with estimated impact";
+                break;
+
+            case 'predictive_analysis':
+                $nextMonth = Carbon::createFromFormat('Y-m', $context['period'])->addMonth();
+                $sections[] = "Based on ALL the data above — historical monthly trends, daily patterns, day-of-week averages, calendar events, cost trends, and sales targets — provide a **predictive sales forecast for {$nextMonth->format('F Y')}**:\n"
+                    . "1. **Revenue Forecast** — provide low / expected / high estimates with reasoning\n"
+                    . "2. **Pax Forecast** — predicted customer count based on trends\n"
+                    . "3. **Daily Revenue Estimate** — expected average daily revenue and best/worst performing days of week\n"
+                    . "4. **Target Achievement** — if a sales target is set, predict likelihood of hitting it and by when\n"
+                    . "5. **Growth Trend** — month-over-month revenue trajectory, is the business growing or declining?\n"
+                    . "6. **Seasonality & Events** — how upcoming events or seasonal patterns will impact next month\n"
+                    . "7. **Risk Factors** — potential threats to revenue (weather, competition, economic conditions)\n"
+                    . "8. **Recommendations** — 3-5 specific actions to maximize next month's performance\n"
+                    . "9. **Confidence Level** — rate your prediction confidence (Low/Medium/High) based on data availability";
                 break;
 
             case 'custom':

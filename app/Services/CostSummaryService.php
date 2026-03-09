@@ -204,9 +204,15 @@ class CostSummaryService
 
     private function getRevenue(Carbon $from, Carbon $to, ?int $outletId): Collection
     {
+        // Priority: sales_categories.ingredient_category_id (current mapping) takes
+        // precedence over the snapshot stored on the line. This ensures that updating
+        // a sales category mapping in settings immediately reflects in all reports.
         $query = SalesRecordLine::query()
             ->join('sales_records', 'sales_records.id', '=', 'sales_record_lines.sales_record_id')
-            ->leftJoin('sales_categories', 'sales_categories.id', '=', 'sales_record_lines.sales_category_id')
+            ->leftJoin('sales_categories', function ($join) {
+                $join->on('sales_categories.id', '=', 'sales_record_lines.sales_category_id')
+                     ->whereNull('sales_categories.deleted_at');
+            })
             ->whereBetween('sales_records.sale_date', [$from, $to])
             ->whereNull('sales_records.deleted_at');
 
@@ -215,7 +221,7 @@ class CostSummaryService
         }
 
         return $query
-            ->selectRaw('COALESCE(sales_record_lines.ingredient_category_id, sales_categories.ingredient_category_id) as cat_id, SUM(sales_record_lines.total_revenue) as total')
+            ->selectRaw('COALESCE(sales_categories.ingredient_category_id, sales_record_lines.ingredient_category_id) as cat_id, SUM(sales_record_lines.total_revenue) as total')
             ->groupBy('cat_id')
             ->pluck('total', 'cat_id');
     }

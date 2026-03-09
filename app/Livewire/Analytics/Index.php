@@ -166,11 +166,12 @@ class Index extends Component
         $periodLabel = Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
 
         $analysisTypes = [
-            'monthly_review'    => 'Monthly Review',
-            'weekly_review'     => 'Weekly Review',
-            'trend_analysis'    => 'Trend Analysis',
-            'cost_optimization' => 'Cost Optimization',
-            'custom'            => 'Custom Question',
+            'monthly_review'      => 'Monthly Review',
+            'weekly_review'       => 'Weekly Review',
+            'trend_analysis'      => 'Trend Analysis',
+            'predictive_analysis' => 'Predictive Sales Forecast',
+            'cost_optimization'   => 'Cost Optimization',
+            'custom'              => 'Custom Question',
         ];
 
         $savedReports = AiAnalysisLog::with('outlet', 'requestedBy')

@@ -4,6 +4,7 @@ namespace App\Livewire\Sales;
 
 use App\Models\IngredientCategory;
 use App\Models\Outlet;
+use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use App\Services\VisionService;
 use Illuminate\Support\Facades\Auth;
@@ -91,17 +92,23 @@ class ZReportImport extends Component
             $categories = IngredientCategory::roots()->active()->revenue()->ordered()->get()
                 ->keyBy(fn ($c) => strtolower(trim($c->name)));
 
+            // Also match against SalesCategory for the sales_category_id link
+            $salesCategories = SalesCategory::active()->ordered()->get()
+                ->keyBy(fn ($c) => strtolower(trim($c->name)));
+
             $this->allDayLines = [];
             foreach ($parsed['departments'] as $dept) {
                 $catKey   = strtolower(trim($dept['name']));
                 $category = $categories->get($catKey);
+                $salesCat = $salesCategories->get($catKey);
 
                 $this->allDayLines[] = [
                     'ingredient_category_id' => $category?->id,
+                    'sales_category_id'      => $salesCat?->id,
                     'category_name'          => $dept['name'],
-                    'category_color'         => $category?->color ?? '#6b7280',
+                    'category_color'         => $category?->color ?? $salesCat?->color ?? '#6b7280',
                     'revenue'                => (string) $dept['amount'],
-                    'unmatched'              => $category === null,
+                    'unmatched'              => $category === null && $salesCat === null,
                 ];
             }
 
@@ -163,6 +170,7 @@ class ZReportImport extends Component
                     $rev = floatval($line['revenue']);
                     if ($rev <= 0) continue;
                     $record->lines()->create([
+                        'sales_category_id'      => $line['sales_category_id'] ?? null,
                         'ingredient_category_id' => $line['ingredient_category_id'] ?: null,
                         'item_name'              => $line['category_name'],
                         'quantity'               => 1,
