@@ -1,4 +1,11 @@
 <div>
+    @if (session()->has('success'))
+        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+            {{ session('success') }}
+        </div>
+    @endif
+
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
         <a href="{{ route('settings.form-templates') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
