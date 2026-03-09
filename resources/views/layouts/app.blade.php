@@ -130,7 +130,13 @@
         {{-- ── Bottom: Company / Outlet / User ────────────────────────────── --}}
         <div class="flex-shrink-0 border-t border-gray-700">
 
-            {{-- Company + Outlet switcher (expanded only) --}}
+            {{-- Company + Active Outlet (expanded only) --}}
+            @php
+                $activeOutletId = Auth::user()->activeOutletId();
+                $activeOutletName = $activeOutletId
+                    ? \App\Models\Outlet::find($activeOutletId)?->name ?? '—'
+                    : 'All Outlets';
+            @endphp
             <div x-show="sidebarOpen"
                  x-transition:enter="transition-opacity duration-150 delay-100"
                  x-transition:enter-start="opacity-0"
@@ -138,14 +144,17 @@
                  x-transition:leave="transition-opacity duration-75"
                  x-transition:leave-start="opacity-100"
                  x-transition:leave-end="opacity-0"
-                 class="px-3 pt-3 pb-2 space-y-2">
+                 class="px-3 pt-3 pb-2 space-y-1">
                 <div class="flex items-center gap-2 px-1">
                     <span class="text-sm leading-none">🏢</span>
                     <span class="text-xs font-medium text-gray-300 truncate">
                         {{ Auth::user()->company->name ?? '—' }}
                     </span>
                 </div>
-                @livewire('outlet-switcher')
+                <div class="flex items-center gap-2 px-1">
+                    <span class="text-sm leading-none">📍</span>
+                    <span class="text-xs text-gray-400 truncate">{{ $activeOutletName }}</span>
+                </div>
             </div>
 
             {{-- User button --}}
@@ -212,6 +221,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     Profile
+                </a>
+                <a href="{{ route('profile') }}#switch-outlet"
+                   wire:navigate
+                   @click="userMenuOpen = false"
+                   class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    Switch Outlet
+                    <span class="ml-auto text-xs text-gray-500 truncate max-w-[100px]">{{ $activeOutletName }}</span>
                 </a>
             </div>
 
