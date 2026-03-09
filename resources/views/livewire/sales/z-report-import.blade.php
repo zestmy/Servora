@@ -1,6 +1,7 @@
 {{-- Z-Report Import Modal --}}
 <div>
     @if ($showModal)
+    @teleport('body')
     <div class="fixed inset-0 z-50">
         <div class="fixed inset-0 bg-gray-900/60" wire:click="close"></div>
         <div class="fixed inset-0 overflow-y-auto">
@@ -300,5 +301,6 @@
         </div>
         </div>
     </div>
+    @endteleport
     @endif
 </div>

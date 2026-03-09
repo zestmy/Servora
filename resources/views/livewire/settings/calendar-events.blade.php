@@ -117,6 +117,7 @@
 
     {{-- Modal --}}
     @if ($showModal)
+        @teleport('body')
         <div class="fixed inset-0 z-50" wire:keydown.escape="closeModal">
             <div class="fixed inset-0 bg-black/40" @click="$wire.closeModal()"></div>
             <div class="fixed inset-0 overflow-y-auto">
@@ -199,10 +200,12 @@
             </div>
             </div>
         </div>
+        @endteleport
     @endif
 
     {{-- Import Modal --}}
     @if ($showImportModal)
+        @teleport('body')
         <div class="fixed inset-0 z-50" wire:keydown.escape="closeImportModal">
             <div class="fixed inset-0 bg-black/40" @click="$wire.closeImportModal()"></div>
             <div class="fixed inset-0 overflow-y-auto">
@@ -331,5 +334,6 @@
             </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>

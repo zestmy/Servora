@@ -207,6 +207,7 @@
     </div>
 
     {{-- Modal --}}
+    @teleport('body')
     <div x-data="{}"
          x-show="$wire.showModal"
          x-cloak
@@ -590,4 +591,5 @@
         </div>
         </div>
     </div>
+    @endteleport
 </div>

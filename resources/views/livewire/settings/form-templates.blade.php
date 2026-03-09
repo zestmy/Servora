@@ -134,6 +134,7 @@
 
     {{-- Create / Edit Modal --}}
     @if ($showModal)
+        @teleport('body')
         <div class="fixed inset-0 z-50">
             <div class="fixed inset-0 bg-black/40" wire:click="closeModal"></div>
             <div class="fixed inset-0 overflow-y-auto">
@@ -215,5 +216,6 @@
             </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>

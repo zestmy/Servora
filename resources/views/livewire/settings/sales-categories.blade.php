@@ -131,6 +131,7 @@
     </div>
 
     {{-- Modal --}}
+    @teleport('body')
     <div x-data="{}" x-show="$wire.showModal" x-cloak
          class="fixed inset-0 z-50">
         <div class="fixed inset-0 bg-gray-900/50" @click="$wire.closeModal()"></div>
@@ -238,4 +239,5 @@
         </div>
         </div>
     </div>
+    @endteleport
 </div>
