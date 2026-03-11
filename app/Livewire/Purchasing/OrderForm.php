@@ -5,6 +5,7 @@ namespace App\Livewire\Purchasing;
 use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
+use App\Models\IngredientParLevel;
 use App\Models\Outlet;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
@@ -87,6 +88,8 @@ class OrderForm extends Component
             'uom_id'          => $l->uom_id,
             'unit_cost'       => (string) floatval($l->unit_cost),
             'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+            'par_level'       => (string) $this->getParLevel($l->ingredient_id),
+            'balance'         => '',
         ])->toArray();
     }
 
@@ -124,7 +127,8 @@ class OrderForm extends Component
             if (in_array($tLine->ingredient_id, $existing)) continue;
 
             $unitCost = $this->lookupUnitCost($tLine->ingredient_id, $this->supplier_id);
-            $qty      = max(0.001, $tLine->default_quantity);
+            $parLevel = $this->getParLevel($tLine->ingredient_id);
+            $qty      = $parLevel > 0 ? $parLevel : max(0.001, $tLine->default_quantity);
 
             $this->lines[] = [
                 'ingredient_id'   => $tLine->ingredient_id,
@@ -133,6 +137,8 @@ class OrderForm extends Component
                 'uom_id'          => $tLine->ingredient->base_uom_id,
                 'unit_cost'       => (string) $unitCost,
                 'total_cost'      => round($qty * $unitCost, 4),
+                'par_level'       => (string) $parLevel,
+                'balance'         => '',
             ];
 
             $existing[] = $tLine->ingredient_id;
@@ -161,13 +167,17 @@ class OrderForm extends Component
 
         $unitCost = $this->lookupUnitCost($ingredientId, $this->supplier_id);
 
+        $parLevel = $this->getParLevel($ingredientId);
+
         $this->lines[] = [
             'ingredient_id'   => $ingredientId,
             'ingredient_name' => $ingredient->name,
-            'quantity'        => '1',
+            'quantity'        => $parLevel > 0 ? (string) $parLevel : '1',
             'uom_id'          => $ingredient->base_uom_id,
             'unit_cost'       => (string) $unitCost,
-            'total_cost'      => $unitCost,
+            'total_cost'      => $parLevel > 0 ? round($parLevel * $unitCost, 4) : $unitCost,
+            'par_level'       => (string) $parLevel,
+            'balance'         => '',
         ];
 
         $this->ingredientSearch = '';
@@ -182,8 +192,21 @@ class OrderForm extends Component
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
-        if (count($parts) === 2 && in_array($parts[1], ['quantity', 'unit_cost'])) {
-            $this->recalcLine((int) $parts[0]);
+        if (count($parts) !== 2) return;
+
+        $idx = (int) $parts[0];
+        $field = $parts[1];
+
+        if ($field === 'balance' && isset($this->lines[$idx])) {
+            $parLevel = floatval($this->lines[$idx]['par_level'] ?? 0);
+            $balance = floatval($value);
+            if ($parLevel > 0) {
+                $orderQty = max(0, $parLevel - $balance);
+                $this->lines[$idx]['quantity'] = (string) $orderQty;
+            }
+            $this->recalcLine($idx);
+        } elseif (in_array($field, ['quantity', 'unit_cost'])) {
+            $this->recalcLine($idx);
         }
     }
 
@@ -321,6 +344,21 @@ class OrderForm extends Component
         $qty  = floatval($this->lines[$idx]['quantity'] ?? 0);
         $cost = floatval($this->lines[$idx]['unit_cost'] ?? 0);
         $this->lines[$idx]['total_cost'] = round($qty * $cost, 4);
+    }
+
+    private function getParLevel(int $ingredientId): float
+    {
+        $user = Auth::user();
+        $outletId = $user->activeOutletId() ?? Outlet::where('company_id', $user->company_id)->value('id');
+
+        if (!$outletId) return 0;
+
+        return floatval(
+            IngredientParLevel::withoutGlobalScopes()
+                ->where('ingredient_id', $ingredientId)
+                ->where('outlet_id', $outletId)
+                ->value('par_level') ?? 0
+        );
     }
 
     private function generatePoNumber(): string

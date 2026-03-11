@@ -162,6 +162,18 @@
                     </div>
                 </a>
 
+                {{-- Par Levels --}}
+                <a href="{{ route('settings.par-levels') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Par Levels</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Set stock par levels per ingredient per outlet for auto-ordering</p>
+                    </div>
+                </a>
+
                 {{-- Calendar Events --}}
                 <a href="{{ route('settings.calendar-events') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">

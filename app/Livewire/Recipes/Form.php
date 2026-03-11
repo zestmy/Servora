@@ -6,13 +6,17 @@ use App\Models\Ingredient;
 use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
+use App\Models\RecipeImage;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Form extends Component
 {
+    use WithFileUploads;
     public ?int $recipeId = null;
 
     // Header fields
@@ -28,6 +32,10 @@ class Form extends Component
 
     // Ingredient lines: each row = [ingredient_id, ingredient_name, quantity, uom_id, waste_percentage]
     public array $lines = [];
+
+    // Images
+    public array $newImages = [];
+    public array $existingImages = [];
 
     // Ingredient search
     public string $ingredientSearch = '';
@@ -47,6 +55,7 @@ class Form extends Component
             'lines.*.quantity'           => 'required|numeric|min:0.0001',
             'lines.*.uom_id'             => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage'   => 'required|numeric|min:0|max:100',
+            'newImages.*'                => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
         ];
     }
 
@@ -66,7 +75,7 @@ class Form extends Component
     {
         if (! $id) return;
 
-        $recipe = Recipe::with(['lines.ingredient', 'lines.uom'])->findOrFail($id);
+        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->name                   = $recipe->name;
@@ -86,6 +95,13 @@ class Form extends Component
             'quantity'         => $this->fmt($l->quantity),
             'uom_id'           => $l->uom_id,
             'waste_percentage' => $this->fmt($l->waste_percentage, 2),
+        ])->toArray();
+
+        $this->existingImages = $recipe->images->map(fn ($img) => [
+            'id'        => $img->id,
+            'file_name' => $img->file_name,
+            'url'       => $img->url(),
+            'size'      => $img->humanSize(),
         ])->toArray();
     }
 
@@ -118,6 +134,24 @@ class Form extends Component
     {
         unset($this->lines[$idx]);
         $this->lines = array_values($this->lines);
+    }
+
+    public function removeExistingImage(int $id): void
+    {
+        $image = RecipeImage::find($id);
+        if ($image) {
+            Storage::disk('public')->delete($image->file_path);
+            $image->delete();
+        }
+        $this->existingImages = array_values(
+            array_filter($this->existingImages, fn ($img) => $img['id'] !== $id)
+        );
+    }
+
+    public function removeNewImage(int $idx): void
+    {
+        unset($this->newImages[$idx]);
+        $this->newImages = array_values($this->newImages);
     }
 
     public function save(): void
@@ -161,6 +195,19 @@ class Form extends Component
                 'uom_id'           => $line['uom_id'],
                 'waste_percentage' => $line['waste_percentage'],
                 'sort_order'       => $idx,
+            ]);
+        }
+
+        // Save new images
+        $existingCount = count($this->existingImages);
+        foreach ($this->newImages as $idx => $file) {
+            $path = $file->store('recipe-images', 'public');
+            $recipe->images()->create([
+                'file_name'  => $file->getClientOriginalName(),
+                'file_path'  => $path,
+                'mime_type'  => $file->getMimeType(),
+                'file_size'  => $file->getSize(),
+                'sort_order' => $existingCount + $idx,
             ]);
         }
 

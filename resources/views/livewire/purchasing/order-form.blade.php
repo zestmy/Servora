@@ -235,10 +235,14 @@
                         <tr>
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Ingredient</th>
-                            <th class="px-4 py-2 text-right w-28">Qty</th>
-                            <th class="px-4 py-2 text-left w-32">UOM</th>
-                            <th class="px-4 py-2 text-right w-32">Unit Cost (RM)</th>
-                            <th class="px-4 py-2 text-right w-32">Total (RM)</th>
+                            <th class="px-4 py-2 text-right w-24">Par Level</th>
+                            @if ($isEditable)
+                            <th class="px-4 py-2 text-right w-24">Balance</th>
+                            @endif
+                            <th class="px-4 py-2 text-right w-24">Order Qty</th>
+                            <th class="px-4 py-2 text-left w-28">UOM</th>
+                            <th class="px-4 py-2 text-right w-28">Unit Cost (RM)</th>
+                            <th class="px-4 py-2 text-right w-28">Total (RM)</th>
                             @if ($isEditable)
                             <th class="px-4 py-2 w-10"></th>
                             @endif
@@ -252,6 +256,25 @@
                                     <div class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</div>
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
                                 </td>
+                                <td class="px-4 py-2 text-right tabular-nums text-gray-500 text-xs">
+                                    @if (floatval($line['par_level'] ?? 0) > 0)
+                                        {{ rtrim(rtrim(number_format(floatval($line['par_level']), 4), '0'), '.') }}
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
+                                @if ($isEditable)
+                                <td class="px-4 py-2">
+                                    @if (floatval($line['par_level'] ?? 0) > 0)
+                                        <input type="number" step="0.01" min="0"
+                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.balance"
+                                               placeholder="0"
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 bg-amber-50" />
+                                    @else
+                                        <span class="text-gray-300 text-xs block text-right">—</span>
+                                    @endif
+                                </td>
+                                @endif
                                 <td class="px-4 py-2">
                                     @if ($isEditable)
                                         <input type="number" step="0.001" min="0.001"
@@ -304,7 +327,7 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200">
                         <tr>
-                            <td colspan="5" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
+                            <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
                             <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
                                 {{ number_format($grandTotal, 2) }}
                             </td>

@@ -218,6 +218,69 @@
 
     </div>
 
+    {{-- ── Product Images ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Product Images</h3>
+        <p class="text-xs text-gray-400 mb-4">Upload final product photos for plating reference (dine-in & takeaway). Max 5MB per image.</p>
+
+        {{-- Existing Images --}}
+        @if (count($existingImages))
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
+                @foreach ($existingImages as $img)
+                    <div class="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                        <img src="{{ $img['url'] }}" alt="{{ $img['file_name'] }}"
+                             class="w-full h-32 object-cover" />
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
+                                    wire:confirm="Remove this image?"
+                                    class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                Remove
+                            </button>
+                        </div>
+                        <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $img['file_name'] }}</div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        {{-- New Image Upload --}}
+        <div>
+            <label class="block">
+                <div class="flex items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition">
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p class="mt-1 text-xs text-gray-500">Click to upload images</p>
+                        <p class="text-xs text-gray-400">JPG, PNG, GIF, WebP</p>
+                    </div>
+                </div>
+                <input type="file" wire:model="newImages" multiple accept="image/*" class="hidden" />
+            </label>
+            <x-input-error :messages="$errors->get('newImages.*')" class="mt-1" />
+        </div>
+
+        {{-- New Image Previews --}}
+        @if (count($newImages))
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3">
+                @foreach ($newImages as $idx => $file)
+                    <div class="relative group rounded-lg overflow-hidden border border-indigo-200 bg-indigo-50">
+                        <img src="{{ $file->temporaryUrl() }}" alt="New upload"
+                             class="w-full h-32 object-cover" />
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <button type="button" wire:click="removeNewImage({{ $idx }})"
+                                    class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                Remove
+                            </button>
+                        </div>
+                        <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded font-medium">New</div>
+                        <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </div>
+
     {{-- ── Ingredient Lines ── --}}
     <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
 

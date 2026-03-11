@@ -53,6 +53,11 @@ class Recipe extends Model
         return $this->hasMany(RecipeLine::class)->orderBy('sort_order');
     }
 
+    public function images(): HasMany
+    {
+        return $this->hasMany(RecipeImage::class)->orderBy('sort_order');
+    }
+
     /** The synced ingredient record for this prep item. */
     public function ingredient(): HasOne
     {
