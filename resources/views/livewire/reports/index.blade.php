@@ -87,6 +87,14 @@
                     </svg>
                     MTD Comparison
                 </button>
+
+                @if ($compareMode)
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs text-gray-500">till</span>
+                        <input type="date" wire:model.live="compareTillDate"
+                               class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500 py-1.5">
+                    </div>
+                @endif
             @endif
         </div>
 

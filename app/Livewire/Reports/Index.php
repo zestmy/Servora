@@ -23,6 +23,7 @@ class Index extends Component
     public string $weekStart = '';
     public ?int $outletId = null;
     public bool $compareMode = false;
+    public string $compareTillDate = '';
     public array $summary = [];
     public array $dashboardData = [];
     public array $comparisonData = [];
@@ -31,6 +32,7 @@ class Index extends Component
     {
         $this->period = now()->format('Y-m');
         $this->weekStart = now()->startOfWeek()->format('Y-m-d');
+        $this->compareTillDate = now()->format('Y-m-d');
         $this->outletId = $this->activeOutletId();
         $this->loadData();
     }
@@ -42,6 +44,13 @@ class Index extends Component
 
     public function updatedPeriod(): void
     {
+        // Sync compareTillDate to end of new month (or today if current month)
+        $periodDate = Carbon::createFromFormat('Y-m', $this->period);
+        if ($periodDate->format('Y-m') === now()->format('Y-m')) {
+            $this->compareTillDate = now()->format('Y-m-d');
+        } else {
+            $this->compareTillDate = $periodDate->copy()->endOfMonth()->format('Y-m-d');
+        }
         $this->loadData();
     }
 
@@ -67,9 +76,19 @@ class Index extends Component
         $this->loadData();
     }
 
+    public function updatedCompareTillDate(): void
+    {
+        if ($this->compareMode) {
+            $this->loadData();
+        }
+    }
+
     public function toggleCompare(): void
     {
         $this->compareMode = !$this->compareMode;
+        if ($this->compareMode && !$this->compareTillDate) {
+            $this->compareTillDate = now()->format('Y-m-d');
+        }
         $this->loadData();
     }
 
@@ -366,11 +385,18 @@ class Index extends Component
         $outletId = $this->outletId ?: null;
 
         $currentDate = Carbon::createFromFormat('Y-m', $this->period);
-        $today = now();
 
-        // MTD day = if viewing current month, use today's day; otherwise use end of month
-        if ($currentDate->format('Y-m') === $today->format('Y-m')) {
-            $mtdDay = $today->day;
+        // MTD day = custom till date if set, otherwise today (for current month) or end of month
+        if ($this->compareTillDate) {
+            $tillDate = Carbon::parse($this->compareTillDate);
+            // Clamp to selected month
+            if ($tillDate->format('Y-m') === $currentDate->format('Y-m')) {
+                $mtdDay = $tillDate->day;
+            } else {
+                $mtdDay = $currentDate->copy()->endOfMonth()->day;
+            }
+        } elseif ($currentDate->format('Y-m') === now()->format('Y-m')) {
+            $mtdDay = now()->day;
         } else {
             $mtdDay = $currentDate->copy()->endOfMonth()->day;
         }
