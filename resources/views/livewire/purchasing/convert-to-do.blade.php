@@ -75,6 +75,10 @@
                             @endforeach
                         </div>
                     @endif
+                    <p class="mt-2 text-xs text-gray-400">
+                        Can't find it?
+                        <a href="{{ route('ingredients.index') }}" target="_blank" class="text-indigo-500 hover:underline">+ Add new ingredient</a>
+                    </p>
                 </div>
 
                 {{-- Lines Table --}}

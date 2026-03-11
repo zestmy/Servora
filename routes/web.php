@@ -40,6 +40,7 @@ use App\Livewire\Analytics\Index as AnalyticsIndex;
 use App\Livewire\Purchasing\ConvertToDoForm as PurchasingConvertToDoForm;
 use App\Livewire\Purchasing\GrnReceiveForm as PurchasingGrnReceiveForm;
 use App\Http\Controllers\PurchaseDocumentPdfController;
+use App\Http\Controllers\IngredientExportController;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
@@ -47,6 +48,7 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     Route::get('/ingredients', IngredientsIndex::class)->name('ingredients.index')->middleware('can:ingredients.view');
+    Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
     Route::get('/ingredients/import', IngredientsImport::class)->name('ingredients.import')->middleware('can:ingredients.view');
     Route::get('/recipes', RecipesIndex::class)->name('recipes.index')->middleware('can:recipes.view');
     Route::get('/recipes/import', RecipesImport::class)->name('recipes.import')->middleware('can:recipes.view');

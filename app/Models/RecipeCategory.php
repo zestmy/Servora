@@ -10,13 +10,28 @@ class RecipeCategory extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['company_id', 'name', 'color', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'parent_id', 'name', 'color', 'sort_order', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+    }
+
+    public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function scopeRoots($query)
+    {
+        return $query->whereNull('parent_id');
     }
 
     public static function colorOptions(): array

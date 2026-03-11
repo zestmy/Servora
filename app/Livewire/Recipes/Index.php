@@ -48,7 +48,15 @@ class Index extends Component
         }
 
         if ($this->categoryFilter) {
-            $query->where('category', $this->categoryFilter);
+            // Match both the selected category name and any sub-category names
+            $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
+            if ($selectedCat) {
+                $names = collect([$selectedCat->name]);
+                if ($selectedCat->children->isNotEmpty()) {
+                    $names = $names->merge($selectedCat->children->pluck('name'));
+                }
+                $query->whereIn('category', $names->toArray());
+            }
         }
 
         if ($this->statusFilter === 'active') {
@@ -59,7 +67,14 @@ class Index extends Component
 
         $recipes = $query->orderBy('name')->paginate(15);
 
-        $recipeCategories = RecipeCategory::orderBy('sort_order')->orderBy('name')->get();
+        $recipeCategories = RecipeCategory::with(['children' => function ($q) {
+                $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+            }])
+            ->roots()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         return view('livewire.recipes.index', compact('recipes', 'recipeCategories'))
             ->layout('layouts.app', ['title' => 'Recipes']);

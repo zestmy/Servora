@@ -15,6 +15,7 @@ class RecipeCategories extends Component
     public string $color = '#6366f1';
     public string $sort_order = '0';
     public bool $is_active = true;
+    public ?int $parent_id = null;
 
     protected function rules(): array
     {
@@ -22,12 +23,23 @@ class RecipeCategories extends Component
             'name'       => 'required|string|max:100',
             'color'      => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'sort_order' => 'required|integer|min:0|max:9999',
+            'parent_id'  => 'nullable|exists:recipe_categories,id',
         ];
     }
 
-    public function openCreate(): void
+    public function openCreate(?int $parentId = null): void
     {
         $this->resetForm();
+        $this->parent_id = $parentId;
+
+        // Inherit parent color for sub-categories
+        if ($parentId) {
+            $parent = RecipeCategory::find($parentId);
+            if ($parent) {
+                $this->color = $parent->color;
+            }
+        }
+
         $this->showModal = true;
     }
 
@@ -40,6 +52,7 @@ class RecipeCategories extends Component
         $this->color      = $cat->color;
         $this->sort_order = (string) $cat->sort_order;
         $this->is_active  = $cat->is_active;
+        $this->parent_id  = $cat->parent_id;
 
         $this->showModal = true;
     }
@@ -53,6 +66,7 @@ class RecipeCategories extends Component
             'color'      => $this->color,
             'sort_order' => (int) $this->sort_order,
             'is_active'  => $this->is_active,
+            'parent_id'  => $this->parent_id,
         ];
 
         if ($this->editingId) {
@@ -69,7 +83,12 @@ class RecipeCategories extends Component
 
     public function delete(int $id): void
     {
-        RecipeCategory::findOrFail($id)->delete();
+        $cat = RecipeCategory::withCount('children')->findOrFail($id);
+        if ($cat->children_count > 0) {
+            session()->flash('error', 'Cannot delete a category that has sub-categories. Remove sub-categories first.');
+            return;
+        }
+        $cat->delete();
         session()->flash('success', 'Category deleted.');
     }
 
@@ -87,7 +106,13 @@ class RecipeCategories extends Component
 
     public function render()
     {
-        $categories = RecipeCategory::orderBy('sort_order')->orderBy('name')->get();
+        $categories = RecipeCategory::with(['children' => function ($q) {
+            $q->orderBy('sort_order')->orderBy('name');
+        }])
+            ->roots()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         // Count recipes per category name (stored as string, no FK)
         $recipeCounts = \App\Models\Recipe::selectRaw('category, count(*) as total')
@@ -108,6 +133,7 @@ class RecipeCategories extends Component
         $this->color      = '#6366f1';
         $this->sort_order = '0';
         $this->is_active  = true;
+        $this->parent_id  = null;
         $this->resetValidation();
     }
 }

@@ -9,11 +9,12 @@ use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use WithPagination;
+    use WithPagination, WithFileUploads;
 
     // Filters
     public string $search = '';
@@ -39,6 +40,11 @@ class Index extends Component
 
     // Supplier links
     public array $supplierLinks = [];
+
+    // Import
+    public $importFile = null;
+    public bool $showImportModal = false;
+    public array $importResults = [];
 
     protected function rules(): array
     {
@@ -200,6 +206,138 @@ class Index extends Component
     {
         unset($this->supplierLinks[$idx]);
         $this->supplierLinks = array_values($this->supplierLinks);
+    }
+
+    public function openImport(): void
+    {
+        $this->importFile = null;
+        $this->importResults = [];
+        $this->showImportModal = true;
+    }
+
+    public function closeImport(): void
+    {
+        $this->showImportModal = false;
+        $this->importFile = null;
+        $this->importResults = [];
+    }
+
+    public function processImport(): void
+    {
+        $this->validate([
+            'importFile' => 'required|file|mimes:csv,txt|max:5120',
+        ]);
+
+        $path = $this->importFile->getRealPath();
+        $handle = fopen($path, 'r');
+
+        if (! $handle) {
+            session()->flash('error', 'Could not read the uploaded file.');
+            return;
+        }
+
+        // Skip BOM if present
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") {
+            rewind($handle);
+        }
+
+        $headerRow = fgetcsv($handle);
+        if (! $headerRow) {
+            fclose($handle);
+            session()->flash('error', 'Empty file or invalid format.');
+            return;
+        }
+
+        // Normalize headers
+        $headerRow = array_map(fn ($h) => strtolower(trim($h)), $headerRow);
+        $idIdx    = array_search('id', $headerRow);
+        $nameIdx  = array_search('name', $headerRow);
+        $codeIdx  = array_search('code', $headerRow);
+        $priceIdx = array_search('purchase price', $headerRow);
+        $yieldIdx = array_search('yield %', $headerRow);
+        $activeIdx = array_search('is active', $headerRow);
+
+        if ($idIdx === false || $nameIdx === false) {
+            fclose($handle);
+            session()->flash('error', 'CSV must have at least "ID" and "Name" columns.');
+            return;
+        }
+
+        $updated = 0;
+        $skipped = 0;
+        $errors = [];
+        $row = 1;
+
+        while (($data = fgetcsv($handle)) !== false) {
+            $row++;
+            $id = trim($data[$idIdx] ?? '');
+
+            if (! $id || ! is_numeric($id)) {
+                $skipped++;
+                continue;
+            }
+
+            $ingredient = Ingredient::find((int) $id);
+            if (! $ingredient) {
+                $errors[] = "Row {$row}: Ingredient ID {$id} not found.";
+                $skipped++;
+                continue;
+            }
+
+            $changes = [];
+
+            if ($nameIdx !== false && isset($data[$nameIdx]) && trim($data[$nameIdx]) !== '') {
+                $changes['name'] = trim($data[$nameIdx]);
+            }
+
+            if ($codeIdx !== false && isset($data[$codeIdx])) {
+                $changes['code'] = trim($data[$codeIdx]) ?: null;
+            }
+
+            if ($priceIdx !== false && isset($data[$priceIdx]) && is_numeric(trim($data[$priceIdx]))) {
+                $changes['purchase_price'] = floatval(trim($data[$priceIdx]));
+            }
+
+            if ($yieldIdx !== false && isset($data[$yieldIdx]) && is_numeric(trim($data[$yieldIdx]))) {
+                $yp = floatval(trim($data[$yieldIdx]));
+                if ($yp > 0 && $yp <= 100) {
+                    $changes['yield_percent'] = $yp;
+                }
+            }
+
+            if ($activeIdx !== false && isset($data[$activeIdx])) {
+                $val = strtolower(trim($data[$activeIdx]));
+                if (in_array($val, ['yes', 'no', '1', '0', 'true', 'false'])) {
+                    $changes['is_active'] = in_array($val, ['yes', '1', 'true']);
+                }
+            }
+
+            if (! empty($changes)) {
+                // Recalculate effective cost if price or yield changed
+                if (isset($changes['purchase_price']) || isset($changes['yield_percent'])) {
+                    $pp = $changes['purchase_price'] ?? (float) $ingredient->purchase_price;
+                    $yp = $changes['yield_percent'] ?? (float) $ingredient->yield_percent;
+                    $changes['current_cost'] = $yp > 0 ? ($pp / ($yp / 100)) : $pp;
+                }
+                $ingredient->update($changes);
+                $updated++;
+            } else {
+                $skipped++;
+            }
+        }
+
+        fclose($handle);
+
+        $this->importResults = [
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'errors'  => $errors,
+        ];
+
+        if ($updated > 0) {
+            session()->flash('success', "{$updated} ingredient(s) updated successfully.");
+        }
     }
 
     public function closeModal(): void

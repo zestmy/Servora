@@ -11,10 +11,26 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Ingredients</h2>
         <div class="flex items-center gap-2">
-            <a href="{{ route('ingredients.import') }}"
-               class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+            <a href="{{ route('ingredients.export') }}"
+               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
+               title="Export to CSV">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 12l-4 4-4-4M12 4v12" />
+                </svg>
+                Export
+            </a>
+            <button wire:click="openImport"
+                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
+                    title="Bulk update from CSV">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
+                </svg>
+                Bulk Update
+            </button>
+            <a href="{{ route('ingredients.import') }}"
+               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Import
             </a>
@@ -586,6 +602,74 @@
                     </button>
                 </div>
             </form>
+
+        </div>
+        </div>
+        </div>
+    </div>
+    @endteleport
+
+    {{-- Import Modal --}}
+    @teleport('body')
+    <div x-data="{}" x-show="$wire.showImportModal" x-cloak class="fixed inset-0 z-50">
+        <div class="fixed inset-0 bg-gray-900/50" @click="$wire.closeImport()"></div>
+        <div class="fixed inset-0 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg z-10">
+
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Bulk Update Ingredients</h3>
+                <button @click="$wire.closeImport()" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-5 space-y-4">
+                <div class="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm text-blue-700">
+                    <p class="font-medium mb-1">How to bulk update:</p>
+                    <ol class="list-decimal list-inside space-y-0.5 text-xs">
+                        <li>Click <strong>Export</strong> to download the current ingredients CSV</li>
+                        <li>Open in Excel and edit Name, Code, Purchase Price, Yield %, or Is Active columns</li>
+                        <li>Save as CSV and upload below</li>
+                    </ol>
+                    <p class="text-xs mt-2 text-blue-500">The <strong>ID</strong> column is used to match records. Do not change IDs.</p>
+                </div>
+
+                @if (!empty($importResults))
+                    <div class="rounded-lg border px-4 py-3 text-sm {{ ($importResults['updated'] ?? 0) > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-600' }}">
+                        <p><strong>{{ $importResults['updated'] ?? 0 }}</strong> updated, <strong>{{ $importResults['skipped'] ?? 0 }}</strong> skipped</p>
+                        @if (!empty($importResults['errors']))
+                            <ul class="mt-1 text-xs space-y-0.5">
+                                @foreach (array_slice($importResults['errors'], 0, 5) as $err)
+                                    <li class="text-red-600">{{ $err }}</li>
+                                @endforeach
+                                @if (count($importResults['errors']) > 5)
+                                    <li class="text-gray-400">... and {{ count($importResults['errors']) - 5 }} more</li>
+                                @endif
+                            </ul>
+                        @endif
+                    </div>
+                @endif
+
+                <div>
+                    <x-input-label value="Upload CSV File" />
+                    <input type="file" wire:model="importFile" accept=".csv,.txt"
+                           class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
+                    <x-input-error :messages="$errors->get('importFile')" class="mt-1" />
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+                <button type="button" @click="$wire.closeImport()"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
+                <button wire:click="processImport"
+                        class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
+                        {{ !$importFile ? 'disabled' : '' }}>
+                    Process Update
+                </button>
+            </div>
 
         </div>
         </div>

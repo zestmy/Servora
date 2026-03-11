@@ -33,9 +33,11 @@ class Form extends Component
     // Ingredient lines: each row = [ingredient_id, ingredient_name, quantity, uom_id, waste_percentage]
     public array $lines = [];
 
-    // Images
-    public array $newImages = [];
-    public array $existingImages = [];
+    // Images (dine-in & takeaway)
+    public array $newDineInImages = [];
+    public array $newTakeawayImages = [];
+    public array $existingDineInImages = [];
+    public array $existingTakeawayImages = [];
 
     // Ingredient search
     public string $ingredientSearch = '';
@@ -55,7 +57,8 @@ class Form extends Component
             'lines.*.quantity'           => 'required|numeric|min:0.0001',
             'lines.*.uom_id'             => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage'   => 'required|numeric|min:0|max:100',
-            'newImages.*'                => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
+            'newDineInImages.*'          => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
+            'newTakeawayImages.*'        => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
         ];
     }
 
@@ -97,7 +100,14 @@ class Form extends Component
             'waste_percentage' => $this->fmt($l->waste_percentage, 2),
         ])->toArray();
 
-        $this->existingImages = $recipe->images->map(fn ($img) => [
+        $this->existingDineInImages = $recipe->images->where('type', 'dine_in')->values()->map(fn ($img) => [
+            'id'        => $img->id,
+            'file_name' => $img->file_name,
+            'url'       => $img->url(),
+            'size'      => $img->humanSize(),
+        ])->toArray();
+
+        $this->existingTakeawayImages = $recipe->images->where('type', 'takeaway')->values()->map(fn ($img) => [
             'id'        => $img->id,
             'file_name' => $img->file_name,
             'url'       => $img->url(),
@@ -140,18 +150,32 @@ class Form extends Component
     {
         $image = RecipeImage::find($id);
         if ($image) {
+            $type = $image->type;
             Storage::disk('public')->delete($image->file_path);
             $image->delete();
+
+            if ($type === 'takeaway') {
+                $this->existingTakeawayImages = array_values(
+                    array_filter($this->existingTakeawayImages, fn ($img) => $img['id'] !== $id)
+                );
+            } else {
+                $this->existingDineInImages = array_values(
+                    array_filter($this->existingDineInImages, fn ($img) => $img['id'] !== $id)
+                );
+            }
         }
-        $this->existingImages = array_values(
-            array_filter($this->existingImages, fn ($img) => $img['id'] !== $id)
-        );
     }
 
-    public function removeNewImage(int $idx): void
+    public function removeNewDineInImage(int $idx): void
     {
-        unset($this->newImages[$idx]);
-        $this->newImages = array_values($this->newImages);
+        unset($this->newDineInImages[$idx]);
+        $this->newDineInImages = array_values($this->newDineInImages);
+    }
+
+    public function removeNewTakeawayImage(int $idx): void
+    {
+        unset($this->newTakeawayImages[$idx]);
+        $this->newTakeawayImages = array_values($this->newTakeawayImages);
     }
 
     public function save(): void
@@ -198,16 +222,31 @@ class Form extends Component
             ]);
         }
 
-        // Save new images
-        $existingCount = count($this->existingImages);
-        foreach ($this->newImages as $idx => $file) {
+        // Save new images (dine-in)
+        $existingDineInCount = count($this->existingDineInImages);
+        foreach ($this->newDineInImages as $idx => $file) {
             $path = $file->store('recipe-images', 'public');
             $recipe->images()->create([
+                'type'       => 'dine_in',
                 'file_name'  => $file->getClientOriginalName(),
                 'file_path'  => $path,
                 'mime_type'  => $file->getMimeType(),
                 'file_size'  => $file->getSize(),
-                'sort_order' => $existingCount + $idx,
+                'sort_order' => $existingDineInCount + $idx,
+            ]);
+        }
+
+        // Save new images (takeaway)
+        $existingTakeawayCount = count($this->existingTakeawayImages);
+        foreach ($this->newTakeawayImages as $idx => $file) {
+            $path = $file->store('recipe-images', 'public');
+            $recipe->images()->create([
+                'type'       => 'takeaway',
+                'file_name'  => $file->getClientOriginalName(),
+                'file_path'  => $path,
+                'mime_type'  => $file->getMimeType(),
+                'file_size'  => $file->getSize(),
+                'sort_order' => $existingTakeawayCount + $idx,
             ]);
         }
 
@@ -218,7 +257,11 @@ class Form extends Component
     {
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
-        $recipeCategories = RecipeCategory::where('is_active', true)
+        $recipeCategories = RecipeCategory::with(['children' => function ($q) {
+                $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+            }])
+            ->roots()
+            ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();

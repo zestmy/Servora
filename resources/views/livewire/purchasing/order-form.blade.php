@@ -223,6 +223,11 @@
                 <p class="mt-2 text-sm text-gray-400 text-center py-2">No ingredients found for "{{ $ingredientSearch }}".</p>
             @endif
 
+            <p class="mt-2 text-xs text-gray-400">
+                Can't find it?
+                <a href="{{ route('ingredients.index') }}" target="_blank" class="text-indigo-500 hover:underline">+ Add new ingredient</a>
+            </p>
+
             <x-input-error :messages="$errors->get('lines')" class="mt-2" />
         </div>
         @endif

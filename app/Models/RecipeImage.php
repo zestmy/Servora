@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 class RecipeImage extends Model
 {
     protected $fillable = [
-        'recipe_id', 'file_name', 'file_path', 'mime_type', 'file_size', 'sort_order',
+        'recipe_id', 'type', 'file_name', 'file_path', 'mime_type', 'file_size', 'sort_order',
     ];
 
     public function recipe(): BelongsTo
