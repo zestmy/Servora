@@ -78,7 +78,7 @@ class Ingredient extends Model
     public function suppliers(): BelongsToMany
     {
         return $this->belongsToMany(Supplier::class, 'supplier_ingredients')
-            ->withPivot(['supplier_sku', 'last_cost', 'uom_id', 'is_preferred'])
+            ->withPivot(['supplier_sku', 'last_cost', 'uom_id', 'pack_size', 'is_preferred'])
             ->withTimestamps();
     }
 

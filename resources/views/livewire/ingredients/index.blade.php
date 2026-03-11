@@ -523,58 +523,70 @@
                             @if (count($supplierLinks))
                                 <div class="space-y-2">
                                     @foreach ($supplierLinks as $idx => $link)
-                                        <div class="grid grid-cols-12 gap-2 items-start bg-gray-50 rounded-lg p-2">
-                                            {{-- Supplier select (spans 4 cols) --}}
-                                            <div class="col-span-4">
-                                                <select wire:model="supplierLinks.{{ $idx }}.supplier_id"
-                                                        class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
-                                                    <option value="">— supplier —</option>
-                                                    @foreach ($suppliers as $sup)
-                                                        <option value="{{ $sup->id }}">{{ $sup->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.supplier_id')" class="mt-0.5" />
+                                        <div class="bg-gray-50 rounded-lg p-2 space-y-2">
+                                            <div class="grid grid-cols-12 gap-2 items-start">
+                                                {{-- Supplier select (spans 4 cols) --}}
+                                                <div class="col-span-4">
+                                                    <select wire:model="supplierLinks.{{ $idx }}.supplier_id"
+                                                            class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                                        <option value="">— supplier —</option>
+                                                        @foreach ($suppliers as $sup)
+                                                            <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.supplier_id')" class="mt-0.5" />
+                                                </div>
+                                                {{-- SKU (spans 2 cols) --}}
+                                                <div class="col-span-2">
+                                                    <input type="text"
+                                                           wire:model="supplierLinks.{{ $idx }}.supplier_sku"
+                                                           placeholder="SKU"
+                                                           class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
+                                                </div>
+                                                {{-- Last Cost (spans 2 cols) --}}
+                                                <div class="col-span-2">
+                                                    <input type="number" step="0.0001" min="0"
+                                                           wire:model="supplierLinks.{{ $idx }}.last_cost"
+                                                           placeholder="Cost/pack"
+                                                           class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
+                                                    <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.last_cost')" class="mt-0.5" />
+                                                </div>
+                                                {{-- UOM (spans 2 cols) --}}
+                                                <div class="col-span-2">
+                                                    <select wire:model="supplierLinks.{{ $idx }}.uom_id"
+                                                            class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                                        <option value="">— UOM —</option>
+                                                        @foreach ($uoms as $uom)
+                                                            <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.uom_id')" class="mt-0.5" />
+                                                </div>
+                                                {{-- Preferred + Remove (spans 2 cols) --}}
+                                                <div class="col-span-2 flex items-center justify-between pt-1">
+                                                    <label class="flex items-center gap-1 cursor-pointer" title="Preferred supplier">
+                                                        <input type="checkbox"
+                                                               wire:model="supplierLinks.{{ $idx }}.is_preferred"
+                                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                                        <span class="text-xs text-gray-500">Pref.</span>
+                                                    </label>
+                                                    <button type="button" wire:click="removeSupplierRow({{ $idx }})"
+                                                            class="text-red-400 hover:text-red-600 transition">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            {{-- SKU (spans 2 cols) --}}
-                                            <div class="col-span-2">
-                                                <input type="text"
-                                                       wire:model="supplierLinks.{{ $idx }}.supplier_sku"
-                                                       placeholder="SKU"
-                                                       class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
-                                            </div>
-                                            {{-- Last Cost (spans 2 cols) --}}
-                                            <div class="col-span-2">
-                                                <input type="number" step="0.0001" min="0"
-                                                       wire:model="supplierLinks.{{ $idx }}.last_cost"
-                                                       placeholder="Cost"
-                                                       class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
-                                                <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.last_cost')" class="mt-0.5" />
-                                            </div>
-                                            {{-- UOM (spans 2 cols) --}}
-                                            <div class="col-span-2">
-                                                <select wire:model="supplierLinks.{{ $idx }}.uom_id"
-                                                        class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
-                                                    <option value="">— UOM —</option>
-                                                    @foreach ($uoms as $uom)
-                                                        <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.uom_id')" class="mt-0.5" />
-                                            </div>
-                                            {{-- Preferred + Remove (spans 2 cols) --}}
-                                            <div class="col-span-2 flex items-center justify-between pt-1">
-                                                <label class="flex items-center gap-1 cursor-pointer" title="Preferred supplier">
-                                                    <input type="checkbox"
-                                                           wire:model="supplierLinks.{{ $idx }}.is_preferred"
-                                                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                                                    <span class="text-xs text-gray-500">Pref.</span>
-                                                </label>
-                                                <button type="button" wire:click="removeSupplierRow({{ $idx }})"
-                                                        class="text-red-400 hover:text-red-600 transition">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
+                                            {{-- Pack Size row --}}
+                                            <div class="flex items-center gap-2 pl-1">
+                                                <span class="text-xs text-gray-400 whitespace-nowrap">Pack size:</span>
+                                                <input type="number" step="0.0001" min="0.0001"
+                                                       wire:model="supplierLinks.{{ $idx }}.pack_size"
+                                                       placeholder="1"
+                                                       class="w-24 rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
+                                                <span class="text-xs text-gray-400">base UOM per 1 supplier UOM (e.g. 1.2 for a 1.2kg pack)</span>
+                                                <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.pack_size')" class="mt-0.5" />
                                             </div>
                                         </div>
                                     @endforeach

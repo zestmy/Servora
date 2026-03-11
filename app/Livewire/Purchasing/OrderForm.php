@@ -81,25 +81,33 @@ class OrderForm extends Component
         $this->expected_delivery_date = $po->expected_delivery_date?->toDateString() ?? '';
         $this->notes                  = $po->notes ?? '';
 
-        $this->lines = $po->lines->map(fn ($l) => [
-            'ingredient_id'   => $l->ingredient_id,
-            'ingredient_name' => $l->ingredient?->name ?? '—',
-            'quantity'        => (string) floatval($l->quantity),
-            'uom_id'          => $l->uom_id,
-            'unit_cost'       => (string) floatval($l->unit_cost),
-            'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-            'par_level'       => (string) $this->getParLevel($l->ingredient_id),
-            'balance'         => '',
-        ])->toArray();
+        $this->lines = $po->lines->map(function ($l) use ($po) {
+            [, , $packSize] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
+            return [
+                'ingredient_id'   => $l->ingredient_id,
+                'ingredient_name' => $l->ingredient?->name ?? '—',
+                'quantity'        => (string) floatval($l->quantity),
+                'uom_id'          => $l->uom_id,
+                'unit_cost'       => (string) floatval($l->unit_cost),
+                'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+                'pack_size'       => $packSize,
+                'pack_info'       => $this->buildPackInfo($l->ingredient_id, $l->uom_id, $packSize),
+                'par_level'       => (string) $this->getParLevel($l->ingredient_id),
+                'balance'         => '',
+            ];
+        })->toArray();
     }
 
     public function updatedSupplierId(): void
     {
         // Re-price existing lines from the newly selected supplier's catalog
         foreach ($this->lines as $idx => $line) {
-            $this->lines[$idx]['unit_cost'] = (string) $this->lookupUnitCost(
-                (int) $line['ingredient_id'], $this->supplier_id
-            );
+            $ingredientId = (int) $line['ingredient_id'];
+            [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
+            $this->lines[$idx]['unit_cost']  = (string) $unitCost;
+            $this->lines[$idx]['uom_id']     = $supplierUomId;
+            $this->lines[$idx]['pack_size']  = $packSize;
+            $this->lines[$idx]['pack_info']  = $this->buildPackInfo($ingredientId, $supplierUomId, $packSize);
             $this->recalcLine($idx);
         }
     }
@@ -126,7 +134,7 @@ class OrderForm extends Component
             if ($tLine->item_type !== 'ingredient' || ! $tLine->ingredient) continue;
             if (in_array($tLine->ingredient_id, $existing)) continue;
 
-            $unitCost = $this->lookupUnitCost($tLine->ingredient_id, $this->supplier_id);
+            [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($tLine->ingredient_id, $this->supplier_id);
             $parLevel = $this->getParLevel($tLine->ingredient_id);
             $qty      = $parLevel > 0 ? $parLevel : max(0.001, $tLine->default_quantity);
 
@@ -134,9 +142,11 @@ class OrderForm extends Component
                 'ingredient_id'   => $tLine->ingredient_id,
                 'ingredient_name' => $tLine->ingredient->name,
                 'quantity'        => (string) $qty,
-                'uom_id'          => $tLine->ingredient->base_uom_id,
+                'uom_id'          => $supplierUomId,
                 'unit_cost'       => (string) $unitCost,
                 'total_cost'      => round($qty * $unitCost, 4),
+                'pack_size'       => $packSize,
+                'pack_info'       => $this->buildPackInfo($tLine->ingredient_id, $supplierUomId, $packSize),
                 'par_level'       => (string) $parLevel,
                 'balance'         => '',
             ];
@@ -165,7 +175,7 @@ class OrderForm extends Component
             }
         }
 
-        $unitCost = $this->lookupUnitCost($ingredientId, $this->supplier_id);
+        [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
 
         $parLevel = $this->getParLevel($ingredientId);
 
@@ -173,9 +183,11 @@ class OrderForm extends Component
             'ingredient_id'   => $ingredientId,
             'ingredient_name' => $ingredient->name,
             'quantity'        => $parLevel > 0 ? (string) $parLevel : '1',
-            'uom_id'          => $ingredient->base_uom_id,
+            'uom_id'          => $supplierUomId,
             'unit_cost'       => (string) $unitCost,
             'total_cost'      => $parLevel > 0 ? round($parLevel * $unitCost, 4) : $unitCost,
+            'pack_size'       => $packSize,
+            'pack_info'       => $this->buildPackInfo($ingredientId, $supplierUomId, $packSize),
             'par_level'       => (string) $parLevel,
             'balance'         => '',
         ];
@@ -324,18 +336,31 @@ class OrderForm extends Component
 
     // ── helpers ─────────────────────────────────────────────────────────────
 
-    private function lookupUnitCost(int $ingredientId, ?int $supplierId): float
+    /**
+     * Look up the supplier's cost, UOM and pack_size for an ingredient.
+     * Returns [unit_cost, uom_id, pack_size].
+     */
+    private function lookupSupplierInfo(int $ingredientId, ?int $supplierId): array
     {
+        $ingredient = Ingredient::find($ingredientId);
+        $fallbackUom = $ingredient?->base_uom_id;
+        $fallbackCost = floatval($ingredient?->purchase_price ?? 0);
+
         if ($supplierId) {
             $pivot = DB::table('supplier_ingredients')
                 ->where('supplier_id', $supplierId)
                 ->where('ingredient_id', $ingredientId)
                 ->first();
-            if ($pivot && floatval($pivot->last_cost) > 0) {
-                return floatval($pivot->last_cost);
+            if ($pivot) {
+                return [
+                    floatval($pivot->last_cost) > 0 ? floatval($pivot->last_cost) : $fallbackCost,
+                    $pivot->uom_id ?? $fallbackUom,
+                    floatval($pivot->pack_size ?? 1) ?: 1,
+                ];
             }
         }
-        return floatval(Ingredient::where('id', $ingredientId)->value('purchase_price') ?? 0);
+
+        return [$fallbackCost, $fallbackUom, 1];
     }
 
     private function recalcLine(int $idx): void
@@ -359,6 +384,23 @@ class OrderForm extends Component
                 ->where('outlet_id', $outletId)
                 ->value('par_level') ?? 0
         );
+    }
+
+    /**
+     * Build a human-readable pack info string, e.g. "1.2 kg/pack".
+     */
+    private function buildPackInfo(int $ingredientId, ?int $uomId, float $packSize): string
+    {
+        if ($packSize <= 1) return '';
+
+        $ingredient = Ingredient::find($ingredientId);
+        if (! $ingredient) return '';
+
+        $baseUom = UnitOfMeasure::find($ingredient->base_uom_id);
+        if (! $baseUom) return '';
+
+        $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+        return $formatted . ' ' . $baseUom->abbreviation . '/pack';
     }
 
     private function generatePoNumber(): string

@@ -63,17 +63,26 @@ class GrnReceiveForm extends Component
         $this->received_date = now()->toDateString();
         $this->notes        = $grn->notes ?? '';
 
-        $this->lines = $grn->lines->map(fn ($l) => [
-            'id'              => $l->id,
-            'ingredient_id'   => $l->ingredient_id,
-            'ingredient_name' => $l->ingredient?->name ?? '—',
-            'uom_id'          => $l->uom_id,
-            'uom_abbr'        => $l->uom?->abbreviation ?? '',
-            'expected_qty'    => floatval($l->expected_quantity),
-            'received_qty'    => (string) floatval($l->expected_quantity),
-            'unit_cost'       => (string) floatval($l->unit_cost),
-            'condition'       => 'good',
-        ])->toArray();
+        $this->lines = $grn->lines->map(function ($l) use ($grn) {
+            $packSize = $this->getPackSize($l->ingredient_id, $grn->supplier_id);
+            $packInfo = '';
+            if ($packSize > 1 && $l->ingredient?->baseUom) {
+                $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+                $packInfo = $formatted . ' ' . $l->ingredient->baseUom->abbreviation . '/pack';
+            }
+            return [
+                'id'              => $l->id,
+                'ingredient_id'   => $l->ingredient_id,
+                'ingredient_name' => $l->ingredient?->name ?? '—',
+                'uom_id'          => $l->uom_id,
+                'uom_abbr'        => $l->uom?->abbreviation ?? '',
+                'expected_qty'    => floatval($l->expected_quantity),
+                'received_qty'    => (string) floatval($l->expected_quantity),
+                'unit_cost'       => (string) floatval($l->unit_cost),
+                'condition'       => 'good',
+                'pack_info'       => $packInfo,
+            ];
+        })->toArray();
     }
 
     public function confirm(): void
@@ -110,12 +119,24 @@ class GrnReceiveForm extends Component
                 // Update ingredient cost when received in good condition
                 if ($condition === 'good' && $received > 0) {
                     $ingredient = Ingredient::find($line['ingredient_id']);
-                    if ($ingredient && abs(floatval($ingredient->purchase_price) - $unitCost) > 0.0001) {
-                        $yieldFactor = max(floatval($ingredient->yield_percent), 0.01) / 100;
-                        $ingredient->update([
-                            'purchase_price' => $unitCost,
-                            'current_cost'   => round($unitCost / $yieldFactor, 4),
-                        ]);
+                    if ($ingredient) {
+                        // Convert supplier cost to base UOM cost using pack_size
+                        $packSize = $this->getPackSize($ingredient->id, $grn->supplier_id);
+                        $baseCost = $packSize > 1 ? round($unitCost / $packSize, 4) : $unitCost;
+
+                        if (abs(floatval($ingredient->purchase_price) - $baseCost) > 0.0001) {
+                            $yieldFactor = max(floatval($ingredient->yield_percent), 0.01) / 100;
+                            $ingredient->update([
+                                'purchase_price' => $baseCost,
+                                'current_cost'   => round($baseCost / $yieldFactor, 4),
+                            ]);
+                        }
+
+                        // Update supplier_ingredients.last_cost with the supplier price (not base price)
+                        DB::table('supplier_ingredients')
+                            ->where('supplier_id', $grn->supplier_id)
+                            ->where('ingredient_id', $ingredient->id)
+                            ->update(['last_cost' => $unitCost]);
 
                         IngredientPriceHistory::create([
                             'ingredient_id'  => $ingredient->id,
@@ -219,5 +240,15 @@ class GrnReceiveForm extends Component
 
         return view('livewire.purchasing.grn-receive-form', compact('grandTotal'))
             ->layout('layouts.app', ['title' => 'Receive GRN: ' . $this->grnNumber]);
+    }
+
+    private function getPackSize(int $ingredientId, int $supplierId): float
+    {
+        $packSize = DB::table('supplier_ingredients')
+            ->where('supplier_id', $supplierId)
+            ->where('ingredient_id', $ingredientId)
+            ->value('pack_size');
+
+        return floatval($packSize ?? 1) ?: 1;
     }
 }

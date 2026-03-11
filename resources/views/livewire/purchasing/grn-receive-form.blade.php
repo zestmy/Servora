@@ -87,7 +87,12 @@
                                     $rowClass   = $isRejected ? 'bg-red-50' : ($isDamaged ? 'bg-orange-50' : '');
                                 @endphp
                                 <tr class="border-b border-gray-50 {{ $rowClass }}">
-                                    <td class="py-2 px-2 text-gray-800">{{ $line['ingredient_name'] }}</td>
+                                    <td class="py-2 px-2">
+                                        <span class="text-gray-800">{{ $line['ingredient_name'] }}</span>
+                                        @if (! empty($line['pack_info']))
+                                            <p class="text-xs text-indigo-500">{{ $line['pack_info'] }}</p>
+                                        @endif
+                                    </td>
                                     <td class="py-2 px-2 text-center text-gray-400 text-xs">{{ floatval($line['expected_qty']) }}</td>
                                     <td class="py-2 px-2">
                                         <input type="number" wire:model.lazy="lines.{{ $idx }}.received_qty"

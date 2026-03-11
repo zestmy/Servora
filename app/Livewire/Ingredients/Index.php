@@ -63,6 +63,7 @@ class Index extends Component
             'supplierLinks.*.supplier_sku'    => 'nullable|string|max:100',
             'supplierLinks.*.last_cost'       => 'nullable|numeric|min:0',
             'supplierLinks.*.uom_id'          => 'required|exists:units_of_measure,id',
+            'supplierLinks.*.pack_size'        => 'required|numeric|min:0.0001',
         ];
     }
 
@@ -79,6 +80,8 @@ class Index extends Component
             'conversions.*.factor.min'              => 'Factor must be greater than zero.',
             'supplierLinks.*.supplier_id.required'  => 'Select a supplier.',
             'supplierLinks.*.uom_id.required'       => 'Select a UOM for the supplier price.',
+            'supplierLinks.*.pack_size.required'    => 'Pack size is required.',
+            'supplierLinks.*.pack_size.min'         => 'Pack size must be greater than zero.',
         ];
     }
 
@@ -121,6 +124,7 @@ class Index extends Component
                 'supplier_sku' => $s->pivot->supplier_sku ?? '',
                 'last_cost'    => (string) ($s->pivot->last_cost ?? ''),
                 'uom_id'       => $s->pivot->uom_id,
+                'pack_size'    => (string) ($s->pivot->pack_size ?? '1'),
                 'is_preferred' => (bool) $s->pivot->is_preferred,
             ])
             ->toArray();
@@ -198,6 +202,7 @@ class Index extends Component
             'supplier_sku' => '',
             'last_cost'    => '',
             'uom_id'       => null,
+            'pack_size'    => '1',
             'is_preferred' => false,
         ];
     }
@@ -459,6 +464,7 @@ class Index extends Component
                 'supplier_sku' => $link['supplier_sku'] ?: null,
                 'last_cost'    => $link['last_cost'] !== '' ? $link['last_cost'] : null,
                 'uom_id'       => $link['uom_id'],
+                'pack_size'    => floatval($link['pack_size'] ?? 1) ?: 1,
                 'is_preferred' => (bool) ($link['is_preferred'] ?? false),
             ]);
         }

@@ -259,6 +259,9 @@
                                 <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2">
                                     <div class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</div>
+                                    @if (! empty($line['pack_info']))
+                                        <p class="text-xs text-indigo-500 mt-0.5">{{ $line['pack_info'] }}</p>
+                                    @endif
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums text-gray-500 text-xs">
