@@ -51,6 +51,17 @@
                     @endforeach
                 </select>
             </div>
+            @if ($outlets->count() > 1)
+            <div>
+                <select wire:model.live="outletFilter"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Outlets</option>
+                    @foreach ($outlets as $outlet)
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
             <div>
                 <select wire:model.live="statusFilter"
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -97,6 +108,15 @@
                             <div class="font-medium text-gray-800">{{ $recipe->name }}</div>
                             @if ($recipe->code)
                                 <div class="text-xs text-gray-400">{{ $recipe->code }}</div>
+                            @endif
+                            @if ($recipe->outlets->isNotEmpty())
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    @foreach ($recipe->outlets as $o)
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">
+                                            {{ $o->code ?? $o->name }}
+                                        </span>
+                                    @endforeach
+                                </div>
                             @endif
                         </td>
                         <td class="px-4 py-3">

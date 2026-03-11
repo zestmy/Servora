@@ -4,6 +4,7 @@ namespace App\Livewire\Recipes;
 
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
+use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\RecipeImage;
@@ -29,6 +30,10 @@ class Form extends Component
     public string $category = '';
     public ?int   $ingredient_category_id = null;
     public bool   $is_active = true;
+
+    // Outlet tagging
+    public bool  $allOutlets = true;
+    public array $outletIds = [];
 
     // Ingredient lines: each row = [ingredient_id, ingredient_name, quantity, uom_id, waste_percentage]
     public array $lines = [];
@@ -78,7 +83,7 @@ class Form extends Component
     {
         if (! $id) return;
 
-        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images'])->findOrFail($id);
+        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images', 'outlets'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->name                   = $recipe->name;
@@ -90,6 +95,16 @@ class Form extends Component
         $this->category               = $recipe->category ?? '';
         $this->ingredient_category_id = $recipe->ingredient_category_id;
         $this->is_active              = $recipe->is_active;
+
+        // Load outlet tags
+        $taggedOutletIds = $recipe->outlets->pluck('id')->toArray();
+        if (empty($taggedOutletIds)) {
+            $this->allOutlets = true;
+            $this->outletIds  = [];
+        } else {
+            $this->allOutlets = false;
+            $this->outletIds  = $taggedOutletIds;
+        }
 
         $this->lines = $recipe->lines->map(fn ($l) => [
             'ingredient_id'    => $l->ingredient_id,
@@ -210,6 +225,13 @@ class Form extends Component
             session()->flash('success', 'Recipe created.');
         }
 
+        // Sync outlet tags
+        if ($this->allOutlets) {
+            $recipe->outlets()->detach();
+        } else {
+            $recipe->outlets()->sync(array_map('intval', $this->outletIds));
+        }
+
         // Sync lines
         $recipe->lines()->delete();
         foreach ($this->lines as $idx => $line) {
@@ -268,6 +290,11 @@ class Form extends Component
 
         $categories = IngredientCategory::roots()->active()->ordered()->get();
 
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         // Ingredient search results (min 2 chars)
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
@@ -299,7 +326,7 @@ class Form extends Component
             : 'New Recipe';
 
         return view('livewire.recipes.form', compact(
-            'uoms', 'recipeCategories', 'categories', 'searchResults', 'lineCosts', 'totalCost',
+            'uoms', 'recipeCategories', 'categories', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
             'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }

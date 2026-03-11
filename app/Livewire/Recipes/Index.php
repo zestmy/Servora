@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Recipes;
 
+use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -14,10 +16,12 @@ class Index extends Component
     public string $search = '';
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
+    public string $outletFilter = '';
 
-    public function updatedSearch(): void        { $this->resetPage(); }
+    public function updatedSearch(): void         { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
     public function updatedStatusFilter(): void   { $this->resetPage(); }
+    public function updatedOutletFilter(): void   { $this->resetPage(); }
 
     public function delete(int $id): void
     {
@@ -35,6 +39,7 @@ class Index extends Component
     {
         $query = Recipe::with([
             'yieldUom',
+            'outlets',
             'lines.ingredient.baseUom',
             'lines.ingredient.uomConversions',
             'lines.uom',
@@ -65,6 +70,15 @@ class Index extends Component
             $query->where('is_active', false);
         }
 
+        if ($this->outletFilter) {
+            $outletId = (int) $this->outletFilter;
+            // Show recipes tagged to this outlet OR recipes with no outlet tags (available everywhere)
+            $query->where(function ($q) use ($outletId) {
+                $q->whereHas('outlets', fn ($sub) => $sub->where('outlets.id', $outletId))
+                  ->orWhereDoesntHave('outlets');
+            });
+        }
+
         $recipes = $query->orderBy('name')->paginate(15);
 
         $recipeCategories = RecipeCategory::with(['children' => function ($q) {
@@ -76,7 +90,12 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        return view('livewire.recipes.index', compact('recipes', 'recipeCategories'))
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets'))
             ->layout('layouts.app', ['title' => 'Recipes']);
     }
 }

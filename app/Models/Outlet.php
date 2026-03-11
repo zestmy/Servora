@@ -41,4 +41,10 @@ class Outlet extends Model
     {
         return $this->hasMany(StockTake::class);
     }
+
+    /** Recipes tagged to this outlet. */
+    public function recipes(): BelongsToMany
+    {
+        return $this->belongsToMany(Recipe::class)->withTimestamps();
+    }
 }

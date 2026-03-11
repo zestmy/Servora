@@ -145,6 +145,51 @@
                         <span class="text-sm text-gray-700 font-medium">Active</span>
                     </label>
                 </div>
+
+                {{-- Outlet Tagging --}}
+                @if ($outlets->count() > 1)
+                    <div class="border-t border-gray-100 pt-4">
+                        <x-input-label value="Available At" />
+                        <p class="text-xs text-gray-400 mt-0.5 mb-3">Tag this recipe to specific outlets, or leave as "All Outlets" to make it available everywhere.</p>
+
+                        <div class="space-y-2">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" wire:model.live="allOutlets" value="1"
+                                       class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700 font-medium">All Outlets</span>
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" wire:model.live="allOutlets" value=""
+                                       class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700 font-medium">Selected Outlets</span>
+                            </label>
+                        </div>
+
+                        @if (! $allOutlets)
+                            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                @foreach ($outlets as $outlet)
+                                    <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
+                                        {{ in_array($outlet->id, $outletIds) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                        <input type="checkbox"
+                                               value="{{ $outlet->id }}"
+                                               wire:model.live="outletIds"
+                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                        <div class="min-w-0">
+                                            <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet->name }}</span>
+                                            @if ($outlet->code)
+                                                <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
+                                            @endif
+                                        </div>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @if (empty($outletIds))
+                                <p class="mt-1 text-xs text-amber-500">Select at least one outlet, or switch to "All Outlets".</p>
+                            @endif
+                        @endif
+                    </div>
+                @endif
             </div>
         </div>
 
