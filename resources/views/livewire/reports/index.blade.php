@@ -251,10 +251,10 @@
                             @endphp
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
                                 <span class="{{ $costPctDiffPrev <= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    vs LM: {{ $costPctDiffPrev >= 0 ? '+' : '' }}{{ $costPctDiffPrev }}pp
+                                    vs LM: {{ $costPctDiffPrev >= 0 ? '+' : '' }}{{ $costPctDiffPrev }}%
                                 </span>
                                 <span class="{{ $costPctDiffLy <= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    vs LY: {{ $costPctDiffLy >= 0 ? '+' : '' }}{{ $costPctDiffLy }}pp
+                                    vs LY: {{ $costPctDiffLy >= 0 ? '+' : '' }}{{ $costPctDiffLy }}%
                                 </span>
                             </div>
                         </div>
@@ -320,8 +320,8 @@
                                         if ($row['format'] === 'pct') {
                                             $diffPrev = round($curVal - $prevVal, 1);
                                             $diffLy = round($curVal - $lyVal, 1);
-                                            $diffPrevLabel = ($diffPrev >= 0 ? '+' : '') . $diffPrev . 'pp';
-                                            $diffLyLabel = ($diffLy >= 0 ? '+' : '') . $diffLy . 'pp';
+                                            $diffPrevLabel = ($diffPrev >= 0 ? '+' : '') . $diffPrev . '%';
+                                            $diffLyLabel = ($diffLy >= 0 ? '+' : '') . $diffLy . '%';
                                         } else {
                                             $diffPrev = $prevVal > 0 ? round(($curVal - $prevVal) / $prevVal * 100, 1) : 0;
                                             $diffLy = $lyVal > 0 ? round(($curVal - $lyVal) / $lyVal * 100, 1) : 0;
