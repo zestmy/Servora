@@ -507,6 +507,8 @@ class Index extends Component
 
         $summary = $this->summary;
         $mode = $this->mode;
+        $compareMode = $this->compareMode;
+        $comparisonData = $this->comparisonData;
 
         if ($this->mode === 'weekly') {
             $filename = "cost-summary-week-{$this->weekStart}.pdf";
@@ -514,7 +516,7 @@ class Index extends Component
             $filename = "cost-summary-{$this->period}.pdf";
         }
 
-        $pdf = Pdf::loadView('pdf.cost-summary', compact('summary', 'company', 'outlet', 'periodLabel', 'mode'))
+        $pdf = Pdf::loadView('pdf.cost-summary', compact('summary', 'company', 'outlet', 'periodLabel', 'mode', 'compareMode', 'comparisonData'))
             ->setPaper('a4', 'landscape');
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);
@@ -523,9 +525,11 @@ class Index extends Component
     private function exportPerformancePdf($company, $outlet, $periodLabel)
     {
         $data = $this->dashboardData;
+        $compareMode = $this->compareMode;
+        $comparisonData = $this->comparisonData;
         $filename = "performance-report-{$this->period}.pdf";
 
-        $pdf = Pdf::loadView('pdf.performance-report', compact('data', 'company', 'outlet', 'periodLabel'))
+        $pdf = Pdf::loadView('pdf.performance-report', compact('data', 'company', 'outlet', 'periodLabel', 'compareMode', 'comparisonData'))
             ->setPaper('a4', 'portrait');
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);
@@ -535,9 +539,11 @@ class Index extends Component
     {
         $data = $this->dashboardData;
         $summary = $this->summary;
+        $compareMode = $this->compareMode;
+        $comparisonData = $this->comparisonData;
         $filename = "cost-analysis-{$this->period}.pdf";
 
-        $pdf = Pdf::loadView('pdf.cost-analysis-report', compact('data', 'summary', 'company', 'outlet', 'periodLabel'))
+        $pdf = Pdf::loadView('pdf.cost-analysis-report', compact('data', 'summary', 'company', 'outlet', 'periodLabel', 'compareMode', 'comparisonData'))
             ->setPaper('a4', 'landscape');
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);
@@ -547,9 +553,11 @@ class Index extends Component
     {
         $data = $this->dashboardData;
         $summary = $this->summary;
+        $compareMode = $this->compareMode;
+        $comparisonData = $this->comparisonData;
         $filename = "wastage-report-{$this->period}.pdf";
 
-        $pdf = Pdf::loadView('pdf.wastage-report', compact('data', 'summary', 'company', 'outlet', 'periodLabel'))
+        $pdf = Pdf::loadView('pdf.wastage-report', compact('data', 'summary', 'company', 'outlet', 'periodLabel', 'compareMode', 'comparisonData'))
             ->setPaper('a4', 'portrait');
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);

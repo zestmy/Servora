@@ -38,6 +38,75 @@
         </tbody>
     </table>
 
+    {{-- MTD Comparison --}}
+    @if (!empty($compareMode) && !empty($comparisonData['current']))
+        @php
+            $cur = $comparisonData['current'];
+            $prev = $comparisonData['prev_month'];
+            $ly = $comparisonData['prev_year'];
+            $varPrev = $comparisonData['var_vs_prev'];
+            $varLy = $comparisonData['var_vs_ly'];
+        @endphp
+        <h3 style="font-size: 12px; font-weight: bold; margin: 10px 0 8px 0;">MTD Performance Comparison (Day 1–{{ $cur['mtd_day'] }})</h3>
+        <table class="items" style="margin-bottom: 12px;">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th class="right">{{ $cur['period_label'] }}</th>
+                    <th class="right">{{ $prev['period_label'] }}</th>
+                    <th class="right">vs LM</th>
+                    <th class="right">{{ $ly['period_label'] }}</th>
+                    <th class="right">vs LY</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Revenue (RM)</td>
+                    <td class="right" style="font-weight: bold;">{{ number_format($cur['summary']['totals']['revenue'], 2) }}</td>
+                    <td class="right">{{ number_format($prev['summary']['totals']['revenue'], 2) }}</td>
+                    <td class="right" style="color: {{ $varPrev['revenue'] >= 0 ? '#16a34a' : '#dc2626' }};">{{ $varPrev['revenue'] >= 0 ? '+' : '' }}{{ $varPrev['revenue'] }}%</td>
+                    <td class="right">{{ number_format($ly['summary']['totals']['revenue'], 2) }}</td>
+                    <td class="right" style="color: {{ $varLy['revenue'] >= 0 ? '#16a34a' : '#dc2626' }};">{{ $varLy['revenue'] >= 0 ? '+' : '' }}{{ $varLy['revenue'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Pax</td>
+                    <td class="right" style="font-weight: bold;">{{ number_format($cur['pax']) }}</td>
+                    <td class="right">{{ number_format($prev['pax']) }}</td>
+                    <td class="right" style="color: {{ $varPrev['pax'] >= 0 ? '#16a34a' : '#dc2626' }};">{{ $varPrev['pax'] >= 0 ? '+' : '' }}{{ $varPrev['pax'] }}%</td>
+                    <td class="right">{{ number_format($ly['pax']) }}</td>
+                    <td class="right" style="color: {{ $varLy['pax'] >= 0 ? '#16a34a' : '#dc2626' }};">{{ $varLy['pax'] >= 0 ? '+' : '' }}{{ $varLy['pax'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Avg Check (RM)</td>
+                    <td class="right" style="font-weight: bold;">{{ number_format($cur['avg_check'], 2) }}</td>
+                    <td class="right">{{ number_format($prev['avg_check'], 2) }}</td>
+                    @php
+                        $acDp = $prev['avg_check'] > 0 ? round(($cur['avg_check'] - $prev['avg_check']) / $prev['avg_check'] * 100, 1) : 0;
+                        $acDl = $ly['avg_check'] > 0 ? round(($cur['avg_check'] - $ly['avg_check']) / $ly['avg_check'] * 100, 1) : 0;
+                    @endphp
+                    <td class="right" style="color: {{ $acDp >= 0 ? '#16a34a' : '#dc2626' }};">{{ $acDp >= 0 ? '+' : '' }}{{ $acDp }}%</td>
+                    <td class="right">{{ number_format($ly['avg_check'], 2) }}</td>
+                    <td class="right" style="color: {{ $acDl >= 0 ? '#16a34a' : '#dc2626' }};">{{ $acDl >= 0 ? '+' : '' }}{{ $acDl }}%</td>
+                </tr>
+                <tr>
+                    <td>Cost %</td>
+                    @php
+                        $curCp = $cur['summary']['totals']['cost_pct'];
+                        $prevCp = $prev['summary']['totals']['cost_pct'];
+                        $lyCp = $ly['summary']['totals']['cost_pct'];
+                        $cpDp = round($curCp - $prevCp, 1);
+                        $cpDl = round($curCp - $lyCp, 1);
+                    @endphp
+                    <td class="right" style="font-weight: bold;">{{ $curCp }}%</td>
+                    <td class="right">{{ $prevCp }}%</td>
+                    <td class="right" style="color: {{ $cpDp <= 0 ? '#16a34a' : '#dc2626' }};">{{ $cpDp >= 0 ? '+' : '' }}{{ $cpDp }}%</td>
+                    <td class="right">{{ $lyCp }}%</td>
+                    <td class="right" style="color: {{ $cpDl <= 0 ? '#16a34a' : '#dc2626' }};">{{ $cpDl >= 0 ? '+' : '' }}{{ $cpDl }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    @endif
+
     {{-- Daily Sales Breakdown --}}
     @if (!empty($data['daily_sales']))
         <h3 style="font-size: 12px; font-weight: bold; margin: 18px 0 8px 0;">Daily Sales Breakdown</h3>
