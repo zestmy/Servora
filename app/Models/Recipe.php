@@ -32,6 +32,12 @@ class Recipe extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        static::saving(function ($model) {
+            if ($model->name) {
+                $model->name = strtoupper($model->name);
+            }
+        });
     }
 
     public function company(): BelongsTo

@@ -137,7 +137,7 @@ class Index extends Component
         $effectiveCost = $yieldPercent > 0 ? ($purchasePrice / ($yieldPercent / 100)) : $purchasePrice;
 
         $data = [
-            'name'                   => $this->name,
+            'name'                   => strtoupper($this->name),
             'code'                   => $this->code ?: null,
             'ingredient_category_id' => $this->ingredient_category_id,
             'base_uom_id'            => $this->base_uom_id,
@@ -288,7 +288,7 @@ class Index extends Component
             $changes = [];
 
             if ($nameIdx !== false && isset($data[$nameIdx]) && trim($data[$nameIdx]) !== '') {
-                $changes['name'] = trim($data[$nameIdx]);
+                $changes['name'] = strtoupper(trim($data[$nameIdx]));
             }
 
             if ($codeIdx !== false && isset($data[$codeIdx])) {

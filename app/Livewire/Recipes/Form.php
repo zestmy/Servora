@@ -203,7 +203,7 @@ class Form extends Component
         $costPerYieldUnit = round($totalCost / $yieldQty, 4);
 
         $data = [
-            'name'                   => $this->name,
+            'name'                   => strtoupper($this->name),
             'code'                   => $this->code ?: null,
             'description'            => $this->description ?: null,
             'yield_quantity'         => $this->yield_quantity,
