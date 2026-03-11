@@ -22,8 +22,10 @@ class Index extends Component
     public string $mode = 'monthly'; // monthly | weekly
     public string $weekStart = '';
     public ?int $outletId = null;
+    public bool $compareMode = false;
     public array $summary = [];
     public array $dashboardData = [];
+    public array $comparisonData = [];
 
     public function mount(): void
     {
@@ -57,6 +59,17 @@ class Index extends Component
 
     public function updatedOutletId(): void
     {
+        $this->loadData();
+    }
+
+    public function updatedCompareMode(): void
+    {
+        $this->loadData();
+    }
+
+    public function toggleCompare(): void
+    {
+        $this->compareMode = !$this->compareMode;
         $this->loadData();
     }
 
@@ -190,6 +203,12 @@ class Index extends Component
     {
         $this->loadSummary();
         $this->loadDashboardData();
+
+        if ($this->compareMode && $this->mode === 'monthly') {
+            $this->loadComparisonData();
+        } else {
+            $this->comparisonData = [];
+        }
     }
 
     private function loadSummary(): void
@@ -339,6 +358,105 @@ class Index extends Component
             'rev_change'      => $revChange,
             'cogs_change'     => $cogsChange,
         ];
+    }
+
+    private function loadComparisonData(): void
+    {
+        $service = new CostSummaryService();
+        $outletId = $this->outletId ?: null;
+
+        $currentDate = Carbon::createFromFormat('Y-m', $this->period);
+        $today = now();
+
+        // MTD day = if viewing current month, use today's day; otherwise use end of month
+        if ($currentDate->format('Y-m') === $today->format('Y-m')) {
+            $mtdDay = $today->day;
+        } else {
+            $mtdDay = $currentDate->copy()->endOfMonth()->day;
+        }
+
+        // Period 1: This month MTD (1st to mtdDay)
+        $curStart = $currentDate->copy()->startOfMonth();
+        $curEnd = $currentDate->copy()->startOfMonth()->addDays($mtdDay - 1)->endOfDay();
+
+        // Period 2: Last month MTD (1st to min(mtdDay, last day of prev month))
+        $prevMonth = $currentDate->copy()->subMonth();
+        $prevMtdDay = min($mtdDay, $prevMonth->copy()->endOfMonth()->day);
+        $prevStart = $prevMonth->copy()->startOfMonth();
+        $prevEnd = $prevMonth->copy()->startOfMonth()->addDays($prevMtdDay - 1)->endOfDay();
+
+        // Period 3: Last year same month MTD
+        $lastYear = $currentDate->copy()->subYear();
+        $lyMtdDay = min($mtdDay, $lastYear->copy()->endOfMonth()->day);
+        $lyStart = $lastYear->copy()->startOfMonth();
+        $lyEnd = $lastYear->copy()->startOfMonth()->addDays($lyMtdDay - 1)->endOfDay();
+
+        $curSummary = $service->generate(
+            $curStart->format('Y-m'), $outletId,
+            $curStart->format('Y-m-d'), $curEnd->format('Y-m-d')
+        );
+        $prevSummary = $service->generate(
+            $prevStart->format('Y-m'), $outletId,
+            $prevStart->format('Y-m-d'), $prevEnd->format('Y-m-d')
+        );
+        $lySummary = $service->generate(
+            $lyStart->format('Y-m'), $outletId,
+            $lyStart->format('Y-m-d'), $lyEnd->format('Y-m-d')
+        );
+
+        // Daily sales for pax/avg check per period
+        $periods = [
+            'current' => [$curStart, $curEnd, $curSummary],
+            'prev_month' => [$prevStart, $prevEnd, $prevSummary],
+            'prev_year' => [$lyStart, $lyEnd, $lySummary],
+        ];
+
+        $comparison = [];
+        foreach ($periods as $key => [$start, $end, $summary]) {
+            $salesQuery = SalesRecord::whereBetween('sale_date', [$start, $end]);
+            if ($outletId) {
+                $salesQuery->where('outlet_id', $outletId);
+            }
+            $pax = (int) $salesQuery->sum('pax');
+            $revenue = $summary['totals']['revenue'];
+            $avgCheck = $pax > 0 ? round($revenue / $pax, 2) : 0;
+
+            $comparison[$key] = [
+                'summary' => $summary,
+                'pax' => $pax,
+                'avg_check' => $avgCheck,
+                'label' => $start->format('d M') . ' - ' . $end->format('d M Y'),
+                'period_label' => $start->format('M Y'),
+                'mtd_day' => $start->format('Y-m') === $curStart->format('Y-m') ? $mtdDay : ($key === 'prev_month' ? $prevMtdDay : $lyMtdDay),
+            ];
+        }
+
+        // Calculate variances
+        $curRev = $comparison['current']['summary']['totals']['revenue'];
+        $prevRev = $comparison['prev_month']['summary']['totals']['revenue'];
+        $lyRev = $comparison['prev_year']['summary']['totals']['revenue'];
+
+        $comparison['var_vs_prev'] = [
+            'revenue' => $prevRev > 0 ? round(($curRev - $prevRev) / $prevRev * 100, 1) : 0,
+            'cogs' => $comparison['prev_month']['summary']['totals']['cogs'] > 0
+                ? round(($comparison['current']['summary']['totals']['cogs'] - $comparison['prev_month']['summary']['totals']['cogs']) / abs($comparison['prev_month']['summary']['totals']['cogs']) * 100, 1)
+                : 0,
+            'pax' => $comparison['prev_month']['pax'] > 0
+                ? round(($comparison['current']['pax'] - $comparison['prev_month']['pax']) / $comparison['prev_month']['pax'] * 100, 1)
+                : 0,
+        ];
+
+        $comparison['var_vs_ly'] = [
+            'revenue' => $lyRev > 0 ? round(($curRev - $lyRev) / $lyRev * 100, 1) : 0,
+            'cogs' => $comparison['prev_year']['summary']['totals']['cogs'] > 0
+                ? round(($comparison['current']['summary']['totals']['cogs'] - $comparison['prev_year']['summary']['totals']['cogs']) / abs($comparison['prev_year']['summary']['totals']['cogs']) * 100, 1)
+                : 0,
+            'pax' => $comparison['prev_year']['pax'] > 0
+                ? round(($comparison['current']['pax'] - $comparison['prev_year']['pax']) / $comparison['prev_year']['pax'] * 100, 1)
+                : 0,
+        ];
+
+        $this->comparisonData = $comparison;
     }
 
     private function periodLabel(): string
