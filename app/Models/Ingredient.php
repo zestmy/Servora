@@ -16,7 +16,7 @@ class Ingredient extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'base_uom_id', 'recipe_uom_id',
-        'purchase_price', 'yield_percent', 'current_cost', 'category',
+        'purchase_price', 'pack_size', 'yield_percent', 'current_cost', 'category',
         'ingredient_category_id', 'is_active', 'is_prep', 'prep_recipe_id',
     ];
 
@@ -24,6 +24,7 @@ class Ingredient extends Model
         'is_active'      => 'boolean',
         'is_prep'        => 'boolean',
         'purchase_price' => 'decimal:4',
+        'pack_size'      => 'decimal:4',
         'yield_percent'  => 'decimal:2',
         'current_cost'   => 'decimal:4',
     ];

@@ -120,19 +120,18 @@ class GrnReceiveForm extends Component
                 if ($condition === 'good' && $received > 0) {
                     $ingredient = Ingredient::find($line['ingredient_id']);
                     if ($ingredient) {
-                        // Convert supplier cost to base UOM cost using pack_size
                         $packSize = $this->getPackSize($ingredient->id, $grn->supplier_id);
-                        $baseCost = $packSize > 1 ? round($unitCost / $packSize, 4) : $unitCost;
+                        $yieldFactor = max(floatval($ingredient->yield_percent), 0.01) / 100;
+                        $baseCost = $unitCost / max($packSize, 0.0001);
 
-                        if (abs(floatval($ingredient->purchase_price) - $baseCost) > 0.0001) {
-                            $yieldFactor = max(floatval($ingredient->yield_percent), 0.01) / 100;
-                            $ingredient->update([
-                                'purchase_price' => $baseCost,
-                                'current_cost'   => round($baseCost / $yieldFactor, 4),
-                            ]);
-                        }
+                        // purchase_price = pack price, pack_size from supplier, current_cost derived
+                        $ingredient->update([
+                            'purchase_price' => $unitCost,
+                            'pack_size'      => $packSize,
+                            'current_cost'   => round($baseCost / $yieldFactor, 4),
+                        ]);
 
-                        // Update supplier_ingredients.last_cost with the supplier price (not base price)
+                        // Update supplier_ingredients.last_cost
                         DB::table('supplier_ingredients')
                             ->where('supplier_id', $grn->supplier_id)
                             ->where('ingredient_id', $ingredient->id)

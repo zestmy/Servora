@@ -32,6 +32,7 @@ class Index extends Component
     public ?int   $base_uom_id = null;
     public ?int   $recipe_uom_id = null;
     public string $purchase_price = '0';
+    public string $pack_size = '1';
     public string $yield_percent = '100';
     public bool   $is_active = true;
 
@@ -55,6 +56,7 @@ class Index extends Component
             'base_uom_id'                   => 'required|exists:units_of_measure,id',
             'recipe_uom_id'                 => 'required|exists:units_of_measure,id',
             'purchase_price'                => 'required|numeric|min:0',
+            'pack_size'                     => 'required|numeric|min:0.0001',
             'yield_percent'                 => 'required|numeric|min:0.01|max:100',
             'conversions.*.from_uom_id'       => 'required|exists:units_of_measure,id',
             'conversions.*.to_uom_id'         => 'required|exists:units_of_measure,id',
@@ -106,6 +108,7 @@ class Index extends Component
         $this->base_uom_id              = $ingredient->base_uom_id;
         $this->recipe_uom_id            = $ingredient->recipe_uom_id;
         $this->purchase_price           = (string) $ingredient->purchase_price;
+        $this->pack_size                = (string) ($ingredient->pack_size ?: '1');
         $this->yield_percent            = (string) $ingredient->yield_percent;
         $this->is_active                = $ingredient->is_active;
 
@@ -137,8 +140,10 @@ class Index extends Component
         $this->validate();
 
         $purchasePrice = floatval($this->purchase_price);
+        $packSize      = max(floatval($this->pack_size), 0.0001);
         $yieldPercent  = floatval($this->yield_percent);
-        $effectiveCost = $yieldPercent > 0 ? ($purchasePrice / ($yieldPercent / 100)) : $purchasePrice;
+        $baseCost      = $purchasePrice / $packSize;
+        $effectiveCost = $yieldPercent > 0 ? ($baseCost / ($yieldPercent / 100)) : $baseCost;
 
         $data = [
             'name'                   => strtoupper($this->name),
@@ -147,6 +152,7 @@ class Index extends Component
             'base_uom_id'            => $this->base_uom_id,
             'recipe_uom_id'          => $this->recipe_uom_id,
             'purchase_price'         => $purchasePrice,
+            'pack_size'              => $packSize,
             'yield_percent'          => $yieldPercent,
             'current_cost'           => $effectiveCost,
             'is_active'              => $this->is_active,
@@ -319,11 +325,13 @@ class Index extends Component
             }
 
             if (! empty($changes)) {
-                // Recalculate effective cost if price or yield changed
-                if (isset($changes['purchase_price']) || isset($changes['yield_percent'])) {
+                // Recalculate effective cost if price, pack_size, or yield changed
+                if (isset($changes['purchase_price']) || isset($changes['yield_percent']) || isset($changes['pack_size'])) {
                     $pp = $changes['purchase_price'] ?? (float) $ingredient->purchase_price;
+                    $ps = $changes['pack_size'] ?? (float) ($ingredient->pack_size ?: 1);
                     $yp = $changes['yield_percent'] ?? (float) $ingredient->yield_percent;
-                    $changes['current_cost'] = $yp > 0 ? ($pp / ($yp / 100)) : $pp;
+                    $bc = $pp / max($ps, 0.0001);
+                    $changes['current_cost'] = $yp > 0 ? ($bc / ($yp / 100)) : $bc;
                 }
                 $ingredient->update($changes);
                 $updated++;
@@ -392,27 +400,23 @@ class Index extends Component
 
         // Cost chain computed values for modal display
         $pp            = floatval($this->purchase_price);
+        $ps            = max(floatval($this->pack_size), 0.0001);
         $yp            = floatval($this->yield_percent);
-        $effectiveCost = ($yp > 0) ? ($pp / ($yp / 100)) : $pp;
+        $baseCost      = $pp / $ps;
+        $effectiveCost = ($yp > 0) ? ($baseCost / ($yp / 100)) : $baseCost;
 
         // Recipe cost per recipe UOM (searches loaded conversions)
         $recipeCost    = null;
-        $baseUomAbbr   = null;
-        $recipeUomAbbr = null;
-
-        if ($this->base_uom_id) {
-            $baseUom     = $uoms->firstWhere('id', $this->base_uom_id);
-            $baseUomAbbr = $baseUom?->abbreviation;
-        }
-        if ($this->recipe_uom_id) {
-            $recipeUom     = $uoms->firstWhere('id', $this->recipe_uom_id);
-            $recipeUomAbbr = $recipeUom?->abbreviation;
-        }
+        $baseUom       = $this->base_uom_id ? $uoms->firstWhere('id', $this->base_uom_id) : null;
+        $recipeUom     = $this->recipe_uom_id ? $uoms->firstWhere('id', $this->recipe_uom_id) : null;
+        $baseUomAbbr   = $baseUom?->abbreviation;
+        $recipeUomAbbr = $recipeUom?->abbreviation;
 
         if ($this->base_uom_id && $this->recipe_uom_id) {
             if ($this->base_uom_id == $this->recipe_uom_id) {
                 $recipeCost = $effectiveCost;
             } else {
+                // Check ingredient-specific conversions first
                 foreach ($this->conversions as $c) {
                     $fromId = (int) ($c['from_uom_id'] ?? 0);
                     $toId   = (int) ($c['to_uom_id'] ?? 0);
@@ -430,12 +434,20 @@ class Index extends Component
                         break;
                     }
                 }
+
+                // Fall back to standard base_unit_factor (kg↔g, L↔mL, etc.)
+                if ($recipeCost === null && $baseUom && $recipeUom
+                    && $baseUom->base_unit_factor && $recipeUom->base_unit_factor
+                    && $baseUom->type === $recipeUom->type) {
+                    $factor = (float) $recipeUom->base_unit_factor / (float) $baseUom->base_unit_factor;
+                    $recipeCost = $effectiveCost * $factor;
+                }
             }
         }
 
         return view('livewire.ingredients.index', compact(
             'ingredients', 'uoms', 'suppliers', 'categories',
-            'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
+            'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
         ))->layout('layouts.app', ['title' => 'Ingredients']);
     }
 
@@ -448,6 +460,7 @@ class Index extends Component
         $this->base_uom_id            = null;
         $this->recipe_uom_id          = null;
         $this->purchase_price         = '0';
+        $this->pack_size              = '1';
         $this->yield_percent          = '100';
         $this->is_active              = true;
         $this->conversions            = [];

@@ -304,7 +304,7 @@
                                     <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Unit you purchase in</p>
+                            <p class="mt-0.5 text-xs text-gray-400">Base unit for costing (e.g. kg, L)</p>
                             <x-input-error :messages="$errors->get('base_uom_id')" class="mt-1" />
                         </div>
                         <div>
@@ -321,15 +321,23 @@
                         </div>
                     </div>
 
-                    {{-- Row 4: Purchase Price | Yield % --}}
-                    <div class="grid grid-cols-2 gap-4">
+                    {{-- Row 4: Purchase Price | Pack Size | Yield % --}}
+                    <div class="grid grid-cols-3 gap-4">
                         <div>
                             <x-input-label for="purchase_price" value="Purchase Price *" />
                             <x-text-input id="purchase_price" wire:model.live="purchase_price"
                                           type="number" step="0.0001" min="0"
                                           class="mt-1 block w-full" />
-                            <p class="mt-0.5 text-xs text-gray-400">Per {{ $baseUomAbbr ?? 'base UOM' }}</p>
+                            <p class="mt-0.5 text-xs text-gray-400">Price per pack/unit</p>
                             <x-input-error :messages="$errors->get('purchase_price')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="pack_size" value="Pack Size" />
+                            <x-text-input id="pack_size" wire:model.live="pack_size"
+                                          type="number" step="0.0001" min="0.0001"
+                                          class="mt-1 block w-full" />
+                            <p class="mt-0.5 text-xs text-gray-400">{{ $baseUomAbbr ?? 'base UOM' }} per pack (1 = no pack)</p>
+                            <x-input-error :messages="$errors->get('pack_size')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="yield_percent" value="Yield %" />
@@ -350,14 +358,32 @@
                             <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">Cost Chain</p>
                             <div class="flex flex-wrap items-center gap-2 text-sm">
 
-                                {{-- Purchase price --}}
+                                {{-- Purchase price (per pack) --}}
                                 <div class="flex flex-col items-center">
                                     <span class="font-semibold text-gray-800">
                                         {{ number_format(floatval($purchase_price), 4) }}
-                                        <span class="text-gray-500 font-normal text-xs">/ {{ $baseUomAbbr ?? '?' }}</span>
+                                        <span class="text-gray-500 font-normal text-xs">/ pack</span>
                                     </span>
                                     <span class="text-xs text-gray-500">purchase price</span>
                                 </div>
+
+                                {{-- Pack size step (only when pack_size > 1) --}}
+                                @if (floatval($pack_size) > 1)
+                                    <div class="flex flex-col items-center text-blue-500">
+                                        <span class="font-medium">÷ {{ rtrim(rtrim(number_format(floatval($pack_size), 4), '0'), '.') }}</span>
+                                        <span class="text-xs">{{ $baseUomAbbr ?? '?' }}/pack</span>
+                                    </div>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    <div class="flex flex-col items-center">
+                                        <span class="font-semibold text-gray-700">
+                                            {{ number_format($baseCost, 4) }}
+                                            <span class="text-gray-500 font-normal text-xs">/ {{ $baseUomAbbr ?? '?' }}</span>
+                                        </span>
+                                        <span class="text-xs text-gray-500">cost per {{ $baseUomAbbr ?? 'unit' }}</span>
+                                    </div>
+                                @endif
 
                                 @if (floatval($yield_percent) < 100)
                                     <div class="flex flex-col items-center text-amber-500">
@@ -365,12 +391,10 @@
                                         <span class="text-xs">loss applied</span>
                                     </div>
 
-                                    {{-- Arrow --}}
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
 
-                                    {{-- Effective cost --}}
                                     <div class="flex flex-col items-center">
                                         <span class="font-semibold text-red-600">
                                             {{ number_format($effectiveCost, 4) }}
@@ -379,19 +403,21 @@
                                         <span class="text-xs text-gray-500">eff. cost</span>
                                     </div>
                                 @else
-                                    <div class="flex flex-col items-center text-gray-400">
-                                        <span class="text-xs">no yield loss</span>
-                                    </div>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                    <div class="flex flex-col items-center">
-                                        <span class="font-semibold text-gray-700">
-                                            {{ number_format($effectiveCost, 4) }}
-                                            <span class="text-gray-500 font-normal text-xs">/ {{ $baseUomAbbr ?? '?' }}</span>
-                                        </span>
-                                        <span class="text-xs text-gray-500">eff. cost</span>
-                                    </div>
+                                    @if (floatval($pack_size) <= 1)
+                                        <div class="flex flex-col items-center text-gray-400">
+                                            <span class="text-xs">no yield loss</span>
+                                        </div>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        <div class="flex flex-col items-center">
+                                            <span class="font-semibold text-gray-700">
+                                                {{ number_format($effectiveCost, 4) }}
+                                                <span class="text-gray-500 font-normal text-xs">/ {{ $baseUomAbbr ?? '?' }}</span>
+                                            </span>
+                                            <span class="text-xs text-gray-500">eff. cost</span>
+                                        </div>
+                                    @endif
                                 @endif
 
                                 {{-- Recipe cost segment (only when conversion resolves) --}}
@@ -406,12 +432,12 @@
                                         </span>
                                         <span class="text-xs text-gray-500">recipe cost</span>
                                     </div>
-                                @elseif ($base_uom_id && $recipe_uom_id && $base_uom_id != $recipe_uom_id && $editingId)
+                                @elseif ($recipeCost === null && $base_uom_id && $recipe_uom_id && $base_uom_id != $recipe_uom_id && $editingId)
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
                                     <div class="flex flex-col items-center text-gray-400">
-                                        <span class="text-xs italic">add {{ $baseUomAbbr }}→{{ $recipeUomAbbr }} conversion below</span>
+                                        <span class="text-xs italic">add {{ $baseUomAbbr }}→{{ $recipeUomAbbr }} custom conversion below</span>
                                     </div>
                                 @endif
                             </div>
@@ -442,6 +468,10 @@
                                         class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition">
                                     + Add Conversion
                                 </button>
+                            </div>
+
+                            <div class="mb-3 px-3 py-2 bg-green-50 border border-green-100 rounded-md text-xs text-green-700">
+                                <strong>Built-in:</strong> kg&#8596;g&#8596;mg, L&#8596;mL&#8596;tsp&#8596;tbsp, lb&#8596;oz are auto-converted. Only add custom conversions for non-standard units (e.g. kg&#8594;pcs).
                             </div>
 
                             @if (count($conversions))
@@ -502,7 +532,7 @@
                                 </div>
                             @else
                                 <p class="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
-                                    No conversions yet. Add one above to enable recipe cost calculation.
+                                    No custom conversions. Standard conversions (same type) are automatic.
                                 </p>
                             @endif
                         </div>
