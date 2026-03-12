@@ -184,12 +184,15 @@
                                         <td class="px-4 py-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="font-medium text-gray-800">{{ $line['item_name'] }}</span>
+                                                @if (! empty($line['pack_info']))
+                                                    <span class="text-indigo-600 font-semibold text-sm">{{ $line['pack_info'] }}</span>
+                                                @endif
                                                 @if ($line['item_type'] === 'recipe')
                                                     <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded">RECIPE</span>
                                                 @endif
                                             </div>
                                         </td>
-                                        <td class="px-4 py-2 text-gray-500 text-xs">{{ $line['uom_abbr'] }}</td>
+                                        <td class="px-4 py-2 text-sm font-medium text-gray-600">{{ $line['uom_abbr'] }}</td>
                                         <td class="px-4 py-2">
                                             <input type="number" step="0.0001" min="0.0001"
                                                    value="{{ $line['default_quantity'] }}"

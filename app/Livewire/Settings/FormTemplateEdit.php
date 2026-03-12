@@ -6,6 +6,7 @@ use App\Models\FormTemplate;
 use App\Models\FormTemplateLine;
 use App\Models\Ingredient;
 use App\Models\Recipe;
+use App\Models\UnitOfMeasure;
 use Livewire\Component;
 
 class FormTemplateEdit extends Component
@@ -41,17 +42,32 @@ class FormTemplateEdit extends Component
         $this->is_active   = $template->is_active;
         $this->sort_order  = (string) $template->sort_order;
 
-        $this->lines = $template->lines->map(fn ($l) => [
-            'id'               => $l->id,
-            'item_type'        => $l->item_type,
-            'ingredient_id'    => $l->ingredient_id,
-            'recipe_id'        => $l->recipe_id,
-            'item_name'        => $l->itemName(),
-            'uom_abbr'         => $l->item_type === 'recipe'
+        $this->lines = $template->lines->map(function ($l) {
+            $packInfo = '';
+            $uomAbbr = $l->item_type === 'recipe'
                 ? ($l->recipe?->yieldUom?->abbreviation ?? '')
-                : ($l->ingredient?->baseUom?->abbreviation ?? ''),
-            'default_quantity' => (string) $l->default_quantity,
-        ])->toArray();
+                : ($l->ingredient?->baseUom?->abbreviation ?? '');
+
+            if ($l->item_type === 'ingredient' && $l->ingredient) {
+                $packSize = floatval($l->ingredient->pack_size ?? 1) ?: 1;
+                if ($packSize > 1 && $l->ingredient->baseUom) {
+                    $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+                    $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
+                    $uomAbbr = 'pack';
+                }
+            }
+
+            return [
+                'id'               => $l->id,
+                'item_type'        => $l->item_type,
+                'ingredient_id'    => $l->ingredient_id,
+                'recipe_id'        => $l->recipe_id,
+                'item_name'        => $l->itemName(),
+                'uom_abbr'         => $uomAbbr,
+                'pack_info'        => $packInfo,
+                'default_quantity' => (string) $l->default_quantity,
+            ];
+        })->toArray();
     }
 
     // ── Header save ───────────────────────────────────────────────────────
@@ -95,13 +111,23 @@ class FormTemplateEdit extends Component
             'sort_order'       => count($this->lines),
         ]);
 
+        $packInfo = '';
+        $uomAbbr = $ingredient->baseUom?->abbreviation ?? '';
+        $packSize = floatval($ingredient->pack_size ?? 1) ?: 1;
+        if ($packSize > 1 && $ingredient->baseUom) {
+            $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+            $packInfo = '(' . $formatted . ' ' . strtoupper($ingredient->baseUom->abbreviation) . '/PACK)';
+            $uomAbbr = 'pack';
+        }
+
         $this->lines[] = [
             'id'               => $line->id,
             'item_type'        => 'ingredient',
             'ingredient_id'    => $ingredient->id,
             'recipe_id'        => null,
             'item_name'        => $ingredient->name,
-            'uom_abbr'         => $ingredient->baseUom?->abbreviation ?? '',
+            'uom_abbr'         => $uomAbbr,
+            'pack_info'        => $packInfo,
             'default_quantity' => '1',
         ];
 
@@ -135,6 +161,7 @@ class FormTemplateEdit extends Component
             'recipe_id'        => $recipe->id,
             'item_name'        => $recipe->name,
             'uom_abbr'         => $recipe->yieldUom?->abbreviation ?? '',
+            'pack_info'        => '',
             'default_quantity' => '1',
         ];
 
