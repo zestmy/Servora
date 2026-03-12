@@ -241,6 +241,39 @@ class Index extends Component
         session()->flash('success', 'Goods received note deleted.');
     }
 
+    /**
+     * Business Manager / Admin: roll back an approved PO to draft for amendment.
+     * Only allowed if no DOs have been created from this PO yet.
+     */
+    public function rollbackPo(int $id): void
+    {
+        $user = Auth::user();
+        if (! $user->hasRole(['Super Admin', 'System Admin', 'Business Manager'])) {
+            session()->flash('error', 'Unauthorized.');
+            return;
+        }
+
+        $po = PurchaseOrder::findOrFail($id);
+
+        if ($po->status !== 'approved') {
+            session()->flash('error', 'Only approved POs can be rolled back.');
+            return;
+        }
+
+        // Safety: block if any DOs already created from this PO
+        if ($po->deliveryOrders()->count() > 0) {
+            session()->flash('error', 'Cannot roll back — this PO already has Delivery Orders created.');
+            return;
+        }
+
+        $po->update([
+            'status'      => 'draft',
+            'approved_by' => null,
+        ]);
+
+        session()->flash('success', "PO {$po->po_number} rolled back to draft for amendment.");
+    }
+
     // ── CSV Export ───────────────────────────────────────────────────────────
 
     public function exportCsv()
@@ -293,6 +326,7 @@ class Index extends Component
         $showPrice = (bool) ($user->company?->show_price_on_do_grn ?? false);
 
         $isSystemAdmin = $user->hasRole(['Super Admin', 'System Admin']);
+        $canRollbackPo = $user->hasRole(['Super Admin', 'System Admin', 'Business Manager']);
 
         return view('livewire.purchasing.index', array_merge($data, [
             'suppliers'          => $suppliers,
@@ -306,6 +340,7 @@ class Index extends Component
             'requirePoApproval'  => $requirePoApproval,
             'showPrice'          => $showPrice,
             'isSystemAdmin'      => $isSystemAdmin,
+            'canRollbackPo'      => $canRollbackPo,
         ]))->layout('layouts.app', ['title' => 'Purchasing']);
     }
 
