@@ -115,6 +115,10 @@ class Import extends Component
                 ? max(0, (float) $raw['purchase_price'])
                 : 0.0;
 
+            $packSize = is_numeric($raw['pack_size'] ?? null)
+                ? max(0.0001, (float) $raw['pack_size'])
+                : 1.0;
+
             $yieldPercent = is_numeric($raw['yield_percent'] ?? null)
                 ? min(100, max(0.01, (float) $raw['yield_percent']))
                 : 100.0;
@@ -132,6 +136,7 @@ class Import extends Component
                 'recipe_uom_label'       => $raw['recipe_uom'] ?? '',
                 'recipe_uom_id'          => $recipeUomId,
                 'purchase_price'         => $purchasePrice,
+                'pack_size'              => $packSize,
                 'yield_percent'          => $yieldPercent,
                 'is_active'              => $isActive,
                 'errors'                 => $rowErrors,
@@ -156,9 +161,11 @@ class Import extends Component
                 continue;
             }
 
-            $pp   = $row['purchase_price'];
-            $yp   = $row['yield_percent'];
-            $cost = $yp > 0 ? $pp / ($yp / 100) : $pp;
+            $pp       = $row['purchase_price'];
+            $ps       = $row['pack_size'];
+            $yp       = $row['yield_percent'];
+            $baseCost = $pp / max($ps, 0.0001);
+            $cost     = $yp > 0 ? $baseCost / ($yp / 100) : $baseCost;
 
             Ingredient::create([
                 'company_id'             => $companyId,
@@ -168,8 +175,9 @@ class Import extends Component
                 'base_uom_id'            => $row['base_uom_id'],
                 'recipe_uom_id'          => $row['recipe_uom_id'],
                 'purchase_price'         => $pp,
+                'pack_size'              => $ps,
                 'yield_percent'          => $yp,
-                'current_cost'           => $cost,
+                'current_cost'           => round($cost, 4),
                 'is_active'              => $row['is_active'],
             ]);
 
@@ -195,11 +203,11 @@ class Import extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['name', 'code', 'cost_center', 'base_uom', 'recipe_uom', 'purchase_price', 'yield_percent', 'is_active'];
+        $headers = ['name', 'code', 'cost_center', 'base_uom', 'recipe_uom', 'purchase_price', 'pack_size', 'yield_percent', 'is_active'];
         $sample  = [
-            ['Chicken Breast', 'CHK-001', 'Food', 'kg', 'g', '12.50', '80', 'yes'],
-            ['Mineral Water', 'WTR-001', 'Beverage', 'bottle', 'bottle', '1.50', '100', 'yes'],
-            ['All-Purpose Flour', 'FLR-001', 'Food', 'kg', 'g', '3.20', '100', 'yes'],
+            ['Chicken Breast', 'CHK-001', 'Food', 'kg', 'g', '12.50', '1', '80', 'yes'],
+            ['Apple Crumble', 'ACR-001', 'Food', 'kg', 'gm', '42.69', '1.2', '100', 'yes'],
+            ['Mineral Water', 'WTR-001', 'Beverage', 'bottle', 'bottle', '1.50', '1', '100', 'yes'],
         ];
 
         $output = fopen('php://temp', 'r+');
