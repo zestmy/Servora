@@ -21,6 +21,7 @@ class CompanyDetails extends Component
     public string  $tax_type            = '';
     public string  $tax_percent         = '0';
     public bool    $show_price_on_do_grn = false;
+    public bool    $auto_generate_do     = false;
     public ?string $currentLogo         = null;
     public $logo;
 
@@ -39,6 +40,7 @@ class CompanyDetails extends Component
         $this->tax_type            = $company->tax_type ?? '';
         $this->tax_percent         = (string) ($company->tax_percent ?? '0');
         $this->show_price_on_do_grn = (bool) $company->show_price_on_do_grn;
+        $this->auto_generate_do     = (bool) $company->auto_generate_do;
         $this->currentLogo         = $company->logo;
     }
 
@@ -71,6 +73,7 @@ class CompanyDetails extends Component
             'tax_type'              => $this->tax_type ?: null,
             'tax_percent'           => floatval($this->tax_percent),
             'show_price_on_do_grn'  => $this->show_price_on_do_grn,
+            'auto_generate_do'      => $this->auto_generate_do,
         ];
 
         if ($this->logo) {

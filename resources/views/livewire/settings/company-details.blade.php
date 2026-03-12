@@ -103,6 +103,17 @@
                     </label>
                     <p class="text-xs text-gray-400 mt-1">When disabled, unit cost and totals are hidden on Delivery Order and GRN forms and PDFs. Pricing data is still recorded internally.</p>
                 </div>
+
+                {{-- Purchasing Workflow --}}
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Purchasing Workflow</h3>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" wire:model="auto_generate_do"
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700">Auto-generate DO upon PO approval</span>
+                    </label>
+                    <p class="text-xs text-gray-400 mt-1">When enabled, a Delivery Order and GRN will be automatically created when a Purchase Order is approved. Purchasing team can still adjust quantities on the DO afterwards.</p>
+                </div>
             </div>
 
             {{-- Right: Logo --}}
