@@ -79,11 +79,35 @@
         </div>
     </div>
 
+    {{-- Bulk Action Bar --}}
+    @if (count($selectedIds) > 0)
+        <div class="mb-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
+            <span class="text-sm font-medium text-indigo-700">
+                {{ count($selectedIds) }} ingredient{{ count($selectedIds) > 1 ? 's' : '' }} selected
+            </span>
+            <div class="flex items-center gap-2">
+                <button wire:click="$set('selectedIds', [])"
+                        class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Clear
+                </button>
+                <button wire:click="bulkDelete"
+                        wire:confirm="Delete {{ count($selectedIds) }} selected ingredient(s)? This cannot be undone."
+                        class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                    Delete Selected
+                </button>
+            </div>
+        </div>
+    @endif
+
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
+                    <th class="px-4 py-3 w-10">
+                        <input type="checkbox" wire:model.live="selectAll"
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                    </th>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-left">UOM</th>
@@ -97,7 +121,11 @@
             </thead>
             <tbody class="divide-y divide-gray-50">
                 @forelse ($ingredients as $ingredient)
-                    <tr class="hover:bg-gray-50 transition">
+                    <tr class="hover:bg-gray-50 transition {{ in_array($ingredient->id, $selectedIds) ? 'bg-indigo-50' : '' }}">
+                        <td class="px-4 py-3">
+                            <input type="checkbox" value="{{ $ingredient->id }}" wire:model.live="selectedIds"
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                        </td>
                         <td class="px-4 py-3">
                             <div class="font-medium text-gray-800">{{ $ingredient->name }}</div>
                             @if ($ingredient->code)
@@ -210,7 +238,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="10" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🥕</div>
                             <p class="font-medium">No ingredients found</p>
                             <p class="text-xs mt-1">Try adjusting your filters or add your first ingredient.</p>

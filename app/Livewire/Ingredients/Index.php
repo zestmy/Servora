@@ -21,6 +21,10 @@ class Index extends Component
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
 
+    // Bulk selection
+    public array $selectedIds = [];
+    public bool  $selectAll = false;
+
     // Modal state
     public bool $showModal = false;
     public ?int $editingId = null;
@@ -87,9 +91,25 @@ class Index extends Component
         ];
     }
 
-    public function updatedSearch(): void           { $this->resetPage(); }
-    public function updatedCategoryFilter(): void   { $this->resetPage(); }
-    public function updatedStatusFilter(): void     { $this->resetPage(); }
+    public function updatedSearch(): void           { $this->resetPage(); $this->clearSelection(); }
+    public function updatedCategoryFilter(): void   { $this->resetPage(); $this->clearSelection(); }
+    public function updatedStatusFilter(): void     { $this->resetPage(); $this->clearSelection(); }
+
+    public function updatedSelectAll(bool $value): void
+    {
+        if ($value) {
+            // Select all IDs on current page
+            $this->selectedIds = $this->getPageIngredientIds();
+        } else {
+            $this->selectedIds = [];
+        }
+    }
+
+    public function updatedSelectedIds(): void
+    {
+        $this->selectAll = count($this->selectedIds) > 0
+            && count($this->selectedIds) === count($this->getPageIngredientIds());
+    }
 
     public function openCreate(): void
     {
@@ -177,6 +197,16 @@ class Index extends Component
     {
         Ingredient::findOrFail($id)->delete();
         session()->flash('success', 'Ingredient deleted.');
+    }
+
+    public function bulkDelete(): void
+    {
+        $count = count($this->selectedIds);
+        if ($count === 0) return;
+
+        Ingredient::whereIn('id', $this->selectedIds)->delete();
+        $this->clearSelection();
+        session()->flash('success', "{$count} ingredient(s) deleted.");
     }
 
     public function toggleActive(int $id): void
@@ -481,6 +511,42 @@ class Index extends Component
                 'is_preferred' => (bool) ($link['is_preferred'] ?? false),
             ]);
         }
+    }
+
+    private function clearSelection(): void
+    {
+        $this->selectedIds = [];
+        $this->selectAll = false;
+    }
+
+    private function getPageIngredientIds(): array
+    {
+        $query = Ingredient::query();
+
+        if ($this->search) {
+            $query->where(function ($q) {
+                $q->where('name', 'like', '%' . $this->search . '%')
+                  ->orWhere('code', 'like', '%' . $this->search . '%');
+            });
+        }
+
+        if ($this->categoryFilter) {
+            $cat = IngredientCategory::with('children')->find((int) $this->categoryFilter);
+            if ($cat) {
+                $ids = $cat->children->isNotEmpty()
+                    ? $cat->children->pluck('id')->push($cat->id)->toArray()
+                    : [$cat->id];
+                $query->whereIn('ingredient_category_id', $ids);
+            }
+        }
+
+        if ($this->statusFilter === 'active') {
+            $query->where('is_active', true);
+        } elseif ($this->statusFilter === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        return $query->orderBy('name')->paginate(15)->pluck('id')->toArray();
     }
 
     private function saveConversions(Ingredient $ingredient): void
