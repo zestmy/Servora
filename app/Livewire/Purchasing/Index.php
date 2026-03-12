@@ -7,10 +7,12 @@ use App\Models\GoodsReceivedNote;
 use App\Models\Outlet;
 use App\Models\PoApprover;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseRecord;
 use App\Models\Supplier;
 use App\Services\CsvExportService;
 use App\Traits\ScopesToActiveOutlet;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -140,6 +142,105 @@ class Index extends Component
         }
     }
 
+    /**
+     * System Admin: soft-delete a PO and cascade to related DO, GRN, PurchaseRecord.
+     */
+    public function adminDeletePo(int $id): void
+    {
+        if (! Auth::user()->hasRole(['Super Admin', 'System Admin'])) {
+            session()->flash('error', 'Unauthorized.');
+            return;
+        }
+
+        DB::transaction(function () use ($id) {
+            $po = PurchaseOrder::with(['deliveryOrders.goodsReceivedNotes'])->findOrFail($id);
+
+            // Cascade: soft-delete related GRNs → DOs → PurchaseRecords
+            foreach ($po->deliveryOrders as $do) {
+                foreach ($do->goodsReceivedNotes as $grn) {
+                    $grn->lines()->delete();
+                    $grn->delete();
+                }
+                // Soft-delete related purchase records
+                PurchaseRecord::where('delivery_order_id', $do->id)->each(function ($pr) {
+                    $pr->lines()->delete();
+                    $pr->delete();
+                });
+                $do->lines()->delete();
+                $do->delete();
+            }
+
+            // Also catch GRNs linked directly to PO (without DO)
+            GoodsReceivedNote::where('purchase_order_id', $po->id)->each(function ($grn) {
+                $grn->lines()->delete();
+                $grn->delete();
+            });
+
+            $po->lines()->delete();
+            $po->delete();
+        });
+
+        session()->flash('success', 'Purchase order and related documents deleted.');
+    }
+
+    /**
+     * System Admin: soft-delete a DO and cascade to related GRN, PurchaseRecord.
+     */
+    public function adminDeleteDo(int $id): void
+    {
+        if (! Auth::user()->hasRole(['Super Admin', 'System Admin'])) {
+            session()->flash('error', 'Unauthorized.');
+            return;
+        }
+
+        DB::transaction(function () use ($id) {
+            $do = DeliveryOrder::with('goodsReceivedNotes')->findOrFail($id);
+
+            foreach ($do->goodsReceivedNotes as $grn) {
+                $grn->lines()->delete();
+                $grn->delete();
+            }
+
+            PurchaseRecord::where('delivery_order_id', $do->id)->each(function ($pr) {
+                $pr->lines()->delete();
+                $pr->delete();
+            });
+
+            $do->lines()->delete();
+            $do->delete();
+        });
+
+        session()->flash('success', 'Delivery order and related documents deleted.');
+    }
+
+    /**
+     * System Admin: soft-delete a GRN and its related PurchaseRecord.
+     */
+    public function adminDeleteGrn(int $id): void
+    {
+        if (! Auth::user()->hasRole(['Super Admin', 'System Admin'])) {
+            session()->flash('error', 'Unauthorized.');
+            return;
+        }
+
+        DB::transaction(function () use ($id) {
+            $grn = GoodsReceivedNote::findOrFail($id);
+
+            // Soft-delete related purchase record (linked via DO)
+            if ($grn->delivery_order_id) {
+                PurchaseRecord::where('delivery_order_id', $grn->delivery_order_id)->each(function ($pr) {
+                    $pr->lines()->delete();
+                    $pr->delete();
+                });
+            }
+
+            $grn->lines()->delete();
+            $grn->delete();
+        });
+
+        session()->flash('success', 'Goods received note deleted.');
+    }
+
     // ── CSV Export ───────────────────────────────────────────────────────────
 
     public function exportCsv()
@@ -191,6 +292,8 @@ class Index extends Component
 
         $showPrice = (bool) ($user->company?->show_price_on_do_grn ?? false);
 
+        $isSystemAdmin = $user->hasRole(['Super Admin', 'System Admin']);
+
         return view('livewire.purchasing.index', array_merge($data, [
             'suppliers'          => $suppliers,
             'outlets'            => $outlets,
@@ -202,6 +305,7 @@ class Index extends Component
             'stats'              => $stats,
             'requirePoApproval'  => $requirePoApproval,
             'showPrice'          => $showPrice,
+            'isSystemAdmin'      => $isSystemAdmin,
         ]))->layout('layouts.app', ['title' => 'Purchasing']);
     }
 
