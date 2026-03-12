@@ -20,6 +20,7 @@ use App\Livewire\Inventory\StaffMealForm;
 use App\Livewire\Inventory\PrepItemForm;
 use App\Livewire\Inventory\TransferForm;
 use App\Livewire\Reports\Index as ReportsIndex;
+use App\Livewire\Reports\PriceHistory as ReportsPriceHistory;
 use App\Livewire\Settings\Index as SettingsIndex;
 use App\Livewire\Settings\Suppliers as SettingsSuppliers;
 use App\Livewire\Settings\Categories as SettingsCategories;
@@ -78,6 +79,7 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/inventory/transfers/create', TransferForm::class)->name('inventory.transfers.create')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.view');
     Route::get('/reports', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');
+    Route::get('/reports/price-history', ReportsPriceHistory::class)->name('reports.price-history')->middleware('can:reports.view');
     Route::get('/settings', SettingsIndex::class)->name('settings.index')->middleware('can:settings.view');
     Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:settings.view');
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:settings.view');
