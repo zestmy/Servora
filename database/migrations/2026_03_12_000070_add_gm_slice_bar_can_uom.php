@@ -9,9 +9,9 @@ return new class extends Migration
     {
         $uoms = [
             ['name' => 'Gram',  'abbreviation' => 'gm',    'type' => 'weight', 'base_unit_factor' => 0.001, 'is_system' => true],
-            ['name' => 'Slice', 'abbreviation' => 'slice',  'type' => 'count',  'base_unit_factor' => null,  'is_system' => true],
-            ['name' => 'Bar',   'abbreviation' => 'bar',    'type' => 'count',  'base_unit_factor' => null,  'is_system' => true],
-            ['name' => 'Can',   'abbreviation' => 'can',    'type' => 'count',  'base_unit_factor' => null,  'is_system' => true],
+            ['name' => 'Slice', 'abbreviation' => 'slice',  'type' => 'count',  'base_unit_factor' => 1, 'is_system' => true],
+            ['name' => 'Bar',   'abbreviation' => 'bar',    'type' => 'count',  'base_unit_factor' => 1, 'is_system' => true],
+            ['name' => 'Can',   'abbreviation' => 'can',    'type' => 'count',  'base_unit_factor' => 1, 'is_system' => true],
         ];
 
         foreach ($uoms as $uom) {
