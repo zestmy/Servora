@@ -134,6 +134,16 @@
                         <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
                     </div>
                     <div class="flex justify-between border-t border-gray-100 pt-3">
+                        <dt class="text-gray-500">Subtotal</dt>
+                        <dd class="font-medium text-gray-800 tabular-nums">{{ number_format($subtotal, 2) }}</dd>
+                    </div>
+                    @if ($taxType && $taxPct > 0)
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">{{ $taxType }} ({{ number_format($taxPct, 0) }}%)</dt>
+                            <dd class="font-medium text-gray-800 tabular-nums">{{ number_format($taxAmount, 2) }}</dd>
+                        </div>
+                    @endif
+                    <div class="flex justify-between border-t border-gray-100 pt-3">
                         <dt class="text-gray-600 font-semibold">Grand Total</dt>
                         <dd class="font-bold text-xl text-gray-900 tabular-nums">
                             {{ number_format($grandTotal, 2) }}
@@ -335,11 +345,23 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200">
                         <tr>
+                            <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-2 text-right text-sm text-gray-500">Subtotal</td>
+                            <td class="px-4 py-2 text-right font-medium text-gray-700 tabular-nums">{{ number_format($subtotal, 2) }}</td>
+                            @if ($isEditable) <td></td> @endif
+                        </tr>
+                        @if ($taxType && $taxPct > 0)
+                        <tr>
+                            <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-1 text-right text-sm text-gray-500">{{ $taxType }} ({{ number_format($taxPct, 0) }}%)</td>
+                            <td class="px-4 py-1 text-right font-medium text-gray-700 tabular-nums">{{ number_format($taxAmount, 2) }}</td>
+                            @if ($isEditable) <td></td> @endif
+                        </tr>
+                        @endif
+                        <tr>
                             <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
                             <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
                                 {{ number_format($grandTotal, 2) }}
                             </td>
-                            <td></td>
+                            @if ($isEditable) <td></td> @endif
                         </tr>
                     </tfoot>
                 </table>

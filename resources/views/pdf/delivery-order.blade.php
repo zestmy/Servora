@@ -52,6 +52,10 @@
     {{-- Meta --}}
     <table class="meta-table">
         <tr>
+            <td class="label">Order Date:</td>
+            <td class="value">{{ $do->created_at?->format('d M Y, h:i A') ?? '—' }}</td>
+        </tr>
+        <tr>
             <td class="label">PO Reference:</td>
             <td class="value">{{ $do->purchaseOrder?->po_number ?? '—' }}</td>
             <td class="label">Delivery Date:</td>
@@ -68,7 +72,9 @@
                 <th class="center">Ordered Qty</th>
                 <th class="center">Delivered Qty</th>
                 <th class="center">UOM</th>
-                <th class="right">Unit Cost</th>
+                @if ($showPrice)
+                    <th class="right">Unit Cost</th>
+                @endif
                 <th class="center">Condition</th>
             </tr>
         </thead>
@@ -82,17 +88,21 @@
                     <td class="center">{{ floatval($line->ordered_quantity) }}</td>
                     <td class="center">{{ floatval($line->delivered_quantity) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>
-                    <td class="right">{{ number_format($line->unit_cost, 2) }}</td>
+                    @if ($showPrice)
+                        <td class="right">{{ number_format($line->unit_cost, 2) }}</td>
+                    @endif
                     <td class="center">{{ ucfirst($line->condition) }}</td>
                 </tr>
             @endforeach
         </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="6" class="right">Total ({{ $company?->currency ?? 'RM' }})</td>
-                <td class="right">{{ number_format($total, 2) }}</td>
-            </tr>
-        </tfoot>
+        @if ($showPrice)
+            <tfoot>
+                <tr>
+                    <td colspan="6" class="right">Total ({{ $company?->currency ?? 'RM' }})</td>
+                    <td class="right">{{ number_format($total, 2) }}</td>
+                </tr>
+            </tfoot>
+        @endif
     </table>
 
     @if ($do->notes)
@@ -106,7 +116,7 @@
     <div class="signatures">
         <div class="sig-box">
             @if ($do->createdBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ $do->createdBy->name }}</div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($do->createdBy->name) }}</div>
             @endif
             <div class="sig-line">Issued By</div>
         </div>
@@ -115,7 +125,7 @@
         </div>
         <div class="sig-box">
             @if ($do->receivedBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ $do->receivedBy->name }}</div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($do->receivedBy->name) }}</div>
             @endif
             <div class="sig-line">Received By</div>
         </div>

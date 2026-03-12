@@ -59,7 +59,7 @@
         </tr>
         <tr>
             <td class="label">Received Date:</td>
-            <td class="value">{{ $grn->received_date?->format('d M Y') ?? 'Pending' }}</td>
+            <td class="value">{{ $grn->received_date?->format('d M Y, h:i A') ?? 'Pending' }}</td>
             <td class="label">Received By:</td>
             <td class="value">{{ $grn->receivedBy?->name ?? '—' }}</td>
         </tr>
@@ -74,9 +74,13 @@
                 <th class="center">Expected</th>
                 <th class="center">Received</th>
                 <th class="center">UOM</th>
-                <th class="right">Unit Cost</th>
+                @if ($showPrice)
+                    <th class="right">Unit Cost</th>
+                @endif
                 <th class="center">Condition</th>
-                <th class="right">Total</th>
+                @if ($showPrice)
+                    <th class="right">Total</th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -87,18 +91,24 @@
                     <td class="center">{{ floatval($line->expected_quantity) }}</td>
                     <td class="center">{{ floatval($line->received_quantity) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>
-                    <td class="right">{{ number_format($line->unit_cost, 2) }}</td>
+                    @if ($showPrice)
+                        <td class="right">{{ number_format($line->unit_cost, 2) }}</td>
+                    @endif
                     <td class="center">{{ ucfirst($line->condition) }}</td>
-                    <td class="right">{{ number_format($line->total_cost, 2) }}</td>
+                    @if ($showPrice)
+                        <td class="right">{{ number_format($line->total_cost, 2) }}</td>
+                    @endif
                 </tr>
             @endforeach
         </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="7" class="right">Total ({{ $company?->currency ?? 'RM' }})</td>
-                <td class="right">{{ number_format($grn->total_amount, 2) }}</td>
-            </tr>
-        </tfoot>
+        @if ($showPrice)
+            <tfoot>
+                <tr>
+                    <td colspan="7" class="right">Total ({{ $company?->currency ?? 'RM' }})</td>
+                    <td class="right">{{ number_format($grn->total_amount, 2) }}</td>
+                </tr>
+            </tfoot>
+        @endif
     </table>
 
     @if ($grn->notes)
@@ -112,13 +122,13 @@
     <div class="signatures">
         <div class="sig-box">
             @if ($grn->createdBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ $grn->createdBy->name }}</div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($grn->createdBy->name) }}</div>
             @endif
             <div class="sig-line">Checked By</div>
         </div>
         <div class="sig-box">
             @if ($grn->receivedBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ $grn->receivedBy->name }}</div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($grn->receivedBy->name) }}</div>
             @endif
             <div class="sig-line">Received By</div>
         </div>

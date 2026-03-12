@@ -90,8 +90,10 @@
                                 <th class="text-center py-2 px-2 w-20">PO Qty</th>
                                 <th class="text-center py-2 px-2 w-24">DO Qty</th>
                                 <th class="text-center py-2 px-2 w-20">UOM</th>
-                                <th class="text-right py-2 px-2 w-28">Unit Cost</th>
-                                <th class="text-right py-2 px-2 w-28">Total</th>
+                                @if ($showPrice)
+                                    <th class="text-right py-2 px-2 w-28">Unit Cost</th>
+                                    <th class="text-right py-2 px-2 w-28">Total</th>
+                                @endif
                                 <th class="text-center py-2 px-2 w-12"></th>
                             </tr>
                         </thead>
@@ -114,14 +116,16 @@
                                             @endforeach
                                         </select>
                                     </td>
-                                    <td class="py-2 px-2">
-                                        <input type="number" wire:model.live.debounce.500ms="lines.{{ $idx }}.unit_cost"
-                                               step="0.01" min="0"
-                                               class="w-full text-right rounded border-gray-300 text-sm py-1 focus:border-indigo-500 focus:ring-indigo-500">
-                                    </td>
-                                    <td class="py-2 px-2 text-right tabular-nums text-gray-700 font-medium">
-                                        {{ number_format($line['total_cost'] ?? 0, 2) }}
-                                    </td>
+                                    @if ($showPrice)
+                                        <td class="py-2 px-2">
+                                            <input type="number" wire:model.live.debounce.500ms="lines.{{ $idx }}.unit_cost"
+                                                   step="0.01" min="0"
+                                                   class="w-full text-right rounded border-gray-300 text-sm py-1 focus:border-indigo-500 focus:ring-indigo-500">
+                                        </td>
+                                        <td class="py-2 px-2 text-right tabular-nums text-gray-700 font-medium">
+                                            {{ number_format($line['total_cost'] ?? 0, 2) }}
+                                        </td>
+                                    @endif
                                     <td class="py-2 px-2 text-center">
                                         <button wire:click="removeLine({{ $idx }})" class="text-red-400 hover:text-red-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -132,7 +136,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="py-8 text-center text-gray-400 text-sm">No items added</td>
+                                    <td colspan="{{ $showPrice ? 7 : 5 }}" class="py-8 text-center text-gray-400 text-sm">No items added</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -163,11 +167,13 @@
                         <dt class="text-gray-500">Items</dt>
                         <dd class="text-gray-800">{{ count($lines) }}</dd>
                     </div>
-                    <hr class="my-2">
-                    <div class="flex justify-between font-semibold text-base">
-                        <dt class="text-gray-700">Grand Total</dt>
-                        <dd class="text-gray-800 tabular-nums">RM {{ number_format($grandTotal, 2) }}</dd>
-                    </div>
+                    @if ($showPrice)
+                        <hr class="my-2">
+                        <div class="flex justify-between font-semibold text-base">
+                            <dt class="text-gray-700">Grand Total</dt>
+                            <dd class="text-gray-800 tabular-nums">RM {{ number_format($grandTotal, 2) }}</dd>
+                        </div>
+                    @endif
                 </dl>
 
                 <button wire:click="convert"

@@ -65,6 +65,44 @@
                     <x-text-input id="currency" wire:model="currency" type="text" class="mt-1 block w-full" />
                     <x-input-error :messages="$errors->get('currency')" class="mt-1" />
                 </div>
+
+                {{-- Tax Settings --}}
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Tax Settings</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="tax_type" value="Tax Type" />
+                            <select id="tax_type" wire:model="tax_type"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">No Tax</option>
+                                <option value="SST">SST</option>
+                                <option value="GST">GST</option>
+                                <option value="VAT">VAT</option>
+                            </select>
+                            <x-input-error :messages="$errors->get('tax_type')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="tax_percent" value="Tax %" />
+                            <div class="mt-1 relative">
+                                <x-text-input id="tax_percent" wire:model="tax_percent" type="number" step="0.01" min="0" max="100" class="block w-full pr-8" />
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                            </div>
+                            <x-input-error :messages="$errors->get('tax_percent')" class="mt-1" />
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">Applied automatically to purchase orders.</p>
+                </div>
+
+                {{-- Document Display Settings --}}
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Document Display</h3>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" wire:model="show_price_on_do_grn"
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700">Show pricing on DO &amp; GRN</span>
+                    </label>
+                    <p class="text-xs text-gray-400 mt-1">When disabled, unit cost and totals are hidden on Delivery Order and GRN forms and PDFs. Pricing data is still recorded internally.</p>
+                </div>
             </div>
 
             {{-- Right: Logo --}}

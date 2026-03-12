@@ -13,12 +13,15 @@ class Company extends Model
 
     protected $fillable = [
         'name', 'registration_number', 'slug', 'email', 'phone', 'address',
-        'billing_address', 'logo', 'currency', 'is_active', 'require_po_approval',
+        'billing_address', 'logo', 'currency', 'tax_type', 'tax_percent',
+        'show_price_on_do_grn', 'is_active', 'require_po_approval',
     ];
 
     protected $casts = [
-        'is_active'           => 'boolean',
-        'require_po_approval' => 'boolean',
+        'is_active'              => 'boolean',
+        'require_po_approval'    => 'boolean',
+        'tax_percent'            => 'decimal:2',
+        'show_price_on_do_grn'   => 'boolean',
     ];
 
     public function outlets(): HasMany

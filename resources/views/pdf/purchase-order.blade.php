@@ -59,7 +59,7 @@
     <table class="meta-table">
         <tr>
             <td class="label">Order Date:</td>
-            <td class="value">{{ $po->order_date?->format('d M Y') ?? '—' }}</td>
+            <td class="value">{{ $po->order_date?->format('d M Y, h:i A') ?? '—' }}</td>
             <td class="label">Expected Delivery:</td>
             <td class="value">{{ $po->expected_delivery_date?->format('d M Y') ?? '—' }}</td>
         </tr>
@@ -96,9 +96,19 @@
             @endforeach
         </tbody>
         <tfoot>
+            @if ($po->tax_percent > 0)
+                <tr>
+                    <td colspan="5" class="right">Subtotal ({{ $company?->currency ?? 'RM' }})</td>
+                    <td class="right">{{ number_format($po->subtotal, 2) }}</td>
+                </tr>
+                <tr>
+                    <td colspan="5" class="right">{{ $company?->tax_type ?? 'Tax' }} ({{ number_format($po->tax_percent, 0) }}%)</td>
+                    <td class="right">{{ number_format($po->tax_amount, 2) }}</td>
+                </tr>
+            @endif
             <tr>
-                <td colspan="5" class="right">Grand Total ({{ $company?->currency ?? 'RM' }})</td>
-                <td class="right">{{ number_format($po->total_amount, 2) }}</td>
+                <td colspan="5" class="right"><strong>Grand Total ({{ $company?->currency ?? 'RM' }})</strong></td>
+                <td class="right"><strong>{{ number_format($po->total_amount, 2) }}</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -114,13 +124,13 @@
     <div class="signatures">
         <div class="sig-box">
             @if ($po->createdBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ $po->createdBy->name }}</div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($po->createdBy->name) }}</div>
             @endif
             <div class="sig-line">Prepared By</div>
         </div>
         <div class="sig-box">
             @if ($po->approvedBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ $po->approvedBy->name }}</div>
+                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($po->approvedBy->name) }}</div>
             @endif
             <div class="sig-line">Approved By</div>
         </div>

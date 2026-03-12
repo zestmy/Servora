@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Models\Company;
 use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
 use App\Models\Ingredient;
@@ -210,8 +211,10 @@ class ConvertToDoForm extends Component
                 ->get();
         }
 
+        $showPrice = (bool) Company::find(Auth::user()->company_id)?->show_price_on_do_grn;
+
         return view('livewire.purchasing.convert-to-do', compact(
-            'uoms', 'grandTotal', 'searchResults'
+            'uoms', 'grandTotal', 'searchResults', 'showPrice'
         ))->layout('layouts.app', ['title' => 'Convert PO to DO: ' . $this->poNumber]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Models\Company;
 use App\Models\GoodsReceivedNote;
 use App\Models\Ingredient;
 use App\Models\IngredientPriceHistory;
@@ -237,7 +238,9 @@ class GrnReceiveForm extends Component
             return $carry + ($line['condition'] !== 'rejected' ? $received * $cost : 0);
         }, 0.0);
 
-        return view('livewire.purchasing.grn-receive-form', compact('grandTotal'))
+        $showPrice = (bool) Company::find(Auth::user()->company_id)?->show_price_on_do_grn;
+
+        return view('livewire.purchasing.grn-receive-form', compact('grandTotal', 'showPrice'))
             ->layout('layouts.app', ['title' => 'Receive GRN: ' . $this->grnNumber]);
     }
 

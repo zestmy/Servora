@@ -17,8 +17,8 @@ class Recipe extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'description', 'yield_quantity', 'yield_uom_id',
-        'selling_price', 'cost_per_yield_unit', 'category', 'ingredient_category_id',
-        'is_active', 'is_prep',
+        'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
+        'ingredient_category_id', 'is_active', 'is_prep',
     ];
 
     protected $casts = [
@@ -27,6 +27,7 @@ class Recipe extends Model
         'yield_quantity'      => 'decimal:4',
         'selling_price'       => 'decimal:4',
         'cost_per_yield_unit' => 'decimal:4',
+        'extra_costs'         => 'array',
     ];
 
     protected static function booted(): void

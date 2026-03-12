@@ -16,13 +16,17 @@ class PurchaseOrder extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'supplier_id', 'ingredient_category_id',
         'po_number', 'status', 'order_date', 'expected_delivery_date',
-        'total_amount', 'notes', 'created_by', 'approved_by',
+        'total_amount', 'subtotal', 'tax_percent', 'tax_amount',
+        'notes', 'created_by', 'approved_by',
     ];
 
     protected $casts = [
-        'order_date' => 'date',
+        'order_date'             => 'date',
         'expected_delivery_date' => 'date',
-        'total_amount' => 'decimal:4',
+        'total_amount'           => 'decimal:4',
+        'subtotal'               => 'decimal:4',
+        'tax_percent'            => 'decimal:2',
+        'tax_amount'             => 'decimal:4',
     ];
 
     protected static function booted(): void

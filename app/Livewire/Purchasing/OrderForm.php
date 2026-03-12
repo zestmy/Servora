@@ -227,7 +227,10 @@ class OrderForm extends Component
         $this->validate();
 
         $user     = Auth::user();
-        $total    = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
+        $subtotal = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
+        $taxPct   = floatval($user->company?->tax_percent ?? 0);
+        $taxAmt   = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
+        $total    = round($subtotal + $taxAmt, 4);
         $outletId = $user->activeOutletId() ?? Outlet::where('company_id', $user->company_id)->value('id');
 
         $requiresApproval = $user->company?->require_po_approval ?? true;
@@ -245,6 +248,9 @@ class OrderForm extends Component
             'expected_delivery_date' => $this->expected_delivery_date ?: null,
             'notes'                  => $this->notes ?: null,
             'total_amount'           => $total,
+            'subtotal'               => $subtotal,
+            'tax_percent'            => $taxPct,
+            'tax_amount'             => $taxAmt,
             'status'                 => $status,
         ];
 
@@ -320,17 +326,22 @@ class OrderForm extends Component
             $searchResults = $q->get();
         }
 
-        $grandTotal         = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
+        $subtotal           = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
+        $company            = Auth::user()->company;
+        $taxType            = $company?->tax_type;
+        $taxPct             = floatval($company?->tax_percent ?? 0);
+        $taxAmount          = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
+        $grandTotal         = round($subtotal + $taxAmount, 4);
         $availableTemplates = FormTemplate::ofType('purchase_order')->active()->ordered()->get();
         $isEditable         = ! $this->orderId || in_array($this->status, ['draft', 'submitted']);
-        $requirePoApproval  = Auth::user()->company?->require_po_approval ?? true;
+        $requirePoApproval  = $company?->require_po_approval ?? true;
 
         $pageTitle = $this->orderId
             ? ($isEditable ? 'Edit PO: ' : 'View PO: ') . $this->poNumber
             : 'New Purchase Order';
 
         return view('livewire.purchasing.order-form', compact(
-            'suppliers', 'uoms', 'costCenters', 'searchResults', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
+            'suppliers', 'uoms', 'costCenters', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

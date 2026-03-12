@@ -74,9 +74,13 @@
                                 <th class="text-center py-2 px-2 w-20">Expected</th>
                                 <th class="text-center py-2 px-2 w-24">Received</th>
                                 <th class="text-center py-2 px-2 w-16">UOM</th>
-                                <th class="text-right py-2 px-2 w-28">Unit Cost</th>
+                                @if ($showPrice)
+                                    <th class="text-right py-2 px-2 w-28">Unit Cost</th>
+                                @endif
                                 <th class="text-center py-2 px-2 w-28">Condition</th>
-                                <th class="text-right py-2 px-2 w-24">Total</th>
+                                @if ($showPrice)
+                                    <th class="text-right py-2 px-2 w-24">Total</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -100,11 +104,13 @@
                                                class="w-full text-center rounded border-gray-300 text-sm py-1 focus:border-indigo-500 focus:ring-indigo-500">
                                     </td>
                                     <td class="py-2 px-2 text-center text-gray-500 text-xs">{{ $line['uom_abbr'] }}</td>
-                                    <td class="py-2 px-2">
-                                        <input type="number" wire:model.lazy="lines.{{ $idx }}.unit_cost"
-                                               step="0.01" min="0"
-                                               class="w-full text-right rounded border-gray-300 text-sm py-1 focus:border-indigo-500 focus:ring-indigo-500">
-                                    </td>
+                                    @if ($showPrice)
+                                        <td class="py-2 px-2">
+                                            <input type="number" wire:model.lazy="lines.{{ $idx }}.unit_cost"
+                                                   step="0.01" min="0"
+                                                   class="w-full text-right rounded border-gray-300 text-sm py-1 focus:border-indigo-500 focus:ring-indigo-500">
+                                        </td>
+                                    @endif
                                     <td class="py-2 px-2">
                                         <select wire:model.live="lines.{{ $idx }}.condition"
                                                 class="w-full rounded border-gray-300 text-xs py-1 focus:border-indigo-500 focus:ring-indigo-500">
@@ -113,9 +119,11 @@
                                             <option value="rejected">Rejected</option>
                                         </select>
                                     </td>
-                                    <td class="py-2 px-2 text-right tabular-nums font-medium {{ $isRejected ? 'text-red-400 line-through' : 'text-gray-700' }}">
-                                        {{ number_format(floatval($line['received_qty']) * floatval($line['unit_cost']), 2) }}
-                                    </td>
+                                    @if ($showPrice)
+                                        <td class="py-2 px-2 text-right tabular-nums font-medium {{ $isRejected ? 'text-red-400 line-through' : 'text-gray-700' }}">
+                                            {{ number_format(floatval($line['received_qty']) * floatval($line['unit_cost']), 2) }}
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>
@@ -161,11 +169,13 @@
                             <dd class="text-red-700 font-medium">{{ $rejectedCount }} items</dd>
                         </div>
                     @endif
-                    <hr class="my-2">
-                    <div class="flex justify-between font-semibold text-base">
-                        <dt class="text-gray-700">Accepted Total</dt>
-                        <dd class="text-gray-800 tabular-nums">RM {{ number_format($grandTotal, 2) }}</dd>
-                    </div>
+                    @if ($showPrice)
+                        <hr class="my-2">
+                        <div class="flex justify-between font-semibold text-base">
+                            <dt class="text-gray-700">Accepted Total</dt>
+                            <dd class="text-gray-800 tabular-nums">RM {{ number_format($grandTotal, 2) }}</dd>
+                        </div>
+                    @endif
                 </dl>
 
                 <button wire:click="confirm"

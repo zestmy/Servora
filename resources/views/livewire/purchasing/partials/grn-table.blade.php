@@ -8,7 +8,9 @@
                 <th class="px-4 py-3 text-left">Supplier</th>
                 <th class="px-4 py-3 text-center">Date</th>
                 <th class="px-4 py-3 text-center">Items</th>
-                <th class="px-4 py-3 text-right">Total (RM)</th>
+                @if ($showPrice)
+                    <th class="px-4 py-3 text-right">Total (RM)</th>
+                @endif
                 <th class="px-4 py-3 text-center">Status</th>
                 <th class="px-4 py-3 text-center">Actions</th>
             </tr>
@@ -31,7 +33,9 @@
                     <td class="px-4 py-3 text-gray-700">{{ $grn->supplier?->name ?? '—' }}</td>
                     <td class="px-4 py-3 text-center text-gray-500">{{ $grn->received_date?->format('d M Y') ?? '—' }}</td>
                     <td class="px-4 py-3 text-center text-gray-600">{{ $grn->lines_count }}</td>
-                    <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($grn->total_amount, 2) }}</td>
+                    @if ($showPrice)
+                        <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($grn->total_amount, 2) }}</td>
+                    @endif
                     <td class="px-4 py-3 text-center">
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badge }}">
                             {{ ucfirst($grn->status) }}
@@ -58,7 +62,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                    <td colspan="{{ $showPrice ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
                         <p class="font-medium">No goods received notes found</p>
                     </td>
                 </tr>

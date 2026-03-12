@@ -44,6 +44,9 @@ class Form extends Component
     public array $existingDineInImages = [];
     public array $existingTakeawayImages = [];
 
+    // Extra costs: each row = [label, amount]
+    public array $extraCosts = [];
+
     // Ingredient search
     public string $ingredientSearch = '';
 
@@ -64,6 +67,8 @@ class Form extends Component
             'lines.*.waste_percentage'   => 'required|numeric|min:0|max:100',
             'newDineInImages.*'          => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'newTakeawayImages.*'        => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
+            'extraCosts.*.label'         => 'required|string|max:100',
+            'extraCosts.*.amount'        => 'required|numeric|min:0',
         ];
     }
 
@@ -76,6 +81,9 @@ class Form extends Component
             'lines.*.quantity.min'               => 'Quantity must be greater than zero.',
             'lines.*.uom_id.required'            => 'UOM is required.',
             'lines.*.waste_percentage.max'       => 'Waste cannot exceed 100%.',
+            'extraCosts.*.label.required'        => 'Cost label is required.',
+            'extraCosts.*.amount.required'       => 'Cost amount is required.',
+            'extraCosts.*.amount.min'            => 'Cost amount cannot be negative.',
         ];
     }
 
@@ -114,6 +122,8 @@ class Form extends Component
             'uom_id'           => $l->uom_id,
             'waste_percentage' => $this->fmt($l->waste_percentage, 2),
         ])->toArray();
+
+        $this->extraCosts = is_array($recipe->extra_costs) ? $recipe->extra_costs : [];
 
         $this->existingDineInImages = $recipe->images->where('type', 'dine_in')->values()->map(fn ($img) => [
             'id'        => $img->id,
@@ -193,14 +203,28 @@ class Form extends Component
         $this->newTakeawayImages = array_values($this->newTakeawayImages);
     }
 
+    public function addExtraCostRow(): void
+    {
+        $this->extraCosts[] = ['label' => '', 'amount' => '0'];
+    }
+
+    public function removeExtraCostRow(int $idx): void
+    {
+        unset($this->extraCosts[$idx]);
+        $this->extraCosts = array_values($this->extraCosts);
+    }
+
     public function save(): void
     {
         $this->validate();
 
         [$lineCosts, $totalCost] = $this->computeLineCosts();
 
+        $extraCostTotal = collect($this->extraCosts)->sum(fn ($c) => floatval($c['amount'] ?? 0));
+        $grandCost      = $totalCost + $extraCostTotal;
+
         $yieldQty        = max(floatval($this->yield_quantity), 0.0001);
-        $costPerYieldUnit = round($totalCost / $yieldQty, 4);
+        $costPerYieldUnit = round($grandCost / $yieldQty, 4);
 
         $data = [
             'name'                   => strtoupper($this->name),
@@ -213,6 +237,7 @@ class Form extends Component
             'category'               => $this->category ?: null,
             'ingredient_category_id' => $this->ingredient_category_id,
             'is_active'              => $this->is_active,
+            'extra_costs'            => !empty($this->extraCosts) ? $this->extraCosts : null,
         ];
 
         if ($this->recipeId) {
@@ -313,13 +338,16 @@ class Form extends Component
         // Live cost calculations
         [$lineCosts, $totalCost] = $this->computeLineCosts();
 
+        $extraCostTotal = collect($this->extraCosts)->sum(fn ($c) => floatval($c['amount'] ?? 0));
+        $grandCost      = $totalCost + $extraCostTotal;
+
         $yieldQty     = max(floatval($this->yield_quantity), 0.0001);
         $sellingPrice = floatval($this->selling_price);
 
-        $costPerServing  = $totalCost / $yieldQty;
-        $foodCostPct     = $sellingPrice > 0 ? ($totalCost / $sellingPrice) * 100 : null;
-        $grossProfit     = $sellingPrice > 0 ? $sellingPrice - $totalCost : null;
-        $grossProfitPct  = $sellingPrice > 0 ? (($sellingPrice - $totalCost) / $sellingPrice) * 100 : null;
+        $costPerServing  = $grandCost / $yieldQty;
+        $foodCostPct     = $sellingPrice > 0 ? ($grandCost / $sellingPrice) * 100 : null;
+        $grossProfit     = $sellingPrice > 0 ? $sellingPrice - $grandCost : null;
+        $grossProfitPct  = $sellingPrice > 0 ? (($sellingPrice - $grandCost) / $sellingPrice) * 100 : null;
 
         $pageTitle = $this->recipeId
             ? 'Edit: ' . ($this->name ?: 'Recipe')
@@ -327,7 +355,7 @@ class Form extends Component
 
         return view('livewire.recipes.form', compact(
             'uoms', 'recipeCategories', 'categories', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
-            'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct'
+            'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

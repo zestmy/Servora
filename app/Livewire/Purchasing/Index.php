@@ -189,6 +189,8 @@ class Index extends Component
         $requirePoApproval = $user->company?->require_po_approval ?? true;
         $stats = $this->getStats($isPurchasing, $isAppointed, $approverOutletIds);
 
+        $showPrice = (bool) ($user->company?->show_price_on_do_grn ?? false);
+
         return view('livewire.purchasing.index', array_merge($data, [
             'suppliers'          => $suppliers,
             'outlets'            => $outlets,
@@ -199,6 +201,7 @@ class Index extends Component
             'canCreatePo'        => $canCreatePo,
             'stats'              => $stats,
             'requirePoApproval'  => $requirePoApproval,
+            'showPrice'          => $showPrice,
         ]))->layout('layouts.app', ['title' => 'Purchasing']);
     }
 

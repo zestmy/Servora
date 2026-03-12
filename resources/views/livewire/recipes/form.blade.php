@@ -200,9 +200,21 @@
 
                 <dl class="space-y-3 text-sm">
                     <div class="flex justify-between">
-                        <dt class="text-gray-500">Total Cost</dt>
+                        <dt class="text-gray-500">Ingredient Cost</dt>
+                        <dd class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</dd>
+                    </div>
+
+                    @if ($extraCostTotal > 0)
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Extra Costs</dt>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format($extraCostTotal, 2) }}</dd>
+                        </div>
+                    @endif
+
+                    <div class="flex justify-between border-t border-gray-100 pt-2">
+                        <dt class="text-gray-500 font-medium">Total Cost</dt>
                         <dd class="font-semibold text-gray-800 tabular-nums">
-                            {{ number_format($totalCost, 2) }}
+                            {{ number_format($grandCost, 2) }}
                         </dd>
                     </div>
 
@@ -550,7 +562,7 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200">
                         <tr>
-                            <td colspan="5" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Total Recipe Cost</td>
+                            <td colspan="5" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Ingredient Cost</td>
                             <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
                                 {{ number_format($totalCost, 2) }}
                             </td>
@@ -566,6 +578,63 @@
                 <p class="text-xs mt-1">Use the search above to find and add ingredients.</p>
             </div>
         @endif
+
+        {{-- Extra Costs --}}
+        <div class="px-6 py-4 border-t border-gray-100">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700">Extra Costs</h4>
+                    <p class="text-xs text-gray-400 mt-0.5">Add overhead costs like packaging, electricity, logistics, labour.</p>
+                </div>
+                <button type="button" wire:click="addExtraCostRow"
+                        class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                    + Add Cost
+                </button>
+            </div>
+
+            @if (count($extraCosts))
+                <div class="space-y-2">
+                    @foreach ($extraCosts as $idx => $cost)
+                        <div class="flex items-center gap-3" wire:key="extra-cost-{{ $idx }}">
+                            <div class="flex-1">
+                                <input type="text"
+                                       wire:model.live.debounce.400ms="extraCosts.{{ $idx }}.label"
+                                       placeholder="e.g. Packaging Cost"
+                                       class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                <x-input-error :messages="$errors->get('extraCosts.'.$idx.'.label')" class="mt-0.5" />
+                            </div>
+                            <div class="w-36">
+                                <input type="number" step="0.01" min="0"
+                                       wire:model.live.debounce.400ms="extraCosts.{{ $idx }}.amount"
+                                       placeholder="0.00"
+                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                <x-input-error :messages="$errors->get('extraCosts.'.$idx.'.amount')" class="mt-0.5" />
+                            </div>
+                            <button type="button" wire:click="removeExtraCostRow({{ $idx }})"
+                                    class="text-red-400 hover:text-red-600 transition flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if ($extraCostTotal > 0)
+                    <div class="mt-3 flex justify-end text-sm">
+                        <span class="text-gray-500 mr-4">Extra Costs Subtotal:</span>
+                        <span class="font-semibold text-gray-800 tabular-nums">{{ number_format($extraCostTotal, 2) }}</span>
+                    </div>
+                @endif
+            @endif
+
+            @if (count($lines) || count($extraCosts))
+                <div class="mt-4 pt-3 border-t-2 border-gray-200 flex justify-end text-sm">
+                    <span class="text-gray-600 font-semibold mr-4">Grand Total Cost:</span>
+                    <span class="font-bold text-gray-900 tabular-nums text-base">{{ number_format($grandCost, 2) }}</span>
+                </div>
+            @endif
+        </div>
 
         {{-- Footer --}}
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
