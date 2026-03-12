@@ -82,16 +82,16 @@ class OrderForm extends Component
         $this->notes                  = $po->notes ?? '';
 
         $this->lines = $po->lines->map(function ($l) use ($po) {
-            [, , $packSize] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
+            [$unitCost, $uomId, $packSize] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
             return [
                 'ingredient_id'   => $l->ingredient_id,
                 'ingredient_name' => $l->ingredient?->name ?? '—',
                 'quantity'        => (string) floatval($l->quantity),
-                'uom_id'          => $l->uom_id,
+                'uom_id'          => $uomId,
                 'unit_cost'       => (string) floatval($l->unit_cost),
                 'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
                 'pack_size'       => $packSize,
-                'pack_info'       => $this->buildPackInfo($l->ingredient_id, $l->uom_id, $packSize),
+                'pack_info'       => $this->buildPackInfo($l->ingredient_id, $uomId, $packSize),
                 'par_level'       => (string) $this->getParLevel($l->ingredient_id),
                 'balance'         => '',
             ];
