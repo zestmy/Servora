@@ -98,6 +98,13 @@ class OrderForm extends Component
         })->toArray();
     }
 
+    public function updatedSelectedTemplateId(): void
+    {
+        if ($this->selectedTemplateId) {
+            $this->loadTemplate();
+        }
+    }
+
     public function updatedSupplierId(): void
     {
         // Re-price existing lines from the newly selected supplier's catalog
@@ -357,6 +364,11 @@ class OrderForm extends Component
         $ingredient = Ingredient::find($ingredientId);
         $fallbackUom = $ingredient?->base_uom_id;
         $fallbackCost = floatval($ingredient?->purchase_price ?? 0);
+        $fallbackPackSize = floatval($ingredient?->pack_size ?? 1) ?: 1;
+
+        $unitCost = $fallbackCost;
+        $uomId = $fallbackUom;
+        $packSize = $fallbackPackSize;
 
         if ($supplierId) {
             $pivot = DB::table('supplier_ingredients')
@@ -364,23 +376,21 @@ class OrderForm extends Component
                 ->where('ingredient_id', $ingredientId)
                 ->first();
             if ($pivot) {
-                $packSize = floatval($pivot->pack_size ?? 1) ?: 1;
+                $packSize = floatval($pivot->pack_size ?? 1) ?: $fallbackPackSize;
                 $unitCost = floatval($pivot->last_cost) > 0 ? floatval($pivot->last_cost) : $fallbackCost;
                 $uomId = $pivot->uom_id ?? $fallbackUom;
-
-                // When pack_size > 1, use "pack" as the ordering UOM
-                if ($packSize > 1) {
-                    $packUom = UnitOfMeasure::where('abbreviation', 'pack')->first();
-                    if ($packUom) {
-                        $uomId = $packUom->id;
-                    }
-                }
-
-                return [$unitCost, $uomId, $packSize];
             }
         }
 
-        return [$fallbackCost, $fallbackUom, 1];
+        // When pack_size > 1, use "pack" as the ordering UOM
+        if ($packSize > 1) {
+            $packUom = UnitOfMeasure::where('abbreviation', 'pack')->first();
+            if ($packUom) {
+                $uomId = $packUom->id;
+            }
+        }
+
+        return [$unitCost, $uomId, $packSize];
     }
 
     private function recalcLine(int $idx): void

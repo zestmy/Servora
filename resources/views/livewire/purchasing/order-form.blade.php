@@ -182,7 +182,7 @@
                 <p class="text-xs text-gray-400 mt-0.5">{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }}</p>
             </div>
             @if ($isEditable && $availableTemplates->isNotEmpty())
-                <select wire:model="selectedTemplateId" wire:change="loadTemplate"
+                <select wire:model.live="selectedTemplateId"
                         class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1.5">
                     <option value="">Load Template…</option>
                     @foreach ($availableTemplates as $t)
