@@ -84,7 +84,22 @@
                 @php $lineTotal = floatval($line->delivered_quantity) * floatval($line->unit_cost); $total += $lineTotal; @endphp
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td>{{ $line->ingredient?->name ?? '—' }}</td>
+                    <td>
+                        {{ $line->ingredient?->name ?? '—' }}
+                        @if ($line->uom?->abbreviation === 'pack' && $line->ingredient)
+                            @php
+                                $doPackSize = \Illuminate\Support\Facades\DB::table('supplier_ingredients')
+                                    ->where('supplier_id', $do->supplier_id)
+                                    ->where('ingredient_id', $line->ingredient_id)
+                                    ->value('pack_size');
+                                $doPackSize = floatval($doPackSize ?? 1);
+                                $doBaseUomAbbr = $line->ingredient->baseUom?->abbreviation ?? '';
+                            @endphp
+                            @if ($doPackSize > 1 && $doBaseUomAbbr)
+                                <span style="font-size: 9px; color: #4f46e5;">({{ rtrim(rtrim(number_format($doPackSize, 4, '.', ''), '0'), '.') }} {{ strtoupper($doBaseUomAbbr) }}/PACK)</span>
+                            @endif
+                        @endif
+                    </td>
                     <td class="center">{{ floatval($line->ordered_quantity) }}</td>
                     <td class="center">{{ floatval($line->delivered_quantity) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>

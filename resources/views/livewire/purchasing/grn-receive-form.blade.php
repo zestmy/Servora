@@ -92,9 +92,14 @@
                                 @endphp
                                 <tr class="border-b border-gray-50 {{ $rowClass }}">
                                     <td class="py-2 px-2">
-                                        <span class="text-gray-800">{{ $line['ingredient_name'] }}</span>
-                                        @if (! empty($line['pack_info']))
-                                            <p class="text-xs text-indigo-500">{{ $line['pack_info'] }}</p>
+                                        <div class="font-medium text-gray-800">
+                                            {{ $line['ingredient_name'] }}
+                                            @if (! empty($line['pack_info']))
+                                                <span class="text-indigo-600 font-semibold">{{ $line['pack_info'] }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($supplierName && $supplierName !== '—')
+                                            <p class="text-xs text-gray-400 mt-0.5">[{{ $supplierName }}]</p>
                                         @endif
                                     </td>
                                     <td class="py-2 px-2 text-center text-gray-400 text-xs">{{ floatval($line['expected_qty']) }}</td>

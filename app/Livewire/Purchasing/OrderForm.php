@@ -350,6 +350,7 @@ class OrderForm extends Component
     /**
      * Look up the supplier's cost, UOM and pack_size for an ingredient.
      * Returns [unit_cost, uom_id, pack_size].
+     * When pack_size > 1, returns the "pack" UOM so ordering is in whole packs.
      */
     private function lookupSupplierInfo(int $ingredientId, ?int $supplierId): array
     {
@@ -363,11 +364,19 @@ class OrderForm extends Component
                 ->where('ingredient_id', $ingredientId)
                 ->first();
             if ($pivot) {
-                return [
-                    floatval($pivot->last_cost) > 0 ? floatval($pivot->last_cost) : $fallbackCost,
-                    $pivot->uom_id ?? $fallbackUom,
-                    floatval($pivot->pack_size ?? 1) ?: 1,
-                ];
+                $packSize = floatval($pivot->pack_size ?? 1) ?: 1;
+                $unitCost = floatval($pivot->last_cost) > 0 ? floatval($pivot->last_cost) : $fallbackCost;
+                $uomId = $pivot->uom_id ?? $fallbackUom;
+
+                // When pack_size > 1, use "pack" as the ordering UOM
+                if ($packSize > 1) {
+                    $packUom = UnitOfMeasure::where('abbreviation', 'pack')->first();
+                    if ($packUom) {
+                        $uomId = $packUom->id;
+                    }
+                }
+
+                return [$unitCost, $uomId, $packSize];
             }
         }
 
@@ -398,7 +407,7 @@ class OrderForm extends Component
     }
 
     /**
-     * Build a human-readable pack info string, e.g. "1.2 kg/pack".
+     * Build a human-readable pack info string, e.g. "(1.2 KG/PACK)".
      */
     private function buildPackInfo(int $ingredientId, ?int $uomId, float $packSize): string
     {
@@ -411,7 +420,7 @@ class OrderForm extends Component
         if (! $baseUom) return '';
 
         $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
-        return $formatted . ' ' . $baseUom->abbreviation . '/pack';
+        return '(' . $formatted . ' ' . strtoupper($baseUom->abbreviation) . '/PACK)';
     }
 
     private function generatePoNumber(): string

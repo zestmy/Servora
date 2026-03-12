@@ -100,7 +100,17 @@
                         <tbody>
                             @forelse ($lines as $idx => $line)
                                 <tr class="border-b border-gray-50">
-                                    <td class="py-2 px-2 text-gray-800">{{ $line['ingredient_name'] }}</td>
+                                    <td class="py-2 px-2">
+                                        <div class="font-medium text-gray-800">
+                                            {{ $line['ingredient_name'] }}
+                                            @if (! empty($line['pack_info']))
+                                                <span class="text-indigo-600 font-semibold">{{ $line['pack_info'] }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($supplierName && $supplierName !== '—')
+                                            <p class="text-xs text-gray-400 mt-0.5">[{{ $supplierName }}]</p>
+                                        @endif
+                                    </td>
                                     <td class="py-2 px-2 text-center text-gray-400 text-xs">
                                         {{ $line['po_quantity'] > 0 ? floatval($line['po_quantity']) : '—' }}
                                     </td>
@@ -110,11 +120,7 @@
                                                class="w-full text-center rounded border-gray-300 text-sm py-1 focus:border-indigo-500 focus:ring-indigo-500">
                                     </td>
                                     <td class="py-2 px-2 text-center">
-                                        <select wire:model="lines.{{ $idx }}.uom_id" class="rounded border-gray-300 text-xs py-1 focus:border-indigo-500 focus:ring-indigo-500">
-                                            @foreach ($uoms as $uom)
-                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                            @endforeach
-                                        </select>
+                                        <span class="text-sm font-medium text-gray-600">{{ $line['uom_abbr'] ?: '—' }}</span>
                                     </td>
                                     @if ($showPrice)
                                         <td class="py-2 px-2">

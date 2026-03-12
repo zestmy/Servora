@@ -87,7 +87,22 @@
             @foreach ($po->lines as $i => $line)
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td>{{ $line->ingredient?->name ?? '—' }}</td>
+                    <td>
+                        {{ $line->ingredient?->name ?? '—' }}
+                        @if ($line->uom?->abbreviation === 'pack' && $line->ingredient)
+                            @php
+                                $packSize = \Illuminate\Support\Facades\DB::table('supplier_ingredients')
+                                    ->where('supplier_id', $po->supplier_id)
+                                    ->where('ingredient_id', $line->ingredient_id)
+                                    ->value('pack_size');
+                                $packSize = floatval($packSize ?? 1);
+                                $baseUomAbbr = $line->ingredient->baseUom?->abbreviation ?? '';
+                            @endphp
+                            @if ($packSize > 1 && $baseUomAbbr)
+                                <span style="font-size: 9px; color: #4f46e5;">({{ rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.') }} {{ strtoupper($baseUomAbbr) }}/PACK)</span>
+                            @endif
+                        @endif
+                    </td>
                     <td class="center">{{ floatval($line->quantity) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>
                     <td class="right">{{ number_format($line->unit_cost, 2) }}</td>

@@ -268,9 +268,15 @@
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2">
-                                    <div class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</div>
-                                    @if (! empty($line['pack_info']))
-                                        <p class="text-xs text-indigo-500 mt-0.5">{{ $line['pack_info'] }}</p>
+                                    <div class="font-medium text-gray-800">
+                                        {{ $line['ingredient_name'] }}
+                                        @if (! empty($line['pack_info']))
+                                            <span class="text-indigo-600 font-semibold">{{ $line['pack_info'] }}</span>
+                                        @endif
+                                    </div>
+                                    @php $selectedSupplierObj = $suppliers->firstWhere('id', $supplier_id); @endphp
+                                    @if ($selectedSupplierObj)
+                                        <p class="text-xs text-gray-400 mt-0.5">[{{ $selectedSupplierObj->name }}]</p>
                                     @endif
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
                                 </td>
@@ -304,18 +310,9 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-2">
-                                    @if ($isEditable)
-                                        <select wire:model.live="lines.{{ $idx }}.uom_id"
-                                                class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                            @foreach ($uoms as $uom)
-                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                            @endforeach
-                                        </select>
-                                        <x-input-error :messages="$errors->get('lines.'.$idx.'.uom_id')" class="mt-0.5" />
-                                    @else
-                                        @php $lineUom = $uoms->firstWhere('id', $line['uom_id']); @endphp
-                                        <p class="text-gray-700">{{ $lineUom?->abbreviation ?? '—' }}</p>
-                                    @endif
+                                    @php $lineUom = $uoms->firstWhere('id', $line['uom_id']); @endphp
+                                    <span class="text-sm font-medium text-gray-600">{{ $lineUom?->abbreviation ?? '—' }}</span>
+                                    <x-input-error :messages="$errors->get('lines.'.$idx.'.uom_id')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
                                     @if ($isEditable)

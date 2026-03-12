@@ -69,7 +69,7 @@ class GrnReceiveForm extends Component
             $packInfo = '';
             if ($packSize > 1 && $l->ingredient?->baseUom) {
                 $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
-                $packInfo = $formatted . ' ' . $l->ingredient->baseUom->abbreviation . '/pack';
+                $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
             }
             return [
                 'id'              => $l->id,

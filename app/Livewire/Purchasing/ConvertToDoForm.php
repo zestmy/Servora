@@ -66,16 +66,25 @@ class ConvertToDoForm extends Component
         $this->delivery_date = now()->addDays(1)->toDateString();
         $this->notes        = $po->notes ?? '';
 
-        $this->lines = $po->lines->map(fn ($l) => [
-            'ingredient_id'   => $l->ingredient_id,
-            'ingredient_name' => $l->ingredient?->name ?? '—',
-            'quantity'        => (string) floatval($l->quantity),
-            'uom_id'          => $l->uom_id,
-            'uom_abbr'        => $l->uom?->abbreviation ?? '',
-            'unit_cost'       => (string) floatval($l->unit_cost),
-            'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-            'po_quantity'     => floatval($l->quantity),
-        ])->toArray();
+        $this->lines = $po->lines->map(function ($l) use ($po) {
+            $packSize = $this->getPackSize($l->ingredient_id, $po->supplier_id);
+            $packInfo = '';
+            if ($packSize > 1 && $l->ingredient?->baseUom) {
+                $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+                $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
+            }
+            return [
+                'ingredient_id'   => $l->ingredient_id,
+                'ingredient_name' => $l->ingredient?->name ?? '—',
+                'quantity'        => (string) floatval($l->quantity),
+                'uom_id'          => $l->uom_id,
+                'uom_abbr'        => $l->uom?->abbreviation ?? '',
+                'unit_cost'       => (string) floatval($l->unit_cost),
+                'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+                'po_quantity'     => floatval($l->quantity),
+                'pack_info'       => $packInfo,
+            ];
+        })->toArray();
     }
 
     public function addIngredient(int $ingredientId): void
@@ -224,6 +233,16 @@ class ConvertToDoForm extends Component
         $qty  = floatval($this->lines[$idx]['quantity'] ?? 0);
         $cost = floatval($this->lines[$idx]['unit_cost'] ?? 0);
         $this->lines[$idx]['total_cost'] = round($qty * $cost, 4);
+    }
+
+    private function getPackSize(int $ingredientId, int $supplierId): float
+    {
+        $packSize = DB::table('supplier_ingredients')
+            ->where('supplier_id', $supplierId)
+            ->where('ingredient_id', $ingredientId)
+            ->value('pack_size');
+
+        return floatval($packSize ?? 1) ?: 1;
     }
 
     private function generateDoNumber(): string
