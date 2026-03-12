@@ -5,6 +5,9 @@
 @section('content')
     <div class="header">
         <div class="header-left">
+            @if ($company?->logo)
+                <img src="{{ public_path('storage/' . $company->logo) }}" class="company-logo" alt="">
+            @endif
             <div class="company-name">{{ $company?->name ?? 'Servora' }}</div>
             <div class="company-detail">Outlet: {{ $outlet?->name ?? 'All Outlets' }}</div>
         </div>
