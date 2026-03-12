@@ -86,10 +86,9 @@
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Category</th>
-                    <th class="px-4 py-3 text-left">Base UOM</th>
-                    <th class="px-4 py-3 text-left">Recipe UOM</th>
-                    <th class="px-4 py-3 text-right">Purchase Price</th>
-                    <th class="px-4 py-3 text-right">Yield %</th>
+                    <th class="px-4 py-3 text-left">UOM</th>
+                    <th class="px-4 py-3 text-right">Price/Pack</th>
+                    <th class="px-4 py-3 text-right">Pack Size</th>
                     <th class="px-4 py-3 text-right">Eff. Cost</th>
                     <th class="px-4 py-3 text-right">Recipe Cost</th>
                     <th class="px-4 py-3 text-center">Status</th>
@@ -136,26 +135,32 @@
                                 <span class="text-gray-300">—</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-gray-600">{{ $ingredient->baseUom->abbreviation }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $ingredient->recipeUom->abbreviation }}</td>
+                        <td class="px-4 py-3 text-gray-600">
+                            <span>{{ $ingredient->baseUom->abbreviation }}</span>
+                            @if ($ingredient->base_uom_id !== $ingredient->recipe_uom_id)
+                                <span class="text-gray-300 mx-0.5">/</span>
+                                <span class="text-indigo-500">{{ $ingredient->recipeUom->abbreviation }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">
                             {{ number_format($ingredient->purchase_price, 2) }}
-                            <span class="text-gray-400 text-xs">/ {{ $ingredient->baseUom->abbreviation }}</span>
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
-                            @if ($ingredient->yield_percent < 100)
-                                <span class="text-amber-600 font-medium">{{ number_format($ingredient->yield_percent, 0) }}%</span>
+                            @if (floatval($ingredient->pack_size) > 1)
+                                <span class="text-blue-600 font-medium">{{ rtrim(rtrim(number_format(floatval($ingredient->pack_size), 4), '0'), '.') }}</span>
+                                <span class="text-gray-400 text-xs">{{ $ingredient->baseUom->abbreviation }}</span>
                             @else
-                                <span class="text-gray-400">100%</span>
+                                <span class="text-gray-400">1</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
-                            @if ($ingredient->yield_percent < 100)
-                                <span class="text-red-600 font-medium">{{ number_format($ingredient->current_cost, 2) }}</span>
-                            @else
-                                <span class="text-gray-700">{{ number_format($ingredient->current_cost, 2) }}</span>
-                            @endif
+                            <span class="{{ $ingredient->yield_percent < 100 ? 'text-red-600 font-medium' : 'text-gray-700' }}">
+                                {{ number_format($ingredient->current_cost, 4) }}
+                            </span>
                             <span class="text-gray-400 text-xs">/ {{ $ingredient->baseUom->abbreviation }}</span>
+                            @if ($ingredient->yield_percent < 100)
+                                <div class="text-xs text-amber-500">{{ number_format($ingredient->yield_percent, 0) }}% yield</div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
                             @php $rc = $ingredient->recipeCost(); @endphp
@@ -205,7 +210,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="9" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🥕</div>
                             <p class="font-medium">No ingredients found</p>
                             <p class="text-xs mt-1">Try adjusting your filters or add your first ingredient.</p>

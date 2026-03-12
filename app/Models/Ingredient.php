@@ -90,6 +90,7 @@ class Ingredient extends Model
 
     /**
      * Cost per recipe UOM, derived from current_cost + UOM conversions.
+     * Falls back to standard base_unit_factor for same-type UOMs (kg↔g, L↔mL).
      * Returns null when no matching conversion exists.
      */
     public function recipeCost(): ?float
@@ -98,15 +99,24 @@ class Ingredient extends Model
             return (float) $this->current_cost;
         }
 
+        // Ingredient-specific conversions first
         foreach ($this->uomConversions as $c) {
-            // 1 base = factor recipe  →  cost/recipe = cost/base ÷ factor
             if ($c->from_uom_id === $this->base_uom_id && $c->to_uom_id === $this->recipe_uom_id) {
                 return (float) $this->current_cost / (float) $c->factor;
             }
-            // 1 recipe = factor base  →  cost/recipe = cost/base × factor
             if ($c->from_uom_id === $this->recipe_uom_id && $c->to_uom_id === $this->base_uom_id) {
                 return (float) $this->current_cost * (float) $c->factor;
             }
+        }
+
+        // Standard base_unit_factor fallback (same-type UOMs)
+        $baseUom = $this->baseUom;
+        $recipeUom = $this->recipeUom;
+        if ($baseUom && $recipeUom
+            && $baseUom->base_unit_factor && $recipeUom->base_unit_factor
+            && $baseUom->type === $recipeUom->type) {
+            $factor = (float) $recipeUom->base_unit_factor / (float) $baseUom->base_unit_factor;
+            return (float) $this->current_cost * $factor;
         }
 
         return null;
