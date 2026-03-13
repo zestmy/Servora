@@ -634,6 +634,78 @@
                     <canvas id="perfAvgChart"></canvas>
                 </div>
             </div>
+
+            {{-- Monthly Sales by Year --}}
+            @if (!empty($monthlySalesByYear['years']))
+                @php
+                    $msy = $monthlySalesByYear;
+                    $monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                @endphp
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100">
+                        <h3 class="text-sm font-semibold text-gray-600">Monthly Sales by Year</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Revenue and pax for each month across all years</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-2 px-3 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 z-10">Month</th>
+                                    @foreach ($msy['years'] as $yr)
+                                        <th colspan="2" class="py-2 px-3 text-center font-semibold text-gray-600 border-l border-gray-200">{{ $yr }}</th>
+                                    @endforeach
+                                </tr>
+                                <tr class="border-t border-gray-100">
+                                    <th class="py-1 px-3 sticky left-0 bg-gray-50 z-10"></th>
+                                    @foreach ($msy['years'] as $yr)
+                                        <th class="py-1 px-3 text-right text-gray-400 font-medium border-l border-gray-200">Revenue</th>
+                                        <th class="py-1 px-3 text-right text-gray-400 font-medium">Pax</th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @for ($m = 1; $m <= 12; $m++)
+                                    <tr class="hover:bg-gray-50 transition">
+                                        <td class="py-2 px-3 font-medium text-gray-700 sticky left-0 bg-white z-10">{{ $monthNames[$m - 1] }}</td>
+                                        @foreach ($msy['years'] as $yr)
+                                            @php $cell = $msy['data'][$yr][$m]; @endphp
+                                            <td class="py-2 px-3 text-right tabular-nums border-l border-gray-100 {{ $cell['revenue'] > 0 ? 'text-gray-700' : 'text-gray-300' }}">
+                                                {{ $cell['revenue'] > 0 ? number_format($cell['revenue'], 0) : '—' }}
+                                            </td>
+                                            <td class="py-2 px-3 text-right tabular-nums {{ $cell['pax'] > 0 ? 'text-gray-600' : 'text-gray-300' }}">
+                                                {{ $cell['pax'] > 0 ? number_format($cell['pax']) : '—' }}
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endfor
+                            </tbody>
+                            <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                                <tr>
+                                    <td class="py-2 px-3 font-bold text-gray-800 sticky left-0 bg-gray-50 z-10">Total</td>
+                                    @foreach ($msy['years'] as $yr)
+                                        <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums border-l border-gray-200">{{ number_format($msy['year_totals'][$yr]['revenue'], 0) }}</td>
+                                        <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums">{{ number_format($msy['year_totals'][$yr]['pax']) }}</td>
+                                    @endforeach
+                                </tr>
+                                @if (count($msy['years']) > 1)
+                                    <tr class="border-t border-gray-200">
+                                        <td class="py-2 px-3 font-medium text-gray-500 sticky left-0 bg-gray-50 z-10">Avg / Month</td>
+                                        @foreach ($msy['years'] as $yr)
+                                            @php
+                                                $activeMonths = collect($msy['data'][$yr])->filter(fn($c) => $c['revenue'] > 0)->count();
+                                                $avgRev = $activeMonths > 0 ? $msy['year_totals'][$yr]['revenue'] / $activeMonths : 0;
+                                                $avgPax = $activeMonths > 0 ? round($msy['year_totals'][$yr]['pax'] / $activeMonths) : 0;
+                                            @endphp
+                                            <td class="py-2 px-3 text-right text-gray-500 tabular-nums border-l border-gray-200">{{ $activeMonths > 0 ? number_format($avgRev, 0) : '—' }}</td>
+                                            <td class="py-2 px-3 text-right text-gray-500 tabular-nums">{{ $activeMonths > 0 ? number_format($avgPax) : '—' }}</td>
+                                        @endforeach
+                                    </tr>
+                                @endif
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            @endif
         @else
             @include('livewire.reports._empty-state')
         @endif

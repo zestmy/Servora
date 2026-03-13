@@ -27,6 +27,7 @@ class Index extends Component
     public array $summary = [];
     public array $dashboardData = [];
     public array $comparisonData = [];
+    public array $monthlySalesByYear = [];
 
     public function mount(): void
     {
@@ -222,6 +223,7 @@ class Index extends Component
     {
         $this->loadSummary();
         $this->loadDashboardData();
+        $this->loadMonthlySalesByYear();
 
         if ($this->compareMode && $this->mode === 'monthly') {
             $this->loadComparisonData();
@@ -483,6 +485,48 @@ class Index extends Component
         ];
 
         $this->comparisonData = $comparison;
+    }
+
+    private function loadMonthlySalesByYear(): void
+    {
+        $outletId = $this->outletId ?: null;
+
+        $query = SalesRecord::selectRaw('YEAR(sale_date) as yr, MONTH(sale_date) as mo, SUM(total_revenue) as revenue, SUM(pax) as pax')
+            ->groupByRaw('YEAR(sale_date), MONTH(sale_date)')
+            ->orderByRaw('YEAR(sale_date), MONTH(sale_date)');
+
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        $rows = $query->get();
+
+        // Build: years[], data[year][month] = {revenue, pax}
+        $years = $rows->pluck('yr')->unique()->sort()->values()->toArray();
+        $data = [];
+        $yearTotals = [];
+
+        foreach ($years as $yr) {
+            $yearTotals[$yr] = ['revenue' => 0, 'pax' => 0];
+            for ($m = 1; $m <= 12; $m++) {
+                $data[$yr][$m] = ['revenue' => 0, 'pax' => 0];
+            }
+        }
+
+        foreach ($rows as $row) {
+            $data[$row->yr][$row->mo] = [
+                'revenue' => round((float) $row->revenue, 2),
+                'pax'     => (int) $row->pax,
+            ];
+            $yearTotals[$row->yr]['revenue'] += round((float) $row->revenue, 2);
+            $yearTotals[$row->yr]['pax'] += (int) $row->pax;
+        }
+
+        $this->monthlySalesByYear = [
+            'years'       => $years,
+            'data'        => $data,
+            'year_totals' => $yearTotals,
+        ];
     }
 
     private function periodLabel(): string
