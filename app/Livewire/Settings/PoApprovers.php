@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Outlet;
 use App\Models\PoApprover;
 use App\Models\User;
@@ -16,6 +17,7 @@ class PoApprovers extends Component
     public bool $showModal = false;
     public ?int $editingOutletId = null;
     public ?int $selectedUserId = null;
+    public ?int $selectedDepartmentId = null;
 
     public function mount(): void
     {
@@ -37,14 +39,16 @@ class PoApprovers extends Component
     {
         $this->editingOutletId = $outletId;
         $this->selectedUserId = null;
+        $this->selectedDepartmentId = null;
         $this->showModal = true;
     }
 
     public function assign(): void
     {
         $this->validate([
-            'editingOutletId' => 'required|exists:outlets,id',
-            'selectedUserId'  => 'required|exists:users,id',
+            'editingOutletId'      => 'required|exists:outlets,id',
+            'selectedUserId'       => 'required|exists:users,id',
+            'selectedDepartmentId' => 'nullable|exists:departments,id',
         ]);
 
         $user = User::findOrFail($this->selectedUserId);
@@ -56,11 +60,19 @@ class PoApprovers extends Component
         }
 
         PoApprover::updateOrCreate(
-            ['outlet_id' => $this->editingOutletId, 'user_id' => $this->selectedUserId],
+            [
+                'outlet_id'     => $this->editingOutletId,
+                'department_id' => $this->selectedDepartmentId ?: null,
+                'user_id'       => $this->selectedUserId,
+            ],
             ['company_id' => Auth::user()->company_id, 'assigned_by' => Auth::id()]
         );
 
-        session()->flash('success', "Appointed {$user->name} as PO approver.");
+        $deptName = $this->selectedDepartmentId
+            ? Department::find($this->selectedDepartmentId)?->name
+            : 'All Departments';
+
+        session()->flash('success', "Appointed {$user->name} as PO approver ({$deptName}).");
         $this->closeModal();
     }
 
@@ -75,6 +87,7 @@ class PoApprovers extends Component
         $this->showModal = false;
         $this->editingOutletId = null;
         $this->selectedUserId = null;
+        $this->selectedDepartmentId = null;
     }
 
     public function render()
@@ -86,7 +99,7 @@ class PoApprovers extends Component
             ->orderBy('name')
             ->get();
 
-        $approvers = PoApprover::with(['user', 'outlet', 'assignedBy'])
+        $approvers = PoApprover::with(['user', 'outlet', 'department', 'assignedBy'])
             ->get()
             ->groupBy('outlet_id');
 
@@ -96,9 +109,11 @@ class PoApprovers extends Component
             ->orderBy('name')
             ->get();
 
+        $departments = Department::active()->ordered()->get();
+
         $editingOutlet = $this->editingOutletId ? Outlet::find($this->editingOutletId) : null;
 
-        return view('livewire.settings.po-approvers', compact('outlets', 'approvers', 'eligibleUsers', 'editingOutlet'))
+        return view('livewire.settings.po-approvers', compact('outlets', 'approvers', 'eligibleUsers', 'departments', 'editingOutlet'))
             ->layout('layouts.app', ['title' => 'PO Approvers']);
     }
 }

@@ -102,7 +102,13 @@
                                     </div>
                                     <div>
                                         <p class="text-sm font-medium text-gray-800">{{ $pa->user?->name ?? '—' }}</p>
-                                        <p class="text-xs text-gray-400">{{ $pa->user?->roles->first()?->name ?? '' }} &middot; {{ $pa->user?->email }}</p>
+                                        <p class="text-xs text-gray-400">
+                                            {{ $pa->user?->roles->first()?->name ?? '' }} &middot; {{ $pa->user?->email }}
+                                            &middot;
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium {{ $pa->department_id ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600' }}">
+                                                {{ $pa->department?->name ?? 'All Departments' }}
+                                            </span>
+                                        </p>
                                     </div>
                                 </div>
                                 <button wire:click="remove({{ $pa->id }})"
@@ -164,6 +170,19 @@
                         </select>
                         <p class="mt-1 text-xs text-gray-400">Eligible roles: Operations Manager, Outlet Manager, Chef</p>
                         <x-input-error :messages="$errors->get('selectedUserId')" class="mt-1" />
+                    </div>
+
+                    <div>
+                        <x-input-label value="Department Scope" />
+                        <select wire:model="selectedDepartmentId"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            <option value="">All Departments</option>
+                            @foreach ($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-gray-400">Leave as "All Departments" to approve POs from any department. Select a specific department to restrict approval scope.</p>
+                        <x-input-error :messages="$errors->get('selectedDepartmentId')" class="mt-1" />
                     </div>
                 </div>
 

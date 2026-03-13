@@ -32,7 +32,10 @@
                         'sent'      => 'Processing',
                         default     => ucfirst($po->status),
                     };
-                    $canApproveThis = $isAppointed && in_array($po->outlet_id, $approverOutletIds);
+                    $canApproveThis = $isAppointed && collect($approverAssignments)->contains(function ($a) use ($po) {
+                        return $a['outlet_id'] == $po->outlet_id
+                            && ($a['department_id'] === null || $a['department_id'] == $po->department_id);
+                    });
                 @endphp
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3">

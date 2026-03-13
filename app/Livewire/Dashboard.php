@@ -28,7 +28,7 @@ class Dashboard extends Component
     {
         $po = PurchaseOrder::findOrFail($id);
         if ($po->status !== 'submitted') return;
-        if (! PoApprover::isApproverFor(auth()->id(), $po->outlet_id)) return;
+        if (! PoApprover::isApproverFor(auth()->id(), $po->outlet_id, $po->department_id)) return;
 
         $po->update(['status' => 'approved', 'approved_by' => auth()->id()]);
         session()->flash('success', 'PO approved and sent to purchasing team.');
@@ -38,7 +38,7 @@ class Dashboard extends Component
     {
         $po = PurchaseOrder::findOrFail($id);
         if ($po->status !== 'submitted') return;
-        if (! PoApprover::isApproverFor(auth()->id(), $po->outlet_id)) return;
+        if (! PoApprover::isApproverFor(auth()->id(), $po->outlet_id, $po->department_id)) return;
 
         $po->update(['status' => 'cancelled', 'approved_by' => auth()->id()]);
         session()->flash('success', 'PO has been rejected.');
@@ -157,9 +157,11 @@ class Dashboard extends Component
     {
         $now = now();
 
-        // PO approval counts scoped to assigned outlets
-        $awaitingApproval = PurchaseOrder::where('status', 'submitted')
-            ->whereIn('outlet_id', $approverOutletIds)->count();
+        // PO approval counts scoped to assigned outlets + departments
+        $awaitingQ = PurchaseOrder::where('status', 'submitted');
+        PoApprover::scopeApprovablePos($awaitingQ, $user->id);
+        $awaitingApproval = $awaitingQ->count();
+
         $approvedPOs      = PurchaseOrder::where('status', 'approved')
             ->whereIn('outlet_id', $approverOutletIds)->count();
         $sentPOs          = PurchaseOrder::where('status', 'sent')
@@ -183,13 +185,11 @@ class Dashboard extends Component
         $this->scopeByOutlet($monthPurQ);
         $monthPurchases = $monthPurQ->sum('total_amount');
 
-        // Recent submitted POs for quick approval — scoped to assigned outlets
-        $recentSubmittedPOs = PurchaseOrder::with(['supplier', 'outlet'])
-            ->where('status', 'submitted')
-            ->whereIn('outlet_id', $approverOutletIds)
-            ->orderByDesc('created_at')
-            ->limit(5)
-            ->get();
+        // Recent submitted POs for quick approval — scoped to assigned outlets + departments
+        $recentPosQ = PurchaseOrder::with(['supplier', 'outlet'])
+            ->where('status', 'submitted');
+        PoApprover::scopeApprovablePos($recentPosQ, $user->id);
+        $recentSubmittedPOs = $recentPosQ->orderByDesc('created_at')->limit(5)->get();
 
         $trendMonths = $this->buildTrend($now, 6);
 

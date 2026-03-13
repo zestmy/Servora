@@ -76,6 +76,17 @@ class Index extends Component
         return count($this->approverOutletIds()) > 0;
     }
 
+    /**
+     * Get the user's approver assignments as [{outlet_id, department_id}].
+     */
+    private function approverAssignments(): array
+    {
+        return PoApprover::where('user_id', Auth::id())
+            ->select('outlet_id', 'department_id')
+            ->get()
+            ->toArray();
+    }
+
     // ── PO Actions ──────────────────────────────────────────────────────────
 
     public function submitPo(int $id): void
@@ -108,8 +119,8 @@ class Index extends Component
 
         if ($po->status !== 'submitted') return;
 
-        // Check user is an appointed approver for this PO's outlet
-        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id)) return;
+        // Check user is an appointed approver for this PO's outlet + department
+        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id, $po->department_id)) return;
 
         $po->update([
             'status'      => 'approved',
@@ -132,7 +143,7 @@ class Index extends Component
 
         if ($po->status !== 'submitted') return;
 
-        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id)) return;
+        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id, $po->department_id)) return;
 
         $po->update([
             'status'      => 'cancelled',
@@ -449,12 +460,15 @@ class Index extends Component
         $isSystemAdmin = $user->hasRole(['Super Admin', 'System Admin']);
         $canRollbackPo = $user->hasRole(['Super Admin', 'System Admin', 'Business Manager']);
 
+        $approverAssignments = $isAppointed ? $this->approverAssignments() : [];
+
         return view('livewire.purchasing.index', array_merge($data, [
-            'suppliers'          => $suppliers,
-            'outlets'            => $outlets,
-            'isPurchasing'       => $isPurchasing,
-            'isAppointed'        => $isAppointed,
-            'approverOutletIds'  => $approverOutletIds,
+            'suppliers'              => $suppliers,
+            'outlets'                => $outlets,
+            'isPurchasing'           => $isPurchasing,
+            'isAppointed'            => $isAppointed,
+            'approverOutletIds'      => $approverOutletIds,
+            'approverAssignments'    => $approverAssignments,
             'seesAllOutlets'     => $seesAll,
             'canCreatePo'        => $canCreatePo,
             'stats'              => $stats,
@@ -572,8 +586,9 @@ class Index extends Component
     private function getStats(bool $isPurchasing, bool $isAppointed, array $approverOutletIds): array
     {
         if ($isAppointed) {
-            $awaitingApproval = PurchaseOrder::where('status', 'submitted')
-                ->whereIn('outlet_id', $approverOutletIds)->count();
+            $awaitingQ = PurchaseOrder::where('status', 'submitted');
+            PoApprover::scopeApprovablePos($awaitingQ, Auth::id());
+            $awaitingApproval = $awaitingQ->count();
             $approvedCount = PurchaseOrder::where('status', 'approved')
                 ->whereIn('outlet_id', $approverOutletIds)->count();
             $pendingGrnCount = GoodsReceivedNote::where('status', 'pending')
