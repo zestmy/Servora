@@ -26,7 +26,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function purchaseOrder(int $id, ?Company $company)
     {
-        $po = PurchaseOrder::with(['outlet', 'supplier', 'lines.ingredient', 'lines.uom', 'createdBy', 'approvedBy'])->findOrFail($id);
+        $po = PurchaseOrder::with(['outlet', 'supplier', 'department', 'lines.ingredient', 'lines.uom', 'createdBy', 'approvedBy'])->findOrFail($id);
 
         $pdf = Pdf::loadView('pdf.purchase-order', compact('po', 'company'))
             ->setPaper('a4', 'portrait');
@@ -36,7 +36,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function deliveryOrder(int $id, ?Company $company)
     {
-        $do = DeliveryOrder::with(['outlet', 'supplier', 'purchaseOrder', 'lines.ingredient', 'lines.uom', 'createdBy', 'receivedBy'])->findOrFail($id);
+        $do = DeliveryOrder::with(['outlet', 'supplier', 'purchaseOrder.department', 'lines.ingredient', 'lines.uom', 'createdBy', 'receivedBy'])->findOrFail($id);
         $showPrice = (bool) $company?->show_price_on_do_grn;
 
         $pdf = Pdf::loadView('pdf.delivery-order', compact('do', 'company', 'showPrice'))
@@ -47,7 +47,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function goodsReceivedNote(int $id, ?Company $company)
     {
-        $grn = GoodsReceivedNote::with(['outlet', 'supplier', 'deliveryOrder', 'purchaseOrder', 'lines.ingredient', 'lines.uom', 'receivedBy'])->findOrFail($id);
+        $grn = GoodsReceivedNote::with(['outlet', 'supplier', 'deliveryOrder', 'purchaseOrder.department', 'lines.ingredient', 'lines.uom', 'receivedBy'])->findOrFail($id);
         $showPrice = (bool) $company?->show_price_on_do_grn;
 
         $pdf = Pdf::loadView('pdf.goods-received-note', compact('grn', 'company', 'showPrice'))

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
@@ -28,6 +29,8 @@ class OrderForm extends Component
     public string $order_date               = '';
     public string $expected_delivery_date   = '';
     public string $notes                    = '';
+    public string $receiver_name            = '';
+    public ?int   $department_id            = null;
 
     // Lines: [ingredient_id, ingredient_name, quantity, uom_id, unit_cost, total_cost]
     public array  $lines              = [];
@@ -42,6 +45,8 @@ class OrderForm extends Component
             'order_date'             => 'required|date',
             'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
             'notes'                  => 'nullable|string',
+            'receiver_name'          => 'nullable|string|max:100',
+            'department_id'          => 'nullable|exists:departments,id',
             'lines'                  => 'required|array|min:1',
             'lines.*.ingredient_id'  => 'required|exists:ingredients,id',
             'lines.*.quantity'       => 'required|numeric|min:0.0001',
@@ -80,6 +85,8 @@ class OrderForm extends Component
         $this->order_date             = $po->order_date->toDateString();
         $this->expected_delivery_date = $po->expected_delivery_date?->toDateString() ?? '';
         $this->notes                  = $po->notes ?? '';
+        $this->receiver_name          = $po->receiver_name ?? '';
+        $this->department_id          = $po->department_id;
 
         $this->lines = $po->lines->map(function ($l) use ($po) {
             [$unitCost, $uomId, $packSize] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
@@ -254,6 +261,8 @@ class OrderForm extends Component
             'order_date'             => $this->order_date,
             'expected_delivery_date' => $this->expected_delivery_date ?: null,
             'notes'                  => $this->notes ?: null,
+            'receiver_name'          => $this->receiver_name ?: null,
+            'department_id'          => $this->department_id ?: null,
             'total_amount'           => $total,
             'subtotal'               => $subtotal,
             'tax_percent'            => $taxPct,
@@ -303,9 +312,10 @@ class OrderForm extends Component
 
     public function render()
     {
-        $suppliers  = Supplier::where('is_active', true)->orderBy('name')->get();
-        $uoms       = UnitOfMeasure::orderBy('name')->get();
+        $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
+        $uoms        = UnitOfMeasure::orderBy('name')->get();
         $costCenters = IngredientCategory::roots()->active()->ordered()->get();
+        $departments = Department::active()->ordered()->get();
 
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
@@ -348,7 +358,7 @@ class OrderForm extends Component
             : 'New Purchase Order';
 
         return view('livewire.purchasing.order-form', compact(
-            'suppliers', 'uoms', 'costCenters', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
+            'suppliers', 'uoms', 'costCenters', 'departments', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

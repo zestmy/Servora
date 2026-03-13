@@ -52,6 +52,12 @@
             @if ($po->outlet?->phone)
                 <p>Tel: {{ $po->outlet->phone }}</p>
             @endif
+            @if ($po->receiver_name)
+                <p style="margin-top: 4px;"><strong>Attn:</strong> {{ $po->receiver_name }}</p>
+            @endif
+            @if ($po->department)
+                <p><strong>Dept:</strong> {{ $po->department->name }}</p>
+            @endif
         </div>
     </div>
 

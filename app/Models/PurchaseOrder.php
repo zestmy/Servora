@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseOrder extends Model
@@ -17,7 +18,7 @@ class PurchaseOrder extends Model
         'company_id', 'outlet_id', 'supplier_id', 'ingredient_category_id',
         'po_number', 'status', 'order_date', 'expected_delivery_date',
         'total_amount', 'subtotal', 'tax_percent', 'tax_amount',
-        'notes', 'created_by', 'approved_by',
+        'notes', 'receiver_name', 'department_id', 'created_by', 'approved_by',
     ];
 
     protected $casts = [
@@ -52,6 +53,11 @@ class PurchaseOrder extends Model
     public function ingredientCategory(): BelongsTo
     {
         return $this->belongsTo(IngredientCategory::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function lines(): HasMany

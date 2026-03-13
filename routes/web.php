@@ -36,6 +36,7 @@ use App\Livewire\Settings\CostTypes as SettingsCostTypes;
 use App\Livewire\Settings\PoApprovers as SettingsPoApprovers;
 use App\Livewire\Settings\CalendarEvents as SettingsCalendarEvents;
 use App\Livewire\Settings\SalesTargets as SettingsSalesTargets;
+use App\Livewire\Settings\Departments as SettingsDepartments;
 use App\Livewire\Settings\ParLevels as SettingsParLevels;
 use App\Livewire\Analytics\Index as AnalyticsIndex;
 use App\Livewire\Purchasing\ConvertToDoForm as PurchasingConvertToDoForm;
@@ -95,6 +96,7 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:settings.view');
     Route::get('/settings/calendar-events', SettingsCalendarEvents::class)->name('settings.calendar-events')->middleware('can:settings.view');
     Route::get('/settings/sales-targets', SettingsSalesTargets::class)->name('settings.sales-targets')->middleware('can:settings.view');
+    Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.view');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:settings.view');
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager');
 });

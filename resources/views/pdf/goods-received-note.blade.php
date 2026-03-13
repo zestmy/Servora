@@ -46,6 +46,12 @@
             @if ($grn->outlet?->phone)
                 <p>Tel: {{ $grn->outlet->phone }}</p>
             @endif
+            @if ($grn->purchaseOrder?->receiver_name)
+                <p style="margin-top: 4px;"><strong>Attn:</strong> {{ $grn->purchaseOrder->receiver_name }}</p>
+            @endif
+            @if ($grn->purchaseOrder?->department)
+                <p><strong>Dept:</strong> {{ $grn->purchaseOrder->department->name }}</p>
+            @endif
         </div>
     </div>
 
@@ -118,10 +124,30 @@
         </tbody>
         @if ($showPrice)
             <tfoot>
-                <tr>
-                    <td colspan="7" class="right">Total ({{ $company?->currency ?? 'RM' }})</td>
-                    <td class="right">{{ number_format($grn->total_amount, 2) }}</td>
-                </tr>
+                @php
+                    $grnTaxPct = floatval($grn->purchaseOrder?->tax_percent ?? 0);
+                    $grnSubtotal = floatval($grn->total_amount);
+                    $grnTaxAmt = $grnTaxPct > 0 ? round($grnSubtotal * ($grnTaxPct / 100), 2) : 0;
+                @endphp
+                @if ($grnTaxPct > 0)
+                    <tr>
+                        <td colspan="7" class="right">Subtotal ({{ $company?->currency ?? 'RM' }})</td>
+                        <td class="right">{{ number_format($grnSubtotal, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" class="right">{{ $company?->tax_type ?? 'Tax' }} ({{ number_format($grnTaxPct, 0) }}%)</td>
+                        <td class="right">{{ number_format($grnTaxAmt, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" class="right"><strong>Grand Total ({{ $company?->currency ?? 'RM' }})</strong></td>
+                        <td class="right"><strong>{{ number_format($grnSubtotal + $grnTaxAmt, 2) }}</strong></td>
+                    </tr>
+                @else
+                    <tr>
+                        <td colspan="7" class="right"><strong>Total ({{ $company?->currency ?? 'RM' }})</strong></td>
+                        <td class="right"><strong>{{ number_format($grnSubtotal, 2) }}</strong></td>
+                    </tr>
+                @endif
             </tfoot>
         @endif
     </table>

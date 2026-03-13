@@ -114,6 +114,26 @@
                     </div>
                 </div>
 
+                {{-- Receiver & Department --}}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <x-input-label for="po_receiver" value="Receiver Name" />
+                        <x-text-input id="po_receiver" wire:model="receiver_name" type="text" class="mt-1 block w-full" placeholder="Person receiving the delivery" />
+                        <x-input-error :messages="$errors->get('receiver_name')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="po_department" value="Department" />
+                        <select id="po_department" wire:model="department_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— No Department —</option>
+                            @foreach ($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('department_id')" class="mt-1" />
+                    </div>
+                </div>
+
                 {{-- Notes --}}
                 <div>
                     <x-input-label for="po_notes" value="Notes" />

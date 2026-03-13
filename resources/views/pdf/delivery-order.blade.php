@@ -46,6 +46,12 @@
             @if ($do->outlet?->phone)
                 <p>Tel: {{ $do->outlet->phone }}</p>
             @endif
+            @if ($do->purchaseOrder?->receiver_name)
+                <p style="margin-top: 4px;"><strong>Attn:</strong> {{ $do->purchaseOrder->receiver_name }}</p>
+            @endif
+            @if ($do->purchaseOrder?->department)
+                <p><strong>Dept:</strong> {{ $do->purchaseOrder->department->name }}</p>
+            @endif
         </div>
     </div>
 
@@ -112,10 +118,29 @@
         </tbody>
         @if ($showPrice)
             <tfoot>
-                <tr>
-                    <td colspan="6" class="right">Total ({{ $company?->currency ?? 'RM' }})</td>
-                    <td class="right">{{ number_format($total, 2) }}</td>
-                </tr>
+                @php
+                    $poTaxPct = floatval($do->purchaseOrder?->tax_percent ?? 0);
+                    $taxAmt = $poTaxPct > 0 ? round($total * ($poTaxPct / 100), 2) : 0;
+                @endphp
+                @if ($poTaxPct > 0)
+                    <tr>
+                        <td colspan="6" class="right">Subtotal ({{ $company?->currency ?? 'RM' }})</td>
+                        <td class="right">{{ number_format($total, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" class="right">{{ $company?->tax_type ?? 'Tax' }} ({{ number_format($poTaxPct, 0) }}%)</td>
+                        <td class="right">{{ number_format($taxAmt, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" class="right"><strong>Grand Total ({{ $company?->currency ?? 'RM' }})</strong></td>
+                        <td class="right"><strong>{{ number_format($total + $taxAmt, 2) }}</strong></td>
+                    </tr>
+                @else
+                    <tr>
+                        <td colspan="6" class="right"><strong>Total ({{ $company?->currency ?? 'RM' }})</strong></td>
+                        <td class="right"><strong>{{ number_format($total, 2) }}</strong></td>
+                    </tr>
+                @endif
             </tfoot>
         @endif
     </table>
