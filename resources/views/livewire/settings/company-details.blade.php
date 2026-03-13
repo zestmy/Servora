@@ -107,12 +107,36 @@
                 {{-- Purchasing Workflow --}}
                 <div class="border-t border-gray-100 pt-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">Purchasing Workflow</h3>
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" wire:model="auto_generate_do"
-                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                        <span class="text-sm text-gray-700">Auto-generate DO upon PO approval</span>
-                    </label>
-                    <p class="text-xs text-gray-400 mt-1">When enabled, a Delivery Order and GRN will be automatically created when a Purchase Order is approved. Purchasing team can still adjust quantities on the DO afterwards.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="auto_generate_do"
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">Auto-generate DO upon PO approval</span>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">When enabled, a Delivery Order and GRN will be automatically created when a Purchase Order is approved.</p>
+                        </div>
+                        <div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="direct_supplier_order"
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">Direct Supplier Order (email PO on approval)</span>
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">When enabled, approved POs are emailed directly to the supplier (with PDF attached). No DO generation is needed — the supplier delivers based on the PO.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- PO Email CC List --}}
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">PO Email Notifications</h3>
+                    <div>
+                        <x-input-label for="po_cc_emails" value="CC Email List" />
+                        <textarea id="po_cc_emails" wire:model="po_cc_emails" rows="2"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  placeholder="manager@company.com, finance@company.com"></textarea>
+                        <p class="text-xs text-gray-400 mt-1">Comma-separated emails to CC on all PO approval emails. The supplier, approver, and creator are included automatically.</p>
+                    </div>
                 </div>
             </div>
 

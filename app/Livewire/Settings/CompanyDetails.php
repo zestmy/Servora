@@ -22,6 +22,8 @@ class CompanyDetails extends Component
     public string  $tax_percent         = '0';
     public bool    $show_price_on_do_grn = false;
     public bool    $auto_generate_do     = false;
+    public bool    $direct_supplier_order = false;
+    public string  $po_cc_emails        = '';
     public ?string $currentLogo         = null;
     public $logo;
 
@@ -41,6 +43,8 @@ class CompanyDetails extends Component
         $this->tax_percent         = (string) ($company->tax_percent ?? '0');
         $this->show_price_on_do_grn = (bool) $company->show_price_on_do_grn;
         $this->auto_generate_do     = (bool) $company->auto_generate_do;
+        $this->direct_supplier_order = (bool) $company->direct_supplier_order;
+        $this->po_cc_emails        = $company->po_cc_emails ?? '';
         $this->currentLogo         = $company->logo;
     }
 
@@ -74,6 +78,8 @@ class CompanyDetails extends Component
             'tax_percent'           => floatval($this->tax_percent),
             'show_price_on_do_grn'  => $this->show_price_on_do_grn,
             'auto_generate_do'      => $this->auto_generate_do,
+            'direct_supplier_order' => $this->direct_supplier_order,
+            'po_cc_emails'          => $this->po_cc_emails ?: null,
         ];
 
         if ($this->logo) {

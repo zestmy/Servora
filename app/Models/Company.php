@@ -14,7 +14,8 @@ class Company extends Model
     protected $fillable = [
         'name', 'registration_number', 'slug', 'email', 'phone', 'address',
         'billing_address', 'logo', 'currency', 'tax_type', 'tax_percent',
-        'show_price_on_do_grn', 'auto_generate_do', 'is_active', 'require_po_approval',
+        'show_price_on_do_grn', 'auto_generate_do', 'direct_supplier_order', 'po_cc_emails',
+        'is_active', 'require_po_approval',
     ];
 
     protected $casts = [
@@ -23,6 +24,7 @@ class Company extends Model
         'tax_percent'            => 'decimal:2',
         'show_price_on_do_grn'   => 'boolean',
         'auto_generate_do'       => 'boolean',
+        'direct_supplier_order'  => 'boolean',
     ];
 
     public function outlets(): HasMany
