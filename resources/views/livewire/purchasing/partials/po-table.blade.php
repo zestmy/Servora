@@ -33,8 +33,10 @@
                         default     => ucfirst($po->status),
                     };
                     $canApproveThis = $isAppointed && collect($approverAssignments)->contains(function ($a) use ($po) {
-                        return $a['outlet_id'] == $po->outlet_id
-                            && ($a['department_id'] === null || $a['department_id'] == $po->department_id);
+                        if ($a['outlet_id'] != $po->outlet_id) return false;
+                        // PO without department — any approver for the outlet can approve
+                        if (! $po->department_id) return true;
+                        return $a['department_id'] == $po->department_id;
                     });
                 @endphp
                 <tr class="hover:bg-gray-50 transition">

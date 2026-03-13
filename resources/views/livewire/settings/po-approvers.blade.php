@@ -52,17 +52,17 @@
             How does PO approval work?
         </button>
         <div x-show="open" x-collapse x-cloak class="mt-3 bg-indigo-50 border border-indigo-100 rounded-xl p-5 text-sm text-gray-700 space-y-3">
-            <p><strong>PO Approval Flow:</strong> When an outlet submits a Purchase Order, an appointed approver must review and approve it before the Purchasing team can convert it into a Delivery Order.</p>
+            <p><strong>PO Approval Flow:</strong> When an outlet submits a Purchase Order, an appointed approver must review and approve it before the Purchasing team can process them.</p>
             <div class="space-y-1.5">
                 <p class="font-semibold text-gray-800">How to set up:</p>
                 <ol class="list-decimal list-inside space-y-1 ml-1">
-                    <li>For each outlet/branch, assign one or more users who can approve POs.</li>
-                    <li>Eligible roles: <strong>Operations Manager</strong>, <strong>Outlet Manager</strong>, or <strong>Chef</strong>.</li>
-                    <li>Appointed approvers will see a PO Approval Queue on their dashboard and in the Purchasing module.</li>
-                    <li>The approver's name will be recorded on the PO document as the "Approved By" person.</li>
+                    <li>For each outlet, assign one or more users as PO approvers.</li>
+                    <li>Select which departments each approver can approve for.</li>
+                    <li>Eligible roles: <strong>Operations Manager</strong>, <strong>Branch Manager</strong>, or <strong>Chef</strong>.</li>
+                    <li>Approvers will see a PO Approval Queue on their dashboard for their assigned departments.</li>
                 </ol>
             </div>
-            <p class="text-xs text-gray-500">A user can be assigned as approver for multiple outlets. Each outlet can have multiple approvers.</p>
+            <p class="text-xs text-gray-500">A user can be assigned to different departments across multiple outlets.</p>
         </div>
     </div>
     @endif
@@ -90,34 +90,46 @@
                     </button>
                 </div>
 
-                @php $outletApprovers = $approvers->get($outlet->id, collect()); @endphp
+                @php $outletUsers = $approversByOutlet->get($outlet->id, collect()); @endphp
 
-                @if ($outletApprovers->count() > 0)
+                @if ($outletUsers->count() > 0)
                     <div class="divide-y divide-gray-50">
-                        @foreach ($outletApprovers as $pa)
-                            <div class="px-5 py-3 flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 uppercase">
-                                        {{ substr($pa->user?->name ?? '?', 0, 2) }}
+                        @foreach ($outletUsers as $userId => $userRecords)
+                            @php $user = $userRecords->first()->user; @endphp
+                            <div class="px-5 py-3">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 uppercase mt-0.5">
+                                            {{ substr($user?->name ?? '?', 0, 2) }}
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">{{ $user?->name ?? '—' }}</p>
+                                            <p class="text-xs text-gray-400">{{ $user?->roles->first()?->name ?? '' }} &middot; {{ $user?->email }}</p>
+                                            {{-- Department tags --}}
+                                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                                @foreach ($userRecords as $pa)
+                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                        {{ $pa->department?->name ?? 'Unknown' }}
+                                                        <button wire:click="removeDept({{ $pa->id }})"
+                                                                wire:confirm="Remove {{ $pa->department?->name }} from {{ $user?->name }}?"
+                                                                class="text-indigo-400 hover:text-red-500 transition ml-0.5">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-800">{{ $pa->user?->name ?? '—' }}</p>
-                                        <p class="text-xs text-gray-400">
-                                            {{ $pa->user?->roles->first()?->name ?? '' }} &middot; {{ $pa->user?->email }}
-                                            &middot;
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium {{ $pa->department_id ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600' }}">
-                                                {{ $pa->department?->name ?? 'All Departments' }}
-                                            </span>
-                                        </p>
-                                    </div>
+                                    <button wire:click="removeUser({{ $outlet->id }}, {{ $userId }})"
+                                            wire:confirm="Remove {{ $user?->name }} from all departments in {{ $outlet->name }}?"
+                                            class="text-red-400 hover:text-red-600 transition p-1 mt-0.5" title="Remove all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
                                 </div>
-                                <button wire:click="remove({{ $pa->id }})"
-                                        wire:confirm="Remove {{ $pa->user?->name }} as approver for {{ $outlet->name }}?"
-                                        class="text-red-400 hover:text-red-600 transition p-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
                             </div>
                         @endforeach
                     </div>
@@ -168,21 +180,78 @@
                                 <option value="{{ $eu->id }}">{{ $eu->name }} ({{ $eu->roles->first()?->name }})</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-400">Eligible roles: Operations Manager, Outlet Manager, Chef</p>
+                        <p class="mt-1 text-xs text-gray-400">Eligible roles: Operations Manager, Branch Manager, Chef</p>
                         <x-input-error :messages="$errors->get('selectedUserId')" class="mt-1" />
                     </div>
 
-                    <div>
-                        <x-input-label value="Department Scope" />
-                        <select wire:model="selectedDepartmentId"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                            <option value="">All Departments</option>
-                            @foreach ($departments as $dept)
-                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-1 text-xs text-gray-400">Leave as "All Departments" to approve POs from any department. Select a specific department to restrict approval scope.</p>
-                        <x-input-error :messages="$errors->get('selectedDepartmentId')" class="mt-1" />
+                    {{-- Department multi-select tags --}}
+                    <div x-data="{
+                        open: false,
+                        search: '',
+                        departments: @js($departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name])),
+                        get selected() { return this.$wire.selectedDepartmentIds },
+                        toggle(id) {
+                            let ids = [...this.$wire.selectedDepartmentIds];
+                            let idx = ids.indexOf(id);
+                            if (idx > -1) { ids.splice(idx, 1); } else { ids.push(id); }
+                            this.$wire.selectedDepartmentIds = ids;
+                        },
+                        isSelected(id) {
+                            return this.$wire.selectedDepartmentIds.includes(id);
+                        },
+                        remove(id) {
+                            let ids = this.$wire.selectedDepartmentIds.filter(i => i !== id);
+                            this.$wire.selectedDepartmentIds = ids;
+                        },
+                        get filtered() {
+                            let s = this.search.toLowerCase();
+                            return this.departments.filter(d => d.name.toLowerCase().includes(s));
+                        },
+                        getName(id) {
+                            let d = this.departments.find(d => d.id === id);
+                            return d ? d.name : '';
+                        }
+                    }">
+                        <x-input-label value="Departments *" />
+
+                        {{-- Selected tags --}}
+                        <div class="mt-1 min-h-[38px] flex flex-wrap items-center gap-1.5 p-2 border border-gray-300 rounded-md bg-white cursor-pointer"
+                             @click="open = !open">
+                            <template x-for="id in selected" :key="id">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    <span x-text="getName(id)"></span>
+                                    <button type="button" @click.stop="remove(id)" class="text-indigo-400 hover:text-red-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </span>
+                            </template>
+                            <span x-show="selected.length === 0" class="text-sm text-gray-400">Click to select departments...</span>
+                        </div>
+
+                        {{-- Dropdown --}}
+                        <div x-show="open" @click.outside="open = false" x-cloak
+                             class="mt-1 border border-gray-200 rounded-lg shadow-lg bg-white max-h-48 overflow-y-auto z-20 relative">
+                            <div class="sticky top-0 bg-white p-2 border-b border-gray-100">
+                                <input type="text" x-model="search" placeholder="Search departments..."
+                                       class="w-full text-sm border-gray-300 rounded-md px-3 py-1.5 focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                            <template x-for="dept in filtered" :key="dept.id">
+                                <button type="button" @click="toggle(dept.id)"
+                                        class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between transition"
+                                        :class="isSelected(dept.id) && 'bg-indigo-50'">
+                                    <span x-text="dept.name"></span>
+                                    <svg x-show="isSelected(dept.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </button>
+                            </template>
+                            <div x-show="filtered.length === 0" class="px-3 py-2 text-sm text-gray-400">No departments found</div>
+                        </div>
+
+                        <p class="mt-1 text-xs text-gray-400">Select the departments this approver can approve POs for.</p>
+                        <x-input-error :messages="$errors->get('selectedDepartmentIds')" class="mt-1" />
                     </div>
                 </div>
 

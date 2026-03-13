@@ -38,20 +38,19 @@ class PoApprover extends Model
     /**
      * Check if a user is an appointed approver for a specific outlet + department.
      *
-     * An approver with department_id = null is a wildcard (approves all departments).
-     * An approver with a specific department_id only approves that department.
+     * If the PO has no department set, any approver for that outlet can approve it.
+     * If the PO has a department, the approver must be assigned to that department.
      */
     public static function isApproverFor(int $userId, int $outletId, ?int $departmentId = null): bool
     {
-        return static::where('user_id', $userId)
-            ->where('outlet_id', $outletId)
-            ->where(function ($q) use ($departmentId) {
-                $q->whereNull('department_id'); // wildcard approver
-                if ($departmentId) {
-                    $q->orWhere('department_id', $departmentId);
-                }
-            })
-            ->exists();
+        $query = static::where('user_id', $userId)
+            ->where('outlet_id', $outletId);
+
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+
+        return $query->exists();
     }
 
     /**
@@ -68,6 +67,7 @@ class PoApprover extends Model
     /**
      * Apply a where clause to a PurchaseOrder query to only include POs
      * the given user is appointed to approve (outlet + department match).
+     * POs without a department are visible to any approver for that outlet.
      */
     public static function scopeApprovablePos($query, int $userId): void
     {
@@ -75,14 +75,17 @@ class PoApprover extends Model
             ->select('outlet_id', 'department_id')
             ->get();
 
-        $wildcardOutlets = $assignments->whereNull('department_id')->pluck('outlet_id')->unique()->toArray();
-        $deptAssignments = $assignments->whereNotNull('department_id');
+        $outletIds = $assignments->pluck('outlet_id')->unique()->toArray();
 
-        $query->where(function ($q) use ($wildcardOutlets, $deptAssignments) {
-            if (! empty($wildcardOutlets)) {
-                $q->whereIn('outlet_id', $wildcardOutlets);
-            }
-            foreach ($deptAssignments as $a) {
+        $query->where(function ($q) use ($outletIds, $assignments) {
+            // POs with no department — any approver for the outlet can approve
+            $q->where(function ($sub) use ($outletIds) {
+                $sub->whereIn('outlet_id', $outletIds)
+                    ->whereNull('department_id');
+            });
+
+            // POs with a specific department — must match assignment
+            foreach ($assignments as $a) {
                 $q->orWhere(function ($sub) use ($a) {
                     $sub->where('outlet_id', $a->outlet_id)
                         ->where('department_id', $a->department_id);
