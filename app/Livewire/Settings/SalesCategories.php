@@ -83,6 +83,12 @@ class SalesCategories extends Component
         session()->flash('success', 'Sales category deleted.');
     }
 
+    public function restore(int $id): void
+    {
+        SalesCategory::withTrashed()->findOrFail($id)->restore();
+        session()->flash('success', 'Sales category restored.');
+    }
+
     public function toggleActive(int $id): void
     {
         $cat = SalesCategory::findOrFail($id);
