@@ -17,7 +17,7 @@ class Ingredient extends Model
     protected $fillable = [
         'company_id', 'name', 'code', 'base_uom_id', 'recipe_uom_id',
         'purchase_price', 'pack_size', 'yield_percent', 'current_cost', 'category',
-        'ingredient_category_id', 'is_active', 'is_prep', 'prep_recipe_id',
+        'ingredient_category_id', 'is_active', 'is_prep', 'prep_recipe_id', 'remark',
     ];
 
     protected $casts = [

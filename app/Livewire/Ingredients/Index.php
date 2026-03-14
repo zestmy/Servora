@@ -39,6 +39,7 @@ class Index extends Component
     public string $pack_size = '1';
     public string $yield_percent = '100';
     public bool   $is_active = true;
+    public string $remark = '';
 
     // UOM conversions
     public array $conversions = [];
@@ -131,6 +132,7 @@ class Index extends Component
         $this->pack_size                = (string) ($ingredient->pack_size ?: '1');
         $this->yield_percent            = (string) $ingredient->yield_percent;
         $this->is_active                = $ingredient->is_active;
+        $this->remark                   = $ingredient->remark ?? '';
 
         $this->conversions = $ingredient->uomConversions
             ->map(fn ($c) => [
@@ -176,6 +178,7 @@ class Index extends Component
             'yield_percent'          => $yieldPercent,
             'current_cost'           => $effectiveCost,
             'is_active'              => $this->is_active,
+            'remark'                 => $this->remark ?: null,
         ];
 
         if ($this->editingId) {
@@ -298,6 +301,7 @@ class Index extends Component
         $priceIdx = array_search('purchase price', $headerRow);
         $yieldIdx = array_search('yield %', $headerRow);
         $activeIdx = array_search('is active', $headerRow);
+        $remarkIdx = array_search('remark', $headerRow);
 
         if ($idIdx === false || $nameIdx === false) {
             fclose($handle);
@@ -352,6 +356,10 @@ class Index extends Component
                 if (in_array($val, ['yes', 'no', '1', '0', 'true', 'false'])) {
                     $changes['is_active'] = in_array($val, ['yes', '1', 'true']);
                 }
+            }
+
+            if ($remarkIdx !== false && isset($data[$remarkIdx])) {
+                $changes['remark'] = trim($data[$remarkIdx]) ?: null;
             }
 
             if (! empty($changes)) {
@@ -493,6 +501,7 @@ class Index extends Component
         $this->pack_size              = '1';
         $this->yield_percent          = '100';
         $this->is_active              = true;
+        $this->remark                 = '';
         $this->conversions            = [];
         $this->supplierLinks          = [];
         $this->resetValidation();

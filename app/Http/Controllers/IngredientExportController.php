@@ -16,7 +16,7 @@ class IngredientExportController extends Controller
 
         $headers = [
             'ID', 'Name', 'Code', 'Category', 'Base UOM', 'Recipe UOM',
-            'Purchase Price', 'Pack Size', 'Yield %', 'Is Active',
+            'Purchase Price', 'Pack Size', 'Yield %', 'Is Active', 'Remark',
         ];
 
         $rows = $ingredients->map(function ($ing) {
@@ -38,6 +38,7 @@ class IngredientExportController extends Controller
                 floatval($ing->pack_size ?? 1),
                 $ing->yield_percent,
                 $ing->is_active ? 'Yes' : 'No',
+                $ing->remark ?? '',
             ];
         });
 

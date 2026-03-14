@@ -385,6 +385,12 @@
                         </div>
                     </div>
 
+                    {{-- Remark --}}
+                    <div>
+                        <x-input-label for="remark" value="Remark" />
+                        <x-text-input id="remark" wire:model="remark" type="text" class="mt-1 block w-full" placeholder="Optional note or remark" />
+                    </div>
+
                     {{-- Cost Chain Summary --}}
                     @if (floatval($purchase_price) > 0)
                         <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
