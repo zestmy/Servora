@@ -716,6 +716,8 @@
                         <li>Save as CSV and upload below</li>
                     </ol>
                     <p class="text-xs mt-2 text-blue-500">The <strong>ID</strong> column is used to match records. Do not change IDs.</p>
+                    <p class="text-xs mt-2 font-medium text-blue-600">Accepted columns:</p>
+                    <p class="text-xs text-blue-500">ID, Name, Code, Purchase Price, Pack Size, Yield %, Is Active, Remark</p>
                 </div>
 
                 @if (!empty($importResults))
