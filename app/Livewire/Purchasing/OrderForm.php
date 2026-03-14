@@ -124,6 +124,19 @@ class OrderForm extends Component
             $this->lines[$idx]['pack_info']  = $this->buildPackInfo($ingredientId, $supplierUomId, $packSize);
             $this->recalcLine($idx);
         }
+
+        // Auto-load template linked to supplier (only on new PO with no lines)
+        if ($this->supplier_id && empty($this->lines) && ! $this->orderId) {
+            $template = FormTemplate::ofType('purchase_order')
+                ->active()
+                ->where('supplier_id', $this->supplier_id)
+                ->first();
+
+            if ($template) {
+                $this->selectedTemplateId = (string) $template->id;
+                $this->loadTemplate();
+            }
+        }
     }
 
     // ── Load from template ────────────────────────────────────────────────
