@@ -12,7 +12,8 @@ use Livewire\Component;
 
 class WastageForm extends Component
 {
-    public ?int $recordId = null;
+    public ?int $recordId      = null;
+    public ?int $department_id = null;
 
     public string $wastage_date     = '';
     public string $reference_number = '';
@@ -54,6 +55,7 @@ class WastageForm extends Component
         $record = WastageRecord::with(['lines.ingredient.baseUom', 'lines.recipe.yieldUom'])->findOrFail($id);
 
         $this->recordId         = $record->id;
+        $this->department_id    = $record->department_id;
         $this->wastage_date     = $record->wastage_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
@@ -258,6 +260,7 @@ class WastageForm extends Component
         $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
 
         $data = [
+            'department_id'    => $this->department_id ?: null,
             'wastage_date'     => $this->wastage_date,
             'reference_number' => $this->reference_number ?: null,
             'notes'            => $this->notes ?: null,
@@ -344,9 +347,10 @@ class WastageForm extends Component
         $totalCost          = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
         $pageTitle          = $this->recordId ? 'Edit Wastage Record' : 'New Wastage Entry';
         $availableTemplates = FormTemplate::ofType('wastage')->active()->ordered()->get();
+        $departments = \App\Models\Department::active()->ordered()->get();
 
         return view('livewire.inventory.wastage-form', compact(
-            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates'
+            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

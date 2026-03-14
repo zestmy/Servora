@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
 use App\Models\OutletTransfer;
@@ -9,6 +10,7 @@ use App\Models\OutletTransferLine;
 use App\Models\PurchaseRecord;
 use App\Models\PurchaseRecordLine;
 use App\Models\Recipe;
+use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use App\Models\SalesRecordLine;
 use App\Models\StockTake;
@@ -23,19 +25,11 @@ use Illuminate\Support\Collection;
 class CostSummaryService
 {
     /**
-     * Generate a monthly cost summary (P&L style) for the given period.
-     *
-     * Returns an array with keys:
-     *  - categories: [{id, name, color, type, revenue, purchases, transfer_in, transfer_out,
-     *                  opening_stock, closing_stock, cogs, cost_pct}]
-     *  - totals: same structure + wastage, staff_meals (reference totals only)
-     *  - wastage_detail: [{name, type, category, quantity, uom, total_cost, reason}]
-     *  - staff_meals_detail: [{name, type, category, quantity, uom, total_cost, reason}]
-     *  - period: 'YYYY-MM'
-     *  - outlet_id: int|null
-     */
-    /**
      * Generate a cost summary for the given period.
+     *
+     * Groups purchases, stock, wastage and staff meals by DEPARTMENT → SALES CATEGORY.
+     * Revenue comes from SalesRecordLines grouped by sales_category_id.
+     * Departments without a sales_category_id roll into "Non-Revenue" totals.
      *
      * For monthly mode: pass $period as 'Y-m', leave $startDate/$endDate null.
      * For weekly/custom mode: pass $startDate and $endDate (stock takes will be skipped).
@@ -55,14 +49,49 @@ class CostSummaryService
 
         $companyId = auth()->user()->company_id;
 
-        // Get ALL active root categories (revenue + non-revenue)
+        // ── Build sales category groups for display rows ──
+        $salesCategories = SalesCategory::withTrashed()
+            ->where('company_id', $companyId)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        // Map department_id → sales_category_id for cost allocation
+        $deptToSalesCat = Department::where('company_id', $companyId)
+            ->whereNotNull('sales_category_id')
+            ->pluck('sales_category_id', 'id');
+
+        // ── Revenue (from SalesRecordLines grouped by sales_category_id) ──
+        $revenueBySalesCat = $this->getRevenueBySalesCategory($from, $to, $outletId);
+
+        // ── Purchases (from PurchaseRecords grouped by department → sales category) ──
+        $purchasesByDept = $this->getPurchasesByDepartment($from, $to, $outletId);
+
+        // ── Stock Takes (grouped by department → sales category) ──
+        if ($isCustomRange) {
+            $openingByDept = collect();
+            $closingByDept = collect();
+        } else {
+            $openingByDept = $this->getStockValuesByDepartment($period, $outletId, 'opening');
+            $closingByDept = $this->getStockValuesByDepartment($period, $outletId, 'closing');
+        }
+
+        // ── Transfers (still by ingredient category for now — cross-dept transfers are rare) ──
+        $transferInByCategory = $this->getTransfers($from, $to, $outletId, 'in');
+        $transferOutByCategory = $this->getTransfers($from, $to, $outletId, 'out');
+
+        // ── Also keep legacy ingredient-category-based purchases for fallback ──
+        $purchasesByCategory = $this->getPurchasesByIngredientCategory($from, $to, $outletId);
+        $openingByCategory = $isCustomRange ? collect() : $this->getStockValuesByCategory($period, $outletId, 'opening');
+        $closingByCategory = $isCustomRange ? collect() : $this->getStockValuesByCategory($period, $outletId, 'closing');
+
+        // ── Get ALL active root categories (for fallback/legacy mapping) ──
         $allRootCategories = IngredientCategory::roots()
             ->active()
             ->ordered()
             ->with('children')
             ->get();
 
-        // Separate revenue categories (shown as rows) from non-revenue (rolled into totals only)
         $revenueCategoryGroups = [];
         $nonRevenueCategoryGroups = [];
 
@@ -85,29 +114,7 @@ class CostSummaryService
             }
         }
 
-        // categoryGroups used for displayed rows = revenue only
-        $categoryGroups = $revenueCategoryGroups;
-
-        // ── Revenue (from SalesRecordLines grouped by ingredient_category_id) ──
-        $revenueByCategory = $this->getRevenue($from, $to, $outletId);
-
-        // ── Purchases (from PurchaseRecordLines → ingredient → ingredient_category_id) ──
-        $purchasesByCategory = $this->getPurchases($from, $to, $outletId);
-
-        // ── Transfers ──
-        $transferInByCategory = $this->getTransfers($from, $to, $outletId, 'in');
-        $transferOutByCategory = $this->getTransfers($from, $to, $outletId, 'out');
-
-        // ── Stock Takes (only for monthly — weekly/custom ranges skip this) ──
-        if ($isCustomRange) {
-            $openingByCategory = collect();
-            $closingByCategory = collect();
-        } else {
-            $openingByCategory = $this->getStockValues($period, $outletId, 'opening');
-            $closingByCategory = $this->getStockValues($period, $outletId, 'closing');
-        }
-
-        // ── Build per-category summary rows ──
+        // ── Build per-sales-category summary rows ──
         $categories = [];
         $totals = [
             'revenue'       => 0,
@@ -122,25 +129,59 @@ class CostSummaryService
             'staff_meals'   => 0,
         ];
 
-        foreach ($categoryGroups as $rootId => $group) {
-            $ids = $group['ids'];
+        // Track which sales categories have departments mapped
+        $salesCatDeptIds = [];
+        foreach ($deptToSalesCat as $deptId => $scId) {
+            $salesCatDeptIds[$scId][] = $deptId;
+        }
 
-            $revenue      = $this->sumForIds($revenueByCategory, $ids);
-            $purchases    = $this->sumForIds($purchasesByCategory, $ids);
-            $transferIn   = $this->sumForIds($transferInByCategory, $ids);
-            $transferOut  = $this->sumForIds($transferOutByCategory, $ids);
-            $opening      = $this->sumForIds($openingByCategory, $ids);
-            $closing      = $this->sumForIds($closingByCategory, $ids);
+        // Active sales categories as report rows
+        $activeSalesCats = $salesCategories->where('is_active', true)->whereNull('deleted_at');
 
-            // COGS = Opening + Purchases + Transfer In - Transfer Out - Closing
+        foreach ($activeSalesCats as $sc) {
+            $revenue = (float) ($revenueBySalesCat[$sc->id] ?? 0);
+
+            // Sum purchases from departments mapped to this sales category
+            $purchases = 0;
+            $opening = 0;
+            $closing = 0;
+            $deptIds = $salesCatDeptIds[$sc->id] ?? [];
+
+            foreach ($deptIds as $deptId) {
+                $purchases += (float) ($purchasesByDept[$deptId] ?? 0);
+                $opening += (float) ($openingByDept[$deptId] ?? 0);
+                $closing += (float) ($closingByDept[$deptId] ?? 0);
+            }
+
+            // Fallback: if no departments mapped, use ingredient_category_id from sales category
+            if (empty($deptIds) && $sc->ingredient_category_id) {
+                $catGroup = $revenueCategoryGroups[$sc->ingredient_category_id] ?? null;
+                if ($catGroup) {
+                    $purchases += $this->sumForIds($purchasesByCategory, $catGroup['ids']);
+                    $opening += $this->sumForIds($openingByCategory, $catGroup['ids']);
+                    $closing += $this->sumForIds($closingByCategory, $catGroup['ids']);
+                }
+            }
+
+            // Transfers (still by ingredient category via sales category mapping)
+            $transferIn = 0;
+            $transferOut = 0;
+            if ($sc->ingredient_category_id) {
+                $catGroup = $revenueCategoryGroups[$sc->ingredient_category_id] ?? null;
+                if ($catGroup) {
+                    $transferIn = $this->sumForIds($transferInByCategory, $catGroup['ids']);
+                    $transferOut = $this->sumForIds($transferOutByCategory, $catGroup['ids']);
+                }
+            }
+
             $cogs = $opening + $purchases + $transferIn - $transferOut - $closing;
             $costPct = $revenue > 0 ? round(($cogs / $revenue) * 100, 1) : 0;
 
             $row = [
-                'id'            => $rootId,
-                'name'          => $group['name'],
-                'color'         => $group['color'],
-                'type'          => $group['type'],
+                'id'            => $sc->id,
+                'name'          => $sc->name,
+                'color'         => $sc->color,
+                'type'          => $sc->type,
                 'revenue'       => round($revenue, 2),
                 'purchases'     => round($purchases, 2),
                 'transfer_in'   => round($transferIn, 2),
@@ -158,25 +199,46 @@ class CostSummaryService
             }
         }
 
-        // Roll non-revenue category costs (consumables, packaging, etc.) into totals
-        foreach ($nonRevenueCategoryGroups as $group) {
-            $ids = $group['ids'];
-            $purchases    = $this->sumForIds($purchasesByCategory, $ids);
-            $transferIn   = $this->sumForIds($transferInByCategory, $ids);
-            $transferOut  = $this->sumForIds($transferOutByCategory, $ids);
-            $opening      = $this->sumForIds($openingByCategory, $ids);
-            $closing      = $this->sumForIds($closingByCategory, $ids);
-            $cogs         = $opening + $purchases + $transferIn - $transferOut - $closing;
+        // ── Roll in non-revenue costs (departments without sales category) ──
+        $mappedDeptIds = $deptToSalesCat->keys()->toArray();
+        $nonRevenuePurchases = 0;
+        $nonRevenueOpening = 0;
+        $nonRevenueClosing = 0;
 
-            $totals['purchases']     += round($purchases, 2);
-            $totals['transfer_in']   += round($transferIn, 2);
-            $totals['transfer_out']  += round($transferOut, 2);
-            $totals['opening_stock'] += round($opening, 2);
-            $totals['closing_stock'] += round($closing, 2);
-            $totals['cogs']          += round($cogs, 2);
+        foreach ($purchasesByDept as $deptId => $amount) {
+            if (! in_array($deptId, $mappedDeptIds)) {
+                $nonRevenuePurchases += (float) $amount;
+            }
+        }
+        // Also include purchases with no department (null)
+        $nonRevenuePurchases += (float) ($purchasesByDept[0] ?? 0);
+
+        foreach ($openingByDept as $deptId => $amount) {
+            if (! in_array($deptId, $mappedDeptIds)) {
+                $nonRevenueOpening += (float) $amount;
+            }
+        }
+        foreach ($closingByDept as $deptId => $amount) {
+            if (! in_array($deptId, $mappedDeptIds)) {
+                $nonRevenueClosing += (float) $amount;
+            }
         }
 
-        // Overall cost % = total COGS (all categories) / total revenue
+        // Also roll in non-revenue ingredient category costs (legacy)
+        foreach ($nonRevenueCategoryGroups as $group) {
+            $ids = $group['ids'];
+            $nonRevenuePurchases += $this->sumForIds($purchasesByCategory, $ids);
+            $nonRevenueOpening += $this->sumForIds($openingByCategory, $ids);
+            $nonRevenueClosing += $this->sumForIds($closingByCategory, $ids);
+        }
+
+        $nonRevenueCogs = $nonRevenueOpening + $nonRevenuePurchases - $nonRevenueClosing;
+        $totals['purchases']     += round($nonRevenuePurchases, 2);
+        $totals['opening_stock'] += round($nonRevenueOpening, 2);
+        $totals['closing_stock'] += round($nonRevenueClosing, 2);
+        $totals['cogs']          += round($nonRevenueCogs, 2);
+
+        // Overall cost % = total COGS / total revenue
         $totals['cost_pct'] = $totals['revenue'] > 0
             ? round(($totals['cogs'] / $totals['revenue']) * 100, 1)
             : 0;
@@ -202,17 +264,10 @@ class CostSummaryService
 
     // ── Private helpers ─────────────────────────────────────────────────────
 
-    private function getRevenue(Carbon $from, Carbon $to, ?int $outletId): Collection
+    private function getRevenueBySalesCategory(Carbon $from, Carbon $to, ?int $outletId): Collection
     {
-        // Priority: sales_categories.ingredient_category_id (current mapping) takes
-        // precedence over the snapshot stored on the line. This ensures that updating
-        // a sales category mapping in settings immediately reflects in all reports.
         $query = SalesRecordLine::query()
             ->join('sales_records', 'sales_records.id', '=', 'sales_record_lines.sales_record_id')
-            ->leftJoin('sales_categories', function ($join) {
-                $join->on('sales_categories.id', '=', 'sales_record_lines.sales_category_id')
-                     ->whereNull('sales_categories.deleted_at');
-            })
             ->whereBetween('sales_records.sale_date', [$from, $to])
             ->whereNull('sales_records.deleted_at');
 
@@ -221,12 +276,28 @@ class CostSummaryService
         }
 
         return $query
-            ->selectRaw('COALESCE(sales_categories.ingredient_category_id, sales_record_lines.ingredient_category_id) as cat_id, SUM(sales_record_lines.total_revenue) as total')
+            ->selectRaw('sales_record_lines.sales_category_id as cat_id, SUM(sales_record_lines.total_revenue) as total')
+            ->whereNotNull('sales_record_lines.sales_category_id')
             ->groupBy('cat_id')
             ->pluck('total', 'cat_id');
     }
 
-    private function getPurchases(Carbon $from, Carbon $to, ?int $outletId): Collection
+    private function getPurchasesByDepartment(Carbon $from, Carbon $to, ?int $outletId): Collection
+    {
+        $query = PurchaseRecord::query()
+            ->whereBetween('purchase_date', [$from, $to]);
+
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        return $query
+            ->selectRaw('COALESCE(department_id, 0) as dept_id, SUM(total_amount) as total')
+            ->groupBy('dept_id')
+            ->pluck('total', 'dept_id');
+    }
+
+    private function getPurchasesByIngredientCategory(Carbon $from, Carbon $to, ?int $outletId): Collection
     {
         $query = PurchaseRecordLine::query()
             ->join('purchase_records', 'purchase_records.id', '=', 'purchase_record_lines.purchase_record_id')
@@ -264,7 +335,6 @@ class CostSummaryService
 
     /**
      * Get item-level detail for wastage or staff meals, grouped by category.
-     * Returns: [ 'groups' => [ category_name => [ 'items' => [...], 'total' => float ] ], 'total' => float ]
      */
     private function getItemDetail(string $type, Carbon $from, Carbon $to, ?int $outletId): array
     {
@@ -289,6 +359,7 @@ class CostSummaryService
             ->join('ingredient_categories', 'ingredient_categories.id', '=', 'ingredients.ingredient_category_id')
             ->leftJoin('ingredient_categories as parent_cat', 'parent_cat.id', '=', 'ingredient_categories.parent_id')
             ->leftJoin('units_of_measure', 'units_of_measure.id', '=', "{$lineTable}.uom_id")
+            ->leftJoin('departments', 'departments.id', '=', "{$masterTable}.department_id")
             ->whereBetween("{$masterTable}.{$dateField}", [$from, $to])
             ->whereNull("{$masterTable}.deleted_at")
             ->whereNotNull("{$lineTable}.ingredient_id")
@@ -297,7 +368,7 @@ class CostSummaryService
                 ingredients.name as item_name,
                 'ingredient' as item_type,
                 ingredients.is_prep,
-                COALESCE(parent_cat.name, ingredient_categories.name) as category_name,
+                COALESCE(departments.name, COALESCE(parent_cat.name, ingredient_categories.name)) as category_name,
                 units_of_measure.abbreviation as uom,
                 SUM({$lineTable}.quantity) as total_qty,
                 SUM({$lineTable}.total_cost) as total_cost
@@ -367,7 +438,6 @@ class CostSummaryService
     private function getTransfers(Carbon $from, Carbon $to, ?int $outletId, string $direction): Collection
     {
         if (! $outletId) {
-            // Company-wide: transfers between own outlets net to zero, return empty
             return collect();
         }
 
@@ -390,10 +460,42 @@ class CostSummaryService
             ->pluck('total', 'cat_id');
     }
 
-    private function getStockValues(string $period, ?int $outletId, string $type): Collection
+    private function getStockValuesByDepartment(string $period, ?int $outletId, string $type): Collection
     {
-        // opening = previous month's completed stock take
-        // closing = current month's completed stock take
+        if ($type === 'opening') {
+            $targetPeriod = Carbon::createFromFormat('Y-m', $period)->subMonth()->format('Y-m');
+        } else {
+            $targetPeriod = $period;
+        }
+
+        $targetDate = Carbon::createFromFormat('Y-m', $targetPeriod);
+
+        $stQuery = StockTake::query()
+            ->where('status', 'completed')
+            ->whereYear('stock_take_date', $targetDate->year)
+            ->whereMonth('stock_take_date', $targetDate->month);
+
+        if ($outletId) {
+            $stQuery->where('outlet_id', $outletId);
+        }
+
+        // Group stock takes by department
+        $stockTakes = $stQuery->get();
+
+        $result = collect();
+        foreach ($stockTakes as $st) {
+            $deptId = $st->department_id ?? 0;
+            $stValue = (float) StockTakeLine::where('stock_take_id', $st->id)
+                ->selectRaw('SUM(actual_quantity * unit_cost) as total')
+                ->value('total');
+            $result[$deptId] = ($result[$deptId] ?? 0) + $stValue;
+        }
+
+        return $result;
+    }
+
+    private function getStockValuesByCategory(string $period, ?int $outletId, string $type): Collection
+    {
         if ($type === 'opening') {
             $targetPeriod = Carbon::createFromFormat('Y-m', $period)->subMonth()->format('Y-m');
         } else {

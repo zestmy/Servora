@@ -77,6 +77,18 @@
                 </div>
 
                 <div>
+                    <x-input-label for="st_dept" value="Department" />
+                    <select id="st_dept" wire:model="department_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            {{ $isCompleted ? 'disabled' : '' }}>
+                        <option value="">— All / No Department —</option>
+                        @foreach ($departments as $dept)
+                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
                     <x-input-label for="st_notes" value="Notes" />
                     <textarea id="st_notes" wire:model="notes" rows="2"
                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"

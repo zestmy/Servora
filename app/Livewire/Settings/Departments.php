@@ -4,6 +4,7 @@ namespace App\Livewire\Settings;
 
 use App\Models\Department;
 use App\Models\PurchaseOrder;
+use App\Models\SalesCategory;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -12,15 +13,17 @@ class Departments extends Component
     public bool $showModal = false;
     public ?int $editingId = null;
 
-    public string $name       = '';
-    public string $sort_order = '0';
-    public bool   $is_active  = true;
+    public string $name              = '';
+    public ?int   $sales_category_id = null;
+    public string $sort_order        = '0';
+    public bool   $is_active         = true;
 
     protected function rules(): array
     {
         return [
-            'name'       => 'required|string|max:100',
-            'sort_order' => 'required|integer|min:0|max:9999',
+            'name'              => 'required|string|max:100',
+            'sales_category_id' => 'nullable|exists:sales_categories,id',
+            'sort_order'        => 'required|integer|min:0|max:9999',
         ];
     }
 
@@ -34,10 +37,11 @@ class Departments extends Component
     {
         $dept = Department::findOrFail($id);
 
-        $this->editingId  = $dept->id;
-        $this->name       = $dept->name;
-        $this->sort_order = (string) $dept->sort_order;
-        $this->is_active  = $dept->is_active;
+        $this->editingId         = $dept->id;
+        $this->name              = $dept->name;
+        $this->sales_category_id = $dept->sales_category_id;
+        $this->sort_order        = (string) $dept->sort_order;
+        $this->is_active         = $dept->is_active;
 
         $this->showModal = true;
     }
@@ -47,9 +51,10 @@ class Departments extends Component
         $this->validate();
 
         $data = [
-            'name'       => $this->name,
-            'sort_order' => (int) $this->sort_order,
-            'is_active'  => $this->is_active,
+            'name'              => $this->name,
+            'sales_category_id' => $this->sales_category_id ?: null,
+            'sort_order'        => (int) $this->sort_order,
+            'is_active'         => $this->is_active,
         ];
 
         if ($this->editingId) {
@@ -92,23 +97,25 @@ class Departments extends Component
 
     public function render()
     {
-        $departments = Department::ordered()->get();
+        $departments     = Department::with('salesCategory')->ordered()->get();
+        $salesCategories = SalesCategory::where('is_active', true)->orderBy('name')->get();
 
         $usage = PurchaseOrder::selectRaw('department_id, count(*) as total')
             ->whereNotNull('department_id')
             ->groupBy('department_id')
             ->pluck('total', 'department_id');
 
-        return view('livewire.settings.departments', compact('departments', 'usage'))
+        return view('livewire.settings.departments', compact('departments', 'salesCategories', 'usage'))
             ->layout('layouts.app', ['title' => 'Departments']);
     }
 
     private function resetForm(): void
     {
-        $this->editingId  = null;
-        $this->name       = '';
-        $this->sort_order = '0';
-        $this->is_active  = true;
+        $this->editingId         = null;
+        $this->name              = '';
+        $this->sales_category_id = null;
+        $this->sort_order        = '0';
+        $this->is_active         = true;
         $this->resetValidation();
     }
 }

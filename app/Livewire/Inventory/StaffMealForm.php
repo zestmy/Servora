@@ -12,7 +12,8 @@ use Livewire\Component;
 
 class StaffMealForm extends Component
 {
-    public ?int $recordId = null;
+    public ?int $recordId      = null;
+    public ?int $department_id = null;
 
     public string $meal_date        = '';
     public string $reference_number = '';
@@ -52,6 +53,7 @@ class StaffMealForm extends Component
         $record = StaffMealRecord::with(['lines.ingredient.baseUom', 'lines.recipe.yieldUom'])->findOrFail($id);
 
         $this->recordId         = $record->id;
+        $this->department_id    = $record->department_id;
         $this->meal_date        = $record->meal_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
@@ -247,6 +249,7 @@ class StaffMealForm extends Component
         $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
 
         $data = [
+            'department_id'    => $this->department_id ?: null,
             'meal_date'        => $this->meal_date,
             'reference_number' => $this->reference_number ?: null,
             'notes'            => $this->notes ?: null,
@@ -332,9 +335,10 @@ class StaffMealForm extends Component
         $totalCost          = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
         $pageTitle          = $this->recordId ? 'Edit Staff Meal Record' : 'New Staff Meal Entry';
         $availableTemplates = FormTemplate::ofType('staff_meal')->active()->ordered()->get();
+        $departments = \App\Models\Department::active()->ordered()->get();
 
         return view('livewire.inventory.staff-meal-form', compact(
-            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates'
+            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Department extends Model
 {
     protected $fillable = [
-        'company_id', 'name', 'sort_order', 'is_active',
+        'company_id', 'name', 'sales_category_id', 'sort_order', 'is_active',
     ];
 
     protected $casts = [
@@ -24,6 +24,11 @@ class Department extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function salesCategory(): BelongsTo
+    {
+        return $this->belongsTo(SalesCategory::class);
     }
 
     public function scopeActive($query)

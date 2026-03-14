@@ -203,6 +203,7 @@ class GrnReceiveForm extends Component
                 'company_id'        => $companyId,
                 'outlet_id'         => $outletId,
                 'supplier_id'       => $grn->supplier_id,
+                'department_id'     => $grn->purchaseOrder?->department_id,
                 'delivery_order_id' => $grn->delivery_order_id,
                 'reference_number'  => $this->reference_number ?: null,
                 'purchase_date'     => $this->received_date,

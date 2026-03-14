@@ -11,7 +11,8 @@ use Livewire\Component;
 
 class StockTakeForm extends Component
 {
-    public ?int $recordId = null;
+    public ?int $recordId      = null;
+    public ?int $department_id = null;
 
     public string $stock_take_date  = '';
     public string $reference_number = '';
@@ -61,6 +62,7 @@ class StockTakeForm extends Component
         ])->findOrFail($id);
 
         $this->recordId         = $record->id;
+        $this->department_id    = $record->department_id;
         $this->stock_take_date  = $record->stock_take_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
@@ -176,6 +178,7 @@ class StockTakeForm extends Component
         $newStatus = ($action === 'complete') ? 'completed' : $this->status;
 
         $data = [
+            'department_id'       => $this->department_id ?: null,
             'stock_take_date'     => $this->stock_take_date,
             'reference_number'    => $this->reference_number ?: null,
             'notes'               => $this->notes ?: null,
@@ -245,10 +248,11 @@ class StockTakeForm extends Component
         $pageTitle   = $this->recordId ? 'Stock Take' : 'New Stock Take';
 
         $availableTemplates = FormTemplate::ofType('stock_take')->active()->ordered()->get();
+        $departments = \App\Models\Department::active()->ordered()->get();
 
         return view('livewire.inventory.stock-take-form', compact(
             'searchResults', 'totalVarianceCost', 'totalStockCost',
-            'positiveVariance', 'negativeVariance', 'isCompleted', 'availableTemplates'
+            'positiveVariance', 'negativeVariance', 'isCompleted', 'availableTemplates', 'departments'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

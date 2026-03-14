@@ -29,7 +29,7 @@
         </button>
     </div>
 
-    <p class="text-xs text-gray-400 mb-4">Departments appear as a dropdown when creating purchase orders. They are printed on PO, DO and GRN documents.</p>
+    <p class="text-xs text-gray-400 mb-4">Departments are cost centres for purchasing, inventory and costing. Link each department to a sales category for P&L reporting.</p>
 
     {{-- List --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -37,6 +37,7 @@
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Department</th>
+                    <th class="px-4 py-3 text-left">Sales Category</th>
                     <th class="px-4 py-3 text-center">Sort</th>
                     <th class="px-4 py-3 text-center">POs</th>
                     <th class="px-4 py-3 text-center">Status</th>
@@ -47,6 +48,16 @@
                 @forelse ($departments as $dept)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $dept->name }}</td>
+                        <td class="px-4 py-3 text-gray-600 text-sm">
+                            @if ($dept->salesCategory)
+                                <span class="inline-flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $dept->salesCategory->color }}"></span>
+                                    {{ $dept->salesCategory->name }}
+                                </span>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-center text-gray-500">{{ $dept->sort_order }}</td>
                         <td class="px-4 py-3 text-center text-gray-700 font-medium">{{ $usage[$dept->id] ?? 0 }}</td>
                         <td class="px-4 py-3 text-center">
@@ -84,7 +95,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
                             <p class="font-medium">No departments yet</p>
                             <p class="text-xs mt-1">Add departments like Kitchen, Bar, Pastry to tag on purchase orders.</p>
                         </td>
@@ -122,6 +133,19 @@
                         <x-input-label for="dept_name" value="Department Name *" />
                         <x-text-input id="dept_name" wire:model="name" type="text" class="mt-1 block w-full" placeholder="e.g. Kitchen" />
                         <x-input-error :messages="$errors->get('name')" class="mt-1" />
+                    </div>
+
+                    {{-- Sales Category --}}
+                    <div>
+                        <x-input-label for="dept_sales_cat" value="Sales Category (for P&L costing)" />
+                        <select id="dept_sales_cat" wire:model="sales_category_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— None (Non-revenue) —</option>
+                            @foreach ($salesCategories as $sc)
+                                <option value="{{ $sc->id }}">{{ $sc->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-0.5 text-xs text-gray-400">Purchases by this department will be costed against this sales category</p>
                     </div>
 
                     {{-- Sort Order | Active --}}

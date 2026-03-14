@@ -14,7 +14,7 @@ class PurchaseRecord extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'supplier_id', 'delivery_order_id',
+        'company_id', 'outlet_id', 'supplier_id', 'department_id', 'delivery_order_id',
         'reference_number', 'purchase_date', 'total_amount', 'notes', 'created_by',
     ];
 
@@ -41,6 +41,11 @@ class PurchaseRecord extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function deliveryOrder(): BelongsTo

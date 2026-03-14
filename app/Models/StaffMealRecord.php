@@ -14,7 +14,7 @@ class StaffMealRecord extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'reference_number', 'meal_date',
+        'company_id', 'outlet_id', 'department_id', 'reference_number', 'meal_date',
         'total_cost', 'notes', 'created_by',
     ];
 
@@ -36,6 +36,11 @@ class StaffMealRecord extends Model
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function lines(): HasMany
