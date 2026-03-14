@@ -712,7 +712,7 @@
                     <p class="font-medium mb-1">How to bulk update:</p>
                     <ol class="list-decimal list-inside space-y-0.5 text-xs">
                         <li>Click <strong>Export</strong> to download the current ingredients CSV</li>
-                        <li>Open in Excel and edit Name, Code, Purchase Price, Yield %, or Is Active columns</li>
+                        <li>Open in Excel and edit Name, Code, Purchase Price, Yield %, Is Active, or Remark columns</li>
                         <li>Save as CSV and upload below</li>
                     </ol>
                     <p class="text-xs mt-2 text-blue-500">The <strong>ID</strong> column is used to match records. Do not change IDs.</p>
