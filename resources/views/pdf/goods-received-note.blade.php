@@ -162,16 +162,16 @@
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
-            @if ($grn->createdBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($grn->createdBy->name) }}</div>
-            @endif
             <div class="sig-line">Checked By</div>
+            @if ($grn->createdBy)
+                <div class="sig-name">{{ strtoupper($grn->createdBy->name) }}</div>
+            @endif
         </div>
         <div class="sig-box">
-            @if ($grn->receivedBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($grn->receivedBy->name) }}</div>
-            @endif
             <div class="sig-line">Received By</div>
+            @if ($grn->receivedBy)
+                <div class="sig-name">{{ strtoupper($grn->receivedBy->name) }}</div>
+            @endif
         </div>
         <div class="sig-box">
             <div class="sig-line">Acknowledged By</div>

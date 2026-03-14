@@ -41,7 +41,8 @@
         .company-logo { max-height: 45px; max-width: 160px; margin-bottom: 6px; }
         .signatures { display: table; width: 100%; margin-top: 40px; }
         .sig-box { display: table-cell; width: 33%; text-align: center; vertical-align: bottom; padding: 0 15px; }
-        .sig-line { border-top: 1px solid #000; padding-top: 5px; margin-top: 40px; font-size: 9px; color: #333; }
+        .sig-line { border-top: 1px solid #000; padding-top: 5px; margin-top: 10px; font-size: 9px; color: #333; }
+        .sig-name { font-size: 10px; font-weight: bold; margin-top: 3px; color: #000; }
     </style>
 </head>
 <body>

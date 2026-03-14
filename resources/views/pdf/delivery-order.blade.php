@@ -155,19 +155,19 @@
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
-            @if ($do->createdBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($do->createdBy->name) }}</div>
-            @endif
             <div class="sig-line">Issued By</div>
+            @if ($do->createdBy)
+                <div class="sig-name">{{ strtoupper($do->createdBy->name) }}</div>
+            @endif
         </div>
         <div class="sig-box">
             <div class="sig-line">Delivered By</div>
         </div>
         <div class="sig-box">
-            @if ($do->receivedBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($do->receivedBy->name) }}</div>
-            @endif
             <div class="sig-line">Received By</div>
+            @if ($do->receivedBy)
+                <div class="sig-name">{{ strtoupper($do->receivedBy->name) }}</div>
+            @endif
         </div>
     </div>
 

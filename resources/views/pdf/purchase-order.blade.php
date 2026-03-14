@@ -144,19 +144,22 @@
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
-            @if ($po->createdBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($po->createdBy->name) }}</div>
-            @endif
             <div class="sig-line">Prepared By</div>
+            @if ($po->createdBy)
+                <div class="sig-name">{{ strtoupper($po->createdBy->name) }}</div>
+            @endif
         </div>
         <div class="sig-box">
-            @if ($po->approvedBy)
-                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">{{ strtoupper($po->approvedBy->name) }}</div>
-            @endif
             <div class="sig-line">Approved By</div>
+            @if ($po->approvedBy)
+                <div class="sig-name">{{ strtoupper($po->approvedBy->name) }}</div>
+            @endif
         </div>
         <div class="sig-box">
             <div class="sig-line">Received By</div>
+            @if ($po->receiver_name)
+                <div class="sig-name">{{ strtoupper($po->receiver_name) }}</div>
+            @endif
         </div>
     </div>
 
