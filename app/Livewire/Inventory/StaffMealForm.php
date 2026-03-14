@@ -29,7 +29,7 @@ class StaffMealForm extends Component
             'reference_number'   => 'nullable|string|max:100',
             'notes'              => 'nullable|string',
             'lines'              => 'required|array|min:1',
-            'lines.*.quantity'   => 'required|numeric|min:0.0001',
+            'lines.*.quantity'   => 'required|numeric|min:0',
             'lines.*.unit_cost'  => 'required|numeric|min:0',
         ];
     }
@@ -264,6 +264,9 @@ class StaffMealForm extends Component
             $record = StaffMealRecord::create($data);
             session()->flash('success', 'Staff meal record created.');
         }
+
+        // Remove items with zero quantity
+        $this->lines = array_values(array_filter($this->lines, fn ($l) => floatval($l['quantity']) > 0));
 
         $record->lines()->delete();
         foreach ($this->lines as $line) {

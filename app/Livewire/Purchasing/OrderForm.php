@@ -49,7 +49,7 @@ class OrderForm extends Component
             'department_id'          => 'nullable|exists:departments,id',
             'lines'                  => 'required|array|min:1',
             'lines.*.ingredient_id'  => 'required|exists:ingredients,id',
-            'lines.*.quantity'       => 'required|numeric|min:1',
+            'lines.*.quantity'       => 'required|numeric|min:0',
             'lines.*.uom_id'         => 'required|exists:units_of_measure,id',
             'lines.*.unit_cost'      => 'required|numeric|min:0',
         ];
@@ -300,7 +300,8 @@ class OrderForm extends Component
             $po = PurchaseOrder::create($data);
         }
 
-        // Sync lines
+        // Sync lines — remove items with zero quantity
+        $this->lines = array_values(array_filter($this->lines, fn ($l) => floatval($l['quantity']) > 0));
         $po->lines()->delete();
         foreach ($this->lines as $line) {
             $qty  = floatval($line['quantity']);
