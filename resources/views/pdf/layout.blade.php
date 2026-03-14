@@ -51,6 +51,7 @@
 
         <div class="footer">
             Generated on {{ now()->format('d M Y, h:i A') }} | {{ $company?->name ?? 'Servora' }}
+            <br>Powered by Servora - https://servora.com.my/
         </div>
     </div>
 </body>

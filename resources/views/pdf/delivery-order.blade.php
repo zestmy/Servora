@@ -170,8 +170,4 @@
             @endif
         </div>
     </div>
-
-    <div style="margin-top: 30px; text-align: center; font-size: 8px; color: #999;">
-        Powered by Servora - https://servora.com.my/
-    </div>
 @endsection
