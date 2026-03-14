@@ -162,7 +162,7 @@
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
-            <div class="sig-line">Checked By</div>
+            <div class="sig-line">Ordered By</div>
             @if ($grn->createdBy)
                 <div class="sig-name">{{ strtoupper($grn->createdBy->name) }}</div>
             @endif

@@ -155,7 +155,7 @@
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
-            <div class="sig-line">Issued By</div>
+            <div class="sig-line">Ordered By</div>
             @if ($do->createdBy)
                 <div class="sig-name">{{ strtoupper($do->createdBy->name) }}</div>
             @endif
