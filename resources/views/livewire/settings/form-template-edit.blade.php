@@ -239,7 +239,7 @@
                                         </td>
                                         <td class="px-4 py-2 text-sm font-medium text-gray-600">{{ $line['uom_abbr'] }}</td>
                                         <td class="px-4 py-2">
-                                            <input type="number" step="0.0001" min="0.0001"
+                                            <input type="number" step="1" min="0"
                                                    value="{{ $line['default_quantity'] }}"
                                                    wire:change="updateQty({{ $line['id'] }}, $event.target.value)"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />

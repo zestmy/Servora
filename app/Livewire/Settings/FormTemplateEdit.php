@@ -131,7 +131,7 @@ class FormTemplateEdit extends Component
             'item_type'        => 'ingredient',
             'ingredient_id'    => $ingredient->id,
             'recipe_id'        => null,
-            'default_quantity' => 1,
+            'default_quantity' => 0,
             'sort_order'       => count($this->lines),
         ]);
 
@@ -152,7 +152,7 @@ class FormTemplateEdit extends Component
             'item_name'        => $ingredient->name,
             'uom_abbr'         => $uomAbbr,
             'pack_info'        => $packInfo,
-            'default_quantity' => '1',
+            'default_quantity' => '0',
         ];
 
         $this->itemSearch = '';
@@ -174,7 +174,7 @@ class FormTemplateEdit extends Component
             'item_type'        => 'recipe',
             'ingredient_id'    => null,
             'recipe_id'        => $recipe->id,
-            'default_quantity' => 1,
+            'default_quantity' => 0,
             'sort_order'       => count($this->lines),
         ]);
 
@@ -186,7 +186,7 @@ class FormTemplateEdit extends Component
             'item_name'        => $recipe->name,
             'uom_abbr'         => $recipe->yieldUom?->abbreviation ?? '',
             'pack_info'        => '',
-            'default_quantity' => '1',
+            'default_quantity' => '0',
         ];
 
         $this->itemSearch = '';
@@ -200,7 +200,7 @@ class FormTemplateEdit extends Component
 
     public function updateQty(int $lineId, string $qty): void
     {
-        $val = max(0.0001, floatval($qty));
+        $val = max(0, (int) $qty);
         FormTemplateLine::where('id', $lineId)->update(['default_quantity' => $val]);
 
         foreach ($this->lines as &$line) {
