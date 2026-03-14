@@ -132,17 +132,12 @@
                                 <div class="text-xs text-gray-400">{{ $ingredient->code }}</div>
                             @endif
                             @php
-                                $preferredSupplier = $ingredient->suppliers
+                                $defaultSupplier = $ingredient->suppliers
                                     ->sortByDesc(fn ($s) => $s->pivot->is_preferred)
                                     ->first();
                             @endphp
-                            @if ($preferredSupplier)
-                                <div class="text-xs text-indigo-500 mt-0.5">
-                                    🏭 {{ $preferredSupplier->name }}
-                                    @if ($preferredSupplier->pivot->is_preferred)
-                                        <span class="text-gray-400">(preferred)</span>
-                                    @endif
-                                </div>
+                            @if ($defaultSupplier)
+                                <div class="text-xs text-indigo-500 mt-0.5">{{ $defaultSupplier->name }}</div>
                             @endif
                         </td>
                         <td class="px-4 py-3">
