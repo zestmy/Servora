@@ -164,7 +164,7 @@ class OrderForm extends Component
 
             [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($tLine->ingredient_id, $this->supplier_id);
             $parLevel = $this->getParLevel($tLine->ingredient_id);
-            $qty      = (int) ceil($parLevel > 0 ? $parLevel : max(1, $tLine->default_quantity));
+            $qty      = (int) ceil($parLevel > 0 ? $parLevel : max(0, $tLine->default_quantity));
 
             $this->lines[] = [
                 'ingredient_id'   => $tLine->ingredient_id,

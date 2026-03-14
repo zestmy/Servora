@@ -119,7 +119,7 @@ class WastageForm extends Component
                     ? floatval($tLine->ingredient->current_cost)
                     : floatval($tLine->ingredient->purchase_price);
 
-                $qty = max(0.0001, $tLine->default_quantity);
+                $qty = max(0, (int) $tLine->default_quantity);
 
                 $this->lines[] = [
                     'item_type'     => 'ingredient',
@@ -140,7 +140,7 @@ class WastageForm extends Component
                 if (in_array($tLine->recipe_id, $existingRecipeIds)) continue;
 
                 $unitCost = floatval($tLine->recipe->cost_per_yield_unit);
-                $qty = max(0.0001, $tLine->default_quantity);
+                $qty = max(0, (int) $tLine->default_quantity);
 
                 $this->lines[] = [
                     'item_type'     => 'recipe',
