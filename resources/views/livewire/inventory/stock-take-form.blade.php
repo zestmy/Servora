@@ -300,7 +300,7 @@
                                         @if ($isCompleted)
                                             <span class="block text-right tabular-nums text-gray-600">{{ number_format(floatval($line['system_quantity']), 2) }}</span>
                                         @else
-                                            <input type="number" step="0.01" min="0"
+                                            <input type="number" step="0.1" min="0"
                                                    wire:model.live.debounce.400ms="lines.{{ $idx }}.system_quantity"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                         @endif
@@ -309,7 +309,7 @@
                                         @if ($isCompleted)
                                             <span class="block text-right tabular-nums font-medium text-gray-800">{{ number_format(floatval($line['actual_quantity']), 2) }}</span>
                                         @else
-                                            <input type="number" step="0.01" min="0"
+                                            <input type="number" step="0.1" min="0"
                                                    wire:model.live.debounce.400ms="lines.{{ $idx }}.actual_quantity"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 font-medium" />
                                             <x-input-error :messages="$errors->get('lines.'.$idx.'.actual_quantity')" class="mt-0.5" />

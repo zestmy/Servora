@@ -87,7 +87,7 @@
                     <div>
                         <x-input-label for="p_yield" value="Yield Quantity *" />
                         <x-text-input id="p_yield" wire:model.live="yield_quantity" type="number"
-                                      min="0.0001" step="0.01" class="mt-1 block w-full" />
+                                      min="0.1" step="0.1" class="mt-1 block w-full" />
                         <p class="mt-0.5 text-xs text-gray-400">How many portions / units this batch produces</p>
                         <x-input-error :messages="$errors->get('yield_quantity')" class="mt-1" />
                     </div>

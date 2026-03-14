@@ -220,7 +220,7 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-2">
-                                    <input type="number" step="0.01" min="0.0001"
+                                    <input type="number" step="0.1" min="0"
                                            wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
