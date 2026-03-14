@@ -41,10 +41,13 @@ class Index extends Component
     public bool   $is_active = true;
     public string $remark = '';
 
+    // Default supplier (main form)
+    public ?int   $supplier_id = null;
+
     // UOM conversions
     public array $conversions = [];
 
-    // Supplier links
+    // Additional supplier links (secondary suppliers)
     public array $supplierLinks = [];
 
     // Import
@@ -63,6 +66,7 @@ class Index extends Component
             'purchase_price'                => 'required|numeric|min:0',
             'pack_size'                     => 'required|numeric|min:0.0001',
             'yield_percent'                 => 'required|numeric|min:0.01|max:100',
+            'supplier_id'                   => 'nullable|exists:suppliers,id',
             'conversions.*.from_uom_id'       => 'required|exists:units_of_measure,id',
             'conversions.*.to_uom_id'         => 'required|exists:units_of_measure,id',
             'conversions.*.factor'            => 'required|numeric|min:0.000001',
@@ -143,15 +147,22 @@ class Index extends Component
             ])
             ->toArray();
 
-        $this->supplierLinks = $ingredient->suppliers
+        // Split suppliers: preferred/first = default, rest = additional
+        $allSuppliers = $ingredient->suppliers->sortByDesc(fn ($s) => $s->pivot->is_preferred);
+        $defaultSupplier = $allSuppliers->first();
+
+        $this->supplier_id = $defaultSupplier?->id;
+
+        $this->supplierLinks = $allSuppliers->skip(1)
             ->map(fn ($s) => [
                 'supplier_id'  => $s->id,
                 'supplier_sku' => $s->pivot->supplier_sku ?? '',
                 'last_cost'    => (string) ($s->pivot->last_cost ?? ''),
                 'uom_id'       => $s->pivot->uom_id,
                 'pack_size'    => (string) ($s->pivot->pack_size ?? '1'),
-                'is_preferred' => (bool) $s->pivot->is_preferred,
+                'is_preferred' => false,
             ])
+            ->values()
             ->toArray();
 
         $this->showModal = true;
@@ -190,6 +201,7 @@ class Index extends Component
         } else {
             $data['company_id'] = Auth::user()->company_id;
             $ingredient = Ingredient::create($data);
+            $this->saveSupplierLinks($ingredient);
             session()->flash('success', 'Ingredient created.');
         }
 
@@ -239,9 +251,9 @@ class Index extends Component
         $this->supplierLinks[] = [
             'supplier_id'  => null,
             'supplier_sku' => '',
-            'last_cost'    => '',
-            'uom_id'       => null,
-            'pack_size'    => '1',
+            'last_cost'    => $this->purchase_price,
+            'uom_id'       => $this->base_uom_id,
+            'pack_size'    => $this->pack_size,
             'is_preferred' => false,
         ];
     }
@@ -502,6 +514,7 @@ class Index extends Component
         $this->yield_percent          = '100';
         $this->is_active              = true;
         $this->remark                 = '';
+        $this->supplier_id            = null;
         $this->conversions            = [];
         $this->supplierLinks          = [];
         $this->resetValidation();
@@ -511,13 +524,28 @@ class Index extends Component
     {
         $ingredient->suppliers()->detach();
 
+        // Save default supplier (from main form) as preferred
+        if ($this->supplier_id) {
+            $ingredient->suppliers()->attach($this->supplier_id, [
+                'supplier_sku' => null,
+                'last_cost'    => floatval($this->purchase_price) > 0 ? $this->purchase_price : null,
+                'uom_id'       => $this->base_uom_id,
+                'pack_size'    => max(floatval($this->pack_size), 0.0001),
+                'is_preferred' => true,
+            ]);
+        }
+
+        // Save additional suppliers
         foreach ($this->supplierLinks as $link) {
+            // Skip if same as default supplier
+            if ((int) $link['supplier_id'] === (int) $this->supplier_id) continue;
+
             $ingredient->suppliers()->attach($link['supplier_id'], [
                 'supplier_sku' => $link['supplier_sku'] ?: null,
                 'last_cost'    => $link['last_cost'] !== '' ? $link['last_cost'] : null,
                 'uom_id'       => $link['uom_id'],
                 'pack_size'    => floatval($link['pack_size'] ?? 1) ?: 1,
-                'is_preferred' => (bool) ($link['is_preferred'] ?? false),
+                'is_preferred' => false,
             ]);
         }
     }

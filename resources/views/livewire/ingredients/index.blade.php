@@ -385,10 +385,23 @@
                         </div>
                     </div>
 
-                    {{-- Remark --}}
-                    <div>
-                        <x-input-label for="remark" value="Remark" />
-                        <x-text-input id="remark" wire:model="remark" type="text" class="mt-1 block w-full" placeholder="Optional note or remark" />
+                    {{-- Remark + Supplier --}}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="remark" value="Remark" />
+                            <x-text-input id="remark" wire:model="remark" type="text" class="mt-1 block w-full" placeholder="Optional note or remark" />
+                        </div>
+                        <div>
+                            <x-input-label for="default_supplier" value="Default Supplier" />
+                            <select id="default_supplier" wire:model="supplier_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">— No Supplier —</option>
+                                @foreach ($suppliers as $sup)
+                                    <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                                @endforeach
+                            </select>
+                            <p class="mt-0.5 text-xs text-gray-400">Uses this ingredient's price, UOM &amp; pack size</p>
+                        </div>
                     </div>
 
                     {{-- Cost Chain Summary --}}
@@ -575,27 +588,28 @@
                                 </p>
                             @endif
                         </div>
+                    @endif
 
-                        {{-- Supplier Links (edit mode only) --}}
-                        <div class="border-t border-gray-100 pt-4">
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <h4 class="text-sm font-semibold text-gray-700">Suppliers</h4>
-                                    <p class="text-xs text-gray-400 mt-0.5">Link suppliers and their quoted prices</p>
-                                </div>
-                                <button type="button" wire:click="addSupplierRow"
-                                        class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition">
-                                    + Add Supplier
-                                </button>
+                    {{-- Additional Suppliers --}}
+                    <div class="border-t border-gray-100 pt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700">Additional Suppliers</h4>
+                                <p class="text-xs text-gray-400 mt-0.5">Add secondary suppliers with different pricing</p>
                             </div>
+                            <button type="button" wire:click="addSupplierRow"
+                                    class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition">
+                                + Add Supplier
+                            </button>
+                        </div>
 
-                            @if (count($supplierLinks))
+                        @if (count($supplierLinks))
                                 <div class="space-y-2">
                                     @foreach ($supplierLinks as $idx => $link)
                                         <div class="bg-gray-50 rounded-lg p-2 space-y-2">
                                             <div class="grid grid-cols-12 gap-2 items-start">
-                                                {{-- Supplier select (spans 4 cols) --}}
-                                                <div class="col-span-4">
+                                                {{-- Supplier select (spans 5 cols) --}}
+                                                <div class="col-span-5">
                                                     <select wire:model="supplierLinks.{{ $idx }}.supplier_id"
                                                             class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
                                                         <option value="">— supplier —</option>
@@ -631,14 +645,8 @@
                                                     </select>
                                                     <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.uom_id')" class="mt-0.5" />
                                                 </div>
-                                                {{-- Preferred + Remove (spans 2 cols) --}}
-                                                <div class="col-span-2 flex items-center justify-between pt-1">
-                                                    <label class="flex items-center gap-1 cursor-pointer" title="Preferred supplier">
-                                                        <input type="checkbox"
-                                                               wire:model="supplierLinks.{{ $idx }}.is_preferred"
-                                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                                                        <span class="text-xs text-gray-500">Pref.</span>
-                                                    </label>
+                                                {{-- Remove (spans 1 col) --}}
+                                                <div class="col-span-1 flex items-center justify-center pt-1">
                                                     <button type="button" wire:click="removeSupplierRow({{ $idx }})"
                                                             class="text-red-400 hover:text-red-600 transition">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -660,14 +668,12 @@
                                         </div>
                                     @endforeach
                                 </div>
-                                <p class="text-xs text-gray-400 mt-2">Mark one supplier as <strong>Pref.</strong> to show it in the ingredient list.</p>
                             @else
                                 <p class="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
-                                    No suppliers linked yet.
+                                    No additional suppliers. Use "+ Add Supplier" for secondary sources with different pricing.
                                 </p>
-                            @endif
-                        </div>
-                    @endif
+                        @endif
+                    </div>
 
                 </div>
 
