@@ -78,6 +78,51 @@
                     </div>
                 </div>
 
+                @if ($form_type === 'purchase_order')
+                    <div class="pt-3 border-t border-gray-100 space-y-4">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Order Defaults</h4>
+                        <p class="text-xs text-gray-400 -mt-2">Pre-fill these fields when this template is loaded on a new PO.</p>
+
+                        <div>
+                            <x-input-label value="Supplier" />
+                            <select wire:model="supplier_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">— None —</option>
+                                @foreach ($suppliers as $s)
+                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <x-input-label value="Cost Center" />
+                            <select wire:model="ingredient_category_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">— None —</option>
+                                @foreach ($costCenters as $cc)
+                                    <option value="{{ $cc->id }}">{{ $cc->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <x-input-label value="Receiver Name" />
+                            <x-text-input wire:model="receiver_name" type="text" class="mt-1 block w-full" placeholder="Person receiving delivery" />
+                        </div>
+
+                        <div>
+                            <x-input-label value="Department" />
+                            <select wire:model="department_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">— None —</option>
+                                @foreach ($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="pt-2">
                     <button wire:click="saveHeader"
                             class="w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">

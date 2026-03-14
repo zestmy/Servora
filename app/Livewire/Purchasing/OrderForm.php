@@ -49,7 +49,7 @@ class OrderForm extends Component
             'department_id'          => 'nullable|exists:departments,id',
             'lines'                  => 'required|array|min:1',
             'lines.*.ingredient_id'  => 'required|exists:ingredients,id',
-            'lines.*.quantity'       => 'required|numeric|min:0.0001',
+            'lines.*.quantity'       => 'required|numeric|min:1',
             'lines.*.uom_id'         => 'required|exists:units_of_measure,id',
             'lines.*.unit_cost'      => 'required|numeric|min:0',
         ];
@@ -141,6 +141,20 @@ class OrderForm extends Component
             return;
         }
 
+        // Pre-fill header fields from template (only if not already set)
+        if (! $this->supplier_id && $template->supplier_id) {
+            $this->supplier_id = $template->supplier_id;
+        }
+        if (! $this->ingredient_category_id && $template->ingredient_category_id) {
+            $this->ingredient_category_id = $template->ingredient_category_id;
+        }
+        if (! $this->receiver_name && $template->receiver_name) {
+            $this->receiver_name = $template->receiver_name;
+        }
+        if (! $this->department_id && $template->department_id) {
+            $this->department_id = $template->department_id;
+        }
+
         $existing = collect($this->lines)->pluck('ingredient_id')->map(fn ($id) => (int) $id)->toArray();
         $added = 0;
 
@@ -150,7 +164,7 @@ class OrderForm extends Component
 
             [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($tLine->ingredient_id, $this->supplier_id);
             $parLevel = $this->getParLevel($tLine->ingredient_id);
-            $qty      = $parLevel > 0 ? $parLevel : max(0.001, $tLine->default_quantity);
+            $qty      = (int) ceil($parLevel > 0 ? $parLevel : max(1, $tLine->default_quantity));
 
             $this->lines[] = [
                 'ingredient_id'   => $tLine->ingredient_id,
@@ -196,7 +210,7 @@ class OrderForm extends Component
         $this->lines[] = [
             'ingredient_id'   => $ingredientId,
             'ingredient_name' => $ingredient->name,
-            'quantity'        => $parLevel > 0 ? (string) $parLevel : '1',
+            'quantity'        => $parLevel > 0 ? (string) (int) ceil($parLevel) : '1',
             'uom_id'          => $supplierUomId,
             'unit_cost'       => (string) $unitCost,
             'total_cost'      => $parLevel > 0 ? round($parLevel * $unitCost, 4) : $unitCost,
@@ -227,7 +241,7 @@ class OrderForm extends Component
             $parLevel = floatval($this->lines[$idx]['par_level'] ?? 0);
             $balance = floatval($value);
             if ($parLevel > 0) {
-                $orderQty = max(0, $parLevel - $balance);
+                $orderQty = (int) ceil(max(0, $parLevel - $balance));
                 $this->lines[$idx]['quantity'] = (string) $orderQty;
             }
             $this->recalcLine($idx);

@@ -2,10 +2,13 @@
 
 namespace App\Livewire\Settings;
 
+use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\FormTemplateLine;
 use App\Models\Ingredient;
+use App\Models\IngredientCategory;
 use App\Models\Recipe;
+use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
 use Livewire\Component;
 
@@ -17,6 +20,12 @@ class FormTemplateEdit extends Component
     public string $description = '';
     public bool   $is_active   = true;
     public string $sort_order  = '0';
+
+    // PO header defaults
+    public ?int   $supplier_id            = null;
+    public ?int   $ingredient_category_id = null;
+    public string $receiver_name          = '';
+    public ?int   $department_id          = null;
 
     // Lines loaded from DB (keyed by line ID for easy update/remove)
     public array  $lines       = [];
@@ -41,6 +50,12 @@ class FormTemplateEdit extends Component
         $this->description = $template->description ?? '';
         $this->is_active   = $template->is_active;
         $this->sort_order  = (string) $template->sort_order;
+
+        // PO header defaults
+        $this->supplier_id            = $template->supplier_id;
+        $this->ingredient_category_id = $template->ingredient_category_id;
+        $this->receiver_name          = $template->receiver_name ?? '';
+        $this->department_id          = $template->department_id;
 
         $this->lines = $template->lines->map(function ($l) {
             $packInfo = '';
@@ -79,12 +94,21 @@ class FormTemplateEdit extends Component
             'sort_order'=> 'required|integer|min:0|max:9999',
         ]);
 
-        FormTemplate::findOrFail($this->templateId)->update([
+        $data = [
             'name'        => $this->name,
             'description' => $this->description ?: null,
             'is_active'   => $this->is_active,
             'sort_order'  => (int) $this->sort_order,
-        ]);
+        ];
+
+        if ($this->form_type === 'purchase_order') {
+            $data['supplier_id']            = $this->supplier_id ?: null;
+            $data['ingredient_category_id'] = $this->ingredient_category_id ?: null;
+            $data['receiver_name']          = $this->receiver_name ?: null;
+            $data['department_id']          = $this->department_id ?: null;
+        }
+
+        FormTemplate::findOrFail($this->templateId)->update($data);
 
         session()->flash('success', 'Template details saved.');
     }
@@ -231,7 +255,11 @@ class FormTemplateEdit extends Component
             }
         }
 
-        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults'))
+        $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
+        $costCenters = IngredientCategory::roots()->active()->ordered()->get();
+        $departments = Department::active()->ordered()->get();
+
+        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'costCenters', 'departments'))
             ->layout('layouts.app', ['title' => 'Edit Template: ' . $this->name]);
     }
 }

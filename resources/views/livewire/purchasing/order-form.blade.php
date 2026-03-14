@@ -321,12 +321,12 @@
                                 @endif
                                 <td class="px-4 py-2">
                                     @if ($isEditable)
-                                        <input type="number" step="0.001" min="0.001"
+                                        <input type="number" step="1" min="1"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                         <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                     @else
-                                        <p class="text-right tabular-nums text-gray-700">{{ $line['quantity'] }}</p>
+                                        <p class="text-right tabular-nums text-gray-700">{{ rtrim(rtrim(number_format(floatval($line['quantity']), 4), '0'), '.') }}</p>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2">

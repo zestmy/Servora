@@ -14,7 +14,7 @@ class FormTemplate extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['company_id', 'name', 'form_type', 'description', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'name', 'form_type', 'description', 'sort_order', 'is_active', 'supplier_id', 'ingredient_category_id', 'receiver_name', 'department_id'];
 
     protected $casts = [
         'is_active'  => 'boolean',
