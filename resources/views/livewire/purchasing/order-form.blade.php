@@ -73,31 +73,17 @@
                     </p>
                 </div>
 
-                {{-- Supplier + Cost Center --}}
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <x-input-label for="po_supplier" value="Supplier *" />
-                        <select id="po_supplier" wire:model.live="supplier_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">— Select Supplier —</option>
-                            @foreach ($suppliers as $s)
-                                <option value="{{ $s->id }}">{{ $s->name }}</option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('supplier_id')" class="mt-1" />
-                    </div>
-                    <div>
-                        <x-input-label for="po_cost_center" value="Cost Center" />
-                        <select id="po_cost_center" wire:model="ingredient_category_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">— No Cost Center —</option>
-                            @foreach ($costCenters as $cc)
-                                <option value="{{ $cc->id }}">{{ $cc->name }}</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-0.5 text-xs text-gray-400">Used for food cost % reporting.</p>
-                        <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
-                    </div>
+                {{-- Supplier --}}
+                <div>
+                    <x-input-label for="po_supplier" value="Supplier *" />
+                    <select id="po_supplier" wire:model.live="supplier_id"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">— Select Supplier —</option>
+                        @foreach ($suppliers as $s)
+                            <option value="{{ $s->id }}">{{ $s->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('supplier_id')" class="mt-1" />
                 </div>
 
                 {{-- Order Date | Expected Delivery --}}

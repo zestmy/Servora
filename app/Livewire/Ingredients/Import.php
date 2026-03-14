@@ -103,11 +103,11 @@ class Import extends Component
             }
             $recipeUomId = $recipeUomId ?? $baseUomId;
 
-            // Cost Center (main category only)
-            $catKey = strtolower(trim($raw['cost_center'] ?? ''));
+            // Category (main category only)
+            $catKey = strtolower(trim($raw['category'] ?? ''));
             $catId  = $catKey ? ($catsByName[$catKey] ?? null) : null;
             if ($catKey && ! $catId) {
-                $rowErrors[] = 'Cost Center "' . $raw['cost_center'] . '" not found';
+                $rowErrors[] = 'Category "' . $raw['category'] . '" not found';
             }
 
             // Numeric fields
@@ -129,7 +129,7 @@ class Import extends Component
                 'row'                    => $rowNum,
                 'name'                   => $name,
                 'code'                   => trim($raw['code'] ?? '') ?: null,
-                'cost_center_label'      => $raw['cost_center'] ?? '',
+                'category_label'      => $raw['category'] ?? '',
                 'ingredient_category_id' => $catId,
                 'base_uom_label'         => $raw['base_uom'] ?? '',
                 'base_uom_id'            => $baseUomId,
@@ -203,7 +203,7 @@ class Import extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['name', 'code', 'cost_center', 'base_uom', 'recipe_uom', 'purchase_price', 'pack_size', 'yield_percent', 'is_active'];
+        $headers = ['name', 'code', 'category', 'base_uom', 'recipe_uom', 'purchase_price', 'pack_size', 'yield_percent', 'is_active'];
         $sample  = [
             ['Chicken Breast', 'CHK-001', 'Food', 'kg', 'g', '12.50', '1', '80', 'yes'],
             ['Apple Crumble', 'ACR-001', 'Food', 'kg', 'gm', '42.69', '1.2', '100', 'yes'],

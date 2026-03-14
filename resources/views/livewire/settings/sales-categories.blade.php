@@ -35,19 +35,18 @@
                 <p class="font-semibold text-gray-800">How they connect to P&amp;L:</p>
                 <ol class="list-decimal list-inside space-y-1 ml-1">
                     <li><strong>Cost Type</strong> &mdash; The broadest classification (Food, Beverage, etc.). Set in <a href="{{ route('settings.cost-types') }}" class="text-indigo-600 underline">Cost Types</a>.</li>
-                    <li><strong>Cost Center</strong> &mdash; Ingredient categories marked as revenue. Set in <a href="{{ route('settings.categories') }}" class="text-indigo-600 underline">Ingredient Categories</a>.</li>
-                    <li><strong>Sales Category</strong> (this page) &mdash; Maps to a Cost Center so revenue flows into the correct P&amp;L line.</li>
+                    <li><strong>Department</strong> &mdash; Operational units (Kitchen, Bar, etc.) mapped to a sales category. Set in <a href="{{ route('settings.departments') }}" class="text-indigo-600 underline">Departments</a>.</li>
+                    <li><strong>Sales Category</strong> (this page) &mdash; Departments map to a sales category so costs flow into the correct P&amp;L line alongside revenue.</li>
                 </ol>
             </div>
             <div class="space-y-1.5">
                 <p class="font-semibold text-gray-800">Key fields:</p>
                 <ul class="list-disc list-inside space-y-1 ml-1">
                     <li><strong>Type</strong> &mdash; Which cost type this category belongs to.</li>
-                    <li><strong>Cost Center (for P&amp;L)</strong> &mdash; Links this sales category to a revenue cost center. Revenue recorded under this sales category will appear under the linked cost center in your P&amp;L report.</li>
                     <li><strong>Sort Order</strong> &mdash; Controls display order in the sales entry form (lower = first).</li>
                 </ul>
             </div>
-            <p class="text-xs text-gray-500">Tip: Set up Cost Types first, then Cost Centers, then Sales Categories.</p>
+            <p class="text-xs text-gray-500">Tip: Set up Cost Types first, then Departments (mapped to sales categories), then Sales Categories.</p>
         </div>
     </div>
 
@@ -58,7 +57,6 @@
                 <tr>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-left">Type</th>
-                    <th class="px-4 py-3 text-left">Cost Center</th>
                     <th class="px-4 py-3 text-center">Sort</th>
                     <th class="px-4 py-3 text-center">Lines Used</th>
                     <th class="px-4 py-3 text-center">Status</th>
@@ -75,7 +73,6 @@
                             </div>
                         </td>
                         <td class="px-4 py-3 text-gray-500 capitalize">{{ $typeOptions[$cat->type] ?? $cat->type }}</td>
-                        <td class="px-4 py-3 text-gray-500 text-xs">{{ $cat->ingredientCategory?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-center text-gray-500">{{ $cat->sort_order }}</td>
                         <td class="px-4 py-3 text-center text-gray-700 font-medium">
                             {{ $lineCounts[$cat->id] ?? 0 }}
@@ -130,7 +127,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🏷️</div>
                             <p class="font-medium">No sales categories yet</p>
                             <p class="text-xs mt-1">Create categories like Food, Beverage, Merchandise to classify your sales.</p>
@@ -181,20 +178,6 @@
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('type')" class="mt-1" />
-                    </div>
-
-                    {{-- Cost Center mapping --}}
-                    <div>
-                        <x-input-label for="scat_cc" value="Cost Center (for P&L)" />
-                        <select id="scat_cc" wire:model="ingredient_category_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                            <option value="">— None —</option>
-                            @foreach ($costCenters as $cc)
-                                <option value="{{ $cc->id }}">{{ $cc->name }}</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-0.5 text-xs text-gray-400">Maps this sales category to a cost center for revenue reporting.</p>
-                        <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
                     </div>
 
                     {{-- Color Picker --}}

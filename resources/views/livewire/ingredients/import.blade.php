@@ -59,7 +59,7 @@
                     <tbody class="divide-y divide-gray-50 text-gray-600">
                         <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Ingredient name</td><td class="px-3 py-2 font-mono">Chicken Breast</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">code</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Internal code / SKU</td><td class="px-3 py-2 font-mono">CHK-001</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">cost_center</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Main category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Main category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">base_uom</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Purchasing unit (abbreviation or name)</td><td class="px-3 py-2 font-mono">kg</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">recipe_uom</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Recipe unit (defaults to base UOM)</td><td class="px-3 py-2 font-mono">g</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">purchase_price</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Price per pack (default: 0)</td><td class="px-3 py-2 font-mono">42.69</td></tr>
@@ -148,7 +148,7 @@
                             <th class="px-3 py-2 text-left w-10">#</th>
                             <th class="px-3 py-2 text-left">Name</th>
                             <th class="px-3 py-2 text-left w-24">Code</th>
-                            <th class="px-3 py-2 text-left w-28">Cost Center</th>
+                            <th class="px-3 py-2 text-left w-28">Category</th>
                             <th class="px-3 py-2 text-left w-20">Base UOM</th>
                             <th class="px-3 py-2 text-left w-20">Recipe UOM</th>
                             <th class="px-3 py-2 text-right w-24">Price (RM)</th>
@@ -166,7 +166,7 @@
                                     {{ $row['name'] ?: '—' }}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 font-mono">{{ $row['code'] ?? '—' }}</td>
-                                <td class="px-3 py-2 text-gray-600">{{ $row['cost_center_label'] ?: '—' }}</td>
+                                <td class="px-3 py-2 text-gray-600">{{ $row['category_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-gray-600 font-mono">{{ $row['base_uom_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-gray-600 font-mono">{{ $row['recipe_uom_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-right tabular-nums text-gray-700">

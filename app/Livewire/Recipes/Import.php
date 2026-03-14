@@ -93,11 +93,11 @@ class Import extends Component
                 $rowErrors[] = 'Yield UOM "' . $raw['yield_uom'] . '" not found';
             }
 
-            // Cost Center
-            $catKey = strtolower(trim($raw['cost_center'] ?? ''));
+            // Category
+            $catKey = strtolower(trim($raw['category'] ?? ''));
             $catId  = $catKey ? ($catsByName[$catKey] ?? null) : null;
             if ($catKey && ! $catId) {
-                $rowErrors[] = 'Cost Center "' . $raw['cost_center'] . '" not found';
+                $rowErrors[] = 'Category "' . $raw['category'] . '" not found';
             }
 
             // Numerics
@@ -120,7 +120,7 @@ class Import extends Component
                 'yield_uom_label'        => $raw['yield_uom'] ?? '',
                 'yield_uom_id'           => $yieldUomId,
                 'selling_price'          => $sellingPrice,
-                'cost_center_label'      => $raw['cost_center'] ?? '',
+                'category_label'      => $raw['category'] ?? '',
                 'ingredient_category_id' => $catId,
                 'is_active'              => $isActive,
                 'errors'                 => $rowErrors,
@@ -181,7 +181,7 @@ class Import extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['name', 'code', 'description', 'yield_quantity', 'yield_uom', 'selling_price', 'cost_center', 'is_active'];
+        $headers = ['name', 'code', 'description', 'yield_quantity', 'yield_uom', 'selling_price', 'category', 'is_active'];
         $sample  = [
             ['Nasi Lemak', 'NL-001', 'Classic coconut rice set', '1', 'portion', '12.90', 'Food', 'yes'],
             ['Teh Tarik', 'TT-001', 'Pulled milk tea', '1', 'cup', '3.50', 'Beverage', 'yes'],

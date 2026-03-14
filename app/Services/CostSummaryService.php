@@ -3,15 +3,9 @@
 namespace App\Services;
 
 use App\Models\Department;
-use App\Models\Ingredient;
-use App\Models\IngredientCategory;
-use App\Models\OutletTransfer;
 use App\Models\OutletTransferLine;
 use App\Models\PurchaseRecord;
-use App\Models\PurchaseRecordLine;
-use App\Models\Recipe;
 use App\Models\SalesCategory;
-use App\Models\SalesRecord;
 use App\Models\SalesRecordLine;
 use App\Models\StockTake;
 use App\Models\StockTakeLine;
@@ -76,43 +70,9 @@ class CostSummaryService
             $closingByDept = $this->getStockValuesByDepartment($period, $outletId, 'closing');
         }
 
-        // ── Transfers (still by ingredient category for now — cross-dept transfers are rare) ──
-        $transferInByCategory = $this->getTransfers($from, $to, $outletId, 'in');
-        $transferOutByCategory = $this->getTransfers($from, $to, $outletId, 'out');
-
-        // ── Also keep legacy ingredient-category-based purchases for fallback ──
-        $purchasesByCategory = $this->getPurchasesByIngredientCategory($from, $to, $outletId);
-        $openingByCategory = $isCustomRange ? collect() : $this->getStockValuesByCategory($period, $outletId, 'opening');
-        $closingByCategory = $isCustomRange ? collect() : $this->getStockValuesByCategory($period, $outletId, 'closing');
-
-        // ── Get ALL active root categories (for fallback/legacy mapping) ──
-        $allRootCategories = IngredientCategory::roots()
-            ->active()
-            ->ordered()
-            ->with('children')
-            ->get();
-
-        $revenueCategoryGroups = [];
-        $nonRevenueCategoryGroups = [];
-
-        foreach ($allRootCategories as $root) {
-            $ids = collect([$root->id]);
-            foreach ($root->children as $child) {
-                $ids->push($child->id);
-            }
-            $group = [
-                'name'  => $root->name,
-                'color' => $root->color,
-                'type'  => $root->type,
-                'ids'   => $ids->toArray(),
-            ];
-
-            if ($root->is_revenue) {
-                $revenueCategoryGroups[$root->id] = $group;
-            } else {
-                $nonRevenueCategoryGroups[$root->id] = $group;
-            }
-        }
+        // ── Transfers (by department) ──
+        $transferInByDept = $this->getTransfersByDepartment($from, $to, $outletId, 'in');
+        $transferOutByDept = $this->getTransfersByDepartment($from, $to, $outletId, 'out');
 
         // ── Build per-sales-category summary rows ──
         $categories = [];
@@ -153,25 +113,12 @@ class CostSummaryService
                 $closing += (float) ($closingByDept[$deptId] ?? 0);
             }
 
-            // Fallback: if no departments mapped, use ingredient_category_id from sales category
-            if (empty($deptIds) && $sc->ingredient_category_id) {
-                $catGroup = $revenueCategoryGroups[$sc->ingredient_category_id] ?? null;
-                if ($catGroup) {
-                    $purchases += $this->sumForIds($purchasesByCategory, $catGroup['ids']);
-                    $opening += $this->sumForIds($openingByCategory, $catGroup['ids']);
-                    $closing += $this->sumForIds($closingByCategory, $catGroup['ids']);
-                }
-            }
-
-            // Transfers (still by ingredient category via sales category mapping)
+            // Transfers (by department → sales category)
             $transferIn = 0;
             $transferOut = 0;
-            if ($sc->ingredient_category_id) {
-                $catGroup = $revenueCategoryGroups[$sc->ingredient_category_id] ?? null;
-                if ($catGroup) {
-                    $transferIn = $this->sumForIds($transferInByCategory, $catGroup['ids']);
-                    $transferOut = $this->sumForIds($transferOutByCategory, $catGroup['ids']);
-                }
+            foreach ($deptIds as $deptId) {
+                $transferIn += (float) ($transferInByDept[$deptId] ?? 0);
+                $transferOut += (float) ($transferOutByDept[$deptId] ?? 0);
             }
 
             $cogs = $opening + $purchases + $transferIn - $transferOut - $closing;
@@ -224,16 +171,14 @@ class CostSummaryService
             }
         }
 
-        // Also roll in non-revenue ingredient category costs (legacy)
-        foreach ($nonRevenueCategoryGroups as $group) {
-            $ids = $group['ids'];
-            $nonRevenuePurchases += $this->sumForIds($purchasesByCategory, $ids);
-            $nonRevenueOpening += $this->sumForIds($openingByCategory, $ids);
-            $nonRevenueClosing += $this->sumForIds($closingByCategory, $ids);
-        }
+        // Roll in unassigned transfers (dept 0)
+        $nonRevenueTransferIn = (float) ($transferInByDept[0] ?? 0);
+        $nonRevenueTransferOut = (float) ($transferOutByDept[0] ?? 0);
 
-        $nonRevenueCogs = $nonRevenueOpening + $nonRevenuePurchases - $nonRevenueClosing;
+        $nonRevenueCogs = $nonRevenueOpening + $nonRevenuePurchases + $nonRevenueTransferIn - $nonRevenueTransferOut - $nonRevenueClosing;
         $totals['purchases']     += round($nonRevenuePurchases, 2);
+        $totals['transfer_in']   += round($nonRevenueTransferIn, 2);
+        $totals['transfer_out']  += round($nonRevenueTransferOut, 2);
         $totals['opening_stock'] += round($nonRevenueOpening, 2);
         $totals['closing_stock'] += round($nonRevenueClosing, 2);
         $totals['cogs']          += round($nonRevenueCogs, 2);
@@ -295,24 +240,6 @@ class CostSummaryService
             ->selectRaw('COALESCE(department_id, 0) as dept_id, SUM(total_amount) as total')
             ->groupBy('dept_id')
             ->pluck('total', 'dept_id');
-    }
-
-    private function getPurchasesByIngredientCategory(Carbon $from, Carbon $to, ?int $outletId): Collection
-    {
-        $query = PurchaseRecordLine::query()
-            ->join('purchase_records', 'purchase_records.id', '=', 'purchase_record_lines.purchase_record_id')
-            ->join('ingredients', 'ingredients.id', '=', 'purchase_record_lines.ingredient_id')
-            ->whereBetween('purchase_records.purchase_date', [$from, $to])
-            ->whereNull('purchase_records.deleted_at');
-
-        if ($outletId) {
-            $query->where('purchase_records.outlet_id', $outletId);
-        }
-
-        return $query
-            ->selectRaw('ingredients.ingredient_category_id as cat_id, SUM(purchase_record_lines.total_cost) as total')
-            ->groupBy('cat_id')
-            ->pluck('total', 'cat_id');
     }
 
     private function getWastageTotalCost(Carbon $from, Carbon $to, ?int $outletId): float
@@ -435,7 +362,12 @@ class CostSummaryService
         ];
     }
 
-    private function getTransfers(Carbon $from, Carbon $to, ?int $outletId, string $direction): Collection
+    /**
+     * Transfers grouped by department.
+     * Outlet transfers don't carry department_id, so the total is keyed under 0 (unassigned).
+     * It will roll into non-revenue totals unless specifically distributed later.
+     */
+    private function getTransfersByDepartment(Carbon $from, Carbon $to, ?int $outletId, string $direction): Collection
     {
         if (! $outletId) {
             return collect();
@@ -443,7 +375,6 @@ class CostSummaryService
 
         $query = OutletTransferLine::query()
             ->join('outlet_transfers', 'outlet_transfers.id', '=', 'outlet_transfer_lines.outlet_transfer_id')
-            ->join('ingredients', 'ingredients.id', '=', 'outlet_transfer_lines.ingredient_id')
             ->whereBetween('outlet_transfers.transfer_date', [$from, $to])
             ->whereNull('outlet_transfers.deleted_at')
             ->where('outlet_transfers.status', 'received');
@@ -454,10 +385,10 @@ class CostSummaryService
             $query->where('outlet_transfers.from_outlet_id', $outletId);
         }
 
-        return $query
-            ->selectRaw('ingredients.ingredient_category_id as cat_id, SUM(outlet_transfer_lines.quantity * outlet_transfer_lines.unit_cost) as total')
-            ->groupBy('cat_id')
-            ->pluck('total', 'cat_id');
+        $total = (float) $query->selectRaw('SUM(outlet_transfer_lines.quantity * outlet_transfer_lines.unit_cost) as total')
+            ->value('total');
+
+        return $total > 0 ? collect([0 => $total]) : collect();
     }
 
     private function getStockValuesByDepartment(string $period, ?int $outletId, string $type): Collection
@@ -494,45 +425,4 @@ class CostSummaryService
         return $result;
     }
 
-    private function getStockValuesByCategory(string $period, ?int $outletId, string $type): Collection
-    {
-        if ($type === 'opening') {
-            $targetPeriod = Carbon::createFromFormat('Y-m', $period)->subMonth()->format('Y-m');
-        } else {
-            $targetPeriod = $period;
-        }
-
-        $targetDate = Carbon::createFromFormat('Y-m', $targetPeriod);
-
-        $stQuery = StockTake::query()
-            ->where('status', 'completed')
-            ->whereYear('stock_take_date', $targetDate->year)
-            ->whereMonth('stock_take_date', $targetDate->month);
-
-        if ($outletId) {
-            $stQuery->where('outlet_id', $outletId);
-        }
-
-        $stockTakeIds = $stQuery->pluck('id');
-
-        if ($stockTakeIds->isEmpty()) {
-            return collect();
-        }
-
-        return StockTakeLine::query()
-            ->whereIn('stock_take_id', $stockTakeIds)
-            ->join('ingredients', 'ingredients.id', '=', 'stock_take_lines.ingredient_id')
-            ->selectRaw('ingredients.ingredient_category_id as cat_id, SUM(stock_take_lines.actual_quantity * stock_take_lines.unit_cost) as total')
-            ->groupBy('cat_id')
-            ->pluck('total', 'cat_id');
-    }
-
-    private function sumForIds(Collection $data, array $ids): float
-    {
-        $sum = 0;
-        foreach ($ids as $id) {
-            $sum += (float) ($data[$id] ?? 0);
-        }
-        return $sum;
-    }
 }

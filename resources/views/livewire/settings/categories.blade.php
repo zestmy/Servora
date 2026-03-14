@@ -35,7 +35,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span x-text="open ? 'Hide Guide' : 'How Cost Centers Work'"></span>
+            <span x-text="open ? 'Hide Guide' : 'How Ingredient Categories Work'"></span>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -43,8 +43,8 @@
 
         <div x-show="open" x-cloak class="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm text-blue-900 space-y-3">
             <div>
-                <h4 class="font-bold text-blue-800 mb-1">What are Cost Centers (Ingredient Categories)?</h4>
-                <p>Each main category is a <strong>cost center</strong> that groups ingredients for purchasing, stock takes, and the Monthly Cost Summary (P&amp;L).</p>
+                <h4 class="font-bold text-blue-800 mb-1">Ingredient Categories</h4>
+                <p>Categories group your ingredients for organisation, filtering, and reporting. Costs flow to the P&amp;L via <strong>Departments</strong> mapped to <strong>Sales Categories</strong>.</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -52,7 +52,6 @@
                     <p class="font-bold text-blue-800 mb-1">Main Category Settings</p>
                     <ul class="space-y-1 text-blue-700">
                         <li><strong>Cost Type</strong> &mdash; Links to a type (Food, Beverage, etc.) defined in <a href="{{ route('settings.cost-types') }}" class="underline">Settings &rarr; Cost Types</a></li>
-                        <li><strong>Revenue</strong> &mdash; If enabled, this category appears as a row in the P&amp;L report. Non-revenue categories (e.g. Packaging) still contribute to total COGS</li>
                         <li><strong>Color</strong> &mdash; Visual identifier used in charts and reports</li>
                         <li><strong>Sort Order</strong> &mdash; Controls display order (lower = first)</li>
                     </ul>
@@ -62,15 +61,13 @@
                     <ul class="space-y-1 text-blue-700">
                         <li>Organise ingredients within a main category (e.g. Food &rarr; Proteins, Produce, Dairy)</li>
                         <li>Inherit the cost type from parent &mdash; no separate type needed</li>
-                        <li>Items under sub-categories roll up to the parent for P&amp;L</li>
                     </ul>
                 </div>
             </div>
 
             <p class="text-xs text-blue-600">
-                <strong>Setup order:</strong> <a href="{{ route('settings.cost-types') }}" class="underline">Cost Types</a> &rarr;
-                Cost Centers (this page) &rarr;
-                <a href="{{ route('settings.sales-categories') }}" class="underline">Sales Categories</a> (map each to a cost center for revenue)
+                <strong>P&amp;L cost chain:</strong> <a href="{{ route('settings.departments') }}" class="underline">Departments</a> &rarr;
+                <a href="{{ route('settings.sales-categories') }}" class="underline">Sales Categories</a> &rarr; P&amp;L report
             </p>
         </div>
     </div>
@@ -84,7 +81,6 @@
                     <th class="px-4 py-3 text-center">Cost Type</th>
                     <th class="px-4 py-3 text-center">Sub-cats</th>
                     <th class="px-4 py-3 text-center">Items</th>
-                    <th class="px-4 py-3 text-center">In Sales</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
@@ -137,14 +133,6 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center text-gray-700 font-medium">{{ $totalItems }}</td>
-                        <td class="px-4 py-3 text-center">
-                            <button wire:click="toggleRevenue({{ $cat->id }})"
-                                    title="{{ $cat->is_revenue ? 'Shown in Sales form — click to hide' : 'Hidden from Sales form — click to show' }}"
-                                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium transition
-                                           {{ $cat->is_revenue ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200' }}">
-                                {{ $cat->is_revenue ? '✓ Revenue' : '✗ Hidden' }}
-                            </button>
-                        </td>
                         <td class="px-4 py-3 text-center">
                             @if ($cat->is_active)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
@@ -201,9 +189,6 @@
                                 <td class="px-4 py-2.5 text-center text-gray-300">—</td>
                                 <td class="px-4 py-2.5 text-center text-gray-600">{{ $subItems }}</td>
                                 <td class="px-4 py-2.5 text-center">
-                                    <span class="text-gray-300 text-xs">—</span>
-                                </td>
-                                <td class="px-4 py-2.5 text-center">
                                     @if ($sub->is_active)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
                                     @else
@@ -241,7 +226,7 @@
 
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🏷️</div>
                             <p class="font-medium">No categories yet</p>
                             <p class="text-xs mt-1">Create a main category, then add sub-categories under it.</p>
@@ -342,19 +327,12 @@
                             <p class="mt-0.5 text-xs text-gray-400">Lower = shown first</p>
                             <x-input-error :messages="$errors->get('sort_order')" class="mt-1" />
                         </div>
-                        <div class="flex flex-col gap-2 justify-end pb-1">
+                        <div class="flex items-end pb-1">
                             <label class="inline-flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="is_active"
                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                                 <span class="text-sm text-gray-700 font-medium">Active</span>
                             </label>
-                            @if (! $parentId)
-                                <label class="inline-flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" wire:model="is_revenue"
-                                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                                    <span class="text-sm text-gray-700 font-medium">Show in Sales form</span>
-                                </label>
-                            @endif
                         </div>
                     </div>
 

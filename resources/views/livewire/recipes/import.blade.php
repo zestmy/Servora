@@ -66,7 +66,7 @@
                         <tr><td class="px-3 py-2 font-mono font-medium">yield_quantity</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">How many portions/units produced (default: 1)</td><td class="px-3 py-2 font-mono">1</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">yield_uom</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Yield unit (abbreviation or name)</td><td class="px-3 py-2 font-mono">portion</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">selling_price</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Selling price per yield unit (default: 0)</td><td class="px-3 py-2 font-mono">12.90</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">cost_center</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Main cost category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Main cost category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">is_active</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">yes / no (default: yes)</td><td class="px-3 py-2 font-mono">yes</td></tr>
                     </tbody>
                 </table>
@@ -154,7 +154,7 @@
                             <th class="px-3 py-2 text-right w-20">Yield Qty</th>
                             <th class="px-3 py-2 text-left w-20">Yield UOM</th>
                             <th class="px-3 py-2 text-right w-24">Price (RM)</th>
-                            <th class="px-3 py-2 text-left w-28">Cost Center</th>
+                            <th class="px-3 py-2 text-left w-28">Category</th>
                             <th class="px-3 py-2 text-center w-16">Active</th>
                             <th class="px-3 py-2 text-left">Issues</th>
                         </tr>
@@ -173,7 +173,7 @@
                                 <td class="px-3 py-2 text-right tabular-nums text-gray-700">
                                     {{ number_format($row['selling_price'], 2) }}
                                 </td>
-                                <td class="px-3 py-2 text-gray-600">{{ $row['cost_center_label'] ?: '—' }}</td>
+                                <td class="px-3 py-2 text-gray-600">{{ $row['category_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-center">
                                     @if ($row['is_active'])
                                         <span class="text-green-600">Yes</span>

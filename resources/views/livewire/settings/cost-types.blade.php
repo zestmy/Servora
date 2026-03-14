@@ -49,11 +49,10 @@
 
             <div class="bg-white/60 rounded-lg p-4 text-xs font-mono text-indigo-700 space-y-1">
                 <p><strong>Cost Type</strong> (e.g. Food)</p>
-                <p class="pl-4">&darr; assigned to <strong>Cost Centers</strong> (Ingredient Categories, e.g. Proteins, Produce)</p>
-                <p class="pl-8">&darr; which group <strong>Ingredients</strong> for purchasing, stock &amp; COGS</p>
-                <p class="pl-4">&darr; assigned to <strong>Sales Categories</strong> (e.g. Dine-In Food, Takeaway Food)</p>
-                <p class="pl-8">&darr; which track <strong>Revenue</strong> in the sales form</p>
-                <p class="pl-4">&darr; all combine in the <strong>Monthly Cost Summary (P&amp;L)</strong></p>
+                <p class="pl-4">&darr; assigned to <strong>Ingredient Categories</strong> (e.g. Proteins, Produce)</p>
+                <p class="pl-8">&darr; which group <strong>Ingredients</strong> for purchasing &amp; stock</p>
+                <p class="pl-4">&darr; <strong>Departments</strong> (Kitchen, Bar) map to <strong>Sales Categories</strong></p>
+                <p class="pl-8">&darr; which align costs with <strong>Revenue</strong> in the P&amp;L</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -61,12 +60,12 @@
                     <p class="font-bold text-indigo-800 mb-1">Settings Hierarchy</p>
                     <ol class="list-decimal list-inside space-y-1 text-indigo-700">
                         <li><strong>Cost Types</strong> (this page) &mdash; Food, Beverage, etc.</li>
-                        <li><strong>Ingredient Categories</strong> &mdash; cost centers assigned a type</li>
-                        <li><strong>Sales Categories</strong> &mdash; revenue lines mapped to a cost center</li>
+                        <li><strong>Ingredient Categories</strong> &mdash; grouped by type</li>
+                        <li><strong>Departments</strong> &mdash; mapped to sales categories for P&amp;L</li>
                     </ol>
                 </div>
                 <div class="bg-white/60 rounded-lg p-3">
-                    <p class="font-bold text-indigo-800 mb-1">P&amp;L Formula Per Cost Center</p>
+                    <p class="font-bold text-indigo-800 mb-1">P&amp;L Formula Per Sales Category</p>
                     <ul class="space-y-1 text-indigo-700">
                         <li><strong>COGS</strong> = Opening Stock + Purchases + Transfer In &minus; Transfer Out &minus; Closing Stock</li>
                         <li><strong>Cost %</strong> = COGS &divide; Revenue &times; 100</li>
@@ -88,7 +87,7 @@
                     <th class="px-4 py-3 text-left">Cost Type</th>
                     <th class="px-4 py-3 text-left">Slug</th>
                     <th class="px-4 py-3 text-center">Sort</th>
-                    <th class="px-4 py-3 text-center">Cost Centers</th>
+                    <th class="px-4 py-3 text-center">Categories</th>
                     <th class="px-4 py-3 text-center">Sales Categories</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
@@ -148,7 +147,7 @@
                     <tr>
                         <td colspan="7" class="px-4 py-12 text-center text-gray-400">
                             <p class="font-medium">No cost types yet</p>
-                            <p class="text-xs mt-1">Add types like Food, Beverage, Merchandise to classify your cost centers.</p>
+                            <p class="text-xs mt-1">Add types like Food, Beverage, Merchandise to classify your ingredient categories.</p>
                         </td>
                     </tr>
                 @endforelse

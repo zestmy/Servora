@@ -5,7 +5,6 @@ namespace App\Livewire\Purchasing;
 use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\Ingredient;
-use App\Models\IngredientCategory;
 use App\Models\IngredientParLevel;
 use App\Models\Outlet;
 use App\Models\PurchaseOrder;
@@ -25,7 +24,6 @@ class OrderForm extends Component
 
     // Editable header
     public ?int   $supplier_id              = null;
-    public ?int   $ingredient_category_id   = null;
     public string $order_date               = '';
     public string $expected_delivery_date   = '';
     public string $notes                    = '';
@@ -41,7 +39,6 @@ class OrderForm extends Component
     {
         return [
             'supplier_id'            => 'required|exists:suppliers,id',
-            'ingredient_category_id' => 'nullable|exists:ingredient_categories,id',
             'order_date'             => 'required|date',
             'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
             'notes'                  => 'nullable|string',
@@ -81,7 +78,6 @@ class OrderForm extends Component
         $this->poNumber               = $po->po_number;
         $this->status                 = $po->status;
         $this->supplier_id            = $po->supplier_id;
-        $this->ingredient_category_id = $po->ingredient_category_id;
         $this->order_date             = $po->order_date->toDateString();
         $this->expected_delivery_date = $po->expected_delivery_date?->toDateString() ?? '';
         $this->notes                  = $po->notes ?? '';
@@ -157,9 +153,6 @@ class OrderForm extends Component
         // Pre-fill header fields from template (only if not already set)
         if (! $this->supplier_id && $template->supplier_id) {
             $this->supplier_id = $template->supplier_id;
-        }
-        if (! $this->ingredient_category_id && $template->ingredient_category_id) {
-            $this->ingredient_category_id = $template->ingredient_category_id;
         }
         if (! $this->receiver_name && $template->receiver_name) {
             $this->receiver_name = $template->receiver_name;
@@ -284,7 +277,6 @@ class OrderForm extends Component
 
         $data = [
             'supplier_id'            => $this->supplier_id,
-            'ingredient_category_id' => $this->ingredient_category_id,
             'order_date'             => $this->order_date,
             'expected_delivery_date' => $this->expected_delivery_date ?: null,
             'notes'                  => $this->notes ?: null,
@@ -342,7 +334,6 @@ class OrderForm extends Component
     {
         $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
         $uoms        = UnitOfMeasure::orderBy('name')->get();
-        $costCenters = IngredientCategory::roots()->active()->ordered()->get();
         $departments = Department::active()->ordered()->get();
 
         $searchResults = collect();
@@ -386,7 +377,7 @@ class OrderForm extends Component
             : 'New Purchase Order';
 
         return view('livewire.purchasing.order-form', compact(
-            'suppliers', 'uoms', 'costCenters', 'departments', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
+            'suppliers', 'uoms', 'departments', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

@@ -76,12 +76,12 @@
         </div>
     </div>
 
-    {{-- Cost by Cost Center Panel --}}
+    {{-- Cost by Category Panel --}}
     @if ($categoryBreakdown)
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6" x-data="{}">
             <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                 <div>
-                    <h3 class="text-sm font-semibold text-gray-700">Cost by Cost Center</h3>
+                    <h3 class="text-sm font-semibold text-gray-700">Cost by Category</h3>
                     <p class="text-xs text-gray-400 mt-0.5">
                         Based on stock take: {{ $categoryBreakdown['date']->format('d M Y') }}
                     </p>
@@ -93,7 +93,7 @@
             <table class="min-w-full text-sm divide-y divide-gray-50">
                 <thead class="bg-gray-50 text-gray-400 uppercase text-xs tracking-wider">
                     <tr>
-                        <th class="px-5 py-2 text-left">Cost Center</th>
+                        <th class="px-5 py-2 text-left">Category</th>
                         <th class="px-5 py-2 text-right">Stock Value (RM)</th>
                         <th class="px-5 py-2 text-right w-24">% of Total</th>
                         <th class="px-3 py-2 w-8"></th>

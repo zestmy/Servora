@@ -6,7 +6,6 @@ use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\FormTemplateLine;
 use App\Models\Ingredient;
-use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
@@ -23,7 +22,6 @@ class FormTemplateEdit extends Component
 
     // PO header defaults
     public ?int   $supplier_id            = null;
-    public ?int   $ingredient_category_id = null;
     public string $receiver_name          = '';
     public ?int   $department_id          = null;
 
@@ -53,7 +51,6 @@ class FormTemplateEdit extends Component
 
         // PO header defaults
         $this->supplier_id            = $template->supplier_id;
-        $this->ingredient_category_id = $template->ingredient_category_id;
         $this->receiver_name          = $template->receiver_name ?? '';
         $this->department_id          = $template->department_id;
 
@@ -103,7 +100,6 @@ class FormTemplateEdit extends Component
 
         if ($this->form_type === 'purchase_order') {
             $data['supplier_id']            = $this->supplier_id ?: null;
-            $data['ingredient_category_id'] = $this->ingredient_category_id ?: null;
             $data['receiver_name']          = $this->receiver_name ?: null;
             $data['department_id']          = $this->department_id ?: null;
         }
@@ -256,10 +252,9 @@ class FormTemplateEdit extends Component
         }
 
         $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
-        $costCenters = IngredientCategory::roots()->active()->ordered()->get();
         $departments = Department::active()->ordered()->get();
 
-        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'costCenters', 'departments'))
+        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments'))
             ->layout('layouts.app', ['title' => 'Edit Template: ' . $this->name]);
     }
 }

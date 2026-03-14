@@ -16,11 +16,10 @@ class IngredientCategory extends Model
 
     protected $table = 'ingredient_categories';
 
-    protected $fillable = ['company_id', 'parent_id', 'type', 'name', 'color', 'sort_order', 'is_active', 'is_revenue'];
+    protected $fillable = ['company_id', 'parent_id', 'type', 'name', 'color', 'sort_order', 'is_active'];
 
     protected $casts = [
         'is_active'  => 'boolean',
-        'is_revenue' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -73,11 +72,6 @@ class IngredientCategory extends Model
     public function scopeOrdered(Builder $q): Builder
     {
         return $q->orderBy('sort_order')->orderBy('name');
-    }
-
-    public function scopeRevenue(Builder $q): Builder
-    {
-        return $q->where('is_revenue', true);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

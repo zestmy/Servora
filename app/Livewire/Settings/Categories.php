@@ -18,7 +18,6 @@ class Categories extends Component
     public string  $color      = '#6366f1';
     public string  $sort_order = '0';
     public bool    $is_active  = true;
-    public bool    $is_revenue = true;
 
     protected function rules(): array
     {
@@ -67,7 +66,6 @@ class Categories extends Component
         $this->color      = $cat->color;
         $this->sort_order = (string) $cat->sort_order;
         $this->is_active  = $cat->is_active;
-        $this->is_revenue = $cat->is_revenue;
 
         $this->showModal = true;
     }
@@ -86,8 +84,7 @@ class Categories extends Component
 
         // Only persist type on main (root) categories
         if ($this->parentId === null) {
-            $data['type']       = $this->type ?: null;
-            $data['is_revenue'] = $this->is_revenue;
+            $data['type'] = $this->type ?: null;
         }
 
         if ($this->editingId) {
@@ -126,12 +123,6 @@ class Categories extends Component
         $cat->update(['is_active' => ! $cat->is_active]);
     }
 
-    public function toggleRevenue(int $id): void
-    {
-        $cat = IngredientCategory::findOrFail($id);
-        $cat->update(['is_revenue' => ! $cat->is_revenue]);
-    }
-
     public function closeModal(): void
     {
         $this->showModal = false;
@@ -167,7 +158,6 @@ class Categories extends Component
         $this->color      = '#6366f1';
         $this->sort_order = '0';
         $this->is_active  = true;
-        $this->is_revenue = true;
         $this->resetValidation();
     }
 }

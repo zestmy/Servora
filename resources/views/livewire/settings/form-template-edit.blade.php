@@ -95,17 +95,6 @@
                         </div>
 
                         <div>
-                            <x-input-label value="Cost Center" />
-                            <select wire:model="ingredient_category_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">— None —</option>
-                                @foreach ($costCenters as $cc)
-                                    <option value="{{ $cc->id }}">{{ $cc->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
                             <x-input-label value="Receiver Name" />
                             <x-text-input wire:model="receiver_name" type="text" class="mt-1 block w-full" placeholder="Person receiving delivery" />
                         </div>

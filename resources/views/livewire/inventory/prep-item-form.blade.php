@@ -71,7 +71,7 @@
 
                 {{-- Category --}}
                 <div>
-                    <x-input-label for="p_category" value="Cost Center" />
+                    <x-input-label for="p_category" value="Cost Category" />
                     <select id="p_category" wire:model="ingredient_category_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">— No Category —</option>
@@ -79,7 +79,7 @@
                                 <option value="{{ $main->id }}">{{ $main->name }}</option>
                         @endforeach
                     </select>
-                    <p class="mt-0.5 text-xs text-gray-400">Used for food cost % reporting.</p>
+                    <p class="mt-0.5 text-xs text-gray-400">Groups this item under a cost category.</p>
                 </div>
 
                 {{-- Yield --}}

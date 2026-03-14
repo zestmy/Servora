@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -13,7 +12,7 @@ class SalesCategory extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['company_id', 'name', 'type', 'ingredient_category_id', 'color', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'name', 'type', 'color', 'sort_order', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 
@@ -25,11 +24,6 @@ class SalesCategory extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SalesRecordLine::class);
-    }
-
-    public function ingredientCategory(): BelongsTo
-    {
-        return $this->belongsTo(IngredientCategory::class);
     }
 
     public function scopeActive(Builder $q): Builder

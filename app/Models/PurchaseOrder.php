@@ -15,7 +15,7 @@ class PurchaseOrder extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'supplier_id', 'ingredient_category_id',
+        'company_id', 'outlet_id', 'supplier_id',
         'po_number', 'status', 'order_date', 'expected_delivery_date',
         'total_amount', 'subtotal', 'tax_percent', 'tax_amount',
         'notes', 'receiver_name', 'department_id', 'created_by', 'approved_by',
@@ -48,11 +48,6 @@ class PurchaseOrder extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
-    }
-
-    public function ingredientCategory(): BelongsTo
-    {
-        return $this->belongsTo(IngredientCategory::class);
     }
 
     public function department(): BelongsTo
