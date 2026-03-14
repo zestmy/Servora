@@ -102,7 +102,7 @@ class Users extends Component
 
         $currentUser = Auth::user();
         $companyId   = $currentUser->hasRole(['Super Admin', 'System Admin'])
-            ? ($this->company_id ?? $currentUser->company_id)
+            ? $this->company_id
             : $currentUser->company_id;
 
         // Default outlet_id to first selected outlet (for backward compat)
