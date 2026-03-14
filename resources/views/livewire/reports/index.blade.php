@@ -652,7 +652,7 @@
                                 <tr>
                                     <th class="py-2 px-3 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 z-10">Month</th>
                                     @foreach ($msy['years'] as $yr)
-                                        <th colspan="2" class="py-2 px-3 text-center font-semibold text-gray-600 border-l border-gray-200">{{ $yr }}</th>
+                                        <th colspan="3" class="py-2 px-3 text-center font-semibold text-gray-600 border-l border-gray-200">{{ $yr }}</th>
                                     @endforeach
                                 </tr>
                                 <tr class="border-t border-gray-100">
@@ -660,6 +660,7 @@
                                     @foreach ($msy['years'] as $yr)
                                         <th class="py-1 px-3 text-right text-gray-400 font-medium border-l border-gray-200">Revenue</th>
                                         <th class="py-1 px-3 text-right text-gray-400 font-medium">Pax</th>
+                                        <th class="py-1 px-3 text-right text-gray-400 font-medium">Avg Check</th>
                                     @endforeach
                                 </tr>
                             </thead>
@@ -668,12 +669,18 @@
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="py-2 px-3 font-medium text-gray-700 sticky left-0 bg-white z-10">{{ $monthNames[$m - 1] }}</td>
                                         @foreach ($msy['years'] as $yr)
-                                            @php $cell = $msy['data'][$yr][$m]; @endphp
+                                            @php
+                                                $cell = $msy['data'][$yr][$m];
+                                                $avgCheck = $cell['pax'] > 0 ? $cell['revenue'] / $cell['pax'] : 0;
+                                            @endphp
                                             <td class="py-2 px-3 text-right tabular-nums border-l border-gray-100 {{ $cell['revenue'] > 0 ? 'text-gray-700' : 'text-gray-300' }}">
                                                 {{ $cell['revenue'] > 0 ? number_format($cell['revenue'], 0) : '—' }}
                                             </td>
                                             <td class="py-2 px-3 text-right tabular-nums {{ $cell['pax'] > 0 ? 'text-gray-600' : 'text-gray-300' }}">
                                                 {{ $cell['pax'] > 0 ? number_format($cell['pax']) : '—' }}
+                                            </td>
+                                            <td class="py-2 px-3 text-right tabular-nums {{ $avgCheck > 0 ? 'text-gray-600' : 'text-gray-300' }}">
+                                                {{ $avgCheck > 0 ? number_format($avgCheck, 2) : '—' }}
                                             </td>
                                         @endforeach
                                     </tr>
@@ -683,8 +690,10 @@
                                 <tr>
                                     <td class="py-2 px-3 font-bold text-gray-800 sticky left-0 bg-gray-50 z-10">Total</td>
                                     @foreach ($msy['years'] as $yr)
+                                        @php $totalAvgCheck = $msy['year_totals'][$yr]['pax'] > 0 ? $msy['year_totals'][$yr]['revenue'] / $msy['year_totals'][$yr]['pax'] : 0; @endphp
                                         <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums border-l border-gray-200">{{ number_format($msy['year_totals'][$yr]['revenue'], 0) }}</td>
                                         <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums">{{ number_format($msy['year_totals'][$yr]['pax']) }}</td>
+                                        <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums">{{ $totalAvgCheck > 0 ? number_format($totalAvgCheck, 2) : '—' }}</td>
                                     @endforeach
                                 </tr>
                                 @if (count($msy['years']) > 1)
@@ -696,8 +705,10 @@
                                                 $avgRev = $activeMonths > 0 ? $msy['year_totals'][$yr]['revenue'] / $activeMonths : 0;
                                                 $avgPax = $activeMonths > 0 ? round($msy['year_totals'][$yr]['pax'] / $activeMonths) : 0;
                                             @endphp
+                                            @php $avgMonthCheck = $avgPax > 0 ? $avgRev / $avgPax : 0; @endphp
                                             <td class="py-2 px-3 text-right text-gray-500 tabular-nums border-l border-gray-200">{{ $activeMonths > 0 ? number_format($avgRev, 0) : '—' }}</td>
                                             <td class="py-2 px-3 text-right text-gray-500 tabular-nums">{{ $activeMonths > 0 ? number_format($avgPax) : '—' }}</td>
+                                            <td class="py-2 px-3 text-right text-gray-500 tabular-nums">{{ $avgMonthCheck > 0 ? number_format($avgMonthCheck, 2) : '—' }}</td>
                                         @endforeach
                                     </tr>
                                 @endif
