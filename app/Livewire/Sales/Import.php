@@ -160,6 +160,17 @@ class Import extends Component
         $this->rows = [];
         $this->categoryNames = [];
 
+        // Pre-load existing records for duplicate detection
+        $user     = Auth::user();
+        $outletId = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+        $existingRecords = SalesRecord::where('outlet_id', $outletId)
+            ->select('sale_date', 'meal_period')
+            ->get()
+            ->groupBy(fn ($r) => $r->sale_date->format('Y-m-d'));
+
+        // Track within-batch entries for intra-file duplicate detection
+        $batchSeen = []; // ['2026-03-10:lunch' => true, ...]
+
         // Collect mapped category names in order
         $mappedCatIds = [];
         foreach ($this->columnMap as $field) {
@@ -264,6 +275,40 @@ class Import extends Component
                 $rowErrors[] = 'Total revenue must be greater than 0';
             }
 
+            // Duplicate detection (existing DB records + within this file)
+            if ($parsedDate && empty($rowErrors)) {
+                $batchKey   = $parsedDate . ':' . $mealPeriod;
+                $dayRecords = $existingRecords[$parsedDate] ?? collect();
+
+                // Check against existing DB records
+                if ($dayRecords->isNotEmpty()) {
+                    $hasAllDay = $dayRecords->contains('meal_period', 'all_day');
+
+                    if ($hasAllDay) {
+                        $rowErrors[] = 'An All Day record already exists for this date — skipped';
+                    } elseif ($mealPeriod === 'all_day') {
+                        $rowErrors[] = 'Meal period records already exist for this date — cannot add All Day';
+                    } elseif ($dayRecords->contains('meal_period', $mealPeriod)) {
+                        $periodLabel = ucfirst(str_replace('_', ' ', $mealPeriod));
+                        $rowErrors[] = "{$periodLabel} record already exists for this date — skipped";
+                    }
+                }
+
+                // Check within-batch duplicates
+                if (empty($rowErrors)) {
+                    if (isset($batchSeen[$batchKey])) {
+                        $periodLabel = ucfirst(str_replace('_', ' ', $mealPeriod));
+                        $rowErrors[] = "Duplicate {$periodLabel} for this date in the file — skipped";
+                    } elseif ($mealPeriod === 'all_day' && collect($batchSeen)->keys()->contains(fn ($k) => str_starts_with($k, $parsedDate . ':'))) {
+                        $rowErrors[] = 'Other meal periods for this date exist earlier in the file — cannot add All Day';
+                    } elseif ($mealPeriod !== 'all_day' && isset($batchSeen[$parsedDate . ':all_day'])) {
+                        $rowErrors[] = 'An All Day entry for this date exists earlier in the file — skipped';
+                    } else {
+                        $batchSeen[$batchKey] = true;
+                    }
+                }
+            }
+
             $this->rows[] = [
                 'row'                => $rowNum,
                 'date'               => $parsedDate ?? $dateStr,
@@ -301,6 +346,18 @@ class Import extends Component
 
         foreach ($this->rows as $row) {
             if ($row['skip']) {
+                $skipped++;
+                continue;
+            }
+
+            // Safety: check for duplicates at import time
+            $dayRecords = SalesRecord::where('outlet_id', $outletId)
+                ->where('sale_date', $row['date'])
+                ->pluck('meal_period');
+
+            if ($dayRecords->contains('all_day')
+                || ($row['meal_period'] === 'all_day' && $dayRecords->isNotEmpty())
+                || $dayRecords->contains($row['meal_period'])) {
                 $skipped++;
                 continue;
             }
