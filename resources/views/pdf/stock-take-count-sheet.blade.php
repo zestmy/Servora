@@ -90,16 +90,16 @@
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
-            <div style="margin-bottom: 8px; font-size: 9px; color: #666;">Date: _______________</div>
             <div class="sig-line">Counted By</div>
+            <div style="margin-top: 10px; font-size: 9px; color: #666;">Date: _______________</div>
         </div>
         <div class="sig-box">
-            <div style="margin-bottom: 8px; font-size: 9px; color: #666;">Date: _______________</div>
             <div class="sig-line">Verified By</div>
+            <div style="margin-top: 10px; font-size: 9px; color: #666;">Date: _______________</div>
         </div>
         <div class="sig-box">
-            <div style="margin-bottom: 8px; font-size: 9px; color: #666;">Date: _______________</div>
             <div class="sig-line">Approved By</div>
+            <div style="margin-top: 10px; font-size: 9px; color: #666;">Date: _______________</div>
         </div>
     </div>
 @endsection
