@@ -459,12 +459,12 @@ class Index extends Component
         $commonReasons     = SalesClosure::commonReasons();
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
 
-        // Sales target for the selected period
+        // Sales target — always current month regardless of filters
         $targetData = null;
-        if ($this->dateFrom) {
+        {
             $user      = Auth::user();
             $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
-            $targetPeriod = Carbon::parse($this->dateFrom)->format('Y-m');
+            $targetPeriod = now()->format('Y-m');
 
             $target = SalesTarget::where('period', $targetPeriod)
                 ->where(fn ($q) => $q->where('outlet_id', $outletId)->orWhereNull('outlet_id'))
@@ -472,11 +472,19 @@ class Index extends Component
                 ->first();
 
             if ($target) {
+                // Current month actual revenue (unfiltered)
+                $monthStart = now()->startOfMonth()->toDateString();
+                $monthEnd   = now()->endOfMonth()->toDateString();
+                $monthQ     = SalesRecord::query();
+                $this->scopeByOutlet($monthQ);
+                $monthRevenue = (clone $monthQ)->whereBetween('sale_date', [$monthStart, $monthEnd])->sum('total_revenue');
+                $monthPax     = (clone $monthQ)->whereBetween('sale_date', [$monthStart, $monthEnd])->sum('pax');
+
                 $pct = $target->target_revenue > 0
-                    ? round($filteredRevenue / $target->target_revenue * 100, 1)
+                    ? round($monthRevenue / $target->target_revenue * 100, 1)
                     : 0;
                 $paxPct = ($target->target_pax && $target->target_pax > 0)
-                    ? round($filteredPax / $target->target_pax * 100, 1)
+                    ? round($monthPax / $target->target_pax * 100, 1)
                     : null;
 
                 $targetData = [
@@ -485,6 +493,7 @@ class Index extends Component
                     'revenue_pct' => $pct,
                     'pax_pct'     => $paxPct,
                     'notes'       => $target->notes,
+                    'actual'      => (float) $monthRevenue,
                 ];
             }
         }
