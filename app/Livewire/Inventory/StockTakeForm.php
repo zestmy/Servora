@@ -217,9 +217,16 @@ class StockTakeForm extends Component
             ]);
         }
 
-        $verb = $action === 'complete' ? 'completed' : ($this->recordId ? 'updated' : 'created');
-        session()->flash('success', "Stock take {$verb}.");
-        $this->redirectRoute('inventory.index');
+        if ($action === 'complete') {
+            session()->flash('success', 'Stock take completed.');
+            $this->redirectRoute('inventory.index');
+            return;
+        }
+
+        // Draft save — stay on page
+        $this->recordId = $record->id;
+        $this->status   = $record->status;
+        session()->flash('success', 'Stock take saved as draft.');
     }
 
     public function render()
