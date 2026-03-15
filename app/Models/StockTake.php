@@ -14,7 +14,7 @@ class StockTake extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'department_id', 'reference_number', 'status',
+        'company_id', 'outlet_id', 'department_id', 'reference_number', 'status', 'method',
         'stock_take_date', 'total_variance_cost', 'total_stock_cost', 'notes', 'created_by',
     ];
 

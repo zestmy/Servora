@@ -18,11 +18,12 @@ class StockTakeForm extends Component
     public string $reference_number = '';
     public string $notes            = '';
     public string $status           = 'draft';
+    public string $method           = 'detailed'; // 'detailed' or 'summary'
 
-    // Lines: [ingredient_id, ingredient_name, is_prep, uom_id, uom_abbr,
-    //         system_quantity, actual_quantity, variance_quantity,
-    //         unit_cost, variance_cost,
-    //         category_group_id, category_group_name, category_group_color, category_sub_name]
+    // Summary method: total amount keyed in directly
+    public string $summary_amount   = '0';
+
+    // Detailed method lines
     public array  $lines            = [];
     public string $ingredientSearch = '';
 
@@ -31,18 +32,29 @@ class StockTakeForm extends Component
 
     protected function rules(): array
     {
-        return [
-            'stock_take_date'          => 'required|date',
-            'reference_number'         => 'nullable|string|max:100',
-            'notes'                    => 'nullable|string',
-            'lines'                    => 'required|array|min:1',
-            'lines.*.actual_quantity'  => 'required|numeric|min:0',
+        $rules = [
+            'stock_take_date'  => 'required|date',
+            'reference_number' => 'nullable|string|max:100',
+            'notes'            => 'nullable|string',
+            'method'           => 'required|in:detailed,summary',
+            'department_id'    => $this->method === 'summary' ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
         ];
+
+        if ($this->method === 'summary') {
+            $rules['summary_amount'] = 'required|numeric|min:0';
+        } else {
+            $rules['lines']                    = 'required|array|min:1';
+            $rules['lines.*.actual_quantity']  = 'required|numeric|min:0';
+        }
+
+        return $rules;
     }
 
     protected function messages(): array
     {
         return [
+            'department_id.required'           => 'Department is required for summary method.',
+            'summary_amount.required'          => 'Enter the total stock value.',
             'lines.required'                   => 'Add at least one ingredient.',
             'lines.min'                        => 'Add at least one ingredient.',
             'lines.*.actual_quantity.required' => 'Actual quantity is required.',
@@ -67,6 +79,8 @@ class StockTakeForm extends Component
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
         $this->status           = $record->status;
+        $this->method           = $record->method ?? 'detailed';
+        $this->summary_amount   = (string) floatval($record->total_stock_cost);
 
         $this->lines = $record->lines->map(fn ($l) => [
             'ingredient_id'        => $l->ingredient_id,
@@ -171,11 +185,16 @@ class StockTakeForm extends Component
     {
         $this->validate();
 
-        $totalVarianceCost = collect($this->lines)->sum(fn ($l) => floatval($l['variance_cost']));
-        $totalStockCost    = collect($this->lines)->sum(fn ($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
-        $outletId = Outlet::where('company_id', Auth::user()->company_id)->value('id');
-
+        $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
         $newStatus = ($action === 'complete') ? 'completed' : $this->status;
+
+        if ($this->method === 'summary') {
+            $totalStockCost    = floatval($this->summary_amount);
+            $totalVarianceCost = 0;
+        } else {
+            $totalVarianceCost = collect($this->lines)->sum(fn ($l) => floatval($l['variance_cost']));
+            $totalStockCost    = collect($this->lines)->sum(fn ($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
+        }
 
         $data = [
             'department_id'       => $this->department_id ?: null,
@@ -183,6 +202,7 @@ class StockTakeForm extends Component
             'reference_number'    => $this->reference_number ?: null,
             'notes'               => $this->notes ?: null,
             'status'              => $newStatus,
+            'method'              => $this->method,
             'total_variance_cost' => round($totalVarianceCost, 4),
             'total_stock_cost'    => round($totalStockCost, 4),
         ];
@@ -197,24 +217,26 @@ class StockTakeForm extends Component
             $record = StockTake::create($data);
         }
 
-        // Sync lines
+        // Sync lines (detailed method only)
         $record->lines()->delete();
-        foreach ($this->lines as $line) {
-            $actualQty    = floatval($line['actual_quantity']);
-            $systemQty    = floatval($line['system_quantity']);
-            $varianceQty  = $actualQty - $systemQty;
-            $unitCost     = floatval($line['unit_cost']);
-            $varianceCost = $varianceQty * $unitCost;
+        if ($this->method === 'detailed') {
+            foreach ($this->lines as $line) {
+                $actualQty    = floatval($line['actual_quantity']);
+                $systemQty    = floatval($line['system_quantity']);
+                $varianceQty  = $actualQty - $systemQty;
+                $unitCost     = floatval($line['unit_cost']);
+                $varianceCost = $varianceQty * $unitCost;
 
-            $record->lines()->create([
-                'ingredient_id'     => $line['ingredient_id'],
-                'uom_id'            => $line['uom_id'],
-                'system_quantity'   => $systemQty,
-                'actual_quantity'   => $actualQty,
-                'variance_quantity' => round($varianceQty, 4),
-                'unit_cost'         => $unitCost,
-                'variance_cost'     => round($varianceCost, 4),
-            ]);
+                $record->lines()->create([
+                    'ingredient_id'     => $line['ingredient_id'],
+                    'uom_id'            => $line['uom_id'],
+                    'system_quantity'   => $systemQty,
+                    'actual_quantity'   => $actualQty,
+                    'variance_quantity' => round($varianceQty, 4),
+                    'unit_cost'         => $unitCost,
+                    'variance_cost'     => round($varianceCost, 4),
+                ]);
+            }
         }
 
         if ($action === 'complete') {

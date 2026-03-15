@@ -68,6 +68,31 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700">Stock Take Details</h3>
 
+                {{-- Method toggle --}}
+                @if (! $isCompleted && ! $recordId)
+                    <div>
+                        <x-input-label value="Method" />
+                        <div class="mt-1 flex rounded-lg border border-gray-300 overflow-hidden w-fit">
+                            <button type="button" wire:click="$set('method', 'detailed')"
+                                    class="px-4 py-2 text-sm font-medium transition {{ $method === 'detailed' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                                Detailed Count
+                            </button>
+                            <button type="button" wire:click="$set('method', 'summary')"
+                                    class="px-4 py-2 text-sm font-medium transition {{ $method === 'summary' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                                Summary Amount
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-400">
+                            {{ $method === 'summary' ? 'Enter total inventory value per department — quick closing stock entry.' : 'Count each ingredient individually for a full stock take.' }}
+                        </p>
+                    </div>
+                @elseif ($method === 'summary')
+                    <div>
+                        <x-input-label value="Method" />
+                        <p class="mt-1 text-sm text-gray-600 font-medium">Summary Amount</p>
+                    </div>
+                @endif
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="st_date" value="Date *" />
@@ -84,16 +109,29 @@
                 </div>
 
                 <div>
-                    <x-input-label for="st_dept" value="Department" />
+                    <x-input-label for="st_dept" value="Department {{ $method === 'summary' ? '*' : '' }}" />
                     <select id="st_dept" wire:model="department_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
                             {{ $isCompleted ? 'disabled' : '' }}>
-                        <option value="">— All / No Department —</option>
+                        <option value="">— {{ $method === 'summary' ? 'Select Department' : 'All / No Department' }} —</option>
                         @foreach ($departments as $dept)
                             <option value="{{ $dept->id }}">{{ $dept->name }}</option>
                         @endforeach
                     </select>
+                    <x-input-error :messages="$errors->get('department_id')" class="mt-1" />
                 </div>
+
+                {{-- Summary amount field --}}
+                @if ($method === 'summary')
+                    <div>
+                        <x-input-label for="st_amount" value="Total Stock Value (RM) *" />
+                        <x-text-input id="st_amount" wire:model="summary_amount" type="number" step="0.01" min="0"
+                                      class="mt-1 block w-full text-lg font-semibold" placeholder="0.00"
+                                      :disabled="$isCompleted" />
+                        <p class="mt-1 text-xs text-gray-400">Enter the total closing stock value for this department.</p>
+                        <x-input-error :messages="$errors->get('summary_amount')" class="mt-1" />
+                    </div>
+                @endif
 
                 <div>
                     <x-input-label for="st_notes" value="Notes" />
@@ -110,39 +148,54 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Summary</h3>
                 <dl class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Ingredients</dt>
-                        <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Over (+)</dt>
-                        <dd class="font-medium text-green-600">{{ $positiveVariance }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Short (−)</dt>
-                        <dd class="font-medium text-red-500">{{ $negativeVariance }}</dd>
-                    </div>
-                    <div class="flex justify-between border-t border-gray-100 pt-3">
-                        <dt class="font-semibold text-gray-600">Total Stock Value</dt>
-                        <dd class="font-bold text-lg text-gray-800 tabular-nums">
-                            RM {{ number_format($totalStockCost, 2) }}
-                        </dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="font-semibold text-gray-600">Variance Cost</dt>
-                        <dd class="font-bold text-base {{ $totalVarianceCost >= 0 ? 'text-green-600' : 'text-red-600' }} tabular-nums">
-                            {{ $totalVarianceCost >= 0 ? '+' : '' }}{{ number_format($totalVarianceCost, 2) }}
-                        </dd>
-                    </div>
+                    @if ($method === 'summary')
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Method</dt>
+                            <dd class="font-medium text-indigo-600">Summary</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-gray-100 pt-3">
+                            <dt class="font-semibold text-gray-600">Total Stock Value</dt>
+                            <dd class="font-bold text-lg text-gray-800 tabular-nums">
+                                RM {{ number_format(floatval($summary_amount), 2) }}
+                            </dd>
+                        </div>
+                    @else
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Ingredients</dt>
+                            <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Over (+)</dt>
+                            <dd class="font-medium text-green-600">{{ $positiveVariance }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Short (−)</dt>
+                            <dd class="font-medium text-red-500">{{ $negativeVariance }}</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-gray-100 pt-3">
+                            <dt class="font-semibold text-gray-600">Total Stock Value</dt>
+                            <dd class="font-bold text-lg text-gray-800 tabular-nums">
+                                RM {{ number_format($totalStockCost, 2) }}
+                            </dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="font-semibold text-gray-600">Variance Cost</dt>
+                            <dd class="font-bold text-base {{ $totalVarianceCost >= 0 ? 'text-green-600' : 'text-red-600' }} tabular-nums">
+                                {{ $totalVarianceCost >= 0 ? '+' : '' }}{{ number_format($totalVarianceCost, 2) }}
+                            </dd>
+                        </div>
+                    @endif
                 </dl>
 
-                <div class="mt-4 pt-4 border-t border-gray-100">
-                    <p class="text-xs text-gray-400 leading-relaxed">
-                        <strong>Variance</strong> = Actual − System qty.<br>
-                        Positive means more stock than expected.<br>
-                        Negative means stock is missing.
-                    </p>
-                </div>
+                @if ($method === 'detailed')
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <p class="text-xs text-gray-400 leading-relaxed">
+                            <strong>Variance</strong> = Actual − System qty.<br>
+                            Positive means more stock than expected.<br>
+                            Negative means stock is missing.
+                        </p>
+                    </div>
+                @endif
 
                 @php $statusColors = ['draft' => 'bg-gray-100 text-gray-600', 'in_progress' => 'bg-yellow-100 text-yellow-700', 'completed' => 'bg-green-100 text-green-700']; @endphp
                 <div class="mt-4">
@@ -154,7 +207,8 @@
         </div>
     </div>
 
-    {{-- Items section --}}
+    {{-- Items section (detailed method only) --}}
+    @if ($method === 'detailed')
     <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -404,4 +458,5 @@
         @endif
 
     </div>
+    @endif
 </div>

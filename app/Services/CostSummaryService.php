@@ -416,9 +416,17 @@ class CostSummaryService
         $result = collect();
         foreach ($stockTakes as $st) {
             $deptId = $st->department_id ?? 0;
-            $stValue = (float) StockTakeLine::where('stock_take_id', $st->id)
-                ->selectRaw('SUM(actual_quantity * unit_cost) as total')
-                ->value('total');
+
+            if (($st->method ?? 'detailed') === 'summary') {
+                // Summary method: use total_stock_cost directly
+                $stValue = (float) $st->total_stock_cost;
+            } else {
+                // Detailed method: sum from lines
+                $stValue = (float) StockTakeLine::where('stock_take_id', $st->id)
+                    ->selectRaw('SUM(actual_quantity * unit_cost) as total')
+                    ->value('total');
+            }
+
             $result[$deptId] = ($result[$deptId] ?? 0) + $stValue;
         }
 
