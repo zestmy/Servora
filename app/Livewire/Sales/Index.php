@@ -488,12 +488,13 @@ class Index extends Component
                     : null;
 
                 $targetData = [
-                    'revenue'     => (float) $target->target_revenue,
-                    'pax'         => $target->target_pax,
-                    'revenue_pct' => $pct,
-                    'pax_pct'     => $paxPct,
-                    'notes'       => $target->notes,
-                    'actual'      => (float) $monthRevenue,
+                    'revenue'      => (float) $target->target_revenue,
+                    'pax'          => $target->target_pax,
+                    'revenue_pct'  => $pct,
+                    'pax_pct'      => $paxPct,
+                    'notes'        => $target->notes,
+                    'actual'       => (float) $monthRevenue,
+                    'actual_pax'   => (int) $monthPax,
                 ];
             }
         }

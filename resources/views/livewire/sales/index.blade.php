@@ -253,7 +253,7 @@
                         <div class="flex items-center justify-between text-sm mb-1">
                             <span class="text-gray-600">Revenue</span>
                             <span class="tabular-nums font-medium">
-                                <span class="{{ $targetData['revenue_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">RM {{ number_format($filteredRevenue, 2) }}</span>
+                                <span class="{{ $targetData['revenue_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">RM {{ number_format($targetData['actual'], 2) }}</span>
                                 <span class="text-gray-400"> / RM {{ number_format($targetData['revenue'], 2) }}</span>
                             </span>
                         </div>
@@ -264,7 +264,7 @@
                         <p class="text-xs mt-1 {{ $targetData['revenue_pct'] >= 100 ? 'text-green-600 font-medium' : 'text-gray-400' }}">
                             {{ $targetData['revenue_pct'] }}% achieved
                             @if ($targetData['revenue_pct'] < 100)
-                                · RM {{ number_format($targetData['revenue'] - $filteredRevenue, 2) }} remaining
+                                · RM {{ number_format($targetData['revenue'] - $targetData['actual'], 2) }} remaining
                             @endif
                         </p>
                     </div>
@@ -275,7 +275,7 @@
                             <div class="flex items-center justify-between text-sm mb-1">
                                 <span class="text-gray-600">Pax</span>
                                 <span class="tabular-nums font-medium">
-                                    <span class="{{ $targetData['pax_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">{{ number_format($filteredPax) }}</span>
+                                    <span class="{{ $targetData['pax_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">{{ number_format($targetData['actual_pax']) }}</span>
                                     <span class="text-gray-400"> / {{ number_format($targetData['pax']) }}</span>
                                 </span>
                             </div>
