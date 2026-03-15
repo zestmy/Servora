@@ -89,7 +89,7 @@ class ZReportImport extends Component
             $this->allDayPax   = $parsed['total_bills'] ?? 1;
 
             // Match dept names against active IngredientCategory roots (case-insensitive)
-            $categories = IngredientCategory::roots()->active()->revenue()->ordered()->get()
+            $categories = IngredientCategory::roots()->active()->ordered()->get()
                 ->keyBy(fn ($c) => strtolower(trim($c->name)));
 
             // Also match against SalesCategory for the sales_category_id link
@@ -225,7 +225,7 @@ class ZReportImport extends Component
     public function render()
     {
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
-        $categories        = IngredientCategory::roots()->active()->revenue()->ordered()->get();
+        $categories        = IngredientCategory::roots()->active()->ordered()->get();
 
         return view('livewire.sales.z-report-import', compact('mealPeriodOptions', 'categories'));
     }
