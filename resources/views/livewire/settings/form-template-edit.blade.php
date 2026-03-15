@@ -30,6 +30,13 @@
         </div>
     @endif
 
+    @if (session('info'))
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+             class="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg">
+            {{ session('info') }}
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {{-- Details card --}}
@@ -141,6 +148,34 @@
 
                 {{-- Search --}}
                 <div class="px-6 py-4 border-b border-gray-100">
+                    {{-- Quick Add --}}
+                    <div class="flex items-center gap-2 mb-3">
+                        {{-- Load by Category --}}
+                        <div class="flex items-center gap-1.5">
+                            <select id="tpl_cat_loader" class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1.5"
+                                    x-data x-ref="catSelect"
+                                    @change="if($el.value) { $wire.loadByCategory(parseInt($el.value)); $el.value = ''; }">
+                                <option value="">Load by Category…</option>
+                                @foreach ($categories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                    @foreach ($cat->children as $sub)
+                                        <option value="{{ $sub->id }}">  ↳ {{ $sub->name }}</option>
+                                    @endforeach
+                                @endforeach
+                            </select>
+                        </div>
+                        {{-- Load by Supplier --}}
+                        <div class="flex items-center gap-1.5">
+                            <select class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1.5"
+                                    @change="if($event.target.value) { $wire.loadBySupplier(parseInt($event.target.value)); $event.target.value = ''; }">
+                                <option value="">Load by Supplier…</option>
+                                @foreach ($suppliers as $sup)
+                                    <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="relative">
                         <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

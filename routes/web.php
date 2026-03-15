@@ -43,6 +43,7 @@ use App\Livewire\Purchasing\ConvertToDoForm as PurchasingConvertToDoForm;
 use App\Livewire\Purchasing\GrnReceiveForm as PurchasingGrnReceiveForm;
 use App\Http\Controllers\PurchaseDocumentPdfController;
 use App\Http\Controllers\IngredientExportController;
+use App\Http\Controllers\StockTakeCountSheetController;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
@@ -71,6 +72,7 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/inventory', InventoryIndex::class)->name('inventory.index')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/create', StockTakeForm::class)->name('inventory.stock-takes.create')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/{id}', StockTakeForm::class)->name('inventory.stock-takes.show')->middleware('can:inventory.view');
+    Route::get('/inventory/stock-takes/{id}/count-sheet', StockTakeCountSheetController::class)->name('inventory.stock-takes.count-sheet')->middleware('can:inventory.view');
     Route::get('/inventory/wastage/create', WastageForm::class)->name('inventory.wastage.create')->middleware('can:inventory.view');
     Route::get('/inventory/wastage/{id}', WastageForm::class)->name('inventory.wastage.show')->middleware('can:inventory.view');
     Route::get('/inventory/staff-meals/create', StaffMealForm::class)->name('inventory.staff-meals.create')->middleware('can:inventory.view');

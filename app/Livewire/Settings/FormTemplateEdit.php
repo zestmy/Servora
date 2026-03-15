@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\FormTemplateLine;
 use App\Models\Ingredient;
+use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
@@ -121,7 +122,80 @@ class FormTemplateEdit extends Component
         }
 
         $ingredient = Ingredient::with('baseUom')->findOrFail($ingredientId);
+        $this->addIngredientToLines($ingredient);
+        $this->itemSearch = '';
+    }
 
+    public function loadByCategory(int $categoryId): void
+    {
+        $category = IngredientCategory::with('children')->find($categoryId);
+        if (!$category) return;
+
+        // Get all category IDs (self + children if it's a root)
+        $catIds = collect([$category->id]);
+        if ($category->children->isNotEmpty()) {
+            $catIds = $catIds->merge($category->children->pluck('id'));
+        }
+
+        $existingIngIds = collect($this->lines)
+            ->where('item_type', 'ingredient')
+            ->pluck('ingredient_id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        $ingredients = Ingredient::with('baseUom')
+            ->where('is_active', true)
+            ->whereIn('ingredient_category_id', $catIds)
+            ->when($existingIngIds, fn ($q) => $q->whereNotIn('id', $existingIngIds))
+            ->orderBy('name')
+            ->get();
+
+        $added = 0;
+        foreach ($ingredients as $ingredient) {
+            $this->addIngredientToLines($ingredient);
+            $added++;
+        }
+
+        if ($added > 0) {
+            session()->flash('success', "{$added} ingredient(s) added from {$category->name}.");
+        } else {
+            session()->flash('info', "No new ingredients to add from {$category->name}.");
+        }
+    }
+
+    public function loadBySupplier(int $supplierId): void
+    {
+        $supplier = Supplier::find($supplierId);
+        if (!$supplier) return;
+
+        $existingIngIds = collect($this->lines)
+            ->where('item_type', 'ingredient')
+            ->pluck('ingredient_id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        $ingredients = Ingredient::with('baseUom')
+            ->where('is_active', true)
+            ->whereHas('suppliers', fn ($q) => $q->where('suppliers.id', $supplierId))
+            ->when($existingIngIds, fn ($q) => $q->whereNotIn('id', $existingIngIds))
+            ->orderBy('name')
+            ->get();
+
+        $added = 0;
+        foreach ($ingredients as $ingredient) {
+            $this->addIngredientToLines($ingredient);
+            $added++;
+        }
+
+        if ($added > 0) {
+            session()->flash('success', "{$added} ingredient(s) added from {$supplier->name}.");
+        } else {
+            session()->flash('info', "No new ingredients to add from {$supplier->name}.");
+        }
+    }
+
+    private function addIngredientToLines(Ingredient $ingredient): void
+    {
         $line = FormTemplateLine::create([
             'form_template_id' => $this->templateId,
             'item_type'        => 'ingredient',
@@ -150,8 +224,6 @@ class FormTemplateEdit extends Component
             'pack_info'        => $packInfo,
             'default_quantity' => '0',
         ];
-
-        $this->itemSearch = '';
     }
 
     public function addRecipe(int $recipeId): void
@@ -253,8 +325,9 @@ class FormTemplateEdit extends Component
 
         $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
         $departments = Department::active()->ordered()->get();
+        $categories  = IngredientCategory::roots()->with('children')->active()->ordered()->get();
 
-        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments'))
+        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments', 'categories'))
             ->layout('layouts.app', ['title' => 'Edit Template: ' . $this->name]);
     }
 }
