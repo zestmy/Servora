@@ -595,7 +595,7 @@
             @if (count($extraCosts))
                 <div class="space-y-2">
                     @foreach ($extraCosts as $idx => $cost)
-                        <div class="flex items-center gap-3" wire:key="extra-cost-{{ $idx }}">
+                        <div class="flex items-center gap-2" wire:key="extra-cost-{{ $idx }}">
                             <div class="flex-1">
                                 <input type="text"
                                        wire:model.live.debounce.400ms="extraCosts.{{ $idx }}.label"
@@ -603,13 +603,25 @@
                                        class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                 <x-input-error :messages="$errors->get('extraCosts.'.$idx.'.label')" class="mt-0.5" />
                             </div>
-                            <div class="w-36">
+                            <div class="w-24">
+                                <select wire:model.live="extraCosts.{{ $idx }}.type"
+                                        class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="value">RM</option>
+                                    <option value="percent">%</option>
+                                </select>
+                            </div>
+                            <div class="w-28">
                                 <input type="number" step="0.01" min="0"
                                        wire:model.live.debounce.400ms="extraCosts.{{ $idx }}.amount"
-                                       placeholder="0.00"
+                                       placeholder="{{ ($cost['type'] ?? 'value') === 'percent' ? '0 %' : '0.00' }}"
                                        class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                 <x-input-error :messages="$errors->get('extraCosts.'.$idx.'.amount')" class="mt-0.5" />
                             </div>
+                            @if (($cost['type'] ?? 'value') === 'percent' && floatval($cost['amount'] ?? 0) > 0 && $totalCost > 0)
+                                <span class="text-xs text-gray-400 tabular-nums w-20 text-right">= {{ number_format($totalCost * floatval($cost['amount']) / 100, 2) }}</span>
+                            @else
+                                <span class="w-20"></span>
+                            @endif
                             <button type="button" wire:click="removeExtraCostRow({{ $idx }})"
                                     class="text-red-400 hover:text-red-600 transition flex-shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

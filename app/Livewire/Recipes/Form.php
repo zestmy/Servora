@@ -68,6 +68,7 @@ class Form extends Component
             'newDineInImages.*'          => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'newTakeawayImages.*'        => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'extraCosts.*.label'         => 'required|string|max:100',
+            'extraCosts.*.type'          => 'required|in:value,percent',
             'extraCosts.*.amount'        => 'required|numeric|min:0',
         ];
     }
@@ -205,7 +206,7 @@ class Form extends Component
 
     public function addExtraCostRow(): void
     {
-        $this->extraCosts[] = ['label' => '', 'amount' => '0'];
+        $this->extraCosts[] = ['label' => '', 'type' => 'value', 'amount' => '0'];
     }
 
     public function removeExtraCostRow(int $idx): void
@@ -220,7 +221,12 @@ class Form extends Component
 
         [$lineCosts, $totalCost] = $this->computeLineCosts();
 
-        $extraCostTotal = collect($this->extraCosts)->sum(fn ($c) => floatval($c['amount'] ?? 0));
+        $extraCostTotal = collect($this->extraCosts)->sum(function ($c) use ($totalCost) {
+            if (($c['type'] ?? 'value') === 'percent') {
+                return $totalCost * (floatval($c['amount'] ?? 0) / 100);
+            }
+            return floatval($c['amount'] ?? 0);
+        });
         $grandCost      = $totalCost + $extraCostTotal;
 
         $yieldQty        = max(floatval($this->yield_quantity), 0.0001);
@@ -338,7 +344,12 @@ class Form extends Component
         // Live cost calculations
         [$lineCosts, $totalCost] = $this->computeLineCosts();
 
-        $extraCostTotal = collect($this->extraCosts)->sum(fn ($c) => floatval($c['amount'] ?? 0));
+        $extraCostTotal = collect($this->extraCosts)->sum(function ($c) use ($totalCost) {
+            if (($c['type'] ?? 'value') === 'percent') {
+                return $totalCost * (floatval($c['amount'] ?? 0) / 100);
+            }
+            return floatval($c['amount'] ?? 0);
+        });
         $grandCost      = $totalCost + $extraCostTotal;
 
         $yieldQty     = max(floatval($this->yield_quantity), 0.0001);
