@@ -252,7 +252,7 @@ class Import extends Component
                 } else {
                     $categoryRevenues[] = [
                         'sales_category_id'      => $cat->id,
-                        'ingredient_category_id' => $cat->ingredient_category_id,
+                        'ingredient_category_id' => null,
                         'name'                   => $cat->name,
                         'revenue'                => $revenue,
                     ];

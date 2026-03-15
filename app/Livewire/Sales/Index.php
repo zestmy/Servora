@@ -384,7 +384,7 @@ class Index extends Component
 
     public function render()
     {
-        $query = SalesRecord::with(['lines.ingredientCategory', 'lines.salesCategory', 'attachments'])->withCount('attachments');
+        $query = SalesRecord::with(['lines.salesCategory', 'attachments'])->withCount('attachments');
         $this->scopeByOutlet($query);
 
         if ($this->search) {

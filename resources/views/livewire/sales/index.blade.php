@@ -404,10 +404,10 @@
                         ];
                         $periodColor = $periodColors[$record->meal_period ?? 'all_day'] ?? 'bg-gray-100 text-gray-600';
 
-                        // Group lines by ingredient category
+                        // Group lines by sales category
                         $catGroups = $record->lines
-                            ->filter(fn ($l) => $l->ingredient_category_id !== null)
-                            ->groupBy('ingredient_category_id');
+                            ->filter(fn ($l) => $l->sales_category_id !== null)
+                            ->groupBy('sales_category_id');
                     @endphp
                     <tr class="hover:bg-gray-50 transition {{ in_array($record->id, $selected) ? 'bg-indigo-50' : '' }}">
                         @if ($canDelete)
@@ -445,7 +445,7 @@
                             <div class="flex flex-wrap gap-1">
                                 @forelse ($catGroups as $catId => $catLines)
                                     @php
-                                        $cat    = $catLines->first()->ingredientCategory;
+                                        $cat    = $catLines->first()->salesCategory;
                                         $catRev = $catLines->sum(fn ($l) => floatval($l->total_revenue));
                                     @endphp
                                     @if ($cat)

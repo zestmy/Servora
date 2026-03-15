@@ -52,7 +52,7 @@ class SalesForm extends Component
         // Build a default lines array — one row per sales category
         $this->lines = $categories->map(fn ($cat) => [
             'sales_category_id'      => $cat->id,
-            'ingredient_category_id' => $cat->ingredient_category_id,
+            'ingredient_category_id' => null,
             'category_name'          => $cat->name,
             'category_color'         => $cat->color ?? '#6b7280',
             'revenue'                => '0',
