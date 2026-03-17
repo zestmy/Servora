@@ -5,6 +5,7 @@ namespace App\Livewire\Recipes;
 use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -17,11 +18,13 @@ class Index extends Component
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
     public string $outletFilter = '';
+    public string $costFilter = '';
 
     public function updatedSearch(): void         { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
     public function updatedStatusFilter(): void   { $this->resetPage(); }
     public function updatedOutletFilter(): void   { $this->resetPage(); }
+    public function updatedCostFilter(): void     { $this->resetPage(); }
 
     public function delete(int $id): void
     {
@@ -79,7 +82,36 @@ class Index extends Component
             });
         }
 
-        $recipes = $query->orderBy('name')->paginate(15);
+        if ($this->costFilter) {
+            $allRecipes = $query->orderBy('name')->get();
+
+            $filtered = $allRecipes->filter(function ($recipe) {
+                $totalCost = $recipe->total_cost;
+                $selling   = floatval($recipe->selling_price);
+                $pct       = $selling > 0 ? ($totalCost / $selling) * 100 : null;
+
+                return match ($this->costFilter) {
+                    'under25' => $pct !== null && $pct <= 25,
+                    '25to35'  => $pct !== null && $pct > 25 && $pct <= 35,
+                    '35to45'  => $pct !== null && $pct > 35 && $pct <= 45,
+                    'over45'  => $pct !== null && $pct > 45,
+                    'none'    => $pct === null,
+                    default   => true,
+                };
+            });
+
+            $page    = $this->getPage();
+            $perPage = 15;
+            $recipes = new LengthAwarePaginator(
+                $filtered->forPage($page, $perPage)->values(),
+                $filtered->count(),
+                $perPage,
+                $page,
+                ['path' => request()->url()],
+            );
+        } else {
+            $recipes = $query->orderBy('name')->paginate(15);
+        }
 
         $recipeCategories = RecipeCategory::with(['children' => function ($q) {
                 $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');

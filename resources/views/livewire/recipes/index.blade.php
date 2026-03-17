@@ -63,6 +63,17 @@
             </div>
             @endif
             <div>
+                <select wire:model.live="costFilter"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Cost %</option>
+                    <option value="under25">Under 25% (Low)</option>
+                    <option value="25to35">25 – 35%</option>
+                    <option value="35to45">35 – 45%</option>
+                    <option value="over45">Over 45% (High)</option>
+                    <option value="none">No Price Set</option>
+                </select>
+            </div>
+            <div>
                 <select wire:model.live="statusFilter"
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="all">All Status</option>
