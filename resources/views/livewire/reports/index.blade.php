@@ -111,6 +111,7 @@
                 'performance'   => 'Performance',
                 'cost_analysis' => 'Cost Analysis',
                 'wastage'       => 'Wastage',
+                'labour_cost'   => 'Labour Cost',
             ];
         @endphp
         @foreach ($tabs as $key => $label)
@@ -983,6 +984,131 @@
             @include('livewire.reports._wastage-table', ['detail' => $summary['staff_meals_detail'] ?? null, 'label' => 'Staff Meals', 'color' => 'purple'])
         @else
             @include('livewire.reports._empty-state')
+        @endif
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- TAB: Labour Cost                                            --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    @if ($activeTab === 'labour_cost')
+        @if (!empty($labourData['outlets']))
+            {{-- Summary Cards --}}
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <p class="text-xs text-gray-400 uppercase tracking-wider">Total Revenue</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1">{{ number_format($labourData['total_revenue'], 2) }}</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <p class="text-xs text-gray-400 uppercase tracking-wider">Total Labour Cost</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1">{{ number_format($labourData['grand_total'], 2) }}</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-blue-100 p-5">
+                    <p class="text-xs text-blue-500 uppercase tracking-wider">FOH</p>
+                    <p class="text-xl font-bold text-blue-700 mt-1">{{ number_format($labourData['total_foh'], 2) }}</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-amber-100 p-5">
+                    <p class="text-xs text-amber-500 uppercase tracking-wider">BOH</p>
+                    <p class="text-xl font-bold text-amber-700 mt-1">{{ number_format($labourData['total_boh'], 2) }}</p>
+                </div>
+            </div>
+
+            {{-- Labour Cost % Gauge --}}
+            @if ($labourData['total_revenue'] > 0)
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-semibold text-gray-700">Labour Cost %</h3>
+                        <span class="text-2xl font-bold {{ $labourData['labour_pct'] > 35 ? 'text-red-600' : ($labourData['labour_pct'] > 25 ? 'text-amber-600' : 'text-green-600') }}">
+                            {{ $labourData['labour_pct'] }}%
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-3">
+                        <div class="h-3 rounded-full transition-all {{ $labourData['labour_pct'] > 35 ? 'bg-red-500' : ($labourData['labour_pct'] > 25 ? 'bg-amber-500' : 'bg-green-500') }}"
+                             style="width: {{ min($labourData['labour_pct'], 100) }}%"></div>
+                    </div>
+                    <div class="flex justify-between mt-1 text-xs text-gray-400">
+                        <span>0%</span>
+                        <span>Target: 25-30%</span>
+                        <span>50%</span>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Per-Outlet Breakdown --}}
+            @foreach ($labourData['outlets'] as $outletId => $o)
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-4 bg-gray-50 border-b border-gray-100">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-800">{{ $o['outlet_name'] }}</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Revenue: {{ number_format($o['revenue'], 2) }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-bold {{ $o['labour_pct'] > 35 ? 'text-red-600' : ($o['labour_pct'] > 25 ? 'text-amber-600' : 'text-green-600') }}">
+                                {{ $o['labour_pct'] }}%
+                            </p>
+                            <p class="text-xs text-gray-400">Labour Cost %</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                        {{-- FOH --}}
+                        <div class="p-5">
+                            <h4 class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">Front of House (FOH)</h4>
+                            @if ($o['foh'])
+                                <div class="space-y-1.5 text-sm">
+                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['foh']['basic_salary'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['foh']['service_point'], 2) }}</span></div>
+                                    @foreach ($o['foh']['allowances'] as $a)
+                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }}</span></div>
+                                    @endforeach
+                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['foh']['epf'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['foh']['eis'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['foh']['socso'], 2) }}</span></div>
+                                    <div class="border-t border-gray-100 pt-1.5 flex justify-between font-semibold">
+                                        <span class="text-gray-700">Subtotal</span>
+                                        <span class="text-blue-700">{{ number_format($o['foh']['total'], 2) }}</span>
+                                    </div>
+                                </div>
+                            @else
+                                <p class="text-sm text-gray-400">No data entered</p>
+                            @endif
+                        </div>
+
+                        {{-- BOH --}}
+                        <div class="p-5">
+                            <h4 class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-3">Back of House (BOH)</h4>
+                            @if ($o['boh'])
+                                <div class="space-y-1.5 text-sm">
+                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['boh']['basic_salary'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['boh']['service_point'], 2) }}</span></div>
+                                    @foreach ($o['boh']['allowances'] as $a)
+                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }}</span></div>
+                                    @endforeach
+                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['boh']['epf'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['boh']['eis'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['boh']['socso'], 2) }}</span></div>
+                                    <div class="border-t border-gray-100 pt-1.5 flex justify-between font-semibold">
+                                        <span class="text-gray-700">Subtotal</span>
+                                        <span class="text-amber-700">{{ number_format($o['boh']['total'], 2) }}</span>
+                                    </div>
+                                </div>
+                            @else
+                                <p class="text-sm text-gray-400">No data entered</p>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Outlet Total --}}
+                    <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                        <span class="text-sm font-semibold text-gray-700">Total Labour Cost</span>
+                        <span class="text-lg font-bold text-gray-800">{{ number_format($o['total'], 2) }}</span>
+                    </div>
+                </div>
+            @endforeach
+        @else
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+                <p class="font-medium">No labour cost data for {{ $periodLabel }}</p>
+                <p class="text-xs mt-1">Enter labour costs in <a href="{{ route('settings.labour-costs') }}" class="text-indigo-500 hover:underline">Settings &gt; Labour Costs</a></p>
+            </div>
         @endif
     @endif
 </div>

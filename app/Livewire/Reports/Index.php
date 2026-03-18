@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports;
 
 use App\Models\Company;
+use App\Models\LabourCost;
 use App\Models\Outlet;
 use App\Models\SalesRecord;
 use App\Services\CostSummaryService;
@@ -17,7 +18,7 @@ class Index extends Component
 {
     use ScopesToActiveOutlet;
 
-    public string $activeTab = 'cost_summary'; // cost_summary | performance | cost_analysis | wastage
+    public string $activeTab = 'cost_summary'; // cost_summary | performance | cost_analysis | wastage | labour_cost
     public string $period = '';
     public string $mode = 'monthly'; // monthly | weekly
     public string $weekStart = '';
@@ -28,6 +29,7 @@ class Index extends Component
     public array $dashboardData = [];
     public array $comparisonData = [];
     public array $monthlySalesByYear = [];
+    public array $labourData = [];
 
     public function mount(): void
     {
@@ -224,6 +226,7 @@ class Index extends Component
         $this->loadSummary();
         $this->loadDashboardData();
         $this->loadMonthlySalesByYear();
+        $this->loadLabourData();
 
         if ($this->compareMode && $this->mode === 'monthly') {
             $this->loadComparisonData();
@@ -526,6 +529,87 @@ class Index extends Component
             'years'       => $years,
             'data'        => $data,
             'year_totals' => $yearTotals,
+        ];
+    }
+
+    private function loadLabourData(): void
+    {
+        $month = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $outletId = $this->outletId ?: null;
+
+        $query = LabourCost::where('month', $month)->with('allowances');
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        $records = $query->get();
+
+        // Revenue for the period
+        $revenueQuery = SalesRecord::whereYear('sale_date', Carbon::parse($month)->year)
+            ->whereMonth('sale_date', Carbon::parse($month)->month);
+        if ($outletId) {
+            $revenueQuery->where('outlet_id', $outletId);
+        }
+
+        // Per-outlet revenue
+        $revenueByOutlet = (clone $revenueQuery)
+            ->selectRaw('outlet_id, SUM(total_revenue) as revenue')
+            ->groupBy('outlet_id')
+            ->pluck('revenue', 'outlet_id');
+
+        $totalRevenue = (float) $revenueQuery->sum('total_revenue');
+
+        // Group by outlet
+        $outlets = [];
+        foreach ($records as $rec) {
+            $oid = $rec->outlet_id;
+            if (!isset($outlets[$oid])) {
+                $outlets[$oid] = [
+                    'outlet_name' => $rec->outlet->name ?? 'Unknown',
+                    'revenue'     => (float) ($revenueByOutlet[$oid] ?? 0),
+                    'foh'         => null,
+                    'boh'         => null,
+                ];
+            }
+
+            $totalAllowances = (float) $rec->allowances->sum('amount');
+            $totalCost = (float) $rec->basic_salary + (float) $rec->service_point
+                + (float) $rec->epf + (float) $rec->eis + (float) $rec->socso + $totalAllowances;
+
+            $outlets[$oid][$rec->department_type] = [
+                'basic_salary'    => (float) $rec->basic_salary,
+                'service_point'   => (float) $rec->service_point,
+                'allowances'      => $rec->allowances->map(fn ($a) => ['label' => $a->label, 'amount' => (float) $a->amount])->toArray(),
+                'total_allowances' => $totalAllowances,
+                'epf'             => (float) $rec->epf,
+                'eis'             => (float) $rec->eis,
+                'socso'           => (float) $rec->socso,
+                'total'           => $totalCost,
+            ];
+        }
+
+        // Totals
+        $totalFoh = 0;
+        $totalBoh = 0;
+        foreach ($outlets as &$o) {
+            $o['foh_total'] = $o['foh']['total'] ?? 0;
+            $o['boh_total'] = $o['boh']['total'] ?? 0;
+            $o['total']     = $o['foh_total'] + $o['boh_total'];
+            $o['labour_pct'] = $o['revenue'] > 0 ? round($o['total'] / $o['revenue'] * 100, 1) : 0;
+            $totalFoh += $o['foh_total'];
+            $totalBoh += $o['boh_total'];
+        }
+        unset($o);
+
+        $grandTotal = $totalFoh + $totalBoh;
+
+        $this->labourData = [
+            'outlets'       => $outlets,
+            'total_foh'     => $totalFoh,
+            'total_boh'     => $totalBoh,
+            'grand_total'   => $grandTotal,
+            'total_revenue' => $totalRevenue,
+            'labour_pct'    => $totalRevenue > 0 ? round($grandTotal / $totalRevenue * 100, 1) : 0,
         ];
     }
 
