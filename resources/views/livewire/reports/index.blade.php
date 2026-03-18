@@ -1027,7 +1027,7 @@
                     </div>
                     <div class="flex justify-between mt-1 text-xs text-gray-400">
                         <span>0%</span>
-                        <span>Target: 25-30%</span>
+                        <span>Target: 20-23%</span>
                         <span>50%</span>
                     </div>
                 </div>
