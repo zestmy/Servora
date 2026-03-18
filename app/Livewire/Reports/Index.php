@@ -134,6 +134,8 @@ class Index extends Component
                 return $this->exportCostAnalysisPdf($company, $outlet, $periodLabel);
             case 'wastage':
                 return $this->exportWastagePdf($company, $outlet, $periodLabel);
+            case 'labour_cost':
+                return $this->exportLabourCostPdf($company, $outlet, $periodLabel);
         }
     }
 
@@ -686,6 +688,17 @@ class Index extends Component
         $filename = "wastage-report-{$this->period}.pdf";
 
         $pdf = Pdf::loadView('pdf.wastage-report', compact('data', 'summary', 'company', 'outlet', 'periodLabel', 'compareMode', 'comparisonData'))
+            ->setPaper('a4', 'portrait');
+
+        return response()->streamDownload(fn () => print($pdf->output()), $filename);
+    }
+
+    private function exportLabourCostPdf($company, $outlet, $periodLabel)
+    {
+        $labourData = $this->labourData;
+        $filename = "labour-cost-{$this->period}.pdf";
+
+        $pdf = Pdf::loadView('pdf.labour-cost-report', compact('labourData', 'company', 'outlet', 'periodLabel'))
             ->setPaper('a4', 'portrait');
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);
