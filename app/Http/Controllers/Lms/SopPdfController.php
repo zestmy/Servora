@@ -38,7 +38,7 @@ class SopPdfController extends Controller
 
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'Company';
-        $videoQr    = $this->generateQr($recipe->video_url);
+        $videoQr    = $recipe->video_url ? $this->generateQr(route('lms.sop.show', $recipe->id)) : null;
 
         $pdf = Pdf::loadView('pdf.sop-single', compact(
             'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'exportedBy', 'brandName', 'videoQr'
@@ -75,7 +75,7 @@ class SopPdfController extends Controller
                 'dine_in'  => $this->imagesToBase64($recipe->images->where('type', 'dine_in')->values()),
                 'takeaway' => $this->imagesToBase64($recipe->images->where('type', 'takeaway')->values()),
             ];
-            $recipeQrs[$recipe->id] = $this->generateQr($recipe->video_url);
+            $recipeQrs[$recipe->id] = $recipe->video_url ? $this->generateQr(route('lms.sop.show', $recipe->id)) : null;
         }
 
         $exportedBy = $user->name;

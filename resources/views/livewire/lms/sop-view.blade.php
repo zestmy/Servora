@@ -48,11 +48,6 @@
                         frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
             </div>
         </div>
-    @elseif ($recipe->video_url)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 class="text-sm font-semibold text-gray-700 mb-2">Training Video</h2>
-            <a href="{{ $recipe->video_url }}" target="_blank" class="text-sm text-indigo-600 hover:underline">{{ $recipe->video_url }}</a>
-        </div>
     @endif
 
     {{-- Cooking Steps --}}

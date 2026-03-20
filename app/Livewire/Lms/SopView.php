@@ -33,14 +33,14 @@ class SopView extends Component
     {
         if (! $url) return null;
 
-        // YouTube
+        // YouTube — use privacy-enhanced embed (no cookies, no branding)
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/', $url, $m)) {
-            return 'https://www.youtube.com/embed/' . $m[1];
+            return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?rel=0&modestbranding=1';
         }
 
         // Vimeo
         if (preg_match('/vimeo\.com\/(\d+)/', $url, $m)) {
-            return 'https://player.vimeo.com/video/' . $m[1];
+            return 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1';
         }
 
         return null;
