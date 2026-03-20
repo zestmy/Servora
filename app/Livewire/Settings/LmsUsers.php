@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\LmsUser;
+use App\Models\Recipe;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -45,6 +46,7 @@ class LmsUsers extends Component
     public function render()
     {
         $companyId = Auth::user()->company_id;
+        $company   = Auth::user()->company;
 
         $users = LmsUser::where('company_id', $companyId)
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
@@ -56,7 +58,38 @@ class LmsUsers extends Component
             ->latest()
             ->paginate(20);
 
-        return view('livewire.settings.lms-users', compact('users'))
-            ->layout('layouts.app', ['title' => 'LMS Users']);
+        // Stats
+        $totalLmsUsers   = LmsUser::where('company_id', $companyId)->count();
+        $pendingCount    = LmsUser::where('company_id', $companyId)->where('status', 'pending')->count();
+        $approvedCount   = LmsUser::where('company_id', $companyId)->where('status', 'approved')->count();
+        $rejectedCount   = LmsUser::where('company_id', $companyId)->where('status', 'rejected')->count();
+
+        $totalSops       = Recipe::where('is_active', true)->where('is_prep', false)->has('steps')->count();
+        $totalRecipes    = Recipe::where('is_active', true)->where('is_prep', false)->count();
+        $recipesWithVideo = Recipe::where('is_active', true)->where('is_prep', false)->whereNotNull('video_url')->count();
+
+        // SOP categories
+        $sopCategories = Recipe::where('is_active', true)
+            ->where('is_prep', false)
+            ->has('steps')
+            ->whereNotNull('category')
+            ->distinct()
+            ->pluck('category')
+            ->sort()
+            ->values();
+
+        $lmsUrl = $company?->slug
+            ? url("/lms/{$company->slug}/login")
+            : null;
+
+        $lmsRegisterUrl = $company?->slug
+            ? url("/lms/{$company->slug}/register")
+            : null;
+
+        return view('livewire.settings.lms-users', compact(
+            'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',
+            'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories',
+            'lmsUrl', 'lmsRegisterUrl', 'company'
+        ))->layout('layouts.app', ['title' => 'Training Portal']);
     }
 }
