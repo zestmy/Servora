@@ -8,6 +8,17 @@
     @php
         $lmsCompany = Auth::guard('lms')->user()?->company;
         $brandName = $lmsCompany->brand_name ?? $lmsCompany->name ?? 'Training';
+
+        // Build sidebar SOP list grouped by category
+        $sidebarSops = \App\Models\Recipe::where('company_id', Auth::guard('lms')->user()->company_id)
+            ->where('is_active', true)
+            ->where('is_prep', false)
+            ->has('steps')
+            ->select('id', 'name', 'code', 'category')
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get()
+            ->groupBy(fn ($r) => $r->category ?? 'Uncategorised');
     @endphp
 
     <title>{{ $brandName }} — {{ $title ?? 'Training Portal' }}</title>
@@ -21,63 +32,200 @@
 </head>
 <body class="font-sans antialiased bg-gray-50">
 
-    {{-- Top Navbar --}}
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                {{-- Brand --}}
-                <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-3">
-                    @if ($lmsCompany?->logo)
-                        <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-9 max-w-[140px] object-contain">
-                    @endif
-                    <div>
-                        <p class="text-sm font-bold text-gray-900 leading-tight">{{ $brandName }}</p>
-                        @if ($lmsCompany?->brand_name && $lmsCompany->name !== $lmsCompany->brand_name)
-                            <p class="text-xs text-gray-400 leading-tight">{{ $lmsCompany->name }}</p>
-                        @endif
-                    </div>
-                </a>
+<div x-data="{
+        sidebarOpen: localStorage.getItem('lms_sidebar') !== '0',
+        toggleSidebar() {
+            this.sidebarOpen = !this.sidebarOpen;
+            localStorage.setItem('lms_sidebar', this.sidebarOpen ? '1' : '0');
+        }
+     }"
+     class="flex h-screen overflow-hidden">
 
-                {{-- Right side --}}
-                <div class="flex items-center gap-4" x-data="{ open: false }">
-                    <a href="{{ route('lms.dashboard') }}" class="text-sm text-gray-600 hover:text-gray-900 font-medium transition">All SOPs</a>
-                    <div class="relative">
-                        <button @click="open = !open" class="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition">
-                            <div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                                {{ strtoupper(substr(Auth::guard('lms')->user()->name, 0, 2)) }}
-                            </div>
-                            <span class="hidden sm:inline font-medium">{{ Auth::guard('lms')->user()->name }}</span>
-                        </button>
-                        <div x-show="open" @click.away="open = false" x-cloak
-                             class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                            <div class="px-4 py-2 border-b border-gray-100">
-                                <p class="text-sm font-medium text-gray-800">{{ Auth::guard('lms')->user()->name }}</p>
-                                <p class="text-xs text-gray-400">{{ Auth::guard('lms')->user()->email }}</p>
-                            </div>
-                            <form method="POST" action="{{ route('lms.logout') }}">
-                                @csrf
-                                <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition">
-                                    Sign Out
-                                </button>
-                            </form>
+    {{-- ── Sidebar ── --}}
+    <aside :class="sidebarOpen ? 'w-72' : 'w-0 lg:w-16'"
+           class="flex flex-col bg-gray-900 text-white flex-shrink-0 transition-[width] duration-300 ease-in-out overflow-hidden">
+
+        {{-- Logo + toggle --}}
+        <div class="flex items-center h-16 px-3 bg-gray-800 flex-shrink-0 gap-2">
+            <div x-show="sidebarOpen"
+                 x-transition:enter="transition-opacity duration-200 delay-150"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition-opacity duration-75"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="flex-1 overflow-hidden whitespace-nowrap">
+                <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
+                    @if ($lmsCompany?->logo)
+                        <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-8 max-w-[120px] object-contain">
+                    @endif
+                    <span class="text-sm font-bold text-white truncate">{{ $brandName }}</span>
+                </a>
+            </div>
+
+            <button @click="toggleSidebar()"
+                    :class="sidebarOpen ? '' : 'mx-auto'"
+                    title="Toggle sidebar"
+                    class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
+                <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                </svg>
+                <svg x-show="!sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+
+        {{-- Navigation --}}
+        <nav x-show="sidebarOpen"
+             x-transition:enter="transition-opacity duration-200 delay-100"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity duration-75"
+             class="flex-1 overflow-y-auto py-4 px-3">
+
+            {{-- All SOPs link --}}
+            <a href="{{ route('lms.dashboard') }}"
+               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-3
+                      {{ request()->routeIs('lms.dashboard') ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                All SOPs
+            </a>
+
+            {{-- SOP list by category --}}
+            @foreach ($sidebarSops as $categoryName => $catRecipes)
+                <div class="mb-3" x-data="{ open: true }">
+                    <button @click="open = !open"
+                            class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-200 transition">
+                        <span class="truncate">{{ $categoryName }}</span>
+                        <svg :class="open && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-cloak class="mt-0.5 space-y-0.5">
+                        @foreach ($catRecipes as $sop)
+                            @php $isActive = request()->route('id') == $sop->id && request()->routeIs('lms.sop.show'); @endphp
+                            <a href="{{ route('lms.sop.show', $sop->id) }}"
+                               class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors
+                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 {{ $isActive ? 'text-white' : 'text-gray-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span class="truncate">{{ $sop->name }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+
+            {{-- Export All --}}
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                <a href="{{ route('lms.sop.pdf-all') }}" target="_blank"
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export All PDF
+                </a>
+            </div>
+        </nav>
+
+        {{-- Collapsed: icon-only nav --}}
+        <nav x-show="!sidebarOpen"
+             x-transition:enter="transition-opacity duration-200 delay-100"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity duration-75"
+             class="hidden lg:flex flex-1 flex-col items-center py-4 px-2 overflow-y-auto">
+            <a href="{{ route('lms.dashboard') }}" title="All SOPs"
+               class="w-10 h-10 flex items-center justify-center rounded-lg mb-2 transition
+                      {{ request()->routeIs('lms.dashboard') ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+            </a>
+            <a href="{{ route('lms.sop.pdf-all') }}" target="_blank" title="Export All PDF"
+               class="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </a>
+        </nav>
+
+        {{-- Bottom: User --}}
+        <div class="flex-shrink-0 border-t border-gray-700 p-2" x-data="{ userOpen: false }">
+            <div x-show="sidebarOpen"
+                 x-transition:enter="transition-opacity duration-150 delay-100"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition-opacity duration-75">
+                <div class="relative">
+                    <button @click="userOpen = !userOpen"
+                            class="flex items-center w-full gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 transition">
+                        <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                            {{ strtoupper(substr(Auth::guard('lms')->user()->name, 0, 2)) }}
                         </div>
+                        <div class="flex-1 text-left overflow-hidden">
+                            <p class="text-sm font-medium text-white truncate">{{ Auth::guard('lms')->user()->name }}</p>
+                            <p class="text-xs text-gray-400 truncate">{{ Auth::guard('lms')->user()->email }}</p>
+                        </div>
+                    </button>
+                    <div x-show="userOpen" @click.away="userOpen = false" x-cloak
+                         class="absolute bottom-full left-0 mb-1 w-full bg-gray-800 rounded-lg border border-gray-700 py-1 shadow-lg">
+                        <form method="POST" action="{{ route('lms.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition">
+                                Sign Out
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
+            <div x-show="!sidebarOpen" class="hidden lg:flex justify-center">
+                <form method="POST" action="{{ route('lms.logout') }}">
+                    @csrf
+                    <button type="submit" title="Sign Out"
+                            class="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-red-400 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
         </div>
-    </nav>
+    </aside>
 
-    {{-- Content --}}
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {{ $slot }}
-    </main>
+    {{-- ── Main content ── --}}
+    <div class="flex-1 flex flex-col overflow-hidden">
+        {{-- Top bar (mobile toggle + brand) --}}
+        <header class="lg:hidden bg-white border-b border-gray-200 h-14 flex items-center px-4 flex-shrink-0">
+            <button @click="toggleSidebar()" class="text-gray-500 hover:text-gray-700 transition mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
+                @if ($lmsCompany?->logo)
+                    <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-7 max-w-[100px] object-contain">
+                @endif
+                <span class="text-sm font-bold text-gray-900">{{ $brandName }}</span>
+            </a>
+        </header>
 
-    {{-- Footer --}}
-    <footer class="border-t border-gray-200 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
-            <p class="text-xs text-gray-400">&copy; {{ date('Y') }} {{ $lmsCompany?->name ?? 'Company' }}. Training Portal powered by Servora.</p>
-        </div>
-    </footer>
+        <main class="flex-1 overflow-y-auto p-6">
+            {{ $slot }}
+        </main>
+
+        {{-- Footer --}}
+        <footer class="border-t border-gray-200 flex-shrink-0">
+            <div class="px-6 py-4 text-center">
+                <p class="text-xs text-gray-400">&copy; {{ date('Y') }} {{ $lmsCompany?->name ?? 'Company' }}. Training Portal powered by Servora.</p>
+            </div>
+        </footer>
+    </div>
+</div>
 
 </body>
 </html>
