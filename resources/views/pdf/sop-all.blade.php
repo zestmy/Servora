@@ -4,9 +4,10 @@
     <meta charset="utf-8">
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
+        @page { margin: 40px 45px; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #000; line-height: 1.5; }
-        .container { padding: 40px 45px; }
+        .container { padding: 0; }
         .page-break { page-break-before: always; }
         .company-logo { max-height: 45px; max-width: 160px; margin-bottom: 6px; }
         .company-name { font-size: 16px; font-weight: bold; color: #000; margin-bottom: 2px; }
@@ -92,7 +93,7 @@
             <div class="page-break"></div>
 
             {{-- Rubber Stamp --}}
-            <div style="text-align: right; margin-bottom: -10px;">
+            <div style="text-align: right; margin-bottom: 8px;">
                 <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
                     Private &amp; Confidential
                 </div>
