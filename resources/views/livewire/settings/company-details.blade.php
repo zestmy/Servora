@@ -26,6 +26,13 @@
                 </div>
 
                 <div>
+                    <x-input-label for="brand_name" value="Brand Name" />
+                    <x-text-input id="brand_name" wire:model="brand_name" type="text" class="mt-1 block w-full" placeholder="e.g. Nando's (display name for LMS)" />
+                    <p class="text-xs text-gray-400 mt-1">Displayed on the Training Portal. Defaults to company name if empty.</p>
+                    <x-input-error :messages="$errors->get('brand_name')" class="mt-1" />
+                </div>
+
+                <div>
                     <x-input-label for="registration_number" value="Registration Number" />
                     <x-text-input id="registration_number" wire:model="registration_number" type="text" class="mt-1 block w-full" placeholder="e.g. 202301012345 (1234567-A)" />
                     <x-input-error :messages="$errors->get('registration_number')" class="mt-1" />

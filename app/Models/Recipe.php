@@ -16,7 +16,7 @@ class Recipe extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'name', 'code', 'description', 'yield_quantity', 'yield_uom_id',
+        'company_id', 'name', 'code', 'description', 'video_url', 'yield_quantity', 'yield_uom_id',
         'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
         'ingredient_category_id', 'is_active', 'is_prep',
     ];
@@ -64,6 +64,11 @@ class Recipe extends Model
     public function images(): HasMany
     {
         return $this->hasMany(RecipeImage::class)->orderBy('sort_order');
+    }
+
+    public function steps(): HasMany
+    {
+        return $this->hasMany(RecipeStep::class)->orderBy('sort_order');
     }
 
     /** Outlets this recipe is tagged to (empty = available at all outlets). */

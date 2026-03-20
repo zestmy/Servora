@@ -14,6 +14,7 @@ use App\Models\CostType;
 use App\Models\PoApprover;
 use App\Models\Supplier;
 use App\Models\LabourCost;
+use App\Models\LmsUser;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -37,6 +38,9 @@ class Index extends Component
         $calendarEventCount  = CalendarEvent::count();
         $salesTargetCount    = SalesTarget::count();
         $labourCostCount     = LabourCost::count();
+        $lmsUserCount        = $user->company_id
+            ? LmsUser::where('company_id', $user->company_id)->count()
+            : 0;
         $userCount           = $isSystemLevel
             ? User::count()
             : User::where('company_id', $user->company_id)->count();
@@ -47,7 +51,7 @@ class Index extends Component
         return view('livewire.settings.index', compact(
             'isSystemLevel', 'isBusinessLevel',
             'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
-            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'userCount', 'outletCount'
+            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount'
         ))->layout('layouts.app', ['title' => 'Settings']);
     }
 }

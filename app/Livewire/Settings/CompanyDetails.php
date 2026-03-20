@@ -12,6 +12,7 @@ class CompanyDetails extends Component
     use WithFileUploads;
 
     public string  $name                = '';
+    public string  $brand_name          = '';
     public string  $registration_number = '';
     public string  $email               = '';
     public string  $phone               = '';
@@ -33,6 +34,7 @@ class CompanyDetails extends Component
         if (! $company) return;
 
         $this->name                = $company->name ?? '';
+        $this->brand_name          = $company->brand_name ?? '';
         $this->registration_number = $company->registration_number ?? '';
         $this->email               = $company->email ?? '';
         $this->phone               = $company->phone ?? '';
@@ -52,6 +54,7 @@ class CompanyDetails extends Component
     {
         $this->validate([
             'name'                => 'required|string|max:100',
+            'brand_name'          => 'nullable|string|max:255',
             'registration_number' => 'nullable|string|max:50',
             'email'               => 'nullable|email|max:100',
             'phone'               => 'nullable|string|max:30',
@@ -68,6 +71,7 @@ class CompanyDetails extends Component
 
         $data = [
             'name'                => $this->name,
+            'brand_name'          => $this->brand_name ?: null,
             'registration_number' => $this->registration_number ?: null,
             'email'               => $this->email ?: null,
             'phone'               => $this->phone ?: null,

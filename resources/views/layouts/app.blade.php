@@ -110,6 +110,7 @@
                     ['route' => 'sales.index',       'icon' => '💰', 'label' => 'Sales',        'permission' => 'sales.view'],
                     ['route' => 'inventory.index',   'icon' => '📦', 'label' => 'Inventory',    'permission' => 'inventory.view'],
                     ['route' => 'reports.index',     'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
+                    ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
                     ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager']],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
                 ];

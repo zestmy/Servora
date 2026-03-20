@@ -11,8 +11,10 @@ class CompanyScope implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
-        if (Auth::check() && Auth::user()->company_id) {
-            $builder->where($model->getTable() . '.company_id', Auth::user()->company_id);
+        $user = Auth::check() ? Auth::user() : (Auth::guard('lms')->check() ? Auth::guard('lms')->user() : null);
+
+        if ($user && $user->company_id) {
+            $builder->where($model->getTable() . '.company_id', $user->company_id);
         }
     }
 }

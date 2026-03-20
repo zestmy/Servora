@@ -418,6 +418,80 @@
         </div>
     </div>
 
+    {{-- ── Training / SOP ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ sopOpen: {{ count($steps) || $video_url ? 'true' : 'false' }} }">
+        <button type="button" @click="sopOpen = !sopOpen"
+                class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+            <div class="text-left">
+                <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Cooking steps, video & training content</p>
+            </div>
+            <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <div x-show="sopOpen" x-cloak class="px-6 pb-6 space-y-4 border-t border-gray-100">
+            {{-- Video URL --}}
+            <div class="pt-4">
+                <x-input-label for="video_url" value="Video URL" />
+                <x-text-input id="video_url" wire:model="video_url" type="url"
+                              class="mt-1 block w-full text-sm"
+                              placeholder="https://www.youtube.com/watch?v=..." />
+                <p class="text-xs text-gray-400 mt-1">YouTube or Vimeo link for the training video</p>
+                <x-input-error :messages="$errors->get('video_url')" class="mt-1" />
+            </div>
+
+            {{-- Cooking Steps --}}
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700">Cooking Steps</h4>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
+                    </div>
+                    <button type="button" wire:click="addStep"
+                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                        + Add Step
+                    </button>
+                </div>
+
+                @if (count($steps))
+                    <div class="space-y-3">
+                        @foreach ($steps as $idx => $step)
+                            <div class="relative bg-gray-50 rounded-lg p-4 border border-gray-200" wire:key="step-{{ $idx }}">
+                                <div class="flex items-start gap-3">
+                                    <span class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $idx + 1 }}</span>
+                                    <div class="flex-1 space-y-2">
+                                        <input type="text"
+                                               wire:model.blur="steps.{{ $idx }}.title"
+                                               placeholder="Step title (optional, e.g. Preparation)"
+                                               class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                        <textarea wire:model.blur="steps.{{ $idx }}.instruction"
+                                                  rows="3"
+                                                  placeholder="Describe the cooking step..."
+                                                  class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                        <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
+                                    </div>
+                                    <button type="button" wire:click="removeStep({{ $idx }})"
+                                            class="flex-shrink-0 text-red-400 hover:text-red-600 transition mt-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6 text-gray-400">
+                        <p class="text-sm">No cooking steps added yet.</p>
+                        <p class="text-xs mt-1">Add steps to create training content for this recipe.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
     {{-- ── Ingredient Lines ── --}}
     <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
 

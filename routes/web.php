@@ -45,6 +45,8 @@ use App\Livewire\Purchasing\GrnReceiveForm as PurchasingGrnReceiveForm;
 use App\Http\Controllers\PurchaseDocumentPdfController;
 use App\Http\Controllers\IngredientExportController;
 use App\Http\Controllers\StockTakeCountSheetController;
+use App\Http\Controllers\Lms\SopPdfController;
+use App\Livewire\Settings\LmsUsers as SettingsLmsUsers;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
@@ -102,6 +104,9 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.view');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:settings.view');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:settings.view');
+    Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:settings.view');
+    Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:recipes.view');
+    Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:recipes.view');
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager');
 });
 

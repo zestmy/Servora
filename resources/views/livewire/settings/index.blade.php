@@ -226,6 +226,19 @@
                     </div>
                 </a>
 
+                {{-- LMS Users --}}
+                <a href="{{ route('settings.lms-users') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">LMS Users</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Approve employee training portal registrations</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $lmsUserCount }} {{ Str::plural('user', $lmsUserCount) }}</p>
+                    </div>
+                </a>
+
                 {{-- Form Templates --}}
                 <a href="{{ route('settings.form-templates') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">

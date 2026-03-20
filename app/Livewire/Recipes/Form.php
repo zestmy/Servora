@@ -8,6 +8,7 @@ use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\RecipeImage;
+use App\Models\RecipeStep;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +48,10 @@ class Form extends Component
     // Extra costs: each row = [label, amount]
     public array $extraCosts = [];
 
+    // Training / SOP
+    public string $video_url = '';
+    public array $steps = [];
+
     // Ingredient search
     public string $ingredientSearch = '';
 
@@ -70,6 +75,9 @@ class Form extends Component
             'extraCosts.*.label'         => 'required|string|max:100',
             'extraCosts.*.type'          => 'required|in:value,percent',
             'extraCosts.*.amount'        => 'required|numeric|min:0',
+            'video_url'                  => 'nullable|url|max:500',
+            'steps.*.title'              => 'nullable|string|max:255',
+            'steps.*.instruction'        => 'required|string',
         ];
     }
 
@@ -92,7 +100,7 @@ class Form extends Component
     {
         if (! $id) return;
 
-        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images', 'outlets'])->findOrFail($id);
+        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images', 'outlets', 'steps'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->name                   = $recipe->name;
@@ -138,6 +146,12 @@ class Form extends Component
             'file_name' => $img->file_name,
             'url'       => $img->url(),
             'size'      => $img->humanSize(),
+        ])->toArray();
+
+        $this->video_url = $recipe->video_url ?? '';
+        $this->steps = $recipe->steps->map(fn ($s) => [
+            'title'       => $s->title ?? '',
+            'instruction' => $s->instruction,
         ])->toArray();
     }
 
@@ -215,6 +229,17 @@ class Form extends Component
         $this->extraCosts = array_values($this->extraCosts);
     }
 
+    public function addStep(): void
+    {
+        $this->steps[] = ['title' => '', 'instruction' => ''];
+    }
+
+    public function removeStep(int $idx): void
+    {
+        unset($this->steps[$idx]);
+        $this->steps = array_values($this->steps);
+    }
+
     public function save(): void
     {
         $this->validate();
@@ -236,6 +261,7 @@ class Form extends Component
             'name'                   => strtoupper($this->name),
             'code'                   => $this->code ?: null,
             'description'            => $this->description ?: null,
+            'video_url'              => $this->video_url ?: null,
             'yield_quantity'         => $this->yield_quantity,
             'yield_uom_id'           => $this->yield_uom_id,
             'selling_price'          => $this->selling_price,
@@ -272,6 +298,17 @@ class Form extends Component
                 'uom_id'           => $line['uom_id'],
                 'waste_percentage' => $line['waste_percentage'],
                 'sort_order'       => $idx,
+            ]);
+        }
+
+        // Sync steps
+        $recipe->steps()->delete();
+        foreach ($this->steps as $idx => $step) {
+            if (trim($step['instruction'] ?? '') === '') continue;
+            $recipe->steps()->create([
+                'sort_order'  => $idx,
+                'title'       => $step['title'] ?: null,
+                'instruction' => $step['instruction'],
             ]);
         }
 
