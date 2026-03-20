@@ -5,7 +5,7 @@
 @section('content')
     {{-- Rubber Stamp --}}
     <div style="text-align: right; margin-bottom: -10px;">
-        <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; transform: rotate(-5deg); opacity: 0.7;">
+        <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
             Private &amp; Confidential
         </div>
     </div>
