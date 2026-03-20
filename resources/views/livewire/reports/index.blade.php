@@ -1054,18 +1054,19 @@
                         <div class="p-5">
                             <h4 class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">Front of House (FOH)</h4>
                             @if ($o['foh'])
+                                @php $fohRev = $o['revenue'] > 0 ? $o['revenue'] : 0; @endphp
                                 <div class="space-y-1.5 text-sm">
-                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['foh']['basic_salary'], 2) }}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['foh']['service_point'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['foh']['basic_salary'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['basic_salary'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['foh']['service_point'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['service_point'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @foreach ($o['foh']['allowances'] as $a)
-                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }}</span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($a['amount'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @endforeach
-                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['foh']['epf'], 2) }}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['foh']['eis'], 2) }}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['foh']['socso'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['foh']['epf'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['epf'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['foh']['eis'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['eis'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['foh']['socso'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['socso'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
                                     <div class="border-t border-gray-100 pt-1.5 flex justify-between font-semibold">
                                         <span class="text-gray-700">Subtotal</span>
-                                        <span class="text-blue-700">{{ number_format($o['foh']['total'], 2) }}</span>
+                                        <span class="text-blue-700">{{ number_format($o['foh']['total'], 2) }} @if($fohRev)<span class="text-xs font-normal text-gray-400 ml-1">({{ number_format($o['foh']['total'] / $fohRev * 100, 1) }}%)</span>@endif</span>
                                     </div>
                                 </div>
                             @else
@@ -1077,18 +1078,19 @@
                         <div class="p-5">
                             <h4 class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-3">Back of House (BOH)</h4>
                             @if ($o['boh'])
+                                @php $bohRev = $o['revenue'] > 0 ? $o['revenue'] : 0; @endphp
                                 <div class="space-y-1.5 text-sm">
-                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['boh']['basic_salary'], 2) }}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['boh']['service_point'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['boh']['basic_salary'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['basic_salary'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['boh']['service_point'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['service_point'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @foreach ($o['boh']['allowances'] as $a)
-                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }}</span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($a['amount'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @endforeach
-                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['boh']['epf'], 2) }}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['boh']['eis'], 2) }}</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['boh']['socso'], 2) }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['boh']['epf'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['epf'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['boh']['eis'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['eis'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['boh']['socso'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['socso'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
                                     <div class="border-t border-gray-100 pt-1.5 flex justify-between font-semibold">
                                         <span class="text-gray-700">Subtotal</span>
-                                        <span class="text-amber-700">{{ number_format($o['boh']['total'], 2) }}</span>
+                                        <span class="text-amber-700">{{ number_format($o['boh']['total'], 2) }} @if($bohRev)<span class="text-xs font-normal text-gray-400 ml-1">({{ number_format($o['boh']['total'] / $bohRev * 100, 1) }}%)</span>@endif</span>
                                     </div>
                                 </div>
                             @else
