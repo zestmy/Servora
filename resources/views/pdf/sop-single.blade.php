@@ -39,19 +39,32 @@
         </div>
     </div>
 
-    {{-- Recipe Info --}}
+    {{-- Recipe Info + QR --}}
     <div style="margin-bottom: 15px;">
-        <table class="meta-table">
-            <tr><td class="label">Recipe Name</td><td class="value" style="font-size: 14px; font-weight: bold;">{{ $recipe->name }}</td></tr>
-            @if ($recipe->category)
-                <tr><td class="label">Category</td><td class="value">{{ $recipe->category }}</td></tr>
-            @endif
-            @if ($recipe->description)
-                <tr><td class="label">Description</td><td class="value">{{ $recipe->description }}</td></tr>
-            @endif
+        <table style="width: 100%;">
             <tr>
-                <td class="label">Yield</td>
-                <td class="value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</td>
+                <td style="vertical-align: top;">
+                    <table class="meta-table">
+                        <tr><td class="label">Recipe Name</td><td class="value" style="font-size: 14px; font-weight: bold;">{{ $recipe->name }}</td></tr>
+                        @if ($recipe->category)
+                            <tr><td class="label">Category</td><td class="value">{{ $recipe->category }}</td></tr>
+                        @endif
+                        @if ($recipe->description)
+                            <tr><td class="label">Description</td><td class="value">{{ $recipe->description }}</td></tr>
+                        @endif
+                        <tr>
+                            <td class="label">Yield</td>
+                            <td class="value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</td>
+                        </tr>
+                    </table>
+                </td>
+                @if ($videoQr)
+                    <td style="width: 110px; vertical-align: top; text-align: center; padding-left: 10px;">
+                        <img src="{{ $videoQr }}" style="width: 85px; height: 85px;" />
+                        <div style="font-size: 7px; color: #666; margin-top: 3px; font-weight: bold;">Scan for Video</div>
+                        <div style="font-size: 6px; color: #999; margin-top: 1px; word-break: break-all; max-width: 100px;">{{ $recipe->video_url }}</div>
+                    </td>
+                @endif
             </tr>
         </table>
     </div>
@@ -126,24 +139,6 @@
                             @endforeach
                         </td>
                     @endif
-                </tr>
-            </table>
-        </div>
-    @endif
-
-    {{-- Training Video QR --}}
-    @if ($videoQr)
-        <div style="margin-bottom: 18px;">
-            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Training Video</h3>
-            <table style="width: 100%;">
-                <tr>
-                    <td style="width: 90px; vertical-align: top;">
-                        <img src="{{ $videoQr }}" style="width: 80px; height: 80px;" />
-                    </td>
-                    <td style="vertical-align: middle; padding-left: 10px;">
-                        <div style="font-size: 10px; font-weight: bold; color: #333; margin-bottom: 3px;">Scan QR to watch training video</div>
-                        <div style="font-size: 8px; color: #666; word-break: break-all;">{{ $recipe->video_url }}</div>
-                    </td>
                 </tr>
             </table>
         </div>
