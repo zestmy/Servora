@@ -3,14 +3,7 @@
 @section('title', 'SOP - ' . $recipe->name)
 
 @section('content')
-    {{-- Rubber Stamp --}}
-    <div style="text-align: right; margin-bottom: 8px;">
-        <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
-            Private &amp; Confidential
-        </div>
-    </div>
-
-    {{-- Header --}}
+    {{-- Header with stamp --}}
     <div class="header">
         <div class="header-left">
             @if ($logoBase64)
@@ -23,63 +16,49 @@
             @if ($company->registration_number)
                 <div class="company-detail">Reg: {{ $company->registration_number }}</div>
             @endif
-            @if ($company->phone)
-                <div class="company-detail">Tel: {{ $company->phone }}</div>
-            @endif
-            @if ($company->address)
-                <div class="company-detail">{{ $company->address }}</div>
-            @endif
         </div>
         <div class="header-right">
+            <div style="display: inline-block; border: 2px solid #c00; color: #c00; padding: 2px 10px; font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; opacity: 0.75; margin-bottom: 4px;">Private &amp; Confidential</div>
             <div class="doc-title">Standard Operating Procedure</div>
             @if ($recipe->code)
                 <div class="doc-number">{{ $recipe->code }}</div>
             @endif
-            <div class="doc-status">SOP</div>
         </div>
     </div>
 
-    {{-- Recipe Info + QR --}}
-    <div style="margin-bottom: 15px;">
-        <table style="width: 100%;">
-            <tr>
-                <td style="vertical-align: top;">
-                    <table class="meta-table">
-                        <tr><td class="label">Recipe Name</td><td class="value" style="font-size: 14px; font-weight: bold;">{{ $recipe->name }}</td></tr>
-                        @if ($recipe->category)
-                            <tr><td class="label">Category</td><td class="value">{{ $recipe->category }}</td></tr>
-                        @endif
-                        @if ($recipe->description)
-                            <tr><td class="label">Description</td><td class="value">{{ $recipe->description }}</td></tr>
-                        @endif
-                        <tr>
-                            <td class="label">Yield</td>
-                            <td class="value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</td>
-                        </tr>
-                    </table>
-                </td>
-                @if ($videoQr)
-                    <td style="width: 110px; vertical-align: top; text-align: center; padding-left: 10px;">
-                        <img src="{{ $videoQr }}" style="width: 85px; height: 85px;" />
-                        <div style="font-size: 7px; color: #666; margin-top: 3px; font-weight: bold;">Scan for Video</div>
-                        <div style="font-size: 6px; color: #999; margin-top: 1px; word-break: break-all; max-width: 100px;">{{ $recipe->video_url }}</div>
-                    </td>
+    {{-- Recipe Title + QR --}}
+    <table style="width: 100%; margin-bottom: 8px;">
+        <tr>
+            <td style="vertical-align: top;">
+                <div style="font-size: 14px; font-weight: bold; color: #000;">{{ $recipe->name }}</div>
+                <div style="font-size: 8px; color: #555; margin-top: 2px;">
+                    @if ($recipe->category)<span>{{ $recipe->category }}</span> · @endif
+                    Yield: {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
+                </div>
+                @if ($recipe->description)
+                    <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ $recipe->description }}</div>
                 @endif
-            </tr>
-        </table>
-    </div>
+            </td>
+            @if ($videoQr)
+                <td style="width: 80px; vertical-align: top; text-align: center; padding-left: 8px;">
+                    <img src="{{ $videoQr }}" style="width: 65px; height: 65px;" />
+                    <div style="font-size: 6px; color: #666; margin-top: 1px; font-weight: bold;">Scan for Video</div>
+                </td>
+            @endif
+        </tr>
+    </table>
 
     {{-- Ingredients --}}
     @if ($recipe->lines->count())
-        <div style="margin-bottom: 18px;">
-            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Ingredients</h3>
+        <div style="margin-bottom: 8px;">
+            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">Ingredients</div>
             <table class="items">
                 <thead>
                     <tr>
-                        <th style="width: 30px;">#</th>
+                        <th style="width: 20px;">#</th>
                         <th>Ingredient</th>
-                        <th class="right" style="width: 80px;">Quantity</th>
-                        <th style="width: 60px;">UOM</th>
+                        <th class="right" style="width: 60px;">Qty</th>
+                        <th style="width: 45px;">UOM</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -98,14 +77,14 @@
 
     {{-- Cooking Steps --}}
     @if ($recipe->steps->count())
-        <div style="margin-bottom: 18px;">
-            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Cooking Steps</h3>
+        <div style="margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 2px;">Cooking Steps</div>
             @foreach ($recipe->steps as $step)
-                <div style="margin-bottom: 10px; padding-left: 5px;">
-                    <div style="font-size: 11px; font-weight: bold; color: #333; margin-bottom: 2px;">
-                        Step {{ $step->sort_order + 1 }}{{ $step->title ? ': ' . $step->title : '' }}
+                <div style="margin-bottom: 4px;">
+                    <div style="font-size: 10px; font-weight: bold; color: #000;">
+                        {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
                     </div>
-                    <div style="font-size: 10px; color: #000; line-height: 1.6; padding-left: 10px;">
+                    <div style="font-size: 9px; color: #000; line-height: 1.4; padding-left: 12px;">
                         {!! nl2br(e($step->instruction)) !!}
                     </div>
                 </div>
@@ -115,26 +94,26 @@
 
     {{-- Plating Images — Side by Side --}}
     @if (count($dineInBase64) || count($takeawayBase64))
-        <div style="margin-bottom: 18px;">
-            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Plating Presentation</h3>
+        <div style="margin-bottom: 8px;">
+            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">Plating</div>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     @if (count($dineInBase64))
-                        <td style="width: {{ count($takeawayBase64) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($takeawayBase64) ? '8px' : '0' }};">
-                            <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 4px;">Dine-In</div>
+                        <td style="width: {{ count($takeawayBase64) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($takeawayBase64) ? '5px' : '0' }};">
+                            <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Dine-In</div>
                             @foreach ($dineInBase64 as $b64)
-                                <div style="margin-bottom: 6px;">
-                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 200px; border: 1px solid #ddd; object-fit: cover;" />
+                                <div style="margin-bottom: 3px;">
+                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 140px; border: 1px solid #ddd;" />
                                 </div>
                             @endforeach
                         </td>
                     @endif
                     @if (count($takeawayBase64))
-                        <td style="width: {{ count($dineInBase64) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($dineInBase64) ? '8px' : '0' }};">
-                            <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 4px;">Takeaway</div>
+                        <td style="width: {{ count($dineInBase64) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($dineInBase64) ? '5px' : '0' }};">
+                            <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Takeaway</div>
                             @foreach ($takeawayBase64 as $b64)
-                                <div style="margin-bottom: 6px;">
-                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 200px; border: 1px solid #ddd; object-fit: cover;" />
+                                <div style="margin-bottom: 3px;">
+                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 140px; border: 1px solid #ddd;" />
                                 </div>
                             @endforeach
                         </td>
@@ -145,19 +124,14 @@
     @endif
 
     {{-- Printer Info --}}
-    <div style="margin-top: 20px; padding: 8px; border: 1px solid #ddd; background: #f9f9f9; font-size: 8px; color: #666;">
-        <strong>Document Details:</strong>
-        {{ $brandName }}
+    <div style="margin-top: 10px; padding: 4px 6px; border: 1px solid #ddd; background: #f9f9f9; font-size: 7px; color: #666;">
+        <strong>{{ $brandName }}</strong>
         @if ($company->registration_number) | Reg: {{ $company->registration_number }} @endif
         @if ($company->phone) | Tel: {{ $company->phone }} @endif
+        @if ($company->address) | {{ $company->address }} @endif
         | Exported by: {{ $exportedBy }}
-        | Printed: {{ now()->format('d M Y, h:i A') }}
-        | SOP: {{ $recipe->name }}
-        @if ($recipe->code) ({{ $recipe->code }}) @endif
-    </div>
-
-    {{-- Confidential Footer --}}
-    <div style="margin-top: 12px; text-align: center; font-size: 8px; color: #999; font-style: italic;">
-        This manual is confidential &amp; property of {{ $brandName }}. Unauthorised reproduction or distribution is strictly prohibited.
+        | {{ now()->format('d M Y, h:i A') }}
+        | SOP: {{ $recipe->name }}@if ($recipe->code) ({{ $recipe->code }})@endif
+        | Confidential &amp; property of {{ $brandName }}.
     </div>
 @endsection

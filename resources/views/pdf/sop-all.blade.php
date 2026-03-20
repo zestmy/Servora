@@ -5,26 +5,25 @@
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #000; line-height: 1.5; }
-        .container { padding: 30px; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10px; color: #000; line-height: 1.35; }
+        .container { padding: 20px 25px; }
         .page-break { page-break-before: always; }
-        .company-logo { max-height: 45px; max-width: 160px; margin-bottom: 6px; }
-        .company-name { font-size: 16px; font-weight: bold; color: #000; margin-bottom: 2px; }
-        .company-detail { font-size: 9px; color: #444; line-height: 1.6; }
-        table.items { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        table.items thead th { background: #000; color: #fff; padding: 5px 8px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
+        .company-logo { max-height: 30px; max-width: 120px; margin-bottom: 3px; }
+        .company-name { font-size: 13px; font-weight: bold; color: #000; margin-bottom: 1px; }
+        .company-detail { font-size: 8px; color: #555; line-height: 1.4; }
+        table.items { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        table.items thead th { background: #000; color: #fff; padding: 3px 6px; font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
         table.items thead th.right { text-align: right; }
-        table.items tbody td { padding: 5px 8px; border-bottom: 1px solid #ddd; font-size: 10px; color: #000; }
+        table.items tbody td { padding: 3px 6px; border-bottom: 1px solid #eee; font-size: 9px; color: #000; }
         table.items tbody td.right { text-align: right; }
-        table.items tbody tr:nth-child(even) { background: #f5f5f5; }
-        .footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #ccc; font-size: 8px; color: #999; text-align: center; }
-        .toc-item { padding: 4px 0; border-bottom: 1px dotted #ccc; font-size: 11px; }
-        .toc-category { font-size: 13px; font-weight: bold; margin-top: 12px; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 2px solid #000; }
-        .sop-header { display: table; width: 100%; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .sop-header-left { display: table-cell; vertical-align: top; width: 60%; }
-        .sop-header-right { display: table-cell; vertical-align: top; width: 40%; text-align: right; }
-        .recipe-title { font-size: 16px; font-weight: bold; }
-        .printer-info { margin-top: 15px; padding: 6px; border: 1px solid #ddd; background: #f9f9f9; font-size: 8px; color: #666; }
+        .footer { margin-top: 12px; padding-top: 5px; border-top: 1px solid #ccc; font-size: 7px; color: #999; text-align: center; }
+        .toc-item { padding: 2px 0; border-bottom: 1px dotted #ccc; font-size: 10px; }
+        .toc-category { font-size: 12px; font-weight: bold; margin-top: 8px; margin-bottom: 3px; padding-bottom: 2px; border-bottom: 2px solid #000; }
+        .sop-header { display: table; width: 100%; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px; }
+        .sop-header-left { display: table-cell; vertical-align: top; width: 55%; }
+        .sop-header-right { display: table-cell; vertical-align: top; width: 45%; text-align: right; }
+        .recipe-title { font-size: 13px; font-weight: bold; }
+        .printer-info { margin-top: 8px; padding: 4px 6px; border: 1px solid #ddd; background: #f9f9f9; font-size: 7px; color: #666; }
     </style>
 </head>
 <body>
@@ -32,7 +31,6 @@
 
     {{-- ═══ COVER / TOC PAGE ═══ --}}
     <div style="text-align: center; padding-top: 60px; padding-bottom: 40px;">
-        {{-- Rubber Stamp --}}
         <div style="margin-bottom: 20px;">
             <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 5px 22px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
                 Private &amp; Confidential
@@ -40,31 +38,30 @@
         </div>
 
         @if ($logoBase64)
-            <img src="{{ $logoBase64 }}" style="max-height: 60px; max-width: 200px; margin-bottom: 15px;" />
+            <img src="{{ $logoBase64 }}" style="max-height: 50px; max-width: 180px; margin-bottom: 12px;" />
         @endif
-        <div style="font-size: 28px; font-weight: bold; color: #000; margin-bottom: 5px;">{{ $brandName }}</div>
+        <div style="font-size: 24px; font-weight: bold; color: #000; margin-bottom: 4px;">{{ $brandName }}</div>
         @if ($company->brand_name && $company->name !== $company->brand_name)
-            <div style="font-size: 12px; color: #666; margin-bottom: 3px;">{{ $company->name }}</div>
+            <div style="font-size: 11px; color: #666; margin-bottom: 3px;">{{ $company->name }}</div>
         @endif
         @if ($company->registration_number)
-            <div style="font-size: 10px; color: #999;">Reg: {{ $company->registration_number }}</div>
+            <div style="font-size: 9px; color: #999;">Reg: {{ $company->registration_number }}</div>
         @endif
-        <div style="font-size: 18px; font-weight: bold; color: #333; margin-top: 30px; letter-spacing: 2px; text-transform: uppercase;">
+        <div style="font-size: 16px; font-weight: bold; color: #333; margin-top: 25px; letter-spacing: 2px; text-transform: uppercase;">
             Standard Operating Procedures
         </div>
-        <div style="font-size: 11px; color: #666; margin-top: 8px;">Training Manual</div>
-        <div style="font-size: 10px; color: #999; margin-top: 30px;">
-            Generated: {{ now()->format('d M Y, h:i A') }}<br>
-            Exported by: {{ $exportedBy }}
+        <div style="font-size: 10px; color: #666; margin-top: 6px;">Training Manual</div>
+        <div style="font-size: 9px; color: #999; margin-top: 25px;">
+            Generated: {{ now()->format('d M Y, h:i A') }} | Exported by: {{ $exportedBy }}
         </div>
-        <div style="margin-top: 40px; font-size: 9px; color: #999; font-style: italic;">
+        <div style="margin-top: 30px; font-size: 8px; color: #999; font-style: italic;">
             This manual is confidential &amp; property of {{ $brandName }}. Unauthorised reproduction or distribution is strictly prohibited.
         </div>
     </div>
 
     {{-- Table of Contents --}}
-    <div style="margin-top: 30px;">
-        <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 5px;">
+    <div style="margin-top: 20px;">
+        <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 4px;">
             Table of Contents
         </div>
 
@@ -74,10 +71,10 @@
             @foreach ($catRecipes as $recipe)
                 @php $sopNumber++; @endphp
                 <div class="toc-item">
-                    <span style="color: #666; font-size: 9px; margin-right: 5px;">{{ $sopNumber }}.</span>
+                    <span style="color: #666; font-size: 8px; margin-right: 4px;">{{ $sopNumber }}.</span>
                     {{ $recipe->name }}
                     @if ($recipe->code)
-                        <span style="color: #999; font-size: 9px;">({{ $recipe->code }})</span>
+                        <span style="color: #999; font-size: 8px;">({{ $recipe->code }})</span>
                     @endif
                 </div>
             @endforeach
@@ -91,14 +88,7 @@
             @php $sopNumber++; @endphp
             <div class="page-break"></div>
 
-            {{-- Rubber Stamp --}}
-            <div style="text-align: right; margin-bottom: 8px;">
-                <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
-                    Private &amp; Confidential
-                </div>
-            </div>
-
-            {{-- SOP Header --}}
+            {{-- SOP Header with stamp --}}
             <div class="sop-header">
                 <div class="sop-header-left">
                     @if ($logoBase64)
@@ -110,49 +100,49 @@
                     @endif
                 </div>
                 <div class="sop-header-right">
-                    <div style="font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666;">Standard Operating Procedure</div>
+                    <div style="display: inline-block; border: 2px solid #c00; color: #c00; padding: 2px 10px; font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; opacity: 0.75; margin-bottom: 3px;">Private &amp; Confidential</div>
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666;">Standard Operating Procedure</div>
                     @if ($recipe->code)
-                        <div style="font-size: 11px; font-family: monospace; color: #333; margin-top: 2px;">{{ $recipe->code }}</div>
+                        <div style="font-size: 10px; font-family: monospace; color: #333; margin-top: 1px;">{{ $recipe->code }}</div>
                     @endif
-                    <div style="font-size: 9px; color: #999; margin-top: 3px;">SOP #{{ $sopNumber }} | {{ $categoryName }}</div>
+                    <div style="font-size: 8px; color: #999; margin-top: 1px;">SOP #{{ $sopNumber }} | {{ $categoryName }}</div>
                 </div>
             </div>
 
-            {{-- Recipe Info + QR --}}
+            {{-- Recipe Title + QR --}}
             @php $qr = $recipeQrs[$recipe->id] ?? null; @endphp
-            <div style="margin-bottom: 12px;">
-                <table style="width: 100%;">
-                    <tr>
-                        <td style="vertical-align: top;">
-                            <div class="recipe-title">{{ $recipe->name }}</div>
-                            @if ($recipe->description)
-                                <div style="font-size: 10px; color: #444; margin-top: 3px;">{{ $recipe->description }}</div>
-                            @endif
-                            <div style="font-size: 9px; color: #666; margin-top: 3px;">
-                                Yield: {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
-                            </div>
-                        </td>
-                        @if ($qr)
-                            <td style="width: 90px; vertical-align: top; text-align: center; padding-left: 8px;">
-                                <img src="{{ $qr }}" style="width: 65px; height: 65px;" />
-                                <div style="font-size: 6px; color: #666; margin-top: 2px; font-weight: bold;">Scan for Video</div>
-                            </td>
+            <table style="width: 100%; margin-bottom: 6px;">
+                <tr>
+                    <td style="vertical-align: top;">
+                        <div class="recipe-title">{{ $recipe->name }}</div>
+                        <div style="font-size: 8px; color: #555; margin-top: 1px;">
+                            @if ($recipe->category)<span>{{ $recipe->category }}</span> · @endif
+                            Yield: {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
+                        </div>
+                        @if ($recipe->description)
+                            <div style="font-size: 8px; color: #444; margin-top: 1px;">{{ $recipe->description }}</div>
                         @endif
-                    </tr>
-                </table>
-            </div>
+                    </td>
+                    @if ($qr)
+                        <td style="width: 75px; vertical-align: top; text-align: center; padding-left: 6px;">
+                            <img src="{{ $qr }}" style="width: 55px; height: 55px;" />
+                            <div style="font-size: 5px; color: #666; margin-top: 1px; font-weight: bold;">Scan for Video</div>
+                        </td>
+                    @endif
+                </tr>
+            </table>
 
             {{-- Ingredients --}}
             @if ($recipe->lines->count())
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Ingredients</div>
+                <div style="margin-bottom: 6px;">
+                    <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; border-bottom: 1px solid #ccc; padding-bottom: 1px;">Ingredients</div>
                     <table class="items">
                         <thead>
                             <tr>
-                                <th style="width: 25px;">#</th>
+                                <th style="width: 18px;">#</th>
                                 <th>Ingredient</th>
-                                <th class="right" style="width: 70px;">Qty</th>
-                                <th style="width: 50px;">UOM</th>
+                                <th class="right" style="width: 55px;">Qty</th>
+                                <th style="width: 40px;">UOM</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -171,14 +161,14 @@
 
             {{-- Cooking Steps --}}
             @if ($recipe->steps->count())
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Cooking Steps</div>
+                <div style="margin-bottom: 6px;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 1px;">Cooking Steps</div>
                     @foreach ($recipe->steps as $step)
-                        <div style="margin-bottom: 6px; padding-left: 3px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #333;">
-                                Step {{ $step->sort_order + 1 }}{{ $step->title ? ': ' . $step->title : '' }}
+                        <div style="margin-bottom: 3px;">
+                            <div style="font-size: 9px; font-weight: bold; color: #000;">
+                                {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
                             </div>
-                            <div style="font-size: 9px; color: #000; line-height: 1.5; padding-left: 8px;">
+                            <div style="font-size: 8px; color: #000; line-height: 1.4; padding-left: 10px;">
                                 {!! nl2br(e($step->instruction)) !!}
                             </div>
                         </div>
@@ -189,26 +179,26 @@
             {{-- Plating Images — Side by Side --}}
             @php $imgs = $recipeImages[$recipe->id] ?? ['dine_in' => [], 'takeaway' => []]; @endphp
             @if (count($imgs['dine_in']) || count($imgs['takeaway']))
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Plating Presentation</div>
+                <div style="margin-bottom: 6px;">
+                    <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; border-bottom: 1px solid #ccc; padding-bottom: 1px;">Plating</div>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             @if (count($imgs['dine_in']))
-                                <td style="width: {{ count($imgs['takeaway']) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($imgs['takeaway']) ? '6px' : '0' }};">
-                                    <div style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 3px;">Dine-In</div>
+                                <td style="width: {{ count($imgs['takeaway']) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($imgs['takeaway']) ? '4px' : '0' }};">
+                                    <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Dine-In</div>
                                     @foreach ($imgs['dine_in'] as $b64)
-                                        <div style="margin-bottom: 4px;">
-                                            <img src="{{ $b64 }}" style="width: 100%; max-height: 170px; border: 1px solid #ddd;" />
+                                        <div style="margin-bottom: 2px;">
+                                            <img src="{{ $b64 }}" style="width: 100%; max-height: 120px; border: 1px solid #ddd;" />
                                         </div>
                                     @endforeach
                                 </td>
                             @endif
                             @if (count($imgs['takeaway']))
-                                <td style="width: {{ count($imgs['dine_in']) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($imgs['dine_in']) ? '6px' : '0' }};">
-                                    <div style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 3px;">Takeaway</div>
+                                <td style="width: {{ count($imgs['dine_in']) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($imgs['dine_in']) ? '4px' : '0' }};">
+                                    <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Takeaway</div>
                                     @foreach ($imgs['takeaway'] as $b64)
-                                        <div style="margin-bottom: 4px;">
-                                            <img src="{{ $b64 }}" style="width: 100%; max-height: 170px; border: 1px solid #ddd;" />
+                                        <div style="margin-bottom: 2px;">
+                                            <img src="{{ $b64 }}" style="width: 100%; max-height: 120px; border: 1px solid #ddd;" />
                                         </div>
                                     @endforeach
                                 </td>
@@ -218,28 +208,22 @@
                 </div>
             @endif
 
-            {{-- Printer Info --}}
+            {{-- Printer Info + Confidential (merged) --}}
             <div class="printer-info">
                 <strong>{{ $brandName }}</strong>
                 @if ($company->registration_number) | Reg: {{ $company->registration_number }} @endif
                 @if ($company->phone) | Tel: {{ $company->phone }} @endif
                 | Exported by: {{ $exportedBy }}
-                | Printed: {{ now()->format('d M Y, h:i A') }}
-                | SOP #{{ $sopNumber }}: {{ $recipe->name }}
-                @if ($recipe->code) ({{ $recipe->code }}) @endif
-            </div>
-
-            {{-- Confidential Footer --}}
-            <div style="margin-top: 8px; text-align: center; font-size: 8px; color: #999; font-style: italic;">
-                This manual is confidential &amp; property of {{ $brandName }}. Unauthorised reproduction or distribution is strictly prohibited.
+                | {{ now()->format('d M Y, h:i A') }}
+                | SOP #{{ $sopNumber }}: {{ $recipe->name }}@if ($recipe->code) ({{ $recipe->code }})@endif
+                | Confidential &amp; property of {{ $brandName }}.
             </div>
         @endforeach
     @endforeach
 
     <div class="footer">
         Generated on {{ now()->format('d M Y, h:i A') }} by {{ $exportedBy }} | {{ $brandName }}
-        <br>This manual is confidential &amp; property of {{ $brandName }}.
-        <br>Powered by Servora - https://servora.com.my/
+        | Confidential &amp; property of {{ $brandName }}. | Powered by Servora
     </div>
 </div>
 </body>
