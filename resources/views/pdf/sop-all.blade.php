@@ -174,26 +174,54 @@
                 </div>
             @endif
 
-            {{-- Plating Images --}}
+            {{-- Plating Images — Side by Side --}}
             @php $imgs = $recipeImages[$recipe->id] ?? ['dine_in' => [], 'takeaway' => []]; @endphp
-            @if (count($imgs['dine_in']))
-                <div style="margin-bottom: 10px;">
-                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Plating — Dine-In</div>
-                    @foreach ($imgs['dine_in'] as $b64)
-                        <div style="margin-bottom: 5px; text-align: center;">
-                            <img src="{{ $b64 }}" style="max-width: 350px; max-height: 200px; border: 1px solid #ddd;" />
-                        </div>
-                    @endforeach
+            @if (count($imgs['dine_in']) || count($imgs['takeaway']))
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Plating Presentation</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            @if (count($imgs['dine_in']))
+                                <td style="width: {{ count($imgs['takeaway']) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($imgs['takeaway']) ? '6px' : '0' }};">
+                                    <div style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 3px;">Dine-In</div>
+                                    @foreach ($imgs['dine_in'] as $b64)
+                                        <div style="margin-bottom: 4px;">
+                                            <img src="{{ $b64 }}" style="width: 100%; max-height: 170px; border: 1px solid #ddd;" />
+                                        </div>
+                                    @endforeach
+                                </td>
+                            @endif
+                            @if (count($imgs['takeaway']))
+                                <td style="width: {{ count($imgs['dine_in']) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($imgs['dine_in']) ? '6px' : '0' }};">
+                                    <div style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 3px;">Takeaway</div>
+                                    @foreach ($imgs['takeaway'] as $b64)
+                                        <div style="margin-bottom: 4px;">
+                                            <img src="{{ $b64 }}" style="width: 100%; max-height: 170px; border: 1px solid #ddd;" />
+                                        </div>
+                                    @endforeach
+                                </td>
+                            @endif
+                        </tr>
+                    </table>
                 </div>
             @endif
-            @if (count($imgs['takeaway']))
-                <div style="margin-bottom: 10px;">
-                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Plating — Takeaway</div>
-                    @foreach ($imgs['takeaway'] as $b64)
-                        <div style="margin-bottom: 5px; text-align: center;">
-                            <img src="{{ $b64 }}" style="max-width: 350px; max-height: 200px; border: 1px solid #ddd;" />
-                        </div>
-                    @endforeach
+
+            {{-- Training Video QR --}}
+            @php $qr = $recipeQrs[$recipe->id] ?? null; @endphp
+            @if ($qr)
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #333;">Training Video</div>
+                    <table style="width: 100%;">
+                        <tr>
+                            <td style="width: 70px; vertical-align: top;">
+                                <img src="{{ $qr }}" style="width: 60px; height: 60px;" />
+                            </td>
+                            <td style="vertical-align: middle; padding-left: 8px;">
+                                <div style="font-size: 9px; font-weight: bold; color: #333; margin-bottom: 2px;">Scan QR to watch training video</div>
+                                <div style="font-size: 7px; color: #666; word-break: break-all;">{{ $recipe->video_url }}</div>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             @endif
 

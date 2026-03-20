@@ -2,7 +2,6 @@
 
 @section('title', 'SOP - ' . $recipe->name)
 
-
 @section('content')
     {{-- Rubber Stamp --}}
     <div style="text-align: right; margin-bottom: 8px;">
@@ -54,9 +53,6 @@
                 <td class="label">Yield</td>
                 <td class="value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</td>
             </tr>
-            @if ($recipe->video_url)
-                <tr><td class="label">Training Video</td><td class="value">{{ $recipe->video_url }}</td></tr>
-            @endif
         </table>
     </div>
 
@@ -104,27 +100,52 @@
         </div>
     @endif
 
-    {{-- Plating Images - Dine In --}}
-    @if (count($dineInBase64))
-        <div style="margin-bottom: 15px;">
-            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Plating — Dine-In</h3>
-            @foreach ($dineInBase64 as $b64)
-                <div style="margin-bottom: 8px; text-align: center;">
-                    <img src="{{ $b64 }}" style="max-width: 400px; max-height: 250px; border: 1px solid #ddd;" />
-                </div>
-            @endforeach
+    {{-- Plating Images — Side by Side --}}
+    @if (count($dineInBase64) || count($takeawayBase64))
+        <div style="margin-bottom: 18px;">
+            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Plating Presentation</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    @if (count($dineInBase64))
+                        <td style="width: {{ count($takeawayBase64) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($takeawayBase64) ? '8px' : '0' }};">
+                            <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 4px;">Dine-In</div>
+                            @foreach ($dineInBase64 as $b64)
+                                <div style="margin-bottom: 6px;">
+                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 200px; border: 1px solid #ddd; object-fit: cover;" />
+                                </div>
+                            @endforeach
+                        </td>
+                    @endif
+                    @if (count($takeawayBase64))
+                        <td style="width: {{ count($dineInBase64) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($dineInBase64) ? '8px' : '0' }};">
+                            <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 4px;">Takeaway</div>
+                            @foreach ($takeawayBase64 as $b64)
+                                <div style="margin-bottom: 6px;">
+                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 200px; border: 1px solid #ddd; object-fit: cover;" />
+                                </div>
+                            @endforeach
+                        </td>
+                    @endif
+                </tr>
+            </table>
         </div>
     @endif
 
-    {{-- Plating Images - Takeaway --}}
-    @if (count($takeawayBase64))
-        <div style="margin-bottom: 15px;">
-            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Plating — Takeaway</h3>
-            @foreach ($takeawayBase64 as $b64)
-                <div style="margin-bottom: 8px; text-align: center;">
-                    <img src="{{ $b64 }}" style="max-width: 400px; max-height: 250px; border: 1px solid #ddd;" />
-                </div>
-            @endforeach
+    {{-- Training Video QR --}}
+    @if ($videoQr)
+        <div style="margin-bottom: 18px;">
+            <h3 style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px;">Training Video</h3>
+            <table style="width: 100%;">
+                <tr>
+                    <td style="width: 90px; vertical-align: top;">
+                        <img src="{{ $videoQr }}" style="width: 80px; height: 80px;" />
+                    </td>
+                    <td style="vertical-align: middle; padding-left: 10px;">
+                        <div style="font-size: 10px; font-weight: bold; color: #333; margin-bottom: 3px;">Scan QR to watch training video</div>
+                        <div style="font-size: 8px; color: #666; word-break: break-all;">{{ $recipe->video_url }}</div>
+                    </td>
+                </tr>
+            </table>
         </div>
     @endif
 

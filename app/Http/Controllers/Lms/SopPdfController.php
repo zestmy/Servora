@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use Barryvdh\DomPDF\Facade\Pdf;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -35,9 +37,10 @@ class SopPdfController extends Controller
 
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'Company';
+        $videoQr    = $this->generateQr($recipe->video_url);
 
         $pdf = Pdf::loadView('pdf.sop-single', compact(
-            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'exportedBy', 'brandName'
+            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'exportedBy', 'brandName', 'videoQr'
         ))->setPaper('a4', 'portrait');
 
         return $pdf->download("SOP-{$recipe->code}-{$recipe->name}.pdf");
@@ -63,20 +66,22 @@ class SopPdfController extends Controller
         $grouped = $recipes->groupBy(fn ($r) => $r->category ?? 'Uncategorised');
         $logoBase64 = $this->logoToBase64($company);
 
-        // Pre-compute base64 images for all recipes
+        // Pre-compute base64 images and QR codes for all recipes
         $recipeImages = [];
+        $recipeQrs    = [];
         foreach ($recipes as $recipe) {
             $recipeImages[$recipe->id] = [
                 'dine_in'  => $this->imagesToBase64($recipe->images->where('type', 'dine_in')->values()),
                 'takeaway' => $this->imagesToBase64($recipe->images->where('type', 'takeaway')->values()),
             ];
+            $recipeQrs[$recipe->id] = $this->generateQr($recipe->video_url);
         }
 
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'SOP';
 
         $pdf = Pdf::loadView('pdf.sop-all', compact(
-            'grouped', 'company', 'logoBase64', 'recipeImages', 'exportedBy', 'brandName'
+            'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'exportedBy', 'brandName'
         ))->setPaper('a4', 'portrait');
         return $pdf->download("{$brandName}-Training-SOPs.pdf");
     }
@@ -96,6 +101,21 @@ class SopPdfController extends Controller
             }
         }
         return $result;
+    }
+
+    private function generateQr(?string $url): ?string
+    {
+        if (! $url) return null;
+        try {
+            $options = new QROptions([
+                'outputType'   => QRCode::OUTPUT_IMAGE_PNG,
+                'scale'        => 5,
+                'quietzoneSize' => 1,
+            ]);
+            return (new QRCode($options))->render($url);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function logoToBase64(?Company $company): ?string
