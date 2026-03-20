@@ -9,6 +9,7 @@ use App\Models\RecipeCategory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
+use chillerlan\QRCode\Output\QRGdImagePNG;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -108,9 +109,9 @@ class SopPdfController extends Controller
         if (! $url) return null;
         try {
             $options = new QROptions([
-                'outputType'   => QRCode::OUTPUT_IMAGE_PNG,
-                'scale'        => 5,
-                'quietzoneSize' => 1,
+                'outputInterface' => QRGdImagePNG::class,
+                'scale'           => 5,
+                'quietzoneSize'   => 1,
             ]);
             return (new QRCode($options))->render($url);
         } catch (\Throwable $e) {
