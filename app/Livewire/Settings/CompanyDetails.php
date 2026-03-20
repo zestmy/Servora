@@ -13,6 +13,7 @@ class CompanyDetails extends Component
 
     public string  $name                = '';
     public string  $brand_name          = '';
+    public string  $slug                = '';
     public string  $registration_number = '';
     public string  $email               = '';
     public string  $phone               = '';
@@ -35,6 +36,7 @@ class CompanyDetails extends Component
 
         $this->name                = $company->name ?? '';
         $this->brand_name          = $company->brand_name ?? '';
+        $this->slug                = $company->slug ?? '';
         $this->registration_number = $company->registration_number ?? '';
         $this->email               = $company->email ?? '';
         $this->phone               = $company->phone ?? '';
@@ -55,6 +57,7 @@ class CompanyDetails extends Component
         $this->validate([
             'name'                => 'required|string|max:100',
             'brand_name'          => 'nullable|string|max:255',
+            'slug'                => 'required|string|max:100|alpha_dash|unique:companies,slug,' . ($this->getCompany()?->id ?? 0),
             'registration_number' => 'nullable|string|max:50',
             'email'               => 'nullable|email|max:100',
             'phone'               => 'nullable|string|max:30',
@@ -72,6 +75,7 @@ class CompanyDetails extends Component
         $data = [
             'name'                => $this->name,
             'brand_name'          => $this->brand_name ?: null,
+            'slug'                => strtolower($this->slug),
             'registration_number' => $this->registration_number ?: null,
             'email'               => $this->email ?: null,
             'phone'               => $this->phone ?: null,

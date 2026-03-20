@@ -33,6 +33,16 @@
                 </div>
 
                 <div>
+                    <x-input-label for="slug" value="URL Slug *" />
+                    <div class="mt-1 flex items-center">
+                        <span class="text-sm text-gray-400 mr-1">{{ url('/lms/') }}/</span>
+                        <x-text-input id="slug" wire:model="slug" type="text" class="flex-1" placeholder="my-restaurant" />
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Used in the Training Portal URL. Lowercase letters, numbers and dashes only.</p>
+                    <x-input-error :messages="$errors->get('slug')" class="mt-1" />
+                </div>
+
+                <div>
                     <x-input-label for="registration_number" value="Registration Number" />
                     <x-text-input id="registration_number" wire:model="registration_number" type="text" class="mt-1 block w-full" placeholder="e.g. 202301012345 (1234567-A)" />
                     <x-input-error :messages="$errors->get('registration_number')" class="mt-1" />
