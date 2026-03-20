@@ -128,15 +128,4 @@
         </div>
     @endif
 
-    {{-- Printer Info --}}
-    <div style="margin-top: 10px; padding: 4px 6px; border: 1px solid #ddd; background: #f9f9f9; font-size: 7px; color: #666;">
-        <strong>{{ $brandName }}</strong>
-        @if ($company->registration_number) | Reg: {{ $company->registration_number }} @endif
-        @if ($company->phone) | Tel: {{ $company->phone }} @endif
-        @if ($company->address) | {{ $company->address }} @endif
-        | Exported by: {{ $exportedBy }}
-        | {{ now()->format('d M Y, h:i A') }}
-        | SOP: {{ $recipe->name }}@if ($recipe->code) ({{ $recipe->code }})@endif
-        | Confidential &amp; property of {{ $brandName }}.
-    </div>
 @endsection

@@ -213,16 +213,6 @@
                 </div>
             @endif
 
-            {{-- Printer Info + Confidential (merged) --}}
-            <div class="printer-info">
-                <strong>{{ $brandName }}</strong>
-                @if ($company->registration_number) | Reg: {{ $company->registration_number }} @endif
-                @if ($company->phone) | Tel: {{ $company->phone }} @endif
-                | Exported by: {{ $exportedBy }}
-                | {{ now()->format('d M Y, h:i A') }}
-                | SOP #{{ $sopNumber }}: {{ $recipe->name }}@if ($recipe->code) ({{ $recipe->code }})@endif
-                | Confidential &amp; property of {{ $brandName }}.
-            </div>
         @endforeach
     @endforeach
 

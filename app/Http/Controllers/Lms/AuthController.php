@@ -48,8 +48,10 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+        session(['lms_company_slug' => $companySlug]);
 
-        return redirect()->route('lms.dashboard');
+        $intended = session()->pull('intended', route('lms.dashboard'));
+        return redirect($intended);
     }
 
     public function showRegister(string $companySlug)
