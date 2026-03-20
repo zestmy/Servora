@@ -33,8 +33,11 @@ class SopPdfController extends Controller
         $takeawayBase64 = $this->imagesToBase64($takeawayImages);
         $logoBase64     = $this->logoToBase64($company);
 
+        $exportedBy = $user->name;
+        $brandName  = $company->brand_name ?? $company->name ?? 'Company';
+
         $pdf = Pdf::loadView('pdf.sop-single', compact(
-            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64'
+            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'exportedBy', 'brandName'
         ))->setPaper('a4', 'portrait');
 
         return $pdf->download("SOP-{$recipe->code}-{$recipe->name}.pdf");
@@ -69,11 +72,12 @@ class SopPdfController extends Controller
             ];
         }
 
-        $pdf = Pdf::loadView('pdf.sop-all', compact(
-            'grouped', 'company', 'logoBase64', 'recipeImages'
-        ))->setPaper('a4', 'portrait');
+        $exportedBy = $user->name;
+        $brandName  = $company->brand_name ?? $company->name ?? 'SOP';
 
-        $brandName = $company->brand_name ?? $company->name ?? 'SOP';
+        $pdf = Pdf::loadView('pdf.sop-all', compact(
+            'grouped', 'company', 'logoBase64', 'recipeImages', 'exportedBy', 'brandName'
+        ))->setPaper('a4', 'portrait');
         return $pdf->download("{$brandName}-Training-SOPs.pdf");
     }
 

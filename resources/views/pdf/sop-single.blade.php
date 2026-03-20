@@ -3,6 +3,13 @@
 @section('title', 'SOP - ' . $recipe->name)
 
 @section('content')
+    {{-- Rubber Stamp --}}
+    <div style="text-align: right; margin-bottom: -10px;">
+        <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; transform: rotate(-5deg); opacity: 0.7;">
+            Private &amp; Confidential
+        </div>
+    </div>
+
     {{-- Header --}}
     <div class="header">
         <div class="header-left">
@@ -123,11 +130,17 @@
     {{-- Printer Info --}}
     <div style="margin-top: 20px; padding: 8px; border: 1px solid #ddd; background: #f9f9f9; font-size: 8px; color: #666;">
         <strong>Document Details:</strong>
-        {{ $company->brand_name ?? $company->name }}
+        {{ $brandName }}
         @if ($company->registration_number) | Reg: {{ $company->registration_number }} @endif
         @if ($company->phone) | Tel: {{ $company->phone }} @endif
+        | Exported by: {{ $exportedBy }}
         | Printed: {{ now()->format('d M Y, h:i A') }}
         | SOP: {{ $recipe->name }}
         @if ($recipe->code) ({{ $recipe->code }}) @endif
+    </div>
+
+    {{-- Confidential Footer --}}
+    <div style="margin-top: 12px; text-align: center; font-size: 8px; color: #999; font-style: italic;">
+        This manual is confidential &amp; property of {{ $brandName }}. Unauthorised reproduction or distribution is strictly prohibited.
     </div>
 @endsection

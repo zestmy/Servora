@@ -31,11 +31,18 @@
 <div class="container">
 
     {{-- ═══ COVER / TOC PAGE ═══ --}}
-    <div style="text-align: center; padding-top: 80px; padding-bottom: 40px;">
+    <div style="text-align: center; padding-top: 60px; padding-bottom: 40px;">
+        {{-- Rubber Stamp --}}
+        <div style="margin-bottom: 20px;">
+            <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 5px 22px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
+                Private &amp; Confidential
+            </div>
+        </div>
+
         @if ($logoBase64)
             <img src="{{ $logoBase64 }}" style="max-height: 60px; max-width: 200px; margin-bottom: 15px;" />
         @endif
-        <div style="font-size: 28px; font-weight: bold; color: #000; margin-bottom: 5px;">{{ $company->brand_name ?? $company->name }}</div>
+        <div style="font-size: 28px; font-weight: bold; color: #000; margin-bottom: 5px;">{{ $brandName }}</div>
         @if ($company->brand_name && $company->name !== $company->brand_name)
             <div style="font-size: 12px; color: #666; margin-bottom: 3px;">{{ $company->name }}</div>
         @endif
@@ -46,7 +53,13 @@
             Standard Operating Procedures
         </div>
         <div style="font-size: 11px; color: #666; margin-top: 8px;">Training Manual</div>
-        <div style="font-size: 10px; color: #999; margin-top: 30px;">Generated: {{ now()->format('d M Y, h:i A') }}</div>
+        <div style="font-size: 10px; color: #999; margin-top: 30px;">
+            Generated: {{ now()->format('d M Y, h:i A') }}<br>
+            Exported by: {{ $exportedBy }}
+        </div>
+        <div style="margin-top: 40px; font-size: 9px; color: #999; font-style: italic;">
+            This manual is confidential &amp; property of {{ $brandName }}. Unauthorised reproduction or distribution is strictly prohibited.
+        </div>
     </div>
 
     {{-- Table of Contents --}}
@@ -77,6 +90,13 @@
         @foreach ($catRecipes as $recipe)
             @php $sopNumber++; @endphp
             <div class="page-break"></div>
+
+            {{-- Rubber Stamp --}}
+            <div style="text-align: right; margin-bottom: -10px;">
+                <div style="display: inline-block; border: 3px solid #c00; color: #c00; padding: 4px 18px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; opacity: 0.7;">
+                    Private &amp; Confidential
+                </div>
+            </div>
 
             {{-- SOP Header --}}
             <div class="sop-header">
@@ -179,18 +199,25 @@
 
             {{-- Printer Info --}}
             <div class="printer-info">
-                <strong>{{ $company->brand_name ?? $company->name }}</strong>
+                <strong>{{ $brandName }}</strong>
                 @if ($company->registration_number) | Reg: {{ $company->registration_number }} @endif
                 @if ($company->phone) | Tel: {{ $company->phone }} @endif
+                | Exported by: {{ $exportedBy }}
                 | Printed: {{ now()->format('d M Y, h:i A') }}
                 | SOP #{{ $sopNumber }}: {{ $recipe->name }}
                 @if ($recipe->code) ({{ $recipe->code }}) @endif
+            </div>
+
+            {{-- Confidential Footer --}}
+            <div style="margin-top: 8px; text-align: center; font-size: 8px; color: #999; font-style: italic;">
+                This manual is confidential &amp; property of {{ $brandName }}. Unauthorised reproduction or distribution is strictly prohibited.
             </div>
         @endforeach
     @endforeach
 
     <div class="footer">
-        Generated on {{ now()->format('d M Y, h:i A') }} | {{ $company->brand_name ?? $company->name }}
+        Generated on {{ now()->format('d M Y, h:i A') }} by {{ $exportedBy }} | {{ $brandName }}
+        <br>This manual is confidential &amp; property of {{ $brandName }}.
         <br>Powered by Servora - https://servora.com.my/
     </div>
 </div>

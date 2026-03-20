@@ -50,7 +50,10 @@
         @yield('content')
 
         <div class="footer">
-            Generated on {{ now()->format('d M Y, h:i A') }} | {{ $company?->name ?? 'Servora' }}
+            Generated on {{ now()->format('d M Y, h:i A') }}{{ isset($exportedBy) ? ' by ' . $exportedBy : '' }} | {{ $brandName ?? $company?->name ?? 'Servora' }}
+            @if (isset($brandName))
+                <br>This manual is confidential &amp; property of {{ $brandName }}.
+            @endif
             <br>Powered by Servora - https://servora.com.my/
         </div>
     </div>
