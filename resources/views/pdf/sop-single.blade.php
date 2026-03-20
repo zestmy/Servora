@@ -48,49 +48,54 @@
         </tr>
     </table>
 
-    {{-- Ingredients --}}
-    @if ($recipe->lines->count())
-        <div style="margin-bottom: 8px;">
-            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">Ingredients</div>
-            <table class="items">
-                <thead>
-                    <tr>
-                        <th style="width: 20px;">#</th>
-                        <th>Ingredient</th>
-                        <th class="right" style="width: 60px;">Qty</th>
-                        <th style="width: 45px;">UOM</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($recipe->lines as $idx => $line)
-                        <tr>
-                            <td>{{ $idx + 1 }}</td>
-                            <td>{{ $line->ingredient?->name ?? '—' }}</td>
-                            <td class="right">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
-                            <td>{{ $line->uom?->abbreviation ?? '—' }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
+    {{-- Ingredients & Cooking Steps — Side by Side --}}
+    <table style="width: 100%; margin-bottom: 8px;">
+        <tr>
+            {{-- Ingredients (left) --}}
+            <td style="width: 40%; vertical-align: top; padding-right: 8px;">
+                @if ($recipe->lines->count())
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">Ingredients</div>
+                    <table class="items" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 16px;">#</th>
+                                <th>Ingredient</th>
+                                <th class="right" style="width: 45px;">Qty</th>
+                                <th style="width: 35px;">UOM</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($recipe->lines as $idx => $line)
+                                <tr>
+                                    <td>{{ $idx + 1 }}</td>
+                                    <td>{{ $line->ingredient?->name ?? '—' }}</td>
+                                    <td class="right">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
+                                    <td>{{ $line->uom?->abbreviation ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </td>
 
-    {{-- Cooking Steps --}}
-    @if ($recipe->steps->count())
-        <div style="margin-bottom: 8px;">
-            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 2px;">Cooking Steps</div>
-            @foreach ($recipe->steps as $step)
-                <div style="margin-bottom: 4px;">
-                    <div style="font-size: 10px; font-weight: bold; color: #000;">
-                        {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
-                    </div>
-                    <div style="font-size: 9px; color: #000; line-height: 1.4; padding-left: 12px;">
-                        {!! nl2br(e($step->instruction)) !!}
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    @endif
+            {{-- Cooking Steps (right) --}}
+            <td style="width: 60%; vertical-align: top; padding-left: 8px; border-left: 1px solid #ddd;">
+                @if ($recipe->steps->count())
+                    <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 2px;">Cooking Steps</div>
+                    @foreach ($recipe->steps as $step)
+                        <div style="margin-bottom: 4px;">
+                            <div style="font-size: 10px; font-weight: bold; color: #000;">
+                                {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
+                            </div>
+                            <div style="font-size: 9px; color: #000; line-height: 1.4; padding-left: 12px;">
+                                {!! nl2br(e($step->instruction)) !!}
+                            </div>
+                        </div>
+                    @endforeach
+                @endif
+            </td>
+        </tr>
+    </table>
 
     {{-- Plating Images — Side by Side --}}
     @if (count($dineInBase64) || count($takeawayBase64))
