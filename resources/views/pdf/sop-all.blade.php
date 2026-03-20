@@ -6,7 +6,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #000; line-height: 1.5; }
-        .container { padding: 30px; }
+        .container { padding: 40px 45px; }
         .page-break { page-break-before: always; }
         .company-logo { max-height: 45px; max-width: 160px; margin-bottom: 6px; }
         .company-name { font-size: 16px; font-weight: bold; color: #000; margin-bottom: 2px; }

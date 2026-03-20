@@ -2,6 +2,10 @@
 
 @section('title', 'SOP - ' . $recipe->name)
 
+@push('styles')
+    <style>.container { padding: 40px 45px; }</style>
+@endpush
+
 @section('content')
     {{-- Rubber Stamp --}}
     <div style="text-align: right; margin-bottom: -10px;">

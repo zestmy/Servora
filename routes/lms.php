@@ -19,6 +19,5 @@ Route::prefix('lms')->middleware('lms.auth')->group(function () {
     Route::get('/', LmsDashboard::class)->name('lms.dashboard');
     Route::get('/sop/{id}', LmsSopView::class)->name('lms.sop.show');
     Route::get('/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('lms.sop.pdf');
-    Route::get('/sop-all/pdf', [SopPdfController::class, 'all'])->name('lms.sop.pdf-all');
     Route::post('/logout', [AuthController::class, 'logout'])->name('lms.logout');
 });

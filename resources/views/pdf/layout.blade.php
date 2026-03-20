@@ -44,6 +44,7 @@
         .sig-line { border-top: 1px solid #000; padding-top: 5px; margin-top: 10px; font-size: 9px; color: #333; }
         .sig-name { font-size: 10px; font-weight: bold; margin-top: 3px; color: #000; }
     </style>
+    @stack('styles')
 </head>
 <body>
     <div class="container">
