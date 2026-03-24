@@ -22,6 +22,8 @@ class Index extends Component
     public string $period = '';
     public string $mode = 'monthly'; // monthly | weekly
     public string $weekStart = '';
+    public int $weekNumber = 0;
+    public int $weekYear = 0;
     public ?int $outletId = null;
     public bool $compareMode = false;
     public string $compareTillDate = '';
@@ -34,7 +36,10 @@ class Index extends Component
     public function mount(): void
     {
         $this->period = now()->format('Y-m');
-        $this->weekStart = now()->startOfWeek()->format('Y-m-d');
+        $now = now();
+        $this->weekNumber = (int) $now->isoFormat('W');
+        $this->weekYear = (int) $now->isoWeekYear();
+        $this->syncWeekStartFromNumber();
         $this->compareTillDate = now()->format('Y-m-d');
         $this->outletId = $this->activeOutletId();
         $this->loadData();
@@ -59,11 +64,27 @@ class Index extends Component
 
     public function updatedMode(): void
     {
+        if ($this->mode === 'weekly') {
+            // Sync week number from current weekStart
+            $ws = Carbon::parse($this->weekStart);
+            $this->weekNumber = (int) $ws->isoFormat('W');
+            $this->weekYear = (int) $ws->isoWeekYear();
+        }
         $this->loadData();
     }
 
-    public function updatedWeekStart(): void
+    public function updatedWeekNumber(): void
     {
+        $this->weekNumber = max(1, min(53, $this->weekNumber));
+        $this->syncWeekStartFromNumber();
+        if ($this->mode === 'weekly') {
+            $this->loadData();
+        }
+    }
+
+    public function updatedWeekYear(): void
+    {
+        $this->syncWeekStartFromNumber();
         if ($this->mode === 'weekly') {
             $this->loadData();
         }
@@ -109,13 +130,19 @@ class Index extends Component
 
     public function previousWeek(): void
     {
-        $this->weekStart = Carbon::parse($this->weekStart)->subWeek()->format('Y-m-d');
+        $date = Carbon::parse($this->weekStart)->subWeek();
+        $this->weekNumber = (int) $date->isoFormat('W');
+        $this->weekYear = (int) $date->isoWeekYear();
+        $this->weekStart = $date->startOfWeek()->format('Y-m-d');
         $this->loadData();
     }
 
     public function nextWeek(): void
     {
-        $this->weekStart = Carbon::parse($this->weekStart)->addWeek()->format('Y-m-d');
+        $date = Carbon::parse($this->weekStart)->addWeek();
+        $this->weekNumber = (int) $date->isoFormat('W');
+        $this->weekYear = (int) $date->isoWeekYear();
+        $this->weekStart = $date->startOfWeek()->format('Y-m-d');
         $this->loadData();
     }
 
@@ -226,11 +253,14 @@ class Index extends Component
     private function loadData(): void
     {
         $this->loadSummary();
-        $this->loadDashboardData();
-        $this->loadMonthlySalesByYear();
-        $this->loadLabourData();
 
-        if ($this->compareMode && $this->mode === 'monthly') {
+        if ($this->mode === 'monthly') {
+            $this->loadDashboardData();
+            $this->loadMonthlySalesByYear();
+            $this->loadLabourData();
+        }
+
+        if ($this->compareMode) {
             $this->loadComparisonData();
         } else {
             $this->comparisonData = [];
@@ -388,6 +418,11 @@ class Index extends Component
 
     private function loadComparisonData(): void
     {
+        if ($this->mode === 'weekly') {
+            $this->loadWeeklyComparisonData();
+            return;
+        }
+
         $service = new CostSummaryService();
         $outletId = $this->outletId ?: null;
 
@@ -461,6 +496,92 @@ class Index extends Component
                 'label' => $start->format('d M') . ' - ' . $end->format('d M Y'),
                 'period_label' => $start->format('M Y'),
                 'mtd_day' => $start->format('Y-m') === $curStart->format('Y-m') ? $mtdDay : ($key === 'prev_month' ? $prevMtdDay : $lyMtdDay),
+            ];
+        }
+
+        // Calculate variances
+        $curRev = $comparison['current']['summary']['totals']['revenue'];
+        $prevRev = $comparison['prev_month']['summary']['totals']['revenue'];
+        $lyRev = $comparison['prev_year']['summary']['totals']['revenue'];
+
+        $comparison['var_vs_prev'] = [
+            'revenue' => $prevRev > 0 ? round(($curRev - $prevRev) / $prevRev * 100, 1) : 0,
+            'cogs' => $comparison['prev_month']['summary']['totals']['cogs'] > 0
+                ? round(($comparison['current']['summary']['totals']['cogs'] - $comparison['prev_month']['summary']['totals']['cogs']) / abs($comparison['prev_month']['summary']['totals']['cogs']) * 100, 1)
+                : 0,
+            'pax' => $comparison['prev_month']['pax'] > 0
+                ? round(($comparison['current']['pax'] - $comparison['prev_month']['pax']) / $comparison['prev_month']['pax'] * 100, 1)
+                : 0,
+        ];
+
+        $comparison['var_vs_ly'] = [
+            'revenue' => $lyRev > 0 ? round(($curRev - $lyRev) / $lyRev * 100, 1) : 0,
+            'cogs' => $comparison['prev_year']['summary']['totals']['cogs'] > 0
+                ? round(($comparison['current']['summary']['totals']['cogs'] - $comparison['prev_year']['summary']['totals']['cogs']) / abs($comparison['prev_year']['summary']['totals']['cogs']) * 100, 1)
+                : 0,
+            'pax' => $comparison['prev_year']['pax'] > 0
+                ? round(($comparison['current']['pax'] - $comparison['prev_year']['pax']) / $comparison['prev_year']['pax'] * 100, 1)
+                : 0,
+        ];
+
+        $this->comparisonData = $comparison;
+    }
+
+    private function loadWeeklyComparisonData(): void
+    {
+        $service = new CostSummaryService();
+        $outletId = $this->outletId ?: null;
+
+        // Current week
+        $curStart = Carbon::parse($this->weekStart)->startOfWeek();
+        $curEnd = $curStart->copy()->addDays(6)->endOfDay();
+
+        // Previous week (week N-1)
+        $prevStart = $curStart->copy()->subWeek();
+        $prevEnd = $prevStart->copy()->addDays(6)->endOfDay();
+
+        // Same week last year (same ISO week number, previous year)
+        $lyStart = Carbon::now()->setISODate($this->weekYear - 1, $this->weekNumber)->startOfWeek();
+        $lyEnd = $lyStart->copy()->addDays(6)->endOfDay();
+
+        $curSummary = $service->generate(
+            $curStart->format('Y-m'), $outletId,
+            $curStart->format('Y-m-d'), $curEnd->format('Y-m-d')
+        );
+        $prevSummary = $service->generate(
+            $prevStart->format('Y-m'), $outletId,
+            $prevStart->format('Y-m-d'), $prevEnd->format('Y-m-d')
+        );
+        $lySummary = $service->generate(
+            $lyStart->format('Y-m'), $outletId,
+            $lyStart->format('Y-m-d'), $lyEnd->format('Y-m-d')
+        );
+
+        $prevWeekNum = (int) $prevStart->isoFormat('W');
+        $prevWeekYear = (int) $prevStart->isoWeekYear();
+
+        $periods = [
+            'current' => [$curStart, $curEnd, $curSummary, 'Week ' . $this->weekNumber . ', ' . $this->weekYear],
+            'prev_month' => [$prevStart, $prevEnd, $prevSummary, 'Week ' . $prevWeekNum . ', ' . $prevWeekYear],
+            'prev_year' => [$lyStart, $lyEnd, $lySummary, 'Week ' . $this->weekNumber . ', ' . ($this->weekYear - 1)],
+        ];
+
+        $comparison = [];
+        foreach ($periods as $key => [$start, $end, $summary, $periodLabel]) {
+            $salesQuery = SalesRecord::whereBetween('sale_date', [$start, $end]);
+            if ($outletId) {
+                $salesQuery->where('outlet_id', $outletId);
+            }
+            $pax = (int) $salesQuery->sum('pax');
+            $revenue = $summary['totals']['revenue'];
+            $avgCheck = $pax > 0 ? round($revenue / $pax, 2) : 0;
+
+            $comparison[$key] = [
+                'summary' => $summary,
+                'pax' => $pax,
+                'avg_check' => $avgCheck,
+                'label' => $start->format('d M') . ' - ' . $end->format('d M Y'),
+                'period_label' => $periodLabel,
             ];
         }
 
@@ -618,10 +739,19 @@ class Index extends Component
     private function periodLabel(): string
     {
         if ($this->mode === 'weekly' && $this->weekStart) {
-            return Carbon::parse($this->weekStart)->format('d M Y') . ' - ' . Carbon::parse($this->weekStart)->addDays(6)->format('d M Y');
+            $start = Carbon::parse($this->weekStart);
+            $end = $start->copy()->addDays(6);
+            return 'Week ' . $this->weekNumber . ', ' . $this->weekYear
+                . ' (' . $start->format('d M') . ' - ' . $end->format('d M Y') . ')';
         }
 
         return Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
+    }
+
+    private function syncWeekStartFromNumber(): void
+    {
+        $date = Carbon::now()->setISODate($this->weekYear, $this->weekNumber)->startOfWeek();
+        $this->weekStart = $date->format('Y-m-d');
     }
 
     private function resolveOutletId(): ?int

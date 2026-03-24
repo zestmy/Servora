@@ -46,8 +46,13 @@
                     <button wire:click="previousWeek" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    <input type="date" wire:model.live="weekStart"
-                           class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-sm font-medium text-gray-600">W</span>
+                        <input type="number" wire:model.live.debounce.500ms="weekNumber" min="1" max="53"
+                               class="w-16 rounded-lg border-gray-300 text-sm text-center focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="number" wire:model.live.debounce.500ms="weekYear" min="2020" max="2099"
+                               class="w-20 rounded-lg border-gray-300 text-sm text-center focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
                     <button wire:click="nextWeek" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
@@ -76,25 +81,23 @@
                 @endforeach
             </select>
 
-            @if ($mode === 'monthly')
-                <div class="h-6 w-px bg-gray-200"></div>
+            <div class="h-6 w-px bg-gray-200"></div>
 
-                {{-- MTD Comparison toggle --}}
-                <button wire:click="toggleCompare"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition {{ $compareMode ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                    MTD Comparison
-                </button>
+            {{-- Comparison toggle --}}
+            <button wire:click="toggleCompare"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition {{ $compareMode ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                {{ $mode === 'weekly' ? 'Week Comparison' : 'MTD Comparison' }}
+            </button>
 
-                @if ($compareMode)
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs text-gray-500">till</span>
-                        <input type="date" wire:model.live="compareTillDate"
-                               class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500 py-1.5">
-                    </div>
-                @endif
+            @if ($compareMode && $mode === 'monthly')
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs text-gray-500">till</span>
+                    <input type="date" wire:model.live="compareTillDate"
+                           class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500 py-1.5">
+                </div>
             @endif
         </div>
 
@@ -142,7 +145,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                             </svg>
-                            MTD Period Comparison
+                            {{ $mode === 'weekly' ? 'Week-over-Week Comparison' : 'MTD Period Comparison' }}
                         </h3>
                         <div class="flex items-center gap-3 text-xs text-gray-400">
                             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> {{ $cur['period_label'] }}</span>
@@ -154,15 +157,15 @@
                     {{-- Period date ranges --}}
                     <div class="grid grid-cols-3 gap-4 mb-5">
                         <div class="text-center p-3 bg-indigo-50 rounded-lg">
-                            <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">This Month MTD</div>
+                            <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{{ $mode === 'weekly' ? 'This Week' : 'This Month MTD' }}</div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ $cur['label'] }}</div>
                         </div>
                         <div class="text-center p-3 bg-gray-50 rounded-lg">
-                            <div class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Last Month MTD</div>
+                            <div class="text-xs font-semibold text-gray-600 uppercase tracking-wide">{{ $mode === 'weekly' ? 'Previous Week' : 'Last Month MTD' }}</div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ $prev['label'] }}</div>
                         </div>
                         <div class="text-center p-3 bg-amber-50 rounded-lg">
-                            <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide">Last Year MTD</div>
+                            <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide">{{ $mode === 'weekly' ? 'Same Week Last Year' : 'Last Year MTD' }}</div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ $ly['label'] }}</div>
                         </div>
                     </div>
@@ -174,21 +177,21 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">Revenue</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">This Month</span>
+                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
                                     <span class="text-sm font-bold text-gray-900">{{ number_format($cur['summary']['totals']['revenue'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Last Month</span>
+                                    <span class="text-xs text-gray-500">{{ $mode === 'weekly' ? 'Prev Week' : 'Last Month' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($prev['summary']['totals']['revenue'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">Last Year</span>
+                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($ly['summary']['totals']['revenue'], 0) }}</span>
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
                                 <span class="{{ $varPrev['revenue'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    vs LM: {{ $varPrev['revenue'] >= 0 ? '+' : '' }}{{ $varPrev['revenue'] }}%
+                                    {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $varPrev['revenue'] >= 0 ? '+' : '' }}{{ $varPrev['revenue'] }}%
                                 </span>
                                 <span class="{{ $varLy['revenue'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
                                     vs LY: {{ $varLy['revenue'] >= 0 ? '+' : '' }}{{ $varLy['revenue'] }}%
@@ -201,21 +204,21 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">COGS</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">This Month</span>
+                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
                                     <span class="text-sm font-bold text-gray-900">{{ number_format($cur['summary']['totals']['cogs'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Last Month</span>
+                                    <span class="text-xs text-gray-500">{{ $mode === 'weekly' ? 'Prev Week' : 'Last Month' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($prev['summary']['totals']['cogs'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">Last Year</span>
+                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($ly['summary']['totals']['cogs'], 0) }}</span>
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
                                 <span class="{{ $varPrev['cogs'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    vs LM: {{ $varPrev['cogs'] >= 0 ? '+' : '' }}{{ $varPrev['cogs'] }}%
+                                    {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $varPrev['cogs'] >= 0 ? '+' : '' }}{{ $varPrev['cogs'] }}%
                                 </span>
                                 <span class="{{ $varLy['cogs'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
                                     vs LY: {{ $varLy['cogs'] >= 0 ? '+' : '' }}{{ $varLy['cogs'] }}%
@@ -228,19 +231,19 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">Cost %</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">This Month</span>
+                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
                                     <span class="text-sm font-bold {{ $cur['summary']['totals']['cost_pct'] > 35 ? 'text-red-600' : ($cur['summary']['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
                                         {{ $cur['summary']['totals']['cost_pct'] }}%
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Last Month</span>
+                                    <span class="text-xs text-gray-500">{{ $mode === 'weekly' ? 'Prev Week' : 'Last Month' }}</span>
                                     <span class="text-sm font-medium {{ $prev['summary']['totals']['cost_pct'] > 35 ? 'text-red-600' : ($prev['summary']['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
                                         {{ $prev['summary']['totals']['cost_pct'] }}%
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">Last Year</span>
+                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
                                     <span class="text-sm font-medium {{ $ly['summary']['totals']['cost_pct'] > 35 ? 'text-red-600' : ($ly['summary']['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
                                         {{ $ly['summary']['totals']['cost_pct'] }}%
                                     </span>
@@ -252,7 +255,7 @@
                             @endphp
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
                                 <span class="{{ $costPctDiffPrev <= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    vs LM: {{ $costPctDiffPrev >= 0 ? '+' : '' }}{{ $costPctDiffPrev }}%
+                                    {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $costPctDiffPrev >= 0 ? '+' : '' }}{{ $costPctDiffPrev }}%
                                 </span>
                                 <span class="{{ $costPctDiffLy <= 0 ? 'text-green-600' : 'text-red-600' }}">
                                     vs LY: {{ $costPctDiffLy >= 0 ? '+' : '' }}{{ $costPctDiffLy }}%
@@ -265,21 +268,21 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">Pax / Avg Check</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">This Month</span>
+                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
                                     <span class="text-sm font-bold text-gray-900">{{ number_format($cur['pax']) }} <span class="text-gray-400 font-normal">/ {{ number_format($cur['avg_check'], 2) }}</span></span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Last Month</span>
+                                    <span class="text-xs text-gray-500">{{ $mode === 'weekly' ? 'Prev Week' : 'Last Month' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($prev['pax']) }} <span class="text-gray-400 font-normal">/ {{ number_format($prev['avg_check'], 2) }}</span></span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">Last Year</span>
+                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($ly['pax']) }} <span class="text-gray-400 font-normal">/ {{ number_format($ly['avg_check'], 2) }}</span></span>
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
                                 <span class="{{ $varPrev['pax'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    vs LM: {{ $varPrev['pax'] >= 0 ? '+' : '' }}{{ $varPrev['pax'] }}%
+                                    {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $varPrev['pax'] >= 0 ? '+' : '' }}{{ $varPrev['pax'] }}%
                                 </span>
                                 <span class="{{ $varLy['pax'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
                                     vs LY: {{ $varLy['pax'] >= 0 ? '+' : '' }}{{ $varLy['pax'] }}%
@@ -296,7 +299,7 @@
                                     <th class="text-left py-2.5 px-4 font-semibold text-gray-600 w-40">Metric</th>
                                     <th class="text-right py-2.5 px-4 font-semibold text-indigo-600 min-w-[120px]">{{ $cur['period_label'] }}</th>
                                     <th class="text-right py-2.5 px-4 font-semibold text-gray-500 min-w-[120px]">{{ $prev['period_label'] }}</th>
-                                    <th class="text-right py-2.5 px-4 font-semibold text-gray-400 text-xs min-w-[80px]">vs LM</th>
+                                    <th class="text-right py-2.5 px-4 font-semibold text-gray-400 text-xs min-w-[80px]">{{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}</th>
                                     <th class="text-right py-2.5 px-4 font-semibold text-amber-600 min-w-[120px]">{{ $ly['period_label'] }}</th>
                                     <th class="text-right py-2.5 px-4 font-semibold text-gray-400 text-xs min-w-[80px]">vs LY</th>
                                 </tr>
@@ -367,7 +370,7 @@
                                             <th class="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
                                             <th class="text-right py-2 px-3 font-semibold text-indigo-600">{{ $cur['period_label'] }}</th>
                                             <th class="text-right py-2 px-3 font-semibold text-gray-500">{{ $prev['period_label'] }}</th>
-                                            <th class="text-right py-2 px-3 font-semibold text-gray-400">vs LM</th>
+                                            <th class="text-right py-2 px-3 font-semibold text-gray-400">{{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}</th>
                                             <th class="text-right py-2 px-3 font-semibold text-amber-600">{{ $ly['period_label'] }}</th>
                                             <th class="text-right py-2 px-3 font-semibold text-gray-400">vs LY</th>
                                         </tr>
