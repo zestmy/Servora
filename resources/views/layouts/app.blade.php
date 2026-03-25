@@ -111,8 +111,19 @@
                     ['route' => 'inventory.index',   'icon' => '📦', 'label' => 'Inventory',    'permission' => 'inventory.view'],
                     ['route' => 'reports.index',     'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
                     ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
-                    ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager']],
+                    ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager'], 'feature' => 'analytics'],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
+                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null, 'role' => ['Super Admin', 'Company Admin']],
+                ];
+
+                // Admin nav items (System Admin only)
+                $adminNavItems = [
+                    ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
+                    ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],
+                    ['route' => 'admin.trials.index',        'icon' => '⏱️', 'label' => 'Trials',        'permission' => null],
+                    ['route' => 'admin.referrals.index',     'icon' => '🔗', 'label' => 'Referrals',     'permission' => null],
+                    ['route' => 'admin.company-health',      'icon' => '💚', 'label' => 'Health',        'permission' => null],
+                    ['route' => 'admin.announcements',       'icon' => '📢', 'label' => 'Announcements', 'permission' => null],
                 ];
 
                 if ($isSystemRole) {
@@ -123,6 +134,10 @@
                     $navItems = array_filter($allNavItems, function($i) use ($authUser) {
                         if (!empty($i['role']) && !$authUser->hasRole($i['role'])) return false;
                         if ($i['permission'] !== null && !$authUser->hasPermissionTo($i['permission'])) return false;
+                        // Feature flag check — hide nav items for disabled features
+                        if (!empty($i['feature']) && $authUser->company) {
+                            if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $i['feature'])) return false;
+                        }
                         return true;
                     });
                 }
@@ -148,6 +163,33 @@
                     </span>
                 </a>
             @endforeach
+
+            {{-- Admin Section (System Admin only) --}}
+            @if ($isSystemRole)
+                <div class="mt-4 pt-3 border-t border-gray-700">
+                    <p x-show="sidebarOpen" class="px-4 pb-2 text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Admin</p>
+                    @foreach ($adminNavItems as $item)
+                        @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
+                        <a href="{{ route($item['route']) }}"
+                           :title="!sidebarOpen ? '{{ $item['label'] }}' : ''"
+                           class="flex items-center rounded-lg text-sm font-medium transition-colors
+                                  {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
+                           :class="sidebarOpen ? 'gap-3 px-4 py-2.5' : 'justify-center px-2 py-3'">
+                            <span class="flex-shrink-0 text-base leading-none">{{ $item['icon'] }}</span>
+                            <span x-show="sidebarOpen"
+                                  x-transition:enter="transition-opacity duration-150 delay-100"
+                                  x-transition:enter-start="opacity-0"
+                                  x-transition:enter-end="opacity-100"
+                                  x-transition:leave="transition-opacity duration-75"
+                                  x-transition:leave-start="opacity-100"
+                                  x-transition:leave-end="opacity-0"
+                                  class="whitespace-nowrap overflow-hidden">
+                                {{ $item['label'] }}
+                            </span>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
         </nav>
 
         {{-- ── Bottom: Company / Outlet / User ────────────────────────────── --}}

@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\AppSetting;
+use App\Services\EngineMailerService;
 use Livewire\Component;
 
 class ApiKeys extends Component
@@ -78,6 +79,22 @@ class ApiKeys extends Component
         AppSetting::set('enginemailer_sender_email', $this->enginemailer_sender_email ?: null);
 
         session()->flash('success', 'EngineMailer settings saved.');
+    }
+
+    public function testEngineMailer(): void
+    {
+        if (empty($this->enginemailer_key) || empty($this->enginemailer_sender_email)) {
+            session()->flash('error', 'Please save your API key and sender email first.');
+            return;
+        }
+
+        $result = EngineMailerService::testConnection($this->enginemailer_key, $this->enginemailer_sender_email);
+
+        if ($result['success']) {
+            session()->flash('success', $result['message']);
+        } else {
+            session()->flash('error', $result['message']);
+        }
     }
 
     public function render()

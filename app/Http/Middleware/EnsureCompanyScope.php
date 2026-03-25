@@ -13,8 +13,13 @@ class EnsureCompanyScope
         $user = $request->user();
 
         if ($user && ! $user->company_id) {
-            // System Admin may not have a company — allow through to settings/users only
+            // System Admin may not have a company — allow through
             if ($user->hasRole('System Admin')) {
+                return $next($request);
+            }
+
+            // Check if company is resolved from subdomain
+            if (app()->bound('currentCompany')) {
                 return $next($request);
             }
 

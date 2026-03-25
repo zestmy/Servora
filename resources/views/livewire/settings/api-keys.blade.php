@@ -16,6 +16,12 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
 
     <div class="max-w-2xl space-y-6">
 
@@ -332,10 +338,20 @@
                 <p class="mt-1 text-xs text-gray-400">The "From" email address for PO emails. Must be a verified sender in EngineMailer.</p>
             </div>
 
-            <button wire:click="saveEngineMailer"
-                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                Save EngineMailer Settings
-            </button>
+            <div class="flex items-center gap-3">
+                <button wire:click="saveEngineMailer"
+                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    Save EngineMailer Settings
+                </button>
+                @if ($enginemailer_key && $enginemailer_sender_email)
+                    <button wire:click="testEngineMailer"
+                            wire:loading.attr="disabled"
+                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+                        <span wire:loading.remove wire:target="testEngineMailer">Test Connection</span>
+                        <span wire:loading wire:target="testEngineMailer">Sending…</span>
+                    </button>
+                @endif
+            </div>
 
             @if ($enginemailer_key)
                 <div class="mt-3 flex items-center gap-1.5 text-xs text-green-600">

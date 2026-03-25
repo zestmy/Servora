@@ -16,8 +16,18 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'company.scope' => \App\Http\Middleware\EnsureCompanyScope::class,
-            'lms.auth'      => \App\Http\Middleware\LmsAuthenticate::class,
+            'company.scope'       => \App\Http\Middleware\EnsureCompanyScope::class,
+            'company.subdomain'   => \App\Http\Middleware\ResolveCompanyFromSubdomain::class,
+            'lms.auth'            => \App\Http\Middleware\LmsAuthenticate::class,
+            'onboarding'          => \App\Http\Middleware\EnsureOnboardingComplete::class,
+            'check.subscription'  => \App\Http\Middleware\CheckSubscription::class,
+            'check.feature'       => \App\Http\Middleware\CheckFeatureAccess::class,
+            'plan.rate_limit'     => \App\Http\Middleware\PlanRateLimiter::class,
+        ]);
+
+        // Apply subdomain resolution globally on web routes
+        $middleware->web(append: [
+            \App\Http\Middleware\ResolveCompanyFromSubdomain::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

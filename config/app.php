@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Domain
+    |--------------------------------------------------------------------------
+    |
+    | The base domain for subdomain routing. Company subdomains are
+    | resolved as {slug}.{domain}. Set to null for localhost dev.
+    |
+    */
+
+    'domain' => env('APP_DOMAIN'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

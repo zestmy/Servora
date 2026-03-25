@@ -6,7 +6,17 @@ use App\Livewire\Lms\Dashboard as LmsDashboard;
 use App\Livewire\Lms\SopView as LmsSopView;
 use Illuminate\Support\Facades\Route;
 
-// Guest LMS routes (login & registration)
+// Subdomain-based LMS routes (when on {slug}.servora.com.my)
+// These routes work when ResolveCompanyFromSubdomain has set the company in the container
+Route::prefix('lms')->group(function () {
+    // Guest routes (subdomain provides the company context)
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('lms.subdomain.login');
+    Route::post('/login', [AuthController::class, 'login'])->name('lms.subdomain.login.submit');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('lms.subdomain.register');
+    Route::post('/register', [AuthController::class, 'register'])->name('lms.subdomain.register.submit');
+});
+
+// Legacy slug-based LMS routes (backward compatibility)
 Route::prefix('lms/{companySlug}')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('lms.login');
     Route::post('/login', [AuthController::class, 'login'])->name('lms.login.submit');

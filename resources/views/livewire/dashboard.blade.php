@@ -1,4 +1,7 @@
 <div>
+    {{-- Announcements --}}
+    <livewire:components.announcement-banner />
+
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"

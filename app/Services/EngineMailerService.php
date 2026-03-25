@@ -11,6 +11,33 @@ class EngineMailerService
     private const ENDPOINT = 'https://api.enginemailer.com/RESTAPI/Submission/SendEmail';
 
     /**
+     * Test the EngineMailer API connection by sending a test email.
+     */
+    public static function testConnection(string $apiKey, string $senderEmail): array
+    {
+        $payload = [
+            'UserKey'          => $apiKey,
+            'ToEmail'          => $senderEmail,
+            'SenderEmail'      => $senderEmail,
+            'SenderName'       => 'Servora',
+            'Subject'          => 'Servora — EngineMailer Test Connection',
+            'SubmittedContent' => '<p>This is a test email from Servora to verify your EngineMailer API connection is working correctly.</p><p>If you received this email, your API key and sender email are configured correctly.</p>',
+        ];
+
+        try {
+            $response = Http::timeout(30)->post(self::ENDPOINT, $payload);
+
+            if ($response->successful()) {
+                return ['success' => true, 'message' => 'Test email sent successfully! Check your inbox at ' . $senderEmail . '.'];
+            }
+
+            return ['success' => false, 'message' => 'API error: ' . $response->body()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Connection failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Send a transactional email via EngineMailer REST API.
      *
      * @param string      $toEmail        Recipient email

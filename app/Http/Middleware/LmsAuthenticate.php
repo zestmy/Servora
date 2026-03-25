@@ -12,7 +12,14 @@ class LmsAuthenticate
     public function handle(Request $request, Closure $next)
     {
         if (! Auth::guard('lms')->check()) {
-            // Find company slug from last logged-in user or first active company
+            // If on a company subdomain, redirect to /lms/login on the same subdomain
+            if (app()->bound('currentCompany')) {
+                $company = app('currentCompany');
+                return redirect()->to('/lms/login')
+                    ->with('intended', $request->fullUrl());
+            }
+
+            // Fall back to slug-based route
             $slug = session('lms_company_slug')
                 ?? Company::where('is_active', true)->value('slug')
                 ?? 'app';

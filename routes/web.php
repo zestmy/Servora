@@ -47,10 +47,44 @@ use App\Http\Controllers\IngredientExportController;
 use App\Http\Controllers\StockTakeCountSheetController;
 use App\Http\Controllers\Lms\SopPdfController;
 use App\Livewire\Settings\LmsUsers as SettingsLmsUsers;
+use App\Livewire\Admin\Plans\Index as AdminPlansIndex;
+use App\Livewire\Admin\Plans\Form as AdminPlansForm;
+use App\Livewire\Admin\Subscriptions\Index as AdminSubscriptionsIndex;
+use App\Livewire\Auth\SaasRegister;
+use App\Livewire\Onboarding\Wizard as OnboardingWizard;
+use App\Livewire\Marketing\Home as MarketingHome;
+use App\Livewire\Marketing\Pricing as MarketingPricing;
+use App\Livewire\Marketing\Features as MarketingFeatures;
+use App\Livewire\Billing\Index as BillingIndex;
+use App\Livewire\Billing\Checkout as BillingCheckout;
+use App\Http\Controllers\Webhook\ChipInWebhookController;
+use App\Http\Controllers\ReferralTrackingController;
+use App\Livewire\Admin\Referrals\Programs as AdminReferralPrograms;
+use App\Livewire\Admin\Referrals\Dashboard as AdminReferralDashboard;
+use App\Livewire\Admin\TrialDashboard as AdminTrialDashboard;
+use App\Livewire\Admin\CompanyHealth as AdminCompanyHealth;
+use App\Livewire\Admin\Announcements as AdminAnnouncements;
+
+// Marketing pages (public, no auth)
+Route::get('/marketing', MarketingHome::class)->name('marketing.home');
+Route::get('/pricing', MarketingPricing::class)->name('pricing');
+Route::get('/features', MarketingFeatures::class)->name('features');
+Route::get('/register/start', SaasRegister::class)->name('saas.register');
+
+// CHIP-IN webhook (no auth, no CSRF)
+Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('webhooks.chipin');
+
+// Referral tracking
+Route::get('/ref/{code}', ReferralTrackingController::class)->name('referral.track');
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
+    // Onboarding (must be before onboarding middleware)
+    Route::get('/onboarding', OnboardingWizard::class)->name('onboarding');
+
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     Route::get('/ingredients', IngredientsIndex::class)->name('ingredients.index')->middleware('can:ingredients.view');
@@ -107,7 +141,24 @@ Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:settings.view');
     Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:recipes.view');
     Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:recipes.view');
-    Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager');
+    Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware([\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager', 'check.feature:analytics']);
+
+    // Billing routes
+    Route::get('/billing', BillingIndex::class)->name('billing.index');
+    Route::get('/billing/checkout/{planSlug}', BillingCheckout::class)->name('billing.checkout');
+
+    // Admin routes (System Admin only)
+    Route::prefix('admin')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':System Admin')->group(function () {
+        Route::get('/plans', AdminPlansIndex::class)->name('admin.plans.index');
+        Route::get('/plans/create', AdminPlansForm::class)->name('admin.plans.create');
+        Route::get('/plans/{id}/edit', AdminPlansForm::class)->name('admin.plans.edit');
+        Route::get('/subscriptions', AdminSubscriptionsIndex::class)->name('admin.subscriptions.index');
+        Route::get('/referrals', AdminReferralDashboard::class)->name('admin.referrals.index');
+        Route::get('/referrals/programs', AdminReferralPrograms::class)->name('admin.referrals.programs');
+        Route::get('/trials', AdminTrialDashboard::class)->name('admin.trials.index');
+        Route::get('/company-health', AdminCompanyHealth::class)->name('admin.company-health');
+        Route::get('/announcements', AdminAnnouncements::class)->name('admin.announcements');
+    });
 });
 
 Route::view('profile', 'profile')
