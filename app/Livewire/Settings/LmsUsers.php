@@ -78,13 +78,17 @@ class LmsUsers extends Component
             ->sort()
             ->values();
 
-        $lmsUrl = $company?->slug
-            ? url("/lms/{$company->slug}/login")
-            : null;
-
-        $lmsRegisterUrl = $company?->slug
-            ? url("/lms/{$company->slug}/register")
-            : null;
+        $domain = config('app.domain');
+        if ($domain && $company?->slug) {
+            $lmsUrl = "https://{$company->slug}.{$domain}/lms/login";
+            $lmsRegisterUrl = "https://{$company->slug}.{$domain}/lms/register";
+        } elseif ($company?->slug) {
+            $lmsUrl = url("/lms/{$company->slug}/login");
+            $lmsRegisterUrl = url("/lms/{$company->slug}/register");
+        } else {
+            $lmsUrl = null;
+            $lmsRegisterUrl = null;
+        }
 
         return view('livewire.settings.lms-users', compact(
             'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',

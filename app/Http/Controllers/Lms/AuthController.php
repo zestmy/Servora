@@ -30,14 +30,13 @@ class AuthController extends Controller
     }
 
     /**
-     * Build the LMS login redirect URL (subdomain-aware).
+     * Build the LMS login redirect URL.
+     * Uses subdomain if currently on one, otherwise uses path-based route.
      */
     private function loginUrl(Company $company): string
     {
-        $domain = config('app.domain');
-
-        // If subdomain routing is active, redirect to /lms/login on the subdomain
-        if ($domain && request()->getHost() !== 'localhost') {
+        // If already on a company subdomain, stay on it
+        if (app()->bound('currentCompany')) {
             return url('/lms/login');
         }
 

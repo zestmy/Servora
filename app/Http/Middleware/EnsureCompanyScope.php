@@ -18,11 +18,6 @@ class EnsureCompanyScope
                 return $next($request);
             }
 
-            // Check if company is resolved from subdomain
-            if (app()->bound('currentCompany')) {
-                return $next($request);
-            }
-
             return redirect()->route('login')->with('error', 'Your account is not assigned to a company. Please contact your administrator.');
         }
 

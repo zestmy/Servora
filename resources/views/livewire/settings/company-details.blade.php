@@ -34,36 +34,20 @@
 
                 <div>
                     <x-input-label for="slug" value="URL Slug *" />
-                    <div class="mt-1 flex items-center">
-                        <span class="text-sm text-gray-400 mr-1 flex-shrink-0">https://</span>
-                        <x-text-input id="slug" wire:model="slug" type="text" class="flex-1" placeholder="my-restaurant" />
-                        <span class="text-sm text-gray-400 ml-1 flex-shrink-0">.servora.com.my</span>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1">Your unique subdomain. Lowercase letters, numbers and dashes only.</p>
+                    <x-text-input id="slug" wire:model="slug" type="text" class="mt-1 block w-full" placeholder="my-restaurant" />
+                    <p class="text-xs text-gray-400 mt-1">Used in your Training Portal URL. Lowercase letters, numbers and dashes only.</p>
                     <x-input-error :messages="$errors->get('slug')" class="mt-1" />
                 </div>
 
-                {{-- Subdomain URLs --}}
+                {{-- LMS URLs --}}
                 @if ($slug)
                     @php $appDomain = config('app.domain', 'servora.com.my'); @endphp
                     <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                        <h4 class="text-xs font-semibold text-indigo-800 uppercase tracking-wider mb-2">Your Servora URLs</h4>
+                        <h4 class="text-xs font-semibold text-indigo-800 uppercase tracking-wider mb-2">Training Portal URLs</h4>
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-xs text-indigo-600 font-medium">Dashboard</p>
-                                    <p class="text-sm text-indigo-900 font-mono">https://{{ $slug }}.{{ $appDomain }}</p>
-                                </div>
-                                <a href="https://{{ $slug }}.{{ $appDomain }}" target="_blank"
-                                   class="text-indigo-500 hover:text-indigo-700 transition" title="Open">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                </a>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-xs text-indigo-600 font-medium">Training Portal (LMS)</p>
+                                    <p class="text-xs text-indigo-600 font-medium">Staff Login (Subdomain)</p>
                                     <p class="text-sm text-indigo-900 font-mono">https://{{ $slug }}.{{ $appDomain }}/lms/login</p>
                                 </div>
                                 <a href="https://{{ $slug }}.{{ $appDomain }}/lms/login" target="_blank"
@@ -73,8 +57,20 @@
                                     </svg>
                                 </a>
                             </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-indigo-600 font-medium">Staff Registration</p>
+                                    <p class="text-sm text-indigo-900 font-mono">https://{{ $slug }}.{{ $appDomain }}/lms/register</p>
+                                </div>
+                                <a href="https://{{ $slug }}.{{ $appDomain }}/lms/register" target="_blank"
+                                   class="text-indigo-500 hover:text-indigo-700 transition" title="Open">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            </div>
                         </div>
-                        <p class="text-[10px] text-indigo-500 mt-3">Share the Training Portal link with your staff to register for SOPs and training materials.</p>
+                        <p class="text-[10px] text-indigo-500 mt-3">Share these links with your staff to access SOPs and training materials.</p>
                     </div>
                 @endif
 

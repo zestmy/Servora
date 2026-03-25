@@ -24,11 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.feature'       => \App\Http\Middleware\CheckFeatureAccess::class,
             'plan.rate_limit'     => \App\Http\Middleware\PlanRateLimiter::class,
         ]);
-
-        // Apply subdomain resolution globally on web routes
-        $middleware->web(append: [
-            \App\Http\Middleware\ResolveCompanyFromSubdomain::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -79,18 +79,7 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
 // Referral tracking
 Route::get('/ref/{code}', ReferralTrackingController::class)->name('referral.track');
 
-Route::get('/', function () {
-    $domain = config('app.domain');
-    $host = request()->getHost();
-
-    // On bare domain (servora.com.my) or www → show marketing page
-    if ($domain && ($host === $domain || $host === 'www.' . $domain)) {
-        return redirect()->route('marketing.home');
-    }
-
-    // On app.servora.com.my or any subdomain → redirect to dashboard
-    return redirect()->route('dashboard');
-});
+Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     // Onboarding (must be before onboarding middleware)

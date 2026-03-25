@@ -69,12 +69,7 @@ class SaasRegister extends Component
         Auth::login($result['user']);
 
         // Redirect to onboarding
-        $domain = config('app.domain');
-        if ($domain) {
-            $this->redirect('https://' . $result['company']->slug . '.' . $domain . '/onboarding');
-        } else {
-            $this->redirect(route('onboarding'));
-        }
+        $this->redirect(route('onboarding'));
     }
 
     public function render()
