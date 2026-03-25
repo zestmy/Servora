@@ -12,7 +12,7 @@
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-base font-semibold text-gray-800 mb-1">
-            {{ $currentSubscription ? 'Switch to' : 'Subscribe to' }} {{ $selectedPlan->name }}
+            {{ $currentSubscription ? ($currentSubscription->isTrial() ? 'Upgrade to' : 'Switch to') : 'Subscribe to' }} {{ $selectedPlan->name }}
         </h2>
         <p class="text-xs text-gray-400 mb-5">Review your plan before confirming.</p>
 
@@ -29,7 +29,9 @@
             </div>
             <div class="text-xs text-gray-500 space-y-1">
                 <p>{{ $selectedPlan->max_outlets ?? 'Unlimited' }} outlets, {{ $selectedPlan->max_users ?? 'Unlimited' }} users</p>
-                <p>{{ $selectedPlan->trial_days }}-day free trial included</p>
+                @if (!$currentSubscription)
+                    <p>{{ $selectedPlan->trial_days }}-day free trial included</p>
+                @endif
             </div>
         </div>
 
@@ -61,18 +63,56 @@
             </div>
         </div>
 
-        {{-- Payment Notice --}}
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-5 text-xs text-blue-700">
-            <p class="font-medium">Payment integration coming soon</p>
-            <p class="mt-0.5">Online payment via CHIP-IN (FPX, card, e-wallet) will be available shortly. For now, subscribing starts your free trial.</p>
-        </div>
+        {{-- Payment methods info --}}
+        @if ($chipInConfigured)
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-5">
+                <p class="text-xs text-gray-600 font-medium mb-1">Accepted payment methods</p>
+                <p class="text-xs text-gray-400">FPX (online banking), credit/debit cards, and e-wallets via CHIP-IN.</p>
+            </div>
+        @endif
 
-        {{-- Confirm --}}
-        <button wire:click="subscribe"
-                wire:loading.attr="disabled"
-                class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
-            <span wire:loading.remove>{{ $currentSubscription ? 'Switch Plan' : 'Start Free Trial' }}</span>
-            <span wire:loading>Processing…</span>
-        </button>
+        {{-- Action Buttons --}}
+        @if (!$currentSubscription)
+            {{-- New user — start free trial --}}
+            <button wire:click="subscribe"
+                    wire:loading.attr="disabled"
+                    class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50">
+                <span wire:loading.remove wire:target="subscribe">Start {{ $selectedPlan->trial_days }}-Day Free Trial</span>
+                <span wire:loading wire:target="subscribe">Processing...</span>
+            </button>
+            <p class="text-xs text-gray-400 text-center mt-2">No payment required now. Pay when you're ready.</p>
+
+        @elseif ($currentSubscription->isTrial())
+            {{-- Trialing — show both options --}}
+            @if ($chipInConfigured)
+                <button wire:click="payNow"
+                        wire:loading.attr="disabled"
+                        class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="payNow">Pay Now & Activate</span>
+                    <span wire:loading wire:target="payNow">Redirecting to payment...</span>
+                </button>
+                <p class="text-xs text-gray-400 text-center mt-2">You'll be redirected to CHIP-IN to complete payment.</p>
+            @else
+                <button wire:click="subscribe"
+                        wire:loading.attr="disabled"
+                        class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="subscribe">Select This Plan</span>
+                    <span wire:loading wire:target="subscribe">Processing...</span>
+                </button>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3 text-xs text-amber-700">
+                    <p class="font-medium">Online payment coming soon</p>
+                    <p class="mt-0.5">Payment via FPX, card, and e-wallet will be available shortly. Contact us to activate your subscription now.</p>
+                </div>
+            @endif
+
+        @else
+            {{-- Active subscription — switch plan --}}
+            <button wire:click="subscribe"
+                    wire:loading.attr="disabled"
+                    class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50">
+                <span wire:loading.remove wire:target="subscribe">Switch to {{ $selectedPlan->name }}</span>
+                <span wire:loading wire:target="subscribe">Processing...</span>
+            </button>
+        @endif
     </div>
 </div>
