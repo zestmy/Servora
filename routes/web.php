@@ -59,6 +59,7 @@ use App\Livewire\Marketing\Features as MarketingFeatures;
 use App\Livewire\Marketing\ReferralProgram as MarketingReferralProgram;
 use App\Livewire\Billing\Index as BillingIndex;
 use App\Livewire\Billing\Checkout as BillingCheckout;
+use App\Livewire\Billing\ReferralDashboard;
 use App\Http\Controllers\Webhook\ChipInWebhookController;
 use App\Http\Controllers\ReferralTrackingController;
 use App\Livewire\Admin\Referrals\Programs as AdminReferralPrograms;
@@ -151,9 +152,12 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:recipes.view');
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware([\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager', 'check.feature:analytics']);
 
-    // Billing routes
+    // Billing routes (Business Manager, Company Admin, Super Admin)
     Route::get('/billing', BillingIndex::class)->name('billing.index');
     Route::get('/billing/checkout/{planSlug}', BillingCheckout::class)->name('billing.checkout');
+
+    // Refer & Earn (all users)
+    Route::get('/refer', ReferralDashboard::class)->name('referral.dashboard');
 
     // Admin routes (System Admin only)
     Route::prefix('admin')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':System Admin')->group(function () {

@@ -113,7 +113,8 @@
                     ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
                     ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager'], 'feature' => 'analytics'],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
-                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null],
+                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null, 'role' => ['Super Admin', 'Company Admin', 'Business Manager']],
+                    ['route' => 'referral.dashboard', 'icon' => '🔗', 'label' => 'Refer & Earn', 'permission' => null],
                 ];
 
                 // Admin nav items (System Admin only)
