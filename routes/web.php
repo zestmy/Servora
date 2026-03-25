@@ -89,6 +89,19 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
 Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
 Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
 
+// Affiliate portal (public referral partners)
+Route::prefix('affiliate')->group(function () {
+    Route::get('/register', [\App\Http\Controllers\Affiliate\AuthController::class, 'showRegister'])->name('affiliate.register');
+    Route::post('/register', [\App\Http\Controllers\Affiliate\AuthController::class, 'register'])->name('affiliate.register.submit');
+    Route::get('/login', [\App\Http\Controllers\Affiliate\AuthController::class, 'showLogin'])->name('affiliate.login');
+    Route::post('/login', [\App\Http\Controllers\Affiliate\AuthController::class, 'login'])->name('affiliate.login.submit');
+});
+Route::middleware('auth:affiliate')->prefix('affiliate')->group(function () {
+    Route::get('/dashboard', \App\Http\Controllers\Affiliate\DashboardController::class)->name('affiliate.dashboard');
+    Route::post('/bank', [\App\Http\Controllers\Affiliate\BankController::class, 'update'])->name('affiliate.update-bank');
+    Route::post('/logout', [\App\Http\Controllers\Affiliate\AuthController::class, 'logout'])->name('affiliate.logout');
+});
+
 Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])->group(function () {
     // Onboarding (must be before onboarding middleware)
     Route::get('/onboarding', OnboardingWizard::class)->name('onboarding');

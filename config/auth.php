@@ -44,6 +44,10 @@ return [
             'driver' => 'session',
             'provider' => 'lms_users',
         ],
+        'affiliate' => [
+            'driver' => 'session',
+            'provider' => 'affiliates',
+        ],
     ],
 
     /*
@@ -71,6 +75,10 @@ return [
         'lms_users' => [
             'driver' => 'eloquent',
             'model' => App\Models\LmsUser::class,
+        ],
+        'affiliates' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Affiliate::class,
         ],
     ],
 

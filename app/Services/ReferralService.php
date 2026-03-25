@@ -40,6 +40,31 @@ class ReferralService
         ]);
     }
 
+    public function generateCodeForAffiliate(\App\Models\Affiliate $affiliate): ReferralCode
+    {
+        $existing = ReferralCode::where('referrer_type', 'affiliate')
+            ->where('referrer_id', $affiliate->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        do {
+            $code = strtoupper(Str::random(6));
+        } while (ReferralCode::where('code', $code)->exists());
+
+        $baseUrl = config('app.domain') ? 'https://' . config('app.domain') : url('/');
+
+        return ReferralCode::create([
+            'referrer_type' => 'affiliate',
+            'referrer_id'   => $affiliate->id,
+            'code'          => $code,
+            'url'           => $baseUrl . '/r/' . $code,
+            'is_active'     => true,
+        ]);
+    }
+
     public function trackClick(string $code): ?ReferralCode
     {
         $referralCode = ReferralCode::where('code', $code)->where('is_active', true)->first();

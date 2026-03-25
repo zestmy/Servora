@@ -8,16 +8,17 @@
             <p class="text-lg text-indigo-200 mt-4 max-w-xl mx-auto">
                 Know someone who runs a restaurant, cafe, or catering business? Refer them to Servora and earn commission on every subscription.
             </p>
-            <div class="mt-8 flex items-center justify-center gap-4">
-                <a href="{{ route('saas.register') }}"
+            <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <a href="{{ route('affiliate.register') }}"
                    class="px-6 py-3 bg-white text-indigo-700 font-bold rounded-lg hover:bg-indigo-50 transition shadow-lg">
-                    Sign Up & Get Your Link
+                    Join as Affiliate
                 </a>
-                <a href="{{ route('login') }}"
+                <a href="{{ route('affiliate.login') }}"
                    class="px-6 py-3 border-2 border-white/30 text-white font-medium rounded-lg hover:bg-white/10 transition">
-                    Already a Customer? Log In
+                    Affiliate Login
                 </a>
             </div>
+            <p class="text-xs text-indigo-300 mt-3">Already a Servora customer? Get your referral link from the <a href="{{ route('login') }}" class="underline hover:text-white">Refer & Earn</a> page in your dashboard.</p>
         </div>
     </section>
 
@@ -153,14 +154,14 @@
     <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <h2 class="text-2xl font-bold text-gray-900">Ready to Start Earning?</h2>
         <p class="text-sm text-gray-500 mt-2">Sign up, get your referral link, and start sharing today.</p>
-        <div class="mt-6 flex items-center justify-center gap-4">
-            <a href="{{ route('saas.register') }}"
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-4">
+            <a href="{{ route('affiliate.register') }}"
                class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg">
-                Get Started Free
+                Join as Affiliate
             </a>
-            <a href="{{ route('login') }}"
+            <a href="{{ route('affiliate.login') }}"
                class="px-8 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition">
-                Log In
+                Affiliate Login
             </a>
         </div>
     </section>
