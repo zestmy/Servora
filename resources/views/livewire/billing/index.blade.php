@@ -123,7 +123,12 @@
                         {{ $availPlan->max_outlets ?? '∞' }} outlets,
                         {{ $availPlan->max_users ?? '∞' }} users
                     </p>
-                    @if (!$isCurrent)
+                    @if ($isCurrent && $subscription && $subscription->isTrial())
+                        <a href="{{ route('billing.checkout', $availPlan->slug) }}"
+                           class="block w-full text-center py-2 text-xs font-semibold rounded-lg transition bg-green-600 text-white hover:bg-green-700">
+                            Pay & Activate
+                        </a>
+                    @elseif (!$isCurrent)
                         <a href="{{ route('billing.checkout', $availPlan->slug) }}"
                            class="block w-full text-center py-2 text-xs font-semibold rounded-lg transition
                                   {{ ($plan && $availPlan->price_monthly > $plan->price_monthly) ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
