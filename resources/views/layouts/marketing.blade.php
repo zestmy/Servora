@@ -116,7 +116,7 @@
                 </div>
             </div>
             <div class="mt-10 pt-6 border-t border-gray-800 text-sm text-center">
-                &copy; {{ date('Y') }} Servora. All rights reserved.
+                {!! \App\Models\AppSetting::get('footer_copyright', '&copy; ' . date('Y') . ' Servora. All rights reserved.') !!}
             </div>
         </div>
     </footer>

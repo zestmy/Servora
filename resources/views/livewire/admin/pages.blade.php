@@ -83,6 +83,25 @@
                 </tbody>
             </table>
         </div>
+
+        {{-- Site Settings --}}
+        <div class="mt-8">
+            <h2 class="text-sm font-semibold text-gray-800 mb-3">Site Settings</h2>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="flex items-end gap-3">
+                    <div class="flex-1">
+                        <x-input-label for="footer_copy" value="Footer Copyright Text" />
+                        <x-text-input id="footer_copy" wire:model="footer_copyright" type="text" class="mt-1 block w-full"
+                                      placeholder="&copy; 2026 Servora. All rights reserved." />
+                        <p class="text-xs text-gray-400 mt-1">Supports HTML. Use <code>&amp;copy;</code> for the copyright symbol.</p>
+                    </div>
+                    <button wire:click="saveSiteSettings"
+                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex-shrink-0">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
     @else
         {{-- Editor View --}}
         <div class="flex items-center gap-3 mb-4">

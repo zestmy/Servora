@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\AppSetting;
 use App\Models\Page;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -10,6 +11,9 @@ class Pages extends Component
 {
     public bool $showEditor = false;
     public ?int $editingId = null;
+
+    // Site settings
+    public string $footer_copyright = '';
 
     public string $title           = '';
     public string $slug            = '';
@@ -39,6 +43,17 @@ class Pages extends Component
         if (!$this->editingId) {
             $this->slug = Str::slug($this->title);
         }
+    }
+
+    public function mount(): void
+    {
+        $this->footer_copyright = AppSetting::get('footer_copyright', '&copy; ' . date('Y') . ' Servora. All rights reserved.');
+    }
+
+    public function saveSiteSettings(): void
+    {
+        AppSetting::set('footer_copyright', $this->footer_copyright ?: null);
+        session()->flash('success', 'Site settings saved.');
     }
 
     public function create(): void
