@@ -25,6 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.feature'       => \App\Http\Middleware\CheckFeatureAccess::class,
             'plan.rate_limit'     => \App\Http\Middleware\PlanRateLimiter::class,
         ]);
+
+        // Force all non-LMS traffic to the main domain
+        $middleware->web(append: [
+            \App\Http\Middleware\EnforceMainDomain::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
