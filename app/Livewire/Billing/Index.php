@@ -31,10 +31,10 @@ class Index extends Component
         $company = $user->company;
         $subscriptionService = app(SubscriptionService::class);
 
-        $subscription = $subscriptionService->getActiveSubscription($company);
+        $subscription = $company ? $subscriptionService->getActiveSubscription($company) : null;
         $plan = $subscription?->plan;
         $plans = Plan::active()->ordered()->get();
-        $usage = app(UsageTrackingService::class)->getCurrentCounts($company);
+        $usage = $company ? app(UsageTrackingService::class)->getCurrentCounts($company) : [];
 
         // Build usage with limits for display
         $usageMetrics = [];
@@ -49,7 +49,7 @@ class Index extends Component
             ];
         }
 
-        $isGrandfathered = $company->isGrandfathered();
+        $isGrandfathered = $company?->isGrandfathered() ?? false;
 
         // Referral data
         $referralCode = \App\Models\ReferralCode::where('referrer_type', 'user')
