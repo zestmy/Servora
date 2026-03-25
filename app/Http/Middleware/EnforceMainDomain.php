@@ -45,23 +45,22 @@ class EnforceMainDomain
             return redirect()->to('https://' . $domain . $request->getRequestUri(), 301);
         }
 
-        // On a company subdomain — only allow /lms/* paths
+        // Check if this is a valid company subdomain
+        $company = Company::where('slug', $subdomain)->where('is_active', true)->first();
+
+        if (!$company) {
+            // Unknown company — redirect to main domain
+            return redirect()->to('https://' . $domain, 302);
+        }
+
+        // Valid company subdomain — only allow /lms/* paths
         $path = $request->getPathInfo();
 
         if (str_starts_with($path, '/lms')) {
-            // Verify the company exists
-            $company = Company::where('slug', $subdomain)->where('is_active', true)->first();
-
-            if (!$company) {
-                // Unknown company — redirect to main domain
-                return redirect()->to('https://' . $domain, 302);
-            }
-
-            // Valid company + LMS path — allow through
             return $next($request);
         }
 
-        // Any non-LMS path on a subdomain — redirect to main domain (same path)
-        return redirect()->to('https://' . $domain . $request->getRequestUri(), 302);
+        // Root or any non-LMS path → redirect to LMS login on same subdomain
+        return redirect()->to('https://' . $host . '/lms/login', 302);
     }
 }
