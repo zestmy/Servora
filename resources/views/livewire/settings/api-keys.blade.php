@@ -348,10 +348,16 @@
                             wire:loading.attr="disabled"
                             class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
                         <span wire:loading.remove wire:target="testEngineMailer">Test Connection</span>
-                        <span wire:loading wire:target="testEngineMailer">Sending…</span>
+                        <span wire:loading wire:target="testEngineMailer">Sending test email…</span>
                     </button>
                 @endif
             </div>
+
+            @if ($testResult)
+                <div class="mt-3 px-4 py-3 rounded-lg text-sm {{ $testSuccess ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700' }}">
+                    {{ $testResult }}
+                </div>
+            @endif
 
             @if ($enginemailer_key)
                 <div class="mt-3 flex items-center gap-1.5 text-xs text-green-600">

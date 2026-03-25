@@ -15,6 +15,8 @@ class ApiKeys extends Component
     public string $openrouter_model = '';
     public string $enginemailer_key = '';
     public string $enginemailer_sender_email = '';
+    public string $testResult = '';
+    public bool   $testSuccess = false;
 
     public function mount(): void
     {
@@ -83,18 +85,18 @@ class ApiKeys extends Component
 
     public function testEngineMailer(): void
     {
+        $this->testResult = '';
+        $this->testSuccess = false;
+
         if (empty($this->enginemailer_key) || empty($this->enginemailer_sender_email)) {
-            session()->flash('error', 'Please save your API key and sender email first.');
+            $this->testResult = 'Please save your API key and sender email first.';
             return;
         }
 
         $result = EngineMailerService::testConnection($this->enginemailer_key, $this->enginemailer_sender_email);
 
-        if ($result['success']) {
-            session()->flash('success', $result['message']);
-        } else {
-            session()->flash('error', $result['message']);
-        }
+        $this->testSuccess = $result['success'];
+        $this->testResult = $result['message'];
     }
 
     public function render()
