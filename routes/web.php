@@ -95,6 +95,10 @@ Route::prefix('affiliate')->group(function () {
     Route::post('/register', [\App\Http\Controllers\Affiliate\AuthController::class, 'register'])->name('affiliate.register.submit');
     Route::get('/login', [\App\Http\Controllers\Affiliate\AuthController::class, 'showLogin'])->name('affiliate.login');
     Route::post('/login', [\App\Http\Controllers\Affiliate\AuthController::class, 'login'])->name('affiliate.login.submit');
+    Route::get('/forgot-password', [\App\Http\Controllers\Affiliate\AuthController::class, 'showForgotPassword'])->name('affiliate.forgot-password');
+    Route::post('/forgot-password', [\App\Http\Controllers\Affiliate\AuthController::class, 'sendResetLink'])->name('affiliate.forgot-password.submit');
+    Route::get('/reset-password', [\App\Http\Controllers\Affiliate\AuthController::class, 'showResetPassword'])->name('affiliate.reset-password');
+    Route::post('/reset-password', [\App\Http\Controllers\Affiliate\AuthController::class, 'resetPassword'])->name('affiliate.reset-password.submit');
 });
 Route::middleware('auth:affiliate')->prefix('affiliate')->group(function () {
     Route::get('/dashboard', \App\Http\Controllers\Affiliate\DashboardController::class)->name('affiliate.dashboard');

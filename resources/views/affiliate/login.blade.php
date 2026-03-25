@@ -24,6 +24,9 @@
             <p class="text-sm text-gray-500 mt-2">Access your referral dashboard.</p>
         </div>
 
+        @if (session('status'))
+            <div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">{{ session('status') }}</div>
+        @endif
         @if ($errors->any())
             <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
                 @foreach ($errors->all() as $error) <p>{{ $error }}</p> @endforeach
@@ -40,10 +43,13 @@
                 <x-input-label for="password" value="Password" />
                 <x-text-input id="password" name="password" type="password" class="mt-1 block w-full" required />
             </div>
-            <label class="inline-flex items-center gap-2">
-                <input type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                <span class="text-sm text-gray-600">Remember me</span>
-            </label>
+            <div class="flex items-center justify-between">
+                <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <span class="text-sm text-gray-600">Remember me</span>
+                </label>
+                <a href="{{ route('affiliate.forgot-password') }}" class="text-sm text-indigo-600 hover:underline">Forgot password?</a>
+            </div>
             <button type="submit" class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition">
                 Log In
             </button>

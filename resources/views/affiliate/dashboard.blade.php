@@ -6,8 +6,9 @@
     <title>Affiliate Dashboard — Servora</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 antialiased" x-data>
+<body class="bg-gray-50 text-gray-800 antialiased">
     <nav class="bg-white border-b border-gray-100">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
