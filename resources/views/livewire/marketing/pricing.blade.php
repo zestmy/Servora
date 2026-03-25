@@ -1,7 +1,7 @@
 <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
     <div class="text-center mb-10">
         <h1 class="text-3xl font-bold text-gray-900">Simple, Transparent Pricing</h1>
-        <p class="text-sm text-gray-500 mt-2">All plans include a 14-day free trial. No credit card required.</p>
+        <p class="text-sm text-gray-500 mt-2">All plans include a {{ $plans->first()?->trial_days ?? 30 }}-day free trial. No credit card required.</p>
 
         {{-- Cycle Toggle --}}
         <div class="mt-6 inline-flex items-center bg-gray-100 rounded-full p-1">

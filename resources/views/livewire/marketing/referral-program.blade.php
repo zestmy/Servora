@@ -97,7 +97,7 @@
     {{-- Plan Prices (so referrers know what they're referring) --}}
     <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <h2 class="text-2xl font-bold text-gray-900 text-center mb-2">Servora Plans</h2>
-        <p class="text-sm text-gray-500 text-center mb-10">Here's what you'll be referring. Every plan includes a 14-day free trial.</p>
+        <p class="text-sm text-gray-500 text-center mb-10">Here's what you'll be referring. Every plan includes a {{ $plans->first()?->trial_days ?? 30 }}-day free trial.</p>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             @foreach ($plans as $plan)

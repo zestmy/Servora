@@ -125,7 +125,7 @@
     <div class="text-center mt-12">
         <a href="{{ route('saas.register') }}"
            class="inline-block px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg">
-            Start Your 14-Day Free Trial
+            Start Your {{ $trialDays }}-Day Free Trial
         </a>
         <p class="text-xs text-gray-400 mt-2">No credit card required.</p>
     </div>

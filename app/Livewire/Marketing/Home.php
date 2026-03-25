@@ -2,13 +2,16 @@
 
 namespace App\Livewire\Marketing;
 
+use App\Models\Plan;
 use Livewire\Component;
 
 class Home extends Component
 {
     public function render()
     {
-        return view('livewire.marketing.home')
+        $trialDays = Plan::active()->ordered()->value('trial_days') ?? 30;
+
+        return view('livewire.marketing.home', compact('trialDays'))
             ->layout('layouts.marketing', ['title' => 'F&B Management Platform']);
     }
 }

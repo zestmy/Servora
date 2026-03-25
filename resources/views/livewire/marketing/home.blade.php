@@ -19,7 +19,7 @@
                     See Features
                 </a>
             </div>
-            <p class="text-xs text-indigo-300 mt-3">14-day free trial. No credit card required.</p>
+            <p class="text-xs text-indigo-300 mt-3">{{ $trialDays }}-day free trial. No credit card required.</p>
         </div>
     </section>
 
@@ -79,7 +79,7 @@
     {{-- CTA --}}
     <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <h2 class="text-2xl font-bold text-gray-900">Ready to Take Control of Your F&B Operations?</h2>
-        <p class="text-sm text-gray-500 mt-2">Start your 14-day free trial today. No credit card needed.</p>
+        <p class="text-sm text-gray-500 mt-2">Start your {{ $trialDays }}-day free trial today. No credit card needed.</p>
         <a href="{{ route('saas.register') }}"
            class="inline-block mt-6 px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg">
             Get Started Free
