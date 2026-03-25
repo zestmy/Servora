@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Forms\LoginForm;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -19,6 +20,21 @@ new #[Layout('layouts.guest')] class extends Component
         $this->form->authenticate();
 
         Session::regenerate();
+
+        // Redirect to the user's company subdomain if APP_DOMAIN is set
+        $domain = config('app.domain');
+        $user = Auth::user();
+
+        if ($domain && $user && $user->company) {
+            $slug = $user->company->slug;
+            $host = request()->getHost();
+
+            // If logging in from the bare domain or app subdomain, redirect to company subdomain
+            if ($host === $domain || $host === 'www.' . $domain || $host === 'app.' . $domain) {
+                $this->redirect('https://' . $slug . '.' . $domain . '/dashboard');
+                return;
+            }
+        }
 
         $this->redirectIntended(default: route('dashboard', absolute: false));
     }
