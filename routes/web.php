@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Dashboard;
 use App\Livewire\Ingredients\Index as IngredientsIndex;
@@ -79,7 +80,11 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
 // Referral tracking
 Route::get('/ref/{code}', ReferralTrackingController::class)->name('referral.track');
 
-Route::get('/', fn () => redirect()->route('dashboard'));
+Route::get('/', function () {
+    return Auth::check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('marketing.home');
+});
 
 Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
     // Onboarding (must be before onboarding middleware)
