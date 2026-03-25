@@ -76,6 +76,16 @@
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
+            <div>
+                <select wire:model.live="perPage"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="100">100 per page</option>
+                    <option value="200">200 per page</option>
+                    <option value="300">300 per page</option>
+                    <option value="400">400 per page</option>
+                    <option value="500">500 per page</option>
+                </select>
+            </div>
         </div>
     </div>
 

@@ -20,6 +20,7 @@ class Index extends Component
     public string $search = '';
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
+    public int    $perPage = 100;
 
     // Bulk selection
     public array $selectedIds = [];
@@ -99,6 +100,7 @@ class Index extends Component
     public function updatedSearch(): void           { $this->resetPage(); $this->clearSelection(); }
     public function updatedCategoryFilter(): void   { $this->resetPage(); $this->clearSelection(); }
     public function updatedStatusFilter(): void     { $this->resetPage(); $this->clearSelection(); }
+    public function updatedPerPage(): void          { $this->resetPage(); $this->clearSelection(); }
 
     public function updatedSelectAll(bool $value): void
     {
@@ -436,7 +438,7 @@ class Index extends Component
             $query->where('is_active', false);
         }
 
-        $ingredients = $query->orderBy('name')->paginate(15);
+        $ingredients = $query->orderBy('name')->paginate($this->perPage);
 
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
@@ -583,7 +585,7 @@ class Index extends Component
             $query->where('is_active', false);
         }
 
-        return $query->orderBy('name')->paginate(15)->pluck('id')->toArray();
+        return $query->orderBy('name')->paginate($this->perPage)->pluck('id')->toArray();
     }
 
     private function saveConversions(Ingredient $ingredient): void
