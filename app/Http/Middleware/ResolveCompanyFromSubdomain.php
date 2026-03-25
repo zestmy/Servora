@@ -22,8 +22,8 @@ class ResolveCompanyFromSubdomain
         // Extract subdomain: "acme.servora.com.my" → "acme"
         $subdomain = $this->extractSubdomain($host, $domain);
 
-        // No subdomain (main domain) or www → skip (marketing site or existing behavior)
-        if (!$subdomain || $subdomain === 'www') {
+        // No subdomain (main domain), www, or app → skip (marketing site / main app)
+        if (!$subdomain || in_array($subdomain, ['www', 'app'])) {
             return $next($request);
         }
 
