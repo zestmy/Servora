@@ -26,8 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'plan.rate_limit'     => \App\Http\Middleware\PlanRateLimiter::class,
         ]);
 
-        // Force all non-LMS traffic to the main domain
-        $middleware->web(append: [
+        // Force all non-LMS traffic to the main domain (must run early)
+        $middleware->web(prepend: [
             \App\Http\Middleware\EnforceMainDomain::class,
         ]);
     })
