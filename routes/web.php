@@ -71,7 +71,7 @@ use App\Livewire\Admin\Announcements as AdminAnnouncements;
 Route::get('/marketing', MarketingHome::class)->name('marketing.home');
 Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
-Route::get('/referral-program', MarketingReferralProgram::class)->name('referral.program');
+Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 
 // CHIP-IN webhook (no auth, no CSRF)
@@ -79,8 +79,9 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('webhooks.chipin');
 
-// Referral tracking
-Route::get('/ref/{code}', ReferralTrackingController::class)->name('referral.track');
+// Referral tracking (short link)
+Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
+Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
 
 Route::get('/', function () {
     return Auth::check()

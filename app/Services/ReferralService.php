@@ -24,12 +24,10 @@ class ReferralService
             return $existing;
         }
 
-        $code = strtoupper(Str::slug($user->name) . '-' . Str::random(4));
-
-        // Ensure uniqueness
-        while (ReferralCode::where('code', $code)->exists()) {
-            $code = strtoupper(Str::slug($user->name) . '-' . Str::random(4));
-        }
+        // Short 6-char alphanumeric code (e.g. X4K2MN)
+        do {
+            $code = strtoupper(Str::random(6));
+        } while (ReferralCode::where('code', $code)->exists());
 
         $baseUrl = config('app.domain') ? 'https://' . config('app.domain') : url('/');
 
@@ -37,7 +35,7 @@ class ReferralService
             'referrer_type' => 'user',
             'referrer_id'   => $user->id,
             'code'          => $code,
-            'url'           => $baseUrl . '/ref/' . $code,
+            'url'           => $baseUrl . '/r/' . $code,
             'is_active'     => true,
         ]);
     }
