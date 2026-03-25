@@ -253,6 +253,31 @@
 
     {{-- ── Main content ─────────────────────────────────────────────────── --}}
     <main class="flex-1 overflow-y-auto p-6">
+        {{-- Subscription banner --}}
+        @if (!empty($subscriptionBanner))
+            <div class="mb-4 px-4 py-3 rounded-lg flex items-center justify-between
+                {{ $subscriptionBanner['type'] === 'expired' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200' }}">
+                <div class="flex items-center gap-2">
+                    @if ($subscriptionBanner['type'] === 'expired')
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p class="text-sm text-red-700">{{ $subscriptionBanner['message'] }}</p>
+                    @else
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-sm text-amber-700">{{ $subscriptionBanner['message'] }}</p>
+                    @endif
+                </div>
+                <a href="{{ $subscriptionBanner['action'] }}"
+                   class="px-4 py-1.5 text-sm font-medium rounded-lg flex-shrink-0 transition
+                       {{ $subscriptionBanner['type'] === 'expired' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-amber-600 text-white hover:bg-amber-700' }}">
+                    {{ $subscriptionBanner['label'] }}
+                </a>
+            </div>
+        @endif
+
         <div class="page-enter">
             {{ $slot }}
         </div>

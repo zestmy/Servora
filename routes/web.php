@@ -89,7 +89,7 @@ Route::get('/', function () {
         : redirect()->route('marketing.home');
 });
 
-Route::middleware(['auth', 'verified', 'company.scope'])->group(function () {
+Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])->group(function () {
     // Onboarding (must be before onboarding middleware)
     Route::get('/onboarding', OnboardingWizard::class)->name('onboarding');
 

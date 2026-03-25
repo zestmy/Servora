@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'lms.auth'            => \App\Http\Middleware\LmsAuthenticate::class,
             'onboarding'          => \App\Http\Middleware\EnsureOnboardingComplete::class,
             'check.subscription'  => \App\Http\Middleware\CheckSubscription::class,
+            'enforce.subscription' => \App\Http\Middleware\EnforceSubscription::class,
             'check.feature'       => \App\Http\Middleware\CheckFeatureAccess::class,
             'plan.rate_limit'     => \App\Http\Middleware\PlanRateLimiter::class,
         ]);
