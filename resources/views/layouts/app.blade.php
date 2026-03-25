@@ -127,8 +127,8 @@
                 ];
 
                 if ($isSystemRole) {
-                    // System roles: Dashboard + Settings + AI Analytics
-                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'analytics.index', 'settings.index', 'billing.index']));
+                    // System roles: Dashboard + Settings only
+                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'settings.index']));
                 } else {
                     // Business roles: filter by actual role permissions (not Gate::before)
                     $navItems = array_filter($allNavItems, function($i) use ($authUser) {
