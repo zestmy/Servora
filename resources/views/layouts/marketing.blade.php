@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Servora' }} — Servora</title>
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
@@ -14,7 +15,9 @@
     <nav class="bg-white border-b border-gray-100">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="{{ route('marketing.home') }}" class="text-xl font-bold text-indigo-600">Servora</a>
+                <a href="{{ route('marketing.home') }}">
+                    <img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8">
+                </a>
 
                 <div class="hidden sm:flex items-center gap-6">
                     <a href="{{ route('features') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Features</a>
@@ -53,6 +56,9 @@
     {{-- Footer --}}
     <footer class="bg-gray-900 text-gray-400 mt-20">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8">
+                <img src="{{ asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8">
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
                 <div>
                     <h4 class="text-white font-semibold text-sm mb-3">Product</h4>
