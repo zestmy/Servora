@@ -22,6 +22,7 @@
                 <div class="hidden sm:flex items-center gap-6">
                     <a href="{{ route('features') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Features</a>
                     <a href="{{ route('pricing') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Pricing</a>
+                    <a href="{{ route('referral.program') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Refer & Earn</a>
                     <a href="{{ route('login') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Log In</a>
                     <a href="{{ route('saas.register') }}"
                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
@@ -40,6 +41,7 @@
                          class="absolute right-4 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
                         <a href="{{ route('features') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Features</a>
                         <a href="{{ route('pricing') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pricing</a>
+                        <a href="{{ route('referral.program') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Refer & Earn</a>
                         <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Log In</a>
                         <a href="{{ route('saas.register') }}" class="block px-4 py-2 text-sm text-indigo-600 font-medium hover:bg-gray-50">Start Free Trial</a>
                     </div>
@@ -65,6 +67,7 @@
                     <ul class="space-y-2 text-sm">
                         <li><a href="{{ route('features') }}" class="hover:text-white transition">Features</a></li>
                         <li><a href="{{ route('pricing') }}" class="hover:text-white transition">Pricing</a></li>
+                        <li><a href="{{ route('referral.program') }}" class="hover:text-white transition">Refer & Earn</a></li>
                     </ul>
                 </div>
                 <div>

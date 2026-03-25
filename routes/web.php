@@ -56,6 +56,7 @@ use App\Livewire\Onboarding\Wizard as OnboardingWizard;
 use App\Livewire\Marketing\Home as MarketingHome;
 use App\Livewire\Marketing\Pricing as MarketingPricing;
 use App\Livewire\Marketing\Features as MarketingFeatures;
+use App\Livewire\Marketing\ReferralProgram as MarketingReferralProgram;
 use App\Livewire\Billing\Index as BillingIndex;
 use App\Livewire\Billing\Checkout as BillingCheckout;
 use App\Http\Controllers\Webhook\ChipInWebhookController;
@@ -70,6 +71,7 @@ use App\Livewire\Admin\Announcements as AdminAnnouncements;
 Route::get('/marketing', MarketingHome::class)->name('marketing.home');
 Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
+Route::get('/referral-program', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 
 // CHIP-IN webhook (no auth, no CSRF)

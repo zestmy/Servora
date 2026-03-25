@@ -113,7 +113,7 @@
                     ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
                     ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager'], 'feature' => 'analytics'],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
-                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null, 'role' => ['Super Admin', 'Company Admin']],
+                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null],
                 ];
 
                 // Admin nav items (System Admin only)
@@ -128,7 +128,7 @@
 
                 if ($isSystemRole) {
                     // System roles: Dashboard + Settings + AI Analytics
-                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'analytics.index', 'settings.index']));
+                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'analytics.index', 'settings.index', 'billing.index']));
                 } else {
                     // Business roles: filter by actual role permissions (not Gate::before)
                     $navItems = array_filter($allNavItems, function($i) use ($authUser) {
