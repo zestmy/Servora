@@ -11,12 +11,14 @@ class Pages extends Component
     public bool $showEditor = false;
     public ?int $editingId = null;
 
-    public string $title          = '';
-    public string $slug           = '';
-    public string $content        = '';
-    public bool   $is_published   = false;
-    public string $menu_placement = '';
-    public string $sort_order     = '0';
+    public string $title           = '';
+    public string $slug            = '';
+    public string $external_url    = '';
+    public bool   $open_in_new_tab = false;
+    public string $content         = '';
+    public bool   $is_published    = false;
+    public string $menu_placement  = '';
+    public string $sort_order      = '0';
 
     protected function rules(): array
     {
@@ -25,6 +27,7 @@ class Pages extends Component
         return [
             'title'          => 'required|string|max:200',
             'slug'           => ['required', 'string', 'max:200', 'alpha_dash', $uniqueSlug],
+            'external_url'   => 'nullable|url|max:500',
             'content'        => 'nullable|string',
             'menu_placement' => 'nullable|in:header,footer,both',
             'sort_order'     => 'required|integer|min:0',
@@ -47,13 +50,15 @@ class Pages extends Component
     public function edit(int $id): void
     {
         $page = Page::findOrFail($id);
-        $this->editingId      = $page->id;
-        $this->title          = $page->title;
-        $this->slug           = $page->slug;
-        $this->content        = $page->content ?? '';
-        $this->is_published   = $page->is_published;
-        $this->menu_placement = $page->menu_placement ?? '';
-        $this->sort_order     = (string) $page->sort_order;
+        $this->editingId       = $page->id;
+        $this->title           = $page->title;
+        $this->slug            = $page->slug;
+        $this->external_url    = $page->external_url ?? '';
+        $this->open_in_new_tab = $page->open_in_new_tab;
+        $this->content         = $page->content ?? '';
+        $this->is_published    = $page->is_published;
+        $this->menu_placement  = $page->menu_placement ?? '';
+        $this->sort_order      = (string) $page->sort_order;
         $this->showEditor = true;
     }
 
@@ -62,12 +67,14 @@ class Pages extends Component
         $this->validate();
 
         $data = [
-            'title'          => $this->title,
-            'slug'           => $this->slug,
-            'content'        => $this->content ?: null,
-            'is_published'   => $this->is_published,
-            'menu_placement' => $this->menu_placement ?: null,
-            'sort_order'     => (int) $this->sort_order,
+            'title'           => $this->title,
+            'slug'            => $this->slug,
+            'external_url'    => $this->external_url ?: null,
+            'open_in_new_tab' => $this->open_in_new_tab,
+            'content'         => $this->external_url ? null : ($this->content ?: null),
+            'is_published'    => $this->is_published,
+            'menu_placement'  => $this->menu_placement ?: null,
+            'sort_order'      => (int) $this->sort_order,
         ];
 
         if ($this->editingId) {
@@ -105,6 +112,8 @@ class Pages extends Component
         $this->editingId = null;
         $this->title = '';
         $this->slug = '';
+        $this->external_url = '';
+        $this->open_in_new_tab = false;
         $this->content = '';
         $this->is_published = false;
         $this->menu_placement = '';

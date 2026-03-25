@@ -30,9 +30,19 @@
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
                                 <p class="font-medium text-gray-800">{{ $page->title }}</p>
-                                <p class="text-xs text-gray-400">{{ Str::limit(strip_tags($page->content), 60) }}</p>
+                                @if ($page->isExternal())
+                                    <p class="text-xs text-blue-500 truncate max-w-xs">{{ $page->external_url }}</p>
+                                @else
+                                    <p class="text-xs text-gray-400">{{ Str::limit(strip_tags($page->content), 60) }}</p>
+                                @endif
                             </td>
-                            <td class="px-4 py-3 text-xs text-gray-500 font-mono">/page/{{ $page->slug }}</td>
+                            <td class="px-4 py-3 text-xs text-gray-500 font-mono">
+                                @if ($page->isExternal())
+                                    <span class="text-blue-500">External</span>
+                                @else
+                                    /page/{{ $page->slug }}
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-center">
                                 @if ($page->menu_placement)
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700">{{ ucfirst($page->menu_placement) }}</span>
@@ -105,7 +115,15 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-4">
+                {{-- External URL --}}
+                <div class="mb-4">
+                    <x-input-label for="page_url" value="External URL (optional)" />
+                    <x-text-input id="page_url" wire:model="external_url" type="url" class="mt-1 block w-full" placeholder="https://example.com — leave empty for a content page" />
+                    <x-input-error :messages="$errors->get('external_url')" class="mt-1" />
+                    <p class="text-xs text-gray-400 mt-1">If set, this menu item links to an external URL instead of showing page content.</p>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4">
                     <div>
                         <x-input-label for="page_menu" value="Show in Menu" />
                         <select id="page_menu" wire:model="menu_placement"
@@ -122,6 +140,13 @@
                     </div>
                     <div class="flex items-end pb-1">
                         <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="open_in_new_tab"
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700 font-medium">New Tab</span>
+                        </label>
+                    </div>
+                    <div class="flex items-end pb-1">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="is_published"
                                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                             <span class="text-sm text-gray-700 font-medium">Published</span>
@@ -130,7 +155,8 @@
                 </div>
             </div>
 
-            {{-- Content Editor --}}
+            {{-- Content Editor (hidden for external links) --}}
+            @if (!$external_url)
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <x-input-label value="Page Content" />
                 <p class="text-xs text-gray-400 mb-3">Supports HTML. Use headings, paragraphs, lists, and links.</p>
@@ -176,6 +202,11 @@
                 </div>
                 <x-input-error :messages="$errors->get('content')" class="mt-1" />
             </div>
+            @else
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+                    This is an external link — it points to <strong>{{ $external_url }}</strong>. No page content needed.
+                </div>
+            @endif
 
             {{-- Submit --}}
             <div class="flex items-center justify-end gap-3">

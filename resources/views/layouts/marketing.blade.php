@@ -29,7 +29,7 @@
                     <a href="{{ route('pricing') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Pricing</a>
                     <a href="{{ route('referral.program') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Refer & Earn</a>
                     @foreach ($headerPages as $hp)
-                        <a href="{{ $hp->url() }}" class="text-sm text-gray-600 hover:text-gray-900 transition">{{ $hp->title }}</a>
+                        <a href="{{ $hp->url() }}" target="{{ $hp->linkTarget() }}" class="text-sm text-gray-600 hover:text-gray-900 transition">{{ $hp->title }}</a>
                     @endforeach
                     <a href="{{ route('login') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Log In</a>
                     <a href="{{ route('saas.register') }}"
@@ -86,7 +86,7 @@
                     <ul class="space-y-2 text-sm">
                         @php $companyPages = $footerPages->filter(fn($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us'])); @endphp
                         @forelse ($companyPages as $cp)
-                            <li><a href="{{ $cp->url() }}" class="hover:text-white transition">{{ $cp->title }}</a></li>
+                            <li><a href="{{ $cp->url() }}" target="{{ $cp->linkTarget() }}" class="hover:text-white transition">{{ $cp->title }}</a></li>
                         @empty
                             <li><a href="#" class="hover:text-white transition">About</a></li>
                         @endforelse
@@ -97,7 +97,7 @@
                     <ul class="space-y-2 text-sm">
                         @php $legalPages = $footerPages->filter(fn($p) => in_array($p->slug, ['privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
                         @forelse ($legalPages as $lp)
-                            <li><a href="{{ $lp->url() }}" class="hover:text-white transition">{{ $lp->title }}</a></li>
+                            <li><a href="{{ $lp->url() }}" target="{{ $lp->linkTarget() }}" class="hover:text-white transition">{{ $lp->title }}</a></li>
                         @empty
                             <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
                             <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
@@ -109,7 +109,7 @@
                     <ul class="space-y-2 text-sm">
                         @php $otherPages = $footerPages->reject(fn($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us', 'privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
                         @foreach ($otherPages as $op)
-                            <li><a href="{{ $op->url() }}" class="hover:text-white transition">{{ $op->title }}</a></li>
+                            <li><a href="{{ $op->url() }}" target="{{ $op->linkTarget() }}" class="hover:text-white transition">{{ $op->title }}</a></li>
                         @endforeach
                         <li><a href="{{ route('saas.register') }}" class="hover:text-white transition">Get Started</a></li>
                     </ul>
