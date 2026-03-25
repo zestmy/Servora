@@ -125,6 +125,7 @@
                     ['route' => 'admin.referrals.index',     'icon' => '🔗', 'label' => 'Referrals',     'permission' => null],
                     ['route' => 'admin.company-health',      'icon' => '💚', 'label' => 'Health',        'permission' => null],
                     ['route' => 'admin.announcements',       'icon' => '📢', 'label' => 'Announcements', 'permission' => null],
+                    ['route' => 'admin.pages',               'icon' => '📄', 'label' => 'Pages',         'permission' => null],
                 ];
 
                 if ($isSystemRole) {

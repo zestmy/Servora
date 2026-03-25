@@ -57,6 +57,8 @@ use App\Livewire\Marketing\Home as MarketingHome;
 use App\Livewire\Marketing\Pricing as MarketingPricing;
 use App\Livewire\Marketing\Features as MarketingFeatures;
 use App\Livewire\Marketing\ReferralProgram as MarketingReferralProgram;
+use App\Livewire\Marketing\PageView as MarketingPageView;
+use App\Livewire\Admin\Pages as AdminPages;
 use App\Livewire\Billing\Index as BillingIndex;
 use App\Livewire\Billing\Checkout as BillingCheckout;
 use App\Livewire\Billing\ReferralDashboard;
@@ -76,6 +78,7 @@ Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
 Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
+Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
 
 // CHIP-IN webhook (no auth, no CSRF)
 Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
@@ -166,6 +169,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
         Route::get('/trials', AdminTrialDashboard::class)->name('admin.trials.index');
         Route::get('/company-health', AdminCompanyHealth::class)->name('admin.company-health');
         Route::get('/announcements', AdminAnnouncements::class)->name('admin.announcements');
+        Route::get('/pages', AdminPages::class)->name('admin.pages');
     });
 });
 

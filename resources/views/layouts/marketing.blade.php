@@ -11,6 +11,11 @@
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased">
 
+    @php
+        $headerPages = \App\Models\Page::inHeader()->get();
+        $footerPages = \App\Models\Page::inFooter()->get();
+    @endphp
+
     {{-- Top Nav --}}
     <nav class="bg-white border-b border-gray-100">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,6 +28,9 @@
                     <a href="{{ route('features') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Features</a>
                     <a href="{{ route('pricing') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Pricing</a>
                     <a href="{{ route('referral.program') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Refer & Earn</a>
+                    @foreach ($headerPages as $hp)
+                        <a href="{{ $hp->url() }}" class="text-sm text-gray-600 hover:text-gray-900 transition">{{ $hp->title }}</a>
+                    @endforeach
                     <a href="{{ route('login') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Log In</a>
                     <a href="{{ route('saas.register') }}"
                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
@@ -42,6 +50,9 @@
                         <a href="{{ route('features') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Features</a>
                         <a href="{{ route('pricing') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pricing</a>
                         <a href="{{ route('referral.program') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Refer & Earn</a>
+                        @foreach ($headerPages as $hp)
+                            <a href="{{ $hp->url() }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ $hp->title }}</a>
+                        @endforeach
                         <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Log In</a>
                         <a href="{{ route('saas.register') }}" class="block px-4 py-2 text-sm text-indigo-600 font-medium hover:bg-gray-50">Start Free Trial</a>
                     </div>
@@ -73,22 +84,34 @@
                 <div>
                     <h4 class="text-white font-semibold text-sm mb-3">Company</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="hover:text-white transition">About</a></li>
-                        <li><a href="#" class="hover:text-white transition">Contact</a></li>
+                        @php $companyPages = $footerPages->filter(fn($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us'])); @endphp
+                        @forelse ($companyPages as $cp)
+                            <li><a href="{{ $cp->url() }}" class="hover:text-white transition">{{ $cp->title }}</a></li>
+                        @empty
+                            <li><a href="#" class="hover:text-white transition">About</a></li>
+                        @endforelse
                     </ul>
                 </div>
                 <div>
                     <h4 class="text-white font-semibold text-sm mb-3">Legal</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
-                        <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
+                        @php $legalPages = $footerPages->filter(fn($p) => in_array($p->slug, ['privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
+                        @forelse ($legalPages as $lp)
+                            <li><a href="{{ $lp->url() }}" class="hover:text-white transition">{{ $lp->title }}</a></li>
+                        @empty
+                            <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
+                            <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
+                        @endforelse
                     </ul>
                 </div>
                 <div>
-                    <h4 class="text-white font-semibold text-sm mb-3">Support</h4>
+                    <h4 class="text-white font-semibold text-sm mb-3">Resources</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="#" class="hover:text-white transition">Help Center</a></li>
-                        <li><a href="#" class="hover:text-white transition">API Docs</a></li>
+                        @php $otherPages = $footerPages->reject(fn($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us', 'privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
+                        @foreach ($otherPages as $op)
+                            <li><a href="{{ $op->url() }}" class="hover:text-white transition">{{ $op->title }}</a></li>
+                        @endforeach
+                        <li><a href="{{ route('saas.register') }}" class="hover:text-white transition">Get Started</a></li>
                     </ul>
                 </div>
             </div>
