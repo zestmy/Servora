@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class EngineMailerService
 {
-    private const ENDPOINT = 'https://api.enginemailer.com/RESTAPI/Submission/SendEmail';
+    private const ENDPOINT = 'https://api.enginemailer.com/RESTAPI/V2/Submission/SendEmail';
 
     /**
      * Check the EngineMailer API response for success.
@@ -24,13 +24,22 @@ class EngineMailerService
         $statusCode = $body['Result']['StatusCode'] ?? null;
         $errorMessage = $body['Result']['ErrorMessage'] ?? null;
 
-        // EngineMailer uses StatusCode "200" for success in the body
         if ($statusCode !== null && (string) $statusCode !== '200') {
             $msg = $errorMessage ?: ('API returned status ' . $statusCode);
             return ['success' => false, 'message' => $msg];
         }
 
-        return ['success' => true, 'message' => 'Email sent successfully.'];
+        $transactionId = $body['Result']['TransactionID'] ?? null;
+
+        return ['success' => true, 'message' => 'Email sent successfully.', 'transaction_id' => $transactionId];
+    }
+
+    /**
+     * Build an authenticated HTTP client with the APIKey header.
+     */
+    private static function client(string $apiKey): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::timeout(30)->withHeaders(['APIKey' => $apiKey]);
     }
 
     /**
@@ -39,7 +48,6 @@ class EngineMailerService
     public static function testConnection(string $apiKey, string $senderEmail): array
     {
         $payload = [
-            'UserKey'          => $apiKey,
             'ToEmail'          => $senderEmail,
             'SenderEmail'      => $senderEmail,
             'SenderName'       => 'Servora',
@@ -48,7 +56,7 @@ class EngineMailerService
         ];
 
         try {
-            $response = Http::timeout(30)->post(self::ENDPOINT, $payload);
+            $response = self::client($apiKey)->post(self::ENDPOINT, $payload);
             $result = self::parseResponse($response);
 
             if ($result['success']) {
@@ -62,7 +70,10 @@ class EngineMailerService
     }
 
     /**
-     * Send a transactional email via EngineMailer REST API.
+     * Send a transactional email via EngineMailer V2 REST API.
+     *
+     * API key is sent in the header (APIKey), not in the body.
+     * Docs: https://support.enginemailer.com
      */
     public static function send(
         string $toEmail,
@@ -80,7 +91,6 @@ class EngineMailerService
         }
 
         $payload = [
-            'UserKey'          => $apiKey,
             'ToEmail'          => $toEmail,
             'SenderEmail'      => $senderEmail,
             'SenderName'       => $senderName,
@@ -89,7 +99,7 @@ class EngineMailerService
         ];
 
         if (! empty($cc)) {
-            $payload['CCEmail'] = implode(',', $cc);
+            $payload['CCEmails'] = array_values($cc);
         }
 
         if (! empty($attachments)) {
@@ -97,11 +107,11 @@ class EngineMailerService
         }
 
         try {
-            $response = Http::timeout(30)->post(self::ENDPOINT, $payload);
+            $response = self::client($apiKey)->post(self::ENDPOINT, $payload);
             $result = self::parseResponse($response);
 
             if ($result['success']) {
-                Log::info('EngineMailer email sent', ['to' => $toEmail, 'subject' => $subject]);
+                Log::info('EngineMailer email sent', ['to' => $toEmail, 'subject' => $subject, 'txn' => $result['transaction_id'] ?? null]);
             } else {
                 Log::warning('EngineMailer send failed', [
                     'to'      => $toEmail,
