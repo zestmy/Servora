@@ -68,8 +68,10 @@ use App\Livewire\Admin\TrialDashboard as AdminTrialDashboard;
 use App\Livewire\Admin\CompanyHealth as AdminCompanyHealth;
 use App\Livewire\Admin\Announcements as AdminAnnouncements;
 
+// Home — marketing for guests, dashboard for logged-in users
+Route::get('/', MarketingHome::class)->name('marketing.home');
+
 // Marketing pages (public, no auth)
-Route::get('/marketing', MarketingHome::class)->name('marketing.home');
 Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
 Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
@@ -83,12 +85,6 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
 // Referral tracking (short link)
 Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
 Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
-
-Route::get('/', function () {
-    return Auth::check()
-        ? redirect()->route('dashboard')
-        : redirect()->route('marketing.home');
-});
 
 Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])->group(function () {
     // Onboarding (must be before onboarding middleware)
