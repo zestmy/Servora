@@ -64,7 +64,7 @@
     @else
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
             <p class="font-medium">No training SOPs available yet.</p>
-            <p class="text-xs mt-1">SOPs will appear here once your team adds cooking steps to recipes.</p>
+            <p class="text-xs mt-1">SOPs will appear here once your team adds preparation steps to recipes.</p>
         </div>
     @endif
 </div>

@@ -50,10 +50,10 @@
         </div>
     @endif
 
-    {{-- Cooking Steps --}}
+    {{-- Preparation Steps --}}
     @if ($recipe->steps->count())
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Cooking Steps</h2>
+            <h2 class="text-sm font-semibold text-gray-700 mb-4">Preparation Steps</h2>
             <div class="space-y-4">
                 @foreach ($recipe->steps as $step)
                     <div class="flex gap-4">

@@ -424,7 +424,7 @@
                 class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
             <div class="text-left">
                 <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Cooking steps, video & training content</p>
+                <p class="text-xs text-gray-400 mt-0.5">Preparation steps, video & training content</p>
             </div>
             <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
@@ -442,11 +442,11 @@
                 <x-input-error :messages="$errors->get('video_url')" class="mt-1" />
             </div>
 
-            {{-- Cooking Steps --}}
+            {{-- Preparation Steps --}}
             <div>
                 <div class="flex items-center justify-between mb-3">
                     <div>
-                        <h4 class="text-sm font-semibold text-gray-700">Cooking Steps</h4>
+                        <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
                         <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
                     </div>
                     <button type="button" wire:click="addStep"
@@ -468,7 +468,7 @@
                                                class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                         <textarea wire:model.blur="steps.{{ $idx }}.instruction"
                                                   rows="3"
-                                                  placeholder="Describe the cooking step..."
+                                                  placeholder="Describe the preparation step..."
                                                   class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
                                         <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
                                     </div>
@@ -484,7 +484,7 @@
                     </div>
                 @else
                     <div class="text-center py-6 text-gray-400">
-                        <p class="text-sm">No cooking steps added yet.</p>
+                        <p class="text-sm">No preparation steps added yet.</p>
                         <p class="text-xs mt-1">Add steps to create training content for this recipe.</p>
                     </div>
                 @endif

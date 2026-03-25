@@ -108,7 +108,7 @@
                 @endforeach
             </div>
             <p class="text-xs text-gray-400 mt-3">
-                Only recipes with cooking steps appear in the LMS.
+                Only recipes with preparation steps appear in the LMS.
                 <a href="{{ route('recipes.index') }}" class="text-indigo-500 hover:underline">Manage recipes</a>
             </p>
         </div>
@@ -116,7 +116,7 @@
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
             <p class="text-sm text-amber-700 font-medium">No SOPs available yet</p>
             <p class="text-xs text-amber-600 mt-1">
-                Add cooking steps to recipes to make them available in the Training Portal.
+                Add preparation steps to recipes to make them available in the Training Portal.
                 <a href="{{ route('recipes.index') }}" class="underline hover:no-underline">Go to Recipes</a>
             </p>
         </div>

@@ -132,7 +132,7 @@
                 </tr>
             </table>
 
-            {{-- Ingredients & Cooking Steps — Side by Side --}}
+            {{-- Ingredients & Preparation Steps — Side by Side --}}
             <table style="width: 100%; margin-bottom: 6px;">
                 <tr>
                     {{-- Ingredients (left) --}}
@@ -162,10 +162,10 @@
                         @endif
                     </td>
 
-                    {{-- Cooking Steps (right) --}}
+                    {{-- Preparation Steps (right) --}}
                     <td style="width: 62%; vertical-align: top; padding-left: 6px; border-left: 1px solid #ddd;">
                         @if ($recipe->steps->count())
-                            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 1px;">Cooking Steps</div>
+                            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 1px;">Preparation Steps</div>
                             @foreach ($recipe->steps as $step)
                                 <div style="margin-bottom: 3px;">
                                     <div style="font-size: 9px; font-weight: bold; color: #000;">
