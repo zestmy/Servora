@@ -11,6 +11,29 @@ class EngineMailerService
     private const ENDPOINT = 'https://api.enginemailer.com/RESTAPI/Submission/SendEmail';
 
     /**
+     * Check the EngineMailer API response for success.
+     * EngineMailer returns HTTP 200 even on errors — the actual status is in the JSON body.
+     */
+    private static function parseResponse(\Illuminate\Http\Client\Response $response): array
+    {
+        if (!$response->successful()) {
+            return ['success' => false, 'message' => 'HTTP error: ' . $response->status()];
+        }
+
+        $body = $response->json();
+        $statusCode = $body['Result']['StatusCode'] ?? null;
+        $errorMessage = $body['Result']['ErrorMessage'] ?? null;
+
+        // EngineMailer uses StatusCode "200" for success in the body
+        if ($statusCode !== null && (string) $statusCode !== '200') {
+            $msg = $errorMessage ?: ('API returned status ' . $statusCode);
+            return ['success' => false, 'message' => $msg];
+        }
+
+        return ['success' => true, 'message' => 'Email sent successfully.'];
+    }
+
+    /**
      * Test the EngineMailer API connection by sending a test email.
      */
     public static function testConnection(string $apiKey, string $senderEmail): array
@@ -26,12 +49,13 @@ class EngineMailerService
 
         try {
             $response = Http::timeout(30)->post(self::ENDPOINT, $payload);
+            $result = self::parseResponse($response);
 
-            if ($response->successful()) {
-                return ['success' => true, 'message' => 'Test email sent successfully! Check your inbox at ' . $senderEmail . '.'];
+            if ($result['success']) {
+                $result['message'] = 'Test email sent successfully! Check your inbox at ' . $senderEmail . '.';
             }
 
-            return ['success' => false, 'message' => 'API error: ' . $response->body()];
+            return $result;
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Connection failed: ' . $e->getMessage()];
         }
@@ -39,15 +63,6 @@ class EngineMailerService
 
     /**
      * Send a transactional email via EngineMailer REST API.
-     *
-     * @param string      $toEmail        Recipient email
-     * @param string      $senderEmail    From email
-     * @param string      $senderName     From name
-     * @param string      $subject        Email subject
-     * @param string      $htmlContent    HTML body
-     * @param array       $cc             CC email addresses
-     * @param array       $attachments    [{FileName, FileContent (base64), ContentType}]
-     * @return array      [success => bool, message => string]
      */
     public static function send(
         string $toEmail,
@@ -82,21 +97,20 @@ class EngineMailerService
         }
 
         try {
-            $response = Http::timeout(30)
-                ->post(self::ENDPOINT, $payload);
+            $response = Http::timeout(30)->post(self::ENDPOINT, $payload);
+            $result = self::parseResponse($response);
 
-            if ($response->successful()) {
+            if ($result['success']) {
                 Log::info('EngineMailer email sent', ['to' => $toEmail, 'subject' => $subject]);
-                return ['success' => true, 'message' => 'Email sent successfully.'];
+            } else {
+                Log::warning('EngineMailer send failed', [
+                    'to'      => $toEmail,
+                    'message' => $result['message'],
+                    'body'    => $response->body(),
+                ]);
             }
 
-            Log::warning('EngineMailer send failed', [
-                'to'     => $toEmail,
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-
-            return ['success' => false, 'message' => 'EngineMailer API error: ' . $response->body()];
+            return $result;
         } catch (\Exception $e) {
             Log::error('EngineMailer exception', ['error' => $e->getMessage()]);
             return ['success' => false, 'message' => 'Email send failed: ' . $e->getMessage()];
