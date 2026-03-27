@@ -75,12 +75,13 @@ class PurchaseRequestForm extends Component
         foreach ($pr->lines as $line) {
             $this->lines[] = [
                 'ingredient_id'        => $line->ingredient_id,
-                'ingredient_name'      => $line->ingredient->name,
+                'ingredient_name'      => $line->ingredient?->name ?? $line->custom_name ?? '—',
+                'custom_name'          => $line->custom_name,
                 'quantity'             => (float) $line->quantity,
                 'uom_id'              => $line->uom_id,
                 'preferred_supplier_id' => $line->preferred_supplier_id,
                 'supplier_name'        => $line->preferredSupplier?->name ?? '',
-                'par_level'            => $this->getParLevel($line->ingredient_id),
+                'par_level'            => $line->ingredient_id ? $this->getParLevel($line->ingredient_id) : 0,
                 'notes'                => $line->notes ?? '',
             ];
         }
