@@ -62,7 +62,8 @@ class PurchaseRequestService
             $linesBySupplier = collect();
             foreach ($prs as $pr) {
                 foreach ($pr->lines as $line) {
-                    $supplierId = $line->preferred_supplier_id ?? 0; // 0 = no preference
+                    if (! $line->ingredient_id) continue; // skip custom items
+                $supplierId = $line->preferred_supplier_id ?? 0; // 0 = no preference
                     if (!$linesBySupplier->has($supplierId)) {
                         $linesBySupplier[$supplierId] = collect();
                     }
@@ -126,9 +127,8 @@ class PurchaseRequestService
                 $subtotal = 0;
                 $poLines = [];
                 foreach ($merged as $item) {
-                    $unitCost = $supplierCosts[$item['ingredient_id']]
-                        ?? $item['ingredient']->purchase_price
-                        ?? 0;
+                    $unitCost = $supplierCosts[$item['ingredient_id'] ?? 0]
+                        ?? ($item['ingredient']?->purchase_price ?? 0);
                     $totalCost = round($item['quantity'] * $unitCost, 4);
                     $subtotal += $totalCost;
 
@@ -209,9 +209,9 @@ class PurchaseRequestService
                 } else {
                     $grouped[$supplierId]['lines']->push([
                         'ingredient_id'   => $line->ingredient_id,
-                        'ingredient_name' => $line->ingredient->name,
+                        'ingredient_name' => $line->ingredient?->name ?? $line->custom_name ?? '—',
                         'quantity'        => $line->quantity,
-                        'uom'            => $line->uom->abbreviation ?? $line->uom->name,
+                        'uom'            => $line->uom?->abbreviation ?? $line->uom?->name ?? '',
                     ]);
                 }
 
