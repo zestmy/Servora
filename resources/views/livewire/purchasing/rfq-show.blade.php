@@ -204,11 +204,17 @@
                         @foreach ($quotations as $q)
                             <td class="px-6 py-4 text-center">
                                 @if ($q->status === 'submitted' || $q->status === 'pending')
-                                    <button wire:click="acceptQuotation({{ $q->id }})"
-                                            wire:confirm="Accept this quotation from {{ $q->supplier?->name }} and create a Purchase Order?"
-                                            class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition">
-                                        Accept & Create PO
-                                    </button>
+                                    <div class="flex flex-col gap-2">
+                                        <button wire:click="acceptQuotation({{ $q->id }})"
+                                                wire:confirm="Accept this quotation from {{ $q->supplier?->name }} and create a Purchase Order?"
+                                                class="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition">
+                                            Accept & Create PO
+                                        </button>
+                                        <button wire:click="openAddToIngredients({{ $q->id }})"
+                                                class="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">
+                                            Add to Ingredients
+                                        </button>
+                                    </div>
                                 @elseif ($q->status === 'accepted')
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                                         Accepted
@@ -233,5 +239,86 @@
             <p class="text-gray-300 text-xs mt-1">Waiting for supplier responses.</p>
         @endif
     </div>
+    @endif
+
+    {{-- Add to Ingredients Modal --}}
+    @if ($showAddModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-gray-900/50" wire:click="$set('showAddModal', false)"></div>
+                <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl z-10 p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Add Quotation Items to Ingredients</h3>
+                    <p class="text-sm text-gray-500 mb-4">Select items to add to your ingredient list and link to this supplier.</p>
+
+                    {{-- Target selection --}}
+                    <div class="flex gap-4 mb-4">
+                        <label class="flex items-center gap-2">
+                            <input type="radio" wire:model="addTarget" value="outlet" class="text-indigo-600 focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700">For Outlet</span>
+                        </label>
+                        @if ($cpus->count() > 0)
+                            <label class="flex items-center gap-2">
+                                <input type="radio" wire:model="addTarget" value="cpu" class="text-indigo-600 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">For Central Kitchen</span>
+                            </label>
+                        @endif
+                    </div>
+
+                    @if ($addTarget === 'outlet')
+                        <select wire:model="addTargetOutletId" class="w-full rounded-lg border-gray-300 text-sm mb-4">
+                            @foreach ($outlets as $o)
+                                <option value="{{ $o->id }}">{{ $o->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+
+                    {{-- Items table --}}
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg mb-4">
+                        <table class="min-w-full divide-y divide-gray-100 text-sm">
+                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-2 w-10"></th>
+                                    <th class="px-4 py-2 text-left">Ingredient</th>
+                                    <th class="px-4 py-2 text-right">Price</th>
+                                    <th class="px-4 py-2 text-center">UOM</th>
+                                    <th class="px-4 py-2 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach ($addLines as $i => $line)
+                                    <tr class="{{ $line['mapped'] ? 'bg-gray-50/50' : '' }}">
+                                        <td class="px-4 py-2 text-center">
+                                            <input type="checkbox" wire:model="addLines.{{ $i }}.selected"
+                                                   {{ $line['mapped'] ? 'disabled' : '' }}
+                                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        </td>
+                                        <td class="px-4 py-2 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
+                                        <td class="px-4 py-2 text-right tabular-nums text-gray-800">{{ number_format($line['unit_price'], 4) }}</td>
+                                        <td class="px-4 py-2 text-center text-gray-500">{{ $line['uom_name'] }}</td>
+                                        <td class="px-4 py-2 text-center">
+                                            @if ($line['mapped'])
+                                                <span class="px-2 py-0.5 bg-green-50 text-green-600 text-xs rounded">Already linked</span>
+                                            @elseif ($line['exists'])
+                                                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded">Exists — will link</span>
+                                            @else
+                                                <span class="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded">New ingredient</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <button wire:click="$set('showAddModal', false)" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                        <button wire:click="addToIngredients"
+                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            Add Selected Items
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 </div>
