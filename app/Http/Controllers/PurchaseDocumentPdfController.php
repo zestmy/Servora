@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseRequest;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,11 +18,22 @@ class PurchaseDocumentPdfController extends Controller
         $company = Company::find(Auth::user()->company_id);
 
         return match ($type) {
+            'pr'  => $this->purchaseRequest($id, $company),
             'po'  => $this->purchaseOrder($id, $company),
             'do'  => $this->deliveryOrder($id, $company),
             'grn' => $this->goodsReceivedNote($id, $company),
             default => abort(404),
         };
+    }
+
+    private function purchaseRequest(int $id, ?Company $company)
+    {
+        $pr = PurchaseRequest::with(['outlet', 'department', 'lines.ingredient', 'lines.uom', 'lines.preferredSupplier', 'createdBy', 'approvedBy'])->findOrFail($id);
+
+        $pdf = Pdf::loadView('pdf.purchase-request', compact('pr', 'company'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download("PR-{$pr->pr_number}.pdf");
     }
 
     private function purchaseOrder(int $id, ?Company $company)

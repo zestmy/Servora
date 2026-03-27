@@ -193,6 +193,15 @@ class Index extends Component
         }
     }
 
+    public function deletePr(int $id): void
+    {
+        $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->status === 'draft') {
+            $pr->delete();
+            session()->flash('success', 'Purchase request deleted.');
+        }
+    }
+
     // ── PO Actions ──────────────────────────────────────────────────────────
 
     public function submitPo(int $id): void

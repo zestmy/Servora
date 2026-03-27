@@ -70,6 +70,33 @@ class OrderForm extends Component
 
         if (! $id) {
             $this->poNumber = $this->generatePoNumber();
+
+            // Pre-populate from Purchase Request if pr_id query param provided
+            $prId = request()->query('pr_id');
+            if ($prId) {
+                $pr = \App\Models\PurchaseRequest::with('lines.ingredient.baseUom', 'lines.uom')->find($prId);
+                if ($pr) {
+                    $this->notes = "From PR {$pr->pr_number}" . ($pr->notes ? " — {$pr->notes}" : '');
+                    foreach ($pr->lines as $line) {
+                        if (! $line->ingredient_id) continue; // skip custom items without ingredient
+                        $this->lines[] = [
+                            'ingredient_id'          => $line->ingredient_id,
+                            'ingredient_name'        => $line->ingredient?->name ?? $line->custom_name ?? '—',
+                            'quantity'               => (string) floatval($line->quantity),
+                            'uom_id'                 => $line->uom_id,
+                            'unit_cost'              => (string) floatval($line->ingredient?->purchase_price ?? 0),
+                            'total_cost'             => 0,
+                            'pack_size'              => 1,
+                            'pack_info'              => '',
+                            'par_level'              => '0',
+                            'balance'                => '',
+                            'supplier_sku'           => null,
+                            'supplier_product_name'  => null,
+                        ];
+                    }
+                }
+            }
+
             return;
         }
 
