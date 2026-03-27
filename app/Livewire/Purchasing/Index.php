@@ -31,6 +31,7 @@ class Index extends Component
     public string $supplierFilter = '';
     public string $outletFilter = '';
     public string $dateFrom = '';
+    public string $rejectReason = '';
     public string $dateTo = '';
 
     protected $queryString = ['tab'];
@@ -169,7 +170,7 @@ class Index extends Component
         session()->flash('success', 'Purchase request approved.');
     }
 
-    public function rejectPr(int $id): void
+    public function rejectPr(int $id, ?string $reason = null): void
     {
         $pr = PurchaseRequest::findOrFail($id);
         if ($pr->status !== 'submitted') return;
@@ -179,8 +180,9 @@ class Index extends Component
         $pr->update([
             'status'          => 'rejected',
             'approved_by'     => Auth::id(),
-            'rejected_reason' => 'Rejected by approver',
+            'rejected_reason' => $reason ?: $this->rejectReason ?: 'Rejected by approver',
         ]);
+        $this->rejectReason = '';
         session()->flash('success', 'Purchase request rejected.');
     }
 
@@ -552,10 +554,10 @@ class Index extends Component
         $isPurchasing = $this->isPurchasingRole();
         $isAppointed = $this->isAppointed();
         $seesAll = $this->seesAllOutlets();
-        $canCreatePo = ! $isPurchasing;
+        $canCreatePo = true; // All roles can create POs
         $approverOutletIds = $this->approverOutletIds();
         $cpuMode = $this->isCpuMode();
-        $isCpuUser = $cpuMode ? $this->isCpuUser() : false;
+        $isCpuUser = $cpuMode ? ($this->isCpuUser() || $isPurchasing) : false;
         $isPrApprover = $this->isPrApprover();
 
         $data = match ($this->tab) {

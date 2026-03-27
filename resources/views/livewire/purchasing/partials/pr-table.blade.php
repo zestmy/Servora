@@ -66,10 +66,25 @@
                                         title="Approve" class="text-green-500 hover:text-green-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                 </button>
-                                <button wire:click="rejectPr({{ $pr->id }})" wire:confirm="Reject '{{ $pr->pr_number }}'?"
-                                        title="Reject" class="text-red-400 hover:text-red-600 transition p-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                                </button>
+                                <div x-data="{ showReject: false }" class="relative inline-block">
+                                    <button @click="showReject = !showReject" title="Reject" class="text-red-400 hover:text-red-600 transition p-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                    </button>
+                                    <div x-show="showReject" x-cloak @click.outside="showReject = false"
+                                         class="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64">
+                                        <p class="text-xs font-medium text-gray-700 mb-2">Rejection Reason</p>
+                                        <textarea wire:model="rejectReason" rows="2" class="w-full rounded-lg border-gray-300 text-xs mb-2" placeholder="Why is this being rejected?"></textarea>
+                                        <button wire:click="rejectPr({{ $pr->id }})" @click="showReject = false"
+                                                class="w-full px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700">
+                                            Reject PR
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
+
+                            {{-- Show rejection reason --}}
+                            @if ($pr->status === 'rejected' && $pr->rejected_reason)
+                                <span class="text-xs text-red-500 ml-1" title="{{ $pr->rejected_reason }}">{{ Str::limit($pr->rejected_reason, 25) }}</span>
                             @endif
 
                             {{-- Draft: Edit / Submit / Delete --}}

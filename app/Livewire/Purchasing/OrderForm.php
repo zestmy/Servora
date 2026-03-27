@@ -39,7 +39,7 @@ class OrderForm extends Component
     protected function rules(): array
     {
         return [
-            'supplier_id'            => 'required|exists:suppliers,id',
+            'supplier_id'            => 'nullable|exists:suppliers,id',
             'order_date'             => 'required|date',
             'expected_delivery_date' => 'nullable|date|after_or_equal:order_date',
             'notes'                  => 'nullable|string',
@@ -92,6 +92,7 @@ class OrderForm extends Component
                             'balance'                => '',
                             'supplier_sku'           => null,
                             'supplier_product_name'  => null,
+                            'supplier_id_override'   => null,
                         ];
                     }
                 }
@@ -127,6 +128,7 @@ class OrderForm extends Component
                 'balance'                => '',
                 'supplier_sku'           => $l->supplier_sku ?? $sSku,
                 'supplier_product_name'  => $l->supplier_product_name ?? $sProdName,
+                'supplier_id_override'   => $po->supplier_id,
             ];
         })->toArray();
     }
@@ -243,17 +245,29 @@ class OrderForm extends Component
 
         $parLevel = $this->getParLevel($ingredientId);
 
+        // Determine preferred supplier for this ingredient
+        $preferredSupplierId = $this->supplier_id; // header supplier if set
+        if (! $preferredSupplierId) {
+            $preferredSupplierId = DB::table('supplier_ingredients')
+                ->where('ingredient_id', $ingredientId)
+                ->where('is_preferred', true)
+                ->value('supplier_id');
+        }
+
         $this->lines[] = [
-            'ingredient_id'   => $ingredientId,
-            'ingredient_name' => $ingredient->name,
-            'quantity'        => $parLevel > 0 ? (string) (int) ceil($parLevel) : '1',
-            'uom_id'          => $supplierUomId,
-            'unit_cost'       => (string) $unitCost,
-            'total_cost'      => $parLevel > 0 ? round($parLevel * $unitCost, 4) : $unitCost,
-            'pack_size'       => $packSize,
-            'pack_info'       => $this->buildPackInfo($ingredientId, $supplierUomId, $packSize),
-            'par_level'       => (string) $parLevel,
-            'balance'         => '',
+            'ingredient_id'          => $ingredientId,
+            'ingredient_name'        => $ingredient->name,
+            'quantity'               => $parLevel > 0 ? (string) (int) ceil($parLevel) : '1',
+            'uom_id'                 => $supplierUomId,
+            'unit_cost'              => (string) $unitCost,
+            'total_cost'             => $parLevel > 0 ? round($parLevel * $unitCost, 4) : $unitCost,
+            'pack_size'              => $packSize,
+            'pack_info'              => $this->buildPackInfo($ingredientId, $supplierUomId, $packSize),
+            'par_level'              => (string) $parLevel,
+            'balance'                => '',
+            'supplier_sku'           => $sSku,
+            'supplier_product_name'  => $sProdName,
+            'supplier_id_override'   => $preferredSupplierId,
         ];
 
         $this->ingredientSearch = '';
@@ -291,10 +305,7 @@ class OrderForm extends Component
         $this->validate();
 
         $user     = Auth::user();
-        $subtotal = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
         $taxPct   = floatval($user->company?->tax_percent ?? 0);
-        $taxAmt   = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
-        $total    = round($subtotal + $taxAmt, 4);
         $outletId = $user->activeOutletId() ?? Outlet::where('company_id', $user->company_id)->value('id');
 
         $requiresApproval = $user->company?->require_po_approval ?? true;
@@ -302,8 +313,61 @@ class OrderForm extends Component
         if ($action === 'submit') {
             $status = $requiresApproval ? 'submitted' : 'approved';
         } else {
-            $status = $this->status;
+            $status = $this->status ?: 'draft';
         }
+
+        // Remove zero-quantity lines
+        $this->lines = array_values(array_filter($this->lines, fn ($l) => floatval($l['quantity']) > 0));
+
+        // Detect if lines have multiple suppliers (for new POs only)
+        if (! $this->orderId) {
+            $supplierIds = collect($this->lines)
+                ->pluck('supplier_id_override')
+                ->filter()
+                ->unique();
+
+            // If no header supplier selected and lines have mixed suppliers, auto-split
+            if (! $this->supplier_id && $supplierIds->count() > 1) {
+                $splitLines = collect($this->lines)->map(function ($l) {
+                    // Determine supplier: use per-line override, or lookup preferred
+                    $sid = $l['supplier_id_override'] ?? null;
+                    if (! $sid && $l['ingredient_id']) {
+                        $preferred = DB::table('supplier_ingredients')
+                            ->where('ingredient_id', $l['ingredient_id'])
+                            ->where('is_preferred', true)
+                            ->value('supplier_id');
+                        $sid = $preferred;
+                    }
+                    return array_merge($l, ['supplier_id' => $sid]);
+                })->toArray();
+
+                $headerData = [
+                    'company_id'            => $user->company_id,
+                    'outlet_id'             => $outletId,
+                    'order_date'            => $this->order_date,
+                    'expected_delivery_date' => $this->expected_delivery_date ?: null,
+                    'notes'                 => $this->notes ?: null,
+                    'receiver_name'         => $this->receiver_name ?: null,
+                    'department_id'         => $this->department_id ?: null,
+                    'tax_percent'           => $taxPct,
+                    'status'                => $status,
+                    'created_by'            => Auth::id(),
+                    'approved_by'           => ($action === 'submit' && ! $requiresApproval) ? Auth::id() : null,
+                ];
+
+                $poIds = \App\Services\PoSplitService::splitAndCreate($splitLines, $headerData);
+                $count = count($poIds);
+
+                session()->flash('success', "Order split into {$count} Purchase Order(s) by supplier.");
+                $this->redirectRoute('purchasing.index');
+                return;
+            }
+        }
+
+        // Single-supplier PO flow (existing behavior)
+        $subtotal = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
+        $taxAmt   = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
+        $total    = round($subtotal + $taxAmt, 4);
 
         $data = [
             'supplier_id'            => $this->supplier_id,
@@ -319,7 +383,6 @@ class OrderForm extends Component
             'status'                 => $status,
         ];
 
-        // Auto-approve: set approved_by to the submitter
         if ($action === 'submit' && ! $requiresApproval) {
             $data['approved_by'] = Auth::id();
         }

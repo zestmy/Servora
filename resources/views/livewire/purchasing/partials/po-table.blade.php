@@ -85,72 +85,56 @@
                                 </svg>
                             </a>
 
-                            @if ($canApproveThis && $po->status === 'submitted')
-                                {{-- Appointed approver actions --}}
-                                <button wire:click="approvePo({{ $po->id }})"
-                                        wire:confirm="Approve '{{ $po->po_number }}'?"
-                                        title="Approve"
-                                        class="text-green-500 hover:text-green-700 transition p-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                                    </svg>
+                            {{-- Status-based actions (visible to all roles) --}}
+
+                            {{-- Draft: Edit, Submit, Delete --}}
+                            @if ($po->status === 'draft')
+                                <a href="{{ route('purchasing.orders.edit', $po->id) }}" title="Edit"
+                                   class="text-indigo-500 hover:text-indigo-700 transition p-1">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                </a>
+                                <button wire:click="submitPo({{ $po->id }})"
+                                        wire:confirm="{{ $requirePoApproval ? "Submit '{$po->po_number}' for approval?" : "Submit & approve '{$po->po_number}'?" }}"
+                                        title="{{ $requirePoApproval ? 'Submit' : 'Submit & Approve' }}"
+                                        class="text-blue-500 hover:text-blue-700 transition p-1">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
-                                <button wire:click="rejectPo({{ $po->id }})"
-                                        wire:confirm="Reject '{{ $po->po_number }}'? This will cancel the PO."
-                                        title="Reject"
-                                        class="text-red-400 hover:text-red-600 transition p-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                                    </svg>
+                                <button wire:click="delete({{ $po->id }})" wire:confirm="Delete '{{ $po->po_number }}'?"
+                                        title="Delete" class="text-red-400 hover:text-red-600 transition p-1">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
-                            @elseif ($isPurchasing)
-                                {{-- Purchasing actions --}}
-                                @if ($po->status === 'approved')
-                                    <a href="{{ route('purchasing.convert-to-do', $po->id) }}" title="Convert to DO"
-                                       class="text-green-500 hover:text-green-700 transition p-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                                        </svg>
-                                    </a>
-                                @endif
-                            @elseif (! $isPurchasing && ! $isAppointed)
-                                {{-- Outlet actions --}}
-                                @if ($po->status === 'draft')
-                                    <a href="{{ route('purchasing.orders.edit', $po->id) }}" title="Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition p-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                        </svg>
-                                    </a>
-                                    <button wire:click="submitPo({{ $po->id }})"
-                                            wire:confirm="{{ $requirePoApproval ? "Submit '{$po->po_number}' for approval?" : "Submit & approve '{$po->po_number}'?" }}"
-                                            title="{{ $requirePoApproval ? 'Submit for Approval' : 'Submit & Approve' }}"
-                                            class="text-blue-500 hover:text-blue-700 transition p-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                        </svg>
+                            @endif
+
+                            {{-- Submitted: Approve/Reject (for approvers), Cancel --}}
+                            @if ($po->status === 'submitted')
+                                @if ($canApproveThis)
+                                    <button wire:click="approvePo({{ $po->id }})" wire:confirm="Approve '{{ $po->po_number }}'?"
+                                            title="Approve" class="text-green-500 hover:text-green-700 transition p-1">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                     </button>
-                                @endif
-                                @if (in_array($po->status, ['draft', 'submitted']))
-                                    <button wire:click="cancel({{ $po->id }})"
-                                            wire:confirm="Cancel '{{ $po->po_number }}'?"
-                                            title="Cancel"
-                                            class="text-orange-400 hover:text-orange-600 transition p-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                                        </svg>
+                                    <button wire:click="rejectPo({{ $po->id }})" wire:confirm="Reject '{{ $po->po_number }}'?"
+                                            title="Reject" class="text-red-400 hover:text-red-600 transition p-1">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                                     </button>
+                                @else
+                                    <span class="text-xs text-yellow-600">Pending approval</span>
                                 @endif
-                                @if ($po->status === 'draft')
-                                    <button wire:click="delete({{ $po->id }})"
-                                            wire:confirm="Permanently delete '{{ $po->po_number }}'?"
-                                            title="Delete"
-                                            class="text-red-400 hover:text-red-600 transition p-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                @endif
+                                <button wire:click="cancel({{ $po->id }})" wire:confirm="Cancel '{{ $po->po_number }}'?"
+                                        title="Cancel" class="text-orange-400 hover:text-orange-600 transition p-1">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            @endif
+
+                            {{-- Approved: Convert to DO, Send to supplier, Receive directly --}}
+                            @if (in_array($po->status, ['approved', 'sent', 'partial']))
+                                <a href="{{ route('purchasing.convert-to-do', $po->id) }}" title="Create Delivery Order"
+                                   class="text-green-500 hover:text-green-700 transition p-1">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                </a>
+                                <a href="{{ route('purchasing.orders.receive', $po->id) }}" title="Receive Delivery"
+                                   class="text-blue-500 hover:text-blue-700 transition p-1">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                                </a>
                             @endif
 
                             {{-- Rollback approved PO to draft --}}
