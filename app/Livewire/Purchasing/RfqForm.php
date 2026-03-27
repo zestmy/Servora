@@ -39,7 +39,7 @@ class RfqForm extends Component
             'needed_by_date'        => 'required|date|after_or_equal:today',
             'notes'                 => 'nullable|string',
             'lines'                 => 'required|array|min:1',
-            'lines.*.ingredient_id' => 'required|exists:ingredients,id',
+            'lines.*.ingredient_id' => 'nullable|exists:ingredients,id',
             'lines.*.quantity'      => 'required|numeric|min:0.0001',
             'lines.*.uom_id'       => 'required|exists:units_of_measure,id',
             'selectedSuppliers'     => 'required|array|min:1',
@@ -66,6 +66,44 @@ class RfqForm extends Component
 
         if (! $id) {
             $this->rfqNumber = QuotationRequest::generateNumber();
+
+            // Pre-populate from supplier directory cart
+            $cart = session()->pull('rfq_cart', []);
+            if (! empty($cart)) {
+                $supplierIds = [];
+                foreach ($cart as $item) {
+                    // Find or create the ingredient in the company
+                    $ingredient = Ingredient::where('name', strtoupper($item['product_name']))->first();
+
+                    $this->lines[] = [
+                        'ingredient_id'   => $ingredient?->id,
+                        'ingredient_name' => $item['product_name'],
+                        'quantity'        => (string) ($item['quantity'] ?? 1),
+                        'uom_id'          => $item['uom_id'] ?? UnitOfMeasure::first()?->id,
+                        'supplier_sku'    => $item['sku'] ?? '',
+                        'unit_price'      => $item['unit_price'] ?? 0,
+                    ];
+
+                    $supplierIds[] = $item['supplier_id'];
+                }
+
+                // Auto-select the suppliers from the cart
+                $companyId = Auth::user()->company_id;
+                foreach (array_unique($supplierIds) as $sid) {
+                    // Find the company's version of this supplier
+                    $original = Supplier::withoutGlobalScopes()->find($sid);
+                    if ($original) {
+                        $companySupplier = Supplier::where('email', $original->email)->first();
+                        if ($companySupplier) {
+                            $this->selectedSuppliers[] = $companySupplier->id;
+                        }
+                    }
+                }
+                $this->selectedSuppliers = array_unique($this->selectedSuppliers);
+
+                $this->title = 'Quotation request from supplier directory';
+            }
+
             return;
         }
 

@@ -21,6 +21,9 @@ class SupplierDirectory extends Component
 
     public ?int $viewingSupplierId = null;
 
+    // RFQ cart
+    public array $rfqCart = [];
+
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
     public function updatedStateFilter(): void { $this->resetPage(); }
@@ -70,6 +73,65 @@ class SupplierDirectory extends Component
             ]);
             session()->flash('success', "{$supplier->name} added to your supplier list.");
         }
+    }
+
+    public function addToRfq(int $productId): void
+    {
+        // Prevent duplicates
+        foreach ($this->rfqCart as $item) {
+            if ($item['product_id'] === $productId) return;
+        }
+
+        $product = SupplierProduct::with('supplier', 'uom')->find($productId);
+        if (! $product) return;
+
+        $this->rfqCart[] = [
+            'supplier_id'   => $product->supplier_id,
+            'supplier_name' => $product->supplier?->name ?? '—',
+            'product_id'    => $product->id,
+            'product_name'  => $product->name,
+            'sku'           => $product->sku,
+            'unit_price'    => floatval($product->unit_price),
+            'uom_id'        => $product->uom_id,
+            'quantity'      => 1,
+        ];
+    }
+
+    public function removeFromRfq(int $index): void
+    {
+        unset($this->rfqCart[$index]);
+        $this->rfqCart = array_values($this->rfqCart);
+    }
+
+    public function sendToRfq()
+    {
+        if (empty($this->rfqCart)) {
+            session()->flash('error', 'Add at least one product to the RFQ cart.');
+            return;
+        }
+
+        // Ensure suppliers are in the company's list first
+        $companyId = Auth::user()->company_id;
+        $supplierIds = collect($this->rfqCart)->pluck('supplier_id')->unique();
+
+        foreach ($supplierIds as $sid) {
+            $supplier = Supplier::withoutGlobalScopes()->find($sid);
+            if (! $supplier) continue;
+
+            $existsInCompany = Supplier::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('email', $supplier->email)
+                ->exists();
+
+            if (! $existsInCompany) {
+                $this->addSupplier($sid);
+            }
+        }
+
+        // Store cart in session for RfqForm to pick up
+        session()->put('rfq_cart', $this->rfqCart);
+
+        return $this->redirect(route('purchasing.rfq.create', ['from' => 'directory']), navigate: true);
     }
 
     public function render()

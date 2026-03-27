@@ -116,15 +116,27 @@
                                     <th class="px-4 py-2 text-left">SKU</th>
                                     <th class="px-4 py-2 text-right">Price</th>
                                     <th class="px-4 py-2 text-left">Category</th>
+                                    <th class="px-4 py-2 w-10"></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
                                 @foreach ($viewingProducts as $p)
+                                    @php $inCart = collect($rfqCart)->contains('product_id', $p->id); @endphp
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-2 font-medium text-gray-700">{{ $p->name }}</td>
                                         <td class="px-4 py-2 font-mono text-gray-400">{{ $p->sku }}</td>
                                         <td class="px-4 py-2 text-right tabular-nums text-gray-700">{{ number_format($p->unit_price, 2) }}</td>
                                         <td class="px-4 py-2 text-gray-400">{{ $p->category ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-center">
+                                            @if ($inCart)
+                                                <span class="text-green-600 text-xs font-medium">Added</span>
+                                            @else
+                                                <button wire:click="addToRfq({{ $p->id }})" title="Add to RFQ"
+                                                        class="text-indigo-500 hover:text-indigo-700 transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                </button>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -143,5 +155,39 @@
 
     @if ($suppliers->hasPages())
         <div class="mt-6">{{ $suppliers->links() }}</div>
+    @endif
+
+    {{-- RFQ Cart (sticky bottom bar) --}}
+    @if (count($rfqCart) > 0)
+        <div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">{{ count($rfqCart) }}</span>
+                            <span class="text-sm font-medium text-gray-700">{{ Str::plural('item', count($rfqCart)) }} selected for quotation</span>
+                        </div>
+                        <div class="hidden sm:flex flex-wrap gap-1 max-w-xl overflow-hidden">
+                            @foreach (collect($rfqCart)->take(5) as $i => $item)
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                    {{ Str::limit($item['product_name'], 20) }}
+                                    <button wire:click="removeFromRfq({{ $i }})" class="text-gray-400 hover:text-red-500">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </span>
+                            @endforeach
+                            @if (count($rfqCart) > 5)
+                                <span class="text-xs text-gray-400">+{{ count($rfqCart) - 5 }} more</span>
+                            @endif
+                        </div>
+                    </div>
+                    <button wire:click="sendToRfq"
+                            class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm">
+                        Request Quotation
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="h-16"></div> {{-- Spacer for sticky bar --}}
     @endif
 </div>
