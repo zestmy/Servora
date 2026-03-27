@@ -15,6 +15,9 @@ class Profile extends Component
     public string $whatsapp_number = '';
     public string $notification_preference = 'email';
     public string $address = '';
+    public string $city = '';
+    public string $state = '';
+    public string $country = 'MY';
     public string $tax_registration_number = '';
     public string $billing_address = '';
     public string $bank_name = '';
@@ -31,6 +34,9 @@ class Profile extends Component
         $this->whatsapp_number = $supplier->whatsapp_number ?? '';
         $this->notification_preference = $supplier->notification_preference ?? 'email';
         $this->address = $supplier->address ?? '';
+        $this->city = $supplier->city ?? '';
+        $this->state = $supplier->state ?? '';
+        $this->country = $supplier->country ?? 'MY';
         $this->tax_registration_number = $supplier->tax_registration_number ?? '';
         $this->billing_address = $supplier->billing_address ?? '';
         $this->bank_name = $supplier->bank_name ?? '';
@@ -54,6 +60,9 @@ class Profile extends Component
             'whatsapp_number'          => $this->whatsapp_number ?: null,
             'notification_preference'  => $this->notification_preference,
             'address'                  => $this->address ?: null,
+            'city'                     => $this->city ?: null,
+            'state'                    => $this->state ?: null,
+            'country'                  => $this->country ?: 'MY',
             'tax_registration_number'  => $this->tax_registration_number ?: null,
             'billing_address'          => $this->billing_address ?: null,
             'bank_name'                => $this->bank_name ?: null,

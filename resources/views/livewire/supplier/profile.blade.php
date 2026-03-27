@@ -49,6 +49,20 @@
                 <label class="block text-xs font-medium text-gray-500 mb-1">Address</label>
                 <textarea wire:model="address" rows="2" class="w-full rounded-lg border-gray-300 text-sm"></textarea>
             </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">City</label>
+                    <input type="text" wire:model="city" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Kuala Lumpur" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">State</label>
+                    <input type="text" wire:model="state" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Selangor" />
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Country</label>
+                    <input type="text" wire:model="country" maxlength="2" class="w-full rounded-lg border-gray-300 text-sm uppercase" placeholder="MY" />
+                </div>
+            </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Payment Terms</label>
                 <input type="text" wire:model="payment_terms" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. NET 30" />

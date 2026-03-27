@@ -163,6 +163,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/price-comparison', \App\Livewire\Purchasing\PriceComparison::class)->name('purchasing.price-comparison')->middleware('can:purchasing.view');
+    Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq', \App\Livewire\Purchasing\RfqIndex::class)->name('purchasing.rfq.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/create', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/{id}', \App\Livewire\Purchasing\RfqShow::class)->name('purchasing.rfq.show')->middleware('can:purchasing.view');

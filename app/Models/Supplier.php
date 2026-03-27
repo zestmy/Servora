@@ -18,6 +18,7 @@ class Supplier extends Model
         'company_id', 'name', 'code', 'contact_person', 'email', 'phone', 'address', 'payment_terms', 'is_active',
         'whatsapp_number', 'notification_preference', 'portal_enabled',
         'tax_registration_number', 'billing_address', 'bank_name', 'bank_account_number',
+        'city', 'state', 'country',
     ];
 
     protected $casts = [
