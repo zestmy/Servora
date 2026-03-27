@@ -86,11 +86,10 @@
 
     {{-- Create/Edit Modal --}}
     @if ($showForm)
-        <div class="fixed inset-0 z-50 overflow-y-auto" x-data x-init="document.body.classList.add('overflow-hidden')"
-             x-on:remove.window="document.body.classList.remove('overflow-hidden')">
-            <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-start justify-center min-h-screen px-4 py-8">
                 <div class="fixed inset-0 bg-gray-900/50 transition-opacity" wire:click="$set('showForm', false)"></div>
-                <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg z-10 p-6">
+                <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg z-10 p-6 my-auto">
                     <h3 class="text-lg font-semibold text-gray-700 mb-4">
                         {{ $editId ? 'Edit' : 'New' }} Central Purchasing Unit
                     </h3>
