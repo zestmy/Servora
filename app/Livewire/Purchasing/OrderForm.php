@@ -86,18 +86,20 @@ class OrderForm extends Component
         $this->department_id          = $po->department_id;
 
         $this->lines = $po->lines->map(function ($l) use ($po) {
-            [$unitCost, $uomId, $packSize] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
+            [$unitCost, $uomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
             return [
-                'ingredient_id'   => $l->ingredient_id,
-                'ingredient_name' => $l->ingredient?->name ?? '—',
-                'quantity'        => (string) floatval($l->quantity),
-                'uom_id'          => $uomId,
-                'unit_cost'       => (string) floatval($l->unit_cost),
-                'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-                'pack_size'       => $packSize,
-                'pack_info'       => $this->buildPackInfo($l->ingredient_id, $uomId, $packSize),
-                'par_level'       => (string) $this->getParLevel($l->ingredient_id),
-                'balance'         => '',
+                'ingredient_id'          => $l->ingredient_id,
+                'ingredient_name'        => $l->ingredient?->name ?? '—',
+                'quantity'               => (string) floatval($l->quantity),
+                'uom_id'                 => $uomId,
+                'unit_cost'              => (string) floatval($l->unit_cost),
+                'total_cost'             => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+                'pack_size'              => $packSize,
+                'pack_info'              => $this->buildPackInfo($l->ingredient_id, $uomId, $packSize),
+                'par_level'              => (string) $this->getParLevel($l->ingredient_id),
+                'balance'                => '',
+                'supplier_sku'           => $l->supplier_sku ?? $sSku,
+                'supplier_product_name'  => $l->supplier_product_name ?? $sProdName,
             ];
         })->toArray();
     }
@@ -114,7 +116,7 @@ class OrderForm extends Component
         // Re-price existing lines from the newly selected supplier's catalog
         foreach ($this->lines as $idx => $line) {
             $ingredientId = (int) $line['ingredient_id'];
-            [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
+            [$unitCost, $supplierUomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
             $this->lines[$idx]['unit_cost']  = (string) $unitCost;
             $this->lines[$idx]['uom_id']     = $supplierUomId;
             $this->lines[$idx]['pack_size']  = $packSize;
@@ -169,7 +171,7 @@ class OrderForm extends Component
             if ($tLine->item_type !== 'ingredient' || ! $tLine->ingredient) continue;
             if (in_array($tLine->ingredient_id, $existing)) continue;
 
-            [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($tLine->ingredient_id, $this->supplier_id);
+            [$unitCost, $supplierUomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($tLine->ingredient_id, $this->supplier_id);
             $parLevel = $this->getParLevel($tLine->ingredient_id);
             $qty      = (int) ceil($parLevel > 0 ? $parLevel : max(0, $tLine->default_quantity));
 
@@ -210,7 +212,7 @@ class OrderForm extends Component
             }
         }
 
-        [$unitCost, $supplierUomId, $packSize] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
+        [$unitCost, $supplierUomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
 
         $parLevel = $this->getParLevel($ingredientId);
 
@@ -335,12 +337,14 @@ class OrderForm extends Component
             $qty  = floatval($line['quantity']);
             $cost = floatval($line['unit_cost']);
             $po->lines()->create([
-                'ingredient_id'     => $line['ingredient_id'],
-                'quantity'          => $qty,
-                'uom_id'            => $line['uom_id'],
-                'unit_cost'         => $cost,
-                'total_cost'        => round($qty * $cost, 4),
-                'received_quantity' => 0,
+                'ingredient_id'          => $line['ingredient_id'],
+                'supplier_sku'           => $line['supplier_sku'] ?? null,
+                'supplier_product_name'  => $line['supplier_product_name'] ?? null,
+                'quantity'               => $qty,
+                'uom_id'                 => $line['uom_id'],
+                'unit_cost'              => $cost,
+                'total_cost'             => round($qty * $cost, 4),
+                'received_quantity'      => 0,
             ]);
         }
 
@@ -407,9 +411,8 @@ class OrderForm extends Component
     // ── helpers ─────────────────────────────────────────────────────────────
 
     /**
-     * Look up the supplier's cost, UOM and pack_size for an ingredient.
-     * Returns [unit_cost, uom_id, pack_size].
-     * When pack_size > 1, returns the "pack" UOM so ordering is in whole packs.
+     * Look up the supplier's cost, UOM, pack_size, SKU, and product name for an ingredient.
+     * Returns [unit_cost, uom_id, pack_size, supplier_sku, supplier_product_name].
      */
     private function lookupSupplierInfo(int $ingredientId, ?int $supplierId): array
     {
@@ -421,6 +424,8 @@ class OrderForm extends Component
         $unitCost = $fallbackCost;
         $uomId = $fallbackUom;
         $packSize = $fallbackPackSize;
+        $supplierSku = null;
+        $supplierProductName = null;
 
         if ($supplierId) {
             $pivot = DB::table('supplier_ingredients')
@@ -431,6 +436,23 @@ class OrderForm extends Component
                 $packSize = floatval($pivot->pack_size ?? 1) ?: $fallbackPackSize;
                 $unitCost = floatval($pivot->last_cost) > 0 ? floatval($pivot->last_cost) : $fallbackCost;
                 $uomId = $pivot->uom_id ?? $fallbackUom;
+                $supplierSku = $pivot->supplier_sku;
+            }
+
+            // Check for mapped supplier product (richer data)
+            $mapping = DB::table('supplier_product_mappings')
+                ->join('supplier_products', 'supplier_products.id', '=', 'supplier_product_mappings.supplier_product_id')
+                ->where('supplier_products.supplier_id', $supplierId)
+                ->where('supplier_product_mappings.ingredient_id', $ingredientId)
+                ->select('supplier_products.sku', 'supplier_products.name', 'supplier_products.pack_size as sp_pack_size', 'supplier_products.unit_price')
+                ->first();
+
+            if ($mapping) {
+                $supplierSku = $mapping->sku ?? $supplierSku;
+                $supplierProductName = $mapping->name;
+                if (floatval($mapping->sp_pack_size) > 1) {
+                    $packSize = floatval($mapping->sp_pack_size);
+                }
             }
         }
 
@@ -442,7 +464,7 @@ class OrderForm extends Component
             }
         }
 
-        return [$unitCost, $uomId, $packSize];
+        return [$unitCost, $uomId, $packSize, $supplierSku, $supplierProductName];
     }
 
     private function recalcLine(int $idx): void

@@ -12,7 +12,8 @@ class PurchaseOrderLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'purchase_order_id', 'ingredient_id', 'quantity', 'original_quantity',
+        'purchase_order_id', 'ingredient_id', 'supplier_sku', 'supplier_product_name',
+        'quantity', 'original_quantity',
         'uom_id', 'unit_cost', 'total_cost', 'received_quantity',
         'adjusted_by', 'adjustment_reason',
     ];

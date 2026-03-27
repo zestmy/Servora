@@ -36,7 +36,8 @@ class PurchaseRequestForm extends Component
             'notes'                           => 'nullable|string',
             'department_id'                   => 'nullable|exists:departments,id',
             'lines'                           => 'required|array|min:1',
-            'lines.*.ingredient_id'           => 'required|exists:ingredients,id',
+            'lines.*.ingredient_id'           => 'nullable|exists:ingredients,id',
+            'lines.*.custom_name'             => 'nullable|string|max:200',
             'lines.*.quantity'                => 'required|numeric|min:0.0001',
             'lines.*.uom_id'                 => 'required|exists:units_of_measure,id',
             'lines.*.preferred_supplier_id'   => 'nullable|exists:suppliers,id',
@@ -118,6 +119,29 @@ class PurchaseRequestForm extends Component
         $this->ingredientSearch = '';
     }
 
+    public string $customItemName = '';
+
+    public function addCustomItem(): void
+    {
+        if (strlen(trim($this->customItemName)) < 2) return;
+
+        $defaultUom = \App\Models\UnitOfMeasure::first();
+
+        $this->lines[] = [
+            'ingredient_id'        => null,
+            'ingredient_name'      => strtoupper(trim($this->customItemName)),
+            'custom_name'          => strtoupper(trim($this->customItemName)),
+            'quantity'             => 1,
+            'uom_id'              => $defaultUom?->id,
+            'preferred_supplier_id' => null,
+            'supplier_name'        => '',
+            'par_level'            => 0,
+            'notes'                => '',
+        ];
+
+        $this->customItemName = '';
+    }
+
     public function removeLine(int $index): void
     {
         unset($this->lines[$index]);
@@ -169,7 +193,8 @@ class PurchaseRequestForm extends Component
 
         foreach ($this->lines as $line) {
             $pr->lines()->create([
-                'ingredient_id'        => $line['ingredient_id'],
+                'ingredient_id'        => $line['ingredient_id'] ?: null,
+                'custom_name'          => $line['custom_name'] ?? null,
                 'quantity'             => $line['quantity'],
                 'uom_id'              => $line['uom_id'],
                 'preferred_supplier_id' => $line['preferred_supplier_id'] ?: null,

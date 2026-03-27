@@ -95,6 +95,11 @@
                     <td>{{ $i + 1 }}</td>
                     <td>
                         {{ $line->ingredient?->name ?? '—' }}
+                        @if ($line->supplier_product_name)
+                            <br><small style="color: #666;">{{ $line->supplier_sku ? '['.$line->supplier_sku.'] ' : '' }}{{ $line->supplier_product_name }}</small>
+                        @elseif ($line->supplier_sku)
+                            <br><small style="color: #666;">SKU: {{ $line->supplier_sku }}</small>
+                        @endif
                         @if ($line->uom?->abbreviation === 'pack' && $line->ingredient)
                             @php
                                 $packSize = \Illuminate\Support\Facades\DB::table('supplier_ingredients')

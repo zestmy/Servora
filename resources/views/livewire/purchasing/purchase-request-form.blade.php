@@ -123,6 +123,20 @@
                             </div>
                         @endif
                     </div>
+
+                    {{-- Custom item --}}
+                    <div class="mt-3 pt-3 border-t border-gray-100">
+                        <p class="text-xs text-gray-400 mb-2">Can't find it? Add a custom item not in the ingredient list:</p>
+                        <div class="flex gap-2">
+                            <input type="text" wire:model="customItemName" wire:keydown.enter="addCustomItem"
+                                   placeholder="Enter item name..."
+                                   class="flex-1 rounded-lg border-gray-300 text-sm" />
+                            <button wire:click="addCustomItem" type="button"
+                                    class="px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition whitespace-nowrap">
+                                + Custom Item
+                            </button>
+                        </div>
+                    </div>
                 </div>
             @endif
 
@@ -147,7 +161,12 @@
                             @forelse ($lines as $i => $line)
                                 <tr wire:key="line-{{ $i }}">
                                     <td class="px-4 py-3 text-gray-400">{{ $i + 1 }}</td>
-                                    <td class="px-4 py-3 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
+                                    <td class="px-4 py-3 font-medium text-gray-700">
+                                        {{ $line['ingredient_name'] }}
+                                        @if (empty($line['ingredient_id']))
+                                            <span class="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-medium">Custom</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-3 text-center text-gray-400">
                                         {{ $line['par_level'] > 0 ? number_format($line['par_level'], 2) : '—' }}
                                     </td>

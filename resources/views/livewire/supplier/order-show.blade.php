@@ -57,7 +57,14 @@
                 @foreach ($order->lines as $i => $line)
                     <tr>
                         <td class="px-4 py-3 text-gray-400">{{ $i + 1 }}</td>
-                        <td class="px-4 py-3 font-medium text-gray-700">{{ $line->ingredient?->name ?? '—' }}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-gray-700">{{ $line->ingredient?->name ?? '—' }}</div>
+                            @if ($line->supplier_product_name)
+                                <div class="text-xs text-indigo-600">{{ $line->supplier_sku ? '['.$line->supplier_sku.'] ' : '' }}{{ $line->supplier_product_name }}</div>
+                            @elseif ($line->supplier_sku)
+                                <div class="text-xs text-gray-400">SKU: {{ $line->supplier_sku }}</div>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-center tabular-nums">{{ number_format($line->quantity, 2) }}</td>
                         <td class="px-4 py-3 text-gray-500">{{ $line->uom?->abbreviation ?? '' }}</td>
                         <td class="px-4 py-3 text-right tabular-nums">{{ number_format($line->unit_cost, 2) }}</td>

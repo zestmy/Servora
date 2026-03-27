@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PurchaseRequestLine extends Model
 {
     protected $fillable = [
-        'purchase_request_id', 'ingredient_id', 'quantity',
-        'uom_id', 'preferred_supplier_id', 'notes',
+        'purchase_request_id', 'ingredient_id', 'custom_name',
+        'quantity', 'uom_id', 'preferred_supplier_id', 'notes',
     ];
 
     protected $casts = [
