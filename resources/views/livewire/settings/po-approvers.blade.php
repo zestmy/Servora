@@ -311,4 +311,99 @@
         </div>
     </div>
     @endteleport
+
+    {{-- ══════════════════════════════════════════════════════════════════════ --}}
+    {{-- PR APPROVERS SECTION                                                  --}}
+    {{-- ══════════════════════════════════════════════════════════════════════ --}}
+
+    <div class="mt-10 pt-8 border-t border-gray-200">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">Purchase Request (PR) Approvers</h2>
+        <p class="text-sm text-gray-500 mb-5">Assign who can approve Purchase Requests submitted by outlet staff. If PR approval is disabled above, PRs are auto-approved on submission.</p>
+
+        @foreach ($outlets as $outlet)
+            @php $prUsers = $prApproversByOutlet->get($outlet->id, collect()); @endphp
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800">{{ $outlet->name }}</h3>
+                        <p class="text-xs text-gray-400">{{ $prUsers->count() }} PR {{ Str::plural('approver', $prUsers->count()) }}</p>
+                    </div>
+                    <button wire:click="openPrAssign({{ $outlet->id }})"
+                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition">
+                        + Assign PR Approver
+                    </button>
+                </div>
+
+                @if ($prUsers->isNotEmpty())
+                    <div class="divide-y divide-gray-50">
+                        @foreach ($prUsers as $userId => $records)
+                            @php $u = $records->first()->user; @endphp
+                            <div class="px-5 py-3 flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">{{ $u?->name }}</p>
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        @foreach ($records as $rec)
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[11px] rounded font-medium">
+                                                {{ $rec->department?->name ?? 'All' }}
+                                                <button wire:click="removePrDept({{ $rec->id }})" wire:confirm="Remove this department assignment?"
+                                                        class="text-indigo-400 hover:text-red-500">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <button wire:click="removePrUser({{ $outlet->id }}, {{ $userId }})"
+                                        wire:confirm="Remove this PR approver from {{ $outlet->name }}?"
+                                        class="text-xs text-red-400 hover:text-red-600 transition">Remove all</button>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="px-5 py-4 text-xs text-gray-400">No PR approvers assigned to this outlet.</div>
+                @endif
+            </div>
+        @endforeach
+    </div>
+
+    {{-- PR Approver Assignment Modal --}}
+    @if ($showPrModal)
+    @teleport('body')
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" x-data>
+        <div class="absolute inset-0 bg-gray-900/50" wire:click="closePrModal"></div>
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 z-10">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Assign PR Approver — {{ $prEditingOutlet?->name }}</h3>
+            <form wire:submit="assignPr" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">User *</label>
+                    <select wire:model="prSelectedUserId" class="w-full rounded-lg border-gray-300 text-sm">
+                        <option value="">— Select user —</option>
+                        @foreach ($eligibleUsers as $u)
+                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
+                        @endforeach
+                    </select>
+                    @error('prSelectedUserId') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Departments *</label>
+                    <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                        @foreach ($departments as $dept)
+                            <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" wire:model="prSelectedDepartmentIds" value="{{ $dept->id }}"
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">{{ $dept->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('prSelectedDepartmentIds') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" wire:click="closePrModal" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endteleport
+    @endif
 </div>
