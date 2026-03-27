@@ -135,7 +135,6 @@ class CpuManagement extends Component
             ->get();
 
         $companyUsers = User::where('company_id', Auth::user()->company_id)
-            ->where('is_active', true)
             ->orderBy('name')
             ->get();
 
