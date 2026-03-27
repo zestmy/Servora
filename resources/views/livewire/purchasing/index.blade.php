@@ -16,10 +16,14 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Purchasing</h2>
         <div class="flex gap-2">
-            @if ($cpuMode && $canCreatePo)
+            @if ($canCreatePo)
                 <a href="{{ route('purchasing.requests.create') }}"
+                   class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
+                    + Purchase Request
+                </a>
+                <a href="{{ route('purchasing.orders.create') }}"
                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    + New Purchase Request
+                    + New Purchase Order
                 </a>
             @endif
             @if ($cpuMode && $isCpuUser)
@@ -30,12 +34,6 @@
                 <a href="{{ route('purchasing.transfers.create') }}"
                    class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
                     + Stock Transfer
-                </a>
-            @endif
-            @if (!$cpuMode && $canCreatePo)
-                <a href="{{ route('purchasing.orders.create') }}"
-                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    + New Purchase Order
                 </a>
             @endif
         </div>
@@ -54,12 +52,10 @@
     {{-- Tabs --}}
     <div class="border-b border-gray-200 mb-4">
         <nav class="flex gap-6 -mb-px">
-            @if ($cpuMode)
-                <button wire:click="$set('tab', 'pr')"
-                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'pr' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Purchase Requests
-                </button>
-            @endif
+            <button wire:click="$set('tab', 'pr')"
+                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'pr' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Purchase Requests
+            </button>
             <button wire:click="$set('tab', 'po')"
                     class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'po' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Purchase Orders
@@ -171,7 +167,7 @@
     </div>
 
     {{-- Tab Content --}}
-    @if ($tab === 'pr' && $cpuMode)
+    @if ($tab === 'pr')
         @include('livewire.purchasing.partials.pr-table')
     @elseif ($tab === 'po')
         @include('livewire.purchasing.partials.po-table')

@@ -547,10 +547,10 @@ class Index extends Component
         $approverOutletIds = $this->approverOutletIds();
         $cpuMode = $this->isCpuMode();
         $isCpuUser = $cpuMode ? $this->isCpuUser() : false;
-        $isPrApprover = $cpuMode ? $this->isPrApprover() : false;
+        $isPrApprover = $this->isPrApprover();
 
         $data = match ($this->tab) {
-            'pr'  => $this->getPrData($seesAll, $isCpuUser),
+            'pr'  => $this->getPrData($seesAll, $isCpuUser || $seesAll),
             'sto' => $this->getStoData($seesAll),
             'do'  => $this->getDoData($seesAll),
             'grn' => $this->getGrnData($seesAll),
