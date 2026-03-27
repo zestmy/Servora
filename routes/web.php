@@ -83,6 +83,7 @@ Route::get('/', MarketingHome::class)->name('marketing.home');
 Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
 Route::get('/for-suppliers', \App\Livewire\Marketing\ForSuppliers::class)->name('for-suppliers');
+Route::get('/marketplace', \App\Livewire\Marketing\Marketplace::class)->name('marketplace');
 Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
