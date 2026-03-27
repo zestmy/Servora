@@ -53,19 +53,19 @@
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 30px;">#</th>
-                <th>Item</th>
-                <th class="center">Qty</th>
-                <th class="center">UOM</th>
-                <th>Preferred Supplier</th>
-                <th>Notes</th>
+                <th style="width: 5%;">#</th>
+                <th style="width: 35%; text-align: left;">Item</th>
+                <th style="width: 10%;" class="center">Qty</th>
+                <th style="width: 8%;" class="center">UOM</th>
+                <th style="width: 25%; text-align: left;">Preferred Supplier</th>
+                <th style="width: 17%; text-align: left;">Notes</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($pr->lines as $i => $line)
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td>
+                    <td style="text-align: left;">
                         {{ $line->ingredient?->name ?? $line->custom_name ?? '—' }}
                         @if ($line->custom_name && !$line->ingredient_id)
                             <small style="color: #b45309;">(Custom)</small>
@@ -73,8 +73,8 @@
                     </td>
                     <td class="center">{{ number_format($line->quantity, 2) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>
-                    <td>{{ $line->preferredSupplier?->name ?? '—' }}</td>
-                    <td><small>{{ $line->notes ?? '' }}</small></td>
+                    <td style="text-align: left;">{{ $line->preferredSupplier?->name ?? '—' }}</td>
+                    <td style="text-align: left;"><small>{{ $line->notes ?? '' }}</small></td>
                 </tr>
             @endforeach
         </tbody>
