@@ -2,24 +2,30 @@
 
 namespace App\Livewire\Settings;
 
-use App\Models\Company;
 use App\Models\Department;
 use App\Models\Outlet;
 use App\Models\PoApprover;
 use App\Models\PrApprover;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class PoApprovers extends Component
 {
+    // Settings toggles
     public bool $requirePoApproval = true;
     public string $orderingMode = 'direct';
     public bool $requirePrApproval = false;
 
+    // Unified add/edit modal
     public bool $showModal = false;
-    public ?int $editingOutletId = null;
+    public string $modalType = 'po'; // 'po' or 'pr'
+    public ?int $editUserId = null;
     public ?int $selectedUserId = null;
+    public bool $allOutlets = false;
+    public array $selectedOutletIds = [];
+    public bool $allDepartments = false;
     public array $selectedDepartmentIds = [];
 
     public function mount(): void
@@ -32,168 +38,132 @@ class PoApprovers extends Component
 
     public function updatedRequirePoApproval(): void
     {
-        $company = Auth::user()->company;
-        $company->update(['require_po_approval' => $this->requirePoApproval]);
-
-        $msg = $this->requirePoApproval
+        Auth::user()->company->update(['require_po_approval' => $this->requirePoApproval]);
+        session()->flash('success', $this->requirePoApproval
             ? 'PO approval is now required.'
-            : 'PO approval is no longer required — POs will be auto-approved on submission.';
-        session()->flash('success', $msg);
+            : 'PO approval is no longer required — POs will be auto-approved on submission.');
     }
 
     public function updatedOrderingMode(): void
     {
-        $company = Auth::user()->company;
-        $company->update(['ordering_mode' => $this->orderingMode]);
-
-        $msg = $this->orderingMode === 'cpu'
+        Auth::user()->company->update(['ordering_mode' => $this->orderingMode]);
+        session()->flash('success', $this->orderingMode === 'cpu'
             ? 'Ordering mode set to CPU — outlets will create Purchase Requests instead of direct POs.'
-            : 'Ordering mode set to Direct — outlets create POs directly to suppliers.';
-        session()->flash('success', $msg);
+            : 'Ordering mode set to Direct — outlets create POs directly to suppliers.');
     }
 
     public function updatedRequirePrApproval(): void
     {
-        $company = Auth::user()->company;
-        $company->update(['require_pr_approval' => $this->requirePrApproval]);
-
-        $msg = $this->requirePrApproval
+        Auth::user()->company->update(['require_pr_approval' => $this->requirePrApproval]);
+        session()->flash('success', $this->requirePrApproval
             ? 'PR approval is now required.'
-            : 'PR approval is no longer required — PRs will be auto-approved on submission.';
-        session()->flash('success', $msg);
+            : 'PR approval is no longer required — PRs will be auto-approved on submission.');
     }
 
-    public function openAssign(int $outletId): void
+    // ── Modal ────────────────────────────────────────────────────────────────
+
+    public function openAdd(string $type): void
     {
-        $this->editingOutletId = $outletId;
-        $this->selectedUserId = null;
-        $this->selectedDepartmentIds = [];
+        $this->resetModal();
+        $this->modalType = $type;
         $this->showModal = true;
     }
 
-    public function assign(): void
+    public function openEdit(string $type, int $userId): void
+    {
+        $this->resetModal();
+        $this->modalType = $type;
+        $this->editUserId = $userId;
+        $this->selectedUserId = $userId;
+
+        $model = $type === 'po' ? PoApprover::class : PrApprover::class;
+        $records = $model::where('user_id', $userId)->get();
+
+        $outletIds = $records->pluck('outlet_id')->filter()->unique()->toArray();
+        $deptIds = $records->pluck('department_id')->filter()->unique()->toArray();
+
+        // Check if user has all outlets/departments
+        $companyId = Auth::user()->company_id;
+        $totalOutlets = Outlet::where('company_id', $companyId)->where('is_active', true)->count();
+        $totalDepts = Department::where('is_active', true)->count();
+
+        $this->allOutlets = count($outletIds) >= $totalOutlets && $totalOutlets > 0;
+        $this->selectedOutletIds = array_map('strval', $outletIds);
+        $this->allDepartments = count($deptIds) >= $totalDepts && $totalDepts > 0;
+        $this->selectedDepartmentIds = array_map('strval', $deptIds);
+
+        $this->showModal = true;
+    }
+
+    public function save(): void
     {
         $this->validate([
-            'editingOutletId'        => 'required|exists:outlets,id',
-            'selectedUserId'         => 'required|exists:users,id',
-            'selectedDepartmentIds'  => 'required|array|min:1',
-            'selectedDepartmentIds.*' => 'exists:departments,id',
-        ], [
-            'selectedDepartmentIds.required' => 'Select at least one department.',
-            'selectedDepartmentIds.min'      => 'Select at least one department.',
+            'selectedUserId' => 'required|exists:users,id',
         ]);
 
-        $user = User::findOrFail($this->selectedUserId);
+        $companyId = Auth::user()->company_id;
+        $model = $this->modalType === 'po' ? PoApprover::class : PrApprover::class;
+        $label = $this->modalType === 'po' ? 'PO' : 'PR';
 
-        if (! $user->hasRole(['Operations Manager', 'Branch Manager', 'Chef'])) {
-            session()->flash('error', 'Only Operations Manager, Branch Manager, or Chef roles can be appointed as PO approvers.');
+        $outlets = $this->allOutlets
+            ? Outlet::where('company_id', $companyId)->where('is_active', true)->pluck('id')->toArray()
+            : array_map('intval', $this->selectedOutletIds);
+
+        $departments = $this->allDepartments
+            ? Department::where('is_active', true)->pluck('id')->toArray()
+            : array_map('intval', $this->selectedDepartmentIds);
+
+        if (empty($outlets)) {
+            $this->addError('selectedOutletIds', 'Select at least one outlet.');
+            return;
+        }
+        if (empty($departments)) {
+            $this->addError('selectedDepartmentIds', 'Select at least one department.');
             return;
         }
 
-        $companyId = Auth::user()->company_id;
+        DB::transaction(function () use ($model, $companyId, $outlets, $departments) {
+            // Remove old assignments for this user if editing
+            $model::where('user_id', $this->selectedUserId)->delete();
 
-        foreach ($this->selectedDepartmentIds as $deptId) {
-            PoApprover::updateOrCreate(
-                [
-                    'outlet_id'     => $this->editingOutletId,
-                    'department_id' => $deptId,
-                    'user_id'       => $this->selectedUserId,
-                ],
-                ['company_id' => $companyId, 'assigned_by' => Auth::id()]
-            );
-        }
+            // Create new assignments for each outlet × department combination
+            foreach ($outlets as $outletId) {
+                foreach ($departments as $deptId) {
+                    $model::create([
+                        'company_id'    => $companyId,
+                        'outlet_id'     => $outletId,
+                        'department_id' => $deptId,
+                        'user_id'       => $this->selectedUserId,
+                        'assigned_by'   => Auth::id(),
+                    ]);
+                }
+            }
+        });
 
-        $count = count($this->selectedDepartmentIds);
-        session()->flash('success', "Appointed {$user->name} as PO approver for {$count} department(s).");
-        $this->closeModal();
-    }
+        $user = User::find($this->selectedUserId);
+        $outletLabel = $this->allOutlets ? 'all outlets' : count($outlets) . ' ' . Str::plural('outlet', count($outlets));
+        $deptLabel = $this->allDepartments ? 'all departments' : count($departments) . ' ' . Str::plural('department', count($departments));
 
-    public function removeDept(int $id): void
-    {
-        PoApprover::findOrFail($id)->delete();
-        session()->flash('success', 'Department assignment removed.');
-    }
-
-    public function removeUser(int $outletId, int $userId): void
-    {
-        PoApprover::where('outlet_id', $outletId)
-            ->where('user_id', $userId)
-            ->delete();
-        session()->flash('success', 'Approver removed from this outlet.');
-    }
-
-    public function closeModal(): void
-    {
+        session()->flash('success', "{$user->name} assigned as {$label} approver for {$outletLabel}, {$deptLabel}.");
         $this->showModal = false;
-        $this->editingOutletId = null;
+    }
+
+    public function removeApprover(string $type, int $userId): void
+    {
+        $model = $type === 'po' ? PoApprover::class : PrApprover::class;
+        $model::where('user_id', $userId)->delete();
+        session()->flash('success', 'Approver removed.');
+    }
+
+    private function resetModal(): void
+    {
+        $this->editUserId = null;
         $this->selectedUserId = null;
+        $this->allOutlets = false;
+        $this->selectedOutletIds = [];
+        $this->allDepartments = false;
         $this->selectedDepartmentIds = [];
-    }
-
-    // ── PR Approvers ────────────────────────────────────────────────────────
-
-    public bool $showPrModal = false;
-    public ?int $prEditingOutletId = null;
-    public ?int $prSelectedUserId = null;
-    public array $prSelectedDepartmentIds = [];
-
-    public function openPrAssign(int $outletId): void
-    {
-        $this->prEditingOutletId = $outletId;
-        $this->prSelectedUserId = null;
-        $this->prSelectedDepartmentIds = [];
-        $this->showPrModal = true;
-    }
-
-    public function assignPr(): void
-    {
-        $this->validate([
-            'prEditingOutletId'        => 'required|exists:outlets,id',
-            'prSelectedUserId'         => 'required|exists:users,id',
-            'prSelectedDepartmentIds'  => 'required|array|min:1',
-            'prSelectedDepartmentIds.*' => 'exists:departments,id',
-        ], [
-            'prSelectedDepartmentIds.required' => 'Select at least one department.',
-            'prSelectedDepartmentIds.min'      => 'Select at least one department.',
-        ]);
-
-        $companyId = Auth::user()->company_id;
-
-        foreach ($this->prSelectedDepartmentIds as $deptId) {
-            PrApprover::updateOrCreate(
-                [
-                    'outlet_id'     => $this->prEditingOutletId,
-                    'department_id' => $deptId,
-                    'user_id'       => $this->prSelectedUserId,
-                ],
-                ['company_id' => $companyId, 'assigned_by' => Auth::id()]
-            );
-        }
-
-        $user = User::find($this->prSelectedUserId);
-        $count = count($this->prSelectedDepartmentIds);
-        session()->flash('success', "Appointed {$user->name} as PR approver for {$count} department(s).");
-        $this->closePrModal();
-    }
-
-    public function removePrDept(int $id): void
-    {
-        PrApprover::findOrFail($id)->delete();
-        session()->flash('success', 'PR approver assignment removed.');
-    }
-
-    public function removePrUser(int $outletId, int $userId): void
-    {
-        PrApprover::where('outlet_id', $outletId)->where('user_id', $userId)->delete();
-        session()->flash('success', 'PR approver removed from this outlet.');
-    }
-
-    public function closePrModal(): void
-    {
-        $this->showPrModal = false;
-        $this->prEditingOutletId = null;
-        $this->prSelectedUserId = null;
-        $this->prSelectedDepartmentIds = [];
+        $this->resetErrorBag();
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
@@ -202,36 +172,54 @@ class PoApprovers extends Component
     {
         $companyId = Auth::user()->company_id;
 
-        $outlets = Outlet::where('company_id', $companyId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $outlets = Outlet::where('company_id', $companyId)->where('is_active', true)->orderBy('name')->get();
+        $departments = Department::where('is_active', true)->ordered()->get();
+        $users = User::where('company_id', $companyId)->where('is_active', true)->orderBy('name')->get();
 
-        // PO approvers
-        $rawApprovers = PoApprover::with(['user', 'outlet', 'department', 'assignedBy'])->get();
-        $approversByOutlet = $rawApprovers->groupBy('outlet_id')->map(function ($group) {
-            return $group->groupBy('user_id');
-        });
+        // Build PO approver summary: grouped by user
+        $poApprovers = PoApprover::with(['user', 'outlet', 'department'])
+            ->get()
+            ->groupBy('user_id')
+            ->map(function ($records) use ($outlets, $departments) {
+                $user = $records->first()->user;
+                $outletIds = $records->pluck('outlet_id')->unique();
+                $deptIds = $records->pluck('department_id')->unique();
+                $isAllOutlets = $outletIds->count() >= $outlets->count() && $outlets->count() > 0;
+                $isAllDepts = $deptIds->count() >= $departments->count() && $departments->count() > 0;
 
-        // PR approvers
-        $rawPrApprovers = PrApprover::with(['user', 'outlet', 'department', 'assignedBy'])->get();
-        $prApproversByOutlet = $rawPrApprovers->groupBy('outlet_id')->map(function ($group) {
-            return $group->groupBy('user_id');
-        });
+                return [
+                    'user'           => $user,
+                    'outlets'        => $isAllOutlets ? 'All Outlets' : $records->pluck('outlet.name')->unique()->filter()->implode(', '),
+                    'departments'    => $isAllDepts ? 'All Departments' : $records->pluck('department.name')->unique()->filter()->implode(', '),
+                    'is_all_outlets' => $isAllOutlets,
+                    'is_all_depts'   => $isAllDepts,
+                    'count'          => $records->count(),
+                ];
+            });
 
-        $eligibleUsers = User::where('company_id', $companyId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        // Build PR approver summary: grouped by user
+        $prApprovers = PrApprover::with(['user', 'outlet', 'department'])
+            ->get()
+            ->groupBy('user_id')
+            ->map(function ($records) use ($outlets, $departments) {
+                $user = $records->first()->user;
+                $outletIds = $records->pluck('outlet_id')->unique();
+                $deptIds = $records->pluck('department_id')->unique();
+                $isAllOutlets = $outletIds->count() >= $outlets->count() && $outlets->count() > 0;
+                $isAllDepts = $deptIds->count() >= $departments->count() && $departments->count() > 0;
 
-        $departments = Department::active()->ordered()->get();
-
-        $editingOutlet = $this->editingOutletId ? Outlet::find($this->editingOutletId) : null;
-        $prEditingOutlet = $this->prEditingOutletId ? Outlet::find($this->prEditingOutletId) : null;
+                return [
+                    'user'           => $user,
+                    'outlets'        => $isAllOutlets ? 'All Outlets' : $records->pluck('outlet.name')->unique()->filter()->implode(', '),
+                    'departments'    => $isAllDepts ? 'All Departments' : $records->pluck('department.name')->unique()->filter()->implode(', '),
+                    'is_all_outlets' => $isAllOutlets,
+                    'is_all_depts'   => $isAllDepts,
+                    'count'          => $records->count(),
+                ];
+            });
 
         return view('livewire.settings.po-approvers', compact(
-            'outlets', 'approversByOutlet', 'prApproversByOutlet', 'eligibleUsers', 'departments',
-            'editingOutlet', 'prEditingOutlet'
+            'outlets', 'departments', 'users', 'poApprovers', 'prApprovers'
         ))->layout('layouts.app', ['title' => 'Approvers']);
     }
 }
