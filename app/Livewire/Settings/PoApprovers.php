@@ -175,7 +175,7 @@ class PoApprovers extends Component
 
         $outlets = Outlet::where('company_id', $companyId)->where('is_active', true)->orderBy('name')->get();
         $departments = Department::where('is_active', true)->ordered()->get();
-        $users = User::where('company_id', $companyId)->where('is_active', true)->orderBy('name')->get();
+        $users = User::where('company_id', $companyId)->orderBy('name')->get();
 
         // Build PO approver summary: grouped by user
         $poApprovers = PoApprover::with(['user', 'outlet', 'department'])
