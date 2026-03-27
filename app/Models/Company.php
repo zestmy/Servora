@@ -18,7 +18,7 @@ class Company extends Model
         'billing_address', 'logo', 'currency', 'tax_type', 'tax_percent',
         'show_price_on_do_grn', 'auto_generate_do', 'direct_supplier_order', 'po_cc_emails',
         'is_active', 'require_po_approval',
-        'ordering_mode', 'require_pr_approval', 'default_tax_country',
+        'ordering_mode', 'require_pr_approval', 'default_tax_country', 'price_alert_threshold',
         'onboarding_completed_at', 'registered_via', 'trial_ends_at',
     ];
 

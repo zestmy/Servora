@@ -82,6 +82,7 @@ Route::get('/', MarketingHome::class)->name('marketing.home');
 // Marketing pages (public, no auth)
 Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
+Route::get('/for-suppliers', \App\Livewire\Marketing\ForSuppliers::class)->name('for-suppliers');
 Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
@@ -112,6 +113,8 @@ Route::middleware(\App\Http\Middleware\SupplierAuthenticate::class)->prefix('sup
     Route::get('/orders', \App\Livewire\Supplier\Orders::class)->name('supplier.orders');
     Route::get('/orders/{id}', \App\Livewire\Supplier\OrderShow::class)->name('supplier.orders.show');
     Route::get('/invoices', \App\Livewire\Supplier\Invoices::class)->name('supplier.invoices');
+    Route::get('/quotations', \App\Livewire\Supplier\Quotations::class)->name('supplier.quotations');
+    Route::get('/quotations/{quotation_request_supplier_id}/respond', \App\Livewire\Supplier\QuotationResponse::class)->name('supplier.quotations.respond');
     Route::get('/profile', \App\Livewire\Supplier\Profile::class)->name('supplier.profile');
     Route::post('/logout', [\App\Http\Controllers\Supplier\AuthController::class, 'logout'])->name('supplier.logout');
 });
@@ -160,6 +163,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/price-comparison', \App\Livewire\Purchasing\PriceComparison::class)->name('purchasing.price-comparison')->middleware('can:purchasing.view');
+    Route::get('/purchasing/rfq', \App\Livewire\Purchasing\RfqIndex::class)->name('purchasing.rfq.index')->middleware('can:purchasing.view');
+    Route::get('/purchasing/rfq/create', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.create')->middleware('can:purchasing.view');
+    Route::get('/purchasing/rfq/{id}', \App\Livewire\Purchasing\RfqShow::class)->name('purchasing.rfq.show')->middleware('can:purchasing.view');
+    Route::get('/purchasing/rfq/{id}/edit', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.edit')->middleware('can:purchasing.view');
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
     Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.view');
     Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.view');

@@ -27,6 +27,7 @@
                 <div class="hidden sm:flex items-center gap-6">
                     <a href="{{ route('features') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Features</a>
                     <a href="{{ route('pricing') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Pricing</a>
+                    <a href="{{ route('for-suppliers') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">For Suppliers</a>
                     <a href="{{ route('referral.program') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Refer & Earn</a>
                     @foreach ($headerPages as $hp)
                         <a href="{{ $hp->url() }}" target="{{ $hp->linkTarget() }}" class="text-sm text-gray-600 hover:text-gray-900 transition">{{ $hp->title }}</a>

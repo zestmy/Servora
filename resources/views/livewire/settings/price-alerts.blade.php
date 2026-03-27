@@ -11,135 +11,118 @@
             </a>
             <h2 class="text-lg font-semibold text-gray-700">Price Alerts</h2>
         </div>
-        <button wire:click="openCreate" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">+ New Alert</button>
-    </div>
-
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        @if ($alerts->count() > 0)
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                    <tr>
-                        <th class="px-4 py-3 text-left">Ingredient</th>
-                        <th class="px-4 py-3 text-left">Supplier</th>
-                        <th class="px-4 py-3 text-center">Alert Type</th>
-                        <th class="px-4 py-3 text-center">Threshold</th>
-                        <th class="px-4 py-3 text-center">Last Triggered</th>
-                        <th class="px-4 py-3 text-center">Status</th>
-                        <th class="px-4 py-3 text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @foreach ($alerts as $alert)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 font-medium text-gray-700">{{ $alert->ingredient?->name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-gray-600 text-xs">{{ $alert->supplier?->name ?? 'All suppliers' }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="px-2 py-0.5 rounded text-xs font-medium
-                                    {{ match($alert->alert_type) {
-                                        'increase' => 'bg-red-50 text-red-600',
-                                        'decrease' => 'bg-green-50 text-green-600',
-                                        'threshold' => 'bg-amber-50 text-amber-600',
-                                    } }}">
-                                    {{ ucfirst($alert->alert_type) }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-center text-gray-600 text-xs">
-                                @if ($alert->threshold_percent)
-                                    {{ $alert->threshold_percent }}%
-                                @elseif ($alert->threshold_amount)
-                                    RM {{ number_format($alert->threshold_amount, 2) }}
-                                @else
-                                    —
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-center text-gray-400 text-xs">
-                                {{ $alert->last_triggered_at?->diffForHumans() ?? 'Never' }}
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <button wire:click="toggleActive({{ $alert->id }})"
-                                        class="px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition
-                                        {{ $alert->is_active ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">
-                                    {{ $alert->is_active ? 'Active' : 'Paused' }}
-                                </button>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <button wire:click="openEdit({{ $alert->id }})" class="text-sm text-indigo-600 hover:text-indigo-800">Edit</button>
-                                <button wire:click="delete({{ $alert->id }})" wire:confirm="Delete this alert?" class="text-sm text-red-500 hover:text-red-700 ml-2">Delete</button>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @else
-            <div class="p-8 text-center text-gray-400 text-sm">
-                No price alerts configured. Click "+ New Alert" to monitor ingredient prices.
-            </div>
+        @if ($unreadCount > 0)
+            <button wire:click="markAllRead" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Mark all as read</button>
         @endif
     </div>
 
-    {{-- Create/Edit Modal --}}
-    @if ($showForm)
-        <div class="fixed inset-0 z-50 overflow-y-auto">
-            <div class="flex items-center justify-center min-h-screen px-4">
-                <div class="fixed inset-0 bg-gray-900/50" wire:click="$set('showForm', false)"></div>
-                <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10 p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">{{ $editId ? 'Edit' : 'New' }} Price Alert</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Ingredient *</label>
-                            <select wire:model="ingredient_id" class="w-full rounded-lg border-gray-300 text-sm">
-                                <option value="">— Select —</option>
-                                @foreach ($ingredients as $ing)
-                                    <option value="{{ $ing->id }}">{{ $ing->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('ingredient_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Supplier (optional)</label>
-                            <select wire:model="supplier_id" class="w-full rounded-lg border-gray-300 text-sm">
-                                <option value="">All suppliers</option>
-                                @foreach ($suppliers as $s)
-                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
-                                @endforeach
-                            </select>
-                            <p class="text-[11px] text-gray-400 mt-1">Leave blank to monitor across all suppliers</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Alert Type *</label>
-                            <select wire:model="alert_type" class="w-full rounded-lg border-gray-300 text-sm">
-                                <option value="increase">Price Increase</option>
-                                <option value="decrease">Price Decrease</option>
-                                <option value="threshold">Exceeds Threshold</option>
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Threshold %</label>
-                                <input type="number" step="0.01" min="0" max="100" wire:model="threshold_percent"
-                                       class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. 10" />
-                                <p class="text-[11px] text-gray-400 mt-1">Alert when change exceeds this %</p>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Threshold Amount (RM)</label>
-                                <input type="number" step="0.01" min="0" wire:model="threshold_amount"
-                                       class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. 5.00" />
-                                <p class="text-[11px] text-gray-400 mt-1">Or absolute amount threshold</p>
-                            </div>
-                        </div>
-                        <label class="flex items-center gap-2">
-                            <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-indigo-600" />
-                            <span class="text-sm text-gray-600">Active</span>
-                        </label>
-                    </div>
-                    <div class="flex justify-end gap-3 mt-6">
-                        <button wire:click="$set('showForm', false)" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                        <button wire:click="save" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-                            {{ $editId ? 'Update' : 'Create' }}
-                        </button>
-                    </div>
-                </div>
+    {{-- Stats --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Unread Alerts</p>
+            <p class="text-2xl font-bold {{ $unreadCount > 0 ? 'text-amber-600' : 'text-gray-800' }} mt-1">{{ $unreadCount }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Price Increases</p>
+            <p class="text-2xl font-bold text-red-600 mt-1">{{ $increaseCount }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-xs text-gray-400 uppercase tracking-wider">Price Decreases</p>
+            <p class="text-2xl font-bold text-green-600 mt-1">{{ $decreaseCount }}</p>
+        </div>
+    </div>
+
+    {{-- Threshold Setting --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-semibold text-gray-800">Alert Threshold</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Automatically detect price changes of <strong>{{ $threshold }}%</strong> or more across all your supplier ingredients. Checked daily.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="number" step="0.1" min="0.1" max="100" wire:model="threshold"
+                       class="w-20 rounded-lg border-gray-300 text-sm text-right" />
+                <span class="text-sm text-gray-500">%</span>
+                <button wire:click="saveThreshold" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">Save</button>
             </div>
         </div>
-    @endif
+    </div>
+
+    {{-- Filters --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+            <select wire:model.live="directionFilter" class="rounded-lg border-gray-300 text-sm">
+                <option value="">All Changes</option>
+                <option value="increase">Increases Only</option>
+                <option value="decrease">Decreases Only</option>
+            </select>
+            <div class="flex items-center gap-1">
+                <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm" />
+                <span class="text-gray-400 text-xs">to</span>
+                <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm" />
+            </div>
+        </div>
+    </div>
+
+    {{-- Notifications Table --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="px-4 py-3 text-left">Ingredient</th>
+                    <th class="px-4 py-3 text-left">Supplier</th>
+                    <th class="px-4 py-3 text-right">Old Price</th>
+                    <th class="px-4 py-3 text-right">New Price</th>
+                    <th class="px-4 py-3 text-center">Change</th>
+                    <th class="px-4 py-3 text-center">Detected</th>
+                    <th class="px-4 py-3 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                @forelse ($notifications as $n)
+                    <tr class="{{ $n->is_read ? '' : 'bg-amber-50/40' }} hover:bg-gray-50 transition">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-gray-700">{{ $n->ingredient?->name ?? '—' }}</div>
+                            @if (! $n->is_read)
+                                <span class="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 text-xs">{{ $n->supplier?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums text-gray-500">{{ number_format($n->old_price, 4) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($n->new_price, 4) }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                                {{ $n->direction === 'increase' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                                {{ $n->direction === 'increase' ? '+' : '' }}{{ $n->change_percent }}%
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center text-gray-400 text-xs">{{ $n->detected_at->diffForHumans() }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                @if (! $n->is_read)
+                                    <button wire:click="markRead({{ $n->id }})" title="Mark read" class="text-gray-400 hover:text-indigo-600 transition p-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    </button>
+                                @endif
+                                <button wire:click="dismiss({{ $n->id }})" title="Dismiss" class="text-gray-400 hover:text-red-600 transition p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                            No price changes detected. The system automatically monitors all your supplier prices daily.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+        @if ($notifications->hasPages())
+            <div class="px-4 py-3 border-t border-gray-100">{{ $notifications->links() }}</div>
+        @endif
+    </div>
 </div>

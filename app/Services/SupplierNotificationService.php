@@ -58,4 +58,32 @@ class SupplierNotificationService
 
         return ['success' => true, 'message' => 'WhatsApp notification queued (placeholder).'];
     }
+
+    /**
+     * Notify supplier about a new RFQ.
+     */
+    public static function notifyRfq(\App\Models\Supplier $supplier, \App\Models\QuotationRequest $rfq): array
+    {
+        if (! $supplier->email) {
+            return ['success' => false, 'message' => 'No email configured.'];
+        }
+
+        $loginUrl = route('supplier.login');
+        $body = "You have received a new Request for Quotation from a Servora customer.\n\n"
+            . "RFQ: {$rfq->rfq_number}\n"
+            . "Title: {$rfq->title}\n"
+            . "Items: {$rfq->lines()->count()}\n"
+            . ($rfq->needed_by_date ? "Needed by: {$rfq->needed_by_date->format('d M Y')}\n" : '')
+            . "\nLog in to your Supplier Portal to respond:\n{$loginUrl}";
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($body, function ($msg) use ($supplier, $rfq) {
+                $msg->to($supplier->email)
+                    ->subject("New RFQ: {$rfq->rfq_number} — Servora");
+            });
+            return ['success' => true, 'message' => 'RFQ notification sent.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
 }

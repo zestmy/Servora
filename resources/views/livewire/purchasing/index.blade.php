@@ -78,6 +78,10 @@
                     Stock Transfers
                 </button>
             @endif
+            <a href="{{ route('purchasing.rfq.index') }}"
+               class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.rfq.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Quotations (RFQ)
+            </a>
         </nav>
     </div>
 

@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\Ingredient;
 use App\Models\IngredientPriceHistory;
+use App\Models\PriceChangeNotification;
 use App\Models\SupplierIngredient;
 use App\Models\SupplierPriceAlert;
 use App\Models\SupplierProduct;
@@ -12,6 +14,74 @@ use Illuminate\Support\Facades\Log;
 
 class PriceMonitoringService
 {
+    /**
+     * Auto-detect price changes for all supplier-ingredient relationships within a company.
+     * Creates PriceChangeNotification records for changes exceeding the company's threshold.
+     */
+    public static function autoDetectChanges(Company $company): int
+    {
+        $threshold = floatval($company->price_alert_threshold ?? 5.0);
+        if ($threshold <= 0) return 0;
+
+        // Get all supplier_ingredients for this company's suppliers
+        $supplierIds = $company->suppliers()->pluck('id');
+        if ($supplierIds->isEmpty()) return 0;
+
+        $records = SupplierIngredient::whereIn('supplier_id', $supplierIds)
+            ->where('last_cost', '>', 0)
+            ->get();
+
+        $created = 0;
+
+        foreach ($records as $si) {
+            // Get the previous price from history (second-most-recent entry)
+            $history = IngredientPriceHistory::where('ingredient_id', $si->ingredient_id)
+                ->where('supplier_id', $si->supplier_id)
+                ->orderByDesc('effective_date')
+                ->orderByDesc('id')
+                ->limit(2)
+                ->pluck('cost');
+
+            if ($history->count() < 2) continue;
+
+            $currentPrice = floatval($history->first());
+            $previousPrice = floatval($history->last());
+
+            if ($previousPrice <= 0) continue;
+
+            $changePct = round((($currentPrice - $previousPrice) / $previousPrice) * 100, 2);
+
+            if (abs($changePct) < $threshold) continue;
+
+            // Check if we already notified about this exact change today
+            $exists = PriceChangeNotification::withoutGlobalScopes()
+                ->where('company_id', $company->id)
+                ->where('ingredient_id', $si->ingredient_id)
+                ->where('supplier_id', $si->supplier_id)
+                ->where('new_price', $currentPrice)
+                ->where('old_price', $previousPrice)
+                ->exists();
+
+            if ($exists) continue;
+
+            PriceChangeNotification::create([
+                'company_id'     => $company->id,
+                'ingredient_id'  => $si->ingredient_id,
+                'supplier_id'    => $si->supplier_id,
+                'old_price'      => $previousPrice,
+                'new_price'      => $currentPrice,
+                'change_percent' => $changePct,
+                'change_amount'  => round($currentPrice - $previousPrice, 4),
+                'direction'      => $changePct > 0 ? 'increase' : 'decrease',
+                'detected_at'    => now(),
+            ]);
+
+            $created++;
+        }
+
+        return $created;
+    }
+
     /**
      * Get price comparison data for an ingredient across all suppliers.
      */

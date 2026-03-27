@@ -16,3 +16,6 @@ Schedule::command('usage:snapshot')->dailyAt('00:00');
 
 // Send onboarding emails daily at 9 AM MYT
 Schedule::command('onboarding:send-emails')->dailyAt('09:00');
+
+// Monitor ingredient price changes daily at 7 AM MYT
+Schedule::command('price:monitor')->dailyAt('07:00');
