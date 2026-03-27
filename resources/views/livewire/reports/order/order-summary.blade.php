@@ -1,0 +1,58 @@
+<div>
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+            <a href="{{ route('reports.hub') }}" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+            </a>
+            <h2 class="text-lg font-semibold text-gray-700">Order Summary</h2>
+        </div>
+    </div>
+
+    @include('livewire.reports.partials.report-filters', [
+        'outlets'      => $outlets,
+        'suppliers'    => $suppliers,
+        'showSupplier' => false,
+        'exportAction' => 'exportCsv',
+    ])
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-medium text-gray-500">Month</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-500">Order Count</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-500">Total Value</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-500">Average Value</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($summary as $row)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium text-gray-800">{{ $row->month_label }}</td>
+                            <td class="px-4 py-3 text-right text-gray-600">{{ $row->order_count }}</td>
+                            <td class="px-4 py-3 text-right font-medium text-gray-800">{{ number_format((float) $row->total_value, 2) }}</td>
+                            <td class="px-4 py-3 text-right text-gray-600">{{ number_format((float) $row->avg_value, 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-400">No orders found for this period.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+                @if ($summary->isNotEmpty())
+                    <tfoot class="bg-gray-50 font-medium text-sm">
+                        <tr>
+                            <td class="px-4 py-3 text-gray-700">Total</td>
+                            <td class="px-4 py-3 text-right text-gray-700">{{ $summary->sum('order_count') }}</td>
+                            <td class="px-4 py-3 text-right text-gray-700">{{ number_format((float) $summary->sum('total_value'), 2) }}</td>
+                            <td class="px-4 py-3 text-right text-gray-500">-</td>
+                        </tr>
+                    </tfoot>
+                @endif
+            </table>
+        </div>
+    </div>
+</div>

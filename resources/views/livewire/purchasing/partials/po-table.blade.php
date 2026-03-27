@@ -63,6 +63,17 @@
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badge }}">
                             {{ $statusLabel }}
                         </span>
+                        @if ($po->status === 'partial')
+                            @php
+                                $totalQty = $po->lines->sum(fn ($l) => floatval($l->quantity));
+                                $receivedQty = $po->lines->sum(fn ($l) => floatval($l->received_quantity));
+                                $pct = $totalQty > 0 ? round(($receivedQty / $totalQty) * 100) : 0;
+                            @endphp
+                            <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                                <div class="bg-orange-500 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
+                            </div>
+                            <span class="text-[10px] text-gray-400">{{ $pct }}% received</span>
+                        @endif
                     </td>
                     <td class="px-4 py-3">
                         <div class="flex items-center justify-center gap-1">

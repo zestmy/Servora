@@ -10,6 +10,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseRecord;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
+use App\Services\OrderAdjustmentService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -27,6 +28,7 @@ class ReceiveForm extends Component
     public string $delivery_date     = '';
     public string $reference_number  = '';   // invoice / DO ref
     public string $notes             = '';
+    public bool   $is_final_delivery = false;
 
     // Lines: [ingredient_id, ingredient_name, uom_id, uom_abbr, ordered_qty, received_qty, unit_cost, condition]
     public array $lines = [];
@@ -74,14 +76,17 @@ class ReceiveForm extends Component
         $this->supplier_id = $po->supplier_id;
 
         $this->lines = $po->lines->map(fn ($l) => [
-            'ingredient_id'   => $l->ingredient_id,
-            'ingredient_name' => $l->ingredient?->name ?? '—',
-            'uom_id'          => $l->uom_id,
-            'uom_abbr'        => $l->uom?->abbreviation ?? '',
-            'ordered_qty'     => floatval($l->quantity - $l->received_quantity),
-            'received_qty'    => (string) floatval($l->quantity - $l->received_quantity),
-            'unit_cost'       => (string) floatval($l->unit_cost),
-            'condition'       => 'good',
+            'ingredient_id'       => $l->ingredient_id,
+            'ingredient_name'     => $l->ingredient?->name ?? '—',
+            'po_line_id'          => $l->id,
+            'uom_id'              => $l->uom_id,
+            'uom_abbr'            => $l->uom?->abbreviation ?? '',
+            'ordered_qty'         => floatval($l->quantity),
+            'previously_received' => floatval($l->received_quantity),
+            'remaining_qty'       => floatval($l->quantity - $l->received_quantity),
+            'received_qty'        => (string) max(0, floatval($l->quantity - $l->received_quantity)),
+            'unit_cost'           => (string) floatval($l->unit_cost),
+            'condition'           => 'good',
         ])->toArray();
     }
 
@@ -128,6 +133,10 @@ class ReceiveForm extends Component
             $outletId  = Outlet::where('company_id', $companyId)->value('id');
 
             // 1. Create Delivery Order
+            $deliverySeq = $this->poId
+                ? OrderAdjustmentService::nextDeliverySequence($this->poId)
+                : 1;
+
             $do = DeliveryOrder::create([
                 'company_id'        => $companyId,
                 'outlet_id'         => $outletId,
@@ -135,6 +144,8 @@ class ReceiveForm extends Component
                 'supplier_id'       => $this->supplier_id,
                 'do_number'         => $this->doNumber,
                 'status'            => 'received',
+                'delivery_sequence' => $deliverySeq,
+                'is_final_delivery' => $this->is_final_delivery,
                 'delivery_date'     => $this->delivery_date,
                 'notes'             => $this->notes ?: null,
                 'received_by'       => Auth::id(),
@@ -149,12 +160,13 @@ class ReceiveForm extends Component
 
                 // DO line
                 $do->lines()->create([
-                    'ingredient_id'     => $line['ingredient_id'],
-                    'ordered_quantity'  => $line['ordered_qty'],
-                    'delivered_quantity' => $received,
-                    'uom_id'            => $line['uom_id'],
-                    'unit_cost'         => $unitCost,
-                    'condition'         => $condition,
+                    'purchase_order_line_id' => $line['po_line_id'] ?? null,
+                    'ingredient_id'          => $line['ingredient_id'],
+                    'ordered_quantity'       => $line['ordered_qty'],
+                    'delivered_quantity'     => $received,
+                    'uom_id'                => $line['uom_id'],
+                    'unit_cost'             => $unitCost,
+                    'condition'             => $condition,
                 ]);
 
                 if ($condition !== 'rejected' && $received > 0) {
@@ -250,8 +262,16 @@ class ReceiveForm extends Component
             ? 'Receive Delivery: ' . $this->poNumber
             : 'Record Direct Purchase';
 
+        // Check if this PO already has partial deliveries
+        $hasPartialDeliveries = false;
+        $deliveryCount = 0;
+        if ($this->poId) {
+            $deliveryCount = DeliveryOrder::where('purchase_order_id', $this->poId)->count();
+            $hasPartialDeliveries = $deliveryCount > 0;
+        }
+
         return view('livewire.purchasing.receive-form', compact(
-            'suppliers', 'uoms', 'searchResults', 'grandTotal'
+            'suppliers', 'uoms', 'searchResults', 'grandTotal', 'hasPartialDeliveries', 'deliveryCount'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 
@@ -266,7 +286,8 @@ class ReceiveForm extends Component
             $poLine = $po->lines->firstWhere('ingredient_id', $line['ingredient_id']);
             if ($poLine) {
                 $added       = floatval($line['received_qty']);
-                $newReceived = min(floatval($poLine->received_quantity) + $added, floatval($poLine->quantity));
+                $newReceived = floatval($poLine->received_quantity) + $added;
+                // Don't cap at ordered qty — allow over-delivery
                 $poLine->update(['received_quantity' => $newReceived]);
             }
         }
@@ -275,7 +296,12 @@ class ReceiveForm extends Component
         $allReceived = $po->lines->every(fn ($l) => floatval($l->received_quantity) >= floatval($l->quantity));
         $anyReceived = $po->lines->some(fn ($l) => floatval($l->received_quantity) > 0);
 
-        $po->update(['status' => $allReceived ? 'received' : ($anyReceived ? 'partial' : 'sent')]);
+        // If marked as final delivery, close the PO regardless of quantities
+        if ($this->is_final_delivery) {
+            $po->update(['status' => 'received']);
+        } else {
+            $po->update(['status' => $allReceived ? 'received' : ($anyReceived ? 'partial' : 'sent')]);
+        }
     }
 
     private function generateDoNumber(): string

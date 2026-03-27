@@ -16,12 +16,16 @@ class GoodsReceivedNote extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'delivery_order_id', 'purchase_order_id',
         'supplier_id', 'grn_number', 'status', 'received_date', 'total_amount',
+        'subtotal', 'tax_rate_id', 'tax_amount', 'delivery_charges',
         'notes', 'received_by', 'created_by',
     ];
 
     protected $casts = [
-        'received_date' => 'date',
-        'total_amount'  => 'decimal:4',
+        'received_date'    => 'date',
+        'total_amount'     => 'decimal:4',
+        'subtotal'         => 'decimal:4',
+        'tax_amount'       => 'decimal:4',
+        'delivery_charges' => 'decimal:4',
     ];
 
     protected static function booted(): void
@@ -67,5 +71,10 @@ class GoodsReceivedNote extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 }

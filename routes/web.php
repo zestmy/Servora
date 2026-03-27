@@ -43,6 +43,12 @@ use App\Livewire\Settings\LabourCosts as SettingsLabourCosts;
 use App\Livewire\Analytics\Index as AnalyticsIndex;
 use App\Livewire\Purchasing\ConvertToDoForm as PurchasingConvertToDoForm;
 use App\Livewire\Purchasing\GrnReceiveForm as PurchasingGrnReceiveForm;
+use App\Livewire\Purchasing\PurchaseRequestForm as PurchasingRequestForm;
+use App\Livewire\Purchasing\ConsolidateForm as PurchasingConsolidateForm;
+use App\Livewire\Purchasing\StockTransferForm as PurchasingStockTransferForm;
+use App\Livewire\Purchasing\InvoiceIndex as PurchasingInvoiceIndex;
+use App\Livewire\Settings\CpuManagement as SettingsCpuManagement;
+use App\Livewire\Settings\TaxRates as SettingsTaxRates;
 use App\Http\Controllers\PurchaseDocumentPdfController;
 use App\Http\Controllers\IngredientExportController;
 use App\Http\Controllers\StockTakeCountSheetController;
@@ -89,6 +95,27 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
 Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
 Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
 
+// Supplier portal
+Route::prefix('supplier')->group(function () {
+    Route::get('/register', [\App\Http\Controllers\Supplier\AuthController::class, 'showRegister'])->name('supplier.register');
+    Route::post('/register', [\App\Http\Controllers\Supplier\AuthController::class, 'register'])->name('supplier.register.submit');
+    Route::get('/login', [\App\Http\Controllers\Supplier\AuthController::class, 'showLogin'])->name('supplier.login');
+    Route::post('/login', [\App\Http\Controllers\Supplier\AuthController::class, 'login'])->name('supplier.login.submit');
+    Route::get('/forgot-password', [\App\Http\Controllers\Supplier\AuthController::class, 'showForgotPassword'])->name('supplier.forgot-password');
+    Route::post('/forgot-password', [\App\Http\Controllers\Supplier\AuthController::class, 'sendResetLink'])->name('supplier.forgot-password.submit');
+    Route::get('/reset-password', [\App\Http\Controllers\Supplier\AuthController::class, 'showResetPassword'])->name('supplier.reset-password');
+    Route::post('/reset-password', [\App\Http\Controllers\Supplier\AuthController::class, 'resetPassword'])->name('supplier.reset-password.submit');
+});
+Route::middleware(\App\Http\Middleware\SupplierAuthenticate::class)->prefix('supplier')->group(function () {
+    Route::get('/dashboard', \App\Livewire\Supplier\Dashboard::class)->name('supplier.dashboard');
+    Route::get('/products', \App\Livewire\Supplier\Products::class)->name('supplier.products');
+    Route::get('/orders', \App\Livewire\Supplier\Orders::class)->name('supplier.orders');
+    Route::get('/orders/{id}', \App\Livewire\Supplier\OrderShow::class)->name('supplier.orders.show');
+    Route::get('/invoices', \App\Livewire\Supplier\Invoices::class)->name('supplier.invoices');
+    Route::get('/profile', \App\Livewire\Supplier\Profile::class)->name('supplier.profile');
+    Route::post('/logout', [\App\Http\Controllers\Supplier\AuthController::class, 'logout'])->name('supplier.logout');
+});
+
 // Affiliate portal (public referral partners)
 Route::prefix('affiliate')->group(function () {
     Route::get('/register', [\App\Http\Controllers\Affiliate\AuthController::class, 'showRegister'])->name('affiliate.register');
@@ -127,6 +154,12 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/orders/{id}/convert-to-do', PurchasingConvertToDoForm::class)->name('purchasing.convert-to-do')->middleware('can:purchasing.view');
     Route::get('/purchasing/grn/{id}/receive', PurchasingGrnReceiveForm::class)->name('purchasing.grn.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/pdf/{type}/{id}', PurchaseDocumentPdfController::class)->name('purchasing.pdf')->middleware('can:purchasing.view');
+    Route::get('/purchasing/requests/create', PurchasingRequestForm::class)->name('purchasing.requests.create')->middleware('can:purchasing.view');
+    Route::get('/purchasing/requests/{id}/edit', PurchasingRequestForm::class)->name('purchasing.requests.edit')->middleware('can:purchasing.view');
+    Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.view');
+    Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.view');
+    Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
+    Route::get('/purchasing/price-comparison', \App\Livewire\Purchasing\PriceComparison::class)->name('purchasing.price-comparison')->middleware('can:purchasing.view');
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
     Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.view');
     Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.view');
@@ -143,8 +176,34 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/prep-items/{id}', PrepItemForm::class)->name('inventory.prep-items.show')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/create', TransferForm::class)->name('inventory.transfers.create')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.view');
-    Route::get('/reports', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');
+    Route::get('/reports', \App\Livewire\Reports\Hub::class)->name('reports.hub')->middleware('can:reports.view');
+    Route::get('/reports/cost-summary', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');
     Route::get('/reports/price-history', ReportsPriceHistory::class)->name('reports.price-history')->middleware('can:reports.view');
+    // Purchase reports
+    Route::get('/reports/purchase-analysis', \App\Livewire\Reports\Purchase\PurchaseAnalysis::class)->name('reports.purchase-analysis')->middleware('can:reports.view');
+    Route::get('/reports/po-summary', \App\Livewire\Reports\Purchase\PoSummary::class)->name('reports.po-summary')->middleware('can:reports.view');
+    // Order reports
+    Route::get('/reports/order-history', \App\Livewire\Reports\Order\OrderHistory::class)->name('reports.order-history')->middleware('can:reports.view');
+    Route::get('/reports/order-summary', \App\Livewire\Reports\Order\OrderSummary::class)->name('reports.order-summary')->middleware('can:reports.view');
+    Route::get('/reports/order-items-by-branch', \App\Livewire\Reports\Order\OrderItemsByBranch::class)->name('reports.order-items-by-branch')->middleware('can:reports.view');
+    Route::get('/reports/delivery-order', \App\Livewire\Reports\Order\DeliveryOrderReport::class)->name('reports.delivery-order')->middleware('can:reports.view');
+    Route::get('/reports/grn-report', \App\Livewire\Reports\Order\GrnReport::class)->name('reports.grn-report')->middleware('can:reports.view');
+    Route::get('/reports/invoice-summary', \App\Livewire\Reports\Order\InvoiceSummary::class)->name('reports.invoice-summary')->middleware('can:reports.view');
+    // Inventory reports
+    Route::get('/reports/stock-balance-package', \App\Livewire\Reports\Inventory\StockBalancePackage::class)->name('reports.stock-balance-package')->middleware('can:reports.view');
+    Route::get('/reports/stock-balance-product', \App\Livewire\Reports\Inventory\StockBalanceProduct::class)->name('reports.stock-balance-product')->middleware('can:reports.view');
+    Route::get('/reports/stock-card', \App\Livewire\Reports\Inventory\StockCard::class)->name('reports.stock-card')->middleware('can:reports.view');
+    // Inventory Action reports
+    Route::get('/reports/stock-count', \App\Livewire\Reports\InventoryAction\StockCount::class)->name('reports.stock-count')->middleware('can:reports.view');
+    Route::get('/reports/stock-count-analysis', \App\Livewire\Reports\InventoryAction\StockCountAnalysis::class)->name('reports.stock-count-analysis')->middleware('can:reports.view');
+    Route::get('/reports/stock-wastage', \App\Livewire\Reports\InventoryAction\StockWastage::class)->name('reports.stock-wastage')->middleware('can:reports.view');
+    Route::get('/reports/stock-transfer-history', \App\Livewire\Reports\InventoryAction\StockTransferHistory::class)->name('reports.stock-transfer-history')->middleware('can:reports.view');
+    Route::get('/reports/stock-adjustment', \App\Livewire\Reports\InventoryAction\StockAdjustment::class)->name('reports.stock-adjustment')->middleware('can:reports.view');
+    // Menu reports
+    Route::get('/reports/sales-menu-ingredients', \App\Livewire\Reports\Menu\SalesMenuIngredients::class)->name('reports.sales-menu-ingredients')->middleware('can:reports.view');
+    Route::get('/reports/menu-ingredients', \App\Livewire\Reports\Menu\MenuIngredients::class)->name('reports.menu-ingredients')->middleware('can:reports.view');
+    // Other reports
+    Route::get('/reports/inventory-variance', \App\Livewire\Reports\Others\InventoryVariance::class)->name('reports.inventory-variance')->middleware('can:reports.view');
     Route::get('/settings', SettingsIndex::class)->name('settings.index')->middleware('can:settings.view');
     Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:settings.view');
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:settings.view');
@@ -164,6 +223,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:settings.view');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:settings.view');
     Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:settings.view');
+    Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.view');
+    Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.view');
+    Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:settings.view');
+    Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:settings.view');
     Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:recipes.view');
     Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:recipes.view');
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware([\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin|Company Admin|Business Manager|Operations Manager', 'check.feature:analytics']);

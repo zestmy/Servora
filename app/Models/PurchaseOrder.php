@@ -19,6 +19,8 @@ class PurchaseOrder extends Model
         'po_number', 'status', 'order_date', 'expected_delivery_date',
         'total_amount', 'subtotal', 'tax_percent', 'tax_amount',
         'notes', 'receiver_name', 'department_id', 'created_by', 'approved_by',
+        'purchase_request_id', 'cpu_id', 'source', 'delivery_charges', 'delivery_outlet_id',
+        'is_multi_supplier', 'parent_po_id', 'tax_rate_id',
     ];
 
     protected $casts = [
@@ -28,6 +30,8 @@ class PurchaseOrder extends Model
         'subtotal'               => 'decimal:4',
         'tax_percent'            => 'decimal:2',
         'tax_amount'             => 'decimal:4',
+        'delivery_charges'       => 'decimal:4',
+        'is_multi_supplier'      => 'boolean',
     ];
 
     protected static function booted(): void
@@ -78,5 +82,54 @@ class PurchaseOrder extends Model
     public function goodsReceivedNotes(): HasMany
     {
         return $this->hasMany(GoodsReceivedNote::class);
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
+    }
+
+    public function purchaseRequest(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseRequest::class);
+    }
+
+    public function cpu(): BelongsTo
+    {
+        return $this->belongsTo(CentralPurchasingUnit::class, 'cpu_id');
+    }
+
+    public function deliveryOutlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class, 'delivery_outlet_id');
+    }
+
+    public function parentPo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_po_id');
+    }
+
+    public function childPos(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_po_id');
+    }
+
+    public function isFullyReceived(): bool
+    {
+        return $this->lines->every(fn ($l) => $l->isFullyReceived());
+    }
+
+    public function isPartiallyReceived(): bool
+    {
+        return $this->lines->some(fn ($l) => floatval($l->received_quantity) > 0)
+            && ! $this->isFullyReceived();
+    }
+
+    public function receivedPercentage(): float
+    {
+        $totalQty = $this->lines->sum(fn ($l) => floatval($l->quantity));
+        if ($totalQty <= 0) return 0;
+        $receivedQty = $this->lines->sum(fn ($l) => floatval($l->received_quantity));
+        return round(($receivedQty / $totalQty) * 100, 1);
     }
 }

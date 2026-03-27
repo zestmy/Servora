@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,6 +18,7 @@ class Company extends Model
         'billing_address', 'logo', 'currency', 'tax_type', 'tax_percent',
         'show_price_on_do_grn', 'auto_generate_do', 'direct_supplier_order', 'po_cc_emails',
         'is_active', 'require_po_approval',
+        'ordering_mode', 'require_pr_approval', 'default_tax_country',
         'onboarding_completed_at', 'registered_via', 'trial_ends_at',
     ];
 
@@ -27,6 +29,7 @@ class Company extends Model
         'show_price_on_do_grn'   => 'boolean',
         'auto_generate_do'       => 'boolean',
         'direct_supplier_order'  => 'boolean',
+        'require_pr_approval'    => 'boolean',
         'onboarding_completed_at' => 'datetime',
         'trial_ends_at'          => 'datetime',
     ];
@@ -81,5 +84,15 @@ class Company extends Model
     public function isGrandfathered(): bool
     {
         return $this->registered_via === 'seeder' || $this->registered_via === 'admin';
+    }
+
+    public function cpus(): HasMany
+    {
+        return $this->hasMany(CentralPurchasingUnit::class);
+    }
+
+    public function isCpuMode(): bool
+    {
+        return $this->ordering_mode === 'cpu';
     }
 }

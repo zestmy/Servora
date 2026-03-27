@@ -16,10 +16,13 @@ class Supplier extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'contact_person', 'email', 'phone', 'address', 'payment_terms', 'is_active',
+        'whatsapp_number', 'notification_preference', 'portal_enabled',
+        'tax_registration_number', 'billing_address', 'bank_name', 'bank_account_number',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'      => 'boolean',
+        'portal_enabled' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -42,5 +45,15 @@ class Supplier extends Model
     public function purchaseOrders(): HasMany
     {
         return $this->hasMany(PurchaseOrder::class);
+    }
+
+    public function users(): HasMany
+    {
+        return $this->hasMany(SupplierUser::class);
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(SupplierProduct::class);
     }
 }

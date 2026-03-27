@@ -11,7 +11,10 @@ use App\Models\RecipeCategory;
 use App\Models\SalesCategory;
 use App\Models\SalesTarget;
 use App\Models\CostType;
+use App\Models\CentralPurchasingUnit;
 use App\Models\PoApprover;
+use App\Models\SupplierPriceAlert;
+use App\Models\TaxRate;
 use App\Models\Supplier;
 use App\Models\LabourCost;
 use App\Models\LmsUser;
@@ -47,11 +50,14 @@ class Index extends Component
         $outletCount         = $user->company_id
             ? Outlet::where('company_id', $user->company_id)->count()
             : 0;
+        $cpuCount            = CentralPurchasingUnit::count();
+        $taxRateCount        = TaxRate::count();
+        $priceAlertCount     = SupplierPriceAlert::count();
 
         return view('livewire.settings.index', compact(
             'isSystemLevel', 'isBusinessLevel',
             'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
-            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount'
+            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'taxRateCount', 'priceAlertCount'
         ))->layout('layouts.app', ['title' => 'Settings']);
     }
 }

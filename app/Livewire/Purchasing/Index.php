@@ -6,8 +6,11 @@ use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
 use App\Models\Outlet;
 use App\Models\PoApprover;
+use App\Models\PrApprover;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRecord;
+use App\Models\PurchaseRequest;
+use App\Models\StockTransferOrder;
 use App\Models\Supplier;
 use App\Services\CsvExportService;
 use App\Services\PoEmailService;
@@ -85,6 +88,109 @@ class Index extends Component
             ->select('outlet_id', 'department_id')
             ->get()
             ->toArray();
+    }
+
+    private function isCpuMode(): bool
+    {
+        return Auth::user()->company?->ordering_mode === 'cpu';
+    }
+
+    private function isCpuUser(): bool
+    {
+        return DB::table('cpu_users')->where('user_id', Auth::id())->exists();
+    }
+
+    private function isPrApprover(): bool
+    {
+        return PrApprover::where('user_id', Auth::id())->exists();
+    }
+
+    // ── STO Actions ─────────────────────────────────────────────────────────
+
+    public function sendSto(int $id): void
+    {
+        $sto = StockTransferOrder::findOrFail($id);
+        if ($sto->status !== 'draft') return;
+        $sto->update(['status' => 'sent']);
+        session()->flash('success', "STO {$sto->sto_number} sent to outlet.");
+    }
+
+    public function receiveSto(int $id): void
+    {
+        $sto = StockTransferOrder::findOrFail($id);
+        if ($sto->status !== 'sent') return;
+        $sto->update(['status' => 'received', 'received_by' => Auth::id()]);
+        session()->flash('success', "STO {$sto->sto_number} received.");
+    }
+
+    public function cancelSto(int $id): void
+    {
+        $sto = StockTransferOrder::findOrFail($id);
+        if (in_array($sto->status, ['draft', 'sent'])) {
+            $sto->update(['status' => 'cancelled']);
+            session()->flash('success', "STO {$sto->sto_number} cancelled.");
+        }
+    }
+
+    // ── PR Actions ──────────────────────────────────────────────────────────
+
+    public function submitPr(int $id): void
+    {
+        $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->status !== 'draft') return;
+
+        $requiresApproval = Auth::user()->company?->require_pr_approval ?? false;
+
+        if ($requiresApproval) {
+            $pr->update(['status' => 'submitted']);
+            session()->flash('success', 'Purchase request submitted for approval.');
+        } else {
+            $pr->update([
+                'status'      => 'approved',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
+            session()->flash('success', 'Purchase request approved.');
+        }
+    }
+
+    public function approvePr(int $id): void
+    {
+        $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->status !== 'submitted') return;
+
+        if (! PrApprover::isApproverFor(Auth::id(), $pr->outlet_id, $pr->department_id)) return;
+
+        $pr->update([
+            'status'      => 'approved',
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
+        ]);
+        session()->flash('success', 'Purchase request approved.');
+    }
+
+    public function rejectPr(int $id): void
+    {
+        $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->status !== 'submitted') return;
+
+        if (! PrApprover::isApproverFor(Auth::id(), $pr->outlet_id, $pr->department_id)) return;
+
+        $pr->update([
+            'status'          => 'rejected',
+            'approved_by'     => Auth::id(),
+            'rejected_reason' => 'Rejected by approver',
+        ]);
+        session()->flash('success', 'Purchase request rejected.');
+    }
+
+    public function cancelPr(int $id): void
+    {
+        $pr = PurchaseRequest::findOrFail($id);
+        if (in_array($pr->status, ['draft', 'submitted'])) {
+            $pr->update(['status' => 'cancelled']);
+            session()->flash('success', 'Purchase request cancelled.');
+        }
     }
 
     // ── PO Actions ──────────────────────────────────────────────────────────
@@ -439,8 +545,13 @@ class Index extends Component
         $seesAll = $this->seesAllOutlets();
         $canCreatePo = ! $isPurchasing;
         $approverOutletIds = $this->approverOutletIds();
+        $cpuMode = $this->isCpuMode();
+        $isCpuUser = $cpuMode ? $this->isCpuUser() : false;
+        $isPrApprover = $cpuMode ? $this->isPrApprover() : false;
 
         $data = match ($this->tab) {
+            'pr'  => $this->getPrData($seesAll, $isCpuUser),
+            'sto' => $this->getStoData($seesAll),
             'do'  => $this->getDoData($seesAll),
             'grn' => $this->getGrnData($seesAll),
             default => $this->getPoData($seesAll),
@@ -476,6 +587,9 @@ class Index extends Component
             'showPrice'          => $showPrice,
             'isSystemAdmin'      => $isSystemAdmin,
             'canRollbackPo'      => $canRollbackPo,
+            'cpuMode'            => $cpuMode,
+            'isCpuUser'          => $isCpuUser,
+            'isPrApprover'       => $isPrApprover,
         ]))->layout('layouts.app', ['title' => 'Purchasing']);
     }
 
@@ -483,7 +597,7 @@ class Index extends Component
 
     private function getPoData(bool $seesAll): array
     {
-        $query = PurchaseOrder::with(['supplier', 'outlet'])->withCount('lines');
+        $query = PurchaseOrder::with(['supplier', 'outlet', 'lines'])->withCount('lines');
         $this->applyPoFilters($query);
 
         $orders = $query->orderByDesc('order_date')->orderByDesc('id')->paginate(15);
@@ -549,6 +663,64 @@ class Index extends Component
         $grns = $query->orderByDesc('created_at')->orderByDesc('id')->paginate(15);
 
         return ['grns' => $grns];
+    }
+
+    private function getPrData(bool $seesAll, bool $isCpuUser): array
+    {
+        $query = PurchaseRequest::with(['outlet', 'createdBy'])->withCount('lines');
+
+        if ($isCpuUser || $seesAll) {
+            if ($this->outletFilter) {
+                $query->where('outlet_id', $this->outletFilter);
+            }
+        } else {
+            $this->scopeByOutlet($query);
+        }
+
+        if ($this->search) {
+            $query->where('pr_number', 'like', '%' . $this->search . '%');
+        }
+        if ($this->statusFilter) {
+            $query->where('status', $this->statusFilter);
+        }
+        if ($this->dateFrom) {
+            $query->where('requested_date', '>=', $this->dateFrom);
+        }
+        if ($this->dateTo) {
+            $query->where('requested_date', '<=', $this->dateTo);
+        }
+
+        $purchaseRequests = $query->orderByDesc('requested_date')->orderByDesc('id')->paginate(15);
+
+        return ['purchaseRequests' => $purchaseRequests];
+    }
+
+    private function getStoData(bool $seesAll): array
+    {
+        $query = StockTransferOrder::with(['cpu', 'toOutlet'])->withCount('lines');
+
+        if (! $seesAll) {
+            $this->scopeByOutlet($query, 'to_outlet_id');
+        } elseif ($this->outletFilter) {
+            $query->where('to_outlet_id', $this->outletFilter);
+        }
+
+        if ($this->search) {
+            $query->where('sto_number', 'like', '%' . $this->search . '%');
+        }
+        if ($this->statusFilter) {
+            $query->where('status', $this->statusFilter);
+        }
+        if ($this->dateFrom) {
+            $query->where('transfer_date', '>=', $this->dateFrom);
+        }
+        if ($this->dateTo) {
+            $query->where('transfer_date', '<=', $this->dateTo);
+        }
+
+        $stockTransfers = $query->orderByDesc('transfer_date')->orderByDesc('id')->paginate(15);
+
+        return ['stockTransfers' => $stockTransfers];
     }
 
     private function applyPoFilters($query): void

@@ -15,11 +15,20 @@ class DeliveryOrder extends Model
 
     protected $fillable = [
         'company_id', 'outlet_id', 'purchase_order_id', 'supplier_id', 'do_number',
-        'status', 'delivery_date', 'notes', 'received_by', 'created_by',
+        'status', 'delivery_sequence', 'is_final_delivery',
+        'delivery_date', 'notes',
+        'subtotal', 'tax_rate_id', 'tax_amount', 'delivery_charges', 'total_amount',
+        'received_by', 'created_by',
     ];
 
     protected $casts = [
-        'delivery_date' => 'date',
+        'delivery_date'     => 'date',
+        'delivery_sequence' => 'integer',
+        'is_final_delivery' => 'boolean',
+        'subtotal'          => 'decimal:4',
+        'tax_amount'        => 'decimal:4',
+        'delivery_charges'  => 'decimal:4',
+        'total_amount'      => 'decimal:4',
     ];
 
     protected static function booted(): void
@@ -60,6 +69,11 @@ class DeliveryOrder extends Model
     public function receivedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'received_by');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 
     public function goodsReceivedNotes(): HasMany

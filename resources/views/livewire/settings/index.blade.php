@@ -162,6 +162,59 @@
                     </div>
                 </a>
 
+                {{-- Price Alerts --}}
+                <a href="{{ route('settings.price-alerts') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Price Alerts</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Monitor ingredient price changes</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $priceAlertCount ?? 0 }} {{ Str::plural('alert', $priceAlertCount ?? 0) }}</p>
+                    </div>
+                </a>
+
+                {{-- Supplier Product Mapping --}}
+                <a href="{{ route('settings.supplier-mapping') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Supplier Product Mapping</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Map supplier products to your ingredients</p>
+                    </div>
+                </a>
+
+                {{-- Tax Rates --}}
+                <a href="{{ route('settings.tax-rates') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Tax Rates</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Configure tax rates per country (SST, GST, VAT)</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $taxRateCount ?? 0 }} {{ Str::plural('rate', $taxRateCount ?? 0) }}</p>
+                    </div>
+                </a>
+
+                {{-- CPU Management (only in CPU mode) --}}
+                @if (Auth::user()->company?->ordering_mode === 'cpu')
+                    <a href="{{ route('settings.cpu-management') }}"
+                       class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Central Purchasing</p>
+                            <p class="text-sm text-gray-500 mt-0.5">Manage CPU units and assigned staff</p>
+                            <p class="text-xs text-indigo-500 font-medium mt-2">{{ $cpuCount ?? 0 }} {{ Str::plural('unit', $cpuCount ?? 0) }}</p>
+                        </div>
+                    </a>
+                @endif
+
                 {{-- Departments --}}
                 <a href="{{ route('settings.departments') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">

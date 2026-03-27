@@ -57,7 +57,21 @@
                     <div class="p-3 bg-blue-50 rounded-lg text-sm text-blue-700 border border-blue-100">
                         Receiving against PO <span class="font-mono font-semibold">{{ $poNumber }}</span>
                         · {{ $poSupplier }}
+                        @if ($hasPartialDeliveries)
+                            <span class="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                                Delivery #{{ $deliveryCount + 1 }}
+                            </span>
+                        @endif
                     </div>
+                @endif
+
+                {{-- Final delivery checkbox --}}
+                @if ($poId)
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" wire:model="is_final_delivery" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-600">Mark as final delivery</span>
+                        <span class="text-xs text-gray-400">(closes the PO even if not all items are fully received)</span>
+                    </label>
                 @endif
 
                 {{-- Supplier (standalone mode) --}}
@@ -206,6 +220,8 @@
                             <th class="px-4 py-2 text-left">Ingredient</th>
                             @if ($poId)
                                 <th class="px-4 py-2 text-right w-24">Ordered</th>
+                                <th class="px-4 py-2 text-right w-24">Prev. Rcvd</th>
+                                <th class="px-4 py-2 text-right w-24">Remaining</th>
                             @endif
                             <th class="px-4 py-2 text-right w-28">Received Qty</th>
                             <th class="px-4 py-2 text-left w-24">UOM</th>
@@ -236,6 +252,12 @@
                                     <td class="px-4 py-2 text-right text-gray-500 tabular-nums">
                                         {{ number_format($line['ordered_qty'], 3) }}
                                         <span class="text-gray-300 text-xs">{{ $line['uom_abbr'] }}</span>
+                                    </td>
+                                    <td class="px-4 py-2 text-right tabular-nums {{ ($line['previously_received'] ?? 0) > 0 ? 'text-blue-600 font-medium' : 'text-gray-400' }}">
+                                        {{ number_format($line['previously_received'] ?? 0, 3) }}
+                                    </td>
+                                    <td class="px-4 py-2 text-right tabular-nums {{ ($line['remaining_qty'] ?? 0) > 0 ? 'text-amber-600 font-medium' : 'text-green-600' }}">
+                                        {{ number_format($line['remaining_qty'] ?? 0, 3) }}
                                     </td>
                                 @endif
                                 <td class="px-4 py-2">

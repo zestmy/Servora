@@ -15,12 +15,30 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Purchasing</h2>
-        @if ($canCreatePo)
-            <a href="{{ route('purchasing.orders.create') }}"
-               class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                + New Purchase Order
-            </a>
-        @endif
+        <div class="flex gap-2">
+            @if ($cpuMode && $canCreatePo)
+                <a href="{{ route('purchasing.requests.create') }}"
+                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    + New Purchase Request
+                </a>
+            @endif
+            @if ($cpuMode && $isCpuUser)
+                <a href="{{ route('purchasing.consolidate') }}"
+                   class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
+                    Consolidate PRs
+                </a>
+                <a href="{{ route('purchasing.transfers.create') }}"
+                   class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
+                    + Stock Transfer
+                </a>
+            @endif
+            @if (!$cpuMode && $canCreatePo)
+                <a href="{{ route('purchasing.orders.create') }}"
+                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    + New Purchase Order
+                </a>
+            @endif
+        </div>
     </div>
 
     {{-- Stats --}}
@@ -36,6 +54,12 @@
     {{-- Tabs --}}
     <div class="border-b border-gray-200 mb-4">
         <nav class="flex gap-6 -mb-px">
+            @if ($cpuMode)
+                <button wire:click="$set('tab', 'pr')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'pr' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Purchase Requests
+                </button>
+            @endif
             <button wire:click="$set('tab', 'po')"
                     class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'po' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Purchase Orders
@@ -48,6 +72,12 @@
                     class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'grn' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Goods Received
             </button>
+            @if ($cpuMode)
+                <button wire:click="$set('tab', 'sto')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'sto' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Stock Transfers
+                </button>
+            @endif
         </nav>
     </div>
 
@@ -69,7 +99,25 @@
                 </select>
             @endif
 
-            @if ($tab === 'po')
+            @if ($tab === 'sto')
+                <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="received">Received</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            @elseif ($tab === 'pr')
+                <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="submitted">Pending Approval</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="converted">Converted to PO</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            @elseif ($tab === 'po')
                 <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">All Status</option>
                     <option value="draft">Draft</option>
@@ -115,11 +163,15 @@
     </div>
 
     {{-- Tab Content --}}
-    @if ($tab === 'po')
+    @if ($tab === 'pr' && $cpuMode)
+        @include('livewire.purchasing.partials.pr-table')
+    @elseif ($tab === 'po')
         @include('livewire.purchasing.partials.po-table')
     @elseif ($tab === 'do')
         @include('livewire.purchasing.partials.do-table')
     @elseif ($tab === 'grn')
         @include('livewire.purchasing.partials.grn-table')
+    @elseif ($tab === 'sto' && $cpuMode)
+        @include('livewire.purchasing.partials.sto-table')
     @endif
 </div>

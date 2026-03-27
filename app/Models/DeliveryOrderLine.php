@@ -11,7 +11,8 @@ class DeliveryOrderLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'delivery_order_id', 'ingredient_id', 'ordered_quantity', 'delivered_quantity',
+        'delivery_order_id', 'purchase_order_line_id', 'ingredient_id',
+        'ordered_quantity', 'delivered_quantity',
         'uom_id', 'unit_cost', 'condition',
     ];
 
@@ -34,5 +35,10 @@ class DeliveryOrderLine extends Model
     public function uom(): BelongsTo
     {
         return $this->belongsTo(UnitOfMeasure::class, 'uom_id');
+    }
+
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class);
     }
 }

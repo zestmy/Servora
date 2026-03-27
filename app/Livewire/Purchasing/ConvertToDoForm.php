@@ -8,6 +8,7 @@ use App\Models\GoodsReceivedNote;
 use App\Models\Ingredient;
 use App\Models\PurchaseOrder;
 use App\Models\UnitOfMeasure;
+use App\Services\OrderAdjustmentService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -53,8 +54,8 @@ class ConvertToDoForm extends Component
             'outlet', 'supplier', 'lines.ingredient.baseUom', 'lines.uom',
         ])->findOrFail($id);
 
-        if ($po->status !== 'approved') {
-            session()->flash('error', 'Only approved POs can be converted to DO.');
+        if (! in_array($po->status, ['approved', 'sent', 'partial'])) {
+            session()->flash('error', 'Only approved/sent/partial POs can be converted to DO.');
             $this->redirectRoute('purchasing.index');
             return;
         }
@@ -66,25 +67,32 @@ class ConvertToDoForm extends Component
         $this->delivery_date = now()->addDays(1)->toDateString();
         $this->notes        = $po->notes ?? '';
 
-        $this->lines = $po->lines->map(function ($l) use ($po) {
-            $packSize = $this->getPackSize($l->ingredient_id, $po->supplier_id);
-            $packInfo = '';
-            if ($packSize > 1 && $l->ingredient?->baseUom) {
-                $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
-                $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
-            }
-            return [
-                'ingredient_id'   => $l->ingredient_id,
-                'ingredient_name' => $l->ingredient?->name ?? '—',
-                'quantity'        => (string) floatval($l->quantity),
-                'uom_id'          => $l->uom_id,
-                'uom_abbr'        => $l->uom?->abbreviation ?? '',
-                'unit_cost'       => (string) floatval($l->unit_cost),
-                'total_cost'      => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-                'po_quantity'     => floatval($l->quantity),
-                'pack_info'       => $packInfo,
-            ];
-        })->toArray();
+        $this->lines = $po->lines
+            ->filter(fn ($l) => $l->remainingQuantity() > 0) // Only show lines with remaining qty
+            ->map(function ($l) use ($po) {
+                $packSize = $this->getPackSize($l->ingredient_id, $po->supplier_id);
+                $packInfo = '';
+                if ($packSize > 1 && $l->ingredient?->baseUom) {
+                    $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+                    $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
+                }
+                $remaining = $l->remainingQuantity();
+                return [
+                    'po_line_id'      => $l->id,
+                    'ingredient_id'   => $l->ingredient_id,
+                    'ingredient_name' => $l->ingredient?->name ?? '—',
+                    'quantity'        => (string) $remaining,
+                    'uom_id'          => $l->uom_id,
+                    'uom_abbr'        => $l->uom?->abbreviation ?? '',
+                    'unit_cost'       => (string) floatval($l->unit_cost),
+                    'total_cost'      => round($remaining * floatval($l->unit_cost), 4),
+                    'po_quantity'     => floatval($l->quantity),
+                    'received_qty'    => floatval($l->received_quantity),
+                    'remaining_qty'   => $remaining,
+                    'pack_info'       => $packInfo ?? '',
+                    'include'         => true,
+                ];
+            })->values()->toArray();
     }
 
     public function addIngredient(int $ingredientId): void
@@ -131,14 +139,23 @@ class ConvertToDoForm extends Component
     {
         $this->validate();
 
-        DB::transaction(function () {
+        // Filter to only included lines
+        $includedLines = array_filter($this->lines, fn ($l) => ($l['include'] ?? true) && floatval($l['quantity']) > 0);
+
+        if (empty($includedLines)) {
+            session()->flash('error', 'Select at least one line to include in the DO.');
+            return;
+        }
+
+        DB::transaction(function () use ($includedLines) {
             $po = PurchaseOrder::with('outlet')->findOrFail($this->poId);
             $companyId = $po->company_id;
             $outletId  = $po->outlet_id;
 
-            // 1. Create Delivery Order
+            // 1. Create Delivery Order with sequence number
             $doNumber = $this->generateDoNumber();
-            $total = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
+            $deliverySeq = OrderAdjustmentService::nextDeliverySequence($po->id);
+            $total = collect($includedLines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
 
             $do = DeliveryOrder::create([
                 'company_id'        => $companyId,
@@ -147,22 +164,24 @@ class ConvertToDoForm extends Component
                 'supplier_id'       => $po->supplier_id,
                 'do_number'         => $doNumber,
                 'status'            => 'pending',
+                'delivery_sequence' => $deliverySeq,
                 'delivery_date'     => $this->delivery_date,
                 'notes'             => $this->notes ?: null,
                 'received_by'       => null,
                 'created_by'        => Auth::id(),
             ]);
 
-            foreach ($this->lines as $line) {
+            foreach ($includedLines as $line) {
                 $qty  = floatval($line['quantity']);
                 $cost = floatval($line['unit_cost']);
                 $do->lines()->create([
-                    'ingredient_id'     => $line['ingredient_id'],
-                    'ordered_quantity'   => $qty,
-                    'delivered_quantity' => 0,
-                    'uom_id'            => $line['uom_id'],
-                    'unit_cost'         => $cost,
-                    'condition'         => 'good',
+                    'purchase_order_line_id' => $line['po_line_id'] ?? null,
+                    'ingredient_id'          => $line['ingredient_id'],
+                    'ordered_quantity'       => $qty,
+                    'delivered_quantity'     => 0,
+                    'uom_id'                => $line['uom_id'],
+                    'unit_cost'             => $cost,
+                    'condition'             => 'good',
                 ]);
             }
 
@@ -180,7 +199,7 @@ class ConvertToDoForm extends Component
                 'created_by'        => Auth::id(),
             ]);
 
-            foreach ($this->lines as $line) {
+            foreach ($includedLines as $line) {
                 $qty  = floatval($line['quantity']);
                 $cost = floatval($line['unit_cost']);
                 $grn->lines()->create([
@@ -194,8 +213,10 @@ class ConvertToDoForm extends Component
                 ]);
             }
 
-            // 3. Update PO status to sent (purchasing has processed it)
-            $po->update(['status' => 'sent']);
+            // 3. Update PO status — 'sent' if first DO, keep 'partial' if already partial
+            if ($po->status === 'approved') {
+                $po->update(['status' => 'sent']);
+            }
         });
 
         session()->flash('success', 'DO created and GRN generated for outlet receiving.');

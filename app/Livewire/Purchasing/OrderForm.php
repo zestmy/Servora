@@ -10,6 +10,7 @@ use App\Models\Outlet;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
+use App\Services\OrderAdjustmentService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -307,6 +308,28 @@ class OrderForm extends Component
 
         // Sync lines — remove items with zero quantity
         $this->lines = array_values(array_filter($this->lines, fn ($l) => floatval($l['quantity']) > 0));
+
+        // Track adjustments on existing PO lines (for approved/sent POs being edited)
+        if ($this->orderId && in_array($this->status, ['approved', 'sent', 'partial'])) {
+            $existingLines = $po->lines()->get()->keyBy('ingredient_id');
+            foreach ($this->lines as $line) {
+                $ingId = (int) $line['ingredient_id'];
+                $existing = $existingLines->get($ingId);
+                if ($existing) {
+                    $newQty = floatval($line['quantity']);
+                    $oldQty = floatval($existing->quantity);
+                    if (abs($newQty - $oldQty) > 0.0001) {
+                        OrderAdjustmentService::adjustQuantity($existing, $newQty, 'Adjusted during PO edit');
+                    }
+                    $newCost = floatval($line['unit_cost']);
+                    $oldCost = floatval($existing->unit_cost);
+                    if (abs($newCost - $oldCost) > 0.0001) {
+                        OrderAdjustmentService::adjustUnitCost($existing, $newCost, 'Price adjusted during PO edit');
+                    }
+                }
+            }
+        }
+
         $po->lines()->delete();
         foreach ($this->lines as $line) {
             $qty  = floatval($line['quantity']);

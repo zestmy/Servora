@@ -109,7 +109,7 @@
                     ['route' => 'purchasing.index',  'icon' => '🛒', 'label' => 'Purchasing',   'permission' => 'purchasing.view'],
                     ['route' => 'sales.index',       'icon' => '💰', 'label' => 'Sales',        'permission' => 'sales.view'],
                     ['route' => 'inventory.index',   'icon' => '📦', 'label' => 'Inventory',    'permission' => 'inventory.view'],
-                    ['route' => 'reports.index',     'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
+                    ['route' => 'reports.hub',       'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
                     ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
                     ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager'], 'feature' => 'analytics'],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
@@ -146,7 +146,10 @@
             @endphp
 
             @foreach ($navItems as $item)
-                @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
+                @php
+                    $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
+                    if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
+                @endphp
                 <a href="{{ route($item['route']) }}"
                    :title="!sidebarOpen ? '{{ $item['label'] }}' : ''"
                    class="flex items-center rounded-lg text-sm font-medium transition-colors

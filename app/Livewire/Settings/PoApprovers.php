@@ -13,6 +13,8 @@ use Livewire\Component;
 class PoApprovers extends Component
 {
     public bool $requirePoApproval = true;
+    public string $orderingMode = 'direct';
+    public bool $requirePrApproval = false;
 
     public bool $showModal = false;
     public ?int $editingOutletId = null;
@@ -21,7 +23,10 @@ class PoApprovers extends Component
 
     public function mount(): void
     {
-        $this->requirePoApproval = Auth::user()->company?->require_po_approval ?? true;
+        $company = Auth::user()->company;
+        $this->requirePoApproval = $company?->require_po_approval ?? true;
+        $this->orderingMode = $company?->ordering_mode ?? 'direct';
+        $this->requirePrApproval = $company?->require_pr_approval ?? false;
     }
 
     public function updatedRequirePoApproval(): void
@@ -32,6 +37,28 @@ class PoApprovers extends Component
         $msg = $this->requirePoApproval
             ? 'PO approval is now required.'
             : 'PO approval is no longer required — POs will be auto-approved on submission.';
+        session()->flash('success', $msg);
+    }
+
+    public function updatedOrderingMode(): void
+    {
+        $company = Auth::user()->company;
+        $company->update(['ordering_mode' => $this->orderingMode]);
+
+        $msg = $this->orderingMode === 'cpu'
+            ? 'Ordering mode set to CPU — outlets will create Purchase Requests instead of direct POs.'
+            : 'Ordering mode set to Direct — outlets create POs directly to suppliers.';
+        session()->flash('success', $msg);
+    }
+
+    public function updatedRequirePrApproval(): void
+    {
+        $company = Auth::user()->company;
+        $company->update(['require_pr_approval' => $this->requirePrApproval]);
+
+        $msg = $this->requirePrApproval
+            ? 'PR approval is now required.'
+            : 'PR approval is no longer required — PRs will be auto-approved on submission.';
         session()->flash('success', $msg);
     }
 

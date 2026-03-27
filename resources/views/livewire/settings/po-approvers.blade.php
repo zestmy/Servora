@@ -24,7 +24,49 @@
         </div>
     </div>
 
-    {{-- Approval Toggle --}}
+    {{-- Ordering Mode Toggle --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-semibold text-gray-800">Ordering Mode</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    @if ($orderingMode === 'cpu')
+                        CPU mode — outlets submit Purchase Requests, CPU consolidates and creates POs to suppliers.
+                    @else
+                        Direct mode — outlets create Purchase Orders directly to suppliers.
+                    @endif
+                </p>
+            </div>
+            <select wire:model.live="orderingMode" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="direct">Direct to Supplier</option>
+                <option value="cpu">Via Central Purchasing (CPU)</option>
+            </select>
+        </div>
+    </div>
+
+    {{-- PR Approval Toggle (CPU mode only) --}}
+    @if ($orderingMode === 'cpu')
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Require PR Approval</p>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        @if ($requirePrApproval)
+                            Submitted Purchase Requests must be approved before CPU can consolidate them.
+                        @else
+                            Purchase Requests are auto-approved on submission.
+                        @endif
+                    </p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" wire:model.live="requirePrApproval" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+            </div>
+        </div>
+    @endif
+
+    {{-- PO Approval Toggle --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
         <div class="flex items-center justify-between">
             <div>
