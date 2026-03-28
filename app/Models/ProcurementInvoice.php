@@ -19,6 +19,7 @@ class ProcurementInvoice extends Model
         'stock_transfer_order_id', 'purchase_order_id', 'goods_received_note_id',
         'invoice_number', 'type', 'status', 'issued_date', 'due_date',
         'subtotal', 'tax_rate_id', 'tax_amount', 'delivery_charges', 'total_amount',
+        'credit_applied', 'balance_due',
         'currency', 'notes', 'created_by',
     ];
 

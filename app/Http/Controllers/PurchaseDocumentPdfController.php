@@ -22,6 +22,7 @@ class PurchaseDocumentPdfController extends Controller
             'po'  => $this->purchaseOrder($id, $company),
             'do'  => $this->deliveryOrder($id, $company),
             'grn' => $this->goodsReceivedNote($id, $company),
+            'cn'  => $this->creditNote($id, $company),
             default => abort(404),
         };
     }
@@ -66,5 +67,16 @@ class PurchaseDocumentPdfController extends Controller
             ->setPaper('a4', 'portrait');
 
         return $pdf->download("GRN-{$grn->grn_number}.pdf");
+    }
+
+    private function creditNote(int $id, ?Company $company)
+    {
+        $cn = \App\Models\CreditNote::with(['supplier', 'outlet', 'lines.ingredient', 'lines.uom', 'createdBy', 'procurementInvoice', 'goodsReceivedNote', 'purchaseOrder'])->findOrFail($id);
+
+        $pdf = Pdf::loadView('pdf.credit-note', compact('cn', 'company'))
+            ->setPaper('a4', 'portrait');
+
+        $prefix = $cn->type === 'debit_note' ? 'DN' : 'CN';
+        return $pdf->download("{$prefix}-{$cn->credit_note_number}.pdf");
     }
 }

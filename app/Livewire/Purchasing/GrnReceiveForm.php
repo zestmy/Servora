@@ -227,7 +227,18 @@ class GrnReceiveForm extends Component
             }
         });
 
-        session()->flash('success', 'GRN received. Purchase record created and ingredient costs updated.');
+        // Auto-generate debit note for variances (damaged/rejected/short)
+        $grn = GoodsReceivedNote::with('lines.ingredient', 'lines.uom')->find($this->grnId);
+        if ($grn) {
+            $debitNote = \App\Services\CreditNoteService::generateFromGrn($grn);
+            if ($debitNote) {
+                session()->flash('success', "GRN received. Debit note {$debitNote->credit_note_number} created for variances.");
+            } else {
+                session()->flash('success', 'GRN received. Purchase record created and ingredient costs updated.');
+            }
+        } else {
+            session()->flash('success', 'GRN received. Purchase record created and ingredient costs updated.');
+        }
         $this->redirectRoute('purchasing.index', ['tab' => 'grn']);
     }
 

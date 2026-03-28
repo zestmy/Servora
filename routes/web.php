@@ -121,6 +121,7 @@ Route::middleware(\App\Http\Middleware\SupplierAuthenticate::class)->prefix('sup
     Route::get('/invoices', \App\Livewire\Supplier\Invoices::class)->name('supplier.invoices');
     Route::get('/quotations', \App\Livewire\Supplier\Quotations::class)->name('supplier.quotations');
     Route::get('/quotations/{quotation_request_supplier_id}/respond', \App\Livewire\Supplier\QuotationResponse::class)->name('supplier.quotations.respond');
+    Route::get('/credit-notes', \App\Livewire\Supplier\CreditNotes::class)->name('supplier.credit-notes');
     Route::get('/profile', \App\Livewire\Supplier\Profile::class)->name('supplier.profile');
     Route::post('/logout', [\App\Http\Controllers\Supplier\AuthController::class, 'logout'])->name('supplier.logout');
 });
@@ -170,6 +171,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/price-comparison', \App\Livewire\Purchasing\PriceComparison::class)->name('purchasing.price-comparison')->middleware('can:purchasing.view');
     Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware('can:purchasing.view');
+    Route::get('/purchasing/credit-notes', \App\Livewire\Purchasing\CreditNoteIndex::class)->name('purchasing.credit-notes.index')->middleware('can:purchasing.view');
+    Route::get('/purchasing/credit-notes/create', \App\Livewire\Purchasing\CreditNoteForm::class)->name('purchasing.credit-notes.create')->middleware('can:purchasing.view');
+    Route::get('/purchasing/credit-notes/{id}', \App\Livewire\Purchasing\CreditNoteForm::class)->name('purchasing.credit-notes.edit')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq', \App\Livewire\Purchasing\RfqIndex::class)->name('purchasing.rfq.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/create', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/{id}', \App\Livewire\Purchasing\RfqShow::class)->name('purchasing.rfq.show')->middleware('can:purchasing.view');
