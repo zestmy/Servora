@@ -58,12 +58,29 @@ class PurchaseRequestService
                 return [];
             }
 
-            // Group all PR lines by preferred_supplier_id
+            // Separate kitchen items from supplier items
             $linesBySupplier = collect();
+            $kitchenLines = collect();
+
             foreach ($prs as $pr) {
                 foreach ($pr->lines as $line) {
                     if (! $line->ingredient_id) continue; // skip custom items
-                $supplierId = $line->preferred_supplier_id ?? 0; // 0 = no preference
+
+                    if ($line->source === 'kitchen') {
+                        $kitchenLines->push([
+                            'pr_id'         => $pr->id,
+                            'outlet_id'     => $pr->outlet_id,
+                            'ingredient_id' => $line->ingredient_id,
+                            'quantity'      => $line->quantity,
+                            'uom_id'        => $line->uom_id,
+                            'ingredient'    => $line->ingredient,
+                            'kitchen_id'    => $line->kitchen_id,
+                            'recipe_id'     => $line->ingredient?->prep_recipe_id,
+                        ]);
+                        continue;
+                    }
+
+                    $supplierId = $line->preferred_supplier_id ?? 0;
                     if (!$linesBySupplier->has($supplierId)) {
                         $linesBySupplier[$supplierId] = collect();
                     }
@@ -75,6 +92,36 @@ class PurchaseRequestService
                         'uom_id'        => $line->uom_id,
                         'ingredient'    => $line->ingredient,
                     ]);
+                }
+            }
+
+            // Create Production Orders for kitchen items
+            if ($kitchenLines->isNotEmpty()) {
+                $kitchenGroups = $kitchenLines->groupBy('kitchen_id');
+                foreach ($kitchenGroups as $kitchenId => $lines) {
+                    if (! $kitchenId) continue;
+                    $prodOrder = \App\Models\ProductionOrder::create([
+                        'company_id'      => $companyId,
+                        'kitchen_id'      => $kitchenId,
+                        'order_number'    => \App\Models\ProductionOrder::generateNumber(),
+                        'status'          => 'scheduled',
+                        'production_date' => now()->addDay()->toDateString(),
+                        'notes'           => 'Auto-created from PR consolidation',
+                        'created_by'      => $userId,
+                    ]);
+                    foreach ($lines as $l) {
+                        if (! $l['recipe_id']) continue;
+                        \App\Models\ProductionOrderLine::create([
+                            'production_order_id' => $prodOrder->id,
+                            'recipe_id'           => $l['recipe_id'],
+                            'planned_quantity'    => $l['quantity'],
+                            'uom_id'             => $l['uom_id'],
+                            'unit_cost'          => floatval($l['ingredient']?->current_cost ?? 0),
+                            'to_outlet_id'       => $l['outlet_id'],
+                            'status'             => 'pending',
+                        ]);
+                    }
+                    $createdPoIds[] = -$prodOrder->id; // negative to distinguish from POs
                 }
             }
 

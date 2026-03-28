@@ -165,6 +165,8 @@
                                         {{ $line['ingredient_name'] }}
                                         @if (empty($line['ingredient_id']))
                                             <span class="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-medium">Custom</span>
+                                        @elseif (($line['source'] ?? 'supplier') === 'kitchen')
+                                            <span class="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-medium">Kitchen</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-center text-gray-400">

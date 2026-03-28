@@ -81,6 +81,8 @@ class PurchaseRequestForm extends Component
                 'uom_id'              => $line->uom_id,
                 'preferred_supplier_id' => $line->preferred_supplier_id,
                 'supplier_name'        => $line->preferredSupplier?->name ?? '',
+                'source'               => $line->source ?? 'supplier',
+                'kitchen_id'           => $line->kitchen_id,
                 'par_level'            => $line->ingredient_id ? $this->getParLevel($line->ingredient_id) : 0,
                 'notes'                => $line->notes ?? '',
             ];
@@ -106,13 +108,22 @@ class PurchaseRequestForm extends Component
             ->with('supplier')
             ->first();
 
+        // Auto-detect prep items → source from kitchen
+        $isPrep = $ingredient->is_prep;
+        $kitchenId = null;
+        if ($isPrep) {
+            $kitchenId = \App\Models\CentralKitchen::where('is_active', true)->value('id');
+        }
+
         $this->lines[] = [
             'ingredient_id'        => $ingredient->id,
             'ingredient_name'      => $ingredient->name,
             'quantity'             => 0,
             'uom_id'              => $ingredient->base_uom_id,
-            'preferred_supplier_id' => $preferred?->supplier_id,
-            'supplier_name'        => $preferred?->supplier?->name ?? '',
+            'preferred_supplier_id' => $isPrep ? null : $preferred?->supplier_id,
+            'supplier_name'        => $isPrep ? '' : ($preferred?->supplier?->name ?? ''),
+            'source'               => $isPrep ? 'kitchen' : 'supplier',
+            'kitchen_id'           => $kitchenId,
             'par_level'            => $this->getParLevel($ingredient->id),
             'notes'                => '',
         ];
@@ -199,6 +210,8 @@ class PurchaseRequestForm extends Component
                 'quantity'             => $line['quantity'],
                 'uom_id'              => $line['uom_id'],
                 'preferred_supplier_id' => $line['preferred_supplier_id'] ?: null,
+                'source'               => $line['source'] ?? 'supplier',
+                'kitchen_id'           => $line['kitchen_id'] ?? null,
                 'notes'                => $line['notes'] ?? null,
             ]);
         }
