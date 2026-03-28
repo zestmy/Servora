@@ -28,8 +28,8 @@ class Index extends Component
     public function render()
     {
         $user = Auth::user();
-        $isSystemLevel = $user->hasRole(['Super Admin', 'System Admin']);
-        $isBusinessLevel = $user->hasRole('Business Manager');
+        $isSystemLevel = $user->isSystemRole();
+        $isBusinessLevel = $user->hasCapability('can_manage_users');
 
         $departmentCount     = Department::count();
         $costTypeCount       = CostType::count();

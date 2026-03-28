@@ -56,12 +56,12 @@ class Index extends Component
 
     private function isPurchasingRole(): bool
     {
-        return Auth::user()->hasRole('Purchasing');
+        return Auth::user()->hasPermissionTo('purchasing.view');
     }
 
     private function seesAllOutlets(): bool
     {
-        return Auth::user()->canViewAllOutlets() || $this->isPurchasingRole();
+        return Auth::user()->can_view_all_outlets || Auth::user()->isSystemRole() || $this->isPurchasingRole();
     }
 
     /**
@@ -292,7 +292,7 @@ class Index extends Component
      */
     public function adminDeletePo(int $id): void
     {
-        if (! Auth::user()->hasRole(['Super Admin', 'System Admin'])) {
+        if (! Auth::user()->isSystemRole()) {
             session()->flash('error', 'Unauthorized.');
             return;
         }
@@ -333,7 +333,7 @@ class Index extends Component
      */
     public function adminDeleteDo(int $id): void
     {
-        if (! Auth::user()->hasRole(['Super Admin', 'System Admin'])) {
+        if (! Auth::user()->isSystemRole()) {
             session()->flash('error', 'Unauthorized.');
             return;
         }
@@ -363,7 +363,7 @@ class Index extends Component
      */
     public function adminDeleteGrn(int $id): void
     {
-        if (! Auth::user()->hasRole(['Super Admin', 'System Admin'])) {
+        if (! Auth::user()->isSystemRole()) {
             session()->flash('error', 'Unauthorized.');
             return;
         }
@@ -393,7 +393,7 @@ class Index extends Component
     public function rollbackPo(int $id): void
     {
         $user = Auth::user();
-        if (! $user->hasRole(['Super Admin', 'System Admin', 'Business Manager'])) {
+        if (! $user->isSystemRole() && ! $user->hasCapability('can_delete_records')) {
             session()->flash('error', 'Unauthorized.');
             return;
         }
@@ -579,8 +579,8 @@ class Index extends Component
 
         $showPrice = (bool) ($user->company?->show_price_on_do_grn ?? false);
 
-        $isSystemAdmin = $user->hasRole(['Super Admin', 'System Admin']);
-        $canRollbackPo = $user->hasRole(['Super Admin', 'System Admin', 'Business Manager']);
+        $isSystemAdmin = $user->isSystemRole();
+        $canRollbackPo = $user->isSystemRole() || $user->hasCapability('can_delete_records');
 
         $approverAssignments = $isAppointed ? $this->approverAssignments() : [];
 

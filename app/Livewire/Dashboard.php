@@ -47,24 +47,21 @@ class Dashboard extends Component
     public function render()
     {
         $user = auth()->user();
-        $roleNames = $user->getRoleNames()->toArray();
-        // Prefer business role name for display
-        $rolePriority = ['Business Manager', 'Super Admin', 'System Admin', 'Purchasing', 'Finance', 'Operations Manager', 'Chef', 'Branch Manager'];
-        $roleName = collect($rolePriority)->first(fn ($r) => in_array($r, $roleNames)) ?? ($roleNames[0] ?? '');
+        $roleName = $user->designation ?: ($user->getRoleNames()->first() ?? '');
 
         // Check if user has PO approver appointments (any role)
         $approverOutletIds = PoApprover::approverOutletIds($user->id);
         $isAppointed = count($approverOutletIds) > 0;
 
         $data = match (true) {
-            $user->hasRole('Business Manager')                   => $this->businessManagerDashboard($user),
-            $user->hasRole(['Super Admin', 'System Admin'])      => $this->systemDashboard($user),
-            $user->hasRole('Purchasing')                         => $this->purchasingDashboard($user),
-            $user->hasRole('Finance')                            => $this->financeDashboard($user),
-            $user->hasRole('Chef') && ! $isAppointed             => $this->chefDashboard($user),
-            default                                              => $isAppointed
-                                                                    ? $this->appointedDashboard($user, $approverOutletIds)
-                                                                    : $this->managerDashboard($user),
+            $user->hasCapability('can_manage_users')                                                  => $this->businessManagerDashboard($user),
+            $user->isSystemRole()                                                                      => $this->systemDashboard($user),
+            $user->hasPermissionTo('purchasing.view') && ! $user->hasPermissionTo('sales.view')        => $this->purchasingDashboard($user),
+            $user->hasPermissionTo('reports.view') && ! $user->hasPermissionTo('purchasing.view')      => $this->financeDashboard($user),
+            $user->hasPermissionTo('recipes.view') && ! $user->hasPermissionTo('sales.view') && ! $isAppointed => $this->chefDashboard($user),
+            default                                                                                    => $isAppointed
+                                                                                                          ? $this->appointedDashboard($user, $approverOutletIds)
+                                                                                                          : $this->managerDashboard($user),
         };
 
         $data['roleName'] = $roleName;

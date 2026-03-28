@@ -98,10 +98,8 @@
         <nav class="flex-1 overflow-y-auto py-4 space-y-1" :class="sidebarOpen ? 'px-3' : 'px-2'">
             @php
                 $authUser = Auth::user();
-                $isSystemRole = $authUser->hasRole(['Super Admin', 'System Admin']);
+                $isSystemRole = $authUser->isSystemRole();
 
-                // System-level roles only see Dashboard + Settings
-                // Business roles see modules based on actual role permissions
                 $allNavItems = [
                     ['route' => 'dashboard',         'icon' => '🏠', 'label' => 'Dashboard',    'permission' => null],
                     ['route' => 'ingredients.index', 'icon' => '🥕', 'label' => 'Ingredients',  'permission' => 'ingredients.view'],
@@ -112,13 +110,12 @@
                     ['route' => 'kitchen.index',     'icon' => '👨‍🍳', 'label' => 'Kitchen',      'permission' => 'inventory.view'],
                     ['route' => 'reports.hub',       'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
                     ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
-                    ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => null, 'role' => ['Super Admin', 'System Admin', 'Company Admin', 'Business Manager', 'Operations Manager'], 'feature' => 'analytics'],
+                    ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
                     ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
-                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null, 'role' => ['Super Admin', 'Company Admin', 'Business Manager']],
+                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
                     ['route' => 'referral.dashboard', 'icon' => '🔗', 'label' => 'Refer & Earn', 'permission' => null],
                 ];
 
-                // Admin nav items (System Admin only)
                 $adminNavItems = [
                     ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
                     ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],
@@ -130,14 +127,11 @@
                 ];
 
                 if ($isSystemRole) {
-                    // System roles: Dashboard + Settings only
                     $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'settings.index']));
                 } else {
-                    // Business roles: filter by actual role permissions (not Gate::before)
                     $navItems = array_filter($allNavItems, function($i) use ($authUser) {
-                        if (!empty($i['role']) && !$authUser->hasRole($i['role'])) return false;
+                        if (!empty($i['capability']) && !$authUser->hasCapability($i['capability'])) return false;
                         if ($i['permission'] !== null && !$authUser->hasPermissionTo($i['permission'])) return false;
-                        // Feature flag check — hide nav items for disabled features
                         if (!empty($i['feature']) && $authUser->company) {
                             if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $i['feature'])) return false;
                         }
@@ -246,7 +240,7 @@
                          x-transition:leave-end="opacity-0"
                          class="flex-1 text-left overflow-hidden">
                         <p class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</p>
-                        <p class="text-xs text-indigo-300 truncate">{{ Auth::user()->roles->first()?->name ?? '—' }}</p>
+                        <p class="text-xs text-indigo-300 truncate">{{ Auth::user()->displayDesignation() }}</p>
                     </div>
                     <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />

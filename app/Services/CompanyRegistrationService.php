@@ -41,6 +41,21 @@ class CompanyRegistrationService
             ]);
             $user->assignRole('Company Admin');
 
+            // Set Company Admin capabilities and permissions
+            $user->update([
+                'designation'          => 'Company Admin',
+                'can_manage_users'     => true,
+                'can_approve_po'       => true,
+                'can_approve_pr'       => true,
+                'can_delete_records'   => true,
+                'can_view_all_outlets' => true,
+            ]);
+            $user->givePermissionTo([
+                'ingredients.view', 'recipes.view', 'sales.view',
+                'inventory.view', 'purchasing.view', 'reports.view',
+                'settings.view', 'users.manage',
+            ]);
+
             // Create default outlet
             $outlet = Outlet::create([
                 'company_id' => $company->id,

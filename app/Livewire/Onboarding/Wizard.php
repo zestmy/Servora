@@ -136,7 +136,43 @@ class Wizard extends Component
                     'password'   => Hash::make('changeme123'),
                     'company_id' => $company->id,
                 ]);
-                $user->assignRole($invite['role']);
+
+                // Assign permissions and capabilities based on selected role
+                match ($invite['role']) {
+                    'Company Admin' => (function () use ($user) {
+                        $user->update([
+                            'designation'          => 'Company Admin',
+                            'can_manage_users'     => true,
+                            'can_approve_po'       => true,
+                            'can_approve_pr'       => true,
+                            'can_delete_records'   => true,
+                            'can_view_all_outlets' => true,
+                        ]);
+                        $user->givePermissionTo([
+                            'ingredients.view', 'recipes.view', 'sales.view',
+                            'inventory.view', 'purchasing.view', 'reports.view',
+                            'settings.view', 'users.manage',
+                        ]);
+                    })(),
+                    'Outlet Manager' => (function () use ($user) {
+                        $user->update([
+                            'designation'    => 'Outlet Manager',
+                            'can_approve_po' => true,
+                            'can_approve_pr' => true,
+                        ]);
+                        $user->givePermissionTo([
+                            'ingredients.view', 'recipes.view', 'sales.view',
+                            'inventory.view', 'purchasing.view', 'reports.view',
+                        ]);
+                    })(),
+                    default => (function () use ($user) {
+                        $user->update(['designation' => 'Staff']);
+                        $user->givePermissionTo([
+                            'ingredients.view', 'recipes.view', 'sales.view',
+                            'inventory.view',
+                        ]);
+                    })(),
+                };
 
                 if ($outlet) {
                     $user->outlets()->attach($outlet->id);

@@ -77,7 +77,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->canDelete = Auth::user()->hasRole(['Super Admin', 'System Admin', 'Business Manager', 'Operations Manager']);
+        $this->canDelete = Auth::user()->isSystemRole() || Auth::user()->hasCapability('can_delete_records');
         $this->setQuickRange('today');
     }
 

@@ -38,7 +38,7 @@ class OutletSwitcher extends Component
     {
         $user = Auth::user();
 
-        if ($user->hasRole('Purchasing')) {
+        if ($user->hasPermissionTo('purchasing.view') && ! $user->hasPermissionTo('sales.view')) {
             return view('livewire.outlet-switcher', [
                 'outlets'    => collect(),
                 'canViewAll' => false,

@@ -14,77 +14,80 @@ class User extends Authenticatable
     use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'company_id',
-        'outlet_id',
+        'name', 'email', 'password', 'company_id', 'outlet_id',
+        'designation', 'can_manage_users', 'can_approve_po', 'can_approve_pr',
+        'can_delete_records', 'can_view_all_outlets',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at'    => 'datetime',
+        'password'             => 'hashed',
+        'can_manage_users'     => 'boolean',
+        'can_approve_po'       => 'boolean',
+        'can_approve_pr'       => 'boolean',
+        'can_delete_records'   => 'boolean',
+        'can_view_all_outlets' => 'boolean',
+    ];
 
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
     }
 
-    /** Legacy single-outlet relationship (kept for backward compat). */
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
     }
 
-    /** All outlets this user has access to. */
     public function outlets(): BelongsToMany
     {
         return $this->belongsToMany(Outlet::class)->withTimestamps();
     }
 
-    /** Get the currently active outlet from session, or first assigned outlet. */
     public function activeOutletId(): ?int
     {
         $sessionId = session('active_outlet_id');
-
-        // Validate the session outlet is one the user actually has access to
         if ($sessionId && $this->canAccessOutlet($sessionId)) {
             return (int) $sessionId;
         }
-
-        // Default to first assigned outlet
         return $this->outlets()->first()?->id;
     }
 
-    /** Get active outlet model. */
     public function activeOutlet(): ?Outlet
     {
         $id = $this->activeOutletId();
         return $id ? Outlet::find($id) : null;
     }
 
-    /** Whether user can view "All Outlets" (no outlet filter). */
     public function canViewAllOutlets(): bool
     {
-        return $this->hasRole(['Super Admin', 'System Admin', 'Business Manager', 'Operations Manager']);
+        return $this->can_view_all_outlets || $this->isSystemRole();
     }
 
-    /** Check if user has access to a specific outlet. */
     public function canAccessOutlet(int $outletId): bool
     {
-        if ($this->canViewAllOutlets()) {
-            return true;
-        }
-
+        if ($this->canViewAllOutlets()) return true;
         return $this->outlets()->where('outlets.id', $outletId)->exists();
+    }
+
+    /** Check if user has a system-level role (Super Admin / System Admin). */
+    public function isSystemRole(): bool
+    {
+        return $this->hasRole(['Super Admin', 'System Admin']);
+    }
+
+    /** Check a capability flag (system roles always have all capabilities). */
+    public function hasCapability(string $capability): bool
+    {
+        if ($this->isSystemRole()) return true;
+        return (bool) ($this->{$capability} ?? false);
+    }
+
+    /** Get display designation for UI (falls back to "Team Member"). */
+    public function displayDesignation(): string
+    {
+        return $this->designation ?: 'Team Member';
     }
 }
