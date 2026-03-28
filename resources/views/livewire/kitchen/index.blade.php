@@ -48,6 +48,10 @@
                     class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'requests' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Prep Requests
             </button>
+            <button wire:click="$set('tab', 'inventory')"
+                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'inventory' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Inventory
+            </button>
             <button wire:click="$set('tab', 'logs')"
                     class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'logs' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                 Production Logs
@@ -56,7 +60,7 @@
     </div>
 
     {{-- Filters --}}
-    @if ($tab !== 'logs')
+    @if ($tab !== 'logs' || $tab === 'inventory')
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             @if ($tab === 'orders')
@@ -81,6 +85,15 @@
                     <option value="approved">Approved</option>
                     <option value="fulfilled">Fulfilled</option>
                     <option value="cancelled">Cancelled</option>
+                </select>
+            @endif
+            {{-- Kitchen filter (all tabs) --}}
+            @if ($kitchens->count() > 1)
+                <select wire:model.live="kitchenFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Kitchens</option>
+                    @foreach ($kitchens as $k)
+                        <option value="{{ $k->id }}">{{ $k->name }}</option>
+                    @endforeach
                 </select>
             @endif
         </div>
@@ -277,6 +290,44 @@
             @else
                 <div class="p-8 text-center text-gray-400 text-sm">
                     No production logs found.
+                </div>
+            @endif
+        </div>
+
+    @elseif ($tab === 'inventory')
+        {{-- Kitchen Inventory --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            @if (isset($inventory) && $inventory->count() > 0)
+                <table class="min-w-full divide-y divide-gray-100 text-sm">
+                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Kitchen</th>
+                            <th class="px-4 py-3 text-left">Prep Item</th>
+                            <th class="px-4 py-3 text-right">On Hand</th>
+                            <th class="px-4 py-3 text-center">UOM</th>
+                            <th class="px-4 py-3 text-right">Unit Cost</th>
+                            <th class="px-4 py-3 text-right">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @foreach ($inventory as $inv)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-gray-600 text-xs">{{ $inv->kitchen?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 font-medium text-gray-700">{{ $inv->ingredient?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($inv->quantity_on_hand, 2) }}</td>
+                                <td class="px-4 py-3 text-center text-gray-500">{{ $inv->uom?->abbreviation ?? '' }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($inv->unit_cost, 2) }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format(floatval($inv->quantity_on_hand) * floatval($inv->unit_cost), 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                @if ($inventory->hasPages())
+                    <div class="px-4 py-3 border-t border-gray-100">{{ $inventory->links() }}</div>
+                @endif
+            @else
+                <div class="p-8 text-center text-gray-400 text-sm">
+                    No inventory yet. Complete a production order to stock items.
                 </div>
             @endif
         </div>

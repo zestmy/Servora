@@ -2,8 +2,7 @@
 
 namespace App\Livewire\Kitchen;
 
-use App\Models\OutletTransfer;
-use App\Models\OutletTransferLine;
+use App\Models\KitchenInventory;
 use App\Models\ProductionLog;
 use App\Models\ProductionOrder;
 use Illuminate\Support\Facades\Auth;
@@ -13,8 +12,6 @@ use Livewire\Component;
 class ProductionExecute extends Component
 {
     public ProductionOrder $order;
-
-    // Actual quantities keyed by line index
     public array $actuals = [];
 
     public function mount(int $id): void
@@ -24,18 +21,16 @@ class ProductionExecute extends Component
         ])->findOrFail($id);
 
         if (! in_array($this->order->status, ['scheduled', 'in_progress'])) {
-            session()->flash('error', 'This order cannot be executed (status: ' . $this->order->status . ').');
+            session()->flash('error', 'This order cannot be executed.');
             $this->redirectRoute('kitchen.index');
             return;
         }
 
-        // Mark as in_progress if still scheduled
         if ($this->order->status === 'scheduled') {
             $this->order->update(['status' => 'in_progress', 'started_at' => now()]);
             $this->order->refresh();
         }
 
-        // Initialise actuals array
         foreach ($this->order->lines as $idx => $line) {
             $this->actuals[$idx] = (string) floatval($line->actual_quantity ?? $line->planned_quantity);
         }
@@ -50,21 +45,16 @@ class ProductionExecute extends Component
 
         DB::transaction(function () {
             $userId = Auth::id();
-            $companyId = $this->order->company_id;
-            $kitchenOutletId = $this->order->kitchen?->outlet_id;
+            $kitchenId = $this->order->kitchen_id;
 
             foreach ($this->order->lines as $idx => $line) {
                 $actual  = floatval($this->actuals[$idx] ?? 0);
                 $planned = floatval($line->planned_quantity);
                 $variance = $planned > 0 ? (($actual - $planned) / $planned) * 100 : 0;
+                $unitCost = floatval($line->unit_cost);
 
-                // Update line
-                $line->update([
-                    'actual_quantity' => $actual,
-                    'status'          => 'completed',
-                ]);
+                $line->update(['actual_quantity' => $actual, 'status' => 'completed']);
 
-                // Create production log
                 $batchNumber = $this->order->order_number . '-' . str_pad($idx + 1, 2, '0', STR_PAD_LEFT);
 
                 ProductionLog::create([
@@ -76,48 +66,22 @@ class ProductionExecute extends Component
                     'actual_yield'             => $actual,
                     'yield_variance_pct'       => round($variance, 2),
                     'uom_id'                   => $line->uom_id,
-                    'total_cost'               => round($actual * floatval($line->unit_cost), 4),
+                    'total_cost'               => round($actual * $unitCost, 4),
                     'produced_by'              => $userId,
                     'produced_at'              => now(),
                 ]);
 
-                // Create outlet transfer if destination outlet is set
-                if ($line->to_outlet_id && $kitchenOutletId) {
-                    $transferNumber = 'KT-' . now()->format('Ymd') . '-' . $batchNumber;
-
-                    $transfer = OutletTransfer::create([
-                        'company_id'     => $companyId,
-                        'from_outlet_id' => $kitchenOutletId,
-                        'to_outlet_id'   => $line->to_outlet_id,
-                        'transfer_number' => $transferNumber,
-                        'status'         => 'draft',
-                        'transfer_date'  => now()->toDateString(),
-                        'notes'          => "Auto-created from production order {$this->order->order_number}",
-                        'created_by'     => $userId,
-                    ]);
-
-                    // Add the prep ingredient to the transfer
-                    $prepIngredient = $line->recipe?->ingredient;
-                    if ($prepIngredient) {
-                        OutletTransferLine::create([
-                            'outlet_transfer_id' => $transfer->id,
-                            'ingredient_id'      => $prepIngredient->id,
-                            'quantity'            => $actual,
-                            'uom_id'             => $line->uom_id,
-                            'unit_cost'          => floatval($line->unit_cost),
-                        ]);
-                    }
+                // Add to kitchen inventory (not auto-transfer)
+                $prepIngredient = $line->recipe?->ingredient;
+                if ($prepIngredient && $actual > 0) {
+                    KitchenInventory::addStock($kitchenId, $prepIngredient->id, $actual, $line->uom_id, $unitCost);
                 }
             }
 
-            // Complete the order
-            $this->order->update([
-                'status'       => 'completed',
-                'completed_at' => now(),
-            ]);
+            $this->order->update(['status' => 'completed', 'completed_at' => now()]);
         });
 
-        session()->flash('success', "Production order {$this->order->order_number} completed.");
+        session()->flash('success', "Production completed. Stock added to kitchen inventory.");
         $this->redirectRoute('kitchen.index');
     }
 
