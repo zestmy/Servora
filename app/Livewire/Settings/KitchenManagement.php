@@ -88,12 +88,22 @@ class KitchenManagement extends Component
                 $kitchen = CentralKitchen::create($data);
             }
 
-            // Sync assigned users
+            // Sync assigned users to kitchen
             $syncData = [];
             foreach ($this->assignedUserIds as $userId) {
                 $syncData[(int) $userId] = ['role' => 'staff'];
             }
             $kitchen->users()->sync($syncData);
+
+            // Also assign kitchen users to the linked outlet (so they can use purchasing, inventory, etc.)
+            if ($kitchen->outlet_id) {
+                foreach ($this->assignedUserIds as $userId) {
+                    DB::table('outlet_user')->updateOrInsert(
+                        ['outlet_id' => $kitchen->outlet_id, 'user_id' => (int) $userId],
+                        ['created_at' => now(), 'updated_at' => now()]
+                    );
+                }
+            }
         });
 
         $this->showForm = false;

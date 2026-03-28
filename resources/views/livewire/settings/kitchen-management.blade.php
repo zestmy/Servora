@@ -111,14 +111,14 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Linked Outlet</label>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Linked Outlet *</label>
                     <select wire:model="outlet_id" class="w-full rounded-lg border-gray-300 text-sm">
-                        <option value="">-- None --</option>
+                        <option value="">— Select outlet —</option>
                         @foreach ($outlets as $outlet)
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">The outlet used as stock origin for kitchen transfers.</p>
+                    <p class="text-xs text-gray-400 mt-1">Kitchen staff assigned above will be added to this outlet, enabling them to order ingredients, do stock takes, record wastage, and use all outlet features.</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
