@@ -70,6 +70,11 @@ use App\Livewire\Billing\Checkout as BillingCheckout;
 use App\Livewire\Billing\ReferralDashboard;
 use App\Http\Controllers\Webhook\ChipInWebhookController;
 use App\Http\Controllers\ReferralTrackingController;
+use App\Livewire\Kitchen\Index as KitchenIndex;
+use App\Livewire\Kitchen\ProductionOrderForm as KitchenOrderForm;
+use App\Livewire\Kitchen\ProductionExecute as KitchenExecute;
+use App\Livewire\Kitchen\PrepRequestForm as KitchenPrepRequestForm;
+use App\Livewire\Settings\KitchenManagement as SettingsKitchenManagement;
 use App\Livewire\Admin\Referrals\Programs as AdminReferralPrograms;
 use App\Livewire\Admin\Referrals\Dashboard as AdminReferralDashboard;
 use App\Livewire\Admin\TrialDashboard as AdminTrialDashboard;
@@ -169,6 +174,15 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/rfq/create', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/{id}', \App\Livewire\Purchasing\RfqShow::class)->name('purchasing.rfq.show')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/{id}/edit', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.edit')->middleware('can:purchasing.view');
+
+    // Kitchen
+    Route::get('/kitchen', KitchenIndex::class)->name('kitchen.index');
+    Route::get('/kitchen/orders/create', KitchenOrderForm::class)->name('kitchen.orders.create');
+    Route::get('/kitchen/orders/{id}/edit', KitchenOrderForm::class)->name('kitchen.orders.edit');
+    Route::get('/kitchen/orders/{id}/execute', KitchenExecute::class)->name('kitchen.orders.execute');
+    Route::get('/kitchen/prep-requests/create', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.create');
+    Route::get('/kitchen/prep-requests/{id}/edit', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.edit');
+
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
     Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.view');
     Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.view');
@@ -213,6 +227,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/reports/menu-ingredients', \App\Livewire\Reports\Menu\MenuIngredients::class)->name('reports.menu-ingredients')->middleware('can:reports.view');
     // Other reports
     Route::get('/reports/inventory-variance', \App\Livewire\Reports\Others\InventoryVariance::class)->name('reports.inventory-variance')->middleware('can:reports.view');
+    // Kitchen reports
+    Route::get('/reports/production-history', \App\Livewire\Reports\Kitchen\ProductionHistory::class)->name('reports.production-history')->middleware('can:reports.view');
+    Route::get('/reports/yield-analysis', \App\Livewire\Reports\Kitchen\YieldAnalysis::class)->name('reports.yield-analysis')->middleware('can:reports.view');
     Route::get('/settings', SettingsIndex::class)->name('settings.index')->middleware('can:settings.view');
     Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:settings.view');
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:settings.view');
@@ -233,6 +250,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:settings.view');
     Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:settings.view');
     Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.view');
+    Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.view');
     Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.view');
     Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:settings.view');
     Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:settings.view');
