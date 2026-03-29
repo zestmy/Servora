@@ -44,9 +44,8 @@ class SalesMenuIngredients extends Component
     {
         return SalesRecordLine::query()
             ->select([
-                'sales_record_lines.recipe_id',
                 DB::raw("COALESCE(sales_record_lines.item_name, r.name) as item_name"),
-                DB::raw("COALESCE(ic.name, '') as category_name"),
+                DB::raw("MAX(COALESCE(ic.name, '')) as category_name"),
                 DB::raw('SUM(sales_record_lines.quantity) as units_sold'),
                 DB::raw('SUM(sales_record_lines.total_revenue) as revenue'),
                 DB::raw('SUM(sales_record_lines.total_cost) as ingredient_cost'),
@@ -61,7 +60,7 @@ class SalesMenuIngredients extends Component
             ->whereBetween('sr.sale_date', [$this->dateFrom, $this->dateTo])
             ->whereNull('sr.deleted_at')
             ->when($this->outletFilter, fn ($q) => $q->where('sr.outlet_id', $this->outletFilter))
-            ->groupBy('sales_record_lines.recipe_id', 'sales_record_lines.item_name', 'r.name', 'ic.name')
+            ->groupBy(DB::raw("COALESCE(sales_record_lines.item_name, r.name)"))
             ->orderByDesc('revenue');
     }
 }
