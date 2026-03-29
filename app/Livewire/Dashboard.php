@@ -420,7 +420,7 @@ class Dashboard extends Component
     {
         $trendMonths = [];
         for ($i = $months - 1; $i >= 0; $i--) {
-            $month = $now->copy()->subMonths($i);
+            $month = $now->copy()->startOfMonth()->subMonths($i);
             $revQ = SalesRecord::whereMonth('sale_date', $month->month)->whereYear('sale_date', $month->year);
             $this->scopeByOutlet($revQ);
             $mRev = $revQ->sum('total_revenue');
