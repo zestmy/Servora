@@ -168,54 +168,84 @@
                 ];
             @endphp
 
-            @foreach ($navGroups as $group)
+            @foreach ($navGroups as $gIdx => $group)
                 @php
-                    // Filter items user can see
                     $visibleItems = $isSystemRole
                         ? array_filter($group['items'], fn($i) => in_array($i['route'], ['dashboard', 'settings.index']))
                         : array_filter($group['items'], $canSee);
+
+                    // Check if any item in this group is active (auto-expand)
+                    $groupHasActive = false;
+                    foreach ($visibleItems as $vi) {
+                        if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*')) {
+                            $groupHasActive = true; break;
+                        }
+                        if ($vi['route'] === 'reports.hub' && request()->routeIs('reports.*')) {
+                            $groupHasActive = true; break;
+                        }
+                    }
                 @endphp
 
                 @if (count($visibleItems) > 0)
-                    {{-- Section header --}}
                     @if ($group['label'])
-                        <p x-show="sidebarOpen"
-                           x-transition:enter="transition-opacity duration-150 delay-100"
-                           x-transition:enter-start="opacity-0"
-                           x-transition:enter-end="opacity-100"
-                           class="mt-4 mb-1 px-4 text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
-                            {{ $group['label'] }}
-                        </p>
+                        {{-- Collapsible group --}}
+                        <div x-data="{ open: {{ $groupHasActive ? 'true' : 'false' }} }" class="mt-2">
+                            <button @click="open = !open"
+                                    class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
+                                <span>{{ $group['label'] }}</span>
+                                <svg :class="open ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div x-show="open" x-collapse>
+                                @foreach ($visibleItems as $item)
+                                    @php
+                                        $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
+                                        if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
+                                    @endphp
+                                    <a href="{{ route($item['route']) }}"
+                                       title="{{ $item['label'] }}"
+                                       class="block rounded-lg text-sm font-medium transition-colors px-4 py-1.5 ml-1
+                                              {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                        {{ $item['label'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        {{-- No header (Dashboard) --}}
+                        @foreach ($visibleItems as $item)
+                            @php
+                                $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
+                            @endphp
+                            <a href="{{ route($item['route']) }}"
+                               title="{{ $item['label'] }}"
+                               class="block rounded-lg text-sm font-medium transition-colors px-4 py-2
+                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                {{ $item['label'] }}
+                            </a>
+                        @endforeach
                     @endif
-
-                    @foreach ($visibleItems as $item)
-                @php
-                    $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
-                    if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
-                @endphp
-                <a href="{{ route($item['route']) }}"
-                   title="{{ $item['label'] }}"
-                   class="block rounded-lg text-sm font-medium transition-colors px-4 py-2
-                          {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                    {{ $item['label'] }}
-                </a>
-                    @endforeach
                 @endif
             @endforeach
 
             {{-- Admin Section (System Admin only) --}}
             @if ($isSystemRole)
-                <div class="mt-4 pt-3 border-t border-gray-700">
-                    <p x-show="sidebarOpen" class="px-4 pb-2 text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Admin</p>
-                    @foreach ($adminNavItems as $item)
-                        @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
-                        <a href="{{ route($item['route']) }}"
-                           title="{{ $item['label'] }}"
-                           class="block rounded-lg text-sm font-medium transition-colors px-4 py-2
-                                  {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                            {{ $item['label'] }}
-                        </a>
-                    @endforeach
+                <div class="mt-2 pt-2 border-t border-gray-700" x-data="{ open: {{ request()->routeIs('admin.*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open"
+                            class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
+                        <span>Admin</span>
+                        <svg :class="open ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" x-collapse>
+                        @foreach ($adminNavItems as $item)
+                            @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
+                            <a href="{{ route($item['route']) }}"
+                               title="{{ $item['label'] }}"
+                               class="block rounded-lg text-sm font-medium transition-colors px-4 py-1.5 ml-1
+                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                {{ $item['label'] }}
+                            </a>
+                        @endforeach
+                    </div>
                 </div>
             @endif
         </nav>
