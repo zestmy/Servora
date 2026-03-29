@@ -15,7 +15,7 @@
         </a>
         <div class="flex-1 min-w-0">
             <p class="text-xs text-gray-400">
-                <a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> /
+                <a href="{{ route('purchasing.index') }}" class="hover:underline">Settings</a> /
                 <a href="{{ route('settings.form-templates') }}" class="hover:underline">Form Templates</a> /
                 {{ $name }}
             </p>

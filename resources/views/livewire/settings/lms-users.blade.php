@@ -8,7 +8,7 @@
 
     <div class="flex items-center justify-between mb-6">
         <div>
-            <p class="text-xs text-gray-400"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Training Portal</p>
+            <p class="text-xs text-gray-400"><a href="{{ route('recipes.index') }}" class="hover:underline">Training</a> / LMS Users</p>
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Training Portal</h2>
         </div>
         <div class="flex gap-2">

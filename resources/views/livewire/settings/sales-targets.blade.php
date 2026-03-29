@@ -14,7 +14,7 @@
             <p class="text-sm text-gray-400 mt-0.5">Set monthly revenue and pax targets for your outlets</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('settings.index') }}"
+            <a href="{{ route('sales.index') }}"
                class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 Back
             </a>

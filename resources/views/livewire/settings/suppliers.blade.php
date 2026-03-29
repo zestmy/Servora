@@ -9,13 +9,13 @@
 
     {{-- Back + Header --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+        <a href="{{ route('purchasing.index') }}" class="text-gray-400 hover:text-gray-600 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Suppliers</p>
+            <p class="text-xs text-gray-400"><a href="{{ route('purchasing.index') }}" class="hover:underline">Purchasing</a> / Suppliers</p>
         </div>
         <button wire:click="openCreate"
                 class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
