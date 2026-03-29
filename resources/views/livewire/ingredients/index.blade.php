@@ -409,6 +409,26 @@
                         </div>
                     </div>
 
+                    {{-- Outlet Visibility --}}
+                    <div>
+                        <x-input-label value="Outlet Visibility" />
+                        <label class="flex items-center gap-2 mt-1 px-2 py-1.5 bg-indigo-50 rounded-lg cursor-pointer">
+                            <input type="checkbox" wire:model.live="allOutletsVisible" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            <span class="text-sm font-medium text-indigo-700">Visible at all outlets</span>
+                        </label>
+                        @if (! $allOutletsVisible)
+                            <div class="mt-2 max-h-28 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                                @foreach ($outlets as $o)
+                                    <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                                        <input type="checkbox" wire:model="ingredientOutletIds" value="{{ $o->id }}"
+                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <span class="text-sm text-gray-700">{{ $o->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
                     {{-- Cost Chain Summary --}}
                     @if (floatval($purchase_price) > 0)
                         <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">

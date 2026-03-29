@@ -45,6 +45,10 @@ class Index extends Component
     // Default supplier (main form)
     public ?int   $supplier_id = null;
 
+    // Outlet visibility
+    public bool   $allOutletsVisible = true;
+    public array  $ingredientOutletIds = [];
+
     // UOM conversions
     public array $conversions = [];
 
@@ -167,6 +171,11 @@ class Index extends Component
             ->values()
             ->toArray();
 
+        // Load outlet visibility
+        $assignedOutletIds = $ingredient->outlets()->pluck('outlets.id')->toArray();
+        $this->ingredientOutletIds = array_map('strval', $assignedOutletIds);
+        $this->allOutletsVisible = empty($assignedOutletIds);
+
         $this->showModal = true;
     }
 
@@ -205,6 +214,13 @@ class Index extends Component
             $ingredient = Ingredient::create($data);
             $this->saveSupplierLinks($ingredient);
             session()->flash('success', 'Ingredient created.');
+        }
+
+        // Sync outlet visibility
+        if ($this->allOutletsVisible) {
+            $ingredient->outlets()->detach(); // no assignments = visible everywhere
+        } else {
+            $ingredient->outlets()->sync(array_map('intval', $this->ingredientOutletIds));
         }
 
         $this->closeModal();
@@ -438,6 +454,15 @@ class Index extends Component
             $query->where('is_active', false);
         }
 
+        // Filter by active outlet visibility (assigned to outlet OR not assigned to any = visible everywhere)
+        $outletId = Auth::user()->activeOutletId();
+        if ($outletId) {
+            $query->where(function ($q) use ($outletId) {
+                $q->whereHas('outlets', fn ($sub) => $sub->where('outlets.id', $outletId))
+                  ->orWhereDoesntHave('outlets');
+            });
+        }
+
         $ingredients = $query->orderBy('name')->paginate($this->perPage);
 
         $uoms = UnitOfMeasure::orderBy('name')->get();
@@ -497,8 +522,11 @@ class Index extends Component
             }
         }
 
+        $outlets = \App\Models\Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)->orderBy('name')->get();
+
         return view('livewire.ingredients.index', compact(
-            'ingredients', 'uoms', 'suppliers', 'categories',
+            'ingredients', 'uoms', 'suppliers', 'categories', 'outlets',
             'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
         ))->layout('layouts.app', ['title' => 'Ingredients']);
     }
@@ -519,6 +547,8 @@ class Index extends Component
         $this->supplier_id            = null;
         $this->conversions            = [];
         $this->supplierLinks          = [];
+        $this->allOutletsVisible      = true;
+        $this->ingredientOutletIds    = [];
         $this->resetValidation();
     }
 

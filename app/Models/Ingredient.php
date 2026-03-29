@@ -76,6 +76,11 @@ class Ingredient extends Model
         return $this->hasMany(IngredientPriceHistory::class);
     }
 
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class)->withTimestamps();
+    }
+
     public function suppliers(): BelongsToMany
     {
         return $this->belongsToMany(Supplier::class, 'supplier_ingredients')
