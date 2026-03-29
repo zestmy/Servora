@@ -126,7 +126,6 @@
                             ['route' => 'recipes.index',        'label' => 'Recipes',       'permission' => 'recipes.view'],
                             ['route' => 'recipes.index',        'label' => 'Prep Items',    'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
                             ['route' => 'kitchen.index',        'label' => 'Kitchen',       'permission' => 'inventory.view', 'kitchenOnly' => true],
-                            ['route' => 'settings.labour-costs','label' => 'Labour Costs',  'permission' => 'settings.view'],
                         ],
                     ],
                     [
@@ -168,6 +167,7 @@
                     [
                         'label' => 'Management',
                         'items' => [
+                            ['route' => 'settings.labour-costs','label' => 'Labour Costs',  'permission' => 'inventory.view'],
                             ['route' => 'settings.index',     'label' => 'Settings',     'permission' => 'settings.view'],
                             ['route' => 'billing.index',      'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
                             ['route' => 'referral.dashboard', 'label' => 'Refer & Earn', 'permission' => null],

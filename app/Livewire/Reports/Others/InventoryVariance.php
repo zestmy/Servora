@@ -45,52 +45,18 @@ class InventoryVariance extends Component
         $to = $this->dateTo;
         $outletId = $this->outletFilter;
 
-        // Expected = opening + purchases - wastage - sales usage (simplified: purchases - wastage)
-        $purchasesSub = DB::raw("(
-            SELECT COALESCE(SUM(prl.quantity), 0)
-            FROM purchase_record_lines prl
-            JOIN purchase_records pr ON pr.id = prl.purchase_record_id
-            WHERE prl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND pr.outlet_id = {$outletId}" : "") . "
-            AND pr.purchase_date BETWEEN '{$from}' AND '{$to}'
-            AND pr.deleted_at IS NULL
-        )");
+        $outletWhere = $outletId ? "AND pr.outlet_id = {$outletId}" : "";
+        $outletWhereWr = $outletId ? "AND wr.outlet_id = {$outletId}" : "";
+        $outletWhereSt = $outletId ? "AND st.outlet_id = {$outletId}" : "";
+        $outletWhereSt2 = $outletId ? "AND st2.outlet_id = {$outletId}" : "";
 
-        $wastageSub = DB::raw("(
-            SELECT COALESCE(SUM(wrl.quantity), 0)
-            FROM wastage_record_lines wrl
-            JOIN wastage_records wr ON wr.id = wrl.wastage_record_id
-            WHERE wrl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND wr.outlet_id = {$outletId}" : "") . "
-            AND wr.wastage_date BETWEEN '{$from}' AND '{$to}'
-            AND wr.deleted_at IS NULL
-        )");
+        $purchasesSub = "(SELECT COALESCE(SUM(prl.quantity), 0) FROM purchase_record_lines prl JOIN purchase_records pr ON pr.id = prl.purchase_record_id WHERE prl.ingredient_id = ingredients.id {$outletWhere} AND pr.purchase_date BETWEEN '{$from}' AND '{$to}' AND pr.deleted_at IS NULL)";
 
-        // Actual = latest stock take count in period
-        $actualSub = DB::raw("(
-            SELECT stl.actual_quantity
-            FROM stock_take_lines stl
-            JOIN stock_takes st ON st.id = stl.stock_take_id
-            WHERE stl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND st.outlet_id = {$outletId}" : "") . "
-            AND st.stock_take_date BETWEEN '{$from}' AND '{$to}'
-            AND st.deleted_at IS NULL
-            ORDER BY st.stock_take_date DESC, stl.id DESC
-            LIMIT 1
-        )");
+        $wastageSub = "(SELECT COALESCE(SUM(wrl.quantity), 0) FROM wastage_record_lines wrl JOIN wastage_records wr ON wr.id = wrl.wastage_record_id WHERE wrl.ingredient_id = ingredients.id {$outletWhereWr} AND wr.wastage_date BETWEEN '{$from}' AND '{$to}' AND wr.deleted_at IS NULL)";
 
-        // Opening = latest stock take before period
-        $openingSub = DB::raw("(
-            SELECT stl2.actual_quantity
-            FROM stock_take_lines stl2
-            JOIN stock_takes st2 ON st2.id = stl2.stock_take_id
-            WHERE stl2.ingredient_id = ingredients.id
-            " . ($outletId ? "AND st2.outlet_id = {$outletId}" : "") . "
-            AND st2.stock_take_date < '{$from}'
-            AND st2.deleted_at IS NULL
-            ORDER BY st2.stock_take_date DESC, stl2.id DESC
-            LIMIT 1
-        )");
+        $actualSub = "(SELECT stl.actual_quantity FROM stock_take_lines stl JOIN stock_takes st ON st.id = stl.stock_take_id WHERE stl.ingredient_id = ingredients.id {$outletWhereSt} AND st.stock_take_date BETWEEN '{$from}' AND '{$to}' AND st.deleted_at IS NULL ORDER BY st.stock_take_date DESC, stl.id DESC LIMIT 1)";
+
+        $openingSub = "(SELECT stl2.actual_quantity FROM stock_take_lines stl2 JOIN stock_takes st2 ON st2.id = stl2.stock_take_id WHERE stl2.ingredient_id = ingredients.id {$outletWhereSt2} AND st2.stock_take_date < '{$from}' AND st2.deleted_at IS NULL ORDER BY st2.stock_take_date DESC, stl2.id DESC LIMIT 1)";
 
         return Ingredient::query()
             ->select([
