@@ -107,6 +107,7 @@
                     if (!empty($item['feature']) && $authUser->company) {
                         if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $item['feature'])) return false;
                     }
+                    if (!empty($item['kitchenOnly']) && !$authUser->isKitchenUser()) return false;
                     return true;
                 };
 
@@ -124,7 +125,7 @@
                             ['route' => 'ingredients.index',    'label' => 'Ingredients',   'permission' => 'ingredients.view'],
                             ['route' => 'recipes.index',        'label' => 'Recipes',       'permission' => 'recipes.view'],
                             ['route' => 'recipes.index',        'label' => 'Prep Items',    'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                            ['route' => 'kitchen.index',        'label' => 'Kitchen',       'permission' => 'inventory.view'],
+                            ['route' => 'kitchen.index',        'label' => 'Kitchen',       'permission' => 'inventory.view', 'kitchenOnly' => true],
                             ['route' => 'settings.labour-costs','label' => 'Labour Costs',  'permission' => 'settings.view'],
                         ],
                     ],
