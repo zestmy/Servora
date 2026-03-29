@@ -194,21 +194,10 @@
                     if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
                 @endphp
                 <a href="{{ route($item['route']) }}"
-                   :title="!sidebarOpen ? '{{ $item['label'] }}' : ''"
-                   class="flex items-center rounded-lg text-sm font-medium transition-colors
-                          {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
-                   :class="sidebarOpen ? 'gap-3 px-4 py-2.5' : 'justify-center px-2 py-3'">
-                    <span class="flex-shrink-0 text-base leading-none">{{ $item['icon'] }}</span>
-                    <span x-show="sidebarOpen"
-                          x-transition:enter="transition-opacity duration-150 delay-100"
-                          x-transition:enter-start="opacity-0"
-                          x-transition:enter-end="opacity-100"
-                          x-transition:leave="transition-opacity duration-75"
-                          x-transition:leave-start="opacity-100"
-                          x-transition:leave-end="opacity-0"
-                          class="whitespace-nowrap overflow-hidden">
-                        {{ $item['label'] }}
-                    </span>
+                   title="{{ $item['label'] }}"
+                   class="block rounded-lg text-sm font-medium transition-colors px-4 py-2
+                          {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                    {{ $item['label'] }}
                 </a>
                     @endforeach
                 @endif
@@ -221,21 +210,10 @@
                     @foreach ($adminNavItems as $item)
                         @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
                         <a href="{{ route($item['route']) }}"
-                           :title="!sidebarOpen ? '{{ $item['label'] }}' : ''"
-                           class="flex items-center rounded-lg text-sm font-medium transition-colors
-                                  {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
-                           :class="sidebarOpen ? 'gap-3 px-4 py-2.5' : 'justify-center px-2 py-3'">
-                            <span class="flex-shrink-0 text-base leading-none">{{ $item['icon'] }}</span>
-                            <span x-show="sidebarOpen"
-                                  x-transition:enter="transition-opacity duration-150 delay-100"
-                                  x-transition:enter-start="opacity-0"
-                                  x-transition:enter-end="opacity-100"
-                                  x-transition:leave="transition-opacity duration-75"
-                                  x-transition:leave-start="opacity-100"
-                                  x-transition:leave-end="opacity-0"
-                                  class="whitespace-nowrap overflow-hidden">
-                                {{ $item['label'] }}
-                            </span>
+                           title="{{ $item['label'] }}"
+                           class="block rounded-lg text-sm font-medium transition-colors px-4 py-2
+                                  {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                            {{ $item['label'] }}
                         </a>
                     @endforeach
                 </div>
