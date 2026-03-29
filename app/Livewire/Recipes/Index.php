@@ -14,11 +14,14 @@ class Index extends Component
 {
     use WithPagination;
 
+    public string $tab = 'recipes'; // recipes | prep-items
     public string $search = '';
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
     public string $outletFilter = '';
     public string $costFilter = '';
+
+    protected $queryString = ['tab'];
 
     public function updatedSearch(): void         { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
@@ -40,13 +43,15 @@ class Index extends Component
 
     public function render()
     {
+        $isPrep = $this->tab === 'prep-items';
+
         $query = Recipe::with([
             'yieldUom',
             'outlets',
             'lines.ingredient.baseUom',
             'lines.ingredient.uomConversions',
             'lines.uom',
-        ])->withCount('lines');
+        ])->where('is_prep', $isPrep)->withCount('lines');
 
         if ($this->search) {
             $query->where(function ($q) {
@@ -127,7 +132,7 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Recipes']);
+        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'isPrep'))
+            ->layout('layouts.app', ['title' => $isPrep ? 'Prep Items' : 'Recipes']);
     }
 }

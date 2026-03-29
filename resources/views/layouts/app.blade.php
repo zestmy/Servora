@@ -123,7 +123,7 @@
                         'items' => [
                             ['route' => 'ingredients.index', 'icon' => '🥕', 'label' => 'Ingredients', 'permission' => 'ingredients.view'],
                             ['route' => 'recipes.index',     'icon' => '📋', 'label' => 'Recipes',     'permission' => 'recipes.view'],
-                            ['route' => 'inventory.index', 'icon' => '🍳', 'label' => 'Prep Items', 'permission' => 'inventory.view', 'query' => 'tab=prep-items'],
+                            ['route' => 'recipes.index', 'icon' => '🍳', 'label' => 'Prep Items', 'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
                             ['route' => 'kitchen.index',     'icon' => '👨‍🍳', 'label' => 'Kitchen',     'permission' => 'inventory.view'],
                         ],
                     ],

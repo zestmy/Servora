@@ -9,20 +9,41 @@
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Recipes</h2>
+        <h2 class="text-lg font-semibold text-gray-700">{{ $isPrep ? 'Prep Items' : 'Recipes' }}</h2>
         <div class="flex items-center gap-2">
-            <a href="{{ route('recipes.import') }}"
-               class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
-                </svg>
-                Import
-            </a>
-            <a href="{{ route('recipes.create') }}"
-               class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                + New Recipe
-            </a>
+            @if (! $isPrep)
+                <a href="{{ route('recipes.import') }}"
+                   class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
+                    </svg>
+                    Import
+                </a>
+                <a href="{{ route('recipes.create') }}"
+                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    + New Recipe
+                </a>
+            @else
+                <a href="{{ route('inventory.prep-items.create') }}"
+                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    + New Prep Item
+                </a>
+            @endif
         </div>
+    </div>
+
+    {{-- Tabs --}}
+    <div class="border-b border-gray-200 mb-4">
+        <nav class="flex gap-6 -mb-px">
+            <button wire:click="$set('tab', 'recipes')"
+                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'recipes' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Recipes
+            </button>
+            <button wire:click="$set('tab', 'prep-items')"
+                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'prep-items' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Prep Items
+            </button>
+        </nav>
     </div>
 
     {{-- Filter Bar --}}
