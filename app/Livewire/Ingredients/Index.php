@@ -528,7 +528,7 @@ class Index extends Component
         return view('livewire.ingredients.index', compact(
             'ingredients', 'uoms', 'suppliers', 'categories', 'outlets',
             'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
-        ))->layout('layouts.app', ['title' => 'Ingredients']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Ingredients']);
     }
 
     private function resetForm(): void

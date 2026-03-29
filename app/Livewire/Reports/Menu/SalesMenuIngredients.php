@@ -37,7 +37,7 @@ class SalesMenuIngredients extends Component
         $outlets = $this->getOutlets();
 
         return view('livewire.reports.menu.sales-menu-ingredients', compact('items', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Sales Menu & Ingredients']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Sales Menu & Ingredients']);
     }
 
     private function buildQuery()

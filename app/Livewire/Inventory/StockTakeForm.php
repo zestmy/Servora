@@ -282,7 +282,7 @@ class StockTakeForm extends Component
         return view('livewire.inventory.stock-take-form', compact(
             'searchResults', 'totalVarianceCost', 'totalStockCost',
             'positiveVariance', 'negativeVariance', 'isCompleted', 'availableTemplates', 'departments'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

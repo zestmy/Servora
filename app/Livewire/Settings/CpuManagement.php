@@ -141,6 +141,6 @@ class CpuManagement extends Component
         return view('livewire.settings.cpu-management', [
             'cpus'         => $cpus,
             'companyUsers' => $companyUsers,
-        ])->layout('layouts.app', ['title' => 'Central Purchasing Units']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Central Purchasing Units']);
     }
 }

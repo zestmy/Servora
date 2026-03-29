@@ -106,7 +106,7 @@ class FormTemplates extends Component
         $typeOptions = FormTemplate::formTypeOptions();
 
         return view('livewire.settings.form-templates', compact('templates', 'typeOptions'))
-            ->layout('layouts.app', ['title' => 'Form Templates']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Form Templates']);
     }
 
     private function resetForm(): void

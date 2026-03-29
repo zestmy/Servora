@@ -109,7 +109,7 @@ class SalesCategories extends Component
             ->pluck('total', 'sales_category_id');
 
         return view('livewire.settings.sales-categories', compact('categories', 'typeOptions', 'colorOptions', 'lineCounts'))
-            ->layout('layouts.app', ['title' => 'Sales Categories']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Sales Categories']);
     }
 
     private function resetForm(): void

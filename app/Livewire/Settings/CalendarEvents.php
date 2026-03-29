@@ -287,7 +287,7 @@ class CalendarEvents extends Component
         $impactOptions = CalendarEvent::impactOptions();
 
         return view('livewire.settings.calendar-events', compact('events', 'outlets', 'categoryOptions', 'impactOptions'))
-            ->layout('layouts.app', ['title' => 'Calendar Events']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Calendar Events']);
     }
 
     private function resetForm(): void

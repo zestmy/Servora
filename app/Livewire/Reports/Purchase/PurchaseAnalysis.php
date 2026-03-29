@@ -54,7 +54,7 @@ class PurchaseAnalysis extends Component
             'totals'    => $totals,
             'outlets'   => $outlets,
             'suppliers' => $suppliers,
-        ])->layout('layouts.app', ['title' => 'Purchase Analysis']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Purchase Analysis']);
     }
 
     private function buildQuery()

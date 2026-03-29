@@ -264,6 +264,6 @@ class PurchaseRequestForm extends Component
             'departments'   => $departments,
             'uoms'          => $uoms,
             'isEditable'    => $isEditable,
-        ])->layout('layouts.app', ['title' => $this->requestId ? 'Edit Purchase Request' : 'New Purchase Request']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $this->requestId ? 'Edit Purchase Request' : 'New Purchase Request']);
     }
 }

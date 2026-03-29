@@ -48,6 +48,6 @@ class ProductionHistory extends Component
         $orders = $this->buildQuery()->paginate(25);
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
         return view('livewire.reports.kitchen.production-history', compact('orders', 'kitchens'))
-            ->layout('layouts.app', ['title' => 'Production History']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Production History']);
     }
 }

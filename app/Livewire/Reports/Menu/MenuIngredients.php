@@ -55,7 +55,7 @@ class MenuIngredients extends Component
         $categories = IngredientCategory::roots()->active()->ordered()->with('children')->get();
 
         return view('livewire.reports.menu.menu-ingredients', compact('recipes', 'outlets', 'categories'))
-            ->layout('layouts.app', ['title' => 'Menu & Ingredients']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Menu & Ingredients']);
     }
 
     private function buildQuery()

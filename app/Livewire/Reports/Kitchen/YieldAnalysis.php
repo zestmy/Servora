@@ -32,6 +32,6 @@ class YieldAnalysis extends Component
         $recipes = $query->orderByRaw('AVG(yield_variance_pct) ASC')->paginate(25);
 
         return view('livewire.reports.kitchen.yield-analysis', compact('recipes'))
-            ->layout('layouts.app', ['title' => 'Yield Analysis']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Yield Analysis']);
     }
 }

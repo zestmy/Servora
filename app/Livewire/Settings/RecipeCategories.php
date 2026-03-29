@@ -123,7 +123,7 @@ class RecipeCategories extends Component
         $colorOptions = RecipeCategory::colorOptions();
 
         return view('livewire.settings.recipe-categories', compact('categories', 'colorOptions', 'recipeCounts'))
-            ->layout('layouts.app', ['title' => 'Recipe Categories']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Recipe Categories']);
     }
 
     private function resetForm(): void

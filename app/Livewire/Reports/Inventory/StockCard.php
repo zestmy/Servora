@@ -48,7 +48,7 @@ class StockCard extends Component
         $ingredient = $this->ingredientFilter ? Ingredient::with('baseUom')->find($this->ingredientFilter) : null;
 
         return view('livewire.reports.inventory.stock-card', compact('movements', 'outlets', 'ingredients', 'ingredient'))
-            ->layout('layouts.app', ['title' => 'Stock Card']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Card']);
     }
 
     private function buildMovements(): Collection

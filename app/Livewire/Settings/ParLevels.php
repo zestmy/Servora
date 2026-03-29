@@ -79,7 +79,7 @@ class ParLevels extends Component
         $ingredients = $query->paginate(50);
 
         return view('livewire.settings.par-levels', compact('outlets', 'ingredients'))
-            ->layout('layouts.app', ['title' => 'Par Levels']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Par Levels']);
     }
 
     private function loadParLevels(): void

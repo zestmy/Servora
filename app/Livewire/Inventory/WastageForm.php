@@ -351,7 +351,7 @@ class WastageForm extends Component
 
         return view('livewire.inventory.wastage-form', compact(
             'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

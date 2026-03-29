@@ -51,6 +51,6 @@ class PriceComparison extends Component
         }
 
         return view('livewire.purchasing.price-comparison', compact('searchResults'))
-            ->layout('layouts.app', ['title' => 'Price Comparison']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Price Comparison']);
     }
 }

@@ -601,7 +601,7 @@ class Index extends Component
             'cpuMode'            => $cpuMode,
             'isCpuUser'          => $isCpuUser,
             'isPrApprover'       => $isPrApprover,
-        ]))->layout('layouts.app', ['title' => 'Purchasing']);
+        ]))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Purchasing']);
     }
 
     // ── Data Builders ────────────────────────────────────────────────────────

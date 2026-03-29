@@ -94,6 +94,6 @@ class LmsUsers extends Component
             'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',
             'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories',
             'lmsUrl', 'lmsRegisterUrl', 'company'
-        ))->layout('layouts.app', ['title' => 'Training Portal']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Training Portal']);
     }
 }

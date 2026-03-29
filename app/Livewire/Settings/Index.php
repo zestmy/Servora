@@ -60,6 +60,6 @@ class Index extends Component
             'isSystemLevel', 'isBusinessLevel',
             'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
             'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount'
-        ))->layout('layouts.app', ['title' => 'Settings']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Settings']);
     }
 }

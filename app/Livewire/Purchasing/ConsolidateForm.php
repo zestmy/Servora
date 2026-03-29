@@ -107,6 +107,6 @@ class ConsolidateForm extends Component
         return view('livewire.purchasing.consolidate-form', [
             'approvedPrs' => $approvedPrs,
             'cpus'        => $cpus,
-        ])->layout('layouts.app', ['title' => 'Consolidate Purchase Requests']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Consolidate Purchase Requests']);
     }
 }

@@ -70,6 +70,6 @@ class SupplierProductMapping extends Component
 
         return view('livewire.settings.supplier-product-mapping', compact(
             'suppliers', 'ingredients', 'products', 'mappings'
-        ))->layout('layouts.app', ['title' => 'Supplier Product Mapping']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Supplier Product Mapping']);
     }
 }

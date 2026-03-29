@@ -52,6 +52,6 @@ class RfqIndex extends Component
 
         return view('livewire.purchasing.rfq-index', [
             'rfqs' => $rfqs,
-        ])->layout('layouts.app', ['title' => 'RFQ Management']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'RFQ Management']);
     }
 }

@@ -50,7 +50,7 @@ class DeliveryOrderReport extends Component
             'deliveries' => $deliveries,
             'outlets'    => $this->getOutlets(),
             'suppliers'  => $this->getSuppliers(),
-        ])->layout('layouts.app', ['title' => 'Delivery Order Report']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Delivery Order Report']);
     }
 
     private function buildQuery()

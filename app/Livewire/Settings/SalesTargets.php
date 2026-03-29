@@ -101,7 +101,7 @@ class SalesTargets extends Component
         $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
 
         return view('livewire.settings.sales-targets', compact('targets', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Sales Targets']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Sales Targets']);
     }
 
     private function resetForm(): void

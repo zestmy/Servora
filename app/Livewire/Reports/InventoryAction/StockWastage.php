@@ -41,7 +41,7 @@ class StockWastage extends Component
         $outlets = $this->getOutlets();
 
         return view('livewire.reports.inventory-action.stock-wastage', compact('lines', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Stock Wastage']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Wastage']);
     }
 
     private function buildQuery()

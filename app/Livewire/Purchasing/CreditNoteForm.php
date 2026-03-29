@@ -347,7 +347,7 @@ class CreditNoteForm extends Component
         return view('livewire.purchasing.credit-note-form', compact(
             'suppliers', 'uoms', 'invoices', 'grns', 'searchResults',
             'subtotal', 'taxPct', 'taxAmount', 'grandTotal', 'isEditable'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     private function recalcLine(int $idx): void

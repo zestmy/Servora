@@ -141,6 +141,6 @@ class StockTransferForm extends Component
 
         return view('livewire.purchasing.stock-transfer-form', compact(
             'cpus', 'outlets', 'taxRates', 'uoms', 'searchResults', 'subtotal'
-        ))->layout('layouts.app', ['title' => 'New Stock Transfer Order']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'New Stock Transfer Order']);
     }
 }

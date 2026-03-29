@@ -36,7 +36,7 @@ class StockCountAnalysis extends Component
         $outlets = $this->getOutlets();
 
         return view('livewire.reports.inventory-action.stock-count-analysis', compact('lines', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Stock Count Analysis']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Count Analysis']);
     }
 
     private function buildQuery()

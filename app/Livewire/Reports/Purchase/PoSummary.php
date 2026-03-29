@@ -77,7 +77,7 @@ class PoSummary extends Component
             'totals'    => $totals,
             'outlets'   => $outlets,
             'suppliers' => $suppliers,
-        ])->layout('layouts.app', ['title' => 'PO Summary']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'PO Summary']);
     }
 
     private function baseQuery()

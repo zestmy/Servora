@@ -39,7 +39,7 @@ class StockBalanceProduct extends Component
         $outlets = $this->getOutlets();
 
         return view('livewire.reports.inventory.stock-balance-product', compact('items', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Stock Balance (Product)']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Balance (Product)']);
     }
 
     private function buildQuery()

@@ -238,6 +238,6 @@ class RfqForm extends Component
 
         return view('livewire.purchasing.rfq-form', compact(
             'suppliers', 'uoms', 'searchResults', 'isEditable'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 }

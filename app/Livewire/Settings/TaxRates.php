@@ -109,6 +109,6 @@ class TaxRates extends Component
         $taxRates = TaxRate::orderBy('country_code')->orderBy('name')->get();
 
         return view('livewire.settings.tax-rates', compact('taxRates'))
-            ->layout('layouts.app', ['title' => 'Tax Rates']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Tax Rates']);
     }
 }

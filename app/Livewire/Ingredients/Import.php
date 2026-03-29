@@ -229,7 +229,7 @@ class Import extends Component
     public function render()
     {
         return view('livewire.ingredients.import')
-            ->layout('layouts.app', ['title' => 'Import Ingredients']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Import Ingredients']);
     }
 
     // ── Parsers ───────────────────────────────────────────────────────────────

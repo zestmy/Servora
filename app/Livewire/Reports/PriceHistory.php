@@ -78,7 +78,7 @@ class PriceHistory extends Component
 
         return view('livewire.reports.price-history', compact(
             'stats', 'changes', 'suppliers', 'categories', 'detailData'
-        ))->layout('layouts.app', ['title' => 'Price History']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Price History']);
     }
 
     private function applyPeriod(): void

@@ -106,6 +106,6 @@ class CreditNoteIndex extends Component
         $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
 
         return view('livewire.purchasing.credit-note-index', compact('creditNotes', 'stats', 'suppliers'))
-            ->layout('layouts.app', ['title' => 'Credit & Debit Notes']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Credit & Debit Notes']);
     }
 }

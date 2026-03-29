@@ -40,7 +40,7 @@ class OrderItemsByBranch extends Component
             'items'     => $items,
             'outlets'   => $this->getOutlets(),
             'suppliers' => $this->getSuppliers(),
-        ])->layout('layouts.app', ['title' => 'Order Items By Branch']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Order Items By Branch']);
     }
 
     private function buildQuery()

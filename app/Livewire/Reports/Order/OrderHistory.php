@@ -49,7 +49,7 @@ class OrderHistory extends Component
             'orders'    => $orders,
             'outlets'   => $this->getOutlets(),
             'suppliers' => $this->getSuppliers(),
-        ])->layout('layouts.app', ['title' => 'Order History']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Order History']);
     }
 
     private function buildQuery()

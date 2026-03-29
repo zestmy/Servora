@@ -67,7 +67,7 @@ class InvoiceSummary extends Component
             'totalOverdue'     => $totalOverdue,
             'outlets'          => $this->getOutlets(),
             'suppliers'        => $this->getSuppliers(),
-        ])->layout('layouts.app', ['title' => 'Invoice Summary']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Invoice Summary']);
     }
 
     private function buildQuery()

@@ -40,7 +40,7 @@ class OrderSummary extends Component
             'summary'   => $summary,
             'outlets'   => $this->getOutlets(),
             'suppliers' => $this->getSuppliers(),
-        ])->layout('layouts.app', ['title' => 'Order Summary']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Order Summary']);
     }
 
     private function buildQuery()

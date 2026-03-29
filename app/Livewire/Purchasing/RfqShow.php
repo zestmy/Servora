@@ -168,6 +168,6 @@ class RfqShow extends Component
             'lowestPrices' => $lowestPrices,
             'outlets'      => $outlets,
             'cpus'         => $cpus,
-        ])->layout('layouts.app', ['title' => 'RFQ: ' . $this->rfq->rfq_number]);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'RFQ: ' . $this->rfq->rfq_number]);
     }
 }

@@ -173,7 +173,7 @@ class LabourCosts extends Component
         $periodLabel = Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
 
         return view('livewire.settings.labour-costs', compact('outlets', 'records', 'periodLabel'))
-            ->layout('layouts.app', ['title' => 'Labour Costs']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Labour Costs']);
     }
 
     private function resetForm(): void

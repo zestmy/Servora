@@ -272,7 +272,7 @@ class ReceiveForm extends Component
 
         return view('livewire.purchasing.receive-form', compact(
             'suppliers', 'uoms', 'searchResults', 'grandTotal', 'hasPartialDeliveries', 'deliveryCount'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

@@ -199,6 +199,6 @@ class SupplierDirectory extends Component
 
         return view('livewire.purchasing.supplier-directory', compact(
             'suppliers', 'categories', 'states', 'viewingProducts', 'mySupplierEmails'
-        ))->layout('layouts.app', ['title' => 'Find Suppliers']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Find Suppliers']);
     }
 }

@@ -105,7 +105,7 @@ class CompanyDetails extends Component
     public function render()
     {
         return view('livewire.settings.company-details')
-            ->layout('layouts.app', ['title' => 'Company Details']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Company Details']);
     }
 
     private function getCompany(): ?Company

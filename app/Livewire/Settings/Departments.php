@@ -106,7 +106,7 @@ class Departments extends Component
             ->pluck('total', 'department_id');
 
         return view('livewire.settings.departments', compact('departments', 'salesCategories', 'usage'))
-            ->layout('layouts.app', ['title' => 'Departments']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Departments']);
     }
 
     private function resetForm(): void

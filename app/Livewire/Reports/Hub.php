@@ -77,6 +77,6 @@ class Hub extends Component
         ];
 
         return view('livewire.reports.hub', compact('categories'))
-            ->layout('layouts.app', ['title' => 'Reports']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Reports']);
     }
 }

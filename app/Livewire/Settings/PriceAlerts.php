@@ -73,6 +73,6 @@ class PriceAlerts extends Component
 
         return view('livewire.settings.price-alerts', compact(
             'notifications', 'unreadCount', 'increaseCount', 'decreaseCount'
-        ))->layout('layouts.app', ['title' => 'Price Alerts']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Price Alerts']);
     }
 }

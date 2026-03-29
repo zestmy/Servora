@@ -159,6 +159,6 @@ class KitchenManagement extends Component
             'kitchens'     => $kitchens,
             'companyUsers' => $companyUsers,
             'outlets'      => $outlets,
-        ])->layout('layouts.app', ['title' => 'Central Kitchens']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Central Kitchens']);
     }
 }

@@ -36,7 +36,7 @@ class InventoryVariance extends Component
         $outlets = $this->getOutlets();
 
         return view('livewire.reports.others.inventory-variance', compact('items', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Inventory Variance']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory Variance']);
     }
 
     private function buildQuery()

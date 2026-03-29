@@ -147,7 +147,7 @@ class CostTypes extends Component
         ];
 
         return view('livewire.settings.cost-types', compact('costTypes', 'categoryUsage', 'salesUsage', 'colorOptions'))
-            ->layout('layouts.app', ['title' => 'Cost Types']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Cost Types']);
     }
 
     private function resetForm(): void

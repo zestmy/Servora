@@ -245,7 +245,7 @@ class ConvertToDoForm extends Component
 
         return view('livewire.purchasing.convert-to-do', compact(
             'uoms', 'grandTotal', 'searchResults', 'showPrice'
-        ))->layout('layouts.app', ['title' => 'Convert PO to DO: ' . $this->poNumber]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Convert PO to DO: ' . $this->poNumber]);
     }
 
     private function recalcLine(int $idx): void

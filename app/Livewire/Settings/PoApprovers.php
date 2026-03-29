@@ -221,6 +221,6 @@ class PoApprovers extends Component
 
         return view('livewire.settings.po-approvers', compact(
             'outlets', 'departments', 'users', 'poApprovers', 'prApprovers'
-        ))->layout('layouts.app', ['title' => 'Approvers']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Approvers']);
     }
 }

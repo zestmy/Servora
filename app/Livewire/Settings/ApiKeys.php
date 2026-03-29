@@ -102,6 +102,6 @@ class ApiKeys extends Component
     public function render()
     {
         return view('livewire.settings.api-keys')
-            ->layout('layouts.app', ['title' => 'API Keys']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'API Keys']);
     }
 }

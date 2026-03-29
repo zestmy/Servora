@@ -262,6 +262,6 @@ class Index extends Component
             'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
             'inTransitCount', 'latestStockTake', 'categoryBreakdown'
-        ))->layout('layouts.app', ['title' => 'Inventory']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
     }
 }

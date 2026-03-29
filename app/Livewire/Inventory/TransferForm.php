@@ -235,7 +235,7 @@ class TransferForm extends Component
 
         return view('livewire.inventory.transfer-form', compact(
             'ingredientResults', 'outlets', 'totalCost', 'isDraft'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     private function recalcLine(int $idx): void

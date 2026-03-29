@@ -41,7 +41,7 @@ class StockAdjustment extends Component
         $outlets = $this->getOutlets();
 
         return view('livewire.reports.inventory-action.stock-adjustment', compact('logs', 'outlets'))
-            ->layout('layouts.app', ['title' => 'Stock Adjustment']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Adjustment']);
     }
 
     private function buildQuery()

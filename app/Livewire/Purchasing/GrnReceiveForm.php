@@ -253,7 +253,7 @@ class GrnReceiveForm extends Component
         $showPrice = (bool) Company::find(Auth::user()->company_id)?->show_price_on_do_grn;
 
         return view('livewire.purchasing.grn-receive-form', compact('grandTotal', 'showPrice'))
-            ->layout('layouts.app', ['title' => 'Receive GRN: ' . $this->grnNumber]);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Receive GRN: ' . $this->grnNumber]);
     }
 
     private function getPackSize(int $ingredientId, int $supplierId): float

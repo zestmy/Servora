@@ -221,7 +221,7 @@ class PrepItemForm extends Component
 
         return view('livewire.inventory.prep-item-form', compact(
             'uoms', 'categories', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

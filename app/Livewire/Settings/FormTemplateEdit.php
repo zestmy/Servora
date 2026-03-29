@@ -328,6 +328,6 @@ class FormTemplateEdit extends Component
         $categories  = IngredientCategory::roots()->with('children')->active()->ordered()->get();
 
         return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments', 'categories'))
-            ->layout('layouts.app', ['title' => 'Edit Template: ' . $this->name]);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Edit Template: ' . $this->name]);
     }
 }

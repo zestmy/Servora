@@ -495,7 +495,7 @@ class OrderForm extends Component
 
         return view('livewire.purchasing.order-form', compact(
             'suppliers', 'uoms', 'departments', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

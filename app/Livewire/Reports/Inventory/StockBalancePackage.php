@@ -46,7 +46,7 @@ class StockBalancePackage extends Component
         $categories = IngredientCategory::roots()->active()->ordered()->with('children')->get();
 
         return view('livewire.reports.inventory.stock-balance-package', compact('items', 'outlets', 'categories'))
-            ->layout('layouts.app', ['title' => 'Stock Balance (Package)']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Balance (Package)']);
     }
 
     private function buildQuery()

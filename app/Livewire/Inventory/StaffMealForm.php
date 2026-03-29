@@ -339,7 +339,7 @@ class StaffMealForm extends Component
 
         return view('livewire.inventory.staff-meal-form', compact(
             'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
     private function recalcLine(int $idx): void

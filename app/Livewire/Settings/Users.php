@@ -218,7 +218,7 @@ class Users extends Component
 
         return view('livewire.settings.users', compact(
             'users', 'companies', 'outlets', 'isSuperAdmin', 'modules'
-        ))->layout('layouts.app', ['title' => 'Users']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
     }
 
     private function resetForm(): void

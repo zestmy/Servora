@@ -131,7 +131,7 @@ class Suppliers extends Component
         $suppliers = $query->orderBy('name')->paginate(15);
 
         return view('livewire.settings.suppliers', compact('suppliers'))
-            ->layout('layouts.app', ['title' => 'Suppliers']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Suppliers']);
     }
 
     private function resetForm(): void

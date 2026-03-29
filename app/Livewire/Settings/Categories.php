@@ -146,7 +146,7 @@ class Categories extends Component
             : null;
 
         return view('livewire.settings.categories', compact('categories', 'colorOptions', 'typeOptions', 'typeColors', 'parentCategory'))
-            ->layout('layouts.app', ['title' => 'Categories']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Categories']);
     }
 
     private function resetForm(): void

@@ -51,7 +51,7 @@ class GrnReport extends Component
             'grns'      => $grns,
             'outlets'   => $this->getOutlets(),
             'suppliers' => $this->getSuppliers(),
-        ])->layout('layouts.app', ['title' => 'GRN Report']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'GRN Report']);
     }
 
     private function buildQuery()

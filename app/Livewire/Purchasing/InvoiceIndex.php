@@ -70,6 +70,6 @@ class InvoiceIndex extends Component
         ];
 
         return view('livewire.purchasing.invoice-index', compact('invoices', 'stats'))
-            ->layout('layouts.app', ['title' => 'Procurement Invoices']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Procurement Invoices']);
     }
 }

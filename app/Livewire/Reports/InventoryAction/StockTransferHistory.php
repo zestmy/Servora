@@ -49,7 +49,7 @@ class StockTransferHistory extends Component
         return view('livewire.reports.inventory-action.stock-transfer-history', [
             'transfers' => $paginator,
             'outlets' => $outlets,
-        ])->layout('layouts.app', ['title' => 'Stock Transfer History']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Transfer History']);
     }
 
     private function buildCombined(): Collection

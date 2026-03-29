@@ -247,7 +247,7 @@ class Index extends Component
         return view('livewire.reports.index', [
             'periodLabel' => $this->periodLabel(),
             'outlets' => $outlets,
-        ])->layout('layouts.app', ['title' => 'Reports']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Reports']);
     }
 
     private function loadData(): void

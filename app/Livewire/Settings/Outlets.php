@@ -102,7 +102,7 @@ class Outlets extends Component
             ->get();
 
         return view('livewire.settings.outlets', compact('outlets'))
-            ->layout('layouts.app', ['title' => 'Branches']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Branches']);
     }
 
     private function resetForm(): void
