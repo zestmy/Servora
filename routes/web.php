@@ -268,7 +268,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.view');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:settings.view');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:inventory.view');
-    Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:settings.view');
+    Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:recipes.view');
     Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.view');
     Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.view');
     Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.view');

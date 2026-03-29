@@ -151,6 +151,13 @@
                         ],
                     ],
                     [
+                        'label' => 'Training',
+                        'items' => [
+                            ['route' => 'settings.lms-users', 'label' => 'LMS Users',     'permission' => 'recipes.view'],
+                            ['route' => 'training.sop.pdf-all', 'label' => 'Export All SOPs', 'permission' => 'recipes.view'],
+                        ],
+                    ],
+                    [
                         'label' => 'Insights',
                         'items' => [
                             ['route' => 'reports.hub',     'label' => 'Reports',     'permission' => 'reports.view'],
@@ -160,7 +167,6 @@
                     [
                         'label' => 'Management',
                         'items' => [
-                            ['route' => 'settings.lms-users', 'label' => 'Training',     'permission' => 'settings.view'],
                             ['route' => 'settings.index',     'label' => 'Settings',     'permission' => 'settings.view'],
                             ['route' => 'billing.index',      'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
                             ['route' => 'referral.dashboard', 'label' => 'Refer & Earn', 'permission' => null],
