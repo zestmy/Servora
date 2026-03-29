@@ -78,7 +78,7 @@ class Ingredient extends Model
 
     public function outlets(): BelongsToMany
     {
-        return $this->belongsToMany(Outlet::class)->withTimestamps();
+        return $this->belongsToMany(Outlet::class, 'outlet_ingredient')->withTimestamps();
     }
 
     public function suppliers(): BelongsToMany
