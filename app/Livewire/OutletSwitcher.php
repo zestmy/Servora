@@ -46,12 +46,17 @@ class OutletSwitcher extends Component
             ]);
         }
 
-        $outlets = $user->canViewAllOutlets()
+        $allOutlets = $user->canViewAllOutlets()
             ? Outlet::where('company_id', $user->company_id)->where('is_active', true)->orderBy('name')->get()
             : $user->outlets()->where('is_active', true)->orderBy('name')->get();
 
+        $kitchenOutletIds = \App\Models\CentralKitchen::where('company_id', $user->company_id)
+            ->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
+
+        $outlets = $allOutlets->reject(fn ($o) => in_array($o->id, $kitchenOutletIds));
+        $kitchenOutlets = $allOutlets->filter(fn ($o) => in_array($o->id, $kitchenOutletIds));
         $canViewAll = $user->canViewAllOutlets();
 
-        return view('livewire.outlet-switcher', compact('outlets', 'canViewAll') + ['hidden' => false]);
+        return view('livewire.outlet-switcher', compact('outlets', 'kitchenOutlets', 'canViewAll') + ['hidden' => false]);
     }
 }
