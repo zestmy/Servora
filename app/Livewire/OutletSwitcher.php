@@ -54,7 +54,9 @@ class OutletSwitcher extends Component
             ->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
 
         $outlets = $allOutlets->reject(fn ($o) => in_array($o->id, $kitchenOutletIds));
-        $kitchenOutlets = $allOutlets->filter(fn ($o) => in_array($o->id, $kitchenOutletIds));
+        $kitchenOutlets = $user->isKitchenUser()
+            ? $allOutlets->filter(fn ($o) => in_array($o->id, $kitchenOutletIds))
+            : collect();
         $canViewAll = $user->canViewAllOutlets();
 
         return view('livewire.outlet-switcher', compact('outlets', 'kitchenOutlets', 'canViewAll') + ['hidden' => false]);
