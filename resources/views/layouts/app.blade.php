@@ -187,7 +187,7 @@
                 }
             @endphp
             <div x-data="{
-                    activeGroup: localStorage.getItem('nav_active_group') || '{{ $activeGroupSlug ?? '' }}',
+                    activeGroup: '{{ $activeGroupSlug ?? '' }}' || localStorage.getItem('nav_active_group') || '',
                     toggle(key) {
                         this.activeGroup = this.activeGroup === key ? '' : key;
                         localStorage.setItem('nav_active_group', this.activeGroup);
