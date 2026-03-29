@@ -100,20 +100,61 @@
                 $authUser = Auth::user();
                 $isSystemRole = $authUser->isSystemRole();
 
-                $allNavItems = [
-                    ['route' => 'dashboard',         'icon' => '🏠', 'label' => 'Dashboard',    'permission' => null],
-                    ['route' => 'ingredients.index', 'icon' => '🥕', 'label' => 'Ingredients',  'permission' => 'ingredients.view'],
-                    ['route' => 'recipes.index',     'icon' => '📋', 'label' => 'Recipes',      'permission' => 'recipes.view'],
-                    ['route' => 'purchasing.index',  'icon' => '🛒', 'label' => 'Purchasing',   'permission' => 'purchasing.view'],
-                    ['route' => 'sales.index',       'icon' => '💰', 'label' => 'Sales',        'permission' => 'sales.view'],
-                    ['route' => 'inventory.index',   'icon' => '📦', 'label' => 'Inventory',    'permission' => 'inventory.view'],
-                    ['route' => 'kitchen.index',     'icon' => '👨‍🍳', 'label' => 'Kitchen',      'permission' => 'inventory.view'],
-                    ['route' => 'reports.hub',       'icon' => '📊', 'label' => 'Reports',      'permission' => 'reports.view'],
-                    ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training',    'permission' => 'settings.view'],
-                    ['route' => 'analytics.index',   'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
-                    ['route' => 'settings.index',    'icon' => '⚙️',  'label' => 'Settings',     'permission' => 'settings.view'],
-                    ['route' => 'billing.index',     'icon' => '💳', 'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
-                    ['route' => 'referral.dashboard', 'icon' => '🔗', 'label' => 'Refer & Earn', 'permission' => null],
+                // Filter helper
+                $canSee = function($item) use ($authUser) {
+                    if (!empty($item['capability']) && !$authUser->hasCapability($item['capability'])) return false;
+                    if (($item['permission'] ?? null) !== null && !$authUser->hasPermissionTo($item['permission'])) return false;
+                    if (!empty($item['feature']) && $authUser->company) {
+                        if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $item['feature'])) return false;
+                    }
+                    return true;
+                };
+
+                // Grouped navigation
+                $navGroups = [
+                    [
+                        'label' => null, // No header for main
+                        'items' => [
+                            ['route' => 'dashboard', 'icon' => '🏠', 'label' => 'Dashboard', 'permission' => null],
+                        ],
+                    ],
+                    [
+                        'label' => 'Operations',
+                        'items' => [
+                            ['route' => 'ingredients.index', 'icon' => '🥕', 'label' => 'Ingredients', 'permission' => 'ingredients.view'],
+                            ['route' => 'recipes.index',     'icon' => '📋', 'label' => 'Recipes',     'permission' => 'recipes.view'],
+                            ['route' => 'kitchen.index',     'icon' => '👨‍🍳', 'label' => 'Kitchen',     'permission' => 'inventory.view'],
+                        ],
+                    ],
+                    [
+                        'label' => 'Commerce',
+                        'items' => [
+                            ['route' => 'purchasing.index', 'icon' => '🛒', 'label' => 'Purchasing', 'permission' => 'purchasing.view'],
+                            ['route' => 'sales.index',      'icon' => '💰', 'label' => 'Sales',      'permission' => 'sales.view'],
+                        ],
+                    ],
+                    [
+                        'label' => 'Warehouse',
+                        'items' => [
+                            ['route' => 'inventory.index', 'icon' => '📦', 'label' => 'Inventory', 'permission' => 'inventory.view'],
+                        ],
+                    ],
+                    [
+                        'label' => 'Insights',
+                        'items' => [
+                            ['route' => 'reports.hub',     'icon' => '📊', 'label' => 'Reports',     'permission' => 'reports.view'],
+                            ['route' => 'analytics.index', 'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
+                        ],
+                    ],
+                    [
+                        'label' => 'Management',
+                        'items' => [
+                            ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training', 'permission' => 'settings.view'],
+                            ['route' => 'settings.index',     'icon' => '⚙️',  'label' => 'Settings', 'permission' => 'settings.view'],
+                            ['route' => 'billing.index',      'icon' => '💳', 'label' => 'Billing',  'permission' => null, 'capability' => 'can_manage_users'],
+                            ['route' => 'referral.dashboard', 'icon' => '🔗', 'label' => 'Refer & Earn', 'permission' => null],
+                        ],
+                    ],
                 ];
 
                 $adminNavItems = [
@@ -125,22 +166,29 @@
                     ['route' => 'admin.announcements',       'icon' => '📢', 'label' => 'Announcements', 'permission' => null],
                     ['route' => 'admin.pages',               'icon' => '📄', 'label' => 'Pages',         'permission' => null],
                 ];
-
-                if ($isSystemRole) {
-                    $navItems = array_filter($allNavItems, fn($i) => in_array($i['route'], ['dashboard', 'settings.index']));
-                } else {
-                    $navItems = array_filter($allNavItems, function($i) use ($authUser) {
-                        if (!empty($i['capability']) && !$authUser->hasCapability($i['capability'])) return false;
-                        if ($i['permission'] !== null && !$authUser->hasPermissionTo($i['permission'])) return false;
-                        if (!empty($i['feature']) && $authUser->company) {
-                            if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $i['feature'])) return false;
-                        }
-                        return true;
-                    });
-                }
             @endphp
 
-            @foreach ($navItems as $item)
+            @foreach ($navGroups as $group)
+                @php
+                    // Filter items user can see
+                    $visibleItems = $isSystemRole
+                        ? array_filter($group['items'], fn($i) => in_array($i['route'], ['dashboard', 'settings.index']))
+                        : array_filter($group['items'], $canSee);
+                @endphp
+
+                @if (count($visibleItems) > 0)
+                    {{-- Section header --}}
+                    @if ($group['label'])
+                        <p x-show="sidebarOpen"
+                           x-transition:enter="transition-opacity duration-150 delay-100"
+                           x-transition:enter-start="opacity-0"
+                           x-transition:enter-end="opacity-100"
+                           class="mt-4 mb-1 px-4 text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                            {{ $group['label'] }}
+                        </p>
+                    @endif
+
+                    @foreach ($visibleItems as $item)
                 @php
                     $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
                     if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
@@ -162,6 +210,8 @@
                         {{ $item['label'] }}
                     </span>
                 </a>
+                    @endforeach
+                @endif
             @endforeach
 
             {{-- Admin Section (System Admin only) --}}
