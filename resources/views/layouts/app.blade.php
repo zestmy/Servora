@@ -189,13 +189,19 @@
                 @if (count($visibleItems) > 0)
                     @if ($group['label'])
                         {{-- Collapsible group --}}
-                        <div x-data="{ open: {{ $groupHasActive ? 'true' : 'false' }} }" class="mt-2">
-                            <button @click="open = !open"
+                        @php $storageKey = 'nav_' . Str::slug($group['label']); @endphp
+                        <div x-data="{
+                                open: localStorage.getItem('{{ $storageKey }}') !== null
+                                    ? localStorage.getItem('{{ $storageKey }}') === '1'
+                                    : {{ $groupHasActive ? 'true' : 'false' }},
+                                toggle() { this.open = !this.open; localStorage.setItem('{{ $storageKey }}', this.open ? '1' : '0'); }
+                             }" class="mt-2">
+                            <button @click="toggle()"
                                     class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
                                 <span>{{ $group['label'] }}</span>
                                 <svg :class="open ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
-                            <div x-show="open" x-collapse>
+                            <div x-show="open" x-cloak x-collapse>
                                 @foreach ($visibleItems as $item)
                                     @php
                                         $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
@@ -229,13 +235,18 @@
 
             {{-- Admin Section (System Admin only) --}}
             @if ($isSystemRole)
-                <div class="mt-2 pt-2 border-t border-gray-700" x-data="{ open: {{ request()->routeIs('admin.*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
+                <div class="mt-2 pt-2 border-t border-gray-700" x-data="{
+                        open: localStorage.getItem('nav_admin') !== null
+                            ? localStorage.getItem('nav_admin') === '1'
+                            : {{ request()->routeIs('admin.*') ? 'true' : 'false' }},
+                        toggle() { this.open = !this.open; localStorage.setItem('nav_admin', this.open ? '1' : '0'); }
+                    }">
+                    <button @click="toggle()"
                             class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
                         <span>Admin</span>
                         <svg :class="open ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
-                    <div x-show="open" x-collapse>
+                    <div x-show="open" x-cloak x-collapse>
                         @foreach ($adminNavItems as $item)
                             @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
                             <a href="{{ route($item['route']) }}"
