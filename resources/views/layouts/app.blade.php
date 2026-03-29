@@ -168,6 +168,30 @@
                 ];
             @endphp
 
+            @php
+                // Find which group is active on page load
+                $activeGroupSlug = null;
+                foreach ($navGroups as $g) {
+                    if (! $g['label']) continue;
+                    $vis = $isSystemRole
+                        ? array_filter($g['items'], fn($i) => in_array($i['route'], ['dashboard', 'settings.index']))
+                        : array_filter($g['items'], $canSee);
+                    foreach ($vis as $vi) {
+                        if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*') ||
+                            ($vi['route'] === 'reports.hub' && request()->routeIs('reports.*'))) {
+                            $activeGroupSlug = Str::slug($g['label']);
+                            break 2;
+                        }
+                    }
+                }
+            @endphp
+            <div x-data="{
+                    activeGroup: localStorage.getItem('nav_active_group') || '{{ $activeGroupSlug ?? '' }}',
+                    toggle(key) {
+                        this.activeGroup = this.activeGroup === key ? '' : key;
+                        localStorage.setItem('nav_active_group', this.activeGroup);
+                    }
+                 }">
             @foreach ($navGroups as $gIdx => $group)
                 @php
                     $visibleItems = $isSystemRole
@@ -189,16 +213,14 @@
                 @if (count($visibleItems) > 0)
                     @if ($group['label'])
                         {{-- Collapsible group --}}
-                        @php $storageKey = 'nav_' . Str::slug($group['label']); @endphp
-                        <div x-data="{ open: {{ $groupHasActive ? 'true' : 'false' }} }"
-                             x-init="let s = localStorage.getItem('{{ $storageKey }}'); if (s !== null) open = s === '1'"
-                             class="mt-2">
-                            <button @click="open = !open; localStorage.setItem('{{ $storageKey }}', open ? '1' : '0')"
+                        @php $groupSlug = Str::slug($group['label']); @endphp
+                        <div class="mt-2">
+                            <button @click="toggle('{{ $groupSlug }}')"
                                     class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
                                 <span>{{ $group['label'] }}</span>
-                                <svg :class="open && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <svg :class="activeGroup === '{{ $groupSlug }}' && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
-                            <div x-show="open">
+                            <div x-show="activeGroup === '{{ $groupSlug }}'">
                                 @foreach ($visibleItems as $item)
                                     @php
                                         $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
@@ -229,6 +251,7 @@
                     @endif
                 @endif
             @endforeach
+            </div>{{-- end x-data activeGroup wrapper --}}
 
             {{-- Admin Section (System Admin only) --}}
             @if ($isSystemRole)
