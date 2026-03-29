@@ -67,26 +67,64 @@
                 ];
             @endphp
 
+            @php
+                // Find active group
+                $ckActiveGroup = null;
+                foreach ($kitchenNav as $g) {
+                    if (! $g['label']) continue;
+                    foreach ($g['items'] as $vi) {
+                        if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*')) {
+                            $ckActiveGroup = Str::slug($g['label']); break 2;
+                        }
+                    }
+                }
+            @endphp
+            <div x-data="{
+                    activeGroup: '{{ $ckActiveGroup ?? '' }}' || localStorage.getItem('ck_nav_active') || '',
+                    toggle(key) {
+                        this.activeGroup = this.activeGroup === key ? '' : key;
+                        localStorage.setItem('ck_nav_active', this.activeGroup);
+                    }
+                 }">
             @foreach ($kitchenNav as $group)
                 @if ($group['label'])
-                    <p class="mt-3 mb-1 px-3 text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $group['label'] }}</p>
+                    @php $groupSlug = Str::slug($group['label']); @endphp
+                    <div class="mt-2">
+                        <button @click="toggle('{{ $groupSlug }}')"
+                                class="w-full flex items-center justify-between px-3 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
+                            <span>{{ $group['label'] }}</span>
+                            <svg :class="activeGroup === '{{ $groupSlug }}' && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="activeGroup === '{{ $groupSlug }}'">
+                            @foreach ($group['items'] as $item)
+                                @php
+                                    $href = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
+                                    $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
+                                    if (!empty($item['query']) && $isActive) {
+                                        parse_str($item['query'], $qp);
+                                        $isActive = collect($qp)->every(fn($v, $k) => request()->query($k) === $v);
+                                    }
+                                @endphp
+                                <a href="{{ $href }}"
+                                   class="block rounded-lg text-sm font-medium transition-colors px-3 py-1.5 ml-1
+                                          {{ $isActive ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                    {{ $item['label'] }}
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @else
+                    @foreach ($group['items'] as $item)
+                        @php $isActive = request()->routeIs($item['route']); @endphp
+                        <a href="{{ route($item['route']) }}"
+                           class="block rounded-lg text-sm font-medium transition-colors px-3 py-2
+                                  {{ $isActive ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                            {{ $item['label'] }}
+                        </a>
+                    @endforeach
                 @endif
-                @foreach ($group['items'] as $item)
-                    @php
-                        $href = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
-                        $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
-                        if (!empty($item['query'])) {
-                            parse_str($item['query'], $qp);
-                            if ($isActive) $isActive = collect($qp)->every(fn($v, $k) => request()->query($k) === $v);
-                        }
-                    @endphp
-                    <a href="{{ $href }}"
-                       class="block rounded-lg text-sm font-medium transition-colors px-3 py-1.5
-                              {{ $isActive ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                        {{ $item['label'] }}
-                    </a>
-                @endforeach
             @endforeach
+            </div>
         </nav>
 
         {{-- Bottom: Workspace Switcher + User --}}
