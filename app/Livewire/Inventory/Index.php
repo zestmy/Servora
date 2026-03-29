@@ -17,7 +17,7 @@ class Index extends Component
 {
     use WithPagination, ScopesToActiveOutlet;
 
-    public string $tab          = 'prep-items';
+    public string $tab          = 'stock-takes';
     public string $search       = '';
     public string $dateFrom     = '';
     public string $dateTo       = '';
@@ -123,19 +123,6 @@ class Index extends Component
             ? $staffMealQuery->orderByDesc('meal_date')->orderByDesc('id')->paginate(15)
             : collect();
 
-        // ── Prep Items ────────────────────────────────────────────────────
-        $prepSearch = $this->tab === 'prep-items' ? $this->search : '';
-        $prepItems = $this->tab === 'prep-items'
-            ? Recipe::with(['yieldUom', 'ingredient'])
-                ->where('is_prep', true)
-                ->when($prepSearch, fn ($q) => $q->where(function ($q) use ($prepSearch) {
-                    $q->where('name', 'like', '%' . $prepSearch . '%')
-                      ->orWhere('code', 'like', '%' . $prepSearch . '%');
-                }))
-                ->orderBy('name')
-                ->paginate(15)
-            : collect();
-
         // ── Transfers ────────────────────────────────────────────────────
         $outletId = $this->activeOutletId();
         $transferQuery = OutletTransfer::withCount('lines')
@@ -189,7 +176,7 @@ class Index extends Component
         $this->scopeByOutlet($staffMealStatQ);
         $monthStaffMealCost = $staffMealStatQ->sum('total_cost');
 
-        $prepItemCount = Recipe::where('is_prep', true)->count();
+        // prepItemCount removed — prep items now under Recipes tab
 
         $inTransitQ = OutletTransfer::where('status', 'in_transit');
         if ($outletId) {
@@ -272,9 +259,9 @@ class Index extends Component
         }
 
         return view('livewire.inventory.index', compact(
-            'stockTakes', 'wastageRecords', 'staffMealRecords', 'prepItems', 'transfers',
+            'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'prepItemCount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown'
+            'inTransitCount', 'latestStockTake', 'categoryBreakdown'
         ))->layout('layouts.app', ['title' => 'Inventory']);
     }
 }

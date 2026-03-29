@@ -11,12 +11,7 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Inventory</h2>
         <div class="flex items-center gap-2">
-            @if ($tab === 'prep-items')
-                <a href="{{ route('inventory.prep-items.create') }}"
-                   class="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition">
-                    + New Prep Item
-                </a>
-            @elseif ($tab === 'stock-takes')
+            @if ($tab === 'stock-takes')
                 <a href="{{ route('inventory.stock-takes.create') }}"
                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                     + New Stock Take
@@ -42,11 +37,6 @@
 
     {{-- Stats --}}
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Prep Items</p>
-            <p class="text-2xl font-bold text-amber-600 mt-1">{{ $prepItemCount }}</p>
-            <p class="text-xs text-gray-400 mt-1">Semi-finished goods</p>
-        </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Stock Takes This Month</p>
             <p class="text-2xl font-bold text-gray-800 mt-1">{{ $monthStockTakes }}</p>
@@ -164,11 +154,6 @@
 
     {{-- Tabs --}}
     <div class="flex border-b border-gray-200 mb-4">
-        <button wire:click="$set('tab', 'prep-items')"
-                class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'prep-items' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            🍳 Prep Items
-        </button>
         <button wire:click="$set('tab', 'stock-takes')"
                 class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
                        {{ $tab === 'stock-takes' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
@@ -199,10 +184,9 @@
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-1">
                 <input type="text" wire:model.live.debounce.300ms="search"
-                       placeholder="{{ $tab === 'prep-items' ? 'Search prep items…' : ($tab === 'transfers' ? 'Search transfer number…' : 'Search reference number…') }}"
+                       placeholder="{{ $tab === 'transfers' ? 'Search transfer number…' : 'Search reference number…' }}"
                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
-            @if ($tab !== 'prep-items')
                 @if ($tab === 'transfers')
                     <select wire:model.live="statusFilter"
                             class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -224,89 +208,7 @@
         </div>
     </div>
 
-    {{-- ── Prep Items Tab ─────────────────────────────────────────────────── --}}
-    @if ($tab === 'prep-items')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
-                    <tr>
-                        <th class="px-4 py-3 text-left">Name</th>
-                        <th class="px-4 py-3 text-left">Code</th>
-                        <th class="px-4 py-3 text-right">Yield</th>
-                        <th class="px-4 py-3 text-right">Cost / Unit (RM)</th>
-                        <th class="px-4 py-3 text-center">Status</th>
-                        <th class="px-4 py-3 text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @forelse ($prepItems as $item)
-                        @php
-                            $costPerUnit = $item->ingredient
-                                ? floatval($item->ingredient->current_cost)
-                                : 0;
-                        @endphp
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
-                                    <span class="font-medium text-gray-800">{{ $item->name }}</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-gray-400 text-xs">{{ $item->code ?: '—' }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">
-                                {{ floatval($item->yield_quantity) }} {{ $item->yieldUom?->abbreviation }}
-                            </td>
-                            <td class="px-4 py-3 text-right tabular-nums font-medium text-indigo-600">
-                                {{ number_format($costPerUnit, 4) }}
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                @if ($item->is_active)
-                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Active</span>
-                                @else
-                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    <a href="{{ route('inventory.prep-items.show', $item->id) }}" title="Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                    </a>
-                                    <button wire:click="deletePrepItem({{ $item->id }})"
-                                            wire:confirm="Delete '{{ $item->name }}'? This also removes the linked ingredient."
-                                            title="Delete"
-                                            class="text-red-400 hover:text-red-600 transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="px-4 py-12 text-center text-gray-400">
-                                <div class="text-3xl mb-2">🍳</div>
-                                <p class="font-medium">No prep items yet</p>
-                                <p class="text-xs mt-1">
-                                    <a href="{{ route('inventory.prep-items.create') }}" class="text-amber-600 underline">Create your first prep item</a>
-                                    — e.g. White Steamed Rice, Sambal Belacan
-                                </p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-
-            @if (method_exists($prepItems, 'hasPages') && $prepItems->hasPages())
-                <div class="px-4 py-3 border-t border-gray-100">
-                    {{ $prepItems->links() }}
-                </div>
-            @endif
-        </div>
-    @endif
+    {{-- Prep Items tab removed — now under Recipes --}}
 
     {{-- ── Stock Takes Tab ───────────────────────────────────────────────── --}}
     @if ($tab === 'stock-takes')
