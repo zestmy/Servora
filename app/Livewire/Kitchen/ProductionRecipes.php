@@ -71,6 +71,6 @@ class ProductionRecipes extends Component
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
 
         return view('livewire.kitchen.production-recipes', compact('recipes', 'kitchens'))
-            ->layout('layouts.app', ['title' => 'Production Recipes']);
+            ->layout('layouts.kitchen', ['title' => 'Production Recipes']);
     }
 }

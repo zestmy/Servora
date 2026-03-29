@@ -178,6 +178,6 @@ class PrepRequestForm extends Component
 
         return view('livewire.kitchen.prep-request-form', compact(
             'kitchens', 'uoms', 'searchResults', 'isEditable'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

@@ -179,6 +179,19 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/rfq/{id}', \App\Livewire\Purchasing\RfqShow::class)->name('purchasing.rfq.show')->middleware('can:purchasing.view');
     Route::get('/purchasing/rfq/{id}/edit', \App\Livewire\Purchasing\RfqForm::class)->name('purchasing.rfq.edit')->middleware('can:purchasing.view');
 
+    // Workspace switcher
+    Route::get('/workspace/{mode}', function (string $mode) {
+        if (! in_array($mode, ['outlet', 'kitchen'])) abort(404);
+        session(['workspace_mode' => $mode]);
+        if ($mode === 'kitchen') {
+            $kitchen = \Illuminate\Support\Facades\DB::table('kitchen_users')
+                ->where('user_id', Auth::id())->first();
+            if ($kitchen) session(['active_kitchen_id' => $kitchen->kitchen_id]);
+            return redirect()->route('kitchen.index');
+        }
+        return redirect()->route('dashboard');
+    })->name('workspace.switch');
+
     // Kitchen
     Route::get('/kitchen', KitchenIndex::class)->name('kitchen.index');
     Route::get('/kitchen/orders/create', KitchenOrderForm::class)->name('kitchen.orders.create');

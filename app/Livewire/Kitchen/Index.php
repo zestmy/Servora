@@ -190,6 +190,6 @@ class Index extends Component
         return view('livewire.kitchen.index', array_merge($data, [
             'stats'    => $this->getStats(),
             'kitchens' => $kitchens,
-        ]))->layout('layouts.app', ['title' => 'Kitchen']);
+        ]))->layout('layouts.kitchen', ['title' => 'Kitchen']);
     }
 }

@@ -285,6 +285,16 @@
             @endif
         </nav>
 
+        {{-- Kitchen mode switcher --}}
+        @if (Auth::user()->isKitchenUser())
+            <div class="px-3 pb-2">
+                <a href="{{ route('workspace.switch', 'kitchen') }}"
+                   class="block w-full text-center px-3 py-1.5 text-xs font-medium text-purple-300 border border-purple-700 rounded-lg hover:bg-purple-900/40 hover:text-white transition">
+                    Switch to Kitchen Mode
+                </a>
+            </div>
+        @endif
+
         {{-- ── Bottom: Company / Outlet / User ────────────────────────────── --}}
         <div class="flex-shrink-0 border-t border-gray-700">
 

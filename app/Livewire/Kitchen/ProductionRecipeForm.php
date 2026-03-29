@@ -291,6 +291,6 @@ class ProductionRecipeForm extends Component
             : 'New Production Recipe';
 
         return view('livewire.kitchen.production-recipe-form', compact('kitchens', 'uoms', 'searchResults'))
-            ->layout('layouts.app', ['title' => $pageTitle]);
+            ->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

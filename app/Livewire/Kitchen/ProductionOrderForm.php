@@ -187,6 +187,6 @@ class ProductionOrderForm extends Component
 
         return view('livewire.kitchen.production-order-form', compact(
             'kitchens', 'outlets', 'uoms', 'searchResults', 'isEditable'
-        ))->layout('layouts.app', ['title' => $pageTitle]);
+        ))->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

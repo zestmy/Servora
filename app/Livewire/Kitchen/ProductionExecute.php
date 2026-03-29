@@ -88,6 +88,6 @@ class ProductionExecute extends Component
     public function render()
     {
         return view('livewire.kitchen.production-execute')
-            ->layout('layouts.app', ['title' => 'Execute: ' . $this->order->order_number]);
+            ->layout('layouts.kitchen', ['title' => 'Execute: ' . $this->order->order_number]);
     }
 }

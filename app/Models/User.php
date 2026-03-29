@@ -17,6 +17,7 @@ class User extends Authenticatable
         'name', 'email', 'password', 'company_id', 'outlet_id',
         'designation', 'can_manage_users', 'can_approve_po', 'can_approve_pr',
         'can_delete_records', 'can_view_all_outlets',
+        'workspace_mode', 'default_kitchen_id',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -85,9 +86,34 @@ class User extends Authenticatable
         return (bool) ($this->{$capability} ?? false);
     }
 
-    /** Get display designation for UI (falls back to "Team Member"). */
     public function displayDesignation(): string
     {
         return $this->designation ?: 'Team Member';
+    }
+
+    /** Check if user is assigned to any central kitchen. */
+    public function isKitchenUser(): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('kitchen_users')
+            ->where('user_id', $this->id)->exists();
+    }
+
+    /** Get the active workspace mode from session (falls back to DB default). */
+    public function activeWorkspace(): string
+    {
+        return session('workspace_mode', $this->workspace_mode ?? 'outlet');
+    }
+
+    /** Check if currently in kitchen workspace. */
+    public function inKitchenMode(): bool
+    {
+        return $this->activeWorkspace() === 'kitchen';
+    }
+
+    /** Get the active kitchen for kitchen mode. */
+    public function activeKitchen(): ?CentralKitchen
+    {
+        $kitchenId = session('active_kitchen_id', $this->default_kitchen_id);
+        return $kitchenId ? CentralKitchen::find($kitchenId) : null;
     }
 }
