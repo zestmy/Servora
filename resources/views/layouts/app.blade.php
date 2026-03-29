@@ -121,39 +121,49 @@
                     [
                         'label' => 'Operations',
                         'items' => [
-                            ['route' => 'ingredients.index', 'icon' => '🥕', 'label' => 'Ingredients', 'permission' => 'ingredients.view'],
-                            ['route' => 'recipes.index',     'icon' => '📋', 'label' => 'Recipes',     'permission' => 'recipes.view'],
-                            ['route' => 'recipes.index', 'icon' => '🍳', 'label' => 'Prep Items', 'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                            ['route' => 'kitchen.index',     'icon' => '👨‍🍳', 'label' => 'Kitchen',     'permission' => 'inventory.view'],
+                            ['route' => 'ingredients.index',    'label' => 'Ingredients',   'permission' => 'ingredients.view'],
+                            ['route' => 'recipes.index',        'label' => 'Recipes',       'permission' => 'recipes.view'],
+                            ['route' => 'recipes.index',        'label' => 'Prep Items',    'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
+                            ['route' => 'kitchen.index',        'label' => 'Kitchen',       'permission' => 'inventory.view'],
+                            ['route' => 'settings.labour-costs','label' => 'Labour Costs',  'permission' => 'settings.view'],
                         ],
                     ],
                     [
-                        'label' => 'Commerce',
+                        'label' => 'Purchasing',
                         'items' => [
-                            ['route' => 'purchasing.index', 'icon' => '🛒', 'label' => 'Purchasing', 'permission' => 'purchasing.view'],
-                            ['route' => 'sales.index',      'icon' => '💰', 'label' => 'Sales',      'permission' => 'sales.view'],
+                            ['route' => 'purchasing.index',          'label' => 'Purchase Orders', 'permission' => 'purchasing.view'],
+                            ['route' => 'settings.suppliers',       'label' => 'Suppliers',        'permission' => 'purchasing.view'],
+                            ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping', 'permission' => 'purchasing.view'],
+                            ['route' => 'settings.form-templates',  'label' => 'Order Templates',  'permission' => 'purchasing.view'],
+                        ],
+                    ],
+                    [
+                        'label' => 'Sales',
+                        'items' => [
+                            ['route' => 'sales.index',              'label' => 'Sales Records',  'permission' => 'sales.view'],
+                            ['route' => 'settings.sales-targets',   'label' => 'Sales Targets',  'permission' => 'sales.view'],
                         ],
                     ],
                     [
                         'label' => 'Warehouse',
                         'items' => [
-                            ['route' => 'inventory.index', 'icon' => '📦', 'label' => 'Inventory', 'permission' => 'inventory.view'],
+                            ['route' => 'inventory.index', 'label' => 'Inventory', 'permission' => 'inventory.view'],
                         ],
                     ],
                     [
                         'label' => 'Insights',
                         'items' => [
-                            ['route' => 'reports.hub',     'icon' => '📊', 'label' => 'Reports',     'permission' => 'reports.view'],
-                            ['route' => 'analytics.index', 'icon' => '🤖', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
+                            ['route' => 'reports.hub',     'label' => 'Reports',     'permission' => 'reports.view'],
+                            ['route' => 'analytics.index', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
                         ],
                     ],
                     [
                         'label' => 'Management',
                         'items' => [
-                            ['route' => 'settings.lms-users', 'icon' => '📖', 'label' => 'Training', 'permission' => 'settings.view'],
-                            ['route' => 'settings.index',     'icon' => '⚙️',  'label' => 'Settings', 'permission' => 'settings.view'],
-                            ['route' => 'billing.index',      'icon' => '💳', 'label' => 'Billing',  'permission' => null, 'capability' => 'can_manage_users'],
-                            ['route' => 'referral.dashboard', 'icon' => '🔗', 'label' => 'Refer & Earn', 'permission' => null],
+                            ['route' => 'settings.lms-users', 'label' => 'Training',     'permission' => 'settings.view'],
+                            ['route' => 'settings.index',     'label' => 'Settings',     'permission' => 'settings.view'],
+                            ['route' => 'billing.index',      'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
+                            ['route' => 'referral.dashboard', 'label' => 'Refer & Earn', 'permission' => null],
                         ],
                     ],
                 ];
