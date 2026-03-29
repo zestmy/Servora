@@ -244,10 +244,13 @@
                                         $itemUrl = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
                                         $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
                                         if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
-                                        // For items with query param, check if query matches too
                                         if (!empty($item['query']) && $isActive) {
+                                            // Item has query param — only active if URL query matches
                                             parse_str($item['query'], $qp);
                                             $isActive = collect($qp)->every(fn($v, $k) => request()->query($k) === $v);
+                                        } elseif (empty($item['query']) && $isActive) {
+                                            // Item has NO query param — deactivate if URL has a tab param (another item owns it)
+                                            if (request()->has('tab')) $isActive = false;
                                         }
                                     @endphp
                                     <a href="{{ $itemUrl }}"
