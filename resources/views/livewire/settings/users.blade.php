@@ -137,25 +137,77 @@
                     </div>
                 </div>
 
-                {{-- Outlets --}}
+                {{-- Outlet Access --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-2">Outlet Access</label>
-                    <label class="flex items-center gap-2 mb-2 px-2 py-1.5 bg-indigo-50 rounded-lg cursor-pointer">
-                        <input type="checkbox" wire:model.live="allOutlets" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                        <span class="text-sm font-medium text-indigo-700">All Outlets</span>
-                    </label>
-                    @if (! $allOutlets)
-                        <div class="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
-                            @foreach ($outlets as $o)
-                                <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                    <div class="space-y-1 mb-2">
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $outletMode === 'all' ? 'bg-indigo-50' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="outletMode" value="all" class="text-indigo-600 focus:ring-indigo-500" />
+                            <span class="text-sm font-medium {{ $outletMode === 'all' ? 'text-indigo-700' : 'text-gray-700' }}">All Outlets</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $outletMode === 'all_except' ? 'bg-amber-50' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="outletMode" value="all_except" class="text-amber-600 focus:ring-amber-500" />
+                            <span class="text-sm font-medium {{ $outletMode === 'all_except' ? 'text-amber-700' : 'text-gray-700' }}">All Outlets except:</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $outletMode === 'selected' ? 'bg-blue-50' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="outletMode" value="selected" class="text-blue-600 focus:ring-blue-500" />
+                            <span class="text-sm font-medium {{ $outletMode === 'selected' ? 'text-blue-700' : 'text-gray-700' }}">Selected Outlets only:</span>
+                        </label>
+                    </div>
+                    @if (in_array($outletMode, ['all_except', 'selected']))
+                        <div class="max-h-28 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                            @foreach ($regularOutlets as $o)
+                                <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
                                     <input type="checkbox" wire:model="outletIds" value="{{ $o->id }}"
                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                     <span class="text-sm text-gray-700">{{ $o->name }}</span>
                                 </label>
                             @endforeach
                         </div>
+                        <p class="text-[11px] text-gray-400 mt-1">
+                            {{ $outletMode === 'all_except' ? 'Check outlets to EXCLUDE' : 'Check outlets to INCLUDE' }}
+                        </p>
                     @endif
                 </div>
+
+                {{-- Central Kitchen Access --}}
+                @if ($kitchens->count() > 0)
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-2">Central Kitchen Access</label>
+                    <div class="space-y-1 mb-2">
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $kitchenMode === 'none' ? 'bg-gray-100' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="kitchenMode" value="none" class="text-gray-600 focus:ring-gray-500" />
+                            <span class="text-sm font-medium text-gray-700">No kitchen access</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $kitchenMode === 'all' ? 'bg-purple-50' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="kitchenMode" value="all" class="text-purple-600 focus:ring-purple-500" />
+                            <span class="text-sm font-medium {{ $kitchenMode === 'all' ? 'text-purple-700' : 'text-gray-700' }}">All Central Kitchens</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $kitchenMode === 'all_except' ? 'bg-amber-50' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="kitchenMode" value="all_except" class="text-amber-600 focus:ring-amber-500" />
+                            <span class="text-sm font-medium {{ $kitchenMode === 'all_except' ? 'text-amber-700' : 'text-gray-700' }}">All Central Kitchens except:</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer {{ $kitchenMode === 'selected' ? 'bg-purple-50' : 'hover:bg-gray-50' }}">
+                            <input type="radio" wire:model.live="kitchenMode" value="selected" class="text-purple-600 focus:ring-purple-500" />
+                            <span class="text-sm font-medium {{ $kitchenMode === 'selected' ? 'text-purple-700' : 'text-gray-700' }}">Selected Kitchens only:</span>
+                        </label>
+                    </div>
+                    @if (in_array($kitchenMode, ['all_except', 'selected']))
+                        <div class="max-h-28 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                            @foreach ($kitchens as $k)
+                                <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" wire:model="kitchenIds" value="{{ $k->id }}"
+                                           class="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                                    <span class="text-sm text-gray-700">{{ $k->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">
+                            {{ $kitchenMode === 'all_except' ? 'Check kitchens to EXCLUDE' : 'Check kitchens to INCLUDE' }}
+                        </p>
+                    @endif
+                </div>
+                @endif
 
                 {{-- Capabilities --}}
                 <div>

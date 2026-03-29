@@ -27,9 +27,13 @@ class Users extends Component
     // Module access (maps to Spatie permissions)
     public array   $moduleAccess = [];
 
-    // Outlets
-    public bool    $allOutlets  = false;
-    public array   $outletIds   = [];
+    // Outlet access
+    public string  $outletMode = 'all'; // all, all_except, selected
+    public array   $outletIds  = [];
+
+    // Kitchen access
+    public string  $kitchenMode = 'none'; // none, all, all_except, selected
+    public array   $kitchenIds  = [];
 
     // Capabilities
     public bool    $can_manage_users    = false;
@@ -94,10 +98,40 @@ class Users extends Component
         $allPerms = $user->getAllPermissions()->pluck('name')->toArray();
         $this->moduleAccess = array_values(array_unique(array_merge($this->moduleAccess, $allPerms)));
 
-        // Outlets
-        $this->outletIds = $user->outlets->pluck('id')->map(fn ($id) => (string) $id)->toArray();
-        $companyOutletCount = Outlet::where('company_id', $user->company_id)->count();
-        $this->allOutlets = count($this->outletIds) >= $companyOutletCount && $companyOutletCount > 0;
+        // Outlet access — determine mode
+        $assignedOutletIds = $user->outlets->pluck('id')->toArray();
+        $allOutletIds = Outlet::where('company_id', $user->company_id)->where('is_active', true)->pluck('id')->toArray();
+        // Separate kitchen outlets from regular outlets
+        $kitchenOutletIds = \App\Models\CentralKitchen::where('company_id', $user->company_id)->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
+        $regularOutletIds = array_diff($allOutletIds, $kitchenOutletIds);
+
+        $assignedRegular = array_intersect($assignedOutletIds, $regularOutletIds);
+        $assignedKitchens = array_intersect($assignedOutletIds, $kitchenOutletIds);
+
+        // Outlet mode
+        if (count($assignedRegular) >= count($regularOutletIds) && count($regularOutletIds) > 0) {
+            $this->outletMode = 'all';
+            $this->outletIds = [];
+        } elseif (count($assignedRegular) > count($regularOutletIds) / 2) {
+            $this->outletMode = 'all_except';
+            $this->outletIds = array_map('strval', array_values(array_diff($regularOutletIds, $assignedRegular)));
+        } else {
+            $this->outletMode = 'selected';
+            $this->outletIds = array_map('strval', array_values($assignedRegular));
+        }
+
+        // Kitchen mode
+        if (empty($kitchenOutletIds) || empty($assignedKitchens)) {
+            $this->kitchenMode = 'none';
+            $this->kitchenIds = [];
+        } elseif (count($assignedKitchens) >= count($kitchenOutletIds)) {
+            $this->kitchenMode = 'all';
+            $this->kitchenIds = [];
+        } else {
+            $this->kitchenMode = 'selected';
+            // Map outlet_ids back to kitchen ids
+            $this->kitchenIds = array_map('strval', \App\Models\CentralKitchen::whereIn('outlet_id', $assignedKitchens)->pluck('id')->toArray());
+        }
 
         $this->showModal = true;
     }
@@ -161,12 +195,43 @@ class Users extends Component
         }
         $user->syncPermissions($validPermissions);
 
-        // Sync outlet access
-        if ($this->allOutlets) {
-            $allOutletIds = Outlet::where('company_id', $companyId)->pluck('id')->toArray();
-            $user->outlets()->sync($allOutletIds);
-        } else {
-            $user->outlets()->sync(array_map('intval', $this->outletIds));
+        // Resolve outlet IDs from mode
+        $allRegularOutletIds = Outlet::where('company_id', $companyId)->where('is_active', true)->pluck('id')->toArray();
+        $kitchenOutletIds = \App\Models\CentralKitchen::where('company_id', $companyId)->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
+        $regularOutletIds = array_diff($allRegularOutletIds, $kitchenOutletIds);
+
+        $syncIds = [];
+
+        // Regular outlets
+        if ($this->outletMode === 'all') {
+            $syncIds = array_merge($syncIds, $regularOutletIds);
+            $this->can_view_all_outlets = true;
+            $user->update(['can_view_all_outlets' => true]);
+        } elseif ($this->outletMode === 'all_except') {
+            $excludeIds = array_map('intval', $this->outletIds);
+            $syncIds = array_merge($syncIds, array_diff($regularOutletIds, $excludeIds));
+        } elseif ($this->outletMode === 'selected') {
+            $syncIds = array_merge($syncIds, array_map('intval', $this->outletIds));
+        }
+
+        // Central kitchens
+        if ($this->kitchenMode === 'all') {
+            $syncIds = array_merge($syncIds, $kitchenOutletIds);
+        } elseif ($this->kitchenMode === 'all_except') {
+            $excludeKitchenIds = array_map('intval', $this->kitchenIds);
+            $excludeOutletIds = \App\Models\CentralKitchen::whereIn('id', $excludeKitchenIds)->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
+            $syncIds = array_merge($syncIds, array_diff($kitchenOutletIds, $excludeOutletIds));
+        } elseif ($this->kitchenMode === 'selected') {
+            $selectedKitchenOutletIds = \App\Models\CentralKitchen::whereIn('id', array_map('intval', $this->kitchenIds))->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
+            $syncIds = array_merge($syncIds, $selectedKitchenOutletIds);
+        }
+
+        $user->outlets()->sync(array_unique($syncIds));
+
+        // Set default_kitchen_id if kitchen access granted
+        if (in_array($this->kitchenMode, ['all', 'all_except', 'selected'])) {
+            $firstKitchen = \App\Models\CentralKitchen::where('company_id', $companyId)->first();
+            $user->update(['default_kitchen_id' => $firstKitchen?->id]);
         }
 
         $this->closeModal();
@@ -216,8 +281,17 @@ class Users extends Component
 
         $modules = self::MODULES;
 
+        // Separate regular outlets from kitchen outlets
+        $kitchenOutletIds = \App\Models\CentralKitchen::when(! $isSuperAdmin, fn ($q) =>
+            $q->where('company_id', $currentUser->company_id)
+        )->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
+        $regularOutlets = $outlets->reject(fn ($o) => in_array($o->id, $kitchenOutletIds));
+        $kitchens = \App\Models\CentralKitchen::when(! $isSuperAdmin, fn ($q) =>
+            $q->where('company_id', $currentUser->company_id)
+        )->where('is_active', true)->orderBy('name')->get();
+
         return view('livewire.settings.users', compact(
-            'users', 'companies', 'outlets', 'isSuperAdmin', 'modules'
+            'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
     }
 
@@ -230,8 +304,10 @@ class Users extends Component
         $this->designation = '';
         $this->company_id = null;
         $this->moduleAccess = [];
-        $this->allOutlets = false;
+        $this->outletMode = 'all';
         $this->outletIds = [];
+        $this->kitchenMode = 'none';
+        $this->kitchenIds = [];
         $this->can_manage_users = false;
         $this->can_approve_po = false;
         $this->can_approve_pr = false;
