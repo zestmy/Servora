@@ -134,7 +134,7 @@
                             ['route' => 'purchasing.index',          'label' => 'Purchase Orders', 'permission' => 'purchasing.view'],
                             ['route' => 'settings.suppliers',       'label' => 'Suppliers',        'permission' => 'purchasing.view'],
                             ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping', 'permission' => 'purchasing.view'],
-                            ['route' => 'settings.form-templates',  'label' => 'Order Templates',  'permission' => 'purchasing.view'],
+                            ['route' => 'settings.form-templates',  'label' => 'Form Templates',   'permission' => 'purchasing.view'],
                         ],
                     ],
                     [
