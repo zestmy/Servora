@@ -85,6 +85,7 @@
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Invited</th>
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Quoted</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -110,10 +111,17 @@
                         <td class="px-6 py-3 text-center tabular-nums text-gray-600">{{ $rfq->suppliers_count }}</td>
                         <td class="px-6 py-3 text-center tabular-nums text-gray-600">{{ $rfq->quotations_count }}</td>
                         <td class="px-6 py-3 text-gray-500 text-xs">{{ $rfq->createdBy?->name ?? '—' }}</td>
+                        <td class="px-6 py-3 text-center" @click.stop>
+                            <x-doc-action-menu
+                                :duplicateUrl="route('purchasing.rfq.create', ['duplicate' => $rfq->id])"
+                                :docNumber="$rfq->rfq_number"
+                                docType="RFQ"
+                            />
+                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-400">
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-400">
                             No RFQs found. Create your first RFQ to get started.
                         </td>
                     </tr>

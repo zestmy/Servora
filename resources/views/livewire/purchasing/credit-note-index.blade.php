@@ -118,6 +118,14 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-1">
+                                {{-- Action menu (PDF, Print, Duplicate, Share) --}}
+                                <x-doc-action-menu
+                                    :pdfUrl="route('purchasing.pdf', ['type' => 'cn', 'id' => $cn->id])"
+                                    :duplicateUrl="route('purchasing.credit-notes.create', ['duplicate' => $cn->id])"
+                                    :docNumber="$cn->credit_note_number"
+                                    :docType="$cn->type === 'debit_note' ? 'Debit Note' : 'Credit Note'"
+                                />
+
                                 {{-- Edit / View --}}
                                 <a href="{{ route('purchasing.credit-notes.edit', $cn->id) }}"
                                    title="{{ $cn->status === 'draft' ? 'Edit' : 'View' }}"

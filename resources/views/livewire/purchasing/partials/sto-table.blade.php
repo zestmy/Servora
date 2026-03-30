@@ -45,6 +45,12 @@
                     </td>
                     <td class="px-4 py-3">
                         <div class="flex items-center justify-center gap-1">
+                            {{-- Action menu (Duplicate, Share) --}}
+                            <x-doc-action-menu
+                                :duplicateUrl="route('purchasing.transfers.create', ['duplicate' => $sto->id])"
+                                :docNumber="$sto->sto_number"
+                                docType="Stock Transfer"
+                            />
                             @if ($sto->status === 'sent')
                                 <button wire:click="receiveSto({{ $sto->id }})" wire:confirm="Confirm receipt of this transfer?"
                                         title="Receive" class="text-green-500 hover:text-green-700 transition p-1">
