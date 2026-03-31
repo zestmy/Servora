@@ -47,12 +47,12 @@ class LabourCosts extends Component
 
     public function previousMonth(): void
     {
-        $this->period = Carbon::createFromFormat('Y-m', $this->period)->subMonth()->format('Y-m');
+        $this->period = Carbon::createFromFormat('!Y-m', $this->period)->subMonth()->format('Y-m');
     }
 
     public function nextMonth(): void
     {
-        $this->period = Carbon::createFromFormat('Y-m', $this->period)->addMonth()->format('Y-m');
+        $this->period = Carbon::createFromFormat('!Y-m', $this->period)->addMonth()->format('Y-m');
     }
 
     public function openEdit(string $deptType): void
@@ -60,7 +60,7 @@ class LabourCosts extends Component
         $this->resetForm();
         $this->editDeptType = $deptType;
 
-        $month = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
 
         $record = LabourCost::where('outlet_id', $this->outletId)
             ->where('month', $month)
@@ -100,7 +100,7 @@ class LabourCosts extends Component
     {
         $this->validate();
 
-        $month = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
 
         $data = [
             'company_id'      => Auth::user()->company_id,
@@ -145,7 +145,7 @@ class LabourCosts extends Component
         $record->allowances()->whereNotIn('id', $keepIds)->delete();
 
         $deptLabel = $this->editDeptType === 'foh' ? 'FOH' : 'BOH';
-        session()->flash('success', "{$deptLabel} labour cost saved for " . Carbon::createFromFormat('Y-m', $this->period)->format('F Y') . '.');
+        session()->flash('success', "{$deptLabel} labour cost saved for " . Carbon::createFromFormat('!Y-m', $this->period)->format('F Y') . '.');
         $this->closeModal();
     }
 
@@ -159,7 +159,7 @@ class LabourCosts extends Component
     {
         $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
 
-        $month = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
 
         $records = [];
         if ($this->outletId) {
@@ -170,7 +170,7 @@ class LabourCosts extends Component
                 ->keyBy('department_type');
         }
 
-        $periodLabel = Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
+        $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
 
         return view('livewire.settings.labour-costs', compact('outlets', 'records', 'periodLabel'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Labour Costs']);

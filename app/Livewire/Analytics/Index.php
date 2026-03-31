@@ -49,13 +49,13 @@ class Index extends Component
 
     public function previousMonth(): void
     {
-        $this->period = Carbon::createFromFormat('Y-m', $this->period)->subMonth()->format('Y-m');
+        $this->period = Carbon::createFromFormat('!Y-m', $this->period)->subMonth()->format('Y-m');
         $this->resetResponse();
     }
 
     public function nextMonth(): void
     {
-        $this->period = Carbon::createFromFormat('Y-m', $this->period)->addMonth()->format('Y-m');
+        $this->period = Carbon::createFromFormat('!Y-m', $this->period)->addMonth()->format('Y-m');
         $this->resetResponse();
     }
 
@@ -133,7 +133,7 @@ class Index extends Component
 
         $company = Company::find(Auth::user()->company_id);
         $outlet = $this->outletId ? Outlet::find($this->outletId) : null;
-        $periodLabel = Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
+        $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
         $outletName = $outlet?->name ?? 'All Outlets';
         $analysisType = $this->analysisType;
         $model = $this->model;
@@ -163,7 +163,7 @@ class Index extends Component
             ? ! empty(AppSetting::get('openrouter_api_key'))
             : ! empty(AppSetting::get('anthropic_api_key'));
 
-        $periodLabel = Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
+        $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
 
         $analysisTypes = [
             'monthly_review'      => 'Monthly Review',

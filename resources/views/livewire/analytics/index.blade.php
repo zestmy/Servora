@@ -196,7 +196,7 @@
                                     {{ ucwords(str_replace('_', ' ', $report->analysis_type)) }}
                                 </h4>
                                 <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-full">
-                                    {{ \Carbon\Carbon::createFromFormat('Y-m', $report->period)->format('M Y') }}
+                                    {{ \Carbon\Carbon::createFromFormat('!Y-m', $report->period)->format('M Y') }}
                                 </span>
                                 <span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">
                                     {{ $report->outlet?->name ?? 'All Outlets' }}

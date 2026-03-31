@@ -168,7 +168,7 @@
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h3 class="text-base font-semibold text-gray-800">
-                    {{ $editDeptType === 'foh' ? 'Front of House (FOH)' : 'Back of House (BOH)' }} — {{ \Carbon\Carbon::createFromFormat('Y-m', $period)->format('F Y') }}
+                    {{ $editDeptType === 'foh' ? 'Front of House (FOH)' : 'Back of House (BOH)' }} — {{ \Carbon\Carbon::createFromFormat('!Y-m', $period)->format('F Y') }}
                 </h3>
                 <button @click="$wire.closeModal()" class="text-gray-400 hover:text-gray-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

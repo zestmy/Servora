@@ -54,7 +54,7 @@ class Index extends Component
     public function updatedPeriod(): void
     {
         // Sync compareTillDate to end of new month (or today if current month)
-        $periodDate = Carbon::createFromFormat('Y-m', $this->period);
+        $periodDate = Carbon::createFromFormat('!Y-m', $this->period);
         if ($periodDate->format('Y-m') === now()->format('Y-m')) {
             $this->compareTillDate = now()->format('Y-m-d');
         } else {
@@ -119,13 +119,13 @@ class Index extends Component
 
     public function previousMonth(): void
     {
-        $this->period = Carbon::createFromFormat('Y-m', $this->period)->subMonth()->format('Y-m');
+        $this->period = Carbon::createFromFormat('!Y-m', $this->period)->subMonth()->format('Y-m');
         $this->loadData();
     }
 
     public function nextMonth(): void
     {
-        $this->period = Carbon::createFromFormat('Y-m', $this->period)->addMonth()->format('Y-m');
+        $this->period = Carbon::createFromFormat('!Y-m', $this->period)->addMonth()->format('Y-m');
         $this->loadData();
     }
 
@@ -295,10 +295,10 @@ class Index extends Component
         $outletId = $this->outletId ?: null;
         $costSummary = $costService->generate($this->period, $outletId);
 
-        $prevPeriod = Carbon::createFromFormat('Y-m', $this->period)->subMonth()->format('Y-m');
+        $prevPeriod = Carbon::createFromFormat('!Y-m', $this->period)->subMonth()->format('Y-m');
         $prevSummary = $costService->generate($prevPeriod, $outletId);
 
-        $date = Carbon::createFromFormat('Y-m', $this->period);
+        $date = Carbon::createFromFormat('!Y-m', $this->period);
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
 
@@ -427,7 +427,7 @@ class Index extends Component
         $service = new CostSummaryService();
         $outletId = $this->outletId ?: null;
 
-        $currentDate = Carbon::createFromFormat('Y-m', $this->period);
+        $currentDate = Carbon::createFromFormat('!Y-m', $this->period);
 
         // MTD day = custom till date if set, otherwise today (for current month) or end of month
         if ($this->compareTillDate) {
@@ -658,7 +658,7 @@ class Index extends Component
 
     private function loadLabourData(): void
     {
-        $month = Carbon::createFromFormat('Y-m', $this->period)->startOfMonth()->toDateString();
+        $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
         $outletId = $this->outletId ?: null;
 
         $query = LabourCost::where('month', $month)->with('allowances');
@@ -746,7 +746,7 @@ class Index extends Component
                 . ' (' . $start->format('d M') . ' - ' . $end->format('d M Y') . ')';
         }
 
-        return Carbon::createFromFormat('Y-m', $this->period)->format('F Y');
+        return Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
     }
 
     private function syncWeekStartFromNumber(): void

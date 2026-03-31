@@ -58,7 +58,7 @@ class CalendarEvent extends Model
 
     public function scopeForPeriod($query, string $period)
     {
-        $start = \Carbon\Carbon::createFromFormat('Y-m', $period)->startOfMonth();
+        $start = \Carbon\Carbon::createFromFormat('!Y-m', $period)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
         return $query->where(function ($q) use ($start, $end) {

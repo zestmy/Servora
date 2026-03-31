@@ -181,7 +181,7 @@ class AiAnalyticsService
 
     public function buildContext(string $period, ?int $outletId): array
     {
-        $date = Carbon::createFromFormat('Y-m', $period);
+        $date = Carbon::createFromFormat('!Y-m', $period);
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
 
@@ -540,7 +540,7 @@ class AiAnalyticsService
                 break;
 
             case 'predictive_analysis':
-                $nextMonth = Carbon::createFromFormat('Y-m', $context['period'])->addMonth();
+                $nextMonth = Carbon::createFromFormat('!Y-m', $context['period'])->addMonth();
                 $sections[] = "Based on ALL the data above — historical monthly trends, daily patterns, day-of-week averages, calendar events, cost trends, and sales targets — provide a **predictive sales forecast for {$nextMonth->format('F Y')}**:\n"
                     . "1. **Revenue Forecast** — provide low / expected / high estimates with reasoning\n"
                     . "2. **Pax Forecast** — predicted customer count based on trends\n"

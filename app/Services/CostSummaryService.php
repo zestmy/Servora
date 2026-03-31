@@ -36,7 +36,7 @@ class CostSummaryService
             $from = Carbon::parse($startDate)->startOfDay();
             $to = Carbon::parse($endDate)->endOfDay();
         } else {
-            $date = Carbon::createFromFormat('Y-m', $period);
+            $date = Carbon::createFromFormat('!Y-m', $period);
             $from = $date->copy()->startOfMonth();
             $to = $date->copy()->endOfMonth();
         }
@@ -394,12 +394,12 @@ class CostSummaryService
     private function getStockValuesByDepartment(string $period, ?int $outletId, string $type): Collection
     {
         if ($type === 'opening') {
-            $targetPeriod = Carbon::createFromFormat('Y-m', $period)->subMonth()->format('Y-m');
+            $targetPeriod = Carbon::createFromFormat('!Y-m', $period)->subMonth()->format('Y-m');
         } else {
             $targetPeriod = $period;
         }
 
-        $targetDate = Carbon::createFromFormat('Y-m', $targetPeriod);
+        $targetDate = Carbon::createFromFormat('!Y-m', $targetPeriod);
 
         $stQuery = StockTake::query()
             ->where('status', 'completed')

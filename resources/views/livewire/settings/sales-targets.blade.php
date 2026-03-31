@@ -41,7 +41,7 @@
             <tbody class="divide-y divide-gray-50">
                 @forelse ($targets as $target)
                     @php
-                        $periodLabel = \Carbon\Carbon::createFromFormat('Y-m', $target->period)->format('M Y');
+                        $periodLabel = \Carbon\Carbon::createFromFormat('!Y-m', $target->period)->format('M Y');
                     @endphp
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-medium text-gray-700">{{ $periodLabel }}</td>
