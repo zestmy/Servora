@@ -60,6 +60,14 @@ class Index extends Component
     public bool $showImportModal = false;
     public array $importResults = [];
 
+    // Category management
+    public bool $showCategoryModal = false;
+    public ?int $editingCategoryId = null;
+    public string $catName = '';
+    public string $catColor = '#6366f1';
+    public string $catSortOrder = '0';
+    public bool $catIsActive = true;
+
     protected function rules(): array
     {
         return [
@@ -421,6 +429,81 @@ class Index extends Component
         }
     }
 
+    // ── Category Management ──
+
+    public function openCreateCategory(): void
+    {
+        $this->resetCategoryForm();
+        $this->showCategoryModal = true;
+    }
+
+    public function openEditCategory(int $id): void
+    {
+        $cat = IngredientCategory::findOrFail($id);
+        $this->editingCategoryId = $cat->id;
+        $this->catName = $cat->name;
+        $this->catColor = $cat->color;
+        $this->catSortOrder = (string) $cat->sort_order;
+        $this->catIsActive = $cat->is_active;
+        $this->showCategoryModal = true;
+    }
+
+    public function saveCategory(): void
+    {
+        $this->validate([
+            'catName' => 'required|string|max:100',
+            'catColor' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'catSortOrder' => 'required|integer|min:0|max:9999',
+        ]);
+
+        $data = [
+            'name' => strtoupper($this->catName),
+            'color' => $this->catColor,
+            'sort_order' => (int) $this->catSortOrder,
+            'is_active' => $this->catIsActive,
+            'parent_id' => null,
+        ];
+
+        if ($this->editingCategoryId) {
+            IngredientCategory::findOrFail($this->editingCategoryId)->update($data);
+            session()->flash('success', 'Category updated.');
+        } else {
+            $data['company_id'] = Auth::user()->company_id;
+            IngredientCategory::create($data);
+            session()->flash('success', 'Category created.');
+        }
+
+        $this->closeCategoryModal();
+    }
+
+    public function deleteCategory(int $id): void
+    {
+        $cat = IngredientCategory::withCount('ingredients')->findOrFail($id);
+
+        if ($cat->ingredients_count > 0) {
+            session()->flash('error', "Cannot delete \"{$cat->name}\" — {$cat->ingredients_count} ingredient(s) assigned.");
+            return;
+        }
+
+        $cat->delete();
+        session()->flash('success', 'Category deleted.');
+    }
+
+    public function closeCategoryModal(): void
+    {
+        $this->showCategoryModal = false;
+        $this->resetCategoryForm();
+    }
+
+    private function resetCategoryForm(): void
+    {
+        $this->editingCategoryId = null;
+        $this->catName = '';
+        $this->catColor = '#6366f1';
+        $this->catSortOrder = '0';
+        $this->catIsActive = true;
+    }
+
     public function closeModal(): void
     {
         $this->showModal = false;
@@ -471,6 +554,7 @@ class Index extends Component
 
         $categories = IngredientCategory::roots()
             ->with('children')
+            ->withCount('ingredients')
             ->active()
             ->ordered()
             ->get();
