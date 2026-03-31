@@ -48,6 +48,7 @@ class Index extends Component
     public function switchTab(string $tab): void
     {
         $this->activeTab = $tab;
+        $this->loadData();
     }
 
     public function updatedPeriod(): void
@@ -254,7 +255,7 @@ class Index extends Component
     {
         $this->loadSummary();
 
-        if ($this->mode === 'monthly') {
+        if ($this->mode === 'monthly' || $this->activeTab === 'labour_cost') {
             $this->loadDashboardData();
             $this->loadMonthlySalesByYear();
             $this->loadLabourData();
