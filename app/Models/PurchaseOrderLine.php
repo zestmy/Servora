@@ -14,8 +14,8 @@ class PurchaseOrderLine extends Model
     protected $fillable = [
         'purchase_order_id', 'ingredient_id', 'supplier_sku', 'supplier_product_name',
         'quantity', 'original_quantity',
-        'uom_id', 'unit_cost', 'total_cost', 'received_quantity',
-        'adjusted_by', 'adjustment_reason',
+        'uom_id', 'unit_cost', 'total_cost', 'tax_rate_id', 'tax_amount',
+        'received_quantity', 'adjusted_by', 'adjustment_reason',
     ];
 
     protected $casts = [
@@ -23,6 +23,7 @@ class PurchaseOrderLine extends Model
         'original_quantity' => 'decimal:4',
         'unit_cost'         => 'decimal:4',
         'total_cost'        => 'decimal:4',
+        'tax_amount'        => 'decimal:4',
         'received_quantity' => 'decimal:4',
     ];
 
@@ -39,6 +40,11 @@ class PurchaseOrderLine extends Model
     public function uom(): BelongsTo
     {
         return $this->belongsTo(UnitOfMeasure::class, 'uom_id');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 
     public function adjustedByUser(): BelongsTo

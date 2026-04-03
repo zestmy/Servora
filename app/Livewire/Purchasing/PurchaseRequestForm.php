@@ -73,6 +73,9 @@ class PurchaseRequestForm extends Component
         $this->department_id  = $pr->department_id;
 
         foreach ($pr->lines as $line) {
+            $taxRate = $line->tax_rate_id
+                ? \App\Models\TaxRate::find($line->tax_rate_id)
+                : $line->ingredient?->effectiveTaxRate(Auth::user()->company);
             $this->lines[] = [
                 'ingredient_id'        => $line->ingredient_id,
                 'ingredient_name'      => $line->ingredient?->name ?? $line->custom_name ?? '—',
@@ -85,6 +88,8 @@ class PurchaseRequestForm extends Component
                 'kitchen_id'           => $line->kitchen_id,
                 'par_level'            => $line->ingredient_id ? $this->getParLevel($line->ingredient_id) : 0,
                 'notes'                => $line->notes ?? '',
+                'tax_rate_id'          => $taxRate?->id,
+                'tax_label'            => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
             ];
         }
     }
@@ -115,6 +120,8 @@ class PurchaseRequestForm extends Component
             $kitchenId = \App\Models\CentralKitchen::where('is_active', true)->value('id');
         }
 
+        $taxRate = $ingredient->effectiveTaxRate(Auth::user()->company);
+
         $this->lines[] = [
             'ingredient_id'        => $ingredient->id,
             'ingredient_name'      => $ingredient->name,
@@ -126,6 +133,8 @@ class PurchaseRequestForm extends Component
             'kitchen_id'           => $kitchenId,
             'par_level'            => $this->getParLevel($ingredient->id),
             'notes'                => '',
+            'tax_rate_id'          => $taxRate?->id,
+            'tax_label'            => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
         ];
 
         $this->ingredientSearch = '';
@@ -213,6 +222,7 @@ class PurchaseRequestForm extends Component
                 'source'               => $line['source'] ?? 'supplier',
                 'kitchen_id'           => $line['kitchen_id'] ?? null,
                 'notes'                => $line['notes'] ?? null,
+                'tax_rate_id'          => $line['tax_rate_id'] ?? null,
             ]);
         }
 

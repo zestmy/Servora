@@ -143,12 +143,12 @@
                         <dt class="text-gray-500">Subtotal</dt>
                         <dd class="font-medium text-gray-800 tabular-nums">{{ number_format($subtotal, 2) }}</dd>
                     </div>
-                    @if ($taxType && $taxPct > 0)
+                    @foreach ($taxBreakdown as $label => $amount)
                         <div class="flex justify-between">
-                            <dt class="text-gray-500">{{ $taxType }} ({{ number_format($taxPct, 0) }}%)</dt>
-                            <dd class="font-medium text-gray-800 tabular-nums">{{ number_format($taxAmount, 2) }}</dd>
+                            <dt class="text-gray-500">{{ $label }}</dt>
+                            <dd class="font-medium text-gray-800 tabular-nums">{{ number_format($amount, 2) }}</dd>
                         </div>
-                    @endif
+                    @endforeach
                     <div class="flex justify-between border-t border-gray-100 pt-3">
                         <dt class="text-gray-600 font-semibold">Grand Total</dt>
                         <dd class="font-bold text-xl text-gray-900 tabular-nums">
@@ -263,6 +263,7 @@
                             <th class="px-4 py-2 text-right w-24">Order Qty</th>
                             <th class="px-4 py-2 text-left w-28">UOM</th>
                             <th class="px-4 py-2 text-right w-28">Unit Cost (RM)</th>
+                            <th class="px-4 py-2 text-center w-24">Tax</th>
                             <th class="px-4 py-2 text-right w-28">Total (RM)</th>
                             @if ($isEditable)
                             <th class="px-4 py-2 w-10"></th>
@@ -330,6 +331,16 @@
                                         <p class="text-right tabular-nums text-gray-700">{{ number_format($line['unit_cost'], 4) }}</p>
                                     @endif
                                 </td>
+                                <td class="px-4 py-2 text-center">
+                                    @if (!empty($line['tax_label']))
+                                        <span class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded
+                                            {{ floatval($line['tax_rate_pct'] ?? 0) > 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500' }}">
+                                            {{ $line['tax_label'] }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-300 text-xs">—</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-medium text-gray-700">
                                     {{ number_format($line['total_cost'] ?? 0, 2) }}
                                 </td>
@@ -348,19 +359,19 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200">
                         <tr>
-                            <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-2 text-right text-sm text-gray-500">Subtotal</td>
+                            <td colspan="{{ $isEditable ? 8 : 7 }}" class="px-4 py-2 text-right text-sm text-gray-500">Subtotal</td>
                             <td class="px-4 py-2 text-right font-medium text-gray-700 tabular-nums">{{ number_format($subtotal, 2) }}</td>
                             @if ($isEditable) <td></td> @endif
                         </tr>
-                        @if ($taxType && $taxPct > 0)
+                        @foreach ($taxBreakdown as $label => $amount)
                         <tr>
-                            <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-1 text-right text-sm text-gray-500">{{ $taxType }} ({{ number_format($taxPct, 0) }}%)</td>
-                            <td class="px-4 py-1 text-right font-medium text-gray-700 tabular-nums">{{ number_format($taxAmount, 2) }}</td>
+                            <td colspan="{{ $isEditable ? 8 : 7 }}" class="px-4 py-1 text-right text-sm text-gray-500">{{ $label }}</td>
+                            <td class="px-4 py-1 text-right font-medium text-gray-700 tabular-nums">{{ number_format($amount, 2) }}</td>
                             @if ($isEditable) <td></td> @endif
                         </tr>
-                        @endif
+                        @endforeach
                         <tr>
-                            <td colspan="{{ $isEditable ? 7 : 6 }}" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
+                            <td colspan="{{ $isEditable ? 8 : 7 }}" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
                             <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
                                 {{ number_format($grandTotal, 2) }}
                             </td>

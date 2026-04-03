@@ -9,6 +9,7 @@ use App\Models\IngredientParLevel;
 use App\Models\Outlet;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use App\Models\TaxRate;
 use App\Models\UnitOfMeasure;
 use App\Services\OrderAdjustmentService;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,7 @@ class OrderForm extends Component
                     $this->notes = "From PR {$pr->pr_number}" . ($pr->notes ? " — {$pr->notes}" : '');
                     foreach ($pr->lines as $line) {
                         if (! $line->ingredient_id) continue; // skip custom items without ingredient
+                        $taxRate = $line->ingredient?->effectiveTaxRate(Auth::user()->company);
                         $this->lines[] = [
                             'ingredient_id'          => $line->ingredient_id,
                             'ingredient_name'        => $line->ingredient?->name ?? $line->custom_name ?? '—',
@@ -86,6 +88,10 @@ class OrderForm extends Component
                             'uom_id'                 => $line->uom_id,
                             'unit_cost'              => (string) floatval($line->ingredient?->purchase_price ?? 0),
                             'total_cost'             => 0,
+                            'tax_rate_id'            => $taxRate?->id,
+                            'tax_label'              => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+                            'tax_rate_pct'           => floatval($taxRate?->rate ?? 0),
+                            'tax_amount'             => 0,
                             'pack_size'              => 1,
                             'pack_info'              => '',
                             'par_level'              => '0',
@@ -115,13 +121,20 @@ class OrderForm extends Component
 
         $this->lines = $po->lines->map(function ($l) use ($po) {
             [$unitCost, $uomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
+            $taxRate = $l->tax_rate_id ? TaxRate::find($l->tax_rate_id) : $l->ingredient?->effectiveTaxRate(Auth::user()->company);
+            $totalCost = round(floatval($l->quantity) * floatval($l->unit_cost), 4);
+            $taxPct = floatval($taxRate?->rate ?? 0);
             return [
                 'ingredient_id'          => $l->ingredient_id,
                 'ingredient_name'        => $l->ingredient?->name ?? '—',
                 'quantity'               => (string) floatval($l->quantity),
                 'uom_id'                 => $uomId,
                 'unit_cost'              => (string) floatval($l->unit_cost),
-                'total_cost'             => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+                'total_cost'             => $totalCost,
+                'tax_rate_id'            => $taxRate?->id,
+                'tax_label'              => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+                'tax_rate_pct'           => $taxPct,
+                'tax_amount'             => $taxPct > 0 ? round($totalCost * ($taxPct / 100), 4) : 0,
                 'pack_size'              => $packSize,
                 'pack_info'              => $this->buildPackInfo($l->ingredient_id, $uomId, $packSize),
                 'par_level'              => (string) $this->getParLevel($l->ingredient_id),
@@ -204,13 +217,21 @@ class OrderForm extends Component
             $parLevel = $this->getParLevel($tLine->ingredient_id);
             $qty      = (int) ceil($parLevel > 0 ? $parLevel : max(0, $tLine->default_quantity));
 
+            $taxRate = $tLine->ingredient->effectiveTaxRate(Auth::user()->company);
+            $totalCost = round($qty * $unitCost, 4);
+            $taxPct = floatval($taxRate?->rate ?? 0);
+
             $this->lines[] = [
                 'ingredient_id'   => $tLine->ingredient_id,
                 'ingredient_name' => $tLine->ingredient->name,
                 'quantity'        => (string) $qty,
                 'uom_id'          => $supplierUomId,
                 'unit_cost'       => (string) $unitCost,
-                'total_cost'      => round($qty * $unitCost, 4),
+                'total_cost'      => $totalCost,
+                'tax_rate_id'     => $taxRate?->id,
+                'tax_label'       => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+                'tax_rate_pct'    => $taxPct,
+                'tax_amount'      => $taxPct > 0 ? round($totalCost * ($taxPct / 100), 4) : 0,
                 'pack_size'       => $packSize,
                 'pack_info'       => $this->buildPackInfo($tLine->ingredient_id, $supplierUomId, $packSize),
                 'par_level'       => (string) $parLevel,
@@ -254,6 +275,8 @@ class OrderForm extends Component
                 ->value('supplier_id');
         }
 
+        $taxRate = $ingredient->effectiveTaxRate(Auth::user()->company);
+
         $this->lines[] = [
             'ingredient_id'          => $ingredientId,
             'ingredient_name'        => $ingredient->name,
@@ -261,6 +284,10 @@ class OrderForm extends Component
             'uom_id'                 => $supplierUomId,
             'unit_cost'              => (string) $unitCost,
             'total_cost'             => $parLevel > 0 ? round($parLevel * $unitCost, 4) : $unitCost,
+            'tax_rate_id'            => $taxRate?->id,
+            'tax_label'              => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+            'tax_rate_pct'           => floatval($taxRate?->rate ?? 0),
+            'tax_amount'             => 0,
             'pack_size'              => $packSize,
             'pack_info'              => $this->buildPackInfo($ingredientId, $supplierUomId, $packSize),
             'par_level'              => (string) $parLevel,
@@ -269,6 +296,9 @@ class OrderForm extends Component
             'supplier_product_name'  => $sProdName,
             'supplier_id_override'   => $preferredSupplierId,
         ];
+
+        // Recalculate the last added line to set tax_amount
+        $this->recalcLine(count($this->lines) - 1);
 
         $this->ingredientSearch = '';
     }
@@ -364,9 +394,9 @@ class OrderForm extends Component
             }
         }
 
-        // Single-supplier PO flow (existing behavior)
+        // Single-supplier PO flow — per-line tax totals
         $subtotal = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
-        $taxAmt   = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
+        $taxAmt   = collect($this->lines)->sum(fn ($l) => floatval($l['tax_amount'] ?? 0));
         $total    = round($subtotal + $taxAmt, 4);
 
         $data = [
@@ -434,6 +464,8 @@ class OrderForm extends Component
                 'uom_id'                 => $line['uom_id'],
                 'unit_cost'              => $cost,
                 'total_cost'             => round($qty * $cost, 4),
+                'tax_rate_id'            => $line['tax_rate_id'] ?? null,
+                'tax_amount'             => floatval($line['tax_amount'] ?? 0),
                 'received_quantity'      => 0,
             ]);
         }
@@ -481,9 +513,14 @@ class OrderForm extends Component
 
         $subtotal           = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_cost']));
         $company            = Auth::user()->company;
-        $taxType            = $company?->tax_type;
-        $taxPct             = floatval($company?->tax_percent ?? 0);
-        $taxAmount          = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
+
+        // Per-line tax breakdown grouped by tax label
+        $taxBreakdown = collect($this->lines)
+            ->filter(fn ($l) => floatval($l['tax_amount'] ?? 0) > 0)
+            ->groupBy('tax_label')
+            ->map(fn ($group) => round($group->sum(fn ($l) => floatval($l['tax_amount'])), 2))
+            ->toArray();
+        $taxAmount          = collect($this->lines)->sum(fn ($l) => floatval($l['tax_amount'] ?? 0));
         $grandTotal         = round($subtotal + $taxAmount, 4);
         $availableTemplates = FormTemplate::ofType('purchase_order')->active()->ordered()->get();
         $isEditable         = ! $this->orderId || in_array($this->status, ['draft', 'submitted']);
@@ -494,7 +531,7 @@ class OrderForm extends Component
             : 'New Purchase Order';
 
         return view('livewire.purchasing.order-form', compact(
-            'suppliers', 'uoms', 'departments', 'searchResults', 'subtotal', 'taxType', 'taxPct', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
+            'suppliers', 'uoms', 'departments', 'searchResults', 'subtotal', 'taxBreakdown', 'taxAmount', 'grandTotal', 'availableTemplates', 'isEditable', 'requirePoApproval'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
@@ -562,7 +599,10 @@ class OrderForm extends Component
         if (! isset($this->lines[$idx])) return;
         $qty  = floatval($this->lines[$idx]['quantity'] ?? 0);
         $cost = floatval($this->lines[$idx]['unit_cost'] ?? 0);
-        $this->lines[$idx]['total_cost'] = round($qty * $cost, 4);
+        $totalCost = round($qty * $cost, 4);
+        $taxPct = floatval($this->lines[$idx]['tax_rate_pct'] ?? 0);
+        $this->lines[$idx]['total_cost'] = $totalCost;
+        $this->lines[$idx]['tax_amount'] = $taxPct > 0 ? round($totalCost * ($taxPct / 100), 4) : 0;
     }
 
     private function getParLevel(int $ingredientId): float

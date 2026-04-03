@@ -13,13 +13,14 @@ class DeliveryOrderLine extends Model
     protected $fillable = [
         'delivery_order_id', 'purchase_order_line_id', 'ingredient_id',
         'ordered_quantity', 'delivered_quantity',
-        'uom_id', 'unit_cost', 'condition',
+        'uom_id', 'unit_cost', 'condition', 'tax_rate_id', 'tax_amount',
     ];
 
     protected $casts = [
         'ordered_quantity' => 'decimal:4',
         'delivered_quantity' => 'decimal:4',
         'unit_cost' => 'decimal:4',
+        'tax_amount' => 'decimal:4',
     ];
 
     public function deliveryOrder(): BelongsTo
@@ -40,5 +41,10 @@ class DeliveryOrderLine extends Model
     public function purchaseOrderLine(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrderLine::class);
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 }

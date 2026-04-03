@@ -10,6 +10,7 @@ class PurchaseRequestLine extends Model
     protected $fillable = [
         'purchase_request_id', 'ingredient_id', 'custom_name',
         'quantity', 'uom_id', 'preferred_supplier_id', 'source', 'kitchen_id', 'notes',
+        'tax_rate_id',
     ];
 
     protected $casts = [
@@ -39,6 +40,11 @@ class PurchaseRequestLine extends Model
     public function kitchen(): BelongsTo
     {
         return $this->belongsTo(CentralKitchen::class, 'kitchen_id');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 
     public function isKitchenItem(): bool

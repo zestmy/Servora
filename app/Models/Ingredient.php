@@ -17,7 +17,7 @@ class Ingredient extends Model
     protected $fillable = [
         'company_id', 'name', 'code', 'base_uom_id', 'recipe_uom_id',
         'purchase_price', 'pack_size', 'yield_percent', 'current_cost', 'category',
-        'ingredient_category_id', 'is_active', 'is_prep', 'prep_recipe_id', 'remark',
+        'ingredient_category_id', 'tax_rate_id', 'is_active', 'is_prep', 'prep_recipe_id', 'remark',
     ];
 
     protected $casts = [
@@ -48,6 +48,24 @@ class Ingredient extends Model
     public function ingredientCategory(): BelongsTo
     {
         return $this->belongsTo(IngredientCategory::class, 'ingredient_category_id');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
+    }
+
+    /**
+     * Get the effective tax rate for this ingredient.
+     * Returns ingredient-specific rate, or company default, or null.
+     */
+    public function effectiveTaxRate(?Company $company = null): ?TaxRate
+    {
+        if ($this->tax_rate_id) {
+            return $this->taxRate;
+        }
+
+        return TaxRate::defaultForCompany($company);
     }
 
     public function baseUom(): BelongsTo

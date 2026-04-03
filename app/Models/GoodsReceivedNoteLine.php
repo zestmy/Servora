@@ -10,6 +10,7 @@ class GoodsReceivedNoteLine extends Model
     protected $fillable = [
         'goods_received_note_id', 'ingredient_id', 'expected_quantity',
         'received_quantity', 'uom_id', 'unit_cost', 'total_cost', 'condition',
+        'tax_rate_id', 'tax_amount',
     ];
 
     protected $casts = [
@@ -17,6 +18,7 @@ class GoodsReceivedNoteLine extends Model
         'received_quantity'  => 'decimal:4',
         'unit_cost'          => 'decimal:4',
         'total_cost'         => 'decimal:4',
+        'tax_amount'         => 'decimal:4',
     ];
 
     public function goodsReceivedNote(): BelongsTo
@@ -32,5 +34,10 @@ class GoodsReceivedNoteLine extends Model
     public function uom(): BelongsTo
     {
         return $this->belongsTo(UnitOfMeasure::class, 'uom_id');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 }

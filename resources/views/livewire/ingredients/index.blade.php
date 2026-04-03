@@ -333,6 +333,17 @@
                             </select>
                             <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
                         </div>
+                        <div>
+                            <x-input-label for="tax_rate_id" value="Tax Class" />
+                            <select id="tax_rate_id" wire:model="tax_rate_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">— Default (Company Rate) —</option>
+                                @foreach ($taxRates as $tr)
+                                    <option value="{{ $tr->id }}">{{ $tr->name }} {{ rtrim(rtrim(number_format($tr->rate, 2), '0'), '.') }}%{{ $tr->is_inclusive ? ' (Inclusive)' : '' }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('tax_rate_id')" class="mt-1" />
+                        </div>
                     </div>
 
                     {{-- Row 3: Base UOM | Recipe UOM --}}

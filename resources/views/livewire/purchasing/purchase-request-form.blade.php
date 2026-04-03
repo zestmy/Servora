@@ -151,6 +151,7 @@
                                 <th class="px-4 py-3 text-center w-20">Par Level</th>
                                 <th class="px-4 py-3 text-center w-28">Quantity</th>
                                 <th class="px-4 py-3 text-left w-24">UOM</th>
+                                <th class="px-4 py-3 text-center w-24">Tax</th>
                                 <th class="px-4 py-3 text-left w-40">Preferred Supplier</th>
                                 @if ($isEditable)
                                     <th class="px-4 py-3 w-12"></th>
@@ -191,6 +192,16 @@
                                             </select>
                                         @else
                                             {{ $uoms->firstWhere('id', $line['uom_id'])?->abbreviation ?? '' }}
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if (!empty($line['tax_label']))
+                                            <span class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded
+                                                {{ floatval($line['tax_rate_pct'] ?? (str_contains($line['tax_label'] ?? '', '0%') ? 0 : 1)) > 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500' }}">
+                                                {{ $line['tax_label'] }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-300 text-xs">—</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">

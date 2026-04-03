@@ -42,6 +42,9 @@ class Index extends Component
     public bool   $is_active = true;
     public string $remark = '';
 
+    // Tax class
+    public ?int   $tax_rate_id = null;
+
     // Default supplier (main form)
     public ?int   $supplier_id = null;
 
@@ -79,6 +82,7 @@ class Index extends Component
             'purchase_price'                => 'required|numeric|min:0',
             'pack_size'                     => 'required|numeric|min:0.0001',
             'yield_percent'                 => 'required|numeric|min:0.01|max:100',
+            'tax_rate_id'                   => 'nullable|exists:tax_rates,id',
             'supplier_id'                   => 'nullable|exists:suppliers,id',
             'conversions.*.from_uom_id'       => 'required|exists:units_of_measure,id',
             'conversions.*.to_uom_id'         => 'required|exists:units_of_measure,id',
@@ -151,6 +155,7 @@ class Index extends Component
         $this->yield_percent            = (string) $ingredient->yield_percent;
         $this->is_active                = $ingredient->is_active;
         $this->remark                   = $ingredient->remark ?? '';
+        $this->tax_rate_id              = $ingredient->tax_rate_id;
 
         $this->conversions = $ingredient->uomConversions
             ->map(fn ($c) => [
@@ -207,6 +212,7 @@ class Index extends Component
             'pack_size'              => $packSize,
             'yield_percent'          => $yieldPercent,
             'current_cost'           => $effectiveCost,
+            'tax_rate_id'            => $this->tax_rate_id,
             'is_active'              => $this->is_active,
             'remark'                 => $this->remark ?: null,
         ];
@@ -609,8 +615,10 @@ class Index extends Component
         $outlets = \App\Models\Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)->orderBy('name')->get();
 
+        $taxRates = \App\Models\TaxRate::active()->orderBy('name')->get();
+
         return view('livewire.ingredients.index', compact(
-            'ingredients', 'uoms', 'suppliers', 'categories', 'outlets',
+            'ingredients', 'uoms', 'suppliers', 'categories', 'outlets', 'taxRates',
             'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Ingredients']);
     }
@@ -628,6 +636,7 @@ class Index extends Component
         $this->yield_percent          = '100';
         $this->is_active              = true;
         $this->remark                 = '';
+        $this->tax_rate_id            = null;
         $this->supplier_id            = null;
         $this->conversions            = [];
         $this->supplierLinks          = [];
