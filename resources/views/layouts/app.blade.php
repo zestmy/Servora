@@ -125,7 +125,6 @@
                             ['route' => 'ingredients.index',    'label' => 'Ingredients',   'permission' => 'ingredients.view'],
                             ['route' => 'recipes.index',        'label' => 'Recipes',       'permission' => 'recipes.view'],
                             ['route' => 'recipes.index',        'label' => 'Prep Items',    'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                            ['route' => 'kitchen.index',        'label' => 'Kitchen',       'permission' => 'inventory.view', 'kitchenOnly' => true],
                         ],
                     ],
                     [
