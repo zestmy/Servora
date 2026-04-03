@@ -131,6 +131,7 @@
                     <th class="px-4 py-3 text-right">Pack Size</th>
                     <th class="px-4 py-3 text-right">Eff. Cost</th>
                     <th class="px-4 py-3 text-right">Recipe Cost</th>
+                    <th class="px-4 py-3 text-center">Tax</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
@@ -211,6 +212,13 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
+                            @if ($ingredient->taxRate)
+                                <span class="px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600">{{ $ingredient->taxRate->name }} {{ $ingredient->taxRate->rate }}%</span>
+                            @else
+                                <span class="text-xs text-gray-300">Default</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-center">
                             @if ($ingredient->is_active)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                                     Active
@@ -249,7 +257,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="11" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🥕</div>
                             <p class="font-medium">No ingredients found</p>
                             <p class="text-xs mt-1">Try adjusting your filters or add your first ingredient.</p>

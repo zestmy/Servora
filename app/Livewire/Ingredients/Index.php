@@ -518,7 +518,7 @@ class Index extends Component
 
     public function render()
     {
-        $query = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'suppliers', 'ingredientCategory.parent']);
+        $query = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'suppliers', 'ingredientCategory.parent', 'taxRate']);
 
         if ($this->search) {
             $query->where(function ($q) {
