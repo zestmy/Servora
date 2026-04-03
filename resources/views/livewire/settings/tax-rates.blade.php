@@ -67,51 +67,53 @@
     </div>
 
     {{-- Create/Edit Modal --}}
-    @if ($showForm)
-        <div class="fixed inset-0 z-50 overflow-y-auto">
-            <div class="flex items-center justify-center min-h-screen px-4">
-                <div class="fixed inset-0 bg-gray-900/50" wire:click="$set('showForm', false)"></div>
-                <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10 p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">{{ $editId ? 'Edit' : 'New' }} Tax Rate</h3>
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Country Code *</label>
-                                <input type="text" wire:model="country_code" maxlength="2" class="w-full rounded-lg border-gray-300 text-sm uppercase" placeholder="MY" />
-                                @error('country_code') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+    @teleport('body')
+        @if ($showForm)
+            <div class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4">
+                    <div class="fixed inset-0 bg-gray-900/50" wire:click="$set('showForm', false)"></div>
+                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10 p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">{{ $editId ? 'Edit' : 'New' }} Tax Rate</h3>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Country Code *</label>
+                                    <input type="text" wire:model="country_code" maxlength="2" class="w-full rounded-lg border-gray-300 text-sm uppercase" placeholder="MY" />
+                                    @error('country_code') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Name *</label>
+                                    <input type="text" wire:model="name" class="w-full rounded-lg border-gray-300 text-sm" placeholder="SST" />
+                                </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Name *</label>
-                                <input type="text" wire:model="name" class="w-full rounded-lg border-gray-300 text-sm" placeholder="SST" />
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Rate (%) *</label>
+                                <input type="number" step="0.01" min="0" max="100" wire:model="rate" class="w-full rounded-lg border-gray-300 text-sm" placeholder="6.00" />
+                            </div>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" wire:model="is_inclusive" class="rounded border-gray-300 text-indigo-600" />
+                                    <span class="text-sm text-gray-600">Tax inclusive</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" wire:model="is_default" class="rounded border-gray-300 text-indigo-600" />
+                                    <span class="text-sm text-gray-600">Default</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-indigo-600" />
+                                    <span class="text-sm text-gray-600">Active</span>
+                                </label>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Rate (%) *</label>
-                            <input type="number" step="0.01" min="0" max="100" wire:model="rate" class="w-full rounded-lg border-gray-300 text-sm" placeholder="6.00" />
+                        <div class="flex justify-end gap-3 mt-6">
+                            <button wire:click="$set('showForm', false)" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                            <button wire:click="save" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                                {{ $editId ? 'Update' : 'Create' }}
+                            </button>
                         </div>
-                        <div class="flex gap-6">
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" wire:model="is_inclusive" class="rounded border-gray-300 text-indigo-600" />
-                                <span class="text-sm text-gray-600">Tax inclusive</span>
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" wire:model="is_default" class="rounded border-gray-300 text-indigo-600" />
-                                <span class="text-sm text-gray-600">Default</span>
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-indigo-600" />
-                                <span class="text-sm text-gray-600">Active</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-3 mt-6">
-                        <button wire:click="$set('showForm', false)" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-                        <button wire:click="save" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-                            {{ $editId ? 'Update' : 'Create' }}
-                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-    @endif
+        @endif
+    @endteleport
 </div>
