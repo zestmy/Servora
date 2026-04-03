@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\GoodsReceivedNote;
+use App\Models\Ingredient;
 use App\Models\ProcurementInvoice;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use App\Models\SupplierItemAlias;
 
 class InvoiceMatchingService
 {
@@ -25,7 +27,7 @@ class InvoiceMatchingService
         $poLines = $po['model'] ? $po['model']->lines()->with('ingredient', 'uom')->get() : collect();
         $grnLines = $grn['id'] ? GoodsReceivedNote::find($grn['id'])?->lines()->with('ingredient', 'uom')->get() ?? collect() : collect();
 
-        $lines = self::matchLines($extractedData['line_items'] ?? [], $poLines, $grnLines, $companyId);
+        $lines = self::matchLines($extractedData['line_items'] ?? [], $poLines, $grnLines, $companyId, $supplier['id']);
 
         $exceptions = self::detectExceptions($extractedData, $lines, $supplier, $po, $grn, $companyId);
 
@@ -150,21 +152,55 @@ class InvoiceMatchingService
             : ['id' => null, 'grn_number' => null];
     }
 
-    private static function matchLines(array $extractedLines, $poLines, $grnLines, int $companyId): array
+    private static function matchLines(array $extractedLines, $poLines, $grnLines, int $companyId, ?int $supplierId = null): array
     {
         $result = [];
 
         foreach ($extractedLines as $i => $extracted) {
-            $eName = self::normalizeItemName($extracted['description'] ?? '');
+            $description = $extracted['description'] ?? '';
+            $eName = self::normalizeItemName($description);
             $bestMatch = null;
             $bestScore = 0;
+            $aliasMatch = false;
 
-            foreach ($poLines as $poLine) {
-                $pName = self::normalizeItemName($poLine->ingredient?->name ?? '');
-                $score = self::fuzzyNameMatch($eName, $pName);
-                if ($score > $bestScore) {
-                    $bestScore = $score;
-                    $bestMatch = $poLine;
+            // 1. Check learned aliases first (highest priority)
+            if ($supplierId) {
+                $alias = SupplierItemAlias::findMatch($supplierId, $description);
+                if ($alias) {
+                    // Find the PO line for this ingredient (for price/qty comparison)
+                    $poLine = $poLines->firstWhere('ingredient_id', $alias->ingredient_id);
+                    if ($poLine) {
+                        $bestMatch = $poLine;
+                        $bestScore = 1.0;
+                    } else {
+                        // Alias matched but ingredient not in this PO — load ingredient directly
+                        $ingredient = Ingredient::with('baseUom')->find($alias->ingredient_id);
+                        if ($ingredient) {
+                            $bestMatch = (object) [
+                                'ingredient_id' => $ingredient->id,
+                                'ingredient'    => $ingredient,
+                                'uom_id'        => $ingredient->base_uom_id,
+                                'uom'           => $ingredient->baseUom,
+                                'quantity'       => null,
+                                'unit_cost'      => null,
+                                'unit_price'     => null,
+                            ];
+                            $bestScore = 0.95;
+                        }
+                    }
+                    $aliasMatch = true;
+                }
+            }
+
+            // 2. Fuzzy match against PO lines (fallback)
+            if (! $aliasMatch) {
+                foreach ($poLines as $poLine) {
+                    $pName = self::normalizeItemName($poLine->ingredient?->name ?? '');
+                    $score = self::fuzzyNameMatch($eName, $pName);
+                    if ($score > $bestScore) {
+                        $bestScore = $score;
+                        $bestMatch = $poLine;
+                    }
                 }
             }
 

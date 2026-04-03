@@ -6,6 +6,7 @@ use App\Models\AiInvoiceScan;
 use App\Models\Ingredient;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use App\Models\SupplierItemAlias;
 use App\Models\UnitOfMeasure;
 use App\Services\AiInvoiceExtractionService;
 use App\Services\InvoiceMatchingService;
@@ -208,6 +209,20 @@ class InvoiceReceive extends Component
         ])->toArray();
 
         $invoice = ProcurementInvoiceService::createFromAiScan($headerData, $lineData, $scan);
+
+        // Learn supplier item aliases from user-confirmed matches
+        foreach ($this->lines as $line) {
+            $ingredientId = $line['ingredient_id'] ?? null;
+            $description = $line['description'] ?? '';
+            if ($ingredientId && $description) {
+                SupplierItemAlias::learn(
+                    $user->company_id,
+                    $this->selectedSupplierId,
+                    $description,
+                    (int) $ingredientId
+                );
+            }
+        }
 
         session()->flash('success', "Invoice {$invoice->invoice_number} created from AI scan.");
         $this->redirectRoute('purchasing.invoices.show', ['id' => $invoice->id]);
