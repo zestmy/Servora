@@ -379,7 +379,7 @@ class Form extends Component
         }
 
         // Live cost calculations
-        [$lineCosts, $totalCost] = $this->computeLineCosts();
+        [$lineCosts, $totalCost, $lineTaxes, $totalTax] = $this->computeLineCosts();
 
         $extraCostTotal = collect($this->extraCosts)->sum(function ($c) use ($totalCost) {
             if (($c['type'] ?? 'value') === 'percent') {
@@ -397,13 +397,18 @@ class Form extends Component
         $grossProfit     = $sellingPrice > 0 ? $sellingPrice - $grandCost : null;
         $grossProfitPct  = $sellingPrice > 0 ? (($sellingPrice - $grandCost) / $sellingPrice) * 100 : null;
 
+        $grandCostWithTax    = $grandCost + $totalTax;
+        $costPerServingWithTax = $grandCostWithTax / $yieldQty;
+        $foodCostPctWithTax  = $sellingPrice > 0 ? ($grandCostWithTax / $sellingPrice) * 100 : null;
+
         $pageTitle = $this->recipeId
             ? 'Edit: ' . ($this->name ?: 'Recipe')
             : 'New Recipe';
 
         return view('livewire.recipes.form', compact(
             'uoms', 'recipeCategories', 'categories', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
-            'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct'
+            'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct',
+            'lineTaxes', 'totalTax', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 
@@ -411,13 +416,13 @@ class Form extends Component
 
     private function computeLineCosts(): array
     {
-        if (empty($this->lines)) return [[], 0.0];
+        if (empty($this->lines)) return [[], 0.0, [], 0.0];
 
         $ingredientIds = collect($this->lines)->pluck('ingredient_id')->filter()->unique()->values();
         $uomIds        = collect($this->lines)->pluck('uom_id')->filter()->unique()->values();
 
         $ingredientsMap = $ingredientIds->isNotEmpty()
-            ? Ingredient::with(['baseUom', 'uomConversions'])
+            ? Ingredient::with(['baseUom', 'uomConversions', 'taxRate'])
                 ->whereIn('id', $ingredientIds)->get()->keyBy('id')
             : collect();
 
@@ -425,9 +430,13 @@ class Form extends Component
             ? UnitOfMeasure::whereIn('id', $uomIds)->get()->keyBy('id')
             : collect();
 
+        $company = Auth::user()?->company;
+
         $uomService = app(UomService::class);
         $lineCosts  = [];
+        $lineTaxes  = [];
         $totalCost  = 0.0;
+        $totalTax   = 0.0;
 
         foreach ($this->lines as $line) {
             $ingredient = $ingredientsMap->get($line['ingredient_id'] ?? 0);
@@ -440,12 +449,19 @@ class Form extends Component
                 $lineCost    = $costPerUom * $wasteFactor * $qty;
                 $lineCosts[] = $lineCost;
                 $totalCost  += $lineCost;
+
+                $taxRate = $ingredient->effectiveTaxRate($company);
+                $taxPct  = $taxRate ? floatval($taxRate->rate) : 0;
+                $lineTax = $lineCost * ($taxPct / 100);
+                $lineTaxes[] = $lineTax;
+                $totalTax   += $lineTax;
             } else {
                 $lineCosts[] = null;
+                $lineTaxes[] = null;
             }
         }
 
-        return [$lineCosts, $totalCost];
+        return [$lineCosts, $totalCost, $lineTaxes, $totalTax];
     }
 
     /** Strip trailing zeros from a decimal string. */

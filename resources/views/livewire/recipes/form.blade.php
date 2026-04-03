@@ -212,19 +212,41 @@
                     @endif
 
                     <div class="flex justify-between border-t border-gray-100 pt-2">
-                        <dt class="text-gray-500 font-medium">Total Cost</dt>
+                        <dt class="text-gray-500 font-medium">Cost (excl. tax)</dt>
                         <dd class="font-semibold text-gray-800 tabular-nums">
                             {{ number_format($grandCost, 2) }}
                         </dd>
                     </div>
 
-                    <div class="flex justify-between">
+                    @if ($totalTax > 0)
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Tax</dt>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format($totalTax, 2) }}</dd>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500 font-medium">Cost (incl. tax)</dt>
+                            <dd class="font-semibold text-indigo-700 tabular-nums">
+                                {{ number_format($grandCostWithTax, 2) }}
+                            </dd>
+                        </div>
+                    @endif
+
+                    @php $yieldUomAbbr = collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving'; @endphp
+                    <div class="flex justify-between border-t border-gray-100 pt-2">
                         <dt class="text-gray-500">
-                            Cost /
-                            {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving' }}
+                            Cost / {{ $yieldUomAbbr }}
                         </dt>
                         <dd class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</dd>
                     </div>
+                    @if ($totalTax > 0)
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">
+                                Cost / {{ $yieldUomAbbr }} <span class="text-xs text-gray-400">(w/ tax)</span>
+                            </dt>
+                            <dd class="text-indigo-700 tabular-nums">{{ number_format($costPerServingWithTax, 4) }}</dd>
+                        </div>
+                    @endif
 
                     @if (floatval($selling_price) > 0)
                         <div class="flex justify-between border-t border-gray-100 pt-3">
@@ -256,6 +278,12 @@
                                     {{ number_format($foodCostPct, 1) }}%
                                 </dd>
                             </div>
+                            @if ($totalTax > 0 && $foodCostPctWithTax !== null)
+                                <div class="flex justify-between mt-1 text-xs">
+                                    <span class="text-gray-500">Food Cost % (w/ tax)</span>
+                                    <span class="font-medium text-indigo-600 tabular-nums">{{ number_format($foodCostPctWithTax, 1) }}%</span>
+                                </div>
+                            @endif
                             <div class="flex justify-between mt-1 text-xs">
                                 <span class="text-gray-500">Gross Profit</span>
                                 <span class="{{ $grossProfit >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">
