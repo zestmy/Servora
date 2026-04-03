@@ -186,6 +186,19 @@ class Index extends Component
         session()->flash('success', 'Purchase request rejected.');
     }
 
+    public function revertPrToDraft(int $id): void
+    {
+        $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->status !== 'approved') return;
+
+        $pr->update([
+            'status'      => 'draft',
+            'approved_by' => null,
+            'approved_at' => null,
+        ]);
+        session()->flash('success', "PR {$pr->pr_number} reverted to draft for editing.");
+    }
+
     public function cancelPr(int $id): void
     {
         $pr = PurchaseRequest::findOrFail($id);

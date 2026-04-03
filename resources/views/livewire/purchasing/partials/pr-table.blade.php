@@ -103,12 +103,16 @@
                                 </button>
                             @endif
 
-                            {{-- Approved: Convert to PO --}}
+                            {{-- Approved: Convert to PO / Revert to Draft --}}
                             @if ($pr->status === 'approved')
                                 <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}" title="Convert to Purchase Order"
                                    class="text-indigo-500 hover:text-indigo-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                 </a>
+                                <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
+                                        title="Revert to Draft" class="text-gray-400 hover:text-amber-600 transition p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                                </button>
                             @endif
 
                             {{-- Cancel (draft or submitted) --}}
