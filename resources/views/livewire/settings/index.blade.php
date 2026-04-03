@@ -151,6 +151,18 @@
                     </div>
                 </a>
 
+                {{-- OT Approvers --}}
+                <a href="{{ route('settings.ot-approvers') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">OT Approvers</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Assign who approves overtime claims per outlet</p>
+                    </div>
+                </a>
+
                 {{-- Price Alerts --}}
                 <a href="{{ route('settings.price-alerts') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
