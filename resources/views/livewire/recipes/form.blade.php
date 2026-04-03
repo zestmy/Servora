@@ -85,18 +85,18 @@
                     </div>
                 </div>
 
-                {{-- Category --}}
+                {{-- Department --}}
                 <div>
-                    <x-input-label for="r_cost_center" value="Cost Category" />
-                    <select id="r_cost_center" wire:model="ingredient_category_id"
+                    <x-input-label for="r_department" value="Department" />
+                    <select id="r_department" wire:model="department_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">— No Category —</option>
-                        @foreach ($categories as $main)
-                            <option value="{{ $main->id }}">{{ $main->name }}</option>
+                        <option value="">— No Department —</option>
+                        @foreach ($departments as $dept)
+                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
                         @endforeach
                     </select>
-                    <p class="mt-0.5 text-xs text-gray-400">Groups this recipe under a cost category.</p>
-                    <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
+                    <p class="mt-0.5 text-xs text-gray-400">Assigns cost to a department.</p>
+                    <x-input-error :messages="$errors->get('department_id')" class="mt-1" />
                 </div>
 
                 {{-- Description --}}

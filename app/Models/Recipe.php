@@ -18,7 +18,7 @@ class Recipe extends Model
     protected $fillable = [
         'company_id', 'name', 'code', 'description', 'video_url', 'yield_quantity', 'yield_uom_id',
         'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
-        'ingredient_category_id', 'is_active', 'is_prep',
+        'ingredient_category_id', 'department_id', 'is_active', 'is_prep',
     ];
 
     protected $casts = [
@@ -49,6 +49,11 @@ class Recipe extends Model
     public function ingredientCategory(): BelongsTo
     {
         return $this->belongsTo(IngredientCategory::class, 'ingredient_category_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function yieldUom(): BelongsTo

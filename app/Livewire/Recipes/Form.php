@@ -30,6 +30,7 @@ class Form extends Component
     public string $selling_price = '0';
     public string $category = '';
     public ?int   $ingredient_category_id = null;
+    public ?int   $department_id = null;
     public bool   $is_active = true;
 
     // Outlet tagging
@@ -66,6 +67,7 @@ class Form extends Component
             'selling_price'              => 'required|numeric|min:0',
             'category'                   => 'nullable|string|max:100',
             'ingredient_category_id'     => 'nullable|exists:ingredient_categories,id',
+            'department_id'              => 'nullable|exists:departments,id',
             'lines.*.ingredient_id'      => 'required|exists:ingredients,id',
             'lines.*.quantity'           => 'required|numeric|min:0.0001',
             'lines.*.uom_id'             => 'required|exists:units_of_measure,id',
@@ -111,6 +113,7 @@ class Form extends Component
         $this->selling_price          = $this->fmt($recipe->selling_price);
         $this->category               = $recipe->category ?? '';
         $this->ingredient_category_id = $recipe->ingredient_category_id;
+        $this->department_id          = $recipe->department_id;
         $this->is_active              = $recipe->is_active;
 
         // Load outlet tags
@@ -268,6 +271,7 @@ class Form extends Component
             'cost_per_yield_unit'    => $costPerYieldUnit,
             'category'               => $this->category ?: null,
             'ingredient_category_id' => $this->ingredient_category_id,
+            'department_id'          => $this->department_id,
             'is_active'              => $this->is_active,
             'extra_costs'            => !empty($this->extraCosts) ? $this->extraCosts : null,
         ];
@@ -358,6 +362,8 @@ class Form extends Component
 
         $categories = IngredientCategory::roots()->active()->ordered()->get();
 
+        $departments = \App\Models\Department::active()->ordered()->get();
+
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
             ->orderBy('name')
@@ -406,7 +412,7 @@ class Form extends Component
             : 'New Recipe';
 
         return view('livewire.recipes.form', compact(
-            'uoms', 'recipeCategories', 'categories', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
+            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
             'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct',
             'lineTaxes', 'totalTax', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax'
         ))->layout('layouts.app', ['title' => $pageTitle]);
