@@ -120,20 +120,21 @@
                         ],
                     ],
                     [
-                        'label' => 'Operations',
+                        'label' => 'Procurement',
+                        'items' => [
+                            ['route' => 'purchasing.index',          'label' => 'Orders & Requests', 'permission' => 'purchasing.view'],
+                            ['route' => 'settings.suppliers',       'label' => 'Suppliers',           'permission' => 'purchasing.view'],
+                            ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.view'],
+                            ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.view'],
+                        ],
+                    ],
+                    [
+                        'label' => 'Inventory & Recipes',
                         'items' => [
                             ['route' => 'ingredients.index',    'label' => 'Ingredients',   'permission' => 'ingredients.view'],
                             ['route' => 'recipes.index',        'label' => 'Recipes',       'permission' => 'recipes.view'],
                             ['route' => 'recipes.index',        'label' => 'Prep Items',    'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                        ],
-                    ],
-                    [
-                        'label' => 'Purchasing',
-                        'items' => [
-                            ['route' => 'purchasing.index',          'label' => 'Purchase Orders', 'permission' => 'purchasing.view'],
-                            ['route' => 'settings.suppliers',       'label' => 'Suppliers',        'permission' => 'purchasing.view'],
-                            ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping', 'permission' => 'purchasing.view'],
-                            ['route' => 'settings.form-templates',  'label' => 'Form Templates',   'permission' => 'purchasing.view'],
+                            ['route' => 'inventory.index',      'label' => 'Stock Levels',  'permission' => 'inventory.view'],
                         ],
                     ],
                     [
@@ -144,30 +145,25 @@
                         ],
                     ],
                     [
-                        'label' => 'Warehouse',
+                        'label' => 'HR',
                         'items' => [
-                            ['route' => 'inventory.index', 'label' => 'Inventory', 'permission' => 'inventory.view'],
+                            ['route' => 'settings.lms-users',      'label' => 'LMS Users',       'permission' => 'hr.view'],
+                            ['route' => 'training.sop.pdf-all',    'label' => 'Export All SOPs',  'permission' => 'hr.view'],
+                            ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
+                            ['route' => null, 'label' => 'Overtime Claims', 'permission' => 'hr.view', 'comingSoon' => true],
                         ],
                     ],
                     [
-                        'label' => 'Training',
-                        'items' => [
-                            ['route' => 'settings.lms-users', 'label' => 'LMS Users',     'permission' => 'recipes.view'],
-                            ['route' => 'training.sop.pdf-all', 'label' => 'Export All SOPs', 'permission' => 'recipes.view'],
-                        ],
-                    ],
-                    [
-                        'label' => 'Insights',
+                        'label' => 'Business Intelligence',
                         'items' => [
                             ['route' => 'reports.hub',     'label' => 'Reports',     'permission' => 'reports.view'],
                             ['route' => 'analytics.index', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
                         ],
                     ],
                     [
-                        'label' => 'Management',
+                        'label' => 'Settings',
                         'items' => [
-                            ['route' => 'settings.labour-costs','label' => 'Labour Costs',  'permission' => 'inventory.view'],
-                            ['route' => 'settings.index',     'label' => 'Settings',     'permission' => 'settings.view'],
+                            ['route' => 'settings.index',     'label' => 'General',      'permission' => 'settings.view'],
                             ['route' => 'billing.index',      'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
                             ['route' => 'referral.dashboard', 'label' => 'Refer & Earn', 'permission' => null],
                         ],
@@ -194,6 +190,7 @@
                         ? array_filter($g['items'], fn($i) => in_array($i['route'], ['dashboard', 'settings.index']))
                         : array_filter($g['items'], $canSee);
                     foreach ($vis as $vi) {
+                        if (empty($vi['route'])) continue;
                         if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*') ||
                             ($vi['route'] === 'reports.hub' && request()->routeIs('reports.*'))) {
                             $activeGroupSlug = Str::slug($g['label']);
@@ -218,6 +215,7 @@
                     // Check if any item in this group is active (auto-expand)
                     $groupHasActive = false;
                     foreach ($visibleItems as $vi) {
+                        if (empty($vi['route'])) continue;
                         if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*')) {
                             $groupHasActive = true; break;
                         }
@@ -239,6 +237,12 @@
                             </button>
                             <div x-show="activeGroup === '{{ $groupSlug }}'">
                                 @foreach ($visibleItems as $item)
+                                    @if (!empty($item['comingSoon']))
+                                        <span class="block rounded-lg text-sm font-medium px-4 py-1.5 ml-1 text-gray-500 cursor-default flex items-center justify-between">
+                                            {{ $item['label'] }}
+                                            <span class="text-[9px] uppercase tracking-wider bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">Soon</span>
+                                        </span>
+                                    @else
                                     @php
                                         $itemUrl = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
                                         $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
@@ -258,6 +262,7 @@
                                               {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                                         {{ $item['label'] }}
                                     </a>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>
