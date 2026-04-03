@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
+use App\Models\ProcurementInvoice;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -23,6 +24,7 @@ class PurchaseDocumentPdfController extends Controller
             'do'  => $this->deliveryOrder($id, $company),
             'grn' => $this->goodsReceivedNote($id, $company),
             'cn'  => $this->creditNote($id, $company),
+            'inv' => $this->procurementInvoice($id, $company),
             default => abort(404),
         };
     }
@@ -78,5 +80,18 @@ class PurchaseDocumentPdfController extends Controller
 
         $prefix = $cn->type === 'debit_note' ? 'DN' : 'CN';
         return $pdf->download("{$prefix}-{$cn->credit_note_number}.pdf");
+    }
+
+    private function procurementInvoice(int $id, ?Company $company)
+    {
+        $invoice = ProcurementInvoice::with([
+            'outlet', 'supplier', 'purchaseOrder', 'goodsReceivedNote',
+            'lines.ingredient', 'lines.uom', 'taxRate', 'createdBy',
+        ])->findOrFail($id);
+
+        $pdf = Pdf::loadView('pdf.procurement-invoice', compact('invoice', 'company'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download("INV-{$invoice->invoice_number}.pdf");
     }
 }

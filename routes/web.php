@@ -47,6 +47,8 @@ use App\Livewire\Purchasing\PurchaseRequestForm as PurchasingRequestForm;
 use App\Livewire\Purchasing\ConsolidateForm as PurchasingConsolidateForm;
 use App\Livewire\Purchasing\StockTransferForm as PurchasingStockTransferForm;
 use App\Livewire\Purchasing\InvoiceIndex as PurchasingInvoiceIndex;
+use App\Livewire\Purchasing\InvoiceShow as PurchasingInvoiceShow;
+use App\Livewire\Purchasing\InvoiceReceive as PurchasingInvoiceReceive;
 use App\Livewire\Settings\CpuManagement as SettingsCpuManagement;
 use App\Livewire\Settings\TaxRates as SettingsTaxRates;
 use App\Http\Controllers\PurchaseDocumentPdfController;
@@ -169,6 +171,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.view');
     Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
+    Route::get('/purchasing/invoices/receive', PurchasingInvoiceReceive::class)->name('purchasing.invoices.receive')->middleware('can:purchasing.view');
+    Route::get('/purchasing/invoices/{id}', PurchasingInvoiceShow::class)->name('purchasing.invoices.show')->middleware('can:purchasing.view');
     Route::get('/purchasing/price-comparison', \App\Livewire\Purchasing\PriceComparison::class)->name('purchasing.price-comparison')->middleware('can:purchasing.view');
     Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware('can:purchasing.view');
     Route::get('/purchasing/credit-notes', \App\Livewire\Purchasing\CreditNoteIndex::class)->name('purchasing.credit-notes.index')->middleware('can:purchasing.view');

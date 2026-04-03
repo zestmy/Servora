@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AiInvoiceScan;
 use App\Models\GoodsReceivedNote;
 use App\Models\ProcurementInvoice;
 use App\Models\ProcurementInvoiceLine;
@@ -80,5 +81,55 @@ class ProcurementInvoiceService
     public static function cancel(ProcurementInvoice $invoice): void
     {
         $invoice->update(['status' => 'cancelled']);
+    }
+
+    /**
+     * Create a procurement invoice from AI-scanned data.
+     */
+    public static function createFromAiScan(array $headerData, array $lines, AiInvoiceScan $scan): ProcurementInvoice
+    {
+        return DB::transaction(function () use ($headerData, $lines, $scan) {
+            $invoice = ProcurementInvoice::create([
+                'company_id'              => $headerData['company_id'],
+                'outlet_id'               => $headerData['outlet_id'],
+                'supplier_id'             => $headerData['supplier_id'],
+                'purchase_order_id'       => $headerData['purchase_order_id'] ?? null,
+                'goods_received_note_id'  => $headerData['goods_received_note_id'] ?? null,
+                'invoice_number'          => ProcurementInvoice::generateNumber(),
+                'supplier_invoice_number' => $headerData['supplier_invoice_number'] ?? null,
+                'type'                    => 'supplier',
+                'status'                  => 'issued',
+                'issued_date'             => $headerData['issued_date'] ?? now(),
+                'due_date'                => $headerData['due_date'] ?? null,
+                'subtotal'                => round($headerData['subtotal'], 4),
+                'tax_rate_id'             => $headerData['tax_rate_id'] ?? null,
+                'tax_amount'              => round($headerData['tax_amount'] ?? 0, 4),
+                'delivery_charges'        => round($headerData['delivery_charges'] ?? 0, 4),
+                'total_amount'            => round($headerData['total_amount'], 4),
+                'original_file_path'      => $scan->original_file_path,
+                'ai_invoice_scan_id'      => $scan->id,
+                'notes'                   => $headerData['notes'] ?? null,
+                'created_by'              => Auth::id(),
+            ]);
+
+            foreach ($lines as $line) {
+                ProcurementInvoiceLine::create([
+                    'procurement_invoice_id' => $invoice->id,
+                    'ingredient_id'          => $line['ingredient_id'] ?? null,
+                    'description'            => $line['description'] ?? null,
+                    'quantity'               => $line['quantity'],
+                    'uom_id'                => $line['uom_id'] ?? null,
+                    'unit_price'            => $line['unit_price'],
+                    'total_price'           => round($line['quantity'] * $line['unit_price'], 4),
+                ]);
+            }
+
+            $scan->update([
+                'status'                  => 'approved',
+                'procurement_invoice_id'  => $invoice->id,
+            ]);
+
+            return $invoice;
+        });
     }
 }

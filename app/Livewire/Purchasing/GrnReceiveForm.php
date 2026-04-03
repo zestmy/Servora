@@ -227,8 +227,14 @@ class GrnReceiveForm extends Component
             }
         });
 
-        // Auto-generate debit note for variances (damaged/rejected/short)
+        // Auto-generate procurement invoice from GRN
         $grn = GoodsReceivedNote::with('lines.ingredient', 'lines.uom')->find($this->grnId);
+        if ($grn) {
+            \App\Services\ProcurementInvoiceService::createFromGrn($grn);
+        }
+
+        // Auto-generate debit note for variances (damaged/rejected/short)
+        $grn = $grn ?: GoodsReceivedNote::with('lines.ingredient', 'lines.uom')->find($this->grnId);
         if ($grn) {
             $debitNote = \App\Services\CreditNoteService::generateFromGrn($grn);
             if ($debitNote) {

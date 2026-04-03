@@ -17,10 +17,11 @@ class ProcurementInvoice extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'supplier_id',
         'stock_transfer_order_id', 'purchase_order_id', 'goods_received_note_id',
-        'invoice_number', 'type', 'status', 'issued_date', 'due_date',
+        'invoice_number', 'supplier_invoice_number', 'type', 'status', 'issued_date', 'due_date',
         'subtotal', 'tax_rate_id', 'tax_amount', 'delivery_charges', 'total_amount',
         'credit_applied', 'balance_due',
         'currency', 'notes', 'created_by',
+        'original_file_path', 'ai_invoice_scan_id',
     ];
 
     protected $casts = [
@@ -45,6 +46,7 @@ class ProcurementInvoice extends Model
     public function goodsReceivedNote(): BelongsTo { return $this->belongsTo(GoodsReceivedNote::class); }
     public function taxRate(): BelongsTo { return $this->belongsTo(TaxRate::class); }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
+    public function aiInvoiceScan(): BelongsTo { return $this->belongsTo(AiInvoiceScan::class); }
 
     public function lines(): HasMany
     {
