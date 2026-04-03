@@ -213,7 +213,7 @@
                         </td>
                         <td class="px-4 py-3 text-center">
                             @if ($ingredient->taxRate)
-                                <span class="px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600">{{ $ingredient->taxRate->name }} {{ $ingredient->taxRate->rate }}%</span>
+                                <span class="px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600">{{ $ingredient->taxRate->name }} {{ rtrim(rtrim(number_format($ingredient->taxRate->rate, 2), '0'), '.') }}%</span>
                             @else
                                 <span class="text-xs text-gray-300">Default</span>
                             @endif
