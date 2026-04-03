@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\CentralPurchasingUnit;
+use App\Models\Ingredient;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\PurchaseRequest;
+use App\Models\Supplier;
 use App\Models\SupplierIngredient;
+use App\Models\TaxRate;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -267,5 +270,219 @@ class PurchaseRequestService
         }
 
         return $grouped;
+    }
+
+    /**
+     * Enhanced consolidation preview with cost lookup and supplier options.
+     */
+    public static function consolidationPreviewWithCosts(array $purchaseRequestIds): array
+    {
+        $prs = PurchaseRequest::with('lines.ingredient.taxRate', 'lines.preferredSupplier', 'lines.uom', 'outlet')
+            ->whereIn('id', $purchaseRequestIds)
+            ->where('status', PurchaseRequest::STATUS_APPROVED)
+            ->get();
+
+        $ingredientIds = $prs->flatMap(fn ($pr) => $pr->lines->pluck('ingredient_id'))->filter()->unique()->values();
+        $company = Auth::user()->company;
+
+        // Build cost lookup: [ingredient_id => [supplier_id => last_cost]]
+        $costLookup = [];
+        $supplierIngredients = SupplierIngredient::whereIn('ingredient_id', $ingredientIds)->get();
+        foreach ($supplierIngredients as $si) {
+            $costLookup[$si->ingredient_id][$si->supplier_id] = floatval($si->last_cost);
+        }
+
+        // Tax info per ingredient
+        $taxLookup = [];
+        $defaultTax = TaxRate::defaultForCompany($company);
+        foreach (Ingredient::withoutGlobalScopes()->whereIn('id', $ingredientIds)->with('taxRate')->get() as $ing) {
+            $tr = $ing->tax_rate_id ? $ing->taxRate : $defaultTax;
+            $taxLookup[$ing->id] = $tr ? [
+                'id'    => $tr->id,
+                'label' => $tr->name . ' ' . rtrim(rtrim(number_format($tr->rate, 2), '0'), '.') . '%',
+                'rate'  => floatval($tr->rate),
+            ] : null;
+        }
+
+        // Group by supplier
+        $groups = [];
+        foreach ($prs as $pr) {
+            foreach ($pr->lines as $line) {
+                if (! $line->ingredient_id) continue;
+                if ($line->source === 'kitchen') continue;
+
+                $supplierId = $line->preferred_supplier_id ?? 0;
+                if (! isset($groups[$supplierId])) {
+                    $groups[$supplierId] = [
+                        'supplier_id'   => $supplierId,
+                        'supplier_name' => $line->preferredSupplier?->name ?? 'No Supplier',
+                        'lines'         => [],
+                        'outlet_ids'    => [],
+                    ];
+                }
+
+                // Merge same ingredient
+                $found = false;
+                foreach ($groups[$supplierId]['lines'] as &$existing) {
+                    if ($existing['ingredient_id'] === $line->ingredient_id) {
+                        $existing['quantity'] += floatval($line->quantity);
+                        $found = true;
+                        break;
+                    }
+                }
+                unset($existing);
+
+                if (! $found) {
+                    $unitCost = $costLookup[$line->ingredient_id][$supplierId] ?? floatval($line->ingredient?->purchase_price ?? 0);
+                    $tax = $taxLookup[$line->ingredient_id] ?? null;
+                    $totalCost = round(floatval($line->quantity) * $unitCost, 4);
+
+                    $groups[$supplierId]['lines'][] = [
+                        'key'             => $line->ingredient_id . '-' . $supplierId,
+                        'ingredient_id'   => $line->ingredient_id,
+                        'ingredient_name' => $line->ingredient?->name ?? '—',
+                        'quantity'        => floatval($line->quantity),
+                        'uom'             => $line->uom?->abbreviation ?? '',
+                        'uom_id'          => $line->uom_id,
+                        'supplier_id'     => $supplierId,
+                        'unit_cost'       => $unitCost,
+                        'total_cost'      => $totalCost,
+                        'tax_rate_id'     => $tax['id'] ?? null,
+                        'tax_label'       => $tax['label'] ?? null,
+                        'tax_rate_pct'    => $tax['rate'] ?? 0,
+                        'tax_amount'      => $tax ? round($totalCost * ($tax['rate'] / 100), 4) : 0,
+                        'source'          => 'supplier',
+                        'excluded'        => false,
+                    ];
+                }
+
+                $groups[$supplierId]['outlet_ids'][] = $pr->outlet_id;
+            }
+        }
+
+        // Compute po_total for each group
+        foreach ($groups as &$g) {
+            $g['outlet_ids'] = array_values(array_unique($g['outlet_ids']));
+            $g['po_total'] = collect($g['lines'])->sum('total_cost');
+            $g['tax_total'] = collect($g['lines'])->sum('tax_amount');
+        }
+        unset($g);
+
+        // Supplier options for dropdowns
+        $supplierOptions = Supplier::where('is_active', true)->orderBy('name')
+            ->get(['id', 'name'])->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->toArray();
+
+        // Kitchen options
+        $kitchenOptions = \App\Models\CentralKitchen::where('is_active', true)
+            ->get(['id', 'name'])->map(fn ($k) => ['id' => $k->id, 'name' => $k->name])->toArray();
+
+        return [
+            'groups'           => array_values($groups),
+            'cost_lookup'      => $costLookup,
+            'tax_lookup'       => $taxLookup,
+            'supplier_options' => $supplierOptions,
+            'kitchen_options'  => $kitchenOptions,
+        ];
+    }
+
+    /**
+     * Create POs from a customized/edited preview structure.
+     */
+    public static function consolidateFromCustomized(array $editableGroups, int $cpuId, array $purchaseRequestIds): array
+    {
+        return DB::transaction(function () use ($editableGroups, $cpuId, $purchaseRequestIds) {
+            $companyId = Auth::user()->company_id;
+            $userId    = Auth::id();
+            $createdPoIds = [];
+
+            foreach ($editableGroups as $group) {
+                $supplierId = (int) $group['supplier_id'];
+                if ($supplierId === 0) continue;
+
+                $activeLines = collect($group['lines'])->filter(fn ($l) => ! ($l['excluded'] ?? false));
+                if ($activeLines->isEmpty()) continue;
+
+                // Merge same ingredients (in case of regrouping)
+                $merged = $activeLines->groupBy('ingredient_id')->map(function ($items) {
+                    $first = $items->first();
+                    return [
+                        'ingredient_id' => $first['ingredient_id'],
+                        'quantity'      => $items->sum('quantity'),
+                        'uom_id'        => $first['uom_id'],
+                        'unit_cost'     => floatval($first['unit_cost']),
+                        'tax_rate_id'   => $first['tax_rate_id'] ?? null,
+                        'tax_rate_pct'  => floatval($first['tax_rate_pct'] ?? 0),
+                    ];
+                });
+
+                // Generate PO number
+                $date = Carbon::now()->format('Ymd');
+                $poPrefix = "PO-{$date}-";
+                $latestPo = PurchaseOrder::withoutGlobalScopes()
+                    ->where('po_number', 'like', "{$poPrefix}%")
+                    ->orderByDesc('po_number')
+                    ->value('po_number');
+                $poSeq = $latestPo ? ((int) substr($latestPo, strrpos($latestPo, '-') + 1) + 1) : 1;
+                $poNumber = $poPrefix . str_pad($poSeq, 3, '0', STR_PAD_LEFT);
+
+                $outletIds = array_unique($group['outlet_ids'] ?? []);
+                $deliveryOutletId = count($outletIds) === 1 ? $outletIds[0] : null;
+                $poOutletId = $outletIds[0] ?? null;
+
+                $subtotal = 0;
+                $taxTotal = 0;
+                $poLines  = [];
+
+                foreach ($merged as $item) {
+                    $totalCost = round($item['quantity'] * $item['unit_cost'], 4);
+                    $taxAmount = $item['tax_rate_pct'] > 0 ? round($totalCost * ($item['tax_rate_pct'] / 100), 4) : 0;
+                    $subtotal += $totalCost;
+                    $taxTotal += $taxAmount;
+
+                    $poLines[] = [
+                        'ingredient_id' => $item['ingredient_id'],
+                        'quantity'      => $item['quantity'],
+                        'uom_id'        => $item['uom_id'],
+                        'unit_cost'     => $item['unit_cost'],
+                        'total_cost'    => $totalCost,
+                        'tax_rate_id'   => $item['tax_rate_id'],
+                        'tax_amount'    => $taxAmount,
+                    ];
+                }
+
+                $po = PurchaseOrder::create([
+                    'company_id'          => $companyId,
+                    'outlet_id'           => $poOutletId,
+                    'supplier_id'         => $supplierId,
+                    'po_number'           => $poNumber,
+                    'status'              => 'draft',
+                    'order_date'          => Carbon::today(),
+                    'subtotal'            => $subtotal,
+                    'total_amount'        => round($subtotal + $taxTotal, 4),
+                    'tax_percent'         => 0,
+                    'tax_amount'          => $taxTotal,
+                    'delivery_charges'    => 0,
+                    'created_by'          => $userId,
+                    'purchase_request_id' => count($purchaseRequestIds) === 1 ? $purchaseRequestIds[0] : null,
+                    'cpu_id'              => $cpuId,
+                    'source'              => 'cpu_consolidated',
+                    'delivery_outlet_id'  => $deliveryOutletId,
+                ]);
+
+                foreach ($poLines as $line) {
+                    PurchaseOrderLine::create(array_merge($line, [
+                        'purchase_order_id' => $po->id,
+                    ]));
+                }
+
+                $createdPoIds[] = $po->id;
+            }
+
+            // Mark PRs as converted
+            PurchaseRequest::whereIn('id', $purchaseRequestIds)
+                ->update(['status' => PurchaseRequest::STATUS_CONVERTED]);
+
+            return $createdPoIds;
+        });
     }
 }
