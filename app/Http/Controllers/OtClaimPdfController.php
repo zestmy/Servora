@@ -65,10 +65,10 @@ class OtClaimPdfController extends Controller
         }
 
         // Single employee
-        $emp = OtEmployee::findOrFail((int) $employee);
+        $employee = OtEmployee::findOrFail((int) $employee);
 
         $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
-            ->where('employee_id', $emp->id)
+            ->where('employee_id', $employee->id)
             ->where('status', 'approved');
 
         if ($from) $query->where('claim_date', '>=', $from);
@@ -86,7 +86,7 @@ class OtClaimPdfController extends Controller
             'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitterName', 'approverNames'
         ))->setPaper('a4', 'portrait');
 
-        $name = str_replace(' ', '-', strtolower($emp->name));
+        $name = str_replace(' ', '-', strtolower($employee->name));
 
         return $pdf->download("ot-claims-{$name}.pdf");
     }
