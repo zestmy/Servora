@@ -18,10 +18,16 @@
             <h1 class="text-lg font-bold text-gray-800">Overtime Claims</h1>
             <p class="text-xs text-gray-400 mt-0.5">Submit and manage staff overtime claims</p>
         </div>
-        <button wire:click="openCreate"
-                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-            + New OT Claim
-        </button>
+        <div class="flex items-center gap-2">
+            <button wire:click="openAddEmployee"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                + Add Employee
+            </button>
+            <button wire:click="openCreate"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                + New OT Claim
+            </button>
+        </div>
     </div>
 
     {{-- Stats --}}
@@ -171,8 +177,8 @@
                         <select id="ot_employee" wire:model="employee_id"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">— Select Employee —</option>
-                            @foreach ($staff as $s)
-                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                            @foreach ($employees as $emp)
+                                <option value="{{ $emp->id }}">{{ $emp->name }}@if($emp->position) — {{ $emp->position }}@endif</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('employee_id')" class="mt-1" />
@@ -270,6 +276,74 @@
                     <button wire:click="rejectClaim"
                             class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition">
                         Reject Claim
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endteleport
+    @endif
+
+    {{-- Employee Modal (Add/Edit + List) --}}
+    @if ($showEmployeeModal)
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showEmployeeModal', false)">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+                <h3 class="text-base font-semibold text-gray-800 mb-4">
+                    {{ $editingEmployeeId ? 'Edit Employee' : 'Add Employee' }}
+                </h3>
+
+                <div class="space-y-3">
+                    <div>
+                        <x-input-label for="emp_name" value="Name *" />
+                        <x-text-input id="emp_name" wire:model="emp_name" type="text" class="mt-1 block w-full" placeholder="Employee name" />
+                        <x-input-error :messages="$errors->get('emp_name')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="emp_position" value="Position" />
+                        <x-text-input id="emp_position" wire:model="emp_position" type="text" class="mt-1 block w-full" placeholder="e.g. Kitchen Helper, Waiter" />
+                        <x-input-error :messages="$errors->get('emp_position')" class="mt-1" />
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button wire:click="saveEmployee"
+                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            {{ $editingEmployeeId ? 'Update' : 'Add Employee' }}
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Employee List --}}
+                @if ($allEmployees->count())
+                    <div class="mt-5 border-t border-gray-100 pt-4">
+                        <p class="text-xs text-gray-400 uppercase tracking-wider mb-2">Employee List</p>
+                        <div class="space-y-1 max-h-60 overflow-y-auto">
+                            @foreach ($allEmployees as $emp)
+                                <div wire:key="emp-{{ $emp->id }}" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-sm {{ !$emp->is_active ? 'opacity-50' : '' }}">
+                                    <div>
+                                        <span class="text-gray-800 font-medium">{{ $emp->name }}</span>
+                                        @if ($emp->position)
+                                            <span class="text-gray-400 ml-1">— {{ $emp->position }}</span>
+                                        @endif
+                                        @if (!$emp->is_active)
+                                            <span class="ml-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-500">Inactive</span>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button wire:click="openEditEmployee({{ $emp->id }})" class="text-indigo-500 hover:text-indigo-700 text-xs font-medium">Edit</button>
+                                        <button wire:click="toggleEmployee({{ $emp->id }})" class="text-xs font-medium {{ $emp->is_active ? 'text-amber-500 hover:text-amber-700' : 'text-green-500 hover:text-green-700' }}">
+                                            {{ $emp->is_active ? 'Deactivate' : 'Activate' }}
+                                        </button>
+                                        <button wire:click="deleteEmployee({{ $emp->id }})" wire:confirm="Delete this employee?" class="text-red-400 hover:text-red-600 text-xs font-medium">Delete</button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <div class="flex justify-end mt-4">
+                    <button wire:click="$set('showEmployeeModal', false)"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
+                        Close
                     </button>
                 </div>
             </div>

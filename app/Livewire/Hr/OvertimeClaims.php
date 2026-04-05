@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Hr;
 
+use App\Models\OtEmployee;
 use App\Models\OvertimeClaim;
 use App\Models\OvertimeClaimApprover;
-use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -35,10 +35,16 @@ class OvertimeClaims extends Component
     public ?int   $rejectingId       = null;
     public string $rejected_reason   = '';
 
+    // Employee modal
+    public bool   $showEmployeeModal   = false;
+    public ?int   $editingEmployeeId   = null;
+    public string $emp_name            = '';
+    public string $emp_position        = '';
+
     protected function rules(): array
     {
         return [
-            'employee_id'    => 'required|exists:users,id',
+            'employee_id'    => 'required|exists:ot_employees,id',
             'claim_date'     => 'required|date',
             'ot_time_start'  => 'required|date_format:H:i',
             'ot_time_end'    => 'required|date_format:H:i|after:ot_time_start',
@@ -201,11 +207,11 @@ class OvertimeClaims extends Component
 
         $claims = $query->orderByDesc('claim_date')->orderByDesc('created_at')->paginate($this->perPage);
 
-        // Staff list for employee dropdown (users in this outlet)
-        $staff = User::where('company_id', $user->company_id)
-            ->whereHas('outlets', fn ($q) => $q->where('outlets.id', $outletId))
+        // Employee list for dropdown (active only) and management modal (all)
+        $allEmployees = OtEmployee::where('outlet_id', $outletId)
             ->orderBy('name')
             ->get();
+        $employees = $allEmployees->where('is_active', true);
 
         // Stats
         $monthStart = now()->startOfMonth()->toDateString();
@@ -218,8 +224,74 @@ class OvertimeClaims extends Component
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'staff', 'isApprover', 'totalHoursMonth', 'pendingCount', 'approvedCount'
+            'claims', 'employees', 'allEmployees', 'isApprover', 'totalHoursMonth', 'pendingCount', 'approvedCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
+    }
+
+    // ── Employee CRUD ──
+
+    public function openAddEmployee(): void
+    {
+        $this->editingEmployeeId = null;
+        $this->emp_name          = '';
+        $this->emp_position      = '';
+        $this->showEmployeeModal = true;
+    }
+
+    public function openEditEmployee(int $id): void
+    {
+        $emp = OtEmployee::findOrFail($id);
+        $this->editingEmployeeId = $emp->id;
+        $this->emp_name          = $emp->name;
+        $this->emp_position      = $emp->position ?? '';
+        $this->showEmployeeModal = true;
+    }
+
+    public function saveEmployee(): void
+    {
+        $this->validate([
+            'emp_name'     => 'required|string|max:255',
+            'emp_position' => 'nullable|string|max:255',
+        ]);
+
+        $user     = Auth::user();
+        $outletId = $user->activeOutletId();
+
+        $data = [
+            'company_id' => $user->company_id,
+            'outlet_id'  => $outletId,
+            'name'       => $this->emp_name,
+            'position'   => $this->emp_position ?: null,
+        ];
+
+        if ($this->editingEmployeeId) {
+            OtEmployee::findOrFail($this->editingEmployeeId)->update($data);
+            session()->flash('success', 'Employee updated.');
+        } else {
+            OtEmployee::create($data);
+            session()->flash('success', 'Employee added to list.');
+        }
+
+        $this->showEmployeeModal = false;
+    }
+
+    public function toggleEmployee(int $id): void
+    {
+        $emp = OtEmployee::findOrFail($id);
+        $emp->update(['is_active' => ! $emp->is_active]);
+    }
+
+    public function deleteEmployee(int $id): void
+    {
+        $emp = OtEmployee::findOrFail($id);
+
+        if (OvertimeClaim::where('employee_id', $id)->exists()) {
+            session()->flash('error', 'Cannot delete employee with existing OT claims. Deactivate instead.');
+            return;
+        }
+
+        $emp->delete();
+        session()->flash('success', 'Employee removed.');
     }
 
     private function calcHours(): void
