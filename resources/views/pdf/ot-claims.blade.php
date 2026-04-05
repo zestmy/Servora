@@ -75,14 +75,14 @@
     <table class="items">
         <thead>
             <tr>
-                <th style="width: 8%;">#</th>
-                <th style="width: 15%;">Date</th>
+                <th style="width: 6%;">#</th>
+                <th style="width: 14%;">Date</th>
                 <th style="width: 12%;">Day</th>
-                <th class="center" style="width: 10%;">Start</th>
-                <th class="center" style="width: 10%;">End</th>
-                <th class="center" style="width: 10%;">Hours</th>
-                <th style="width: 15%;">OT Type</th>
-                <th style="width: 20%;">Reason</th>
+                <th class="center" style="width: 9%;">Start</th>
+                <th class="center" style="width: 9%;">End</th>
+                <th class="center" style="width: 9%;">Hours</th>
+                <th style="width: 14%;">OT Type</th>
+                <th style="width: 27%;">Reason</th>
             </tr>
         </thead>
         <tbody>
@@ -115,15 +115,6 @@
         </tfoot>
     </table>
 
-    {{-- Approval Info --}}
-    @php $lastApproval = $claims->whereNotNull('approved_by')->sortByDesc('approved_at')->first(); @endphp
-    @if ($lastApproval && $lastApproval->approver)
-        <div style="margin-bottom: 8px; font-size: 8px; color: #666;">
-            Approved by: <strong style="color: #000;">{{ $lastApproval->approver->name }}</strong>
-            on {{ $lastApproval->approved_at?->format('d M Y, h:i A') }}
-        </div>
-    @endif
-
     {{-- Signatures --}}
     <div class="signatures">
         <div class="sig-box">
@@ -133,11 +124,17 @@
         </div>
         <div class="sig-box">
             <div style="height: 40px;"></div>
-            <div class="sig-line">Verified By (HOD / Manager)</div>
+            <div class="sig-line">Verified By</div>
+            @if (!empty($submitterName))
+                <div class="sig-name">{{ $submitterName }}</div>
+            @endif
         </div>
         <div class="sig-box">
             <div style="height: 40px;"></div>
-            <div class="sig-line">Approved By (HR / Management)</div>
+            <div class="sig-line">Approved By</div>
+            @if (!empty($approverNames))
+                <div class="sig-name">{{ $approverNames }}</div>
+            @endif
         </div>
     </div>
 @endsection

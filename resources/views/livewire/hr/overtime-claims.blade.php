@@ -19,6 +19,10 @@
             <p class="text-xs text-gray-400 mt-0.5">Submit and manage staff overtime claims</p>
         </div>
         <div class="flex items-center gap-2">
+            <button wire:click="openPdfModal"
+                    class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                Print PDF
+            </button>
             <button wire:click="openEmployeeList"
                     class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 Employee List
@@ -407,6 +411,53 @@
                             class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                         {{ $editingEmployeeId ? 'Update' : 'Add Employee' }}
                     </button>
+                </div>
+            </div>
+        </div>
+        @endteleport
+    @endif
+
+    {{-- PDF Print Modal --}}
+    @if ($showPdfModal)
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showPdfModal', false)">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                <h3 class="text-base font-semibold text-gray-800 mb-4">Print Approved OT Claims</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <x-input-label for="pdf_employee" value="Employee" />
+                        <select id="pdf_employee" wire:model.live="pdfEmployeeId"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">All Employees</option>
+                            @foreach ($allEmployees->where('is_active', true) as $emp)
+                                <option value="{{ $emp->id }}">{{ $emp->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Leave blank to print all employees (one page each)</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="pdf_from" value="From Date *" />
+                            <x-text-input id="pdf_from" wire:model.live="pdfFrom" type="date" class="mt-1 block w-full" />
+                        </div>
+                        <div>
+                            <x-input-label for="pdf_to" value="To Date *" />
+                            <x-text-input id="pdf_to" wire:model.live="pdfTo" type="date" class="mt-1 block w-full" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button wire:click="$set('showPdfModal', false)"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
+                        Cancel
+                    </button>
+                    <a href="{{ route('hr.ot-claims.pdf', ['employee' => $pdfEmployeeId ?: 'all', 'from' => $pdfFrom, 'to' => $pdfTo]) }}"
+                       target="_blank"
+                       class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition inline-flex items-center">
+                        Download PDF
+                    </a>
                 </div>
             </div>
         </div>

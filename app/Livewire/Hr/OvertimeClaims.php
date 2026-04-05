@@ -52,13 +52,19 @@ class OvertimeClaims extends Component
     // Bulk selection
     public array  $selected = [];
 
+    // PDF print modal
+    public bool   $showPdfModal  = false;
+    public string $pdfFrom       = '';
+    public string $pdfTo         = '';
+    public string $pdfEmployeeId = '';
+
     protected function rules(): array
     {
         return [
             'employee_id'    => 'required|exists:ot_employees,id',
             'claim_date'     => 'required|date',
             'ot_time_start'  => 'required|date_format:H:i',
-            'ot_time_end'    => 'required|date_format:H:i|after:ot_time_start',
+            'ot_time_end'    => 'required|date_format:H:i',
             'total_ot_hours' => 'required|numeric|min:0.25|max:24',
             'ot_type'        => 'required|in:normal_day,public_holiday,rest_day',
             'reason'         => 'required|string|max:500',
@@ -69,7 +75,7 @@ class OvertimeClaims extends Component
     {
         return [
             'employee_id.required'   => 'Please select an employee.',
-            'ot_time_end.after'      => 'End time must be after start time.',
+            'ot_time_end.date_format' => 'Please enter a valid end time.',
             'total_ot_hours.min'     => 'Minimum OT is 0.25 hours (15 minutes).',
             'reason.required'        => 'Please provide a reason for the overtime.',
         ];
@@ -329,6 +335,24 @@ class OvertimeClaims extends Component
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 
+    // ── PDF Print ──
+
+    public function openPdfModal(): void
+    {
+        $this->pdfFrom       = $this->dateFrom ?: now()->startOfMonth()->toDateString();
+        $this->pdfTo         = $this->dateTo ?: now()->endOfMonth()->toDateString();
+        $this->pdfEmployeeId = '';
+        $this->showPdfModal  = true;
+    }
+
+    public function getPdfUrl(): string
+    {
+        $params = ['from' => $this->pdfFrom, 'to' => $this->pdfTo];
+        $employeeId = $this->pdfEmployeeId ?: 'all';
+
+        return route('hr.ot-claims.pdf', ['employee' => $employeeId] + $params);
+    }
+
     // ── Employee CRUD ──
 
     public function openAddEmployee(): void
@@ -407,9 +431,11 @@ class OvertimeClaims extends Component
         try {
             $start = \Carbon\Carbon::createFromFormat('H:i', $this->ot_time_start);
             $end   = \Carbon\Carbon::createFromFormat('H:i', $this->ot_time_end);
-            if ($end->gt($start)) {
-                $this->total_ot_hours = (string) round($end->diffInMinutes($start) / 60, 2);
+            // Handle overnight shifts (e.g. 22:00 to 06:00)
+            if ($end->lte($start)) {
+                $end->addDay();
             }
+            $this->total_ot_hours = (string) round($end->diffInMinutes($start) / 60, 2);
         } catch (\Exception) {}
     }
 
