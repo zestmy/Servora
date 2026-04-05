@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\OtEmployee;
 use App\Models\OvertimeClaim;
 use App\Models\OvertimeClaimApprover;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -20,18 +21,17 @@ class OtClaimPdfController extends Controller
         $from = $request->input('from');
         $to   = $request->input('to');
 
-        // Resolve approver names for this outlet
-        $approverNames = OvertimeClaimApprover::with('user')
-            ->where('outlet_id', $outletId)
-            ->orWhereNull('outlet_id')
+        // Resolve approvers for this outlet (with designation)
+        $approvers = OvertimeClaimApprover::with('user')
+            ->where(function ($q) use ($outletId) {
+                $q->where('outlet_id', $outletId)->orWhereNull('outlet_id');
+            })
             ->get()
-            ->pluck('user.name')
+            ->pluck('user')
             ->filter()
-            ->unique()
-            ->implode(' / ');
+            ->unique('id');
 
         if ($employee === 'all') {
-            // All employees — grouped PDF
             $employees = OtEmployee::where('outlet_id', $outletId)
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -49,16 +49,20 @@ class OtClaimPdfController extends Controller
                 $claims = $query->orderBy('claim_date')->get();
                 if ($claims->isEmpty()) continue;
 
+                // Unique submitters for this employee's claims
+                $submitters = $claims->pluck('submitter')->filter()->unique('id');
+
                 $grouped[] = [
                     'employee'    => $emp,
                     'claims'      => $claims,
                     'totalHours'  => $claims->sum('total_ot_hours'),
                     'hoursByType' => $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours')),
+                    'submitters'  => $submitters,
                 ];
             }
 
             $pdf = Pdf::loadView('pdf.ot-claims-all', compact(
-                'company', 'grouped', 'from', 'to', 'approverNames'
+                'company', 'grouped', 'from', 'to', 'approvers'
             ))->setPaper('a4', 'portrait');
 
             return $pdf->download('ot-claims-all.pdf');
@@ -79,11 +83,11 @@ class OtClaimPdfController extends Controller
         $totalHours  = $claims->sum('total_ot_hours');
         $hoursByType = $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours'));
 
-        // Submitter = person who created/submitted the claims (verified by)
-        $submitterName = $claims->pluck('submitter.name')->filter()->unique()->implode(' / ');
+        // Unique submitters (verified by)
+        $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
-            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitterName', 'approverNames'
+            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers'
         ))->setPaper('a4', 'portrait');
 
         $name = str_replace(' ', '-', strtolower($employee->name));

@@ -6,6 +6,9 @@
     {{-- Header --}}
     <div class="header">
         <div class="header-left">
+            @if ($company?->logo)
+                <img src="{{ public_path('storage/' . $company->logo) }}" class="company-logo" alt="">
+            @endif
             <div class="company-name">{{ $company->brand_name ?? $company->name }}</div>
             @if ($company->registration_number)
                 <div class="company-detail">Reg No: {{ $company->registration_number }}</div>
@@ -121,20 +124,29 @@
             <div style="height: 40px;"></div>
             <div class="sig-line">Employee Signature</div>
             <div class="sig-name">{{ $employee->name }}</div>
+            @if ($employee->position)
+                <div style="font-size: 8px; color: #666;">{{ $employee->position }}</div>
+            @endif
         </div>
         <div class="sig-box">
             <div style="height: 40px;"></div>
             <div class="sig-line">Verified By</div>
-            @if (!empty($submitterName))
-                <div class="sig-name">{{ $submitterName }}</div>
-            @endif
+            @foreach ($submitters as $s)
+                <div class="sig-name">{{ $s->name }}</div>
+                @if ($s->designation)
+                    <div style="font-size: 8px; color: #666;">{{ $s->designation }}</div>
+                @endif
+            @endforeach
         </div>
         <div class="sig-box">
             <div style="height: 40px;"></div>
             <div class="sig-line">Approved By</div>
-            @if (!empty($approverNames))
-                <div class="sig-name">{{ $approverNames }}</div>
-            @endif
+            @foreach ($approvers as $a)
+                <div class="sig-name">{{ $a->name }}</div>
+                @if ($a->designation)
+                    <div style="font-size: 8px; color: #666;">{{ $a->designation }}</div>
+                @endif
+            @endforeach
         </div>
     </div>
 @endsection
