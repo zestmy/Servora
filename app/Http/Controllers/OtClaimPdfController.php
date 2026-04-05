@@ -87,7 +87,7 @@ class OtClaimPdfController extends Controller
         $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
-            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers'
+            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'from', 'to'
         ))->setPaper('a4', 'portrait');
 
         $name = str_replace(' ', '-', strtolower($employee->name));

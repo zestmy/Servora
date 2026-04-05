@@ -39,7 +39,9 @@
                 <tr>
                     <td class="label">Period:</td>
                     <td class="value">
-                        @if ($claims->count())
+                        @if (!empty($from) && !empty($to))
+                            {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+                        @elseif ($claims->count())
                             {{ $claims->first()->claim_date->format('d M Y') }} — {{ $claims->last()->claim_date->format('d M Y') }}
                         @else
                             —
