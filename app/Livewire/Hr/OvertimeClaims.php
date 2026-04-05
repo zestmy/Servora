@@ -14,10 +14,13 @@ class OvertimeClaims extends Component
     use WithPagination;
 
     // Filters
-    public string $statusFilter = '';
-    public string $dateFrom     = '';
-    public string $dateTo       = '';
-    public int    $perPage      = 25;
+    public string $statusFilter   = '';
+    public string $dateFrom       = '';
+    public string $dateTo         = '';
+    public string $employeeFilter = '';
+    public string $sortField      = 'claim_date';
+    public string $sortDirection  = 'desc';
+    public int    $perPage        = 25;
 
     // Form modal
     public bool   $showModal         = false;
@@ -35,11 +38,19 @@ class OvertimeClaims extends Component
     public ?int   $rejectingId       = null;
     public string $rejected_reason   = '';
 
-    // Employee modal
-    public bool   $showEmployeeModal   = false;
-    public ?int   $editingEmployeeId   = null;
-    public string $emp_name            = '';
-    public string $emp_position        = '';
+    // Bulk reject modal
+    public bool   $showBulkRejectModal   = false;
+    public string $bulk_rejected_reason  = '';
+
+    // Employee modals
+    public bool   $showEmployeeModal     = false;
+    public bool   $showEmployeeListModal = false;
+    public ?int   $editingEmployeeId     = null;
+    public string $emp_name              = '';
+    public string $emp_position          = '';
+
+    // Bulk selection
+    public array  $selected = [];
 
     protected function rules(): array
     {
@@ -66,6 +77,22 @@ class OvertimeClaims extends Component
 
     public function updatedOtTimeStart(): void { $this->calcHours(); }
     public function updatedOtTimeEnd(): void   { $this->calcHours(); }
+
+    public function updatedStatusFilter(): void  { $this->resetPage(); $this->selected = []; }
+    public function updatedDateFrom(): void      { $this->resetPage(); $this->selected = []; }
+    public function updatedDateTo(): void        { $this->resetPage(); $this->selected = []; }
+    public function updatedEmployeeFilter(): void { $this->resetPage(); $this->selected = []; }
+
+    public function sortBy(string $field): void
+    {
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortField     = $field;
+            $this->sortDirection = 'asc';
+        }
+        $this->resetPage();
+    }
 
     public function openCreate(): void
     {
@@ -186,6 +213,68 @@ class OvertimeClaims extends Component
         session()->flash('success', 'OT claim deleted.');
     }
 
+    // ── Bulk Actions ──
+
+    public function bulkApprove(): void
+    {
+        if (empty($this->selected)) return;
+
+        $user = Auth::user();
+        $claims = OvertimeClaim::whereIn('id', $this->selected)
+            ->where('status', 'submitted')
+            ->get();
+
+        $count = 0;
+        foreach ($claims as $claim) {
+            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id) || $user->isSystemRole()) {
+                $claim->update([
+                    'status'      => 'approved',
+                    'approved_by' => $user->id,
+                    'approved_at' => now(),
+                ]);
+                $count++;
+            }
+        }
+
+        $this->selected = [];
+        session()->flash('success', "{$count} claim(s) approved.");
+    }
+
+    public function openBulkReject(): void
+    {
+        if (empty($this->selected)) return;
+        $this->bulk_rejected_reason = '';
+        $this->showBulkRejectModal  = true;
+    }
+
+    public function bulkReject(): void
+    {
+        $this->validate(['bulk_rejected_reason' => 'required|string|max:500']);
+
+        $user = Auth::user();
+        $claims = OvertimeClaim::whereIn('id', $this->selected)
+            ->where('status', 'submitted')
+            ->get();
+
+        $count = 0;
+        foreach ($claims as $claim) {
+            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id) || $user->isSystemRole()) {
+                $claim->update([
+                    'status'          => 'rejected',
+                    'approved_by'     => $user->id,
+                    'rejected_reason' => $this->bulk_rejected_reason,
+                ]);
+                $count++;
+            }
+        }
+
+        $this->selected = [];
+        $this->showBulkRejectModal = false;
+        session()->flash('success', "{$count} claim(s) rejected.");
+    }
+
+    // ── Render ──
+
     public function render()
     {
         $user     = Auth::user();
@@ -204,8 +293,20 @@ class OvertimeClaims extends Component
         if ($this->dateTo) {
             $query->where('claim_date', '<=', $this->dateTo);
         }
+        if ($this->employeeFilter) {
+            $query->where('employee_id', $this->employeeFilter);
+        }
 
-        $claims = $query->orderByDesc('claim_date')->orderByDesc('created_at')->paginate($this->perPage);
+        // Sorting
+        if ($this->sortField === 'employee') {
+            $query->join('ot_employees', 'overtime_claims.employee_id', '=', 'ot_employees.id')
+                ->orderBy('ot_employees.name', $this->sortDirection)
+                ->select('overtime_claims.*');
+        } else {
+            $query->orderBy($this->sortField, $this->sortDirection);
+        }
+
+        $claims = $query->paginate($this->perPage);
 
         // Employee list for dropdown (active only) and management modal (all)
         $allEmployees = OtEmployee::where('outlet_id', $outletId)
@@ -238,13 +339,19 @@ class OvertimeClaims extends Component
         $this->showEmployeeModal = true;
     }
 
+    public function openEmployeeList(): void
+    {
+        $this->showEmployeeListModal = true;
+    }
+
     public function openEditEmployee(int $id): void
     {
         $emp = OtEmployee::findOrFail($id);
-        $this->editingEmployeeId = $emp->id;
-        $this->emp_name          = $emp->name;
-        $this->emp_position      = $emp->position ?? '';
-        $this->showEmployeeModal = true;
+        $this->editingEmployeeId     = $emp->id;
+        $this->emp_name              = $emp->name;
+        $this->emp_position          = $emp->position ?? '';
+        $this->showEmployeeModal     = true;
+        $this->showEmployeeListModal = false;
     }
 
     public function saveEmployee(): void
