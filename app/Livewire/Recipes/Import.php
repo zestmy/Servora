@@ -16,6 +16,7 @@ class Import extends Component
     use WithFileUploads;
 
     public $file = null;
+    public bool $isPrep = false;
 
     public string $step = 'upload'; // upload | preview | done
 
@@ -24,6 +25,11 @@ class Import extends Component
     public int   $validRows    = 0;
     public int   $importedCount = 0;
     public int   $skippedCount  = 0;
+
+    public function mount(): void
+    {
+        $this->isPrep = request()->query('type') === 'prep';
+    }
 
     protected function rules(): array
     {
@@ -156,7 +162,7 @@ class Import extends Component
                 'cost_per_yield_unit'    => 0,
                 'ingredient_category_id' => $row['ingredient_category_id'],
                 'is_active'              => $row['is_active'],
-                'is_prep'                => false,
+                'is_prep'                => $this->isPrep,
             ]);
 
             $imported++;
@@ -182,11 +188,22 @@ class Import extends Component
     public function downloadTemplate()
     {
         $headers = ['name', 'code', 'description', 'yield_quantity', 'yield_uom', 'selling_price', 'category', 'is_active'];
-        $sample  = [
-            ['Nasi Lemak', 'NL-001', 'Classic coconut rice set', '1', 'portion', '12.90', 'Food', 'yes'],
-            ['Teh Tarik', 'TT-001', 'Pulled milk tea', '1', 'cup', '3.50', 'Beverage', 'yes'],
-            ['Chocolate Cake Slice', 'CK-001', '', '1', 'slice', '8.00', 'Food', 'yes'],
-        ];
+
+        if ($this->isPrep) {
+            $sample = [
+                ['Sambal Paste', 'PP-001', 'House sambal base', '5', 'kg', '0', 'Food', 'yes'],
+                ['Chicken Stock', 'PP-002', 'Slow-cooked broth', '10', 'L', '0', 'Food', 'yes'],
+                ['Pie Crust', 'PP-003', '', '20', 'pcs', '0', 'Food', 'yes'],
+            ];
+            $filename = 'prep_item_import_template.csv';
+        } else {
+            $sample = [
+                ['Nasi Lemak', 'NL-001', 'Classic coconut rice set', '1', 'portion', '12.90', 'Food', 'yes'],
+                ['Teh Tarik', 'TT-001', 'Pulled milk tea', '1', 'cup', '3.50', 'Beverage', 'yes'],
+                ['Chocolate Cake Slice', 'CK-001', '', '1', 'slice', '8.00', 'Food', 'yes'],
+            ];
+            $filename = 'recipe_import_template.csv';
+        }
 
         $output = fopen('php://temp', 'r+');
         fputcsv($output, $headers);
@@ -199,15 +216,17 @@ class Import extends Component
 
         return response()->streamDownload(
             fn () => print($csv),
-            'recipe_import_template.csv',
+            $filename,
             ['Content-Type' => 'text/csv; charset=UTF-8']
         );
     }
 
     public function render()
     {
+        $title = $this->isPrep ? 'Import Prep Items' : 'Import Recipes';
+
         return view('livewire.recipes.import')
-            ->layout('layouts.app', ['title' => 'Import Recipes']);
+            ->layout('layouts.app', ['title' => $title]);
     }
 
     // ── Parsers ───────────────────────────────────────────────────────────────

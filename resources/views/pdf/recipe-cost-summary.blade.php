@@ -1,6 +1,6 @@
 @extends('pdf.layout')
 
-@section('title', 'Recipe Cost Summary')
+@section('title', $pageTitle ?? 'Recipe Cost Summary')
 
 @section('content')
     {{-- Header --}}
@@ -12,7 +12,7 @@
             <div class="company-name">{{ $brandName }}</div>
         </div>
         <div class="header-right">
-            <div class="doc-title">Recipe Cost Summary</div>
+            <div class="doc-title">{{ $pageTitle ?? 'Recipe Cost Summary' }}</div>
             <div class="doc-number">{{ count($summaryRows) }} Recipes</div>
         </div>
     </div>

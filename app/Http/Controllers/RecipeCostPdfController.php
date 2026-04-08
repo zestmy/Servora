@@ -33,11 +33,32 @@ class RecipeCostPdfController extends Controller
 
     public function all()
     {
+        return $this->generateAllPdf(isPrep: false);
+    }
+
+    public function summary()
+    {
+        return $this->generateSummaryPdf(isPrep: false);
+    }
+
+    public function prepAll()
+    {
+        return $this->generateAllPdf(isPrep: true);
+    }
+
+    public function prepSummary()
+    {
+        return $this->generateSummaryPdf(isPrep: true);
+    }
+
+    private function generateAllPdf(bool $isPrep)
+    {
+        $label = $isPrep ? 'Prep Item' : 'Recipe';
         $recipes = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
             'lines.uom', 'yieldUom', 'ingredientCategory', 'department',
             'prices.priceClass',
-        ])->where('is_active', true)->where('is_prep', false)->orderBy('name')->get();
+        ])->where('is_active', true)->where('is_prep', $isPrep)->orderBy('name')->get();
 
         $recipesData = $recipes->map(fn ($r) => $this->buildRecipeData($r))->values()->all();
 
@@ -45,20 +66,23 @@ class RecipeCostPdfController extends Controller
         $brandName = $company?->brand_name ?: $company?->name;
         $exportedBy = Auth::user()->name;
         $logoBase64 = $this->companyLogoBase64();
+        $pageTitle = "All {$label} Costs";
 
-        $pdf = Pdf::loadView('pdf.recipe-cost-all', compact('recipesData', 'company', 'brandName', 'exportedBy', 'logoBase64'));
+        $pdf = Pdf::loadView('pdf.recipe-cost-all', compact('recipesData', 'company', 'brandName', 'exportedBy', 'logoBase64', 'pageTitle'));
         $pdf->setPaper('a4', 'portrait');
 
-        return $pdf->stream('all-recipe-costs.pdf');
+        $filename = $isPrep ? 'all-prep-item-costs.pdf' : 'all-recipe-costs.pdf';
+        return $pdf->stream($filename);
     }
 
-    public function summary()
+    private function generateSummaryPdf(bool $isPrep)
     {
+        $label = $isPrep ? 'Prep Item' : 'Recipe';
         $recipes = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
             'lines.uom', 'yieldUom',
             'prices.priceClass',
-        ])->where('is_active', true)->where('is_prep', false)->orderBy('category')->orderBy('name')->get();
+        ])->where('is_active', true)->where('is_prep', $isPrep)->orderBy('category')->orderBy('name')->get();
 
         $priceClasses = RecipePriceClass::ordered()->get();
 
@@ -79,7 +103,6 @@ class RecipeCostPdfController extends Controller
                 $row['class_prices'][$pc->id] = $pa ?? ['selling_price' => 0, 'food_cost_pct' => null];
             }
 
-            // Legacy fallback
             $row['legacy_price'] = $data['legacyPrice'];
             $row['legacy_food_cost_pct'] = $data['legacyFoodCostPct'];
 
@@ -90,11 +113,13 @@ class RecipeCostPdfController extends Controller
         $brandName = $company?->brand_name ?: $company?->name;
         $exportedBy = Auth::user()->name;
         $logoBase64 = $this->companyLogoBase64();
+        $pageTitle = "{$label} Cost Summary";
 
-        $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact('summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy', 'logoBase64'));
+        $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact('summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy', 'logoBase64', 'pageTitle'));
         $pdf->setPaper('a4', 'landscape');
 
-        return $pdf->stream('recipe-cost-summary.pdf');
+        $filename = $isPrep ? 'prep-item-cost-summary.pdf' : 'recipe-cost-summary.pdf';
+        return $pdf->stream($filename);
     }
 
     private function buildRecipeData(Recipe $recipe): array

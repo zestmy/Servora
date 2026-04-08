@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>All Recipe Costs</title>
+    <title>{{ $pageTitle ?? 'All Recipe Costs' }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8px; color: #1a1a1a; line-height: 1.25; }
@@ -76,7 +76,7 @@
             <span class="brand-name">{{ $brandName }}</span>
         </div>
         <div class="page-header-right">
-            <div class="page-title">All Recipe Costs</div>
+            <div class="page-title">{{ $pageTitle ?? 'All Recipe Costs' }}</div>
             <div class="page-count">{{ count($recipesData) }} recipes | {{ now()->format('d M Y') }}</div>
         </div>
     </div>

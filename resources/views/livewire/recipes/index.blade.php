@@ -39,6 +39,28 @@
                     + New Recipe
                 </a>
             @else
+                {{-- PDF dropdown for Prep Items --}}
+                <div x-data="{ open: false }" class="relative">
+                    <button @click="open = !open" class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        PDF
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition
+                         class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                        <a href="{{ route('recipes.prep-cost-pdf-all') }}" target="_blank"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Prep Item Costs</a>
+                        <a href="{{ route('recipes.prep-cost-pdf-summary') }}" target="_blank"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Prep Item Cost Summary</a>
+                    </div>
+                </div>
+                <a href="{{ route('recipes.import', ['type' => 'prep']) }}"
+                   class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
+                    </svg>
+                    Import
+                </a>
                 <a href="{{ route('inventory.prep-items.create') }}"
                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                     + New Prep Item

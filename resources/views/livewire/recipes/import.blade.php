@@ -8,16 +8,16 @@
 
     {{-- Header --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('recipes.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1">
             <p class="text-xs text-gray-400">
-                <a href="{{ route('recipes.index') }}" class="hover:underline">Recipes</a> / Import
+                <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}" class="hover:underline">{{ $isPrep ? 'Prep Items' : 'Recipes' }}</a> / Import
             </p>
-            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Bulk Import Recipes</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Bulk Import {{ $isPrep ? 'Prep Items' : 'Recipes' }}</h2>
         </div>
     </div>
 
@@ -28,12 +28,12 @@
         <div class="mb-6 px-4 py-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-xl space-y-2">
             <p class="font-semibold">How to import</p>
             <ol class="list-decimal list-inside space-y-1 text-blue-700">
-                <li>Download the sample template and fill in your recipe list.</li>
+                <li>Download the sample template and fill in your {{ $isPrep ? 'prep item' : 'recipe' }} list.</li>
                 <li>Upload the completed CSV or Excel (.xlsx) file.</li>
                 <li>Review the preview and confirm the import.</li>
             </ol>
             <p class="text-xs text-blue-600 pt-1">
-                Note: This import creates recipe records only. Ingredient lines must be added afterwards via the recipe edit form.
+                Note: This import creates {{ $isPrep ? 'prep item' : 'recipe' }} records only. Ingredient lines must be added afterwards via the edit form.
             </p>
             <div class="pt-1">
                 <button wire:click="downloadTemplate"
@@ -211,9 +211,9 @@
 
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
-                        wire:confirm="Import {{ $validRows }} recipe(s)? Rows with errors will be skipped."
+                        wire:confirm="Import {{ $validRows }} {{ $isPrep ? 'prep item' : 'recipe' }}(s)? Rows with errors will be skipped."
                         class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
-                    <span wire:loading.remove wire:target="import">Import {{ $validRows }} Recipe{{ $validRows !== 1 ? 's' : '' }}</span>
+                    <span wire:loading.remove wire:target="import">Import {{ $validRows }} {{ $isPrep ? 'Prep Item' : 'Recipe' }}{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing…</span>
                 </button>
             @else
@@ -227,7 +227,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
             <div class="text-5xl mb-4">🎉</div>
             <h3 class="text-xl font-semibold text-gray-800 mb-2">Import Complete</h3>
-            <p class="text-sm text-gray-500 mb-6">Open each recipe to add its ingredient lines.</p>
+            <p class="text-sm text-gray-500 mb-6">Open each {{ $isPrep ? 'prep item' : 'recipe' }} to add its ingredient lines.</p>
 
             <div class="flex items-center justify-center gap-6 mt-4 mb-6">
                 <div class="text-center">
@@ -243,9 +243,9 @@
             </div>
 
             <div class="flex items-center justify-center gap-3">
-                <a href="{{ route('recipes.index') }}"
+                <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}"
                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    View Recipes
+                    View {{ $isPrep ? 'Prep Items' : 'Recipes' }}
                 </a>
                 <button wire:click="restart"
                         class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">

@@ -161,6 +161,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/recipes/create', RecipesForm::class)->name('recipes.create')->middleware('can:recipes.view');
     Route::get('/recipes/cost-pdf/all', [RecipeCostPdfController::class, 'all'])->name('recipes.cost-pdf-all')->middleware('can:recipes.view');
     Route::get('/recipes/cost-pdf/summary', [RecipeCostPdfController::class, 'summary'])->name('recipes.cost-pdf-summary')->middleware('can:recipes.view');
+    Route::get('/recipes/prep/cost-pdf/all', [RecipeCostPdfController::class, 'prepAll'])->name('recipes.prep-cost-pdf-all')->middleware('can:recipes.view');
+    Route::get('/recipes/prep/cost-pdf/summary', [RecipeCostPdfController::class, 'prepSummary'])->name('recipes.prep-cost-pdf-summary')->middleware('can:recipes.view');
     Route::get('/recipes/{id}', RecipesShow::class)->name('recipes.show')->middleware('can:recipes.view');
     Route::get('/recipes/{id}/edit', RecipesForm::class)->name('recipes.edit')->middleware('can:recipes.view');
     Route::get('/recipes/{id}/cost-pdf', [RecipeCostPdfController::class, 'single'])->name('recipes.cost-pdf')->middleware('can:recipes.view');
