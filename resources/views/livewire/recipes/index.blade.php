@@ -12,6 +12,21 @@
         <h2 class="text-lg font-semibold text-gray-700">{{ $isPrep ? 'Prep Items' : 'Recipes' }}</h2>
         <div class="flex items-center gap-2">
             @if (! $isPrep)
+                {{-- PDF dropdown --}}
+                <div x-data="{ open: false }" class="relative">
+                    <button @click="open = !open" class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        PDF
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition
+                         class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                        <a href="{{ route('recipes.cost-pdf-all') }}" target="_blank"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Recipe Costs</a>
+                        <a href="{{ route('recipes.cost-pdf-summary') }}" target="_blank"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Summary</a>
+                    </div>
+                </div>
                 <a href="{{ route('recipes.import') }}"
                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -137,7 +152,7 @@
                     @endphp
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
-                            <div class="font-medium text-gray-800">{{ $recipe->name }}</div>
+                            <a href="{{ route('recipes.show', $recipe->id) }}" class="font-medium text-gray-800 hover:text-indigo-600 transition">{{ $recipe->name }}</a>
                             @if ($recipe->code)
                                 <div class="text-xs text-gray-400">{{ $recipe->code }}</div>
                             @endif

@@ -82,6 +82,12 @@ class Recipe extends Model
         return $this->belongsToMany(Outlet::class)->withTimestamps();
     }
 
+    /** Multiple selling prices per price class. */
+    public function prices(): HasMany
+    {
+        return $this->hasMany(RecipePrice::class);
+    }
+
     /** The synced ingredient record for this prep item. */
     public function ingredient(): HasOne
     {

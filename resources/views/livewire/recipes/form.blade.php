@@ -108,7 +108,7 @@
                 </div>
 
                 {{-- Yield | UOM | Selling Price --}}
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-{{ $priceClasses->isEmpty() ? '3' : '2' }} gap-4">
                     <div>
                         <x-input-label for="r_yield" value="Yield Qty *" />
                         <x-text-input id="r_yield" wire:model.live="yield_quantity"
@@ -127,15 +127,40 @@
                         </select>
                         <x-input-error :messages="$errors->get('yield_uom_id')" class="mt-1" />
                     </div>
-                    <div>
-                        <x-input-label for="r_price" value="Selling Price" />
-                        <x-text-input id="r_price" wire:model.live="selling_price"
-                                      type="number" step="0.01" min="0"
-                                      class="mt-1 block w-full" />
-                        <p class="mt-0.5 text-xs text-gray-400">Per {{ $yield_quantity ?: '1' }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving' }}</p>
-                        <x-input-error :messages="$errors->get('selling_price')" class="mt-1" />
-                    </div>
+                    @if ($priceClasses->isEmpty())
+                        <div>
+                            <x-input-label for="r_price" value="Selling Price" />
+                            <x-text-input id="r_price" wire:model.live="selling_price"
+                                          type="number" step="0.01" min="0"
+                                          class="mt-1 block w-full" />
+                            <p class="mt-0.5 text-xs text-gray-400">Per {{ $yield_quantity ?: '1' }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving' }}</p>
+                            <x-input-error :messages="$errors->get('selling_price')" class="mt-1" />
+                        </div>
+                    @endif
                 </div>
+
+                {{-- Multi-price classes --}}
+                @if ($priceClasses->isNotEmpty())
+                    <div class="border-t border-gray-100 pt-4">
+                        <x-input-label value="Selling Prices" />
+                        <p class="text-xs text-gray-400 mt-0.5 mb-3">Set different selling prices per price class. <a href="{{ route('settings.price-classes') }}" target="_blank" class="text-indigo-500 hover:underline">Manage classes</a></p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            @foreach ($priceClasses as $pc)
+                                <div>
+                                    <label class="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                        {{ $pc->name }}
+                                        @if ($pc->is_default)
+                                            <span class="px-1 py-0.5 bg-indigo-100 text-indigo-600 text-xs rounded">Default</span>
+                                        @endif
+                                    </label>
+                                    <x-text-input wire:model.live="classPrices.{{ $pc->id }}"
+                                                  type="number" step="0.01" min="0"
+                                                  class="mt-1 block w-full" />
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Is Active --}}
                 <div>
@@ -248,7 +273,55 @@
                         </div>
                     @endif
 
-                    @if (floatval($selling_price) > 0)
+                    @if ($priceClasses->isNotEmpty())
+                        {{-- Multi-class pricing breakdown --}}
+                        <div class="border-t border-gray-100 pt-3 space-y-2">
+                            <dt class="text-gray-600 font-medium text-xs uppercase tracking-wider">Pricing by Class</dt>
+                            @foreach ($priceClasses as $pc)
+                                @php
+                                    $cd = $classCostData[$pc->id] ?? [];
+                                    $sp = $cd['selling_price'] ?? 0;
+                                    $fcp = $cd['food_cost_pct'] ?? null;
+                                    $gp = $cd['gross_profit'] ?? null;
+                                    $pcColor = match(true) {
+                                        $fcp === null => 'text-gray-400',
+                                        $fcp <= 25    => 'text-green-600',
+                                        $fcp <= 35    => 'text-yellow-600',
+                                        $fcp <= 45    => 'text-orange-500',
+                                        default       => 'text-red-600',
+                                    };
+                                @endphp
+                                @if ($sp > 0)
+                                    <div class="rounded-lg bg-gray-50 px-3 py-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-xs font-medium text-gray-600">{{ $pc->name }}</span>
+                                            <span class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format($sp, 2) }}</span>
+                                        </div>
+                                        <div class="flex justify-between mt-1 text-xs">
+                                            <span class="text-gray-500">Food Cost %</span>
+                                            <span class="font-bold {{ $pcColor }} tabular-nums">{{ number_format($fcp, 1) }}%</span>
+                                        </div>
+                                        <div class="flex justify-between mt-0.5 text-xs">
+                                            <span class="text-gray-500">Gross Profit</span>
+                                            <span class="{{ $gp >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">{{ number_format($gp, 2) }}</span>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                            @if (collect($classCostData)->every(fn ($cd) => ($cd['selling_price'] ?? 0) <= 0))
+                                <div class="text-xs text-gray-400 italic">Enter selling prices above to see food cost %.</div>
+                            @endif
+                        </div>
+
+                        {{-- Benchmark guide --}}
+                        <div class="text-xs text-gray-400 space-y-0.5 pt-1">
+                            <p class="font-medium text-gray-500 mb-1">Food cost guide:</p>
+                            <p><span class="text-green-600">≤25%</span> Excellent &nbsp;
+                               <span class="text-yellow-600">25–35%</span> Good</p>
+                            <p><span class="text-orange-500">35–45%</span> High &nbsp;
+                               <span class="text-red-600">&gt;45%</span> Review</p>
+                        </div>
+                    @elseif (floatval($selling_price) > 0)
                         <div class="flex justify-between border-t border-gray-100 pt-3">
                             <dt class="text-gray-500">Selling Price</dt>
                             <dd class="text-gray-700 tabular-nums">{{ number_format(floatval($selling_price), 2) }}</dd>

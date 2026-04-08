@@ -8,6 +8,7 @@ use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\RecipeImage;
+use App\Models\RecipePriceClass;
 use App\Models\RecipeStep;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
@@ -52,6 +53,9 @@ class Form extends Component
     // Training / SOP
     public string $video_url = '';
     public array $steps = [];
+
+    // Multi-price: [price_class_id => selling_price_string]
+    public array $classPrices = [];
 
     // Ingredient search
     public string $ingredientSearch = '';
@@ -100,9 +104,15 @@ class Form extends Component
 
     public function mount(?int $id = null): void
     {
+        // Initialise class prices for all price classes
+        $priceClasses = RecipePriceClass::ordered()->get();
+        foreach ($priceClasses as $pc) {
+            $this->classPrices[$pc->id] = '0';
+        }
+
         if (! $id) return;
 
-        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images', 'outlets', 'steps'])->findOrFail($id);
+        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'images', 'outlets', 'steps', 'prices'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->name                   = $recipe->name;
@@ -156,6 +166,11 @@ class Form extends Component
             'title'       => $s->title ?? '',
             'instruction' => $s->instruction,
         ])->toArray();
+
+        // Load existing class prices
+        foreach ($recipe->prices as $rp) {
+            $this->classPrices[$rp->recipe_price_class_id] = $this->fmt($rp->selling_price);
+        }
     }
 
     public function addIngredient(int $ingredientId): void
@@ -344,6 +359,17 @@ class Form extends Component
             ]);
         }
 
+        // Sync class prices
+        $recipe->prices()->delete();
+        foreach ($this->classPrices as $classId => $price) {
+            if (floatval($price) > 0) {
+                $recipe->prices()->create([
+                    'recipe_price_class_id' => $classId,
+                    'selling_price'         => $price,
+                ]);
+            }
+        }
+
         $this->redirectRoute('recipes.index');
     }
 
@@ -363,6 +389,7 @@ class Form extends Component
         $categories = IngredientCategory::roots()->active()->ordered()->get();
 
         $departments = \App\Models\Department::active()->ordered()->get();
+        $priceClasses = RecipePriceClass::ordered()->get();
 
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
@@ -411,10 +438,22 @@ class Form extends Component
             ? 'Edit: ' . ($this->name ?: 'Recipe')
             : 'New Recipe';
 
+        // Per-class food cost calculations
+        $classCostData = [];
+        foreach ($priceClasses as $pc) {
+            $sp = floatval($this->classPrices[$pc->id] ?? 0);
+            $classCostData[$pc->id] = [
+                'selling_price'  => $sp,
+                'food_cost_pct'  => $sp > 0 ? ($grandCost / $sp) * 100 : null,
+                'gross_profit'   => $sp > 0 ? $sp - $grandCost : null,
+            ];
+        }
+
         return view('livewire.recipes.form', compact(
             'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
             'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct',
-            'lineTaxes', 'totalTax', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax'
+            'lineTaxes', 'totalTax', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax',
+            'priceClasses', 'classCostData'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 

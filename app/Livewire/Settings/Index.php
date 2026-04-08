@@ -15,6 +15,7 @@ use App\Models\CentralKitchen;
 use App\Models\CentralPurchasingUnit;
 use App\Models\PoApprover;
 use App\Models\SupplierPriceAlert;
+use App\Models\RecipePriceClass;
 use App\Models\TaxRate;
 use App\Models\Supplier;
 use App\Models\LabourCost;
@@ -55,11 +56,12 @@ class Index extends Component
         $kitchenCount        = CentralKitchen::count();
         $taxRateCount        = TaxRate::count();
         $priceAlertCount     = SupplierPriceAlert::count();
+        $priceClassCount     = RecipePriceClass::count();
 
         return view('livewire.settings.index', compact(
             'isSystemLevel', 'isBusinessLevel',
             'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
-            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount'
+            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount', 'priceClassCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Settings']);
     }
 }
