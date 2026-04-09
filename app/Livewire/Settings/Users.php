@@ -41,6 +41,8 @@ class Users extends Component
     public bool    $can_approve_pr      = false;
     public bool    $can_delete_records  = false;
     public bool    $can_view_all_outlets = false;
+    public bool    $can_receive_grn     = false;
+    public bool    $can_manage_invoices = false;
 
     public string  $search     = '';
 
@@ -91,6 +93,8 @@ class Users extends Component
         $this->can_approve_pr      = $user->can_approve_pr;
         $this->can_delete_records  = $user->can_delete_records;
         $this->can_view_all_outlets = $user->can_view_all_outlets;
+        $this->can_receive_grn     = $user->can_receive_grn;
+        $this->can_manage_invoices = $user->can_manage_invoices;
 
         // Load current permissions as module access
         $this->moduleAccess = $user->getDirectPermissions()->pluck('name')->toArray();
@@ -171,6 +175,8 @@ class Users extends Component
             'can_approve_pr'       => $this->can_approve_pr,
             'can_delete_records'   => $this->can_delete_records,
             'can_view_all_outlets' => $this->can_view_all_outlets,
+            'can_receive_grn'      => $this->can_receive_grn,
+            'can_manage_invoices'  => $this->can_manage_invoices,
         ];
 
         if ($this->password) {
@@ -313,6 +319,8 @@ class Users extends Component
         $this->can_approve_pr = false;
         $this->can_delete_records = false;
         $this->can_view_all_outlets = false;
+        $this->can_receive_grn = false;
+        $this->can_manage_invoices = false;
         $this->resetValidation();
     }
 }

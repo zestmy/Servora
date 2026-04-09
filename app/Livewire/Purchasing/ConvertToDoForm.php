@@ -54,6 +54,10 @@ class ConvertToDoForm extends Component
             'outlet', 'supplier', 'lines.ingredient.baseUom', 'lines.uom',
         ])->findOrFail($id);
 
+        if ($po->outlet_id && ! Auth::user()->canAccessOutlet($po->outlet_id)) {
+            abort(403, 'You do not have access to this outlet.');
+        }
+
         if (! in_array($po->status, ['approved', 'sent', 'partial'])) {
             session()->flash('error', 'Only approved/sent/partial POs can be converted to DO.');
             $this->redirectRoute('purchasing.index');

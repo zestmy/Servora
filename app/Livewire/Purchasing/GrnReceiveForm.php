@@ -48,6 +48,10 @@ class GrnReceiveForm extends Component
             'deliveryOrder', 'purchaseOrder', 'outlet', 'supplier',
         ])->findOrFail($id);
 
+        if ($grn->outlet_id && ! Auth::user()->canAccessOutlet($grn->outlet_id)) {
+            abort(403, 'You do not have access to this outlet.');
+        }
+
         if ($grn->status !== 'pending') {
             session()->flash('error', 'This GRN has already been processed.');
             $this->redirectRoute('purchasing.index', ['tab' => 'grn']);
@@ -88,6 +92,11 @@ class GrnReceiveForm extends Component
 
     public function confirm(): void
     {
+        if (! Auth::user()->hasCapability('can_receive_grn')) {
+            session()->flash('error', 'You do not have permission to receive goods.');
+            return;
+        }
+
         $this->validate();
 
         DB::transaction(function () {

@@ -30,6 +30,10 @@ class CreditNoteIndex extends Component
 
     public function issue(int $id): void
     {
+        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+            session()->flash('error', 'You do not have permission to issue credit/debit notes.');
+            return;
+        }
         $cn = CreditNote::findOrFail($id);
         if ($cn->status !== 'draft') return;
 
@@ -39,6 +43,10 @@ class CreditNoteIndex extends Component
 
     public function apply(int $id): void
     {
+        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+            session()->flash('error', 'You do not have permission to apply credit/debit notes.');
+            return;
+        }
         $cn = CreditNote::findOrFail($id);
         if ($cn->status !== 'issued') return;
 
@@ -48,6 +56,10 @@ class CreditNoteIndex extends Component
 
     public function cancel(int $id): void
     {
+        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+            session()->flash('error', 'You do not have permission to cancel credit/debit notes.');
+            return;
+        }
         $cn = CreditNote::findOrFail($id);
         if (in_array($cn->status, ['applied', 'cancelled'])) return;
 

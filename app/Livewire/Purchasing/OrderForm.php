@@ -109,6 +109,10 @@ class OrderForm extends Component
 
         $po = PurchaseOrder::with(['lines.ingredient.baseUom', 'lines.uom'])->findOrFail($id);
 
+        if ($po->outlet_id && ! Auth::user()->canAccessOutlet($po->outlet_id)) {
+            abort(403, 'You do not have access to this outlet.');
+        }
+
         $this->orderId                = $po->id;
         $this->poNumber               = $po->po_number;
         $this->status                 = $po->status;

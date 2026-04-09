@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'enforce.subscription' => \App\Http\Middleware\EnforceSubscription::class,
             'check.feature'       => \App\Http\Middleware\CheckFeatureAccess::class,
             'plan.rate_limit'     => \App\Http\Middleware\PlanRateLimiter::class,
+            'kitchen.user'        => \App\Http\Middleware\EnsureKitchenUser::class,
         ]);
 
         // Force all non-LMS traffic to the main domain (must run early)

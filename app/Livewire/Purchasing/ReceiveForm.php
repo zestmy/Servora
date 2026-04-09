@@ -70,6 +70,10 @@ class ReceiveForm extends Component
             'lines.uom',
         ])->findOrFail($id);
 
+        if ($po->outlet_id && ! Auth::user()->canAccessOutlet($po->outlet_id)) {
+            abort(403, 'You do not have access to this outlet.');
+        }
+
         $this->poId       = $po->id;
         $this->poNumber   = $po->po_number;
         $this->poSupplier = $po->supplier->name;
@@ -126,11 +130,17 @@ class ReceiveForm extends Component
 
     public function confirm(): void
     {
+        if (! Auth::user()->hasCapability('can_receive_grn')) {
+            session()->flash('error', 'You do not have permission to receive goods.');
+            return;
+        }
+
         $this->validate();
 
         DB::transaction(function () {
             $companyId = Auth::user()->company_id;
-            $outletId  = Outlet::where('company_id', $companyId)->value('id');
+            $outletId  = Auth::user()->activeOutletId()
+                ?: Outlet::where('company_id', $companyId)->value('id');
 
             // 1. Create Delivery Order
             $deliverySeq = $this->poId

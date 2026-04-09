@@ -28,6 +28,10 @@ class InvoiceIndex extends Component
 
     public function markPaid(int $id): void
     {
+        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+            session()->flash('error', 'You do not have permission to manage invoice payments.');
+            return;
+        }
         $invoice = ProcurementInvoice::findOrFail($id);
         ProcurementInvoiceService::markPaid($invoice);
         session()->flash('success', "Invoice {$invoice->invoice_number} marked as paid.");
@@ -35,6 +39,10 @@ class InvoiceIndex extends Component
 
     public function cancelInvoice(int $id): void
     {
+        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+            session()->flash('error', 'You do not have permission to cancel invoices.');
+            return;
+        }
         $invoice = ProcurementInvoice::findOrFail($id);
         ProcurementInvoiceService::cancel($invoice);
         session()->flash('success', "Invoice {$invoice->invoice_number} cancelled.");

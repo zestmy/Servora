@@ -16,7 +16,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'company_id', 'outlet_id',
         'designation', 'can_manage_users', 'can_approve_po', 'can_approve_pr',
-        'can_delete_records', 'can_view_all_outlets',
+        'can_delete_records', 'can_view_all_outlets', 'can_receive_grn', 'can_manage_invoices',
         'workspace_mode', 'default_kitchen_id',
     ];
 
@@ -30,6 +30,8 @@ class User extends Authenticatable
         'can_approve_pr'       => 'boolean',
         'can_delete_records'   => 'boolean',
         'can_view_all_outlets' => 'boolean',
+        'can_receive_grn'      => 'boolean',
+        'can_manage_invoices'  => 'boolean',
     ];
 
     public function company(): BelongsTo

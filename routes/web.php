@@ -204,16 +204,18 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
         return redirect()->route('dashboard');
     })->name('workspace.switch');
 
-    // Kitchen
-    Route::get('/kitchen', KitchenIndex::class)->name('kitchen.index');
-    Route::get('/kitchen/orders/create', KitchenOrderForm::class)->name('kitchen.orders.create');
-    Route::get('/kitchen/orders/{id}/edit', KitchenOrderForm::class)->name('kitchen.orders.edit');
-    Route::get('/kitchen/orders/{id}/execute', KitchenExecute::class)->name('kitchen.orders.execute');
-    Route::get('/kitchen/prep-requests/create', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.create');
-    Route::get('/kitchen/prep-requests/{id}/edit', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.edit');
-    Route::get('/kitchen/recipes', \App\Livewire\Kitchen\ProductionRecipes::class)->name('kitchen.recipes.index');
-    Route::get('/kitchen/recipes/create', \App\Livewire\Kitchen\ProductionRecipeForm::class)->name('kitchen.recipes.create');
-    Route::get('/kitchen/recipes/{id}/edit', \App\Livewire\Kitchen\ProductionRecipeForm::class)->name('kitchen.recipes.edit');
+    // Kitchen (requires kitchen user access)
+    Route::middleware('kitchen.user')->group(function () {
+        Route::get('/kitchen', KitchenIndex::class)->name('kitchen.index');
+        Route::get('/kitchen/orders/create', KitchenOrderForm::class)->name('kitchen.orders.create');
+        Route::get('/kitchen/orders/{id}/edit', KitchenOrderForm::class)->name('kitchen.orders.edit');
+        Route::get('/kitchen/orders/{id}/execute', KitchenExecute::class)->name('kitchen.orders.execute');
+        Route::get('/kitchen/prep-requests/create', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.create');
+        Route::get('/kitchen/prep-requests/{id}/edit', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.edit');
+        Route::get('/kitchen/recipes', \App\Livewire\Kitchen\ProductionRecipes::class)->name('kitchen.recipes.index');
+        Route::get('/kitchen/recipes/create', \App\Livewire\Kitchen\ProductionRecipeForm::class)->name('kitchen.recipes.create');
+        Route::get('/kitchen/recipes/{id}/edit', \App\Livewire\Kitchen\ProductionRecipeForm::class)->name('kitchen.recipes.edit');
+    });
 
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
     Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.view');

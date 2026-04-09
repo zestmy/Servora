@@ -233,6 +233,14 @@
                             <input type="checkbox" wire:model="can_view_all_outlets" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                             <span class="text-sm text-gray-700">View all outlets</span>
                         </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" wire:model="can_receive_grn" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700">Receive goods (GRN)</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" wire:model="can_manage_invoices" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700">Manage invoices & payments</span>
+                        </label>
                     </div>
                 </div>
             </div>

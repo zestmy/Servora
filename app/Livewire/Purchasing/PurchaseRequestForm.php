@@ -64,6 +64,10 @@ class PurchaseRequestForm extends Component
 
         $pr = PurchaseRequest::with(['lines.ingredient.baseUom', 'lines.uom', 'lines.preferredSupplier'])->findOrFail($id);
 
+        if ($pr->outlet_id && ! Auth::user()->canAccessOutlet($pr->outlet_id)) {
+            abort(403, 'You do not have access to this outlet.');
+        }
+
         $this->requestId      = $pr->id;
         $this->prNumber       = $pr->pr_number;
         $this->status         = $pr->status;

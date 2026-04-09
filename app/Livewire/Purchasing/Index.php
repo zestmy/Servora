@@ -61,7 +61,7 @@ class Index extends Component
 
     private function seesAllOutlets(): bool
     {
-        return Auth::user()->can_view_all_outlets || Auth::user()->isSystemRole() || $this->isPurchasingRole();
+        return Auth::user()->canViewAllOutlets();
     }
 
     /**
@@ -111,6 +111,10 @@ class Index extends Component
     public function sendSto(int $id): void
     {
         $sto = StockTransferOrder::findOrFail($id);
+        if ($sto->to_outlet_id && ! Auth::user()->canAccessOutlet($sto->to_outlet_id) && ! Auth::user()->canViewAllOutlets()) {
+            session()->flash('error', 'You do not have access to this transfer.');
+            return;
+        }
         if ($sto->status !== 'draft') return;
         $sto->update(['status' => 'sent']);
         session()->flash('success', "STO {$sto->sto_number} sent to outlet.");
@@ -119,6 +123,10 @@ class Index extends Component
     public function receiveSto(int $id): void
     {
         $sto = StockTransferOrder::findOrFail($id);
+        if ($sto->to_outlet_id && ! Auth::user()->canAccessOutlet($sto->to_outlet_id)) {
+            session()->flash('error', 'You do not have access to receive this transfer.');
+            return;
+        }
         if ($sto->status !== 'sent') return;
         $sto->update(['status' => 'received', 'received_by' => Auth::id()]);
         session()->flash('success', "STO {$sto->sto_number} received.");
@@ -127,6 +135,10 @@ class Index extends Component
     public function cancelSto(int $id): void
     {
         $sto = StockTransferOrder::findOrFail($id);
+        if ($sto->to_outlet_id && ! Auth::user()->canAccessOutlet($sto->to_outlet_id) && ! Auth::user()->canViewAllOutlets()) {
+            session()->flash('error', 'You do not have access to this transfer.');
+            return;
+        }
         if (in_array($sto->status, ['draft', 'sent'])) {
             $sto->update(['status' => 'cancelled']);
             session()->flash('success', "STO {$sto->sto_number} cancelled.");
@@ -138,6 +150,10 @@ class Index extends Component
     public function submitPr(int $id): void
     {
         $pr = PurchaseRequest::findOrFail($id);
+        if (! Auth::user()->canAccessOutlet($pr->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
+        }
         if ($pr->status !== 'draft') return;
 
         $requiresApproval = Auth::user()->company?->require_pr_approval ?? false;
@@ -160,7 +176,15 @@ class Index extends Component
         $pr = PurchaseRequest::findOrFail($id);
         if ($pr->status !== 'submitted') return;
 
-        if (! PrApprover::isApproverFor(Auth::id(), $pr->outlet_id, $pr->department_id)) return;
+        if (! Auth::user()->hasCapability('can_approve_pr')) {
+            session()->flash('error', 'You do not have permission to approve purchase requests.');
+            return;
+        }
+
+        if (! PrApprover::isApproverFor(Auth::id(), $pr->outlet_id, $pr->department_id)) {
+            session()->flash('error', 'You are not an appointed approver for this outlet.');
+            return;
+        }
 
         $pr->update([
             'status'      => 'approved',
@@ -175,7 +199,15 @@ class Index extends Component
         $pr = PurchaseRequest::findOrFail($id);
         if ($pr->status !== 'submitted') return;
 
-        if (! PrApprover::isApproverFor(Auth::id(), $pr->outlet_id, $pr->department_id)) return;
+        if (! Auth::user()->hasCapability('can_approve_pr')) {
+            session()->flash('error', 'You do not have permission to reject purchase requests.');
+            return;
+        }
+
+        if (! PrApprover::isApproverFor(Auth::id(), $pr->outlet_id, $pr->department_id)) {
+            session()->flash('error', 'You are not an appointed approver for this outlet.');
+            return;
+        }
 
         $pr->update([
             'status'          => 'rejected',
@@ -222,6 +254,10 @@ class Index extends Component
     public function submitPo(int $id): void
     {
         $po = PurchaseOrder::findOrFail($id);
+        if (! Auth::user()->canAccessOutlet($po->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
+        }
         if ($po->status !== 'draft') return;
 
         $requiresApproval = Auth::user()->company?->require_po_approval ?? true;
@@ -249,8 +285,15 @@ class Index extends Component
 
         if ($po->status !== 'submitted') return;
 
-        // Check user is an appointed approver for this PO's outlet + department
-        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id, $po->department_id)) return;
+        if (! Auth::user()->hasCapability('can_approve_po')) {
+            session()->flash('error', 'You do not have permission to approve purchase orders.');
+            return;
+        }
+
+        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id, $po->department_id)) {
+            session()->flash('error', 'You are not an appointed approver for this outlet.');
+            return;
+        }
 
         $po->update([
             'status'      => 'approved',
@@ -273,7 +316,15 @@ class Index extends Component
 
         if ($po->status !== 'submitted') return;
 
-        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id, $po->department_id)) return;
+        if (! Auth::user()->hasCapability('can_approve_po')) {
+            session()->flash('error', 'You do not have permission to reject purchase orders.');
+            return;
+        }
+
+        if (! PoApprover::isApproverFor(Auth::id(), $po->outlet_id, $po->department_id)) {
+            session()->flash('error', 'You are not an appointed approver for this outlet.');
+            return;
+        }
 
         $po->update([
             'status'      => 'cancelled',
@@ -285,6 +336,10 @@ class Index extends Component
     public function cancel(int $id): void
     {
         $po = PurchaseOrder::findOrFail($id);
+        if (! Auth::user()->canAccessOutlet($po->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
+        }
         if (in_array($po->status, ['draft', 'submitted'])) {
             $po->update(['status' => 'cancelled']);
             session()->flash('success', 'Purchase order cancelled.');
@@ -294,6 +349,10 @@ class Index extends Component
     public function delete(int $id): void
     {
         $po = PurchaseOrder::findOrFail($id);
+        if (! Auth::user()->canAccessOutlet($po->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
+        }
         if ($po->status === 'draft') {
             $po->delete();
             session()->flash('success', 'Purchase order deleted.');
