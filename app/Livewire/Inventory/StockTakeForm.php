@@ -83,19 +83,27 @@ class StockTakeForm extends Component
         $this->method           = $record->method ?? 'detailed';
         $this->summary_amount   = (string) floatval($record->total_stock_cost);
 
-        $this->lines = $record->lines->map(fn ($l) => [
-            'ingredient_id'        => $l->ingredient_id,
-            'ingredient_name'      => $l->ingredient->name,
-            'is_prep'              => (bool) ($l->ingredient->is_prep ?? false),
-            'uom_id'               => $l->uom_id,
-            'uom_abbr'             => $l->uom->abbreviation ?? '',
-            'system_quantity'      => (string) floatval($l->system_quantity),
-            'actual_quantity'      => (string) floatval($l->actual_quantity),
-            'variance_quantity'    => floatval($l->variance_quantity),
-            'unit_cost'            => (string) floatval($l->unit_cost),
-            'variance_cost'        => floatval($l->variance_cost),
-            ...$this->categoryFields($l->ingredient),
-        ])->toArray();
+        $refreshCost = $record->status !== 'completed';
+
+        $this->lines = $record->lines->map(function ($l) use ($refreshCost) {
+            $unitCost = $refreshCost && $l->ingredient
+                ? floatval($l->ingredient->current_cost)
+                : floatval($l->unit_cost);
+
+            return [
+                'ingredient_id'        => $l->ingredient_id,
+                'ingredient_name'      => $l->ingredient->name,
+                'is_prep'              => (bool) ($l->ingredient->is_prep ?? false),
+                'uom_id'               => $l->uom_id,
+                'uom_abbr'             => $l->uom->abbreviation ?? '',
+                'system_quantity'      => (string) floatval($l->system_quantity),
+                'actual_quantity'      => (string) floatval($l->actual_quantity),
+                'variance_quantity'    => floatval($l->variance_quantity),
+                'unit_cost'            => (string) $unitCost,
+                'variance_cost'        => floatval($l->variance_cost),
+                ...$this->categoryFields($l->ingredient),
+            ];
+        })->toArray();
     }
 
     // ── Add ingredient from search ────────────────────────────────────────
