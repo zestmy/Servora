@@ -289,9 +289,7 @@ class StockTakeForm extends Component
 
     private function buildLine(Ingredient $ingredient): array
     {
-        $unitCost = $ingredient->is_prep
-            ? floatval($ingredient->current_cost)
-            : floatval($ingredient->purchase_price);
+        $unitCost = floatval($ingredient->current_cost);
 
         return [
             'ingredient_id'     => $ingredient->id,

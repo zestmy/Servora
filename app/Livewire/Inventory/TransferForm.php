@@ -90,9 +90,7 @@ class TransferForm extends Component
 
         $ingredient = Ingredient::with(['baseUom'])->findOrFail($ingredientId);
 
-        $unitCost = $ingredient->is_prep
-            ? floatval($ingredient->current_cost)
-            : floatval($ingredient->purchase_price);
+        $unitCost = floatval($ingredient->current_cost);
 
         $this->lines[] = [
             'ingredient_id' => $ingredient->id,

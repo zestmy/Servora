@@ -113,9 +113,7 @@ class StaffMealForm extends Component
             if ($tLine->item_type === 'ingredient' && $tLine->ingredient) {
                 if (in_array($tLine->ingredient_id, $existingIngIds)) continue;
 
-                $unitCost = $tLine->ingredient->is_prep
-                    ? floatval($tLine->ingredient->current_cost)
-                    : floatval($tLine->ingredient->purchase_price);
+                $unitCost = floatval($tLine->ingredient->current_cost);
 
                 $qty = max(0, (int) $tLine->default_quantity);
 
@@ -176,9 +174,7 @@ class StaffMealForm extends Component
 
         $ingredient = Ingredient::with(['baseUom'])->findOrFail($ingredientId);
 
-        $unitCost = $ingredient->is_prep
-            ? floatval($ingredient->current_cost)
-            : floatval($ingredient->purchase_price);
+        $unitCost = floatval($ingredient->current_cost);
 
         $this->lines[] = [
             'item_type'     => 'ingredient',
