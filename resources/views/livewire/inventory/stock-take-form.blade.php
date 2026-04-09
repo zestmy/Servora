@@ -164,26 +164,30 @@
                             <dt class="text-gray-500">Ingredients</dt>
                             <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
                         </div>
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Over (+)</dt>
-                            <dd class="font-medium text-green-600">{{ $positiveVariance }}</dd>
-                        </div>
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Short (−)</dt>
-                            <dd class="font-medium text-red-500">{{ $negativeVariance }}</dd>
-                        </div>
+                        @if (! $hideSystemQty)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">Over (+)</dt>
+                                <dd class="font-medium text-green-600">{{ $positiveVariance }}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">Short (−)</dt>
+                                <dd class="font-medium text-red-500">{{ $negativeVariance }}</dd>
+                            </div>
+                        @endif
                         <div class="flex justify-between border-t border-gray-100 pt-3">
                             <dt class="font-semibold text-gray-600">Total Stock Value</dt>
                             <dd class="font-bold text-lg text-gray-800 tabular-nums">
                                 RM {{ number_format($totalStockCost, 2) }}
                             </dd>
                         </div>
-                        <div class="flex justify-between">
-                            <dt class="font-semibold text-gray-600">Variance Cost</dt>
-                            <dd class="font-bold text-base {{ $totalVarianceCost >= 0 ? 'text-green-600' : 'text-red-600' }} tabular-nums">
-                                {{ $totalVarianceCost >= 0 ? '+' : '' }}{{ number_format($totalVarianceCost, 2) }}
-                            </dd>
-                        </div>
+                        @if (! $hideSystemQty)
+                            <div class="flex justify-between">
+                                <dt class="font-semibold text-gray-600">Variance Cost</dt>
+                                <dd class="font-bold text-base {{ $totalVarianceCost >= 0 ? 'text-green-600' : 'text-red-600' }} tabular-nums">
+                                    {{ $totalVarianceCost >= 0 ? '+' : '' }}{{ number_format($totalVarianceCost, 2) }}
+                                </dd>
+                            </div>
+                        @endif
                     @endif
                 </dl>
 
@@ -214,7 +218,14 @@
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700">Ingredients</h3>
-                <p class="text-xs text-gray-400 mt-0.5">{{ count($lines) }} ingredient{{ count($lines) !== 1 ? 's' : '' }} · grouped by category</p>
+                <div class="flex items-center gap-4 mt-0.5">
+                    <p class="text-xs text-gray-400">{{ count($lines) }} ingredient{{ count($lines) !== 1 ? 's' : '' }} · grouped by category</p>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" wire:model.live="hideSystemQty"
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 h-3.5 w-3.5" />
+                        <span class="text-xs text-gray-500">Hide System Qty &amp; Variance</span>
+                    </label>
+                </div>
             </div>
             @if (! $isCompleted)
                 <div class="flex items-center gap-2 flex-wrap justify-end">
@@ -283,7 +294,7 @@
         {{-- Lines table — grouped by category --}}
         @if (count($lines))
             @php
-                $colSpan = $isCompleted ? 8 : 9;
+                $colSpan = ($isCompleted ? 8 : 9) - ($hideSystemQty ? 2 : 0);
 
                 // Build indexed + grouped lines
                 $indexedLines = collect($lines)->map(fn($line, $idx) => array_merge($line, ['_idx' => $idx]));
@@ -302,12 +313,16 @@
                         <tr>
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Ingredient</th>
-                            <th class="px-4 py-2 text-right w-28">System Qty</th>
+                            @if (! $hideSystemQty)
+                                <th class="px-4 py-2 text-right w-28">System Qty</th>
+                            @endif
                             <th class="px-4 py-2 text-right w-28">Actual Qty</th>
                             <th class="px-4 py-2 text-left w-16">UOM</th>
                             <th class="px-4 py-2 text-right w-28">Unit Cost</th>
                             <th class="px-4 py-2 text-right w-32">Stock Value</th>
-                            <th class="px-4 py-2 text-right w-32">Variance Cost</th>
+                            @if (! $hideSystemQty)
+                                <th class="px-4 py-2 text-right w-32">Variance Cost</th>
+                            @endif
                             @if (! $isCompleted)
                                 <th class="px-4 py-2 w-10"></th>
                             @endif
@@ -338,9 +353,11 @@
                                             <span class="text-gray-500">
                                                 Stock: <span class="font-semibold text-gray-700">RM {{ number_format($groupStockValue, 2) }}</span>
                                             </span>
-                                            <span class="{{ $groupVariance >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                                Var: <span class="font-semibold">{{ $groupVariance >= 0 ? '+' : '' }}{{ number_format($groupVariance, 2) }}</span>
-                                            </span>
+                                            @if (! $hideSystemQty)
+                                                <span class="{{ $groupVariance >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                                    Var: <span class="font-semibold">{{ $groupVariance >= 0 ? '+' : '' }}{{ number_format($groupVariance, 2) }}</span>
+                                                </span>
+                                            @endif
                                         </div>
                                     </div>
                                 </td>
@@ -369,15 +386,17 @@
                                             @endif
                                         </div>
                                     </td>
-                                    <td class="px-4 py-2">
-                                        @if ($isCompleted)
-                                            <span class="block text-right tabular-nums text-gray-600">{{ number_format(floatval($line['system_quantity']), 2) }}</span>
-                                        @else
-                                            <input type="number" step="0.1" min="0"
-                                                   wire:model.live.debounce.400ms="lines.{{ $idx }}.system_quantity"
-                                                   class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                        @endif
-                                    </td>
+                                    @if (! $hideSystemQty)
+                                        <td class="px-4 py-2">
+                                            @if ($isCompleted)
+                                                <span class="block text-right tabular-nums text-gray-600">{{ number_format(floatval($line['system_quantity']), 2) }}</span>
+                                            @else
+                                                <input type="number" step="0.1" min="0"
+                                                       wire:model.live.debounce.400ms="lines.{{ $idx }}.system_quantity"
+                                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                            @endif
+                                        </td>
+                                    @endif
                                     <td class="px-4 py-2">
                                         @if ($isCompleted)
                                             <span class="block text-right tabular-nums font-medium text-gray-800">{{ number_format(floatval($line['actual_quantity']), 2) }}</span>
@@ -401,9 +420,11 @@
                                     <td class="px-4 py-2 text-right tabular-nums text-gray-700 font-medium">
                                         {{ number_format($stockValue, 2) }}
                                     </td>
-                                    <td class="px-4 py-2 text-right tabular-nums font-semibold {{ $varColor }}">
-                                        {{ $varianceCost > 0 ? '+' : '' }}{{ number_format($varianceCost, 2) }}
-                                    </td>
+                                    @if (! $hideSystemQty)
+                                        <td class="px-4 py-2 text-right tabular-nums font-semibold {{ $varColor }}">
+                                            {{ $varianceCost > 0 ? '+' : '' }}{{ number_format($varianceCost, 2) }}
+                                        </td>
+                                    @endif
                                     @if (! $isCompleted)
                                         <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 transition">
                                             <button type="button" wire:click="removeLine({{ $idx }})"
@@ -420,13 +441,15 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold">
                         <tr>
-                            <td colspan="6" class="px-4 py-2.5 text-right text-gray-600">Totals</td>
+                            <td colspan="{{ $hideSystemQty ? 5 : 6 }}" class="px-4 py-2.5 text-right text-gray-600">Totals</td>
                             <td class="px-4 py-2.5 text-right tabular-nums text-gray-900">
                                 RM {{ number_format($totalStockCost, 2) }}
                             </td>
-                            <td class="px-4 py-2.5 text-right tabular-nums {{ $totalVarianceCost >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                {{ $totalVarianceCost >= 0 ? '+' : '' }}{{ number_format($totalVarianceCost, 2) }}
-                            </td>
+                            @if (! $hideSystemQty)
+                                <td class="px-4 py-2.5 text-right tabular-nums {{ $totalVarianceCost >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                    {{ $totalVarianceCost >= 0 ? '+' : '' }}{{ number_format($totalVarianceCost, 2) }}
+                                </td>
+                            @endif
                             @if (! $isCompleted)<td></td>@endif
                         </tr>
                     </tfoot>

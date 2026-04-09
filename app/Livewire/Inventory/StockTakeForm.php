@@ -26,6 +26,7 @@ class StockTakeForm extends Component
     // Detailed method lines
     public array  $lines            = [];
     public string $ingredientSearch = '';
+    public bool   $hideSystemQty    = false;
 
     // Template picker
     public string $selectedTemplateId = '';
