@@ -626,11 +626,36 @@ class Index extends Component
         $isPurchasing = $this->isPurchasingRole();
         $isAppointed = $this->isAppointed();
         $seesAll = $this->seesAllOutlets();
-        $canCreatePo = true; // All roles can create POs
         $approverOutletIds = $this->approverOutletIds();
         $cpuMode = $this->isCpuMode();
         $isCpuUser = $cpuMode ? ($this->isCpuUser() || $isPurchasing) : false;
         $isPrApprover = $this->isPrApprover();
+
+        // Role-based: purchasing exec / admin / finance see everything
+        $isAdvancedUser = $seesAll || $isPurchasing || $user->hasCapability('can_manage_invoices');
+        $canManageInvoices = $user->hasCapability('can_manage_invoices');
+        $canReceiveGrn = $user->hasCapability('can_receive_grn');
+
+        // Tab & button visibility per ordering mode + role
+        $canCreatePo  = ! $cpuMode || $isAdvancedUser;
+        $canCreatePr  = $cpuMode || $isAdvancedUser;
+        $showPrTab    = $cpuMode || $isAdvancedUser;
+        $showPoTab    = ! $cpuMode || $isAdvancedUser;
+        $showDoTab    = $isAdvancedUser;
+        $showGrnTab   = $canReceiveGrn || $isAdvancedUser;
+        $showStoTab   = $cpuMode;
+        $showRfqTab   = $isAdvancedUser;
+        $showCnTab    = $canManageInvoices || $isAdvancedUser;
+        $showSupplierTab = $isAdvancedUser;
+
+        // Smart default tab based on role + mode
+        if (! request()->query('tab')) {
+            if ($cpuMode && ! $isAdvancedUser) {
+                $this->tab = 'pr';
+            } elseif (! $cpuMode && ! $isAdvancedUser) {
+                $this->tab = 'po';
+            }
+        }
 
         $data = match ($this->tab) {
             'pr'  => $this->getPrData($seesAll, $isCpuUser || $seesAll),
@@ -665,6 +690,7 @@ class Index extends Component
             'approverAssignments'    => $approverAssignments,
             'seesAllOutlets'     => $seesAll,
             'canCreatePo'        => $canCreatePo,
+            'canCreatePr'        => $canCreatePr,
             'stats'              => $stats,
             'requirePoApproval'  => $requirePoApproval,
             'showPrice'          => $showPrice,
@@ -673,6 +699,15 @@ class Index extends Component
             'cpuMode'            => $cpuMode,
             'isCpuUser'          => $isCpuUser,
             'isPrApprover'       => $isPrApprover,
+            'canManageInvoices'  => $canManageInvoices,
+            'showPrTab'          => $showPrTab,
+            'showPoTab'          => $showPoTab,
+            'showDoTab'          => $showDoTab,
+            'showGrnTab'         => $showGrnTab,
+            'showStoTab'         => $showStoTab,
+            'showRfqTab'         => $showRfqTab,
+            'showCnTab'          => $showCnTab,
+            'showSupplierTab'    => $showSupplierTab,
         ]))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Purchasing']);
     }
 

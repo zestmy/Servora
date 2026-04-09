@@ -16,11 +16,13 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Purchasing</h2>
         <div class="flex gap-2">
-            @if ($canCreatePo)
+            @if ($canCreatePr)
                 <a href="{{ route('purchasing.requests.create') }}"
-                   class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
+                   class="px-4 py-2 {{ $canCreatePo ? 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700' }} text-sm font-medium rounded-lg transition">
                     + Purchase Request
                 </a>
+            @endif
+            @if ($canCreatePo)
                 <a href="{{ route('purchasing.orders.create') }}"
                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                     + New Purchase Order
@@ -51,41 +53,55 @@
 
     {{-- Tabs --}}
     <div class="border-b border-gray-200 mb-4">
-        <nav class="flex gap-6 -mb-px">
-            <button wire:click="$set('tab', 'pr')"
-                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'pr' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Purchase Requests
-            </button>
-            <button wire:click="$set('tab', 'po')"
-                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'po' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Purchase Orders
-            </button>
-            <button wire:click="$set('tab', 'do')"
-                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'do' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Delivery Orders
-            </button>
-            <button wire:click="$set('tab', 'grn')"
-                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'grn' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Goods Received
-            </button>
-            @if ($cpuMode)
-                <button wire:click="$set('tab', 'sto')"
-                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'sto' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Stock Transfers
+        <nav class="flex gap-4 -mb-px flex-wrap">
+            @if ($showPrTab)
+                <button wire:click="$set('tab', 'pr')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'pr' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Requests
                 </button>
             @endif
-            <a href="{{ route('purchasing.rfq.index') }}"
-               class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.rfq.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Quotations (RFQ)
-            </a>
-            <a href="{{ route('purchasing.credit-notes.index') }}"
-               class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.credit-notes.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Credit Notes
-            </a>
-            <a href="{{ route('purchasing.suppliers.directory') }}"
-               class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.suppliers.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Find Suppliers
-            </a>
+            @if ($showPoTab)
+                <button wire:click="$set('tab', 'po')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'po' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Orders
+                </button>
+            @endif
+            @if ($showDoTab)
+                <button wire:click="$set('tab', 'do')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'do' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Delivery Orders
+                </button>
+            @endif
+            @if ($showGrnTab)
+                <button wire:click="$set('tab', 'grn')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'grn' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Goods Received
+                </button>
+            @endif
+            @if ($showStoTab)
+                <button wire:click="$set('tab', 'sto')"
+                        class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'sto' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Transfers
+                </button>
+            @endif
+            @if ($showRfqTab)
+                <a href="{{ route('purchasing.rfq.index') }}"
+                   class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.rfq.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    RFQ
+                </a>
+            @endif
+            @if ($showCnTab)
+                <a href="{{ route('purchasing.credit-notes.index') }}"
+                   class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.credit-notes.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Credit Notes
+                </a>
+            @endif
+            @if ($showSupplierTab)
+                <a href="{{ route('purchasing.suppliers.directory') }}"
+                   class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.suppliers.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Suppliers
+                </a>
+            @endif
         </nav>
     </div>
 
