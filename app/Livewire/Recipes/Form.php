@@ -444,8 +444,8 @@ class Form extends Component
             $sp = floatval($this->classPrices[$pc->id] ?? 0);
             $classCostData[$pc->id] = [
                 'selling_price'  => $sp,
-                'food_cost_pct'  => $sp > 0 ? ($grandCost / $sp) * 100 : null,
-                'gross_profit'   => $sp > 0 ? $sp - $grandCost : null,
+                'food_cost_pct'  => $sp > 0 ? ($costPerServing / $sp) * 100 : null,
+                'gross_profit'   => $sp > 0 ? $sp - $costPerServing : null,
             ];
         }
 
