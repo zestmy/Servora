@@ -254,10 +254,25 @@
         }
 
         function toggleFullscreen() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                outer.requestFullscreen().catch(function(){});
+            var fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            if (fsEl) {
+                (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+                return;
+            }
+
+            // Try the iframe first (best for video), then outer container
+            var iframe = ytPlayer ? ytPlayer.getIframe() : outer.querySelector('iframe');
+            var target = iframe || outer;
+
+            if (target.requestFullscreen) {
+                target.requestFullscreen().catch(function() {
+                    // Fallback to outer container
+                    if (target !== outer) outer.requestFullscreen().catch(function(){});
+                });
+            } else if (target.webkitRequestFullscreen) {
+                target.webkitRequestFullscreen();
+            } else if (target.msRequestFullscreen) {
+                target.msRequestFullscreen();
             }
         }
     })();
