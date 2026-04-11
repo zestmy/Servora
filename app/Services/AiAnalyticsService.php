@@ -95,7 +95,7 @@ class AiAnalyticsService
 
     private function callAnthropic(string $apiKey, array $context, string $prompt): array
     {
-        $model = 'claude-sonnet-4-5-20250514';
+        $model = 'claude-sonnet-4-20250514';
 
         $previousTimeout = ini_get('max_execution_time');
         set_time_limit(120);
@@ -136,7 +136,7 @@ class AiAnalyticsService
 
     private function callOpenRouter(string $apiKey, array $context, string $prompt): array
     {
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
 
         $previousTimeout = ini_get('max_execution_time');
         set_time_limit(120);

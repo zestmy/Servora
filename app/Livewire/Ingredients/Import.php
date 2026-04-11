@@ -136,7 +136,7 @@ class Import extends Component
         }
 
         // PDF extraction requires a vision-capable model — always use Claude for this
-        $model = 'anthropic/claude-sonnet-4-5-20250514';
+        $model = 'anthropic/claude-sonnet-4';
 
         $mimeType = mime_content_type($path);
         $base64   = base64_encode(file_get_contents($path));
@@ -306,7 +306,7 @@ PROMPT;
             return;
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
 
         $sampleRows = array_slice($this->fileDataRows, 0, 3);
         $sampleText = '';
@@ -544,7 +544,7 @@ PROMPT;
         $apiKey = AppSetting::get('openrouter_api_key');
         if (! $apiKey) return; // No AI available — everything stays as ingredient
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
 
         // Build numbered list of item names
         $namesList = '';

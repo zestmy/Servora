@@ -23,7 +23,7 @@ class AiInvoiceExtractionService
         }
 
         // Vision extraction requires a vision-capable model — always use Claude
-        $model = 'anthropic/claude-sonnet-4-5-20250514';
+        $model = 'anthropic/claude-sonnet-4';
         $fullPath = Storage::disk('public')->path($filePath);
 
         if (! file_exists($fullPath)) {
