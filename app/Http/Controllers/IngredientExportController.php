@@ -10,13 +10,13 @@ class IngredientExportController extends Controller
 {
     public function export()
     {
-        $ingredients = Ingredient::with(['baseUom', 'recipeUom', 'ingredientCategory.parent'])
+        $ingredients = Ingredient::with(['baseUom', 'recipeUom', 'ingredientCategory.parent', 'suppliers'])
             ->orderBy('name')
             ->get();
 
         $headers = [
             'ID', 'Name', 'Code', 'Category', 'Base UOM', 'Recipe UOM',
-            'Purchase Price', 'Pack Size', 'Yield %', 'Is Active', 'Remark',
+            'Purchase Price', 'Pack Size', 'Yield %', 'Is Active', 'Remark', 'Default Supplier',
         ];
 
         $rows = $ingredients->map(function ($ing) {
@@ -26,6 +26,8 @@ class IngredientExportController extends Controller
                     ? $ing->ingredientCategory->parent->name . ' / ' . $ing->ingredientCategory->name
                     : $ing->ingredientCategory->name;
             }
+
+            $preferredSupplier = $ing->suppliers->firstWhere('pivot.is_preferred', true);
 
             return [
                 $ing->id,
@@ -39,6 +41,7 @@ class IngredientExportController extends Controller
                 $ing->yield_percent,
                 $ing->is_active ? 'Yes' : 'No',
                 $ing->remark ?? '',
+                $preferredSupplier?->name ?? '',
             ];
         });
 
