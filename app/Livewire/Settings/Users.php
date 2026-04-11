@@ -245,7 +245,7 @@ class Users extends Component
         }
 
         session()->flash('success', ($this->editingId ? 'User updated.' : 'User created.'));
-        $this->closeModal();
+        $this->redirect(route('settings.users'), navigate: true);
     }
 
     public function delete(int $id): void
