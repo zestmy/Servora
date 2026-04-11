@@ -211,13 +211,17 @@ class Users extends Component
         // Regular outlets
         if ($this->outletMode === 'all') {
             $syncIds = array_merge($syncIds, $regularOutletIds);
-            $this->can_view_all_outlets = true;
             $user->update(['can_view_all_outlets' => true]);
-        } elseif ($this->outletMode === 'all_except') {
-            $excludeIds = array_map('intval', $this->outletIds);
-            $syncIds = array_merge($syncIds, array_diff($regularOutletIds, $excludeIds));
-        } elseif ($this->outletMode === 'selected') {
-            $syncIds = array_merge($syncIds, array_map('intval', $this->outletIds));
+        } else {
+            // Clear "all outlets" flag when switching to selected or except mode
+            $user->update(['can_view_all_outlets' => false]);
+
+            if ($this->outletMode === 'all_except') {
+                $excludeIds = array_map('intval', $this->outletIds);
+                $syncIds = array_merge($syncIds, array_diff($regularOutletIds, $excludeIds));
+            } elseif ($this->outletMode === 'selected') {
+                $syncIds = array_merge($syncIds, array_map('intval', $this->outletIds));
+            }
         }
 
         // Central kitchens
@@ -240,6 +244,7 @@ class Users extends Component
             $user->update(['default_kitchen_id' => $firstKitchen?->id]);
         }
 
+        session()->flash('success', ($this->editingId ? 'User updated.' : 'User created.'));
         $this->closeModal();
     }
 
