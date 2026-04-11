@@ -99,6 +99,27 @@ class Recipe extends Model
         return $this->lines->sum(fn ($line) => $line->cost_per_recipe_uom * $line->quantity);
     }
 
+    /**
+     * Get the effective selling price — from default price class, or fallback to recipe.selling_price.
+     */
+    public function getEffectiveSellingPriceAttribute(): float
+    {
+        // Try default price class first
+        if ($this->relationLoaded('prices') && $this->prices->isNotEmpty()) {
+            $defaultPrice = $this->prices->first(fn ($p) => $p->priceClass?->is_default);
+            if ($defaultPrice && floatval($defaultPrice->selling_price) > 0) {
+                return floatval($defaultPrice->selling_price);
+            }
+            // Fallback to first price class with a value
+            $anyPrice = $this->prices->first(fn ($p) => floatval($p->selling_price) > 0);
+            if ($anyPrice) {
+                return floatval($anyPrice->selling_price);
+            }
+        }
+
+        return floatval($this->selling_price);
+    }
+
     /** Cost per single yield unit (e.g. cost per portion of rice). */
     public function getCostPerYieldUnitAttribute(): float
     {

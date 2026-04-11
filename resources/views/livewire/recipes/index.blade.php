@@ -162,7 +162,7 @@
                 @forelse ($recipes as $recipe)
                     @php
                         $totalCost   = $recipe->total_cost;
-                        $selling     = floatval($recipe->selling_price);
+                        $selling     = $recipe->effective_selling_price;
                         $foodCostPct = $selling > 0 ? ($totalCost / $selling) * 100 : null;
                         $fcColor     = match(true) {
                             $foodCostPct === null => 'text-gray-400',

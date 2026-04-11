@@ -51,6 +51,7 @@ class Index extends Component
             'lines.ingredient.baseUom',
             'lines.ingredient.uomConversions',
             'lines.uom',
+            'prices.priceClass',
         ])->where('is_prep', $isPrep)->withCount('lines');
 
         if ($this->search) {
@@ -92,7 +93,7 @@ class Index extends Component
 
             $filtered = $allRecipes->filter(function ($recipe) {
                 $totalCost = $recipe->total_cost;
-                $selling   = floatval($recipe->selling_price);
+                $selling   = $recipe->effective_selling_price;
                 $pct       = $selling > 0 ? ($totalCost / $selling) * 100 : null;
 
                 return match ($this->costFilter) {
