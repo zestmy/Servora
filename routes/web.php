@@ -97,6 +97,9 @@ Route::get('/referral', MarketingReferralProgram::class)->name('referral.program
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
 
+// Public video share (loginless, QR from printed SOP PDF)
+Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');
+
 // CHIP-IN webhook (no auth, no CSRF)
 Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])

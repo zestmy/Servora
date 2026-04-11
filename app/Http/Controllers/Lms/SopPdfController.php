@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
+use App\Models\VideoShareToken;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
@@ -38,7 +39,7 @@ class SopPdfController extends Controller
 
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'Company';
-        $videoQr    = $recipe->video_url ? $this->generateQr(route('lms.sop.show', $recipe->id)) : null;
+        $videoQr    = $recipe->video_url ? $this->generateVideoQr($recipe->id, $company->id) : null;
 
         $pdf = Pdf::loadView('pdf.sop-single', compact(
             'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'exportedBy', 'brandName', 'videoQr'
@@ -75,7 +76,7 @@ class SopPdfController extends Controller
                 'dine_in'  => $this->imagesToBase64($recipe->images->where('type', 'dine_in')->values()),
                 'takeaway' => $this->imagesToBase64($recipe->images->where('type', 'takeaway')->values()),
             ];
-            $recipeQrs[$recipe->id] = $recipe->video_url ? $this->generateQr(route('lms.sop.show', $recipe->id)) : null;
+            $recipeQrs[$recipe->id] = $recipe->video_url ? $this->generateVideoQr($recipe->id, $company->id) : null;
         }
 
         $exportedBy = $user->name;
@@ -102,6 +103,12 @@ class SopPdfController extends Controller
             }
         }
         return $result;
+    }
+
+    private function generateVideoQr(int $recipeId, int $companyId): ?string
+    {
+        $share = VideoShareToken::forRecipe($recipeId, $companyId);
+        return $this->generateQr(route('video.share', $share->token));
     }
 
     private function generateQr(?string $url): ?string
