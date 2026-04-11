@@ -172,6 +172,8 @@ Rules:
 - If price is not shown, use 0
 - If a supplier name appears in the document header/title, include it for all items
 - Capture the data exactly as printed — do not modify item names
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanation, no commentary — just the JSON object.
 PROMPT;
 
         $previousTimeout = ini_get('max_execution_time');
@@ -208,17 +210,44 @@ PROMPT;
 
             $data    = $response->json();
             $content = $data['choices'][0]['message']['content'] ?? '';
-            $result  = json_decode($content, true);
+
+            Log::info('PDF extraction raw response', ['content' => mb_substr($content, 0, 2000)]);
+
+            $result = json_decode($content, true);
 
             // Handle markdown-wrapped JSON
-            if (json_last_error() !== JSON_ERROR_NONE) {
+            if (! is_array($result)) {
                 if (preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $content, $m)) {
                     $result = json_decode(trim($m[1]), true);
                 }
             }
 
-            if (! is_array($result) || empty($result['items'])) {
-                throw new \RuntimeException('AI could not extract any items from this PDF.');
+            // Try to find the items array — AI might use different keys
+            $items = null;
+            if (is_array($result)) {
+                if (! empty($result['items'])) {
+                    $items = $result['items'];
+                } elseif (! empty($result['ingredients'])) {
+                    $items = $result['ingredients'];
+                } elseif (! empty($result['data'])) {
+                    $items = $result['data'];
+                } elseif (isset($result[0]) && is_array($result[0])) {
+                    // AI returned a flat array of items
+                    $items = $result;
+                } else {
+                    // Check if any key contains an array of objects
+                    foreach ($result as $key => $val) {
+                        if (is_array($val) && ! empty($val) && isset($val[0]) && is_array($val[0])) {
+                            $items = $val;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (empty($items)) {
+                Log::error('PDF extraction: no items found in response', ['result_keys' => is_array($result) ? array_keys($result) : 'not_array']);
+                throw new \RuntimeException('AI could not extract any items from this PDF. Please ensure the PDF contains a readable list of ingredients or products.');
             }
 
             // Convert AI output to the same format as CSV/XLSX parsing
@@ -226,7 +255,7 @@ PROMPT;
             $this->fileHeaders  = $systemFieldKeys;
             $this->fileDataRows = [];
 
-            foreach ($result['items'] as $item) {
+            foreach ($items as $item) {
                 $row = [];
                 foreach ($systemFieldKeys as $key) {
                     $val = $item[$key] ?? '';
