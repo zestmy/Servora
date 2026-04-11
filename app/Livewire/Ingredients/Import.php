@@ -149,29 +149,41 @@ Return a JSON object with this structure:
 {
   "items": [
     {
-      "name": "item name as printed",
-      "code": "item code/SKU or null",
-      "category": "category if shown or null",
-      "base_uom": "unit of measure (kg, g, L, ml, pcs, box, ctn, bottle, etc.) or null",
-      "recipe_uom": "recipe unit if different from base_uom, or null",
-      "purchase_price": 0.00,
+      "name": "clean item name without size/quantity info",
+      "code": "item code/SKU if shown, or null",
+      "category": "category if shown, or null",
+      "base_uom": "purchasing unit — how the item is bought (box, ctn, pail, bag, bottle, tin, pkt, pcs, kg, etc.)",
+      "recipe_uom": "the smaller content unit used in recipes (ml, g, kg, L, pcs, etc.)",
       "pack_size": 1,
+      "purchase_price": 0.00,
       "yield_percent": 100,
       "is_active": "yes",
-      "supplier": "supplier name if shown or null",
-      "type": "ingredient or prep"
+      "supplier": "supplier name if shown in document header/title, or null",
+      "type": "ingredient"
     }
   ]
 }
 
-Rules:
+CRITICAL rules for UOM and naming:
+- "base_uom" is the PURCHASING unit — how the item is bought from supplier (box, ctn, pail, bag, tin, bottle, pkt, pcs, kg, etc.)
+- "recipe_uom" is the CONTENT unit — the smaller unit used in recipes (ml, g, L, kg, pcs, etc.)
+- Parse size/quantity info from item names to determine recipe_uom:
+  - "SOUR CREAM 1 LIT" → name: "Sour Cream", base_uom: "box", recipe_uom: "ml" (1 LIT = 1000 ML)
+  - "COOKING OIL 5 LIT" → name: "Cooking Oil", base_uom: "pail", recipe_uom: "ml"
+  - "SUGAR 1KG" → name: "Sugar", base_uom: "bag", recipe_uom: "g"
+  - "TOMATO SAUCE 340G" → name: "Tomato Sauce", base_uom: "bottle", recipe_uom: "g"
+  - "CHICKEN BREAST 10KG" → name: "Chicken Breast", base_uom: "ctn", recipe_uom: "kg"
+  - "MINERAL WATER 1.5L" → name: "Mineral Water", base_uom: "bottle", recipe_uom: "ml"
+  - "EGG 30'S" or "EGG 30 PCS" → name: "Egg", base_uom: "tray", recipe_uom: "pcs"
+- CLEAN the item name: remove size, weight, volume, quantity info (e.g. "1KG", "500ML", "1 LIT", "10'S", "340G")
+- If the document shows a price column, extract the ACTUAL price — do not use 0
+
+Other rules:
 - Extract EVERY item/ingredient row from the document
 - Use numeric values for prices, pack_size, yield_percent
-- For type: classify as "prep" if the item is clearly a prepared/cooked item (sauce, stock, marinade, dressing, batter, dough, blend, puree, etc.), otherwise "ingredient"
-- If unit of measure is not shown, make your best guess based on the item name (e.g. liquids = L, meats = kg, small items = pcs)
-- If price is not shown, use 0
 - If a supplier name appears in the document header/title, include it for all items
-- Capture the data exactly as printed — do not modify item names
+- For type: almost everything from a supplier list is "ingredient". Only mark as "prep" if it is clearly made in-house
+- pack_size defaults to 1 (user will update this later)
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation, no commentary — just the JSON object.
 PROMPT;
@@ -256,8 +268,16 @@ PROMPT;
             foreach ($items as $item) {
                 $row = [];
                 foreach ($systemFieldKeys as $key) {
-                    $val = $item[$key] ?? '';
-                    $row[$key] = is_scalar($val) ? (string) $val : '';
+                    $val = $item[$key] ?? null;
+                    if (is_null($val)) {
+                        $row[$key] = '';
+                    } elseif (is_numeric($val)) {
+                        $row[$key] = (string) $val;
+                    } elseif (is_scalar($val)) {
+                        $row[$key] = (string) $val;
+                    } else {
+                        $row[$key] = '';
+                    }
                 }
                 $this->fileDataRows[] = $row;
             }
@@ -431,6 +451,62 @@ PROMPT;
         $this->step = 'preview';
     }
 
+    /**
+     * Resolve a UOM string to an ID, handling common aliases and formats.
+     */
+    private function resolveUom(string $raw, $uomsByAbbr, $uomsByName): ?int
+    {
+        if (! $raw) return null;
+
+        $key = strtolower(trim($raw));
+
+        // Direct match by abbreviation or name
+        if (isset($uomsByAbbr[$key])) return $uomsByAbbr[$key];
+        if (isset($uomsByName[$key])) return $uomsByName[$key];
+
+        // Strip parenthetical like "G (Gram)" → try "g"
+        $stripped = preg_replace('/\s*\(.*\)/', '', $key);
+        $stripped = trim($stripped);
+        if ($stripped && isset($uomsByAbbr[$stripped])) return $uomsByAbbr[$stripped];
+        if ($stripped && isset($uomsByName[$stripped])) return $uomsByName[$stripped];
+
+        // Common aliases
+        $aliases = [
+            'liter' => 'l', 'litre' => 'l', 'lit' => 'l', 'ltr' => 'l',
+            'milliliter' => 'ml', 'millilitre' => 'ml', 'milli liter' => 'ml',
+            'gram' => 'g', 'gm' => 'g', 'grm' => 'g', 'gms' => 'g', 'grams' => 'g',
+            'kilogram' => 'kg', 'kilo' => 'kg', 'kilos' => 'kg', 'kgs' => 'kg',
+            'milligram' => 'mg', 'milligrams' => 'mg',
+            'piece' => 'pcs', 'pieces' => 'pcs', 'pc' => 'pcs', 'each' => 'pcs', 'ea' => 'pcs', 'unit' => 'pcs', 'units' => 'pcs',
+            'dozen' => 'doz', 'dozens' => 'doz',
+            'carton' => 'ctn', 'cartons' => 'ctn',
+            'packet' => 'pkt', 'packets' => 'pkt', 'sachet' => 'pkt',
+            'bottle' => 'bottle', 'bottles' => 'bottle', 'btl' => 'bottle',
+            'can' => 'tin', 'cans' => 'tin', 'tins' => 'tin',
+            'bags' => 'bag', 'sack' => 'bag',
+            'pails' => 'pail', 'bucket' => 'pail',
+            'boxes' => 'box', 'bx' => 'box',
+            'tray' => 'tray', 'trays' => 'tray',
+            'pack' => 'pack', 'packs' => 'pack', 'pk' => 'pack',
+            'ounce' => 'oz', 'ounces' => 'oz',
+            'pound' => 'lb', 'pounds' => 'lb', 'lbs' => 'lb',
+            'gallon' => 'gal', 'gallons' => 'gal',
+            'fluid ounce' => 'fl oz', 'fl. oz' => 'fl oz', 'fl.oz' => 'fl oz',
+            'meter' => 'm', 'meters' => 'm', 'metre' => 'm',
+            'centimeter' => 'cm', 'centimeters' => 'cm', 'centimetre' => 'cm',
+            'lots' => 'lot',
+        ];
+
+        if (isset($aliases[$key]) && isset($uomsByAbbr[$aliases[$key]])) {
+            return $uomsByAbbr[$aliases[$key]];
+        }
+        if (isset($aliases[$stripped]) && isset($uomsByAbbr[$aliases[$stripped]])) {
+            return $uomsByAbbr[$aliases[$stripped]];
+        }
+
+        return null;
+    }
+
     private function buildPreview(): void
     {
         // Load lookup tables once
@@ -471,8 +547,7 @@ PROMPT;
 
             // Base UOM
             $baseUomRaw = $getValue('base_uom');
-            $baseUomKey = strtolower($baseUomRaw);
-            $baseUomId  = $uomsByAbbr[$baseUomKey] ?? $uomsByName[$baseUomKey] ?? null;
+            $baseUomId  = $this->resolveUom($baseUomRaw, $uomsByAbbr, $uomsByName);
             $baseUomNeedsfix = false;
             if (! $baseUomId && $baseUomRaw) {
                 $baseUomNeedsfix = true; // user can fix via dropdown
@@ -482,11 +557,10 @@ PROMPT;
 
             // Recipe UOM (defaults to base UOM)
             $recipeUomRaw = $getValue('recipe_uom');
-            $recipeUomKey = strtolower($recipeUomRaw);
             $recipeUomId  = null;
             $recipeUomNeedsfix = false;
-            if ($recipeUomKey) {
-                $recipeUomId = $uomsByAbbr[$recipeUomKey] ?? $uomsByName[$recipeUomKey] ?? null;
+            if ($recipeUomRaw) {
+                $recipeUomId = $this->resolveUom($recipeUomRaw, $uomsByAbbr, $uomsByName);
                 if (! $recipeUomId) {
                     $recipeUomNeedsfix = true; // user can fix via dropdown
                 }
