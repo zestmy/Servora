@@ -135,7 +135,8 @@ class Import extends Component
             return;
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+        // PDF extraction requires a vision-capable model — always use Claude for this
+        $model = 'anthropic/claude-sonnet-4-5-20250514';
 
         $mimeType = mime_content_type($path);
         $base64   = base64_encode(file_get_contents($path));

@@ -22,7 +22,8 @@ class AiInvoiceExtractionService
             throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+        // Vision extraction requires a vision-capable model — always use Claude
+        $model = 'anthropic/claude-sonnet-4-5-20250514';
         $fullPath = Storage::disk('public')->path($filePath);
 
         if (! file_exists($fullPath)) {
