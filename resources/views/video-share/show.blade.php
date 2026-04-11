@@ -131,7 +131,7 @@
                         disablekb: 1,
                         playsinline: 1,
                         showinfo: 0,
-                        fs: 0,
+                        fs: 1,
                         cc_load_policy: 0,
                         origin: window.location.origin
                     },
@@ -253,27 +253,43 @@
             if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
         }
 
+        function goFullscreen(el) {
+            if (el.requestFullscreen) return el.requestFullscreen();
+            if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+            if (el.webkitEnterFullscreen) return el.webkitEnterFullscreen(); // iOS video
+            if (el.msRequestFullscreen) return el.msRequestFullscreen();
+            return Promise.reject();
+        }
+
+        function exitFullscreen() {
+            if (document.exitFullscreen) return document.exitFullscreen();
+            if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+            if (document.msExitFullscreen) return document.msExitFullscreen();
+        }
+
         function toggleFullscreen() {
-            var fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-            if (fsEl) {
-                (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                exitFullscreen();
                 return;
             }
 
-            // Try the iframe first (best for video), then outer container
             var iframe = ytPlayer ? ytPlayer.getIframe() : outer.querySelector('iframe');
-            var target = iframe || outer;
 
-            if (target.requestFullscreen) {
-                target.requestFullscreen().catch(function() {
-                    // Fallback to outer container
-                    if (target !== outer) outer.requestFullscreen().catch(function(){});
-                });
-            } else if (target.webkitRequestFullscreen) {
-                target.webkitRequestFullscreen();
-            } else if (target.msRequestFullscreen) {
-                target.msRequestFullscreen();
+            // Try iframe → outer → video-wrap → body, first one that works
+            var targets = [iframe, outer, document.querySelector('.video-wrap')].filter(Boolean);
+
+            function tryNext(i) {
+                if (i >= targets.length) return;
+                try {
+                    var result = goFullscreen(targets[i]);
+                    if (result && result.catch) {
+                        result.catch(function() { tryNext(i + 1); });
+                    }
+                } catch(e) {
+                    tryNext(i + 1);
+                }
             }
+            tryNext(0);
         }
     })();
     </script>
