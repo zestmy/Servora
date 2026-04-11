@@ -78,7 +78,7 @@
                         <tr><td class="px-3 py-2 font-mono font-medium">pack_size</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Pack size in base UOM (default: 1)</td><td class="px-3 py-2 font-mono">1.2</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">yield_percent</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Yield % from 0.01–100 (default: 100)</td><td class="px-3 py-2 font-mono">80</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">is_active</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">yes / no (default: yes)</td><td class="px-3 py-2 font-mono">yes</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">supplier</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Default supplier name (must exist)</td><td class="px-3 py-2 font-mono">ABC Foods Sdn Bhd</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">supplier</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Default supplier name (auto-created if not found)</td><td class="px-3 py-2 font-mono">ABC Foods Sdn Bhd</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -256,7 +256,10 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700">Preview ({{ $totalRows }} rows)</h3>
-                <p class="text-xs text-gray-400">Rows highlighted in red have errors and will be skipped.</p>
+                <div class="flex items-center gap-4 text-xs text-gray-400">
+                    <span>Red rows = errors (skipped)</span>
+                    <span>Supplier: <span class="text-green-700">matched</span> · <span class="text-blue-700">new (will be created)</span></span>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-xs">
@@ -307,8 +310,11 @@
                                     @if ($row['supplier_label'])
                                         @if ($row['supplier_id'])
                                             <span class="text-green-700">{{ $row['supplier_label'] }}</span>
+                                        @elseif (!empty($row['supplier_is_new']))
+                                            <span class="text-blue-700">{{ $row['supplier_label'] }}</span>
+                                            <span class="ml-1 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded">NEW</span>
                                         @else
-                                            <span class="text-red-500">{{ $row['supplier_label'] }}</span>
+                                            <span class="text-gray-500">{{ $row['supplier_label'] }}</span>
                                         @endif
                                     @else
                                         <span class="text-gray-300">—</span>

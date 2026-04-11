@@ -355,11 +355,12 @@ class Import extends Component
             $supplierRaw = $getValue('supplier');
             $supplierKey = strtolower($supplierRaw);
             $supplierId  = $supplierKey ? ($suppliersByName[$supplierKey] ?? null) : null;
+            $supplierIsNew = false;
             if ($supplierKey && ! $supplierId) {
                 // Try fuzzy match — find closest supplier name
                 $supplierId = $this->fuzzyMatchSupplier($supplierRaw, $suppliersByName);
                 if (! $supplierId) {
-                    $rowErrors[] = 'Supplier "' . $supplierRaw . '" not found';
+                    $supplierIsNew = true; // Will be created on import
                 }
             }
 
@@ -379,6 +380,7 @@ class Import extends Component
                 'is_active'              => $isActive,
                 'supplier_label'         => $supplierRaw,
                 'supplier_id'            => $supplierId,
+                'supplier_is_new'        => $supplierIsNew,
                 'errors'                 => $rowErrors,
                 'skip'                   => ! empty($rowErrors),
             ];
@@ -424,6 +426,9 @@ class Import extends Component
         $imported  = 0;
         $skipped   = 0;
 
+        // Cache for newly created suppliers (name → id) to avoid duplicates within same import
+        $createdSuppliers = [];
+
         foreach ($this->rows as $row) {
             if ($row['skip']) {
                 $skipped++;
@@ -450,10 +455,29 @@ class Import extends Component
                 'is_active'              => $row['is_active'],
             ]);
 
-            // Create supplier linkage if supplier was mapped
-            if (! empty($row['supplier_id'])) {
+            // Resolve supplier: use existing ID, or create new supplier
+            $supplierId = $row['supplier_id'];
+            if (! $supplierId && ! empty($row['supplier_is_new']) && ! empty($row['supplier_label'])) {
+                $supplierName = trim($row['supplier_label']);
+                $cacheKey = strtolower($supplierName);
+
+                if (isset($createdSuppliers[$cacheKey])) {
+                    $supplierId = $createdSuppliers[$cacheKey];
+                } else {
+                    $supplier = Supplier::create([
+                        'company_id' => $companyId,
+                        'name'       => $supplierName,
+                        'is_active'  => true,
+                    ]);
+                    $supplierId = $supplier->id;
+                    $createdSuppliers[$cacheKey] = $supplierId;
+                }
+            }
+
+            // Create supplier linkage if supplier was resolved
+            if ($supplierId) {
                 SupplierIngredient::create([
-                    'supplier_id'   => $row['supplier_id'],
+                    'supplier_id'   => $supplierId,
                     'ingredient_id' => $ingredient->id,
                     'supplier_sku'  => null,
                     'last_cost'     => $pp,
