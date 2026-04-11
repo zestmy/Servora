@@ -47,8 +47,7 @@
                 <iframe src="{{ $embedUrl }}" class="absolute inset-0 w-full h-full"
                         frameborder="0" allowfullscreen
                         allow="autoplay; fullscreen; encrypted-media"
-                        referrerpolicy="no-referrer"
-                        sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>
+                        referrerpolicy="no-referrer"></iframe>
             </div>
         </div>
     @endif
