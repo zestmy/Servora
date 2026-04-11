@@ -695,29 +695,48 @@ PROMPT;
             $isActive = $this->parseBool($getValue('is_active') ?: 'yes');
 
             // Supplier
+            // Supplier — but check if value is actually a prep tag
             $supplierRaw = $getValue('supplier');
-            $supplierKey = strtolower($supplierRaw);
-            $supplierId  = $supplierKey ? ($suppliersByName[$supplierKey] ?? null) : null;
+            $supplierKey = strtolower(trim($supplierRaw));
+            $prepTags = ['prep', 'prep item', 'prep_item', 'prepared', 'in-house', 'in house', 'inhouse', 'kitchen', 'homemade', 'home-made', 'self-made', 'selfmade', 'house made'];
+            $supplierIsPrepTag = in_array($supplierKey, $prepTags);
+
+            $supplierId  = null;
             $supplierIsNew = false;
-            if ($supplierKey && ! $supplierId) {
-                $supplierId = $this->fuzzyMatchSupplier($supplierRaw, $suppliersByName);
+            if ($supplierKey && ! $supplierIsPrepTag) {
+                $supplierId = $suppliersByName[$supplierKey] ?? null;
                 if (! $supplierId) {
-                    $supplierIsNew = true;
+                    $supplierId = $this->fuzzyMatchSupplier($supplierRaw, $suppliersByName);
+                    if (! $supplierId) {
+                        $supplierIsNew = true;
+                    }
                 }
             }
 
             // Type (prep or ingredient)
-            // Items with a supplier are always ingredients — they're purchased, not made in-house
+            // Detect prep items from: explicit type column, supplier column tag, or name keywords
+            $nameLower = strtolower($name);
+            $nameHasPrep = (bool) preg_match('/\bprep\b|\bprepared\b|\bin-house\b|\bhomemade\b|\bhome-made\b/', $nameLower);
+
             $hasSupplier = $supplierId || $supplierIsNew;
             $isPrep = false;
             if ($hasTypeColumn) {
                 $typeRaw = strtolower($getValue('type'));
                 $isPrep = in_array($typeRaw, ['prep', 'prep item', 'prep_item', 'prepared', 'recipe']);
+            } elseif ($supplierIsPrepTag || $nameHasPrep) {
+                // Supplier column says "PREP" or name contains prep keyword
+                $isPrep = true;
             } elseif (! $hasSupplier) {
-                // Only run AI detection for items without a supplier
+                // No supplier and no explicit type — collect for AI detection
                 if ($name) {
                     $namesForAi[$i] = $name;
                 }
+            }
+
+            // Clean "PREP" prefix from name if present (e.g. "PREP - Tomato Sauce" → "Tomato Sauce")
+            if ($isPrep && $name) {
+                $name = preg_replace('/^\s*(prep|prepared)\s*[-–—:]\s*/i', '', $name);
+                $name = trim($name);
             }
 
             // Row needs fix if UOMs are unresolved (not a hard error — user can pick)
@@ -740,7 +759,7 @@ PROMPT;
                 'pack_size'              => $packSize,
                 'yield_percent'          => $yieldPercent,
                 'is_active'              => $isActive,
-                'supplier_label'         => $supplierRaw,
+                'supplier_label'         => $supplierIsPrepTag ? '' : $supplierRaw,
                 'supplier_id'            => $supplierId,
                 'supplier_is_new'        => $supplierIsNew,
                 'is_prep'                => $isPrep,
