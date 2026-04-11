@@ -120,17 +120,19 @@
                 </select>
             </div>
             @endif
-            <div>
-                <select wire:model.live="costFilter"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">All Cost %</option>
-                    <option value="under25">Under 25% (Low)</option>
-                    <option value="25to35">25 – 35%</option>
-                    <option value="35to45">35 – 45%</option>
-                    <option value="over45">Over 45% (High)</option>
-                    <option value="none">No Price Set</option>
-                </select>
-            </div>
+            @if ($tab !== 'prep-items')
+                <div>
+                    <select wire:model.live="costFilter"
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">All Cost %</option>
+                        <option value="under25">Under 25% (Low)</option>
+                        <option value="25to35">25 – 35%</option>
+                        <option value="35to45">35 – 45%</option>
+                        <option value="over45">Over 45% (High)</option>
+                        <option value="none">No Price Set</option>
+                    </select>
+                </div>
+            @endif
             <div>
                 <select wire:model.live="statusFilter"
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -147,13 +149,17 @@
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
-                    <th class="px-4 py-3 text-left">Recipe</th>
+                    <th class="px-4 py-3 text-left">{{ $tab === 'prep-items' ? 'Prep Item' : 'Recipe' }}</th>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-center">Items</th>
                     <th class="px-4 py-3 text-right">Yield</th>
                     <th class="px-4 py-3 text-right">Total Cost</th>
-                    <th class="px-4 py-3 text-right">Selling Price</th>
-                    <th class="px-4 py-3 text-right">Food Cost %</th>
+                    @if ($tab !== 'prep-items')
+                        <th class="px-4 py-3 text-right">Selling Price</th>
+                        <th class="px-4 py-3 text-right">Food Cost %</th>
+                    @else
+                        <th class="px-4 py-3 text-right">Cost / Unit</th>
+                    @endif
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
@@ -209,20 +215,35 @@
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700 font-medium">
                             {{ number_format($totalCost, 2) }}
                         </td>
-                        <td class="px-4 py-3 text-right tabular-nums text-gray-700">
-                            @if ($selling > 0)
-                                {{ number_format($selling, 2) }}
-                            @else
-                                <span class="text-gray-300">—</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-right tabular-nums">
-                            @if ($foodCostPct !== null)
-                                <span class="{{ $fcColor }}">{{ number_format($foodCostPct, 1) }}%</span>
-                            @else
-                                <span class="text-gray-300">—</span>
-                            @endif
-                        </td>
+                        @if ($tab !== 'prep-items')
+                            <td class="px-4 py-3 text-right tabular-nums text-gray-700">
+                                @if ($selling > 0)
+                                    {{ number_format($selling, 2) }}
+                                @else
+                                    <span class="text-gray-300">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-right tabular-nums">
+                                @if ($foodCostPct !== null)
+                                    <span class="{{ $fcColor }}">{{ number_format($foodCostPct, 1) }}%</span>
+                                @else
+                                    <span class="text-gray-300">—</span>
+                                @endif
+                            </td>
+                        @else
+                            <td class="px-4 py-3 text-right tabular-nums text-gray-700">
+                                @php
+                                    $yieldQty = max(floatval($recipe->yield_quantity), 0.0001);
+                                    $costPerUnit = $totalCost / $yieldQty;
+                                @endphp
+                                @if ($totalCost > 0)
+                                    {{ number_format($costPerUnit, 4) }}
+                                    <span class="text-gray-400 text-xs">/ {{ $recipe->yieldUom?->abbreviation }}</span>
+                                @else
+                                    <span class="text-gray-300">—</span>
+                                @endif
+                            </td>
+                        @endif
                         <td class="px-4 py-3 text-center">
                             @if ($recipe->is_active)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
