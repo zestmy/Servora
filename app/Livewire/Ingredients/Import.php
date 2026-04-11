@@ -135,10 +135,10 @@ class Import extends Component
             return;
         }
 
-        // PDF extraction requires a vision-capable model — always use Claude for this
-        $model = 'anthropic/claude-sonnet-4';
+        // PDF extraction requires a vision-capable model
+        $model = 'google/gemini-2.5-flash';
 
-        $mimeType = mime_content_type($path);
+        $mimeType = mime_content_type($path) ?: 'application/pdf';
         $base64   = base64_encode(file_get_contents($path));
         $dataUri  = "data:{$mimeType};base64,{$base64}";
 
@@ -201,7 +201,8 @@ PROMPT;
 
             if (! $response->successful()) {
                 $body = $response->json();
-                $msg = $body['error']['message'] ?? ('HTTP ' . $response->status());
+                Log::error('PDF extraction API error', ['status' => $response->status(), 'body' => $body]);
+                $msg = $body['error']['message'] ?? $body['message'] ?? ('HTTP ' . $response->status());
                 throw new \RuntimeException($msg);
             }
 
