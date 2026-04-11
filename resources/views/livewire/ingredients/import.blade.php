@@ -369,7 +369,7 @@
                                 <td class="px-3 py-2">
                                     @if (!empty($row['base_uom_needsfix']))
                                         <div>
-                                            <span class="text-amber-600 text-[10px] font-medium block mb-1">"{{ $row['base_uom_label'] }}" not found</span>
+                                            <span class="text-amber-600 text-[10px] font-medium block mb-1">{{ $row['base_uom_label'] ? '"'.$row['base_uom_label'].'" not found' : 'Not set' }}</span>
                                             <select wire:change="fixBaseUom({{ $idx }}, $event.target.value)"
                                                     class="w-full text-[11px] border-amber-300 bg-amber-50 rounded px-1.5 py-1 focus:ring-indigo-500 focus:border-indigo-500">
                                                 <option value="">Select UOM...</option>
@@ -386,7 +386,7 @@
                                 <td class="px-3 py-2">
                                     @if (!empty($row['recipe_uom_needsfix']))
                                         <div>
-                                            <span class="text-amber-600 text-[10px] font-medium block mb-1">"{{ $row['recipe_uom_label'] }}" not found</span>
+                                            <span class="text-amber-600 text-[10px] font-medium block mb-1">{{ $row['recipe_uom_label'] ? '"'.$row['recipe_uom_label'].'" not found' : 'Not set' }}</span>
                                             <select wire:change="fixRecipeUom({{ $idx }}, $event.target.value)"
                                                     class="w-full text-[11px] border-amber-300 bg-amber-50 rounded px-1.5 py-1 focus:ring-indigo-500 focus:border-indigo-500">
                                                 <option value="">Select UOM...</option>

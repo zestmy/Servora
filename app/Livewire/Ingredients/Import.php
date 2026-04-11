@@ -649,10 +649,8 @@ PROMPT;
             $baseUomRaw = $getValue('base_uom');
             [$baseUomId, $baseExtractedQty] = $this->resolveUomWithQty($baseUomRaw, $uomsByAbbr, $uomsByName);
             $baseUomNeedsfix = false;
-            if (! $baseUomId && $baseUomRaw) {
-                $baseUomNeedsfix = true;
-            } elseif (! $baseUomId) {
-                $rowErrors[] = 'Base UOM is required';
+            if (! $baseUomId) {
+                $baseUomNeedsfix = true; // user can fix via dropdown (whether empty or unrecognized)
             }
 
             // Recipe UOM (with quantity extraction, defaults to base UOM)
