@@ -225,8 +225,21 @@ PROMPT;
             if (! str_starts_with($cleaned, '{') && preg_match('/(\{[\s\S]*\})\s*$/', $cleaned, $m)) {
                 $cleaned = $m[1];
             }
-
+            // Fix control characters that break json_decode — replace literal
+            // newlines/tabs inside JSON string values with escaped versions
+            // First try decoding as-is, then with flags, then sanitized
             $result = json_decode($cleaned, true);
+            if (! is_array($result)) {
+                $result = json_decode($cleaned, true, 512, JSON_INVALID_UTF8_IGNORE);
+            }
+            if (! is_array($result)) {
+                // Remove all control characters except inside strings
+                // by replacing unescaped control chars with spaces
+                $sanitized = preg_replace('/[\x00-\x1F\x7F]/', ' ', $cleaned);
+                // Collapse multiple spaces
+                $sanitized = preg_replace('/  +/', ' ', $sanitized);
+                $result = json_decode($sanitized, true);
+            }
 
             Log::info('PDF extraction decode result', [
                 'is_array' => is_array($result),
