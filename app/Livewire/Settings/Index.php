@@ -31,6 +31,7 @@ class Index extends Component
         $user = Auth::user();
         $isSystemLevel = $user->isSystemRole();
         $isBusinessLevel = $user->hasCapability('can_manage_users');
+        $hasSettingsAccess = $user->hasPermissionTo('settings.view');
 
         $departmentCount     = Department::count();
         $costTypeCount       = CostType::count();
@@ -59,7 +60,7 @@ class Index extends Component
         $priceClassCount     = RecipePriceClass::count();
 
         return view('livewire.settings.index', compact(
-            'isSystemLevel', 'isBusinessLevel',
+            'isSystemLevel', 'isBusinessLevel', 'hasSettingsAccess',
             'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
             'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount', 'priceClassCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Settings']);

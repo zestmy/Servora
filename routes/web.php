@@ -281,7 +281,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin');
     Route::get('/settings/users', SettingsUsers::class)->name('settings.users')->middleware('can:users.manage');
     Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.view');
-    Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:settings.view');
+    Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:users.manage');
     Route::get('/settings/calendar-events', SettingsCalendarEvents::class)->name('settings.calendar-events')->middleware('can:settings.view');
     Route::get('/settings/sales-targets', SettingsSalesTargets::class)->name('settings.sales-targets')->middleware('can:sales.view');
     Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.view');

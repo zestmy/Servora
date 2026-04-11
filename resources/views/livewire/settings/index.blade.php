@@ -38,26 +38,24 @@
         </div>
     @endif
 
-    {{-- ── Business Settings (Super Admin / Business Manager) ──────────── --}}
-    @if ($isBusinessLevel)
+    {{-- ── Company Administration (Company Admin / Business Admin only) ──── --}}
+    @if ($isBusinessLevel && !$isSystemLevel)
         <div class="mb-6">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Business Settings</h3>
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Company Administration</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-                {{-- Users & Roles (for Business Manager who isn't System level) --}}
-                @if (!$isSystemLevel)
-                    <a href="{{ route('settings.users') }}"
-                       class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                        <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-800">Users & Roles</p>
-                            <p class="text-sm text-gray-500 mt-0.5">Manage employee access</p>
-                            <p class="text-xs text-indigo-500 font-medium mt-2">{{ $userCount }} {{ Str::plural('user', $userCount) }}</p>
-                        </div>
-                    </a>
-                @endif
+                {{-- Users & Roles --}}
+                <a href="{{ route('settings.users') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Users & Roles</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Manage employee access</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $userCount }} {{ Str::plural('user', $userCount) }}</p>
+                    </div>
+                </a>
 
                 {{-- Company Details --}}
                 <a href="{{ route('settings.company-details') }}"
@@ -70,6 +68,16 @@
                         <p class="text-sm text-gray-500 mt-0.5">Logo, billing info & document details</p>
                     </div>
                 </a>
+
+            </div>
+        </div>
+    @endif
+
+    {{-- ── General Settings (anyone with settings.view permission) ──────── --}}
+    @if ($hasSettingsAccess)
+        <div class="mb-6">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General Settings</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
                 {{-- Branches --}}
                 <a href="{{ route('settings.outlets') }}"
