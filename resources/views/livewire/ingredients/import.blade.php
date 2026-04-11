@@ -41,6 +41,7 @@
             <ol class="list-decimal list-inside space-y-1 text-blue-700">
                 <li>Download the sample template below and fill in your ingredient data.</li>
                 <li>Upload any CSV or Excel (.xlsx) file — AI will automatically map your columns.</li>
+                <li>AI will also detect prep items (sauces, stocks, marinades, etc.) and create them as placeholders.</li>
                 <li>Review the column mapping, adjust if needed, then preview and confirm.</li>
             </ol>
             <div class="pt-1">
@@ -79,6 +80,7 @@
                         <tr><td class="px-3 py-2 font-mono font-medium">yield_percent</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Yield % from 0.01–100 (default: 100)</td><td class="px-3 py-2 font-mono">80</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">is_active</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">yes / no (default: yes)</td><td class="px-3 py-2 font-mono">yes</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">supplier</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Default supplier name (auto-created if not found)</td><td class="px-3 py-2 font-mono">ABC Foods Sdn Bhd</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">type</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">"ingredient" or "prep" (auto-detected by AI if omitted)</td><td class="px-3 py-2 font-mono">prep</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -190,6 +192,16 @@
                 @endforeach
             </div>
 
+            {{-- Prep detection note --}}
+            <div class="mt-4 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700">
+                <strong>Prep Item Detection:</strong>
+                @if (!empty($columnMapping['type']))
+                    Using your "{{ $columnMapping['type'] }}" column to identify prep items.
+                @else
+                    No "type" column mapped — AI will automatically detect prep items (sauces, stocks, marinades, etc.) in the next step.
+                @endif
+            </div>
+
             {{-- Sample data preview --}}
             @if (count($fileDataRows) > 0)
                 <div class="mt-5 pt-4 border-t border-gray-100">
@@ -227,12 +239,17 @@
             <button wire:click="confirmMapping" wire:loading.attr="disabled"
                     class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
                 <span wire:loading.remove wire:target="confirmMapping">Preview Import →</span>
-                <span wire:loading wire:target="confirmMapping">Building preview…</span>
+                <span wire:loading wire:target="confirmMapping">Analyzing items…</span>
             </button>
         </div>
 
     {{-- ── STEP 3: Preview ─────────────────────────────────────── --}}
     @elseif ($step === 'preview')
+
+        @php
+            $prepCount = collect($rows)->where('is_prep', true)->where('skip', false)->count();
+            $ingredientCount = $validRows - $prepCount;
+        @endphp
 
         {{-- Summary bar --}}
         <div class="mb-4 flex items-center gap-4 flex-wrap">
@@ -241,24 +258,37 @@
                 <span class="font-semibold text-gray-800">{{ $totalRows }}</span>
             </div>
             <div class="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 text-sm">
-                <span class="text-green-600">Ready to import:</span>
-                <span class="font-semibold text-green-700">{{ $validRows }}</span>
+                <span class="text-green-600">Ingredients:</span>
+                <span class="font-semibold text-green-700">{{ $ingredientCount }}</span>
             </div>
+            @if ($prepCount > 0)
+                <div class="flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-lg border border-orange-200 text-sm">
+                    <span class="text-orange-600">Prep Items (placeholder):</span>
+                    <span class="font-semibold text-orange-700">{{ $prepCount }}</span>
+                </div>
+            @endif
             @if ($totalRows - $validRows > 0)
                 <div class="flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg border border-red-200 text-sm">
-                    <span class="text-red-600">Rows with errors (will be skipped):</span>
+                    <span class="text-red-600">Errors (skipped):</span>
                     <span class="font-semibold text-red-700">{{ $totalRows - $validRows }}</span>
                 </div>
             @endif
         </div>
+
+        {{-- Prep items info --}}
+        @if ($prepCount > 0)
+            <div class="mb-4 px-4 py-3 bg-orange-50 border border-orange-200 text-orange-800 text-sm rounded-xl">
+                <strong>{{ $prepCount }} prep item{{ $prepCount > 1 ? 's' : '' }} detected</strong> — these will be created as placeholders. You can update them later in Inventory > Prep Items to link actual ingredients for live costing. Click the type badge on any row to toggle between Ingredient and Prep.
+            </div>
+        @endif
 
         {{-- Preview table --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700">Preview ({{ $totalRows }} rows)</h3>
                 <div class="flex items-center gap-4 text-xs text-gray-400">
-                    <span>Red rows = errors (skipped)</span>
-                    <span>Supplier: <span class="text-green-700">matched</span> · <span class="text-blue-700">new (will be created)</span></span>
+                    <span>Supplier: <span class="text-green-700">matched</span> · <span class="text-blue-700">new</span></span>
+                    <span>Click type badge to toggle</span>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -266,48 +296,67 @@
                     <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-100">
                         <tr>
                             <th class="px-3 py-2 text-left w-10">#</th>
+                            <th class="px-3 py-2 text-center w-20">Type</th>
                             <th class="px-3 py-2 text-left">Name</th>
                             <th class="px-3 py-2 text-left w-24">Code</th>
                             <th class="px-3 py-2 text-left w-28">Category</th>
-                            <th class="px-3 py-2 text-left w-20">Base UOM</th>
-                            <th class="px-3 py-2 text-left w-20">Recipe UOM</th>
+                            <th class="px-3 py-2 text-left w-20">UOM</th>
                             <th class="px-3 py-2 text-right w-24">Price (RM)</th>
                             <th class="px-3 py-2 text-right w-20">Pack Size</th>
                             <th class="px-3 py-2 text-right w-20">Yield %</th>
-                            <th class="px-3 py-2 text-center w-16">Active</th>
                             <th class="px-3 py-2 text-left w-36">Supplier</th>
-                            <th class="px-3 py-2 text-left">Issues</th>
+                            <th class="px-3 py-2 text-left">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
-                        @foreach ($rows as $row)
-                            <tr class="{{ $row['skip'] ? 'bg-red-50' : 'hover:bg-gray-50' }} transition">
+                        @foreach ($rows as $idx => $row)
+                            <tr class="{{ $row['skip'] ? 'bg-red-50' : ($row['is_prep'] ? 'bg-orange-50/50' : 'hover:bg-gray-50') }} transition">
                                 <td class="px-3 py-2 text-gray-400">{{ $row['row'] }}</td>
+                                <td class="px-3 py-2 text-center">
+                                    @if (! $row['skip'])
+                                        <button wire:click="togglePrep({{ $idx }})"
+                                                class="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition
+                                                    {{ $row['is_prep']
+                                                        ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
+                                                title="Click to toggle between Ingredient and Prep Item">
+                                            {{ $row['is_prep'] ? 'PREP' : 'INGREDIENT' }}
+                                        </button>
+                                    @else
+                                        <span class="text-gray-300 text-[10px]">—</span>
+                                    @endif
+                                </td>
                                 <td class="px-3 py-2 font-medium {{ $row['skip'] ? 'text-red-700' : 'text-gray-800' }}">
                                     {{ $row['name'] ?: '—' }}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 font-mono">{{ $row['code'] ?? '—' }}</td>
                                 <td class="px-3 py-2 text-gray-600">{{ $row['category_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-gray-600 font-mono">{{ $row['base_uom_label'] ?: '—' }}</td>
-                                <td class="px-3 py-2 text-gray-600 font-mono">{{ $row['recipe_uom_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-right tabular-nums text-gray-700">
-                                    {{ number_format($row['purchase_price'], 4) }}
-                                </td>
-                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
-                                    {{ $row['pack_size'] != 1 ? rtrim(rtrim(number_format($row['pack_size'], 4, '.', ''), '0'), '.') : '1' }}
-                                </td>
-                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
-                                    {{ $row['yield_percent'] }}%
-                                </td>
-                                <td class="px-3 py-2 text-center">
-                                    @if ($row['is_active'])
-                                        <span class="text-green-600">Yes</span>
+                                    @if ($row['is_prep'])
+                                        <span class="text-gray-300">—</span>
                                     @else
-                                        <span class="text-gray-400">No</span>
+                                        {{ number_format($row['purchase_price'], 4) }}
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
+                                    @if ($row['is_prep'])
+                                        <span class="text-gray-300">—</span>
+                                    @else
+                                        {{ $row['pack_size'] != 1 ? rtrim(rtrim(number_format($row['pack_size'], 4, '.', ''), '0'), '.') : '1' }}
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
+                                    @if ($row['is_prep'])
+                                        <span class="text-gray-300">—</span>
+                                    @else
+                                        {{ $row['yield_percent'] }}%
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-gray-600">
-                                    @if ($row['supplier_label'])
+                                    @if ($row['is_prep'])
+                                        <span class="text-gray-300">—</span>
+                                    @elseif ($row['supplier_label'])
                                         @if ($row['supplier_id'])
                                             <span class="text-green-700">{{ $row['supplier_label'] }}</span>
                                         @elseif (!empty($row['supplier_is_new']))
@@ -330,6 +379,8 @@
                                                 </li>
                                             @endforeach
                                         </ul>
+                                    @elseif ($row['is_prep'])
+                                        <span class="text-orange-500">Placeholder — link ingredients later</span>
                                     @else
                                         <span class="text-green-500">&#10003; OK</span>
                                     @endif
@@ -350,9 +401,9 @@
 
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
-                        wire:confirm="Import {{ $validRows }} ingredient(s)? Rows with errors will be skipped."
+                        wire:confirm="Import {{ $validRows }} item(s) ({{ $ingredientCount }} ingredient{{ $ingredientCount !== 1 ? 's' : '' }}{{ $prepCount > 0 ? ', ' . $prepCount . ' prep placeholder' . ($prepCount !== 1 ? 's' : '') : '' }})? Rows with errors will be skipped."
                         class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
-                    <span wire:loading.remove wire:target="import">Import {{ $validRows }} Ingredient{{ $validRows !== 1 ? 's' : '' }}</span>
+                    <span wire:loading.remove wire:target="import">Import {{ $validRows }} Item{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing…</span>
                 </button>
             @else
@@ -372,6 +423,12 @@
                     <p class="text-3xl font-bold text-green-600">{{ $importedCount }}</p>
                     <p class="text-sm text-gray-500 mt-0.5">Imported</p>
                 </div>
+                @if ($prepCreatedCount > 0)
+                    <div class="text-center">
+                        <p class="text-3xl font-bold text-orange-500">{{ $prepCreatedCount }}</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Prep Placeholders</p>
+                    </div>
+                @endif
                 @if ($skippedCount > 0)
                     <div class="text-center">
                         <p class="text-3xl font-bold text-red-500">{{ $skippedCount }}</p>
@@ -380,11 +437,24 @@
                 @endif
             </div>
 
+            @if ($prepCreatedCount > 0)
+                <p class="text-sm text-orange-600 mb-4">
+                    {{ $prepCreatedCount }} prep item{{ $prepCreatedCount > 1 ? 's were' : ' was' }} created as placeholder{{ $prepCreatedCount > 1 ? 's' : '' }}.
+                    Go to <strong>Inventory > Prep Items</strong> to link actual ingredients for live costing.
+                </p>
+            @endif
+
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('ingredients.index') }}"
                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                     View Ingredients
                 </a>
+                @if ($prepCreatedCount > 0)
+                    <a href="{{ route('inventory.index') }}"
+                       class="px-4 py-2 text-sm text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition">
+                        Go to Prep Items
+                    </a>
+                @endif
                 <button wire:click="restart"
                         class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                     Import Another File

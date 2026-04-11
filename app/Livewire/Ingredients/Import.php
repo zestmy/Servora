@@ -5,10 +5,12 @@ namespace App\Livewire\Ingredients;
 use App\Models\AppSetting;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
+use App\Models\Recipe;
 use App\Models\Supplier;
 use App\Models\SupplierIngredient;
 use App\Models\UnitOfMeasure;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
@@ -41,18 +43,20 @@ class Import extends Component
         'category'       => ['label' => 'Category',       'required' => false, 'description' => 'Main cost category'],
         'base_uom'       => ['label' => 'Base UOM',       'required' => true,  'description' => 'Purchasing unit of measure'],
         'recipe_uom'     => ['label' => 'Recipe UOM',     'required' => false, 'description' => 'Recipe unit of measure'],
-        'purchase_price'=> ['label' => 'Purchase Price', 'required' => false, 'description' => 'Price per pack'],
-        'pack_size'      => ['label' => 'Pack Size',      'required' => false, 'description' => 'Pack size in base UOM'],
-        'yield_percent'  => ['label' => 'Yield %',        'required' => false, 'description' => 'Yield percentage (0-100)'],
-        'is_active'      => ['label' => 'Active',         'required' => false, 'description' => 'Active status (yes/no)'],
-        'supplier'       => ['label' => 'Default Supplier', 'required' => false, 'description' => 'Preferred supplier name'],
+        'purchase_price' => ['label' => 'Purchase Price',  'required' => false, 'description' => 'Price per pack'],
+        'pack_size'      => ['label' => 'Pack Size',       'required' => false, 'description' => 'Pack size in base UOM'],
+        'yield_percent'  => ['label' => 'Yield %',         'required' => false, 'description' => 'Yield percentage (0-100)'],
+        'is_active'      => ['label' => 'Active',          'required' => false, 'description' => 'Active status (yes/no)'],
+        'supplier'       => ['label' => 'Default Supplier','required' => false, 'description' => 'Preferred supplier name'],
+        'type'           => ['label' => 'Type',            'required' => false, 'description' => 'ingredient or prep (default: auto-detect)'],
     ];
 
     public array $rows        = [];
     public int   $totalRows   = 0;
     public int   $validRows   = 0;
-    public int   $importedCount = 0;
-    public int   $skippedCount  = 0;
+    public int   $importedCount    = 0;
+    public int   $skippedCount     = 0;
+    public int   $prepCreatedCount = 0;
 
     protected function rules(): array
     {
@@ -106,12 +110,10 @@ class Import extends Component
         $hasBaseUom = ! empty($exactMapping['base_uom']);
 
         if ($hasName && $hasBaseUom) {
-            // Exact match found for required fields — use it, skip AI
             $this->columnMapping = $exactMapping;
             $this->aiMapped      = false;
             $this->step          = 'mapping';
         } else {
-            // Need AI to help map columns
             $this->step = 'mapping';
             $this->runAiMapping();
         }
@@ -124,18 +126,16 @@ class Import extends Component
         $mapping = [];
         $systemKeys = array_keys(self::SYSTEM_FIELDS);
 
-        // Normalize headers for comparison
         $normalizedMap = [];
         foreach ($headers as $header) {
             $normalized = strtolower(trim(str_replace([' ', '-', '_'], '_', $header)));
             $normalizedMap[$normalized] = $header;
         }
 
-        // Common aliases for each system field
         $aliases = [
             'name'           => ['name', 'ingredient_name', 'ingredient', 'item_name', 'item', 'product_name', 'product', 'description'],
             'code'           => ['code', 'sku', 'item_code', 'ingredient_code', 'product_code', 'internal_code'],
-            'category'       => ['category', 'cost_category', 'ingredient_category', 'group', 'type'],
+            'category'       => ['category', 'cost_category', 'ingredient_category', 'group'],
             'base_uom'       => ['base_uom', 'uom', 'unit', 'unit_of_measure', 'purchase_uom', 'purchasing_unit', 'base_unit'],
             'recipe_uom'     => ['recipe_uom', 'recipe_unit', 'cooking_uom', 'cooking_unit'],
             'purchase_price' => ['purchase_price', 'price', 'cost', 'unit_price', 'unit_cost', 'buy_price'],
@@ -143,6 +143,7 @@ class Import extends Component
             'yield_percent'  => ['yield_percent', 'yield', 'yield_%', 'yield_pct', 'yield_percentage'],
             'is_active'      => ['is_active', 'active', 'status', 'enabled'],
             'supplier'       => ['supplier', 'default_supplier', 'preferred_supplier', 'supplier_name', 'vendor', 'vendor_name'],
+            'type'           => ['type', 'item_type', 'ingredient_type'],
         ];
 
         foreach ($systemKeys as $field) {
@@ -167,7 +168,6 @@ class Import extends Component
         $apiKey = AppSetting::get('openrouter_api_key');
 
         if (! $apiKey) {
-            // No API key — fall back to exact mapping only
             $this->columnMapping = $this->tryExactMapping($this->fileHeaders);
             $this->aiMapped      = false;
             $this->aiMapping     = false;
@@ -177,7 +177,6 @@ class Import extends Component
 
         $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
 
-        // Build sample data for context (first 3 rows)
         $sampleRows = array_slice($this->fileDataRows, 0, 3);
         $sampleText = '';
         foreach ($sampleRows as $i => $row) {
@@ -229,7 +228,6 @@ class Import extends Component
                 throw new \RuntimeException('Invalid response format from AI');
             }
 
-            // Validate that mapped values are actual file headers
             $validMapping = [];
             $headerLower = array_map('strtolower', $this->fileHeaders);
 
@@ -237,14 +235,12 @@ class Import extends Component
                 if (! array_key_exists($sysField, self::SYSTEM_FIELDS)) continue;
                 if (! is_string($fileHeader)) continue;
 
-                // Find the exact original header (case-insensitive match)
                 $idx = array_search(strtolower($fileHeader), $headerLower);
                 if ($idx !== false) {
                     $validMapping[$sysField] = $this->fileHeaders[$idx];
                 }
             }
 
-            // Merge with exact mapping (exact takes precedence for any conflicts)
             $exactMapping = $this->tryExactMapping($this->fileHeaders);
             $this->columnMapping = array_merge($validMapping, $exactMapping);
             $this->aiMapped      = true;
@@ -263,7 +259,6 @@ class Import extends Component
 
     public function confirmMapping(): void
     {
-        // Validate required fields are mapped
         if (empty($this->columnMapping['name'])) {
             $this->addError('mapping', 'The "Name" field must be mapped to a column.');
             return;
@@ -286,19 +281,23 @@ class Import extends Component
             ->get()
             ->mapWithKeys(fn ($c) => [strtolower($c->name) => $c->id]);
 
-        $companyId     = Auth::user()->company_id;
+        $companyId       = Auth::user()->company_id;
         $suppliersByName = Supplier::where('company_id', $companyId)
             ->pluck('id', 'name')
             ->mapWithKeys(fn ($id, $name) => [strtolower($name) => $id]);
 
         $mapping = $this->columnMapping;
+
+        // Check if "type" column is mapped — if so, use it; otherwise collect names for AI detection
+        $hasTypeColumn = ! empty($mapping['type']);
+
         $this->rows = [];
+        $namesForAi = []; // index => name, for AI prep detection
 
         foreach ($this->fileDataRows as $i => $raw) {
-            $rowNum    = $i + 2; // row 1 = header
+            $rowNum    = $i + 2;
             $rowErrors = [];
 
-            // Get value by mapped column
             $getValue = function (string $sysField) use ($raw, $mapping): string {
                 $header = $mapping[$sysField] ?? null;
                 if (! $header) return '';
@@ -331,7 +330,7 @@ class Import extends Component
             }
             $recipeUomId = $recipeUomId ?? $baseUomId;
 
-            // Category (main category only)
+            // Category
             $catRaw = $getValue('category');
             $catKey = strtolower($catRaw);
             $catId  = $catKey ? ($catsByName[$catKey] ?? null) : null;
@@ -357,10 +356,21 @@ class Import extends Component
             $supplierId  = $supplierKey ? ($suppliersByName[$supplierKey] ?? null) : null;
             $supplierIsNew = false;
             if ($supplierKey && ! $supplierId) {
-                // Try fuzzy match — find closest supplier name
                 $supplierId = $this->fuzzyMatchSupplier($supplierRaw, $suppliersByName);
                 if (! $supplierId) {
-                    $supplierIsNew = true; // Will be created on import
+                    $supplierIsNew = true;
+                }
+            }
+
+            // Type (prep or ingredient)
+            $isPrep = false;
+            if ($hasTypeColumn) {
+                $typeRaw = strtolower($getValue('type'));
+                $isPrep = in_array($typeRaw, ['prep', 'prep item', 'prep_item', 'prepared', 'recipe']);
+            } else {
+                // Collect name for AI detection later
+                if ($name) {
+                    $namesForAi[$i] = $name;
                 }
             }
 
@@ -381,14 +391,104 @@ class Import extends Component
                 'supplier_label'         => $supplierRaw,
                 'supplier_id'            => $supplierId,
                 'supplier_is_new'        => $supplierIsNew,
+                'is_prep'                => $isPrep,
                 'errors'                 => $rowErrors,
                 'skip'                   => ! empty($rowErrors),
             ];
         }
 
+        // Run AI prep detection if no type column was mapped
+        if (! $hasTypeColumn && ! empty($namesForAi)) {
+            $this->detectPrepItems($namesForAi);
+        }
+
         $this->totalRows = count($this->rows);
         $this->validRows = collect($this->rows)->where('skip', false)->count();
     }
+
+    // ── AI Prep Item Detection ──────────────────────────────────────────────
+
+    private function detectPrepItems(array $namesForAi): void
+    {
+        $apiKey = AppSetting::get('openrouter_api_key');
+        if (! $apiKey) return; // No AI available — everything stays as ingredient
+
+        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+
+        // Build numbered list of item names
+        $namesList = '';
+        foreach ($namesForAi as $idx => $name) {
+            $namesList .= ($idx + 1) . ". {$name}\n";
+        }
+
+        $prompt = "You are classifying food & beverage items for a restaurant management system.\n\n"
+            . "Classify each item as either \"ingredient\" (raw purchased item) or \"prep\" (prepared/cooked item made in-house from other ingredients).\n\n"
+            . "PREP items are things like: sauces, stocks, broths, marinades, dressings, batters, doughs, "
+            . "compound butters, spice mixes/blends, pre-cut/portioned items, blanched vegetables, "
+            . "pastry creams, ganache, simple syrup, infused oils, house-made pastes, rubs, glazes, "
+            . "pre-cooked proteins, soup bases, purees, coulis, croutons, breadcrumbs (house-made), "
+            . "pickled items, fermented items, cured items.\n\n"
+            . "INGREDIENT items are things like: raw meat, fresh vegetables, fruits, dairy products, "
+            . "eggs, flour, sugar, salt, oil, vinegar, canned goods, dried goods, spices (individual), "
+            . "condiments (store-bought), beverages, packaging materials, cleaning supplies.\n\n"
+            . "Items to classify:\n{$namesList}\n"
+            . "Return a JSON object with a single key \"prep_indices\" containing an array of 1-based item numbers that are PREP items. "
+            . "Only include items you are fairly confident are prep items. When in doubt, classify as ingredient.\n"
+            . "Example: {\"prep_indices\": [2, 5, 8]}";
+
+        try {
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type'  => 'application/json',
+                    'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                    'X-Title'       => config('app.name', 'Servora'),
+                ])
+                ->post('https://openrouter.ai/api/v1/chat/completions', [
+                    'model'      => $model,
+                    'max_tokens' => 1024,
+                    'messages'   => [
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'response_format' => ['type' => 'json_object'],
+                ]);
+
+            if (! $response->successful()) return;
+
+            $body = $response->json();
+            $content = $body['choices'][0]['message']['content'] ?? '';
+            $result = json_decode($content, true);
+
+            if (! is_array($result) || ! isset($result['prep_indices'])) return;
+
+            // Map 1-based indices back to row indices
+            $indexKeys = array_keys($namesForAi);
+            foreach ($result['prep_indices'] as $oneBasedIdx) {
+                $zeroBasedIdx = $oneBasedIdx - 1;
+                if (isset($indexKeys[$zeroBasedIdx])) {
+                    $rowIdx = $indexKeys[$zeroBasedIdx];
+                    if (isset($this->rows[$rowIdx])) {
+                        $this->rows[$rowIdx]['is_prep'] = true;
+                    }
+                }
+            }
+
+        } catch (\Throwable $e) {
+            Log::warning('AI prep detection failed: ' . $e->getMessage());
+            // Silently fail — everything stays as ingredient
+        }
+    }
+
+    // ── Toggle prep status from preview ─────────────────────────────────────
+
+    public function togglePrep(int $index): void
+    {
+        if (isset($this->rows[$index])) {
+            $this->rows[$index]['is_prep'] = ! $this->rows[$index]['is_prep'];
+        }
+    }
+
+    // ── Fuzzy supplier match ────────────────────────────────────────────────
 
     private function fuzzyMatchSupplier(string $input, $suppliersByName): ?int
     {
@@ -397,7 +497,6 @@ class Import extends Component
         $bestScore  = 0;
 
         foreach ($suppliersByName as $name => $id) {
-            // Check if input contains the supplier name or vice versa
             if (str_contains($inputLower, $name) || str_contains($name, $inputLower)) {
                 $score = similar_text($inputLower, $name);
                 if ($score > $bestScore) {
@@ -406,7 +505,6 @@ class Import extends Component
                 }
             }
 
-            // Also try similar_text with a high threshold
             $pct = 0;
             similar_text($inputLower, $name, $pct);
             if ($pct >= 80 && $pct > $bestScore) {
@@ -425,8 +523,9 @@ class Import extends Component
         $companyId = Auth::user()->company_id;
         $imported  = 0;
         $skipped   = 0;
+        $prepCreated = 0;
 
-        // Cache for newly created suppliers (name → id) to avoid duplicates within same import
+        // Cache for newly created suppliers
         $createdSuppliers = [];
 
         foreach ($this->rows as $row) {
@@ -441,74 +540,114 @@ class Import extends Component
             $baseCost = $pp / max($ps, 0.0001);
             $cost     = $yp > 0 ? $baseCost / ($yp / 100) : $baseCost;
 
-            $ingredient = Ingredient::create([
-                'company_id'             => $companyId,
-                'name'                   => $row['name'],
-                'code'                   => $row['code'],
-                'ingredient_category_id' => $row['ingredient_category_id'],
-                'base_uom_id'            => $row['base_uom_id'],
-                'recipe_uom_id'          => $row['recipe_uom_id'],
-                'purchase_price'         => $pp,
-                'pack_size'              => $ps,
-                'yield_percent'          => $yp,
-                'current_cost'           => round($cost, 4),
-                'is_active'              => $row['is_active'],
-            ]);
-
-            // Resolve supplier: use existing ID, or create new supplier
-            $supplierId = $row['supplier_id'];
-            if (! $supplierId && ! empty($row['supplier_is_new']) && ! empty($row['supplier_label'])) {
-                $supplierName = trim($row['supplier_label']);
-                $cacheKey = strtolower($supplierName);
-
-                if (isset($createdSuppliers[$cacheKey])) {
-                    $supplierId = $createdSuppliers[$cacheKey];
-                } else {
-                    $supplier = Supplier::create([
-                        'company_id' => $companyId,
-                        'name'       => $supplierName,
-                        'is_active'  => true,
+            if (! empty($row['is_prep'])) {
+                // ── Create Prep Item (placeholder Recipe + synced Ingredient) ──
+                DB::transaction(function () use ($companyId, $row, $pp, $cost, &$prepCreated) {
+                    $recipe = Recipe::create([
+                        'company_id'             => $companyId,
+                        'name'                   => $row['name'],
+                        'code'                   => $row['code'],
+                        'description'            => null,
+                        'yield_quantity'         => 1,
+                        'yield_uom_id'           => $row['base_uom_id'],
+                        'selling_price'          => 0,
+                        'cost_per_yield_unit'    => round($cost, 4),
+                        'is_active'              => $row['is_active'],
+                        'is_prep'                => true,
+                        'ingredient_category_id' => $row['ingredient_category_id'],
                     ]);
-                    $supplierId = $supplier->id;
-                    $createdSuppliers[$cacheKey] = $supplierId;
-                }
-            }
 
-            // Create supplier linkage if supplier was resolved
-            if ($supplierId) {
-                SupplierIngredient::create([
-                    'supplier_id'   => $supplierId,
-                    'ingredient_id' => $ingredient->id,
-                    'supplier_sku'  => null,
-                    'last_cost'     => $pp,
-                    'uom_id'        => $row['base_uom_id'],
-                    'is_preferred'  => true,
+                    Ingredient::create([
+                        'company_id'             => $companyId,
+                        'name'                   => $row['name'],
+                        'code'                   => $row['code'],
+                        'ingredient_category_id' => $row['ingredient_category_id'],
+                        'base_uom_id'            => $row['base_uom_id'],
+                        'recipe_uom_id'          => $row['base_uom_id'],
+                        'purchase_price'         => 0,
+                        'pack_size'              => 1,
+                        'yield_percent'          => 100,
+                        'current_cost'           => round($cost, 4),
+                        'is_active'              => $row['is_active'],
+                        'is_prep'                => true,
+                        'prep_recipe_id'         => $recipe->id,
+                    ]);
+
+                    $prepCreated++;
+                });
+            } else {
+                // ── Create regular Ingredient ──
+                $ingredient = Ingredient::create([
+                    'company_id'             => $companyId,
+                    'name'                   => $row['name'],
+                    'code'                   => $row['code'],
+                    'ingredient_category_id' => $row['ingredient_category_id'],
+                    'base_uom_id'            => $row['base_uom_id'],
+                    'recipe_uom_id'          => $row['recipe_uom_id'],
+                    'purchase_price'         => $pp,
+                    'pack_size'              => $ps,
+                    'yield_percent'          => $yp,
+                    'current_cost'           => round($cost, 4),
+                    'is_active'              => $row['is_active'],
                 ]);
+
+                // Resolve supplier
+                $supplierId = $row['supplier_id'];
+                if (! $supplierId && ! empty($row['supplier_is_new']) && ! empty($row['supplier_label'])) {
+                    $supplierName = trim($row['supplier_label']);
+                    $cacheKey = strtolower($supplierName);
+
+                    if (isset($createdSuppliers[$cacheKey])) {
+                        $supplierId = $createdSuppliers[$cacheKey];
+                    } else {
+                        $supplier = Supplier::create([
+                            'company_id' => $companyId,
+                            'name'       => $supplierName,
+                            'is_active'  => true,
+                        ]);
+                        $supplierId = $supplier->id;
+                        $createdSuppliers[$cacheKey] = $supplierId;
+                    }
+                }
+
+                // Create supplier linkage
+                if ($supplierId) {
+                    SupplierIngredient::create([
+                        'supplier_id'   => $supplierId,
+                        'ingredient_id' => $ingredient->id,
+                        'supplier_sku'  => null,
+                        'last_cost'     => $pp,
+                        'uom_id'        => $row['base_uom_id'],
+                        'is_preferred'  => true,
+                    ]);
+                }
             }
 
             $imported++;
         }
 
-        $this->importedCount = $imported;
-        $this->skippedCount  = $skipped;
-        $this->step          = 'done';
+        $this->importedCount    = $imported;
+        $this->skippedCount     = $skipped;
+        $this->prepCreatedCount = $prepCreated;
+        $this->step             = 'done';
     }
 
     public function restart(): void
     {
-        $this->file          = null;
-        $this->step          = 'upload';
-        $this->fileHeaders   = [];
-        $this->fileDataRows  = [];
-        $this->columnMapping = [];
-        $this->aiMapped      = false;
-        $this->aiMapping     = false;
-        $this->aiError       = '';
-        $this->rows          = [];
-        $this->totalRows     = 0;
-        $this->validRows     = 0;
-        $this->importedCount = 0;
-        $this->skippedCount  = 0;
+        $this->file             = null;
+        $this->step             = 'upload';
+        $this->fileHeaders      = [];
+        $this->fileDataRows     = [];
+        $this->columnMapping    = [];
+        $this->aiMapped         = false;
+        $this->aiMapping        = false;
+        $this->aiError          = '';
+        $this->rows             = [];
+        $this->totalRows        = 0;
+        $this->validRows        = 0;
+        $this->importedCount    = 0;
+        $this->skippedCount     = 0;
+        $this->prepCreatedCount = 0;
         $this->resetValidation();
     }
 
@@ -521,11 +660,11 @@ class Import extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['name', 'code', 'category', 'base_uom', 'recipe_uom', 'purchase_price', 'pack_size', 'yield_percent', 'is_active', 'supplier'];
+        $headers = ['name', 'code', 'category', 'base_uom', 'recipe_uom', 'purchase_price', 'pack_size', 'yield_percent', 'is_active', 'supplier', 'type'];
         $sample  = [
-            ['Chicken Breast', 'CHK-001', 'Food', 'kg', 'g', '12.50', '1', '80', 'yes', 'ABC Foods Sdn Bhd'],
-            ['Apple Crumble', 'ACR-001', 'Food', 'kg', 'gm', '42.69', '1.2', '100', 'yes', 'Fresh Farms Supply'],
-            ['Mineral Water', 'WTR-001', 'Beverage', 'bottle', 'bottle', '1.50', '1', '100', 'yes', ''],
+            ['Chicken Breast', 'CHK-001', 'Food', 'kg', 'g', '12.50', '1', '80', 'yes', 'ABC Foods Sdn Bhd', 'ingredient'],
+            ['Tomato Sauce', 'SAU-001', 'Food', 'L', 'ml', '', '', '', 'yes', '', 'prep'],
+            ['Mineral Water', 'WTR-001', 'Beverage', 'bottle', 'bottle', '1.50', '1', '100', 'yes', '', 'ingredient'],
         ];
 
         $output = fopen('php://temp', 'r+');
