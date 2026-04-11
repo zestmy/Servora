@@ -61,14 +61,14 @@ class Import extends Component
     protected function rules(): array
     {
         return [
-            'file' => 'required|file|mimes:csv,txt,xlsx|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,pdf|max:10240',
         ];
     }
 
     protected function messages(): array
     {
         return [
-            'file.mimes' => 'Only CSV (.csv) and Excel (.xlsx) files are supported.',
+            'file.mimes' => 'Only CSV (.csv), Excel (.xlsx), and PDF files are supported.',
             'file.max'   => 'File size must not exceed 10 MB.',
         ];
     }
@@ -81,6 +81,12 @@ class Import extends Component
 
         $path = $this->file->getRealPath();
         $ext  = strtolower($this->file->getClientOriginalExtension());
+
+        // PDF files use AI vision extraction — different flow
+        if ($ext === 'pdf') {
+            $this->processPdfUpload($path);
+            return;
+        }
 
         try {
             $parsed = ($ext === 'xlsx') ? $this->parseXlsx($path) : $this->parseCsv($path);
@@ -116,6 +122,130 @@ class Import extends Component
         } else {
             $this->step = 'mapping';
             $this->runAiMapping();
+        }
+    }
+
+    // ── PDF extraction via AI vision ───────────────────────────────────────
+
+    private function processPdfUpload(string $path): void
+    {
+        $apiKey = AppSetting::get('openrouter_api_key');
+        if (! $apiKey) {
+            $this->addError('file', 'PDF import requires an OpenRouter API key. Go to Settings > API Keys to configure it.');
+            return;
+        }
+
+        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4-5-20250514';
+
+        $mimeType = mime_content_type($path);
+        $base64   = base64_encode(file_get_contents($path));
+        $dataUri  = "data:{$mimeType};base64,{$base64}";
+
+        $prompt = <<<'PROMPT'
+Extract all ingredient/item data from this PDF document. This could be a supplier product list, inventory sheet, price list, ingredient master list, or any document containing food & beverage items.
+
+Return a JSON object with this structure:
+{
+  "items": [
+    {
+      "name": "item name as printed",
+      "code": "item code/SKU or null",
+      "category": "category if shown or null",
+      "base_uom": "unit of measure (kg, g, L, ml, pcs, box, ctn, bottle, etc.) or null",
+      "recipe_uom": "recipe unit if different from base_uom, or null",
+      "purchase_price": 0.00,
+      "pack_size": 1,
+      "yield_percent": 100,
+      "is_active": "yes",
+      "supplier": "supplier name if shown or null",
+      "type": "ingredient or prep"
+    }
+  ]
+}
+
+Rules:
+- Extract EVERY item/ingredient row from the document
+- Use numeric values for prices, pack_size, yield_percent
+- For type: classify as "prep" if the item is clearly a prepared/cooked item (sauce, stock, marinade, dressing, batter, dough, blend, puree, etc.), otherwise "ingredient"
+- If unit of measure is not shown, make your best guess based on the item name (e.g. liquids = L, meats = kg, small items = pcs)
+- If price is not shown, use 0
+- If a supplier name appears in the document header/title, include it for all items
+- Capture the data exactly as printed — do not modify item names
+PROMPT;
+
+        $previousTimeout = ini_get('max_execution_time');
+        set_time_limit(120);
+
+        try {
+            $response = Http::timeout(90)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type'  => 'application/json',
+                    'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                    'X-Title'       => config('app.name', 'Servora'),
+                ])
+                ->post('https://openrouter.ai/api/v1/chat/completions', [
+                    'model'      => $model,
+                    'max_tokens' => 8192,
+                    'messages'   => [
+                        ['role' => 'user', 'content' => [
+                            ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
+                            ['type' => 'text', 'text' => $prompt],
+                        ]],
+                    ],
+                    'response_format' => ['type' => 'json_object'],
+                ]);
+
+            set_time_limit((int) $previousTimeout ?: 60);
+
+            if (! $response->successful()) {
+                $body = $response->json();
+                $msg = $body['error']['message'] ?? ('HTTP ' . $response->status());
+                throw new \RuntimeException($msg);
+            }
+
+            $data    = $response->json();
+            $content = $data['choices'][0]['message']['content'] ?? '';
+            $result  = json_decode($content, true);
+
+            // Handle markdown-wrapped JSON
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                if (preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $content, $m)) {
+                    $result = json_decode(trim($m[1]), true);
+                }
+            }
+
+            if (! is_array($result) || empty($result['items'])) {
+                throw new \RuntimeException('AI could not extract any items from this PDF.');
+            }
+
+            // Convert AI output to the same format as CSV/XLSX parsing
+            $systemFieldKeys = array_keys(self::SYSTEM_FIELDS);
+            $this->fileHeaders  = $systemFieldKeys;
+            $this->fileDataRows = [];
+
+            foreach ($result['items'] as $item) {
+                $row = [];
+                foreach ($systemFieldKeys as $key) {
+                    $val = $item[$key] ?? '';
+                    $row[$key] = is_scalar($val) ? (string) $val : '';
+                }
+                $this->fileDataRows[] = $row;
+            }
+
+            // PDF extraction already maps columns perfectly — go straight to mapping with all fields pre-mapped
+            $this->columnMapping = [];
+            foreach ($systemFieldKeys as $key) {
+                $this->columnMapping[$key] = $key;
+            }
+
+            $this->aiMapped = true;
+            $this->step     = 'mapping';
+
+        } catch (\Throwable $e) {
+            set_time_limit((int) $previousTimeout ?: 60);
+            Log::error('PDF ingredient extraction failed: ' . $e->getMessage());
+            $this->addError('file', 'Failed to extract data from PDF: ' . $e->getMessage());
         }
     }
 

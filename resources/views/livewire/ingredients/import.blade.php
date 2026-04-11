@@ -40,7 +40,7 @@
             <p class="font-semibold">How to import</p>
             <ol class="list-decimal list-inside space-y-1 text-blue-700">
                 <li>Download the sample template below and fill in your ingredient data.</li>
-                <li>Upload any CSV or Excel (.xlsx) file — AI will automatically map your columns.</li>
+                <li>Upload any CSV, Excel (.xlsx), or PDF file — AI will automatically extract and map your data.</li>
                 <li>AI will also detect prep items (sauces, stocks, marinades, etc.) and create them as placeholders.</li>
                 <li>Review the column mapping, adjust if needed, then preview and confirm.</li>
             </ol>
@@ -100,7 +100,7 @@
 
                 <input type="file" x-ref="fileInput"
                        wire:model="file"
-                       accept=".csv,.xlsx,.txt"
+                       accept=".csv,.xlsx,.txt,.pdf"
                        class="hidden" />
 
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -112,7 +112,7 @@
                     <p class="text-xs text-gray-400 mt-0.5">{{ number_format($file->getSize() / 1024, 1) }} KB · Click or drop to change</p>
                 @else
                     <p class="text-sm font-medium text-gray-600">Click to browse or drag & drop</p>
-                    <p class="text-xs text-gray-400 mt-1">CSV or Excel (.xlsx) · max 10 MB</p>
+                    <p class="text-xs text-gray-400 mt-1">CSV, Excel (.xlsx), or PDF · max 10 MB</p>
                 @endif
             </div>
 
@@ -123,7 +123,13 @@
                     <button wire:click="processUpload" wire:loading.attr="disabled"
                             class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
                         <span wire:loading.remove wire:target="processUpload">Upload & Map Columns →</span>
-                        <span wire:loading wire:target="processUpload">Parsing file…</span>
+                        <span wire:loading wire:target="processUpload">
+                            @if ($file && strtolower($file->getClientOriginalExtension()) === 'pdf')
+                                Extracting with AI…
+                            @else
+                                Parsing file…
+                            @endif
+                        </span>
                     </button>
                 </div>
             @endif
