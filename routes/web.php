@@ -99,6 +99,7 @@ Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
 
 // Public video share (loginless, QR from printed SOP PDF)
 Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');
+Route::get('/v/{token}/data', [\App\Http\Controllers\VideoShareController::class, 'data'])->name('video.share.data');
 
 // CHIP-IN webhook (no auth, no CSRF)
 Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])

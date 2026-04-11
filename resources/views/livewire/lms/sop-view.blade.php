@@ -45,7 +45,10 @@
             </div>
             <div class="relative w-full" style="padding-bottom: 56.25%;">
                 <iframe src="{{ $embedUrl }}" class="absolute inset-0 w-full h-full"
-                        frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                        frameborder="0" allowfullscreen
+                        allow="autoplay; fullscreen; encrypted-media"
+                        referrerpolicy="no-referrer"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>
             </div>
         </div>
     @endif

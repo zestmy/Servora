@@ -33,14 +33,29 @@ class SopView extends Component
     {
         if (! $url) return null;
 
-        // YouTube — use privacy-enhanced embed (no cookies, no branding)
+        // YouTube — privacy-enhanced embed
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/', $url, $m)) {
-            return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?rel=0&modestbranding=1';
+            $params = http_build_query([
+                'rel'            => 0,
+                'modestbranding' => 1,
+                'controls'       => 1,
+                'iv_load_policy' => 3,
+                'disablekb'      => 1,
+                'playsinline'    => 1,
+            ]);
+            return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?' . $params;
         }
 
-        // Vimeo
+        // Vimeo — privacy-enhanced embed
         if (preg_match('/vimeo\.com\/(\d+)/', $url, $m)) {
-            return 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1';
+            $params = http_build_query([
+                'dnt'      => 1,
+                'title'    => 0,
+                'byline'   => 0,
+                'portrait' => 0,
+                'controls' => 1,
+            ]);
+            return 'https://player.vimeo.com/video/' . $m[1] . '?' . $params;
         }
 
         return null;
