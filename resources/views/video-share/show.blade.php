@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow">
     <title>{{ $recipe->name }} — {{ $company->brand_name ?? $company->name }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f0f; color: #fff; min-height: 100vh; display: flex; flex-direction: column; -webkit-user-select: none; user-select: none; }
-        .header { background: #1a1a2e; padding: 16px 20px; border-bottom: 1px solid #2a2a3e; }
+        .header { background: #1a1a2e; padding: 16px 20px; border-bottom: 1px solid #2a2a3e; transition: transform 0.3s; }
         .brand { font-size: 13px; color: #8b8ba7; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         .title { font-size: 18px; font-weight: 700; color: #fff; margin-top: 2px; }
-        .video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; transition: padding 0.3s; }
         .player-outer {
             position: relative;
             width: 100%; max-width: 960px;
@@ -20,9 +20,10 @@
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            transition: max-width 0.3s, border-radius 0.3s;
         }
-        #yt-player { width: 100%; height: 100%; }
-        /* Transparent overlay — blocks all YouTube UI interaction */
+        .player-outer iframe { width: 100%; height: 100%; border: 0; }
+        /* Overlay blocks all YouTube UI */
         .player-overlay {
             position: absolute; inset: 0; z-index: 10;
             cursor: pointer;
@@ -39,7 +40,7 @@
         .play-icon svg { width: 32px; height: 32px; fill: #fff; }
         .player-overlay:hover .play-icon,
         .player-overlay.show-icon .play-icon { opacity: 1; }
-        /* Progress bar at bottom */
+        /* Progress bar */
         .progress-bar {
             position: absolute; bottom: 0; left: 0; right: 0;
             height: 4px; background: rgba(255,255,255,0.15); z-index: 11;
@@ -48,7 +49,7 @@
         .progress-fill { height: 100%; background: #6366f1; width: 0%; transition: width 0.3s linear; }
         .progress-bar:hover { height: 6px; }
         .loading-msg { text-align: center; color: #666; padding: 60px 20px; font-size: 14px; }
-        .footer { padding: 12px 20px; text-align: center; font-size: 11px; color: #555; border-top: 1px solid #1a1a2e; }
+        .footer { padding: 12px 20px; text-align: center; font-size: 11px; color: #555; border-top: 1px solid #1a1a2e; transition: transform 0.3s; }
         /* Fullscreen button */
         .fs-btn {
             position: absolute; bottom: 12px; right: 12px; z-index: 12;
@@ -60,7 +61,26 @@
         .player-outer:hover .fs-btn { opacity: 0.8; }
         .fs-btn:hover { opacity: 1 !important; background: rgba(99,102,241,0.7); }
         .fs-btn svg { width: 18px; height: 18px; }
-        /* Vimeo fallback — regular iframe with overlay */
+
+        /* CSS-based fullscreen — works on all devices including iOS */
+        body.is-fullscreen { background: #000; }
+        body.is-fullscreen .header { transform: translateY(-100%); position: absolute; width: 100%; }
+        body.is-fullscreen .footer { transform: translateY(100%); position: absolute; bottom: 0; width: 100%; }
+        body.is-fullscreen .video-wrap { padding: 0; position: fixed; inset: 0; z-index: 100; }
+        body.is-fullscreen .player-outer { max-width: none; border-radius: 0; box-shadow: none; width: 100%; height: 100%; aspect-ratio: auto; }
+        body.is-fullscreen .player-outer iframe { position: absolute; inset: 0; }
+        /* Close button in fullscreen */
+        .fs-close {
+            display: none;
+            position: absolute; top: 12px; right: 12px; z-index: 15;
+            background: rgba(0,0,0,0.6); border: none; color: #fff;
+            width: 40px; height: 40px; border-radius: 50%;
+            cursor: pointer; align-items: center; justify-content: center;
+            font-size: 20px; line-height: 1;
+        }
+        body.is-fullscreen .fs-close { display: flex; }
+        body.is-fullscreen .fs-btn { display: none; }
+
         .vimeo-frame { width: 100%; height: 100%; border: 0; }
     </style>
 </head>
@@ -87,6 +107,7 @@
         var ytPlayer = null;
         var isPlaying = false;
         var progressInterval = null;
+        var isFs = false;
 
         fetch('{{ route("video.share.data", $token) }}')
             .then(function(r) { return r.json(); })
@@ -95,24 +116,18 @@
                     loadingMsg.textContent = 'Video not available.';
                     return;
                 }
-
-                if (data.type === 'youtube') {
-                    initYouTube(data.id);
-                } else if (data.type === 'vimeo') {
-                    initVimeo(data.id);
-                }
+                if (data.type === 'youtube') initYouTube(data.id);
+                else if (data.type === 'vimeo') initVimeo(data.id);
             })
             .catch(function() {
                 loadingMsg.textContent = 'Failed to load video.';
             });
 
         function initYouTube(videoId) {
-            // Load YouTube IFrame API
             var tag = document.createElement('script');
             tag.src = 'https://www.youtube.com/iframe_api';
             document.head.appendChild(tag);
 
-            // Create the target div before API loads
             loadingMsg.remove();
             var el = document.createElement('div');
             el.id = 'yt-player-el';
@@ -131,20 +146,12 @@
                         disablekb: 1,
                         playsinline: 1,
                         showinfo: 0,
-                        fs: 1,
+                        fs: 0,
                         cc_load_policy: 0,
                         origin: window.location.origin
                     },
                     events: {
-                        onReady: function(e) {
-                            // Ensure iframe has allowfullscreen for our custom fullscreen button
-                            var iframe = e.target.getIframe();
-                            if (iframe) {
-                                iframe.setAttribute('allowfullscreen', '');
-                                iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
-                            }
-                            addControls();
-                        },
+                        onReady: function() { addControls(); },
                         onStateChange: function(e) {
                             isPlaying = (e.data === YT.PlayerState.PLAYING);
                             updateIcon();
@@ -157,8 +164,6 @@
 
         function initVimeo(videoId) {
             loadingMsg.remove();
-
-            // Vimeo — use iframe with overlay (no JS API needed)
             var iframe = document.createElement('iframe');
             iframe.className = 'vimeo-frame';
             iframe.src = 'https://player.vimeo.com/video/' + videoId + '?dnt=1&title=0&byline=0&portrait=0&controls=0&autoplay=0';
@@ -166,47 +171,44 @@
             iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
             outer.insertBefore(iframe, outer.firstChild);
 
-            // Simple overlay — click to message (Vimeo API requires SDK for control)
             var overlay = document.createElement('div');
             overlay.className = 'player-overlay';
             overlay.innerHTML = '<div class="play-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>';
             overlay.addEventListener('click', function() {
-                // Remove overlay to let user interact with Vimeo controls
                 iframe.src = iframe.src.replace('controls=0', 'controls=1').replace('autoplay=0', 'autoplay=1');
                 overlay.remove();
             });
             outer.appendChild(overlay);
             addFullscreenBtn();
+            addCloseBtn();
         }
 
         function addControls() {
-            // Overlay for play/pause
             var overlay = document.createElement('div');
             overlay.className = 'player-overlay';
             overlay.id = 'overlay';
             overlay.innerHTML = '<div class="play-icon" id="play-icon"><svg id="play-svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>';
 
-            var clickTimeout = null;
             overlay.addEventListener('click', function(e) {
                 e.preventDefault();
-                if (clickTimeout) { clearTimeout(clickTimeout); clickTimeout = null; toggleFullscreen(); return; }
-                clickTimeout = setTimeout(function() { clickTimeout = null; togglePlay(); }, 250);
+                togglePlay();
             });
             outer.appendChild(overlay);
 
-            // Progress bar
             var bar = document.createElement('div');
             bar.className = 'progress-bar';
             bar.innerHTML = '<div class="progress-fill" id="progress-fill"></div>';
             bar.addEventListener('click', function(e) {
                 e.stopPropagation();
                 if (!ytPlayer) return;
-                var pct = e.offsetX / bar.offsetWidth;
+                var rect = bar.getBoundingClientRect();
+                var pct = (e.clientX - rect.left) / rect.width;
                 ytPlayer.seekTo(ytPlayer.getDuration() * pct, true);
             });
             outer.appendChild(bar);
 
             addFullscreenBtn();
+            addCloseBtn();
         }
 
         function addFullscreenBtn() {
@@ -217,21 +219,26 @@
             outer.appendChild(btn);
         }
 
+        function addCloseBtn() {
+            var btn = document.createElement('button');
+            btn.className = 'fs-close';
+            btn.innerHTML = '&#10005;';
+            btn.addEventListener('click', function(e) { e.stopPropagation(); toggleFullscreen(); });
+            outer.appendChild(btn);
+        }
+
         function togglePlay() {
             if (!ytPlayer) return;
-            if (isPlaying) { ytPlayer.pauseVideo(); } else { ytPlayer.playVideo(); }
+            if (isPlaying) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
         }
 
         function updateIcon() {
             var icon = document.getElementById('play-icon');
             var svg = document.getElementById('play-svg');
             if (!icon || !svg) return;
-            if (isPlaying) {
-                svg.innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
-            } else {
-                svg.innerHTML = '<path d="M8 5v14l11-7z"/>';
-            }
-            // Flash icon briefly
+            svg.innerHTML = isPlaying
+                ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>'
+                : '<path d="M8 5v14l11-7z"/>';
             var overlay = document.getElementById('overlay');
             if (overlay) {
                 overlay.classList.add('show-icon');
@@ -253,43 +260,15 @@
             if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
         }
 
-        function goFullscreen(el) {
-            if (el.requestFullscreen) return el.requestFullscreen();
-            if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-            if (el.webkitEnterFullscreen) return el.webkitEnterFullscreen(); // iOS video
-            if (el.msRequestFullscreen) return el.msRequestFullscreen();
-            return Promise.reject();
-        }
-
-        function exitFullscreen() {
-            if (document.exitFullscreen) return document.exitFullscreen();
-            if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
-            if (document.msExitFullscreen) return document.msExitFullscreen();
-        }
-
         function toggleFullscreen() {
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
-                exitFullscreen();
-                return;
+            isFs = !isFs;
+            document.body.classList.toggle('is-fullscreen', isFs);
+            // Lock orientation to landscape on mobile if available
+            if (isFs && screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(function(){});
+            } else if (!isFs && screen.orientation && screen.orientation.unlock) {
+                screen.orientation.unlock();
             }
-
-            var iframe = ytPlayer ? ytPlayer.getIframe() : outer.querySelector('iframe');
-
-            // Try iframe → outer → video-wrap → body, first one that works
-            var targets = [iframe, outer, document.querySelector('.video-wrap')].filter(Boolean);
-
-            function tryNext(i) {
-                if (i >= targets.length) return;
-                try {
-                    var result = goFullscreen(targets[i]);
-                    if (result && result.catch) {
-                        result.catch(function() { tryNext(i + 1); });
-                    }
-                } catch(e) {
-                    tryNext(i + 1);
-                }
-            }
-            tryNext(0);
         }
     })();
     </script>
