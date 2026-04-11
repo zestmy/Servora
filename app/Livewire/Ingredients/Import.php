@@ -526,12 +526,14 @@ PROMPT;
             }
 
             // Type (prep or ingredient)
+            // Items with a supplier are always ingredients — they're purchased, not made in-house
+            $hasSupplier = $supplierId || $supplierIsNew;
             $isPrep = false;
             if ($hasTypeColumn) {
                 $typeRaw = strtolower($getValue('type'));
                 $isPrep = in_array($typeRaw, ['prep', 'prep item', 'prep_item', 'prepared', 'recipe']);
-            } else {
-                // Collect name for AI detection later
+            } elseif (! $hasSupplier) {
+                // Only run AI detection for items without a supplier
                 if ($name) {
                     $namesForAi[$i] = $name;
                 }
@@ -591,17 +593,21 @@ PROMPT;
 
         $prompt = "You are classifying food & beverage items for a restaurant management system.\n\n"
             . "Classify each item as either \"ingredient\" (raw purchased item) or \"prep\" (prepared/cooked item made in-house from other ingredients).\n\n"
-            . "PREP items are things like: sauces, stocks, broths, marinades, dressings, batters, doughs, "
-            . "compound butters, spice mixes/blends, pre-cut/portioned items, blanched vegetables, "
-            . "pastry creams, ganache, simple syrup, infused oils, house-made pastes, rubs, glazes, "
-            . "pre-cooked proteins, soup bases, purees, coulis, croutons, breadcrumbs (house-made), "
-            . "pickled items, fermented items, cured items.\n\n"
-            . "INGREDIENT items are things like: raw meat, fresh vegetables, fruits, dairy products, "
-            . "eggs, flour, sugar, salt, oil, vinegar, canned goods, dried goods, spices (individual), "
-            . "condiments (store-bought), beverages, packaging materials, cleaning supplies.\n\n"
+            . "PREP items are ONLY items that are clearly made in-house by combining other ingredients. Examples: "
+            . "house-made sauces, stocks, broths, marinades, dressings, batters, doughs, compound butters, "
+            . "house-made spice blends, pastry creams, ganache, house-made simple syrup.\n\n"
+            . "INGREDIENT items are everything that can be purchased from a supplier. This includes:\n"
+            . "- Raw items: meat, vegetables, fruits, dairy, eggs, flour, sugar, salt\n"
+            . "- Store-bought sauces and condiments (soy sauce, ketchup, mayo, oyster sauce, chili sauce, etc.)\n"
+            . "- Canned/bottled goods (canned tomatoes, coconut milk, cooking cream, etc.)\n"
+            . "- Oils, vinegars, beverages, spices, dried goods\n"
+            . "- Packaging materials, cleaning supplies\n"
+            . "- ANY item that comes in commercial packaging (bottles, cans, packets, tins, pails, bags)\n\n"
+            . "IMPORTANT: Be very conservative. Most items in a supplier list are ingredients, NOT prep items. "
+            . "If an item could be either purchased or made in-house, classify it as INGREDIENT.\n\n"
             . "Items to classify:\n{$namesList}\n"
             . "Return a JSON object with a single key \"prep_indices\" containing an array of 1-based item numbers that are PREP items. "
-            . "Only include items you are fairly confident are prep items. When in doubt, classify as ingredient.\n"
+            . "Only include items you are VERY confident are made in-house. When in doubt, always classify as ingredient.\n"
             . "Example: {\"prep_indices\": [2, 5, 8]}";
 
         try {
