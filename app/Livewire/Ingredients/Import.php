@@ -211,16 +211,28 @@ PROMPT;
             $data    = $response->json();
             $content = $data['choices'][0]['message']['content'] ?? '';
 
-            Log::info('PDF extraction raw response', ['content' => mb_substr($content, 0, 2000)]);
+            Log::info('PDF extraction raw response', ['length' => strlen($content), 'first100' => mb_substr($content, 0, 100)]);
 
-            $result = json_decode($content, true);
-
-            // Handle markdown-wrapped JSON
-            if (! is_array($result)) {
-                if (preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $content, $m)) {
-                    $result = json_decode(trim($m[1]), true);
-                }
+            // Clean up content before JSON decode
+            $cleaned = trim($content);
+            // Remove BOM
+            $cleaned = preg_replace('/^\xEF\xBB\xBF/', '', $cleaned);
+            // Strip markdown code fences if present
+            if (preg_match('/```(?:json)?\s*\n(.*)\n\s*```/s', $cleaned, $m)) {
+                $cleaned = trim($m[1]);
             }
+            // Extract JSON object if surrounded by other text
+            if (! str_starts_with($cleaned, '{') && preg_match('/(\{[\s\S]*\})\s*$/', $cleaned, $m)) {
+                $cleaned = $m[1];
+            }
+
+            $result = json_decode($cleaned, true);
+
+            Log::info('PDF extraction decode result', [
+                'is_array' => is_array($result),
+                'json_error' => json_last_error_msg(),
+                'keys' => is_array($result) ? array_keys($result) : null,
+            ]);
 
             // Try to find the items array — AI might use different keys
             $items = null;
