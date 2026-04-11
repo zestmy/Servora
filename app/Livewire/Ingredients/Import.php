@@ -189,7 +189,7 @@ PROMPT;
                 ])
                 ->post('https://openrouter.ai/api/v1/chat/completions', [
                     'model'      => $model,
-                    'max_tokens' => 65536,
+                    'max_tokens' => 16384,
                     'messages'   => [
                         ['role' => 'user', 'content' => [
                             ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
