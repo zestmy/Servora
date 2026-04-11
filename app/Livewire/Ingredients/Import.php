@@ -213,37 +213,10 @@ PROMPT;
 
             Log::info('PDF extraction raw response', ['length' => strlen($content), 'first100' => mb_substr($content, 0, 100)]);
 
-            // Clean up content before JSON decode
-            $cleaned = trim($content);
-            // Remove BOM
-            $cleaned = preg_replace('/^\xEF\xBB\xBF/', '', $cleaned);
-            // Strip markdown code fences if present
-            if (preg_match('/```(?:json)?\s*\n(.*)\n\s*```/s', $cleaned, $m)) {
-                $cleaned = trim($m[1]);
-            }
-            // Extract JSON object if surrounded by other text
-            if (! str_starts_with($cleaned, '{') && preg_match('/(\{[\s\S]*\})\s*$/', $cleaned, $m)) {
-                $cleaned = $m[1];
-            }
-            // Fix control characters that break json_decode — replace literal
-            // newlines/tabs inside JSON string values with escaped versions
-            // First try decoding as-is, then with flags, then sanitized
-            $result = json_decode($cleaned, true);
-            if (! is_array($result)) {
-                $result = json_decode($cleaned, true, 512, JSON_INVALID_UTF8_IGNORE);
-            }
-            if (! is_array($result)) {
-                // Remove all control characters except inside strings
-                // by replacing unescaped control chars with spaces
-                $sanitized = preg_replace('/[\x00-\x1F\x7F]/', ' ', $cleaned);
-                // Collapse multiple spaces
-                $sanitized = preg_replace('/  +/', ' ', $sanitized);
-                $result = json_decode($sanitized, true);
-            }
+            $result = $this->robustJsonDecode($content);
 
             Log::info('PDF extraction decode result', [
                 'is_array' => is_array($result),
-                'json_error' => json_last_error_msg(),
                 'keys' => is_array($result) ? array_keys($result) : null,
             ]);
 
@@ -948,5 +921,93 @@ PROMPT;
     private function parseBool(string $val): bool
     {
         return in_array(strtolower(trim($val)), ['yes', '1', 'true', 'active', 'y']);
+    }
+
+    /**
+     * Robustly decode JSON from AI responses that may contain control characters,
+     * BOM, markdown fences, or other artifacts.
+     */
+    private function robustJsonDecode(string $raw): ?array
+    {
+        $content = trim($raw);
+
+        // Remove BOM
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+
+        // Strip markdown code fences
+        if (preg_match('/```(?:json)?\s*\n(.*)\n\s*```/s', $content, $m)) {
+            $content = trim($m[1]);
+        }
+
+        // Extract JSON object if surrounded by other text
+        if (! str_starts_with($content, '{') && ! str_starts_with($content, '[')) {
+            if (preg_match('/(\{[\s\S]*\})\s*$/', $content, $m)) {
+                $content = $m[1];
+            }
+        }
+
+        // Attempt 1: direct decode
+        $result = json_decode($content, true);
+        if (is_array($result)) return $result;
+
+        // Attempt 2: escape control characters inside JSON string values
+        // Walk through the string character by character, tracking whether
+        // we're inside a quoted string, and escape control chars within strings.
+        $fixed = '';
+        $inString = false;
+        $escaped = false;
+        $len = strlen($content);
+
+        for ($i = 0; $i < $len; $i++) {
+            $ch = $content[$i];
+            $ord = ord($ch);
+
+            if ($escaped) {
+                $fixed .= $ch;
+                $escaped = false;
+                continue;
+            }
+
+            if ($ch === '\\' && $inString) {
+                $fixed .= $ch;
+                $escaped = true;
+                continue;
+            }
+
+            if ($ch === '"') {
+                $inString = ! $inString;
+                $fixed .= $ch;
+                continue;
+            }
+
+            if ($inString && $ord < 0x20) {
+                // Replace control chars inside strings with their escaped form
+                $fixed .= match ($ord) {
+                    0x0A => '\\n',
+                    0x0D => '\\r',
+                    0x09 => '\\t',
+                    default => '',
+                };
+                continue;
+            }
+
+            $fixed .= $ch;
+        }
+
+        $result = json_decode($fixed, true);
+        if (is_array($result)) return $result;
+
+        // Attempt 3: nuclear option — strip all control chars
+        $stripped = preg_replace('/[\x00-\x1F\x7F]+/', ' ', $content);
+        $result = json_decode($stripped, true);
+        if (is_array($result)) return $result;
+
+        Log::error('robustJsonDecode: all attempts failed', [
+            'json_error' => json_last_error_msg(),
+            'first200' => mb_substr($content, 0, 200),
+            'last200' => mb_substr($content, -200),
+        ]);
+
+        return null;
     }
 }
