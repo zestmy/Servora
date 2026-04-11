@@ -4,7 +4,6 @@ namespace App\Livewire\Inventory;
 
 use App\Models\Department;
 use App\Models\Ingredient;
-use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
@@ -25,7 +24,6 @@ class PrepItemForm extends Component
     public string $yield_quantity         = '1';
     public ?int   $yield_uom_id           = null;
     public bool   $is_active              = true;
-    public ?int   $ingredient_category_id = null;
     public ?int   $department_id          = null;
 
     // Recipe lines: [ingredient_id, ingredient_name, quantity, uom_id, uom_name, waste_percentage]
@@ -74,8 +72,6 @@ class PrepItemForm extends Component
         $this->yield_quantity         = $this->fmt($recipe->yield_quantity);
         $this->yield_uom_id           = $recipe->yield_uom_id;
         $this->is_active              = $recipe->is_active;
-        $this->ingredient_category_id = $recipe->ingredient?->ingredient_category_id
-                                        ?? $recipe->ingredient_category_id;
         $this->department_id          = $recipe->department_id;
 
         $this->lines = $recipe->lines->map(fn ($l) => [
@@ -140,7 +136,6 @@ class PrepItemForm extends Component
                 'cost_per_yield_unit'    => round($costPerYieldUnit, 4),
                 'is_active'              => $this->is_active,
                 'is_prep'                => true,
-                'ingredient_category_id' => $this->ingredient_category_id,
                 'department_id'          => $this->department_id,
             ];
 
@@ -177,7 +172,6 @@ class PrepItemForm extends Component
                 'is_active'              => $this->is_active,
                 'is_prep'                => true,
                 'prep_recipe_id'         => $recipe->id,
-                'ingredient_category_id' => $this->ingredient_category_id,
             ];
 
             if ($this->ingredientId) {
@@ -198,7 +192,6 @@ class PrepItemForm extends Component
     {
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
-        $categories = IngredientCategory::roots()->active()->ordered()->get();
         $departments = Department::active()->ordered()->get();
 
         $searchResults = collect();
@@ -225,7 +218,7 @@ class PrepItemForm extends Component
         $pageTitle = $this->recipeId ? 'Edit: ' . ($this->name ?: 'Prep Item') : 'New Prep Item';
 
         return view('livewire.inventory.prep-item-form', compact(
-            'uoms', 'categories', 'departments', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
+            'uoms', 'departments', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
