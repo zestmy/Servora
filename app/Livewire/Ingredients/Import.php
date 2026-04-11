@@ -487,60 +487,124 @@ PROMPT;
         $this->step = 'preview';
     }
 
+    private const UOM_ALIASES = [
+        'liter' => 'l', 'litre' => 'l', 'lit' => 'l', 'ltr' => 'l',
+        'milliliter' => 'ml', 'millilitre' => 'ml', 'milli liter' => 'ml',
+        'gram' => 'g', 'gm' => 'g', 'grm' => 'g', 'gms' => 'g', 'grams' => 'g',
+        'kilogram' => 'kg', 'kilo' => 'kg', 'kilos' => 'kg', 'kgs' => 'kg',
+        'milligram' => 'mg', 'milligrams' => 'mg',
+        'piece' => 'pcs', 'pieces' => 'pcs', 'pc' => 'pcs', 'each' => 'pcs', 'ea' => 'pcs', 'unit' => 'pcs', 'units' => 'pcs',
+        'dozen' => 'doz', 'dozens' => 'doz',
+        'carton' => 'ctn', 'cartons' => 'ctn',
+        'packet' => 'pkt', 'packets' => 'pkt', 'sachet' => 'pkt',
+        'bottle' => 'bottle', 'bottles' => 'bottle', 'btl' => 'bottle',
+        'can' => 'tin', 'cans' => 'tin', 'tins' => 'tin',
+        'bags' => 'bag', 'sack' => 'bag',
+        'pails' => 'pail', 'bucket' => 'pail',
+        'boxes' => 'box', 'bx' => 'box',
+        'tray' => 'tray', 'trays' => 'tray',
+        'pack' => 'pack', 'packs' => 'pack', 'pk' => 'pack',
+        'ounce' => 'oz', 'ounces' => 'oz',
+        'pound' => 'lb', 'pounds' => 'lb', 'lbs' => 'lb',
+        'gallon' => 'gal', 'gallons' => 'gal',
+        'fluid ounce' => 'fl oz', 'fl. oz' => 'fl oz', 'fl.oz' => 'fl oz',
+        'meter' => 'm', 'meters' => 'm', 'metre' => 'm',
+        'centimeter' => 'cm', 'centimeters' => 'cm', 'centimetre' => 'cm',
+        'lots' => 'lot',
+    ];
+
+    // Conversion multipliers to the smallest unit (for pack_size calculation)
+    private const UOM_CONVERSIONS = [
+        'l' => ['to' => 'ml', 'factor' => 1000],
+        'lit' => ['to' => 'ml', 'factor' => 1000],
+        'liter' => ['to' => 'ml', 'factor' => 1000],
+        'litre' => ['to' => 'ml', 'factor' => 1000],
+        'ltr' => ['to' => 'ml', 'factor' => 1000],
+        'kg' => ['to' => 'g', 'factor' => 1000],
+        'kilo' => ['to' => 'g', 'factor' => 1000],
+        'kilogram' => ['to' => 'g', 'factor' => 1000],
+    ];
+
     /**
-     * Resolve a UOM string to an ID, handling common aliases and formats.
+     * Resolve a UOM string to an ID.
+     * Handles: plain UOM, aliases, parenthetical "G (Gram)", and quantity+UOM "1000 ML".
+     * Returns [uom_id, extracted_pack_size] — pack_size is null if no quantity was found.
      */
-    private function resolveUom(string $raw, $uomsByAbbr, $uomsByName): ?int
+    private function resolveUomWithQty(string $raw, $uomsByAbbr, $uomsByName): array
     {
-        if (! $raw) return null;
+        if (! $raw) return [null, null];
 
         $key = strtolower(trim($raw));
 
-        // Direct match by abbreviation or name
-        if (isset($uomsByAbbr[$key])) return $uomsByAbbr[$key];
-        if (isset($uomsByName[$key])) return $uomsByName[$key];
+        // Try direct match first
+        $id = $this->matchUom($key, $uomsByAbbr, $uomsByName);
+        if ($id) return [$id, null];
 
         // Strip parenthetical like "G (Gram)" → try "g"
         $stripped = preg_replace('/\s*\(.*\)/', '', $key);
         $stripped = trim($stripped);
-        if ($stripped && isset($uomsByAbbr[$stripped])) return $uomsByAbbr[$stripped];
-        if ($stripped && isset($uomsByName[$stripped])) return $uomsByName[$stripped];
-
-        // Common aliases
-        $aliases = [
-            'liter' => 'l', 'litre' => 'l', 'lit' => 'l', 'ltr' => 'l',
-            'milliliter' => 'ml', 'millilitre' => 'ml', 'milli liter' => 'ml',
-            'gram' => 'g', 'gm' => 'g', 'grm' => 'g', 'gms' => 'g', 'grams' => 'g',
-            'kilogram' => 'kg', 'kilo' => 'kg', 'kilos' => 'kg', 'kgs' => 'kg',
-            'milligram' => 'mg', 'milligrams' => 'mg',
-            'piece' => 'pcs', 'pieces' => 'pcs', 'pc' => 'pcs', 'each' => 'pcs', 'ea' => 'pcs', 'unit' => 'pcs', 'units' => 'pcs',
-            'dozen' => 'doz', 'dozens' => 'doz',
-            'carton' => 'ctn', 'cartons' => 'ctn',
-            'packet' => 'pkt', 'packets' => 'pkt', 'sachet' => 'pkt',
-            'bottle' => 'bottle', 'bottles' => 'bottle', 'btl' => 'bottle',
-            'can' => 'tin', 'cans' => 'tin', 'tins' => 'tin',
-            'bags' => 'bag', 'sack' => 'bag',
-            'pails' => 'pail', 'bucket' => 'pail',
-            'boxes' => 'box', 'bx' => 'box',
-            'tray' => 'tray', 'trays' => 'tray',
-            'pack' => 'pack', 'packs' => 'pack', 'pk' => 'pack',
-            'ounce' => 'oz', 'ounces' => 'oz',
-            'pound' => 'lb', 'pounds' => 'lb', 'lbs' => 'lb',
-            'gallon' => 'gal', 'gallons' => 'gal',
-            'fluid ounce' => 'fl oz', 'fl. oz' => 'fl oz', 'fl.oz' => 'fl oz',
-            'meter' => 'm', 'meters' => 'm', 'metre' => 'm',
-            'centimeter' => 'cm', 'centimeters' => 'cm', 'centimetre' => 'cm',
-            'lots' => 'lot',
-        ];
-
-        if (isset($aliases[$key]) && isset($uomsByAbbr[$aliases[$key]])) {
-            return $uomsByAbbr[$aliases[$key]];
+        if ($stripped !== $key) {
+            $id = $this->matchUom($stripped, $uomsByAbbr, $uomsByName);
+            if ($id) return [$id, null];
         }
-        if (isset($aliases[$stripped]) && isset($uomsByAbbr[$aliases[$stripped]])) {
-            return $uomsByAbbr[$aliases[$stripped]];
+
+        // Try to extract quantity + UOM from strings like "1000 ML", "1.5 L", "250 G", "1 LIT"
+        if (preg_match('/^([\d.,]+)\s*([a-zA-Z]+.*)$/', trim($raw), $m)) {
+            $qty     = (float) str_replace(',', '', $m[1]);
+            $uomPart = strtolower(trim($m[2]));
+
+            $id = $this->matchUom($uomPart, $uomsByAbbr, $uomsByName);
+            if ($id) {
+                return [$id, $qty]; // e.g. "1000 ML" → ml ID, pack_size=1000
+            }
+
+            // Check if UOM has a conversion (e.g. "1 LIT" → resolve to ml, pack_size = 1*1000)
+            $resolvedAlias = self::UOM_ALIASES[$uomPart] ?? $uomPart;
+            if (isset(self::UOM_CONVERSIONS[$uomPart]) || isset(self::UOM_CONVERSIONS[$resolvedAlias])) {
+                $conv = self::UOM_CONVERSIONS[$uomPart] ?? self::UOM_CONVERSIONS[$resolvedAlias] ?? null;
+                if ($conv) {
+                    $targetId = $uomsByAbbr[$conv['to']] ?? null;
+                    if ($targetId) {
+                        return [$targetId, $qty * $conv['factor']]; // e.g. "1 LIT" → ml, 1000
+                    }
+                }
+            }
+
+            // Try the UOM part through aliases even if no conversion
+            $aliasAbbr = self::UOM_ALIASES[$uomPart] ?? null;
+            if ($aliasAbbr && isset($uomsByAbbr[$aliasAbbr])) {
+                return [$uomsByAbbr[$aliasAbbr], $qty];
+            }
         }
+
+        return [null, null];
+    }
+
+    /**
+     * Match a UOM key against abbreviation map, name map, and aliases.
+     */
+    private function matchUom(string $key, $uomsByAbbr, $uomsByName): ?int
+    {
+        if (isset($uomsByAbbr[$key])) return $uomsByAbbr[$key];
+        if (isset($uomsByName[$key])) return $uomsByName[$key];
+
+        $alias = self::UOM_ALIASES[$key] ?? null;
+        if ($alias && isset($uomsByAbbr[$alias])) return $uomsByAbbr[$alias];
 
         return null;
+    }
+
+    /**
+     * Parse a numeric string, stripping currency symbols, commas, and whitespace.
+     */
+    private function parseNumber(string $raw, float $default = 0.0): float
+    {
+        if (! $raw) return $default;
+
+        // Strip currency symbols (RM, $, €, £), commas, spaces
+        $cleaned = preg_replace('/[^\d.\-]/', '', str_replace(',', '', $raw));
+
+        return is_numeric($cleaned) ? (float) $cleaned : $default;
     }
 
     private function buildPreview(): void
@@ -581,24 +645,25 @@ PROMPT;
                 $rowErrors[] = 'Name is required';
             }
 
-            // Base UOM
+            // Base UOM (with quantity extraction)
             $baseUomRaw = $getValue('base_uom');
-            $baseUomId  = $this->resolveUom($baseUomRaw, $uomsByAbbr, $uomsByName);
+            [$baseUomId, $baseExtractedQty] = $this->resolveUomWithQty($baseUomRaw, $uomsByAbbr, $uomsByName);
             $baseUomNeedsfix = false;
             if (! $baseUomId && $baseUomRaw) {
-                $baseUomNeedsfix = true; // user can fix via dropdown
+                $baseUomNeedsfix = true;
             } elseif (! $baseUomId) {
                 $rowErrors[] = 'Base UOM is required';
             }
 
-            // Recipe UOM (defaults to base UOM)
+            // Recipe UOM (with quantity extraction, defaults to base UOM)
             $recipeUomRaw = $getValue('recipe_uom');
             $recipeUomId  = null;
+            $recipeExtractedQty = null;
             $recipeUomNeedsfix = false;
             if ($recipeUomRaw) {
-                $recipeUomId = $this->resolveUom($recipeUomRaw, $uomsByAbbr, $uomsByName);
+                [$recipeUomId, $recipeExtractedQty] = $this->resolveUomWithQty($recipeUomRaw, $uomsByAbbr, $uomsByName);
                 if (! $recipeUomId) {
-                    $recipeUomNeedsfix = true; // user can fix via dropdown
+                    $recipeUomNeedsfix = true;
                 }
             }
             $recipeUomId = $recipeUomId ?? $baseUomId;
@@ -611,12 +676,17 @@ PROMPT;
                 $rowErrors[] = 'Category "' . $catRaw . '" not found';
             }
 
-            // Numeric fields
-            $ppRaw = $getValue('purchase_price');
-            $purchasePrice = is_numeric($ppRaw) ? max(0, (float) $ppRaw) : 0.0;
+            // Numeric fields — use parseNumber to handle currency symbols, commas
+            $purchasePrice = $this->parseNumber($getValue('purchase_price'));
 
             $psRaw = $getValue('pack_size');
-            $packSize = is_numeric($psRaw) ? max(0, (float) $psRaw) : 0;
+            $packSize = $this->parseNumber($psRaw);
+            // If pack_size wasn't explicitly provided, use extracted qty from UOM field
+            if ($packSize <= 0 && $recipeExtractedQty) {
+                $packSize = $recipeExtractedQty;
+            } elseif ($packSize <= 0 && $baseExtractedQty) {
+                $packSize = $baseExtractedQty;
+            }
 
             $ypRaw = $getValue('yield_percent');
             $yieldPercent = is_numeric($ypRaw) ? min(100, max(0.01, (float) $ypRaw)) : 100.0;
