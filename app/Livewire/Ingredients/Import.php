@@ -189,7 +189,7 @@ PROMPT;
                 ])
                 ->post('https://openrouter.ai/api/v1/chat/completions', [
                     'model'      => $model,
-                    'max_tokens' => 8192,
+                    'max_tokens' => 65536,
                     'messages'   => [
                         ['role' => 'user', 'content' => [
                             ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
@@ -1002,6 +1002,19 @@ PROMPT;
         $result = json_decode($stripped, true);
         if (is_array($result)) return $result;
 
+        // Attempt 4: repair truncated JSON — AI may have hit token limit
+        // Try on both $fixed and $stripped versions
+        foreach ([$fixed, $stripped] as $candidate) {
+            $repaired = $this->repairTruncatedJson($candidate);
+            if ($repaired) {
+                $result = json_decode($repaired, true);
+                if (is_array($result)) {
+                    Log::info('robustJsonDecode: repaired truncated JSON');
+                    return $result;
+                }
+            }
+        }
+
         Log::error('robustJsonDecode: all attempts failed', [
             'json_error' => json_last_error_msg(),
             'first200' => mb_substr($content, 0, 200),
@@ -1009,5 +1022,40 @@ PROMPT;
         ]);
 
         return null;
+    }
+
+    /**
+     * Attempt to repair truncated JSON by closing open brackets/braces.
+     * Works for JSON that was cut off mid-way (e.g. AI hit max_tokens).
+     */
+    private function repairTruncatedJson(string $json): ?string
+    {
+        // Find the last complete item — look for the last "}," or "}" before truncation
+        // Strategy: progressively trim from the end and try to close the structure
+
+        // First, if we're in the middle of a string, close it
+        $trimmed = $json;
+
+        // Remove any trailing incomplete object/value
+        // Find last complete object boundary: "}, {" or "}" followed by "]"
+        $lastComplete = strrpos($trimmed, '},');
+        if ($lastComplete === false) {
+            $lastComplete = strrpos($trimmed, '}]');
+        }
+
+        if ($lastComplete === false) return null;
+
+        // Cut at the last complete item
+        $trimmed = substr($trimmed, 0, $lastComplete + 1);
+
+        // Count open brackets/braces and close them
+        $openBraces = substr_count($trimmed, '{') - substr_count($trimmed, '}');
+        $openBrackets = substr_count($trimmed, '[') - substr_count($trimmed, ']');
+
+        // Close open brackets/braces
+        $trimmed .= str_repeat(']', max(0, $openBrackets));
+        $trimmed .= str_repeat('}', max(0, $openBraces));
+
+        return $trimmed;
     }
 }
