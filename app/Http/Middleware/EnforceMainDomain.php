@@ -56,7 +56,7 @@ class EnforceMainDomain
         // Valid company subdomain — only allow /lms/* paths
         $path = $request->getPathInfo();
 
-        if (str_starts_with($path, '/lms')) {
+        if (str_starts_with($path, '/lms') || str_starts_with($path, '/v/')) {
             return $next($request);
         }
 

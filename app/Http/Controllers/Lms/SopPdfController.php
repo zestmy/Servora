@@ -108,7 +108,16 @@ class SopPdfController extends Controller
     private function generateVideoQr(int $recipeId, int $companyId): ?string
     {
         $share = VideoShareToken::forRecipe($recipeId, $companyId);
-        return $this->generateQr(route('video.share', $share->token));
+
+        // Always use main domain for QR URL (not subdomain)
+        $domain = config('app.domain');
+        if ($domain) {
+            $url = 'https://' . $domain . '/v/' . $share->token;
+        } else {
+            $url = route('video.share', $share->token);
+        }
+
+        return $this->generateQr($url);
     }
 
     private function generateQr(?string $url): ?string
