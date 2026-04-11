@@ -112,9 +112,13 @@
             tag.src = 'https://www.youtube.com/iframe_api';
             document.head.appendChild(tag);
 
-            window.onYouTubeIframeAPIReady = function() {
-                loadingMsg.remove();
+            // Create the target div before API loads
+            loadingMsg.remove();
+            var el = document.createElement('div');
+            el.id = 'yt-player-el';
+            outer.appendChild(el);
 
+            window.onYouTubeIframeAPIReady = function() {
                 ytPlayer = new YT.Player('yt-player-el', {
                     width: '100%',
                     height: '100%',
@@ -122,12 +126,12 @@
                     playerVars: {
                         rel: 0,
                         modestbranding: 1,
-                        controls: 0,        // hide ALL YouTube controls
+                        controls: 0,
                         iv_load_policy: 3,
                         disablekb: 1,
                         playsinline: 1,
                         showinfo: 0,
-                        fs: 0,              // hide fullscreen button (we provide our own)
+                        fs: 0,
                         cc_load_policy: 0,
                         origin: window.location.origin
                     },
@@ -140,11 +144,6 @@
                         }
                     }
                 });
-
-                // Create the div for the player
-                var el = document.createElement('div');
-                el.id = 'yt-player-el';
-                outer.insertBefore(el, outer.firstChild);
             };
         }
 
