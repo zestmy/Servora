@@ -136,7 +136,15 @@
                         origin: window.location.origin
                     },
                     events: {
-                        onReady: function() { addControls(); },
+                        onReady: function(e) {
+                            // Ensure iframe has allowfullscreen for our custom fullscreen button
+                            var iframe = e.target.getIframe();
+                            if (iframe) {
+                                iframe.setAttribute('allowfullscreen', '');
+                                iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
+                            }
+                            addControls();
+                        },
                         onStateChange: function(e) {
                             isPlaying = (e.data === YT.PlayerState.PLAYING);
                             updateIcon();
