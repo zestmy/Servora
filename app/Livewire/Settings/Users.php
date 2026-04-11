@@ -267,10 +267,14 @@ class Users extends Component
         $currentUser = Auth::user();
         $isSuperAdmin = $currentUser->isSystemRole();
 
-        $query = User::with('outlets')->when($this->search, fn ($q) =>
-            $q->where('name', 'like', '%'.$this->search.'%')
-              ->orWhere('email', 'like', '%'.$this->search.'%')
-        );
+        $query = User::with(['outlets', 'company'])
+            ->addSelect(['*',
+                \Illuminate\Support\Facades\DB::raw('(SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id) as last_session_activity'),
+            ])
+            ->when($this->search, fn ($q) =>
+                $q->where('name', 'like', '%'.$this->search.'%')
+                  ->orWhere('email', 'like', '%'.$this->search.'%')
+            );
 
         if (! $isSuperAdmin) {
             $query->where('company_id', $currentUser->company_id);

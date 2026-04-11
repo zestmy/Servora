@@ -29,9 +29,12 @@
                 <tr>
                     <th class="px-5 py-3 text-left">Name</th>
                     <th class="px-5 py-3 text-left">Email</th>
+                    @if ($isSuperAdmin)<th class="px-5 py-3 text-left">Company</th>@endif
                     <th class="px-5 py-3 text-left">Designation</th>
                     <th class="px-5 py-3 text-left">Modules</th>
                     <th class="px-5 py-3 text-left">Outlets</th>
+                    <th class="px-5 py-3 text-left">Created</th>
+                    <th class="px-5 py-3 text-left">Last Active</th>
                     <th class="px-5 py-3 text-center w-24">Actions</th>
                 </tr>
             </thead>
@@ -40,6 +43,9 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-medium text-gray-800">{{ $u->name }}</td>
                         <td class="px-5 py-3 text-gray-500 text-xs">{{ $u->email }}</td>
+                        @if ($isSuperAdmin)
+                            <td class="px-5 py-3 text-xs text-gray-600">{{ $u->company?->name ?? '—' }}</td>
+                        @endif
                         <td class="px-5 py-3">
                             <span class="text-xs text-gray-600">{{ $u->designation ?? $u->roles->first()?->name ?? '—' }}</span>
                         </td>
@@ -59,6 +65,18 @@
                                 <span class="text-xs text-gray-500">{{ $u->outlets->pluck('name')->implode(', ') ?: '—' }}</span>
                             @endif
                         </td>
+                        <td class="px-5 py-3 text-xs text-gray-500">{{ $u->created_at?->format('d M Y') }}</td>
+                        <td class="px-5 py-3 text-xs">
+                            @if ($u->last_session_activity)
+                                @php $lastActive = \Carbon\Carbon::createFromTimestamp($u->last_session_activity); @endphp
+                                <span class="{{ $lastActive->diffInDays(now()) > 30 ? 'text-red-400' : ($lastActive->diffInDays(now()) > 7 ? 'text-amber-500' : 'text-green-600') }}"
+                                      title="{{ $lastActive->format('d M Y, h:i A') }}">
+                                    {{ $lastActive->diffForHumans() }}
+                                </span>
+                            @else
+                                <span class="text-gray-300">Never</span>
+                            @endif
+                        </td>
                         <td class="px-5 py-3 text-center">
                             <button wire:click="openEdit({{ $u->id }})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-1">Edit</button>
                             @if ($u->id !== Auth::id())
@@ -67,7 +85,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">No users found.</td></tr>
+                    <tr><td colspan="{{ $isSuperAdmin ? 9 : 8 }}" class="px-5 py-8 text-center text-gray-400">No users found.</td></tr>
                 @endforelse
             </tbody>
         </table>
