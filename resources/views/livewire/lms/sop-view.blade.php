@@ -37,19 +37,128 @@
     </div>
 
     {{-- Video --}}
-    @php $embedUrl = $this->parseVideoEmbed($recipe->video_url); @endphp
-    @if ($embedUrl)
+    @php
+        $videoData = $this->getVideoData($recipe->video_url);
+    @endphp
+    @if ($videoData)
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h2 class="text-sm font-semibold text-gray-700">Training Video</h2>
             </div>
-            <div class="relative w-full" style="padding-bottom: 56.25%;">
-                <iframe src="{{ $embedUrl }}" class="absolute inset-0 w-full h-full"
-                        frameborder="0" allowfullscreen
-                        allow="autoplay; fullscreen; encrypted-media"
-                        allowfullscreen></iframe>
+            <div class="relative w-full" style="padding-bottom: 56.25%; background: #000;" id="lms-player-outer">
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;" id="lms-loading">Loading video...</div>
             </div>
         </div>
+
+        <style>
+            #lms-player-outer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+            .lms-overlay { position: absolute; inset: 0; z-index: 10; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+            .lms-play-icon { width: 64px; height: 64px; background: rgba(0,0,0,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+            .lms-play-icon svg { width: 28px; height: 28px; fill: #fff; }
+            .lms-overlay:hover .lms-play-icon, .lms-overlay.show-icon .lms-play-icon { opacity: 1; }
+            .lms-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(255,255,255,0.2); z-index: 11; cursor: pointer; }
+            .lms-progress:hover { height: 6px; }
+            .lms-progress-fill { height: 100%; background: #6366f1; width: 0%; transition: width 0.3s linear; }
+        </style>
+
+        @script
+        <script>
+            (function() {
+                var outer = document.getElementById('lms-player-outer');
+                var loading = document.getElementById('lms-loading');
+                var videoType = @js($videoData['type']);
+                var videoId = @js($videoData['id']);
+                var ytPlayer = null;
+                var isPlaying = false;
+                var progressInterval = null;
+
+                if (videoType === 'youtube') {
+                    initYouTube();
+                } else if (videoType === 'vimeo') {
+                    initVimeo();
+                }
+
+                function initYouTube() {
+                    loading.remove();
+                    var el = document.createElement('div');
+                    el.id = 'lms-yt-el';
+                    outer.appendChild(el);
+
+                    var tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    document.head.appendChild(tag);
+
+                    window.onYouTubeIframeAPIReady = function() {
+                        ytPlayer = new YT.Player('lms-yt-el', {
+                            width: '100%', height: '100%',
+                            videoId: videoId,
+                            playerVars: { rel: 0, modestbranding: 1, controls: 0, iv_load_policy: 3, disablekb: 1, playsinline: 1, showinfo: 0, fs: 0, cc_load_policy: 0 },
+                            events: {
+                                onReady: function() { addControls(); },
+                                onStateChange: function(e) {
+                                    isPlaying = (e.data === YT.PlayerState.PLAYING);
+                                    updateIcon();
+                                    if (isPlaying) startProgress(); else stopProgress();
+                                }
+                            }
+                        });
+                    };
+                }
+
+                function initVimeo() {
+                    loading.remove();
+                    var iframe = document.createElement('iframe');
+                    iframe.src = 'https://player.vimeo.com/video/' + videoId + '?dnt=1&title=0&byline=0&portrait=0&controls=1';
+                    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+                    outer.appendChild(iframe);
+                }
+
+                function addControls() {
+                    var overlay = document.createElement('div');
+                    overlay.className = 'lms-overlay';
+                    overlay.id = 'lms-overlay';
+                    overlay.innerHTML = '<div class="lms-play-icon" id="lms-play-icon"><svg id="lms-play-svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>';
+                    overlay.addEventListener('click', function(e) { e.preventDefault(); togglePlay(); });
+                    outer.appendChild(overlay);
+
+                    var bar = document.createElement('div');
+                    bar.className = 'lms-progress';
+                    bar.innerHTML = '<div class="lms-progress-fill" id="lms-progress-fill"></div>';
+                    bar.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (!ytPlayer) return;
+                        var rect = bar.getBoundingClientRect();
+                        ytPlayer.seekTo(ytPlayer.getDuration() * ((e.clientX - rect.left) / rect.width), true);
+                    });
+                    outer.appendChild(bar);
+                }
+
+                function togglePlay() {
+                    if (!ytPlayer) return;
+                    if (isPlaying) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+                }
+
+                function updateIcon() {
+                    var svg = document.getElementById('lms-play-svg');
+                    if (!svg) return;
+                    svg.innerHTML = isPlaying ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+                    var overlay = document.getElementById('lms-overlay');
+                    if (overlay) { overlay.classList.add('show-icon'); setTimeout(function() { overlay.classList.remove('show-icon'); }, 600); }
+                }
+
+                function startProgress() {
+                    stopProgress();
+                    progressInterval = setInterval(function() {
+                        if (!ytPlayer || !ytPlayer.getDuration) return;
+                        var fill = document.getElementById('lms-progress-fill');
+                        if (fill) fill.style.width = ((ytPlayer.getCurrentTime() / ytPlayer.getDuration()) * 100) + '%';
+                    }, 500);
+                }
+
+                function stopProgress() { if (progressInterval) { clearInterval(progressInterval); progressInterval = null; } }
+            })();
+        </script>
+        @endscript
     @endif
 
     {{-- Preparation Steps --}}

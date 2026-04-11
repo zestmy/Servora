@@ -29,25 +29,16 @@ class SopView extends Component
             ->layout('layouts.lms', ['title' => $this->recipe->name]);
     }
 
-    public function parseVideoEmbed(?string $url): ?string
+    public function getVideoData(?string $url): ?array
     {
         if (! $url) return null;
 
-        // YouTube — privacy-enhanced embed
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/', $url, $m)) {
-            return 'https://www.youtube.com/embed/' . $m[1] . '?rel=0&modestbranding=1';
+            return ['type' => 'youtube', 'id' => $m[1]];
         }
 
-        // Vimeo — privacy-enhanced embed
         if (preg_match('/vimeo\.com\/(\d+)/', $url, $m)) {
-            $params = http_build_query([
-                'dnt'      => 1,
-                'title'    => 0,
-                'byline'   => 0,
-                'portrait' => 0,
-                'controls' => 1,
-            ]);
-            return 'https://player.vimeo.com/video/' . $m[1] . '?' . $params;
+            return ['type' => 'vimeo', 'id' => $m[1]];
         }
 
         return null;
