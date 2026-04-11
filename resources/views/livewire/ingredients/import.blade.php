@@ -323,9 +323,9 @@
                             <th class="px-3 py-2 text-left w-28">Category</th>
                             <th class="px-3 py-2 text-left w-32">Base UOM</th>
                             <th class="px-3 py-2 text-left w-32">Recipe UOM</th>
-                            <th class="px-3 py-2 text-right w-24">Price (RM)</th>
-                            <th class="px-3 py-2 text-right w-20">Pack Size</th>
-                            <th class="px-3 py-2 text-right w-20">Yield %</th>
+                            <th class="px-3 py-2 text-right w-20">Price</th>
+                            <th class="px-3 py-2 text-right w-16">Qty</th>
+                            <th class="px-3 py-2 text-left w-36">Packaging</th>
                             <th class="px-3 py-2 text-left w-36">Supplier</th>
                             <th class="px-3 py-2 text-left">Status</th>
                         </tr>
@@ -392,21 +392,25 @@
                                     @if ($row['is_prep'])
                                         <span class="text-gray-300">—</span>
                                     @else
-                                        {{ number_format($row['purchase_price'], 4) }}
+                                        {{ number_format($row['purchase_price'], 2) }}
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
+                                <td class="px-3 py-2 text-right tabular-nums">
                                     @if ($row['is_prep'])
                                         <span class="text-gray-300">—</span>
+                                    @elseif ($row['pack_size'] > 0)
+                                        <span class="text-gray-700">{{ rtrim(rtrim(number_format($row['pack_size'], 4, '.', ''), '0'), '.') }}</span>
                                     @else
-                                        {{ $row['pack_size'] != 1 ? rtrim(rtrim(number_format($row['pack_size'], 4, '.', ''), '0'), '.') : '1' }}
+                                        <span class="text-amber-500 text-[10px]">TBD</span>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
+                                <td class="px-3 py-2 text-left text-gray-500">
                                     @if ($row['is_prep'])
                                         <span class="text-gray-300">—</span>
+                                    @elseif (!empty($row['remark']))
+                                        <span class="text-[10px]">{{ $row['remark'] }}</span>
                                     @else
-                                        {{ $row['yield_percent'] }}%
+                                        <span class="text-gray-300">—</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-gray-600">

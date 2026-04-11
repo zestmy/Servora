@@ -44,11 +44,12 @@ class Import extends Component
         'base_uom'       => ['label' => 'Base UOM',       'required' => true,  'description' => 'Purchasing unit of measure'],
         'recipe_uom'     => ['label' => 'Recipe UOM',     'required' => false, 'description' => 'Recipe unit of measure'],
         'purchase_price' => ['label' => 'Purchase Price',  'required' => false, 'description' => 'Price per pack'],
-        'pack_size'      => ['label' => 'Pack Size',       'required' => false, 'description' => 'Pack size in base UOM'],
+        'pack_size'      => ['label' => 'Pack Size',       'required' => false, 'description' => 'Pack size in recipe UOM per base UOM'],
         'yield_percent'  => ['label' => 'Yield %',         'required' => false, 'description' => 'Yield percentage (0-100)'],
         'is_active'      => ['label' => 'Active',          'required' => false, 'description' => 'Active status (yes/no)'],
         'supplier'       => ['label' => 'Default Supplier','required' => false, 'description' => 'Preferred supplier name'],
         'type'           => ['label' => 'Type',            'required' => false, 'description' => 'ingredient or prep (default: auto-detect)'],
+        'remark'         => ['label' => 'Remark',          'required' => false, 'description' => 'Packaging info / notes from AI'],
     ];
 
     public array $rows        = [];
@@ -143,47 +144,82 @@ class Import extends Component
         $dataUri  = "data:{$mimeType};base64,{$base64}";
 
         $prompt = <<<'PROMPT'
-Extract all ingredient/item data from this PDF document. This could be a supplier product list, inventory sheet, price list, ingredient master list, or any document containing food & beverage items.
+Extract all ingredient/item data from this PDF document. This is a supplier product/price list for a restaurant.
 
 Return a JSON object with this structure:
 {
   "items": [
     {
-      "name": "clean item name without size/quantity info",
-      "code": "item code/SKU if shown, or null",
-      "category": "category if shown, or null",
-      "base_uom": "purchasing unit — how the item is bought (box, ctn, pail, bag, bottle, tin, pkt, pcs, kg, etc.)",
-      "recipe_uom": "the smaller content unit used in recipes (ml, g, kg, L, pcs, etc.)",
-      "pack_size": 1,
+      "name": "clean item name",
+      "code": "item code/SKU or null",
+      "category": "category or null",
+      "base_uom": "purchasing unit",
+      "recipe_uom": "recipe unit",
+      "pack_size": 0,
       "purchase_price": 0.00,
       "yield_percent": 100,
       "is_active": "yes",
-      "supplier": "supplier name if shown in document header/title, or null",
-      "type": "ingredient"
+      "supplier": "supplier name or null",
+      "type": "ingredient",
+      "remark": "packaging description"
     }
   ]
 }
 
-CRITICAL rules for UOM and naming:
-- "base_uom" is the PURCHASING unit — how the item is bought from supplier (box, ctn, pail, bag, tin, bottle, pkt, pcs, kg, etc.)
-- "recipe_uom" is the CONTENT unit — the smaller unit used in recipes (ml, g, L, kg, pcs, etc.)
-- Parse size/quantity info from item names to determine recipe_uom:
-  - "SOUR CREAM 1 LIT" → name: "Sour Cream", base_uom: "box", recipe_uom: "ml" (1 LIT = 1000 ML)
-  - "COOKING OIL 5 LIT" → name: "Cooking Oil", base_uom: "pail", recipe_uom: "ml"
-  - "SUGAR 1KG" → name: "Sugar", base_uom: "bag", recipe_uom: "g"
-  - "TOMATO SAUCE 340G" → name: "Tomato Sauce", base_uom: "bottle", recipe_uom: "g"
-  - "CHICKEN BREAST 10KG" → name: "Chicken Breast", base_uom: "ctn", recipe_uom: "kg"
-  - "MINERAL WATER 1.5L" → name: "Mineral Water", base_uom: "bottle", recipe_uom: "ml"
-  - "EGG 30'S" or "EGG 30 PCS" → name: "Egg", base_uom: "tray", recipe_uom: "pcs"
-- CLEAN the item name: remove size, weight, volume, quantity info (e.g. "1KG", "500ML", "1 LIT", "10'S", "340G")
-- If the document shows a price column, extract the ACTUAL price — do not use 0
+## CRITICAL: Smart packaging detection from item names
 
-Other rules:
-- Extract EVERY item/ingredient row from the document
+Read the item name carefully to understand the product packaging and set the correct UOMs and pack_size.
+
+### Understanding base_uom vs recipe_uom vs pack_size:
+- "base_uom" = how the item is PURCHASED from supplier (box, ctn, pail, bag, bottle, tin, pkt, tray, kg, etc.)
+- "recipe_uom" = the SMALLER unit the kitchen uses in recipes (g, ml, pcs, kg, L, etc.)
+- "pack_size" = how many recipe_uom units are in 1 base_uom. Set to 0 if you cannot determine the exact quantity (user will update later).
+
+### Examples of parsing item names:
+
+LIQUIDS with volume:
+- "SOUR CREAM 1 LIT" → name: "Sour Cream", base_uom: "box", recipe_uom: "ml", pack_size: 1000, remark: "1 Liter per box"
+- "COOKING OIL 5 LIT" → name: "Cooking Oil", base_uom: "pail", recipe_uom: "ml", pack_size: 5000, remark: "5 Liter per pail"
+- "COCONUT MILK 1 LIT" → name: "Coconut Milk", base_uom: "box", recipe_uom: "ml", pack_size: 1000, remark: "1 Liter per box"
+- "OLIVE OIL 250ML" → name: "Olive Oil", base_uom: "bottle", recipe_uom: "ml", pack_size: 250, remark: "250ml per bottle"
+- "SOY SAUCE 1.6 LIT" → name: "Soy Sauce", base_uom: "bottle", recipe_uom: "ml", pack_size: 1600, remark: "1.6 Liter per bottle"
+
+SOLIDS with weight:
+- "SUGAR 1KG" → name: "Sugar", base_uom: "bag", recipe_uom: "g", pack_size: 1000, remark: "1kg per bag"
+- "FLOUR 25KG" → name: "Flour", base_uom: "bag", recipe_uom: "g", pack_size: 25000, remark: "25kg per bag"
+- "BUTTER 250G" → name: "Butter", base_uom: "box", recipe_uom: "g", pack_size: 250, remark: "250g per box"
+- "TOMATO SAUCE 340G" → name: "Tomato Sauce", base_uom: "bottle", recipe_uom: "g", pack_size: 340, remark: "340g per bottle"
+- "MOZZARELLA CHEESE 2KG" → name: "Mozzarella Cheese", base_uom: "bag", recipe_uom: "g", pack_size: 2000, remark: "2kg per bag"
+
+COUNTED items:
+- "EGG 30'S" → name: "Egg", base_uom: "tray", recipe_uom: "pcs", pack_size: 30, remark: "30 pcs per tray"
+- "EGG 10 PCS" → name: "Egg", base_uom: "pack", recipe_uom: "pcs", pack_size: 10, remark: "10 pcs per pack"
+- "PLASTIC BAG 100'S" → name: "Plastic Bag", base_uom: "pack", recipe_uom: "pcs", pack_size: 100, remark: "100 pcs per pack"
+
+SEAFOOD with size grading (e.g. "6-8" means 6-8 pieces per kg):
+- "FRESH WATER PRAWN 6-8" → name: "Fresh Water Prawn 6-8", base_uom: "kg", recipe_uom: "pcs", pack_size: 0, remark: "Size 6-8 (approx 6-8 pcs per kg)"
+- "TIGER PRAWN 16/20" → name: "Tiger Prawn 16/20", base_uom: "kg", recipe_uom: "pcs", pack_size: 0, remark: "Size 16/20 (approx 16-20 pcs per kg)"
+- "SQUID 10-12" → name: "Squid 10-12", base_uom: "kg", recipe_uom: "pcs", pack_size: 0, remark: "Size 10-12 (approx 10-12 pcs per kg)"
+Note: For seafood size gradings, KEEP the size in the name and set pack_size to 0 (user will decide).
+
+BULK/RAW items without packaging info:
+- "CHICKEN BREAST" → name: "Chicken Breast", base_uom: "kg", recipe_uom: "g", pack_size: 1000, remark: "per kg"
+- "ONION" → name: "Onion", base_uom: "kg", recipe_uom: "g", pack_size: 1000, remark: "per kg"
+- "GARLIC" → name: "Garlic", base_uom: "kg", recipe_uom: "g", pack_size: 1000, remark: "per kg"
+
+CANNED items:
+- "TUNA IN CAN" → name: "Tuna In Can", base_uom: "tin", recipe_uom: "g", pack_size: 0, remark: "per tin (size unknown)"
+- "LYCHEE IN CAN" → name: "Lychee In Can", base_uom: "tin", recipe_uom: "g", pack_size: 0, remark: "per tin (size unknown)"
+- "TOMATO PASTE 400G" → name: "Tomato Paste", base_uom: "tin", recipe_uom: "g", pack_size: 400, remark: "400g per tin"
+
+### Other rules:
+- CLEAN the item name: remove weight/volume info (1KG, 500ML, 1 LIT, 340G) but KEEP size gradings for seafood (6-8, 16/20)
+- Extract ACTUAL prices from the document — never default to 0 if a price is shown
+- If a supplier name appears in the document header/title, use it for all items
+- For type: almost everything is "ingredient". Only use "prep" if clearly made in-house (very rare in supplier lists)
+- If pack_size cannot be determined from the name, set it to 0 (not 1)
 - Use numeric values for prices, pack_size, yield_percent
-- If a supplier name appears in the document header/title, include it for all items
-- For type: almost everything from a supplier list is "ingredient". Only mark as "prep" if it is clearly made in-house
-- pack_size defaults to 1 (user will update this later)
+- "remark" should describe the packaging in human-readable format
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation, no commentary — just the JSON object.
 PROMPT;
@@ -580,7 +616,7 @@ PROMPT;
             $purchasePrice = is_numeric($ppRaw) ? max(0, (float) $ppRaw) : 0.0;
 
             $psRaw = $getValue('pack_size');
-            $packSize = is_numeric($psRaw) ? max(0.0001, (float) $psRaw) : 1.0;
+            $packSize = is_numeric($psRaw) ? max(0, (float) $psRaw) : 0;
 
             $ypRaw = $getValue('yield_percent');
             $yieldPercent = is_numeric($ypRaw) ? min(100, max(0.01, (float) $ypRaw)) : 100.0;
@@ -636,6 +672,7 @@ PROMPT;
                 'supplier_id'            => $supplierId,
                 'supplier_is_new'        => $supplierIsNew,
                 'is_prep'                => $isPrep,
+                'remark'                 => $getValue('remark') ?: null,
                 'errors'                 => $rowErrors,
                 'skip'                   => ! empty($rowErrors) || $needsUomFix,
             ];
@@ -827,7 +864,7 @@ PROMPT;
             }
 
             $pp       = $row['purchase_price'];
-            $ps       = $row['pack_size'];
+            $ps       = $row['pack_size'] ?: 1; // treat 0 as 1 for DB storage (user updates later)
             $yp       = $row['yield_percent'];
             $baseCost = $pp / max($ps, 0.0001);
             $cost     = $yp > 0 ? $baseCost / ($yp / 100) : $baseCost;
@@ -881,6 +918,7 @@ PROMPT;
                     'yield_percent'          => $yp,
                     'current_cost'           => round($cost, 4),
                     'is_active'              => $row['is_active'],
+                    'remark'                 => $row['remark'] ?? null,
                 ]);
 
                 // Resolve supplier
