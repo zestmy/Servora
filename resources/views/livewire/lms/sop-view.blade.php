@@ -109,7 +109,8 @@
 
     {{-- Plating Images --}}
     @if ($dineInImages->count() || $takeawayImages->count())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6" x-data="{ tab: 'dine_in' }">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6"
+             x-data="{ tab: 'dine_in', lightbox: false, lightboxSrc: '', lightboxAlt: '' }">
             <h2 class="text-sm font-semibold text-gray-700 mb-4">Plating Presentation</h2>
 
             @if ($dineInImages->count() && $takeawayImages->count())
@@ -130,7 +131,8 @@
             @if ($dineInImages->count())
                 <div x-show="tab === 'dine_in'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     @foreach ($dineInImages as $img)
-                        <div class="rounded-lg overflow-hidden border border-gray-200">
+                        <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition"
+                             @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
                             <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-48 object-cover" />
                         </div>
                     @endforeach
@@ -140,12 +142,36 @@
             @if ($takeawayImages->count())
                 <div x-show="tab === 'takeaway'" x-cloak class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     @foreach ($takeawayImages as $img)
-                        <div class="rounded-lg overflow-hidden border border-gray-200">
+                        <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition"
+                             @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
                             <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-48 object-cover" />
                         </div>
                     @endforeach
                 </div>
             @endif
+
+            {{-- Lightbox Modal --}}
+            <div x-show="lightbox" x-cloak
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 @click="lightbox = false"
+                 @keydown.escape.window="lightbox = false"
+                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                <div @click.stop class="relative max-w-4xl max-h-[90vh] w-full">
+                    <button @click="lightbox = false"
+                            class="absolute -top-10 right-0 text-white hover:text-gray-300 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <img :src="lightboxSrc" :alt="lightboxAlt"
+                         class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+                </div>
+            </div>
         </div>
     @endif
 </div>

@@ -108,7 +108,7 @@
                             <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Dine-In</div>
                             @foreach ($dineInBase64 as $b64)
                                 <div style="margin-bottom: 3px;">
-                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 140px; border: 1px solid #ddd;" />
+                                    <img src="{{ $b64 }}" style="max-width: 100%; height: auto; max-height: 160px; border: 1px solid #ddd;" />
                                 </div>
                             @endforeach
                         </td>
@@ -118,7 +118,7 @@
                             <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Takeaway</div>
                             @foreach ($takeawayBase64 as $b64)
                                 <div style="margin-bottom: 3px;">
-                                    <img src="{{ $b64 }}" style="width: 100%; max-height: 140px; border: 1px solid #ddd;" />
+                                    <img src="{{ $b64 }}" style="max-width: 100%; height: auto; max-height: 160px; border: 1px solid #ddd;" />
                                 </div>
                             @endforeach
                         </td>
