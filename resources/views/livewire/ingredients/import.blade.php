@@ -353,7 +353,18 @@
                                     {{ $row['name'] ?: '—' }}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 font-mono">{{ $row['code'] ?? '—' }}</td>
-                                <td class="px-3 py-2 text-gray-600">{{ $row['category_label'] ?: '—' }}</td>
+                                <td class="px-3 py-2 text-gray-600">
+                                    @if ($row['category_label'])
+                                        @if ($row['ingredient_category_id'])
+                                            {{ $row['category_label'] }}
+                                        @elseif (!empty($row['category_is_new']))
+                                            <span class="text-blue-700">{{ $row['category_label'] }}</span>
+                                            <span class="ml-1 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded">NEW</span>
+                                        @endif
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
                                 {{-- Base UOM --}}
                                 <td class="px-3 py-2">
                                     @if (!empty($row['base_uom_needsfix']))

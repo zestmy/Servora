@@ -668,12 +668,13 @@ PROMPT;
             }
             $recipeUomId = $recipeUomId ?? $baseUomId;
 
-            // Category
+            // Category (auto-create if not found)
             $catRaw = $getValue('category');
             $catKey = strtolower($catRaw);
             $catId  = $catKey ? ($catsByName[$catKey] ?? null) : null;
+            $catIsNew = false;
             if ($catKey && ! $catId) {
-                $rowErrors[] = 'Category "' . $catRaw . '" not found';
+                $catIsNew = true; // will be created on import
             }
 
             // Numeric fields — use parseNumber to handle currency symbols, commas
@@ -728,6 +729,7 @@ PROMPT;
                 'code'                   => $getValue('code') ?: null,
                 'category_label'         => $catRaw,
                 'ingredient_category_id' => $catId,
+                'category_is_new'        => $catIsNew,
                 'base_uom_label'         => $baseUomRaw,
                 'base_uom_id'            => $baseUomId,
                 'base_uom_needsfix'      => $baseUomNeedsfix,
@@ -924,13 +926,34 @@ PROMPT;
         $skipped   = 0;
         $prepCreated = 0;
 
-        // Cache for newly created suppliers
+        // Cache for newly created suppliers and categories
         $createdSuppliers = [];
+        $createdCategories = [];
 
         foreach ($this->rows as $row) {
             if ($row['skip']) {
                 $skipped++;
                 continue;
+            }
+
+            // Resolve category: use existing ID, or create new
+            $catId = $row['ingredient_category_id'];
+            if (! $catId && ! empty($row['category_is_new']) && ! empty($row['category_label'])) {
+                $catName  = trim($row['category_label']);
+                $cacheKey = strtolower($catName);
+
+                if (isset($createdCategories[$cacheKey])) {
+                    $catId = $createdCategories[$cacheKey];
+                } else {
+                    $cat = IngredientCategory::create([
+                        'company_id' => $companyId,
+                        'name'       => $catName,
+                        'parent_id'  => null,
+                        'is_active'  => true,
+                    ]);
+                    $catId = $cat->id;
+                    $createdCategories[$cacheKey] = $catId;
+                }
             }
 
             $pp       = $row['purchase_price'];
@@ -941,7 +964,7 @@ PROMPT;
 
             if (! empty($row['is_prep'])) {
                 // ── Create Prep Item (placeholder Recipe + synced Ingredient) ──
-                DB::transaction(function () use ($companyId, $row, $pp, $cost, &$prepCreated) {
+                DB::transaction(function () use ($companyId, $row, $pp, $cost, $catId, &$prepCreated) {
                     $recipe = Recipe::create([
                         'company_id'             => $companyId,
                         'name'                   => $row['name'],
@@ -953,14 +976,14 @@ PROMPT;
                         'cost_per_yield_unit'    => round($cost, 4),
                         'is_active'              => $row['is_active'],
                         'is_prep'                => true,
-                        'ingredient_category_id' => $row['ingredient_category_id'],
+                        'ingredient_category_id' => $catId,
                     ]);
 
                     Ingredient::create([
                         'company_id'             => $companyId,
                         'name'                   => $row['name'],
                         'code'                   => $row['code'],
-                        'ingredient_category_id' => $row['ingredient_category_id'],
+                        'ingredient_category_id' => $catId,
                         'base_uom_id'            => $row['base_uom_id'],
                         'recipe_uom_id'          => $row['base_uom_id'],
                         'purchase_price'         => 0,
@@ -980,7 +1003,7 @@ PROMPT;
                     'company_id'             => $companyId,
                     'name'                   => $row['name'],
                     'code'                   => $row['code'],
-                    'ingredient_category_id' => $row['ingredient_category_id'],
+                    'ingredient_category_id' => $catId,
                     'base_uom_id'            => $row['base_uom_id'],
                     'recipe_uom_id'          => $row['recipe_uom_id'],
                     'purchase_price'         => $pp,
