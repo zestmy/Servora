@@ -35,15 +35,7 @@ class SopView extends Component
 
         // YouTube — privacy-enhanced embed
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/', $url, $m)) {
-            $params = http_build_query([
-                'rel'            => 0,
-                'modestbranding' => 1,
-                'controls'       => 1,
-                'iv_load_policy' => 3,
-                'disablekb'      => 1,
-                'playsinline'    => 1,
-            ]);
-            return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?' . $params;
+            return 'https://www.youtube.com/embed/' . $m[1] . '?rel=0&modestbranding=1';
         }
 
         // Vimeo — privacy-enhanced embed
