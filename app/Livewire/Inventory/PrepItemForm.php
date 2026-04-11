@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
 use App\Models\Recipe;
@@ -25,6 +26,7 @@ class PrepItemForm extends Component
     public ?int   $yield_uom_id           = null;
     public bool   $is_active              = true;
     public ?int   $ingredient_category_id = null;
+    public ?int   $department_id          = null;
 
     // Recipe lines: [ingredient_id, ingredient_name, quantity, uom_id, uom_name, waste_percentage]
     public array  $lines            = [];
@@ -74,6 +76,7 @@ class PrepItemForm extends Component
         $this->is_active              = $recipe->is_active;
         $this->ingredient_category_id = $recipe->ingredient?->ingredient_category_id
                                         ?? $recipe->ingredient_category_id;
+        $this->department_id          = $recipe->department_id;
 
         $this->lines = $recipe->lines->map(fn ($l) => [
             'ingredient_id'    => $l->ingredient_id,
@@ -138,6 +141,7 @@ class PrepItemForm extends Component
                 'is_active'              => $this->is_active,
                 'is_prep'                => true,
                 'ingredient_category_id' => $this->ingredient_category_id,
+                'department_id'          => $this->department_id,
             ];
 
             if ($this->recipeId) {
@@ -195,6 +199,7 @@ class PrepItemForm extends Component
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
         $categories = IngredientCategory::roots()->active()->ordered()->get();
+        $departments = Department::active()->ordered()->get();
 
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
@@ -220,7 +225,7 @@ class PrepItemForm extends Component
         $pageTitle = $this->recipeId ? 'Edit: ' . ($this->name ?: 'Prep Item') : 'New Prep Item';
 
         return view('livewire.inventory.prep-item-form', compact(
-            'uoms', 'categories', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
+            'uoms', 'categories', 'departments', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
