@@ -255,6 +255,8 @@
         @php
             $prepCount = collect($rows)->where('is_prep', true)->where('skip', false)->count();
             $ingredientCount = $validRows - $prepCount;
+            $uomFixCount = collect($rows)->filter(fn($r) => !empty($r['base_uom_needsfix']) || !empty($r['recipe_uom_needsfix']))->count();
+            $uoms = \App\Models\UnitOfMeasure::orderBy('name')->get();
         @endphp
 
         {{-- Summary bar --}}
@@ -273,13 +275,26 @@
                     <span class="font-semibold text-orange-700">{{ $prepCount }}</span>
                 </div>
             @endif
-            @if ($totalRows - $validRows > 0)
+            @if ($uomFixCount > 0)
+                <div class="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-lg border border-amber-200 text-sm">
+                    <span class="text-amber-600">UOM to fix:</span>
+                    <span class="font-semibold text-amber-700">{{ $uomFixCount }}</span>
+                </div>
+            @endif
+            @if ($totalRows - $validRows - $uomFixCount > 0)
                 <div class="flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg border border-red-200 text-sm">
                     <span class="text-red-600">Errors (skipped):</span>
-                    <span class="font-semibold text-red-700">{{ $totalRows - $validRows }}</span>
+                    <span class="font-semibold text-red-700">{{ $totalRows - $validRows - $uomFixCount }}</span>
                 </div>
             @endif
         </div>
+
+        {{-- UOM fix banner --}}
+        @if ($uomFixCount > 0)
+            <div class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl">
+                <strong>{{ $uomFixCount }} row{{ $uomFixCount > 1 ? 's have' : ' has' }} unrecognized UOM{{ $uomFixCount > 1 ? 's' : '' }}</strong> — select the correct unit from the dropdown below to include {{ $uomFixCount > 1 ? 'them' : 'it' }} in the import.
+            </div>
+        @endif
 
         {{-- Prep items info --}}
         @if ($prepCount > 0)
@@ -306,7 +321,8 @@
                             <th class="px-3 py-2 text-left">Name</th>
                             <th class="px-3 py-2 text-left w-24">Code</th>
                             <th class="px-3 py-2 text-left w-28">Category</th>
-                            <th class="px-3 py-2 text-left w-20">UOM</th>
+                            <th class="px-3 py-2 text-left w-32">Base UOM</th>
+                            <th class="px-3 py-2 text-left w-32">Recipe UOM</th>
                             <th class="px-3 py-2 text-right w-24">Price (RM)</th>
                             <th class="px-3 py-2 text-right w-20">Pack Size</th>
                             <th class="px-3 py-2 text-right w-20">Yield %</th>
@@ -316,10 +332,11 @@
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @foreach ($rows as $idx => $row)
-                            <tr class="{{ $row['skip'] ? 'bg-red-50' : ($row['is_prep'] ? 'bg-orange-50/50' : 'hover:bg-gray-50') }} transition">
+                            @php $hasOnlyUomIssue = !empty($row['base_uom_needsfix']) || !empty($row['recipe_uom_needsfix']); @endphp
+                            <tr class="{{ $row['skip'] && !$hasOnlyUomIssue ? 'bg-red-50' : ($hasOnlyUomIssue ? 'bg-amber-50' : ($row['is_prep'] ? 'bg-orange-50/50' : 'hover:bg-gray-50')) }} transition">
                                 <td class="px-3 py-2 text-gray-400">{{ $row['row'] }}</td>
                                 <td class="px-3 py-2 text-center">
-                                    @if (! $row['skip'])
+                                    @if (empty($row['errors']))
                                         <button wire:click="togglePrep({{ $idx }})"
                                                 class="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition
                                                     {{ $row['is_prep']
@@ -332,12 +349,45 @@
                                         <span class="text-gray-300 text-[10px]">—</span>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 font-medium {{ $row['skip'] ? 'text-red-700' : 'text-gray-800' }}">
+                                <td class="px-3 py-2 font-medium {{ !empty($row['errors']) ? 'text-red-700' : 'text-gray-800' }}">
                                     {{ $row['name'] ?: '—' }}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 font-mono">{{ $row['code'] ?? '—' }}</td>
                                 <td class="px-3 py-2 text-gray-600">{{ $row['category_label'] ?: '—' }}</td>
-                                <td class="px-3 py-2 text-gray-600 font-mono">{{ $row['base_uom_label'] ?: '—' }}</td>
+                                {{-- Base UOM --}}
+                                <td class="px-3 py-2">
+                                    @if (!empty($row['base_uom_needsfix']))
+                                        <div>
+                                            <span class="text-amber-600 text-[10px] font-medium block mb-1">"{{ $row['base_uom_label'] }}" not found</span>
+                                            <select wire:change="fixBaseUom({{ $idx }}, $event.target.value)"
+                                                    class="w-full text-[11px] border-amber-300 bg-amber-50 rounded px-1.5 py-1 focus:ring-indigo-500 focus:border-indigo-500">
+                                                <option value="">Select UOM...</option>
+                                                @foreach ($uoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }} ({{ $uom->name }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    @else
+                                        <span class="text-gray-600 font-mono">{{ $row['base_uom_label'] ?: '—' }}</span>
+                                    @endif
+                                </td>
+                                {{-- Recipe UOM --}}
+                                <td class="px-3 py-2">
+                                    @if (!empty($row['recipe_uom_needsfix']))
+                                        <div>
+                                            <span class="text-amber-600 text-[10px] font-medium block mb-1">"{{ $row['recipe_uom_label'] }}" not found</span>
+                                            <select wire:change="fixRecipeUom({{ $idx }}, $event.target.value)"
+                                                    class="w-full text-[11px] border-amber-300 bg-amber-50 rounded px-1.5 py-1 focus:ring-indigo-500 focus:border-indigo-500">
+                                                <option value="">Select UOM...</option>
+                                                @foreach ($uoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }} ({{ $uom->name }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    @else
+                                        <span class="text-gray-600 font-mono">{{ $row['recipe_uom_label'] ?: '—' }}</span>
+                                    @endif
+                                </td>
                                 <td class="px-3 py-2 text-right tabular-nums text-gray-700">
                                     @if ($row['is_prep'])
                                         <span class="text-gray-300">—</span>
@@ -376,7 +426,7 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">
-                                    @if ($row['skip'])
+                                    @if (!empty($row['errors']))
                                         <ul class="space-y-0.5">
                                             @foreach ($row['errors'] as $err)
                                                 <li class="text-red-600 flex items-start gap-1">
@@ -385,6 +435,8 @@
                                                 </li>
                                             @endforeach
                                         </ul>
+                                    @elseif ($hasOnlyUomIssue)
+                                        <span class="text-amber-600">&#9998; Select UOM to include</span>
                                     @elseif ($row['is_prep'])
                                         <span class="text-orange-500">Placeholder — link ingredients later</span>
                                     @else

@@ -473,18 +473,22 @@ PROMPT;
             $baseUomRaw = $getValue('base_uom');
             $baseUomKey = strtolower($baseUomRaw);
             $baseUomId  = $uomsByAbbr[$baseUomKey] ?? $uomsByName[$baseUomKey] ?? null;
-            if (! $baseUomId) {
-                $rowErrors[] = 'Base UOM "' . $baseUomRaw . '" not found';
+            $baseUomNeedsfix = false;
+            if (! $baseUomId && $baseUomRaw) {
+                $baseUomNeedsfix = true; // user can fix via dropdown
+            } elseif (! $baseUomId) {
+                $rowErrors[] = 'Base UOM is required';
             }
 
             // Recipe UOM (defaults to base UOM)
             $recipeUomRaw = $getValue('recipe_uom');
             $recipeUomKey = strtolower($recipeUomRaw);
             $recipeUomId  = null;
+            $recipeUomNeedsfix = false;
             if ($recipeUomKey) {
                 $recipeUomId = $uomsByAbbr[$recipeUomKey] ?? $uomsByName[$recipeUomKey] ?? null;
                 if (! $recipeUomId) {
-                    $rowErrors[] = 'Recipe UOM "' . $recipeUomRaw . '" not found';
+                    $recipeUomNeedsfix = true; // user can fix via dropdown
                 }
             }
             $recipeUomId = $recipeUomId ?? $baseUomId;
@@ -533,6 +537,9 @@ PROMPT;
                 }
             }
 
+            // Row needs fix if UOMs are unresolved (not a hard error — user can pick)
+            $needsUomFix = $baseUomNeedsfix || $recipeUomNeedsfix;
+
             $this->rows[] = [
                 'row'                    => $rowNum,
                 'name'                   => $name,
@@ -541,8 +548,10 @@ PROMPT;
                 'ingredient_category_id' => $catId,
                 'base_uom_label'         => $baseUomRaw,
                 'base_uom_id'            => $baseUomId,
+                'base_uom_needsfix'      => $baseUomNeedsfix,
                 'recipe_uom_label'       => $recipeUomRaw,
                 'recipe_uom_id'          => $recipeUomId,
+                'recipe_uom_needsfix'    => $recipeUomNeedsfix,
                 'purchase_price'         => $purchasePrice,
                 'pack_size'              => $packSize,
                 'yield_percent'          => $yieldPercent,
@@ -552,7 +561,7 @@ PROMPT;
                 'supplier_is_new'        => $supplierIsNew,
                 'is_prep'                => $isPrep,
                 'errors'                 => $rowErrors,
-                'skip'                   => ! empty($rowErrors),
+                'skip'                   => ! empty($rowErrors) || $needsUomFix,
             ];
         }
 
@@ -645,6 +654,50 @@ PROMPT;
         if (isset($this->rows[$index])) {
             $this->rows[$index]['is_prep'] = ! $this->rows[$index]['is_prep'];
         }
+    }
+
+    public function fixBaseUom(int $index, $uomId): void
+    {
+        if (! isset($this->rows[$index]) || ! $uomId) return;
+
+        $uom = UnitOfMeasure::find($uomId);
+        if (! $uom) return;
+
+        $this->rows[$index]['base_uom_id'] = $uom->id;
+        $this->rows[$index]['base_uom_label'] = $uom->abbreviation;
+        $this->rows[$index]['base_uom_needsfix'] = false;
+
+        // If recipe UOM was defaulting to base, update it too
+        if (empty($this->rows[$index]['recipe_uom_id'])) {
+            $this->rows[$index]['recipe_uom_id'] = $uom->id;
+        }
+
+        $this->recalcRowSkip($index);
+    }
+
+    public function fixRecipeUom(int $index, $uomId): void
+    {
+        if (! isset($this->rows[$index]) || ! $uomId) return;
+
+        $uom = UnitOfMeasure::find($uomId);
+        if (! $uom) return;
+
+        $this->rows[$index]['recipe_uom_id'] = $uom->id;
+        $this->rows[$index]['recipe_uom_label'] = $uom->abbreviation;
+        $this->rows[$index]['recipe_uom_needsfix'] = false;
+
+        $this->recalcRowSkip($index);
+    }
+
+    private function recalcRowSkip(int $index): void
+    {
+        $row = $this->rows[$index];
+        $hasErrors = ! empty($row['errors']);
+        $needsUomFix = ! empty($row['base_uom_needsfix']) || ! empty($row['recipe_uom_needsfix']);
+        $this->rows[$index]['skip'] = $hasErrors || $needsUomFix;
+
+        // Recalculate valid count
+        $this->validRows = collect($this->rows)->where('skip', false)->count();
     }
 
     // ── Fuzzy supplier match ────────────────────────────────────────────────
