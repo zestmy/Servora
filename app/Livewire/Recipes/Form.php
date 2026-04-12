@@ -84,6 +84,7 @@ class Form extends Component
             'video_url'                  => 'nullable|url|max:500',
             'steps.*.title'              => 'nullable|string|max:255',
             'steps.*.instruction'        => 'required|string',
+            'steps.*.new_image'          => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
         ];
     }
 
@@ -163,8 +164,13 @@ class Form extends Component
 
         $this->video_url = $recipe->video_url ?? '';
         $this->steps = $recipe->steps->map(fn ($s) => [
-            'title'       => $s->title ?? '',
-            'instruction' => $s->instruction,
+            'id'              => $s->id,
+            'title'           => $s->title ?? '',
+            'instruction'     => $s->instruction,
+            'image_path'      => $s->image_path,
+            'image_url'       => $s->imageUrl(),
+            'new_image'       => null,
+            'remove_image'    => false,
         ])->toArray();
 
         // Load existing class prices
@@ -249,13 +255,32 @@ class Form extends Component
 
     public function addStep(): void
     {
-        $this->steps[] = ['title' => '', 'instruction' => ''];
+        $this->steps[] = [
+            'id' => null, 'title' => '', 'instruction' => '',
+            'image_path' => null, 'image_url' => null, 'new_image' => null, 'remove_image' => false,
+        ];
     }
 
     public function removeStep(int $idx): void
     {
         unset($this->steps[$idx]);
         $this->steps = array_values($this->steps);
+    }
+
+    public function removeStepImage(int $idx): void
+    {
+        if (! isset($this->steps[$idx])) return;
+        // Mark existing image for removal on save; clear any pending new upload
+        $this->steps[$idx]['remove_image'] = true;
+        $this->steps[$idx]['new_image']    = null;
+        $this->steps[$idx]['image_url']    = null;
+    }
+
+    public function clearStepNewImage(int $idx): void
+    {
+        if (isset($this->steps[$idx])) {
+            $this->steps[$idx]['new_image'] = null;
+        }
     }
 
     public function save(): void
@@ -320,16 +345,53 @@ class Form extends Component
             ]);
         }
 
-        // Sync steps
-        $recipe->steps()->delete();
+        // Sync steps (upsert so images aren't lost)
+        $keepIds = [];
         foreach ($this->steps as $idx => $step) {
             if (trim($step['instruction'] ?? '') === '') continue;
-            $recipe->steps()->create([
+
+            // Handle image upload
+            $imagePath = $step['image_path'] ?? null;
+
+            if (! empty($step['remove_image']) && $imagePath) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
+                $imagePath = null;
+            }
+
+            if (! empty($step['new_image']) && is_object($step['new_image'])) {
+                // Delete old image if replacing
+                if ($imagePath) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
+                }
+                $imagePath = $step['new_image']->store('recipe-steps', 'public');
+            }
+
+            $data = [
                 'sort_order'  => $idx,
                 'title'       => $step['title'] ?: null,
                 'instruction' => $step['instruction'],
-            ]);
+                'image_path'  => $imagePath,
+            ];
+
+            if (! empty($step['id'])) {
+                $existing = $recipe->steps()->find($step['id']);
+                if ($existing) {
+                    $existing->update($data);
+                    $keepIds[] = $existing->id;
+                    continue;
+                }
+            }
+
+            $new = $recipe->steps()->create($data);
+            $keepIds[] = $new->id;
         }
+        // Delete steps that were removed, along with their images
+        $recipe->steps()->whereNotIn('id', $keepIds)->get()->each(function ($s) {
+            if ($s->image_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($s->image_path);
+            }
+            $s->delete();
+        });
 
         // Save new images (dine-in)
         $existingDineInCount = count($this->existingDineInImages);

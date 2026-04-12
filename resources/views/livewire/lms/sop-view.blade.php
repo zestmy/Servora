@@ -163,23 +163,75 @@
 
     {{-- Preparation Steps --}}
     @if ($recipe->steps->count())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        @php $hasStepImages = $recipe->steps->contains(fn($s) => !empty($s->image_path)); @endphp
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6"
+             @if ($hasStepImages) x-data="{ lightbox: false, lightboxSrc: '' }" @endif>
             <h2 class="text-sm font-semibold text-gray-700 mb-4">Preparation Steps</h2>
-            <div class="space-y-4">
-                @foreach ($recipe->steps as $step)
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                            {{ $step->sort_order + 1 }}
-                        </div>
-                        <div class="flex-1 pt-1">
-                            @if ($step->title)
-                                <h3 class="font-semibold text-gray-800 text-sm">{{ $step->title }}</h3>
+
+            @if ($hasStepImages)
+                {{-- 3-column grid layout when images are present --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach ($recipe->steps as $step)
+                        <div class="bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex flex-col">
+                            @if ($step->image_path)
+                                <img src="{{ $step->imageUrl() }}" alt="Step {{ $step->sort_order + 1 }}"
+                                     class="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition"
+                                     @click="lightboxSrc = '{{ $step->imageUrl() }}'; lightbox = true" />
+                            @else
+                                <div class="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
                             @endif
-                            <p class="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{{ $step->instruction }}</p>
+                            <div class="p-4 flex-1">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                        {{ $step->sort_order + 1 }}
+                                    </div>
+                                    <div class="flex-1">
+                                        @if ($step->title)
+                                            <h3 class="font-semibold text-gray-800 text-sm leading-tight">{{ $step->title }}</h3>
+                                        @endif
+                                        <p class="text-sm text-gray-600 mt-1 whitespace-pre-line leading-relaxed">{{ $step->instruction }}</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    @endforeach
+                </div>
+
+                {{-- Image lightbox --}}
+                <div x-show="lightbox" x-cloak @click="lightbox = false" @keydown.escape.window="lightbox = false"
+                     x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                    <div @click.stop class="relative max-w-4xl max-h-[90vh] w-full">
+                        <button @click="lightbox = false" class="absolute -top-10 right-0 text-white hover:text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <img :src="lightboxSrc" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
                     </div>
-                @endforeach
-            </div>
+                </div>
+            @else
+                {{-- Single column text layout when no images --}}
+                <div class="space-y-4">
+                    @foreach ($recipe->steps as $step)
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                {{ $step->sort_order + 1 }}
+                            </div>
+                            <div class="flex-1 pt-1">
+                                @if ($step->title)
+                                    <h3 class="font-semibold text-gray-800 text-sm">{{ $step->title }}</h3>
+                                @endif
+                                <p class="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{{ $step->instruction }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         </div>
     @endif
 

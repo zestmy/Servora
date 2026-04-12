@@ -78,9 +78,10 @@
                 @endif
             </td>
 
-            {{-- Preparation Steps (right) --}}
+            {{-- Preparation Steps (right — only if NO step images; otherwise shown in grid below) --}}
+            @php $hasStepImages = !empty($stepImagesBase64 ?? []); @endphp
             <td style="width: 60%; vertical-align: top; padding-left: 8px; border-left: 1px solid #ddd;">
-                @if ($recipe->steps->count())
+                @if ($recipe->steps->count() && ! $hasStepImages)
                     <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 2px;">Preparation Steps</div>
                     @foreach ($recipe->steps as $step)
                         <div style="margin-bottom: 4px;">
@@ -96,6 +97,36 @@
             </td>
         </tr>
     </table>
+
+    {{-- Preparation Steps — 3-column grid layout when images exist --}}
+    @if ($recipe->steps->count() && $hasStepImages)
+        <div style="margin-top: 8px; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 2px;">Preparation Steps</div>
+            <table style="width: 100%; border-collapse: collapse;">
+                @foreach ($recipe->steps->chunk(3) as $row)
+                    <tr>
+                        @foreach ($row as $step)
+                            <td style="width: 33.33%; vertical-align: top; padding: 3px; border: 1px solid #ddd;">
+                                @if (isset($stepImagesBase64[$step->id]))
+                                    <img src="{{ $stepImagesBase64[$step->id] }}" style="max-width: 100%; height: auto; max-height: 110px; display: block; margin-bottom: 3px;" />
+                                @endif
+                                <div style="font-size: 9px; font-weight: bold; color: #000;">
+                                    {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
+                                </div>
+                                <div style="font-size: 8px; color: #000; line-height: 1.3; margin-top: 1px;">
+                                    {!! nl2br(e($step->instruction)) !!}
+                                </div>
+                            </td>
+                        @endforeach
+                        {{-- Pad with empty cells to keep 3 columns --}}
+                        @for ($i = $row->count(); $i < 3; $i++)
+                            <td style="width: 33.33%; border: none;"></td>
+                        @endfor
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
 
     {{-- Plating Images — Side by Side --}}
     @if (count($dineInBase64) || count($takeawayBase64))

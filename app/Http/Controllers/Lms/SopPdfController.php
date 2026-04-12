@@ -36,13 +36,14 @@ class SopPdfController extends Controller
         $dineInBase64   = $this->imagesToBase64($dineInImages);
         $takeawayBase64 = $this->imagesToBase64($takeawayImages);
         $logoBase64     = $this->logoToBase64($company);
+        $stepImagesBase64 = $this->stepImagesToBase64($recipe->steps);
 
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'Company';
         $videoQr    = $recipe->video_url ? $this->generateVideoQr($recipe->id, $company->id) : null;
 
         $pdf = Pdf::loadView('pdf.sop-single', compact(
-            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'exportedBy', 'brandName', 'videoQr'
+            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'stepImagesBase64', 'exportedBy', 'brandName', 'videoQr'
         ))->setPaper('a4', 'portrait');
 
         return $pdf->download("SOP-{$recipe->code}-{$recipe->name}.pdf");
@@ -71,21 +72,45 @@ class SopPdfController extends Controller
         // Pre-compute base64 images and QR codes for all recipes
         $recipeImages = [];
         $recipeQrs    = [];
+        $recipeStepImages = [];
         foreach ($recipes as $recipe) {
             $recipeImages[$recipe->id] = [
                 'dine_in'  => $this->imagesToBase64($recipe->images->where('type', 'dine_in')->values()),
                 'takeaway' => $this->imagesToBase64($recipe->images->where('type', 'takeaway')->values()),
             ];
             $recipeQrs[$recipe->id] = $recipe->video_url ? $this->generateVideoQr($recipe->id, $company->id) : null;
+            $recipeStepImages[$recipe->id] = $this->stepImagesToBase64($recipe->steps);
         }
 
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'SOP';
 
         $pdf = Pdf::loadView('pdf.sop-all', compact(
-            'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'exportedBy', 'brandName'
+            'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'recipeStepImages', 'exportedBy', 'brandName'
         ))->setPaper('a4', 'portrait');
         return $pdf->download("{$brandName}-Training-SOPs.pdf");
+    }
+
+    /**
+     * Convert step images to base64, keyed by step id.
+     */
+    private function stepImagesToBase64($steps): array
+    {
+        $result = [];
+        foreach ($steps as $step) {
+            if (! $step->image_path) continue;
+            try {
+                $path = Storage::disk('public')->path($step->image_path);
+                if (file_exists($path)) {
+                    $mime = mime_content_type($path) ?: 'image/jpeg';
+                    $data = base64_encode(file_get_contents($path));
+                    $result[$step->id] = "data:{$mime};base64,{$data}";
+                }
+            } catch (\Throwable $e) {
+                // skip
+            }
+        }
+        return $result;
     }
 
     private function imagesToBase64($images): array

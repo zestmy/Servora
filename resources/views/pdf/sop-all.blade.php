@@ -162,9 +162,10 @@
                         @endif
                     </td>
 
-                    {{-- Preparation Steps (right) --}}
+                    {{-- Preparation Steps (right — only when NO step images) --}}
+                    @php $stepImgs = $recipeStepImages[$recipe->id] ?? []; $hasStepImgs = !empty($stepImgs); @endphp
                     <td style="width: 62%; vertical-align: top; padding-left: 6px; border-left: 1px solid #ddd;">
-                        @if ($recipe->steps->count())
+                        @if ($recipe->steps->count() && ! $hasStepImgs)
                             <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; border-bottom: 2px solid #000; padding-bottom: 1px;">Preparation Steps</div>
                             @foreach ($recipe->steps as $step)
                                 <div style="margin-bottom: 3px;">
@@ -180,6 +181,35 @@
                     </td>
                 </tr>
             </table>
+
+            {{-- Preparation Steps — 3-column grid when images exist --}}
+            @if ($recipe->steps->count() && $hasStepImgs)
+                <div style="margin-top: 6px; margin-bottom: 6px;">
+                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 1px;">Preparation Steps</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        @foreach ($recipe->steps->chunk(3) as $row)
+                            <tr>
+                                @foreach ($row as $step)
+                                    <td style="width: 33.33%; vertical-align: top; padding: 3px; border: 1px solid #ddd;">
+                                        @if (isset($stepImgs[$step->id]))
+                                            <img src="{{ $stepImgs[$step->id] }}" style="max-width: 100%; height: auto; max-height: 95px; display: block; margin-bottom: 2px;" />
+                                        @endif
+                                        <div style="font-size: 8px; font-weight: bold; color: #000;">
+                                            {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
+                                        </div>
+                                        <div style="font-size: 7px; color: #000; line-height: 1.3; margin-top: 1px;">
+                                            {!! nl2br(e($step->instruction)) !!}
+                                        </div>
+                                    </td>
+                                @endforeach
+                                @for ($i = $row->count(); $i < 3; $i++)
+                                    <td style="width: 33.33%; border: none;"></td>
+                                @endfor
+                            </tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
 
             {{-- Plating Images — Side by Side --}}
             @php $imgs = $recipeImages[$recipe->id] ?? ['dine_in' => [], 'takeaway' => []]; @endphp

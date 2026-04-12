@@ -572,6 +572,40 @@
                                                   placeholder="Describe the preparation step..."
                                                   class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
                                         <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
+
+                                        {{-- Image upload --}}
+                                        <div class="flex items-start gap-3 pt-1">
+                                            <div class="flex-shrink-0">
+                                                @if (!empty($step['new_image']))
+                                                    {{-- Newly uploaded (pending save) --}}
+                                                    <div class="relative">
+                                                        <img src="{{ $step['new_image']->temporaryUrl() }}" class="w-20 h-20 object-cover rounded border border-indigo-300" />
+                                                        <button type="button" wire:click="clearStepNewImage({{ $idx }})"
+                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                                                    </div>
+                                                @elseif (!empty($step['image_url']) && empty($step['remove_image']))
+                                                    {{-- Existing saved image --}}
+                                                    <div class="relative">
+                                                        <img src="{{ $step['image_url'] }}" class="w-20 h-20 object-cover rounded border border-gray-300" />
+                                                        <button type="button" wire:click="removeStepImage({{ $idx }})"
+                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600" title="Remove image">×</button>
+                                                    </div>
+                                                @else
+                                                    <label class="cursor-pointer inline-flex flex-col items-center justify-center w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <span class="text-[10px] text-gray-500 mt-1">Add photo</span>
+                                                        <input type="file" wire:model="steps.{{ $idx }}.new_image" accept="image/*" class="hidden" />
+                                                    </label>
+                                                @endif
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-xs text-gray-500 pt-1">Optional step photo (max 5MB). Images enhance training visuals in the LMS and SOP PDFs.</p>
+                                                <x-input-error :messages="$errors->get('steps.'.$idx.'.new_image')" class="mt-1" />
+                                                <div wire:loading wire:target="steps.{{ $idx }}.new_image" class="text-xs text-indigo-500 mt-1">Uploading…</div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <button type="button" wire:click="removeStep({{ $idx }})"
                                             class="flex-shrink-0 text-red-400 hover:text-red-600 transition mt-1">
