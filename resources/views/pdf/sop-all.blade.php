@@ -6,13 +6,13 @@
     <style>
         /* Universal reset */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 22mm 18mm 22mm 30mm; }
+        @@page { margin: 18mm 18mm 18mm 25mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
-            margin: 22mm 18mm 22mm 30mm;
+            margin: 18mm 18mm 18mm 25mm;
         }
         .page-break { page-break-before: always; }
 

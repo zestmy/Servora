@@ -7,14 +7,13 @@
         /* Universal reset (excluding body — DomPDF uses body margin for page padding) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         /* Page margins — extra left for hole-punching/ring filing */
-        @@page { margin: 22mm 18mm 22mm 30mm; }
+        @@page { margin: 18mm 18mm 18mm 25mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
-            /* Body margin acts as fallback when @page isn't honored by DomPDF */
-            margin: 22mm 18mm 22mm 30mm;
+            margin: 18mm 18mm 18mm 25mm;
         }
 
         /* ═══ Document Header — compact & elegant ═══════════════ */
