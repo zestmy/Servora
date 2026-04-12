@@ -266,8 +266,8 @@ class Index extends Component
     {
         $this->conversions[] = [
             'id'          => null,
-            'from_uom_id' => null,
-            'to_uom_id'   => null,
+            'from_uom_id' => $this->base_uom_id,
+            'to_uom_id'   => $this->recipe_uom_id ?? $this->base_uom_id,
             'factor'      => '',
         ];
     }
