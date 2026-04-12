@@ -3,7 +3,7 @@
 @section('title', 'SOP - ' . $recipe->name)
 
 @section('content')
-    {{-- Header with stamp --}}
+    {{-- ── Header ───────────────────────────────────────── --}}
     <div class="header">
         <div class="header-left">
             @if ($logoBase64)
@@ -18,7 +18,8 @@
             @endif
         </div>
         <div class="header-right">
-            <div style="display: inline-block; border: 2px solid #c00; color: #c00; padding: 2px 10px; font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; opacity: 0.75; margin-bottom: 4px;">Private &amp; Confidential</div>
+            <div class="doc-confidential">Private &amp; Confidential</div><br>
+            <div class="doc-badge">SOP</div>
             <div class="doc-title">Standard Operating Procedure</div>
             @if ($recipe->code)
                 <div class="doc-number">{{ $recipe->code }}</div>
@@ -26,51 +27,61 @@
         </div>
     </div>
 
-    {{-- Recipe Title + QR --}}
-    <table style="width: 100%; margin-bottom: 8px;">
-        <tr>
-            <td style="vertical-align: top;">
-                <div style="font-size: 14px; font-weight: bold; color: #000;">{{ $recipe->name }}</div>
-                <div style="font-size: 8px; color: #555; margin-top: 2px;">
-                    @if ($recipe->category)<span>{{ $recipe->category }}</span> · @endif
-                    Yield: {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
-                </div>
-                @if ($recipe->description)
-                    <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ $recipe->description }}</div>
+    {{-- ── Recipe Hero ─────────────────────────────────── --}}
+    <div class="recipe-hero">
+        <div class="recipe-hero-left">
+            <div class="recipe-name">{{ $recipe->name }}</div>
+            <div class="recipe-meta">
+                @if ($recipe->category)
+                    <span class="pill">{{ strtoupper($recipe->category) }}</span>
                 @endif
-            </td>
-            @if ($videoQr)
-                <td style="width: 80px; vertical-align: top; text-align: center; padding-left: 8px;">
-                    <img src="{{ $videoQr }}" style="width: 65px; height: 65px;" />
-                    <div style="font-size: 6px; color: #666; margin-top: 1px; font-weight: bold;">Scan for Video</div>
-                </td>
+                <strong>Yield:</strong> {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
+                @if ($recipe->lines->count())
+                    &nbsp;&middot;&nbsp; <strong>{{ $recipe->lines->count() }}</strong> ingredient{{ $recipe->lines->count() === 1 ? '' : 's' }}
+                @endif
+                @if ($recipe->steps->count())
+                    &nbsp;&middot;&nbsp; <strong>{{ $recipe->steps->count() }}</strong> step{{ $recipe->steps->count() === 1 ? '' : 's' }}
+                @endif
+            </div>
+            @if ($recipe->description)
+                <div class="recipe-description">{{ $recipe->description }}</div>
             @endif
-        </tr>
-    </table>
+        </div>
+        @if ($videoQr)
+            <div class="recipe-hero-right">
+                <div class="qr-box">
+                    <img src="{{ $videoQr }}" />
+                    <div class="qr-label">Scan for Video</div>
+                </div>
+            </div>
+        @endif
+    </div>
 
-    {{-- Ingredients & Preparation Steps — Side by Side --}}
-    <table style="width: 100%; margin-bottom: 8px;">
+    @php $hasStepImages = !empty($stepImagesBase64 ?? []); @endphp
+
+    {{-- ── Ingredients & Steps side by side (no images layout) ─── --}}
+    <table style="width: 100%; margin-bottom: 10px;">
         <tr>
             {{-- Ingredients (left) --}}
-            <td style="width: 40%; vertical-align: top; padding-right: 8px;">
+            <td style="width: 42%; vertical-align: top; padding-right: 12px;">
                 @if ($recipe->lines->count())
-                    <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">Ingredients</div>
-                    <table class="items" style="margin-bottom: 0;">
+                    <div class="section-header">Ingredients</div>
+                    <table class="items">
                         <thead>
                             <tr>
-                                <th style="width: 16px;">#</th>
+                                <th style="width: 18px;">#</th>
                                 <th>Ingredient</th>
-                                <th class="right" style="width: 45px;">Qty</th>
-                                <th style="width: 35px;">UOM</th>
+                                <th class="right" style="width: 50px;">Qty</th>
+                                <th style="width: 40px;">UOM</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($recipe->lines as $idx => $line)
                                 <tr>
-                                    <td>{{ $idx + 1 }}</td>
-                                    <td>{{ $line->ingredient?->name ?? '—' }}</td>
+                                    <td style="color: #9ca3af;">{{ $idx + 1 }}</td>
+                                    <td style="font-weight: 500;">{{ $line->ingredient?->name ?? '—' }}</td>
                                     <td class="right">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
-                                    <td>{{ $line->uom?->abbreviation ?? '—' }}</td>
+                                    <td style="color: #6b7280;">{{ $line->uom?->abbreviation ?? '—' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -78,19 +89,17 @@
                 @endif
             </td>
 
-            {{-- Preparation Steps (right — only if NO step images; otherwise shown in grid below) --}}
-            @php $hasStepImages = !empty($stepImagesBase64 ?? []); @endphp
-            <td style="width: 60%; vertical-align: top; padding-left: 8px; border-left: 1px solid #ddd;">
+            {{-- Preparation Steps (right) — only if NO images --}}
+            <td style="width: 58%; vertical-align: top; padding-left: 12px; border-left: 1px solid #e5e7eb;">
                 @if ($recipe->steps->count() && ! $hasStepImages)
-                    <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 2px;">Preparation Steps</div>
+                    <div class="section-header">Preparation Steps</div>
                     @foreach ($recipe->steps as $step)
-                        <div style="margin-bottom: 4px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #000;">
-                                {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
-                            </div>
-                            <div style="font-size: 9px; color: #000; line-height: 1.4; padding-left: 12px;">
-                                {!! nl2br(e($step->instruction)) !!}
-                            </div>
+                        <div class="step-item">
+                            <span class="num">{{ $step->sort_order + 1 }}</span>
+                            @if ($step->title)
+                                <span class="step-title-inline">{{ $step->title }}</span>
+                            @endif
+                            <div class="step-body">{!! nl2br(e($step->instruction)) !!}</div>
                         </div>
                     @endforeach
                 @endif
@@ -98,27 +107,29 @@
         </tr>
     </table>
 
-    {{-- Preparation Steps — 3-column grid layout when images exist --}}
+    {{-- ── Preparation Steps — 3-column grid when images exist ── --}}
     @if ($recipe->steps->count() && $hasStepImages)
-        <div style="margin-top: 8px; margin-bottom: 8px;">
-            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 2px;">Preparation Steps</div>
-            <table style="width: 100%; border-collapse: collapse;">
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <div class="section-header">Preparation Steps</div>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 5px;">
                 @foreach ($recipe->steps->chunk(3) as $row)
                     <tr>
                         @foreach ($row as $step)
-                            <td style="width: 33.33%; vertical-align: top; padding: 3px; border: 1px solid #ddd;">
-                                @if (isset($stepImagesBase64[$step->id]))
-                                    <img src="{{ $stepImagesBase64[$step->id] }}" style="max-width: 100%; height: auto; max-height: 110px; display: block; margin-bottom: 3px;" />
-                                @endif
-                                <div style="font-size: 9px; font-weight: bold; color: #000;">
-                                    {{ $step->sort_order + 1 }}.{{ $step->title ? ' ' . $step->title : '' }}
-                                </div>
-                                <div style="font-size: 8px; color: #000; line-height: 1.3; margin-top: 1px;">
-                                    {!! nl2br(e($step->instruction)) !!}
+                            <td style="width: 33.33%; vertical-align: top; padding: 0;">
+                                <div class="step-card">
+                                    @if (isset($stepImagesBase64[$step->id]))
+                                        <img src="{{ $stepImagesBase64[$step->id] }}" style="width: 100%; height: 110px; object-fit: cover; display: block;" />
+                                    @endif
+                                    <div style="padding: 6px 8px;">
+                                        <div>
+                                            <span class="step-num">{{ $step->sort_order + 1 }}</span>
+                                            <span class="step-title">{{ $step->title ?: 'Step ' . ($step->sort_order + 1) }}</span>
+                                        </div>
+                                        <div class="step-text">{!! nl2br(e($step->instruction)) !!}</div>
+                                    </div>
                                 </div>
                             </td>
                         @endforeach
-                        {{-- Pad with empty cells to keep 3 columns --}}
                         @for ($i = $row->count(); $i < 3; $i++)
                             <td style="width: 33.33%; border: none;"></td>
                         @endfor
@@ -128,28 +139,28 @@
         </div>
     @endif
 
-    {{-- Plating Images — Side by Side --}}
+    {{-- ── Plating Presentation ─────────────────────────── --}}
     @if (count($dineInBase64) || count($takeawayBase64))
-        <div style="margin-bottom: 8px;">
-            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; border-bottom: 1px solid #ccc; padding-bottom: 2px;">Plating</div>
-            <table style="width: 100%; border-collapse: collapse;">
+        <div style="margin-top: 10px;">
+            <div class="section-header">Plating Presentation</div>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 6px;">
                 <tr>
                     @if (count($dineInBase64))
-                        <td style="width: {{ count($takeawayBase64) ? '50%' : '100%' }}; vertical-align: top; padding-right: {{ count($takeawayBase64) ? '5px' : '0' }};">
-                            <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Dine-In</div>
+                        <td style="width: {{ count($takeawayBase64) ? '50%' : '100%' }}; vertical-align: top;">
+                            <div class="plating-label">Dine-In</div>
                             @foreach ($dineInBase64 as $b64)
-                                <div style="margin-bottom: 3px;">
-                                    <img src="{{ $b64 }}" style="max-width: 100%; height: auto; max-height: 160px; border: 1px solid #ddd;" />
+                                <div style="margin-bottom: 4px;">
+                                    <img src="{{ $b64 }}" class="plating-img" />
                                 </div>
                             @endforeach
                         </td>
                     @endif
                     @if (count($takeawayBase64))
-                        <td style="width: {{ count($dineInBase64) ? '50%' : '100%' }}; vertical-align: top; padding-left: {{ count($dineInBase64) ? '5px' : '0' }};">
-                            <div style="font-size: 7px; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 2px;">Takeaway</div>
+                        <td style="width: {{ count($dineInBase64) ? '50%' : '100%' }}; vertical-align: top;">
+                            <div class="plating-label">Takeaway</div>
                             @foreach ($takeawayBase64 as $b64)
-                                <div style="margin-bottom: 3px;">
-                                    <img src="{{ $b64 }}" style="max-width: 100%; height: auto; max-height: 160px; border: 1px solid #ddd;" />
+                                <div style="margin-bottom: 4px;">
+                                    <img src="{{ $b64 }}" class="plating-img" />
                                 </div>
                             @endforeach
                         </td>
