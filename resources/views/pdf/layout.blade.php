@@ -5,7 +5,7 @@
     <title>@yield('title')</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { margin: 0; }
+        @@page { margin: 0; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10px;

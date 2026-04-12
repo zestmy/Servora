@@ -5,7 +5,7 @@
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { margin: 0; }
+        @@page { margin: 0; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10px; color: #1f2937; line-height: 1.4; }
         .container { padding: 24px 28px 60px; }
         .page-break { page-break-before: always; }
