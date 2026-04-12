@@ -4,9 +4,16 @@
     <meta charset="utf-8">
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
-        @@page { margin: 22mm 18mm 22mm 30mm; }  /* extra left for hole-punching */
+        /* Universal reset */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.5; }
+        @@page { margin: 22mm 18mm 22mm 30mm; }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 10pt;
+            color: #1f2937;
+            line-height: 1.5;
+            margin: 22mm 18mm 22mm 30mm;
+        }
         .page-break { page-break-before: always; }
 
         /* Cover */

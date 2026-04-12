@@ -4,13 +4,17 @@
     <meta charset="utf-8">
     <title>@yield('title')</title>
     <style>
-        @@page { margin: 22mm 18mm 22mm 30mm; }  /* extra left for hole-punching */
+        /* Universal reset (excluding body — DomPDF uses body margin for page padding) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Page margins — extra left for hole-punching/ring filing */
+        @@page { margin: 22mm 18mm 22mm 30mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
+            /* Body margin acts as fallback when @page isn't honored by DomPDF */
+            margin: 22mm 18mm 22mm 30mm;
         }
 
         /* ═══ Document Header — compact & elegant ═══════════════ */
@@ -268,24 +272,18 @@
     </style>
 </head>
 <body>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
-        <tr>
-            <td style="padding: 8px 10px; vertical-align: top;">
-                @yield('content')
+    @yield('content')
 
-                <div class="pdf-footer">
-                    <span class="left">
-                        &copy; {{ now()->format('Y') }} {{ $brandName ?? $company?->name ?? 'Servora' }}
-                        @if (isset($brandName))
-                            &middot; Confidential &amp; proprietary
-                        @endif
-                    </span>
-                    <span class="right">
-                        Generated {{ now()->format('d M Y') }}{{ isset($exportedBy) ? ' · ' . $exportedBy : '' }} &middot; Powered by Servora
-                    </span>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <div class="pdf-footer">
+        <span class="left">
+            &copy; {{ now()->format('Y') }} {{ $brandName ?? $company?->name ?? 'Servora' }}
+            @if (isset($brandName))
+                &middot; Confidential &amp; proprietary
+            @endif
+        </span>
+        <span class="right">
+            Generated {{ now()->format('d M Y') }}{{ isset($exportedBy) ? ' · ' . $exportedBy : '' }} &middot; Powered by Servora
+        </span>
+    </div>
 </body>
 </html>
