@@ -6,7 +6,7 @@
     <style>
         @@page { margin: 22mm 20mm 22mm 20mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.5; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.5; }
         .page-break { page-break-before: always; }
 
         /* Cover */
@@ -29,53 +29,53 @@
         .toc-num { display: inline-block; width: 30px; color: #64748b; font-weight: bold; font-size: 10pt; }
         .toc-code { color: #94a3b8; font-size: 9pt; font-family: 'Courier New', monospace; }
 
-        /* Document header */
-        table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        /* Document header — compact */
+        table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
-        .dh-logo { width: 90px; padding-right: 16px; text-align: left; vertical-align: middle; }
-        .dh-logo img { max-height: 70px; max-width: 85px; display: block; }
-        .dh-body { padding: 0; vertical-align: middle; }
-        .dh-brand { font-size: 13pt; font-weight: bold; color: #1f2937; letter-spacing: -0.2px; line-height: 1.2; }
-        .dh-company { font-size: 9pt; color: #6b7280; letter-spacing: 0.2px; margin-top: 1px; }
-        .dh-divider { width: 44px; height: 3px; background: #0f172a; margin: 7px 0; }
-        .dh-recipe { font-size: 20pt; font-weight: bold; color: #0f172a; letter-spacing: -0.6px; line-height: 1.1; margin-bottom: 3px; }
-        .dh-subtitle { font-size: 9pt; color: #475569; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
-        .dh-description { font-size: 10pt; color: #475569; font-style: italic; margin-top: 5px; line-height: 1.5; }
-        .header-rule { height: 1px; background: #cbd5e1; margin-bottom: 16px; }
+        .dh-logo { width: 70px; padding-right: 14px; vertical-align: middle; }
+        .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
+        .dh-body { vertical-align: middle; }
+        .dh-brand { font-size: 11pt; font-weight: bold; color: #1f2937; line-height: 1.25; }
+        .dh-company { font-size: 8.5pt; color: #6b7280; margin-top: 1px; }
+        .dh-divider { width: 36px; height: 2px; background: #0f172a; margin: 6px 0; }
+        .dh-recipe { font-size: 15pt; font-weight: bold; color: #0f172a; letter-spacing: -0.3px; line-height: 1.15; margin-bottom: 2px; }
+        .dh-subtitle { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 1.8px; font-weight: bold; }
+        .dh-description { font-size: 9.5pt; color: #64748b; font-style: italic; margin-top: 4px; line-height: 1.4; }
+        .header-rule { height: 1px; background: #e2e8f0; margin-bottom: 12px; }
 
-        /* Hero */
-        table.hero { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+        /* Hero — compact */
+        table.hero { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
         table.hero > tbody > tr > td { vertical-align: top; padding: 0; }
-        .hero-photo-cell { width: 42%; padding-right: 12px; vertical-align: middle !important; }
-        .hero-photo-frame { border: 1px solid #e2e8f0; background: #f8fafc; padding: 4px; text-align: center; }
-        .hero-photo-frame img { max-width: 100%; height: auto; max-height: 230px; display: block; margin: 0 auto; }
-        .hero-photo-frame .no-photo { color: #94a3b8; font-size: 10pt; padding: 60px 10px; font-style: italic; }
+        .hero-photo-cell { width: 40%; padding-right: 12px; vertical-align: middle !important; }
+        .hero-photo-frame { border: 1px solid #e2e8f0; background: #f8fafc; padding: 3px; text-align: center; }
+        .hero-photo-frame img { max-width: 100%; height: auto; max-height: 200px; display: block; margin: 0 auto; }
+        .hero-photo-frame .no-photo { color: #94a3b8; font-size: 9pt; padding: 50px 10px; font-style: italic; }
         table.hero-info { width: 100%; border-collapse: collapse; }
-        table.hero-info td { padding: 9px 12px; font-size: 10.5pt; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
-        table.hero-info td.label { width: 90px; font-weight: bold; color: #475569; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.8px; border-right: 1px solid #e2e8f0; background: #f8fafc; }
-        table.hero-info tr:first-child td { border-top: 2px solid #0f172a; }
-        table.hero-info tr:last-child td { border-bottom: 2px solid #0f172a; }
-        table.hero-info .big-value { font-size: 12pt; font-weight: bold; color: #0f172a; }
+        table.hero-info td { padding: 7px 11px; font-size: 10pt; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+        table.hero-info td.label { width: 78px; font-weight: bold; color: #475569; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.7px; border-right: 1px solid #e2e8f0; background: #f8fafc; }
+        table.hero-info tr:first-child td { border-top: 1.5px solid #0f172a; }
+        table.hero-info tr:last-child td { border-bottom: 1.5px solid #0f172a; }
+        table.hero-info .big-value { font-size: 11pt; font-weight: bold; color: #0f172a; }
 
         /* Section header */
-        .section-header { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 2.5px; color: #0f172a; margin: 0 0 9px; padding-bottom: 5px; border-bottom: 2px solid #0f172a; }
+        .section-header { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #0f172a; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1.5px solid #0f172a; }
 
         /* Linear steps */
-        table.step-list { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        table.step-list td { padding: 7px 0; vertical-align: top; }
-        table.step-list td.num-cell { width: 34px; padding-right: 12px; text-align: center; }
-        table.step-list td.num-cell .num { display: inline-block; width: 24px; height: 24px; background: #0f172a; color: #fff; text-align: center; line-height: 24px; font-size: 10.5pt; font-weight: bold; border-radius: 50%; }
-        table.step-list .step-title-inline { font-size: 11.5pt; font-weight: bold; color: #0f172a; display: block; line-height: 1.3; }
-        table.step-list .step-body { font-size: 10.5pt; color: #1f2937; line-height: 1.55; margin-top: 3px; }
+        table.step-list { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        table.step-list td { padding: 6px 0; vertical-align: top; }
+        table.step-list td.num-cell { width: 28px; padding-right: 10px; text-align: center; }
+        table.step-list td.num-cell .num { display: inline-block; width: 20px; height: 20px; background: #0f172a; color: #fff; text-align: center; line-height: 20px; font-size: 9.5pt; font-weight: bold; border-radius: 50%; }
+        table.step-list .step-title-inline { font-size: 10.5pt; font-weight: bold; color: #0f172a; display: block; line-height: 1.3; }
+        table.step-list .step-body { font-size: 10pt; color: #1f2937; line-height: 1.55; margin-top: 2px; }
 
         /* Step cards */
         .step-card { border: 1px solid #e2e8f0; background: #fff; }
-        .step-card .step-img { width: 100%; height: 140px; display: block; border-bottom: 1px solid #e2e8f0; }
-        .step-card .step-no-img { width: 100%; height: 140px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
-        .step-card-body { padding: 9px 11px; }
-        .step-card .step-num { display: inline-block; background: #0f172a; color: #fff; min-width: 20px; text-align: center; padding: 2px 7px; font-size: 9.5pt; font-weight: bold; margin-right: 5px; }
-        .step-card .step-title { font-size: 10.5pt; font-weight: bold; color: #0f172a; }
-        .step-card .step-text { font-size: 10pt; color: #334155; line-height: 1.5; margin-top: 4px; }
+        .step-card .step-img { width: 100%; height: 130px; display: block; border-bottom: 1px solid #e2e8f0; }
+        .step-card .step-no-img { width: 100%; height: 130px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+        .step-card-body { padding: 7px 10px; }
+        .step-card .step-num { display: inline-block; background: #0f172a; color: #fff; min-width: 18px; text-align: center; padding: 1px 6px; font-size: 9pt; font-weight: bold; margin-right: 4px; }
+        .step-card .step-title { font-size: 10pt; font-weight: bold; color: #0f172a; }
+        .step-card .step-text { font-size: 9.5pt; color: #334155; line-height: 1.45; margin-top: 3px; }
 
         /* Ingredients list */
         table.ing-table { width: 100%; border-collapse: collapse; }
