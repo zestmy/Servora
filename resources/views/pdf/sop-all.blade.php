@@ -5,103 +5,97 @@
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 20mm 15mm 18mm 15mm; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.45; }
+        @@page { margin: 22mm 20mm 20mm 20mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.5; }
         .page-break { page-break-before: always; }
 
         /* Cover */
         .cover-wrap { text-align: center; padding-top: 90px; }
-        .cover-confidential { display: inline-block; border: 2px solid #dc2626; color: #dc2626; padding: 5px 20px; font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 35px; }
-        .cover-brand { font-size: 28pt; font-weight: bold; color: #000; letter-spacing: -0.5px; margin-bottom: 5px; }
-        .cover-subbrand { font-size: 12pt; color: #555; margin-bottom: 3px; }
-        .cover-reg { font-size: 10pt; color: #777; }
-        .cover-accent-wrap { margin: 30px 0 18px; }
-        .cover-accent { display: inline-block; width: 60px; height: 3px; background: #000; }
-        .cover-title { font-size: 16pt; font-weight: bold; color: #000; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 5px; }
-        .cover-subtitle { font-size: 11pt; color: #555; letter-spacing: 1px; text-transform: uppercase; }
-        .cover-meta { font-size: 10pt; color: #555; margin-top: 40px; line-height: 1.6; }
-        .cover-disclaimer { margin-top: 50px; padding: 12px 40px; font-size: 9pt; color: #666; font-style: italic; line-height: 1.7; }
+        .cover-confidential { display: inline-block; border: 2px solid #dc2626; color: #dc2626; padding: 5px 22px; font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 35px; }
+        .cover-brand { font-size: 30pt; font-weight: bold; color: #0f172a; letter-spacing: -0.8px; margin-bottom: 6px; }
+        .cover-subbrand { font-size: 12pt; color: #64748b; margin-bottom: 4px; }
+        .cover-reg { font-size: 10pt; color: #94a3b8; }
+        .cover-accent-wrap { margin: 34px 0 20px; }
+        .cover-accent { display: inline-block; width: 60px; height: 3px; background: #0f172a; }
+        .cover-title { font-size: 16pt; font-weight: bold; color: #0f172a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+        .cover-subtitle { font-size: 11pt; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; }
+        .cover-meta { font-size: 10pt; color: #475569; margin-top: 45px; line-height: 1.7; }
+        .cover-disclaimer { margin-top: 55px; padding: 14px 50px; font-size: 9pt; color: #64748b; font-style: italic; line-height: 1.7; }
 
         /* TOC */
-        .toc-header { font-size: 16pt; font-weight: bold; color: #000; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 3px solid #000; }
-        .toc-category { font-size: 12pt; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 12px; margin-bottom: 6px; padding: 5px 10px; background: #f3f4f6; border-left: 4px solid #000; }
-        .toc-item { padding: 5px 10px; border-bottom: 1px dotted #cbd5e1; font-size: 11pt; color: #1f2937; }
-        .toc-num { display: inline-block; width: 28px; color: #6b7280; font-weight: bold; font-size: 10pt; }
-        .toc-code { color: #9ca3af; font-size: 9pt; font-family: 'Courier New', monospace; }
+        .toc-header { font-size: 18pt; font-weight: bold; color: #0f172a; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 18px; padding-bottom: 8px; border-bottom: 3px solid #0f172a; }
+        .toc-category { font-size: 12pt; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 8px; padding: 7px 12px; background: #f1f5f9; border-left: 4px solid #0f172a; }
+        .toc-item { padding: 6px 12px; border-bottom: 1px dotted #cbd5e1; font-size: 11pt; color: #1f2937; }
+        .toc-num { display: inline-block; width: 30px; color: #64748b; font-weight: bold; font-size: 10pt; }
+        .toc-code { color: #94a3b8; font-size: 9pt; font-family: 'Courier New', monospace; }
 
         /* Document header */
-        table.doc-header { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; }
+        table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
-        .dh-logo-cell { width: 75px; text-align: center; border-right: 1px solid #000; padding: 5px; }
-        .dh-logo-cell img { max-height: 50px; max-width: 65px; }
-        .dh-title-cell { border-right: 1px solid #000; padding: 0; }
-        .dh-title-main { font-size: 13pt; font-weight: bold; color: #000; padding: 5px 10px 2px; letter-spacing: 0.3px; }
-        .dh-title-sub { font-size: 10pt; color: #333; font-style: italic; padding: 0 10px 4px; }
-        .dh-dept { font-size: 10pt; font-weight: bold; color: #000; padding: 3px 10px; background: #f3f4f6; border-top: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.5px; }
-        .dh-meta-cell { width: 140px; padding: 0; }
-        table.dh-meta { width: 100%; border-collapse: collapse; }
-        table.dh-meta td { padding: 3px 8px; font-size: 9pt; border-bottom: 1px solid #e5e7eb; }
-        table.dh-meta tr:last-child td { border-bottom: none; }
-        table.dh-meta tr.hl td { background: #f3f4f6; }
+        .dh-logo { width: 90px; padding-right: 16px; text-align: left; vertical-align: middle; }
+        .dh-logo img { max-height: 70px; max-width: 85px; display: block; }
+        .dh-body { padding: 0; vertical-align: middle; }
+        .dh-brand { font-size: 13pt; font-weight: bold; color: #1f2937; letter-spacing: -0.2px; line-height: 1.2; }
+        .dh-company { font-size: 9pt; color: #6b7280; letter-spacing: 0.2px; margin-top: 1px; }
+        .dh-divider { width: 44px; height: 3px; background: #0f172a; margin: 7px 0; }
+        .dh-recipe { font-size: 20pt; font-weight: bold; color: #0f172a; letter-spacing: -0.6px; line-height: 1.1; margin-bottom: 3px; }
+        .dh-subtitle { font-size: 9pt; color: #475569; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+        .dh-description { font-size: 10pt; color: #475569; font-style: italic; margin-top: 5px; line-height: 1.5; }
+        .header-rule { height: 1px; background: #cbd5e1; margin-bottom: 16px; }
 
         /* Hero */
-        table.hero { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; }
+        table.hero { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
         table.hero > tbody > tr > td { vertical-align: top; padding: 0; }
-        .hero-photo-cell { width: 38%; text-align: center; border-right: 1px solid #000; padding: 5px; background: #fafafa; vertical-align: middle !important; }
-        .hero-photo-cell img { max-width: 100%; height: auto; max-height: 200px; }
-        .hero-photo-cell .no-photo { color: #9ca3af; font-size: 10pt; padding: 30px 10px; font-style: italic; }
+        .hero-photo-cell { width: 42%; padding-right: 12px; vertical-align: middle !important; }
+        .hero-photo-frame { border: 1px solid #e2e8f0; background: #f8fafc; padding: 4px; text-align: center; }
+        .hero-photo-frame img { max-width: 100%; height: auto; max-height: 230px; display: block; margin: 0 auto; }
+        .hero-photo-frame .no-photo { color: #94a3b8; font-size: 10pt; padding: 60px 10px; font-style: italic; }
         table.hero-info { width: 100%; border-collapse: collapse; }
-        table.hero-info td { padding: 5px 10px; font-size: 10.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; }
-        table.hero-info td.label { width: 85px; font-weight: bold; background: #f3f4f6; border-right: 1px solid #e5e7eb; color: #111; }
-        table.hero-info tr:last-child td { border-bottom: none; }
+        table.hero-info td { padding: 9px 12px; font-size: 10.5pt; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+        table.hero-info td.label { width: 90px; font-weight: bold; color: #475569; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.8px; border-right: 1px solid #e2e8f0; background: #f8fafc; }
+        table.hero-info tr:first-child td { border-top: 2px solid #0f172a; }
+        table.hero-info tr:last-child td { border-bottom: 2px solid #0f172a; }
+        table.hero-info .big-value { font-size: 12pt; font-weight: bold; color: #0f172a; }
 
         /* Section header */
-        .section-header { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #000; margin: 0 0 6px; padding-bottom: 3px; border-bottom: 2px solid #000; }
+        .section-header { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 2.5px; color: #0f172a; margin: 0 0 9px; padding-bottom: 5px; border-bottom: 2px solid #0f172a; }
 
         /* Linear steps */
-        table.step-list { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        table.step-list td { padding: 5px 0; vertical-align: top; }
-        table.step-list td.num-cell { width: 30px; padding-right: 8px; text-align: center; }
-        table.step-list td.num-cell .num {
-            display: inline-block; width: 20px; height: 20px;
-            background: #000; color: #fff;
-            text-align: center; line-height: 20px;
-            font-size: 10pt; font-weight: bold; border-radius: 50%;
-        }
-        table.step-list .step-title-inline { font-size: 11pt; font-weight: bold; color: #000; display: block; line-height: 1.3; }
-        table.step-list .step-body { font-size: 10.5pt; color: #1f2937; line-height: 1.5; margin-top: 2px; }
+        table.step-list { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        table.step-list td { padding: 7px 0; vertical-align: top; }
+        table.step-list td.num-cell { width: 34px; padding-right: 12px; text-align: center; }
+        table.step-list td.num-cell .num { display: inline-block; width: 24px; height: 24px; background: #0f172a; color: #fff; text-align: center; line-height: 24px; font-size: 10.5pt; font-weight: bold; border-radius: 50%; }
+        table.step-list .step-title-inline { font-size: 11.5pt; font-weight: bold; color: #0f172a; display: block; line-height: 1.3; }
+        table.step-list .step-body { font-size: 10.5pt; color: #1f2937; line-height: 1.55; margin-top: 3px; }
 
         /* Step cards */
-        .step-card { border: 1px solid #000; background: #fff; }
-        .step-card .step-img { width: 100%; height: 140px; display: block; border-bottom: 1px solid #000; }
-        .step-card .step-no-img { width: 100%; height: 140px; background: #f3f4f6; border-bottom: 1px solid #000; }
-        .step-card-body { padding: 6px 9px; }
-        .step-card .step-num { display: inline-block; background: #000; color: #fff; min-width: 18px; text-align: center; padding: 1px 6px; font-size: 9.5pt; font-weight: bold; margin-right: 4px; }
-        .step-card .step-title { font-size: 10.5pt; font-weight: bold; color: #000; }
-        .step-card .step-text { font-size: 10pt; color: #1f2937; line-height: 1.45; margin-top: 3px; }
+        .step-card { border: 1px solid #e2e8f0; background: #fff; }
+        .step-card .step-img { width: 100%; height: 140px; display: block; border-bottom: 1px solid #e2e8f0; }
+        .step-card .step-no-img { width: 100%; height: 140px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+        .step-card-body { padding: 9px 11px; }
+        .step-card .step-num { display: inline-block; background: #0f172a; color: #fff; min-width: 20px; text-align: center; padding: 2px 7px; font-size: 9.5pt; font-weight: bold; margin-right: 5px; }
+        .step-card .step-title { font-size: 10.5pt; font-weight: bold; color: #0f172a; }
+        .step-card .step-text { font-size: 10pt; color: #334155; line-height: 1.5; margin-top: 4px; }
 
-        /* Ingredients table */
-        table.items { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000; }
-        table.items thead th { background: #1f2937; color: #fff; padding: 5px 7px; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.7px; text-align: left; font-weight: bold; }
-        table.items thead th.right { text-align: right; }
-        table.items tbody td { padding: 4px 7px; border-bottom: 1px solid #e5e7eb; font-size: 10pt; color: #1f2937; }
-        table.items tbody tr:nth-child(even) td { background: #f9fafb; }
-        table.items tbody td.right { text-align: right; }
+        /* Ingredients list */
+        .ing-list { font-size: 10pt; line-height: 1.7; color: #1f2937; }
+        .ing-list strong { color: #0f172a; font-weight: bold; }
+        .ing-sep { color: #cbd5e1; margin: 0 4px; }
 
         /* Plating */
-        .plating-label { font-size: 10pt; font-weight: bold; text-transform: uppercase; color: #000; letter-spacing: 1px; margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px solid #000; }
-        .plating-img { max-width: 100%; height: auto; max-height: 200px; border: 1px solid #d1d5db; }
+        .plating-label { font-size: 9.5pt; font-weight: bold; text-transform: uppercase; color: #475569; letter-spacing: 1.8px; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #cbd5e1; }
+        .plating-img { max-width: 100%; height: auto; max-height: 220px; border: 1px solid #e2e8f0; }
 
         /* QR */
-        .qr-img { width: 70px; height: 70px; border: 1px solid #000; padding: 2px; }
-        .qr-label { font-size: 8pt; color: #000; font-weight: bold; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
+        .qr-img { width: 75px; height: 75px; border: 1px solid #cbd5e1; padding: 3px; background: #fff; }
+        .qr-label { font-size: 7.5pt; color: #475569; font-weight: bold; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
 
         /* Warning */
-        .warning-notice { margin-top: 10px; padding: 6px 10px; border-top: 2px solid #000; font-size: 8pt; color: #374151; line-height: 1.45; }
-        .warning-notice strong { color: #000; }
+        .warning-notice { margin-top: 14px; padding: 10px 14px; border-top: 1px solid #cbd5e1; font-size: 8.5pt; color: #64748b; line-height: 1.6; font-style: italic; }
+        .warning-notice strong { color: #0f172a; font-style: normal; letter-spacing: 0.5px; }
 
-        /* Footer (inline — dompdf friendly) */
-        .pdf-footer { margin-top: 20px; padding-top: 6px; border-top: 1px solid #9ca3af; font-size: 8pt; color: #6b7280; }
+        /* Footer */
+        .pdf-footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #cbd5e1; font-size: 8pt; color: #94a3b8; }
         .pdf-footer .left { float: left; }
         .pdf-footer .right { float: right; }
     </style>
@@ -113,7 +107,7 @@
     <div class="cover-confidential">Private &amp; Confidential</div>
     <div style="margin-top: 30px;"></div>
     @if ($logoBase64)
-        <img src="{{ $logoBase64 }}" style="max-height: 65px; max-width: 200px; margin-bottom: 20px;" />
+        <img src="{{ $logoBase64 }}" style="max-height: 75px; max-width: 220px; margin-bottom: 22px;" />
     @endif
     <div class="cover-brand">{{ $brandName }}</div>
     @if ($company->brand_name && $company->name !== $company->brand_name)
@@ -171,52 +165,48 @@
         @endphp
         <div class="page-break"></div>
 
-        {{-- Header --}}
+        {{-- Header: Logo + Brand + Recipe Name --}}
         <table class="doc-header">
             <tr>
-                <td class="dh-logo-cell">
-                    @if ($logoBase64)
-                        <img src="{{ $logoBase64 }}" />
-                    @else
-                        <div style="font-size: 8pt; font-weight: bold;">{{ $brandName }}</div>
+                @if ($logoBase64)
+                    <td class="dh-logo"><img src="{{ $logoBase64 }}" /></td>
+                @endif
+                <td class="dh-body">
+                    <div class="dh-brand">{{ $company->brand_name ?? $company->name }}</div>
+                    @if ($company->brand_name && $company->name !== $company->brand_name)
+                        <div class="dh-company">{{ $company->name }}</div>
                     @endif
-                </td>
-                <td class="dh-title-cell">
-                    <div class="dh-title-main">{{ strtoupper($recipe->name) }}</div>
-                    @if ($recipe->description)
-                        <div class="dh-title-sub">{{ $recipe->description }}</div>
-                    @endif
-                    <div class="dh-dept">
+                    <div class="dh-divider"></div>
+                    <div class="dh-recipe">{{ strtoupper($recipe->name) }}</div>
+                    <div class="dh-subtitle">
                         @if ($recipe->category){{ $recipe->category }} · @endif
-                        SOP #{{ $sopNumber }}
+                        Standard Operating Procedure
                     </div>
-                </td>
-                <td class="dh-meta-cell">
-                    <table class="dh-meta">
-                        <tr><td><strong>Doc. No:</strong> {{ $recipe->code ?? '—' }}</td></tr>
-                        <tr><td><strong>Rev. No:</strong> {{ $recipe->updated_at?->format('ymd') }}</td></tr>
-                        <tr class="hl"><td><strong>Date:</strong> {{ now()->format('d M Y') }}</td></tr>
-                        <tr class="hl"><td><strong>Category:</strong> {{ $categoryName }}</td></tr>
-                    </table>
+                    @if ($recipe->description)
+                        <div class="dh-description">{{ $recipe->description }}</div>
+                    @endif
                 </td>
             </tr>
         </table>
+        <div class="header-rule"></div>
 
         {{-- Hero --}}
         <table class="hero">
             <tr>
                 <td class="hero-photo-cell">
-                    @if ($heroImage)
-                        <img src="{{ $heroImage }}" />
-                    @else
-                        <div class="no-photo">No presentation photo</div>
-                    @endif
+                    <div class="hero-photo-frame">
+                        @if ($heroImage)
+                            <img src="{{ $heroImage }}" />
+                        @else
+                            <div class="no-photo">No presentation photo</div>
+                        @endif
+                    </div>
                 </td>
                 <td>
                     <table class="hero-info">
                         <tr>
                             <td class="label">Yield</td>
-                            <td><strong style="font-size: 11.5pt;">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</strong></td>
+                            <td><span class="big-value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</span></td>
                         </tr>
                         @if ($recipe->category)
                             <tr><td class="label">Category</td><td>{{ $recipe->category }}</td></tr>
@@ -225,9 +215,11 @@
                             <tr>
                                 <td class="label">Ingredients</td>
                                 <td>
-                                    @foreach ($recipe->lines as $line)
-                                        <strong>{{ $line->ingredient?->name ?? '—' }}</strong>: {{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}@if (! $loop->last) · @endif
-                                    @endforeach
+                                    <div class="ing-list">
+                                        @foreach ($recipe->lines as $line)
+                                            <strong>{{ $line->ingredient?->name ?? '—' }}</strong>: {{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}@if (! $loop->last)<span class="ing-sep">·</span>@endif
+                                        @endforeach
+                                    </div>
                                 </td>
                             </tr>
                         @endif
@@ -235,15 +227,17 @@
                             <tr>
                                 <td class="label">Training</td>
                                 <td>
-                                    <table style="border: none;"><tr>
-                                        <td style="border: none; padding: 0; width: 80px;">
-                                            <img class="qr-img" src="{{ $qr }}" />
-                                            <div class="qr-label">Scan for Video</div>
-                                        </td>
-                                        <td style="border: none; padding: 0 0 0 10px; vertical-align: middle; font-size: 9.5pt; color: #374151;">
-                                            Scan the QR code with your phone to watch the training video.
-                                        </td>
-                                    </tr></table>
+                                    <table style="border: none; border-collapse: collapse;">
+                                        <tr>
+                                            <td style="border: none; padding: 0; width: 85px;">
+                                                <img class="qr-img" src="{{ $qr }}" />
+                                                <div class="qr-label">Scan for Video</div>
+                                            </td>
+                                            <td style="border: none; padding: 0 0 0 12px; vertical-align: middle; font-size: 9.5pt; color: #475569;">
+                                                Scan the QR code with your phone to watch the training video.
+                                            </td>
+                                        </tr>
+                                    </table>
                                 </td>
                             </tr>
                         @endif
@@ -256,7 +250,7 @@
         @if ($recipe->steps->count())
             <div class="section-header">Preparation Steps</div>
             @if ($hasStepImgs)
-                <table style="width: 100%; border-collapse: separate; border-spacing: 5px 5px;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 7px 7px;">
                     @foreach ($recipe->steps->chunk(3) as $row)
                         <tr>
                             @foreach ($row as $step)
@@ -302,15 +296,15 @@
 
         {{-- Additional plating --}}
         @if (! empty($remainingDineIn) || ! empty($remainingTakeaway))
-            <div style="margin-top: 12px;">
+            <div style="margin-top: 16px;">
                 <div class="section-header">Plating Presentation</div>
-                <table style="width: 100%; border-collapse: separate; border-spacing: 5px;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 7px;">
                     <tr>
                         @if (! empty($remainingDineIn))
                             <td style="width: {{ ! empty($remainingTakeaway) ? '50%' : '100%' }}; vertical-align: top;">
                                 <div class="plating-label">Dine-In</div>
                                 @foreach ($remainingDineIn as $b64)
-                                    <div style="margin-bottom: 3px;"><img src="{{ $b64 }}" class="plating-img" /></div>
+                                    <div style="margin-bottom: 4px;"><img src="{{ $b64 }}" class="plating-img" /></div>
                                 @endforeach
                             </td>
                         @endif
@@ -318,7 +312,7 @@
                             <td style="width: {{ ! empty($remainingDineIn) ? '50%' : '100%' }}; vertical-align: top;">
                                 <div class="plating-label">Takeaway</div>
                                 @foreach ($remainingTakeaway as $b64)
-                                    <div style="margin-bottom: 3px;"><img src="{{ $b64 }}" class="plating-img" /></div>
+                                    <div style="margin-bottom: 4px;"><img src="{{ $b64 }}" class="plating-img" /></div>
                                 @endforeach
                             </td>
                         @endif

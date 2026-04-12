@@ -5,139 +5,260 @@
     <title>@yield('title')</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 20mm 15mm 18mm 15mm; }
+        @@page { margin: 22mm 20mm 20mm 20mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 11pt;
             color: #1f2937;
-            line-height: 1.45;
+            line-height: 1.5;
         }
 
-        /* ── Compact document header (single row, real table) ── */
-        table.doc-header { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; }
+        /* ═══ Document Header ═══════════════════════════════════ */
+        table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
-        .dh-logo-cell { width: 80px; text-align: center; border-right: 1px solid #000; padding: 6px; }
-        .dh-logo-cell img { max-height: 55px; max-width: 70px; }
-        .dh-title-cell { border-right: 1px solid #000; padding: 0; }
-        .dh-title-main { font-size: 14pt; font-weight: bold; color: #000; padding: 5px 10px 2px; letter-spacing: 0.3px; }
-        .dh-title-sub { font-size: 10.5pt; color: #333; font-style: italic; padding: 0 10px 4px; }
-        .dh-dept { font-size: 10.5pt; font-weight: bold; color: #000; padding: 4px 10px; background: #f3f4f6; border-top: 1px solid #d1d5db; text-transform: uppercase; letter-spacing: 0.5px; }
-        .dh-meta-cell { width: 150px; padding: 0; }
-        table.dh-meta { width: 100%; border-collapse: collapse; }
-        table.dh-meta td { padding: 3px 8px; font-size: 9.5pt; border-bottom: 1px solid #e5e7eb; }
-        table.dh-meta tr:last-child td { border-bottom: none; }
-        table.dh-meta tr.hl td { background: #f3f4f6; }
-
-        /* ── Hero ──────────────────────────────────────── */
-        table.hero { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; }
-        table.hero > tbody > tr > td { vertical-align: top; padding: 0; }
-        .hero-photo-cell { width: 38%; text-align: center; border-right: 1px solid #000; padding: 6px; background: #fafafa; vertical-align: middle !important; }
-        .hero-photo-cell img { max-width: 100%; height: auto; max-height: 220px; }
-        .hero-photo-cell .no-photo { color: #9ca3af; font-size: 10.5pt; padding: 30px 10px; font-style: italic; }
-        table.hero-info { width: 100%; border-collapse: collapse; }
-        table.hero-info td { padding: 6px 10px; font-size: 10.5pt; vertical-align: top; border-bottom: 1px solid #e5e7eb; }
-        table.hero-info td.label { width: 90px; font-weight: bold; background: #f3f4f6; border-right: 1px solid #e5e7eb; color: #111; }
-        table.hero-info tr:last-child td { border-bottom: none; }
-
-        /* ── Section header ─────────────────────────────── */
-        .section-header {
-            font-size: 11pt;
+        .dh-logo {
+            width: 95px;
+            padding-right: 18px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .dh-logo img { max-height: 75px; max-width: 90px; display: block; }
+        .dh-body { padding: 0; vertical-align: middle; }
+        .dh-brand {
+            font-size: 14pt;
             font-weight: bold;
+            color: #1f2937;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+        }
+        .dh-company {
+            font-size: 9.5pt;
+            color: #6b7280;
+            letter-spacing: 0.2px;
+            margin-top: 1px;
+        }
+        .dh-divider {
+            width: 48px;
+            height: 3px;
+            background: #111827;
+            margin: 8px 0 8px 0;
+        }
+        .dh-recipe {
+            font-size: 22pt;
+            font-weight: bold;
+            color: #0f172a;
+            letter-spacing: -0.8px;
+            line-height: 1.1;
+            margin-bottom: 3px;
+        }
+        .dh-subtitle {
+            font-size: 9.5pt;
+            color: #475569;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #000;
-            margin: 0 0 6px;
-            padding-bottom: 3px;
-            border-bottom: 2px solid #000;
+            letter-spacing: 2.2px;
+            font-weight: bold;
+        }
+        .dh-description {
+            font-size: 10.5pt;
+            color: #475569;
+            font-style: italic;
+            margin-top: 6px;
+            line-height: 1.5;
         }
 
-        /* ── Linear steps (readable) ────────────────────── */
-        table.step-list { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        table.step-list td { padding: 6px 0; vertical-align: top; }
-        table.step-list td.num-cell { width: 32px; padding-right: 10px; text-align: center; }
-        table.step-list td.num-cell .num {
-            display: inline-block;
-            width: 22px; height: 22px;
-            background: #000; color: #fff;
-            text-align: center; line-height: 22px;
-            font-size: 11pt; font-weight: bold;
-            border-radius: 50%;
+        /* Subtle accent rule under header */
+        .header-rule {
+            height: 1px;
+            background: #cbd5e1;
+            margin-bottom: 18px;
         }
-        table.step-list .step-title-inline { font-size: 12pt; font-weight: bold; color: #000; display: block; line-height: 1.3; }
-        table.step-list .step-body { font-size: 11pt; color: #1f2937; line-height: 1.55; margin-top: 3px; }
 
-        /* ── Step cards grid ────────────────────────────── */
-        .step-card { border: 1px solid #000; background: #fff; }
-        .step-card .step-img { width: 100%; height: 155px; display: block; border-bottom: 1px solid #000; }
-        .step-card .step-no-img { width: 100%; height: 155px; background: #f3f4f6; border-bottom: 1px solid #000; }
-        .step-card-body { padding: 8px 10px; }
-        .step-card .step-num {
-            display: inline-block;
-            background: #000; color: #fff;
-            min-width: 20px; text-align: center;
-            padding: 1px 6px;
-            font-size: 10pt; font-weight: bold;
-            margin-right: 4px;
+        /* ═══ Hero: photo + key info ════════════════════════════ */
+        table.hero { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.hero > tbody > tr > td { vertical-align: top; padding: 0; }
+        .hero-photo-cell {
+            width: 42%;
+            padding-right: 14px;
+            vertical-align: middle !important;
         }
-        .step-card .step-title { font-size: 11pt; font-weight: bold; color: #000; }
-        .step-card .step-text { font-size: 10.5pt; color: #1f2937; line-height: 1.5; margin-top: 4px; }
+        .hero-photo-frame {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            padding: 4px;
+            text-align: center;
+        }
+        .hero-photo-frame img { max-width: 100%; height: auto; max-height: 260px; display: block; margin: 0 auto; }
+        .hero-photo-frame .no-photo { color: #94a3b8; font-size: 10.5pt; padding: 70px 10px; font-style: italic; }
 
-        /* ── Ingredient table ───────────────────────────── */
-        table.items { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000; }
-        table.items thead th {
-            background: #1f2937; color: #fff;
-            padding: 6px 8px;
-            font-size: 9pt;
+        table.hero-info { width: 100%; border-collapse: collapse; }
+        table.hero-info td {
+            padding: 10px 14px;
+            font-size: 11pt;
+            vertical-align: top;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table.hero-info td.label {
+            width: 95px;
+            font-weight: bold;
+            color: #475569;
+            font-size: 9.5pt;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            text-align: left;
-            font-weight: bold;
+            border-right: 1px solid #e2e8f0;
+            background: #f8fafc;
         }
-        table.items thead th.right { text-align: right; }
-        table.items tbody td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; font-size: 10.5pt; color: #1f2937; }
-        table.items tbody tr:nth-child(even) td { background: #f9fafb; }
-        table.items tbody td.right { text-align: right; }
-        table.items tbody tr:last-child td { border-bottom: none; }
+        table.hero-info tr:first-child td { border-top: 2px solid #0f172a; }
+        table.hero-info tr:last-child td { border-bottom: 2px solid #0f172a; }
+        table.hero-info .big-value {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #0f172a;
+        }
 
-        /* ── Plating ───────────────────────────────────── */
-        .plating-label {
+        /* ═══ Section header ═══════════════════════════════════ */
+        .section-header {
             font-size: 10pt;
             font-weight: bold;
             text-transform: uppercase;
-            color: #000;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-            padding-bottom: 2px;
-            border-bottom: 1px solid #000;
+            letter-spacing: 2.5px;
+            color: #0f172a;
+            margin: 0 0 10px 0;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #0f172a;
         }
-        .plating-img { max-width: 100%; height: auto; max-height: 220px; border: 1px solid #d1d5db; }
 
-        /* ── QR ────────────────────────────────────────── */
-        .qr-img { width: 75px; height: 75px; border: 1px solid #000; padding: 2px; }
+        /* ═══ Linear Steps ══════════════════════════════════════ */
+        table.step-list { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        table.step-list td { padding: 8px 0; vertical-align: top; }
+        table.step-list td.num-cell {
+            width: 38px;
+            padding-right: 14px;
+            text-align: center;
+        }
+        table.step-list td.num-cell .num {
+            display: inline-block;
+            width: 26px; height: 26px;
+            background: #0f172a; color: #fff;
+            text-align: center; line-height: 26px;
+            font-size: 11.5pt; font-weight: bold;
+            border-radius: 50%;
+        }
+        table.step-list .step-title-inline {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #0f172a;
+            display: block;
+            line-height: 1.3;
+        }
+        table.step-list .step-body {
+            font-size: 11pt;
+            color: #1f2937;
+            line-height: 1.6;
+            margin-top: 4px;
+        }
+
+        /* ═══ Step cards grid ═══════════════════════════════════ */
+        .step-card {
+            border: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        .step-card .step-img {
+            width: 100%;
+            height: 155px;
+            display: block;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .step-card .step-no-img {
+            width: 100%; height: 155px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .step-card-body { padding: 10px 12px; }
+        .step-card .step-num {
+            display: inline-block;
+            background: #0f172a; color: #fff;
+            min-width: 22px;
+            text-align: center;
+            padding: 2px 7px;
+            font-size: 10pt;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .step-card .step-title {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .step-card .step-text {
+            font-size: 10.5pt;
+            color: #334155;
+            line-height: 1.55;
+            margin-top: 5px;
+        }
+
+        /* ═══ Ingredient pills (hero) ═══════════════════════════ */
+        .ing-list { font-size: 10.5pt; line-height: 1.7; color: #1f2937; }
+        .ing-list strong { color: #0f172a; font-weight: bold; }
+        .ing-sep { color: #cbd5e1; margin: 0 4px; }
+
+        /* ═══ Plating ═══════════════════════════════════════════ */
+        .plating-label {
+            font-size: 9.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #475569;
+            letter-spacing: 1.8px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .plating-img {
+            max-width: 100%;
+            height: auto;
+            max-height: 240px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* ═══ QR ═══════════════════════════════════════════════ */
+        .qr-img {
+            width: 80px; height: 80px;
+            border: 1px solid #cbd5e1;
+            padding: 3px;
+            background: #fff;
+        }
         .qr-label {
-            font-size: 8pt; color: #000; font-weight: bold;
-            margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px;
+            font-size: 7.5pt;
+            color: #475569;
+            font-weight: bold;
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             text-align: center;
         }
 
-        /* ── Warning ────────────────────────────────────── */
+        /* ═══ Warning ══════════════════════════════════════════ */
         .warning-notice {
-            margin-top: 12px;
-            padding: 8px 12px;
-            border-top: 2px solid #000;
+            margin-top: 18px;
+            padding: 10px 14px;
+            border-top: 1px solid #cbd5e1;
             font-size: 8.5pt;
-            color: #374151;
-            line-height: 1.5;
+            color: #64748b;
+            line-height: 1.6;
+            font-style: italic;
         }
-        .warning-notice strong { color: #000; }
+        .warning-notice strong {
+            color: #0f172a;
+            font-style: normal;
+            letter-spacing: 0.5px;
+        }
 
-        /* ── Footer (rendered inline — dompdf-compatible) ── */
+        /* ═══ Footer ═══════════════════════════════════════════ */
         .pdf-footer {
-            margin-top: 20px;
-            padding-top: 6px;
-            border-top: 1px solid #9ca3af;
+            margin-top: 24px;
+            padding-top: 8px;
+            border-top: 1px solid #cbd5e1;
             font-size: 8pt;
-            color: #6b7280;
+            color: #94a3b8;
         }
         .pdf-footer .left { float: left; }
         .pdf-footer .right { float: right; }
