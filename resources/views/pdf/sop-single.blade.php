@@ -3,7 +3,7 @@
 @section('title', 'SOP - ' . $recipe->name)
 
 @section('content')
-    {{-- ═══ Header: Logo + Brand + Recipe Name ═══════════════════ --}}
+    {{-- ═══ Header: Logo + Brand + Recipe Name + QR ═══════════════ --}}
     <table class="doc-header">
         <tr>
             @if ($logoBase64)
@@ -24,6 +24,14 @@
                     <div class="dh-description">{{ $recipe->description }}</div>
                 @endif
             </td>
+            @if ($videoQr)
+                <td class="dh-qr-cell">
+                    <div class="dh-qr-box">
+                        <img src="{{ $videoQr }}" />
+                        <div class="qr-label">Scan for Video</div>
+                    </div>
+                </td>
+            @endif
         </tr>
     </table>
 
@@ -68,24 +76,6 @@
                                             <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
                                         </tr>
                                     @endforeach
-                                </table>
-                            </td>
-                        </tr>
-                    @endif
-                    @if ($videoQr)
-                        <tr>
-                            <td class="label">Training</td>
-                            <td>
-                                <table style="border: none; border-collapse: collapse;">
-                                    <tr>
-                                        <td style="border: none; padding: 0; width: 90px;">
-                                            <img class="qr-img" src="{{ $videoQr }}" />
-                                            <div class="qr-label">Scan for Video</div>
-                                        </td>
-                                        <td style="border: none; padding: 0 0 0 12px; vertical-align: middle; font-size: 10pt; color: #475569;">
-                                            Scan the QR code with your phone to watch the training video.
-                                        </td>
-                                    </tr>
                                 </table>
                             </td>
                         </tr>

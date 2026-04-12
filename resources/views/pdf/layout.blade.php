@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>@yield('title')</title>
     <style>
-        @@page { margin: 22mm 20mm 22mm 20mm; }
+        @@page { margin: 22mm 18mm 22mm 30mm; }  /* extra left for hole-punching */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
@@ -23,6 +23,15 @@
         }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
         .dh-body { vertical-align: middle; }
+        .dh-qr-cell {
+            width: 85px;
+            vertical-align: top;
+            text-align: right;
+            padding-left: 10px;
+        }
+        .dh-qr-box { display: inline-block; text-align: center; }
+        .dh-qr-box img { width: 62px; height: 62px; border: 1px solid #cbd5e1; padding: 2px; }
+        .dh-qr-box .qr-label { font-size: 6.5pt; color: #64748b; font-weight: bold; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
         .dh-brand {
             font-size: 11pt;
             font-weight: bold;

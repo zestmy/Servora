@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
-        @@page { margin: 22mm 20mm 22mm 20mm; }
+        @@page { margin: 22mm 18mm 22mm 30mm; }  /* extra left for hole-punching */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.5; }
         .page-break { page-break-before: always; }
@@ -35,6 +35,10 @@
         .dh-logo { width: 70px; padding-right: 14px; vertical-align: middle; }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
         .dh-body { vertical-align: middle; }
+        .dh-qr-cell { width: 85px; vertical-align: top; text-align: right; padding-left: 10px; }
+        .dh-qr-box { display: inline-block; text-align: center; }
+        .dh-qr-box img { width: 62px; height: 62px; border: 1px solid #cbd5e1; padding: 2px; }
+        .dh-qr-box .qr-label { font-size: 6.5pt; color: #64748b; font-weight: bold; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
         .dh-brand { font-size: 11pt; font-weight: bold; color: #1f2937; line-height: 1.25; }
         .dh-company { font-size: 8.5pt; color: #6b7280; margin-top: 1px; }
         .dh-divider { width: 36px; height: 2px; background: #0f172a; margin: 6px 0; }
@@ -167,7 +171,7 @@
         @endphp
         <div class="page-break"></div>
 
-        {{-- Header: Logo + Brand + Recipe Name --}}
+        {{-- Header: Logo + Brand + Recipe Name + QR --}}
         <table class="doc-header">
             <tr>
                 @if ($logoBase64)
@@ -188,6 +192,14 @@
                         <div class="dh-description">{{ $recipe->description }}</div>
                     @endif
                 </td>
+                @if ($qr)
+                    <td class="dh-qr-cell">
+                        <div class="dh-qr-box">
+                            <img src="{{ $qr }}" />
+                            <div class="qr-label">Scan for Video</div>
+                        </div>
+                    </td>
+                @endif
             </tr>
         </table>
         <div class="header-rule"></div>
@@ -225,24 +237,6 @@
                                                 <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
                                             </tr>
                                         @endforeach
-                                    </table>
-                                </td>
-                            </tr>
-                        @endif
-                        @if ($qr)
-                            <tr>
-                                <td class="label">Training</td>
-                                <td>
-                                    <table style="border: none; border-collapse: collapse;">
-                                        <tr>
-                                            <td style="border: none; padding: 0; width: 85px;">
-                                                <img class="qr-img" src="{{ $qr }}" />
-                                                <div class="qr-label">Scan for Video</div>
-                                            </td>
-                                            <td style="border: none; padding: 0 0 0 12px; vertical-align: middle; font-size: 9.5pt; color: #475569;">
-                                                Scan the QR code with your phone to watch the training video.
-                                            </td>
-                                        </tr>
                                     </table>
                                 </td>
                             </tr>
