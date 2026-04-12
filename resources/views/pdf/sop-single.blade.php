@@ -60,11 +60,15 @@
                         <tr>
                             <td class="label">Ingredients</td>
                             <td>
-                                <div class="ing-list">
+                                <table class="ing-table">
                                     @foreach ($recipe->lines as $line)
-                                        <strong>{{ $line->ingredient?->name ?? '—' }}</strong>: {{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}@if (! $loop->last)<span class="ing-sep">·</span>@endif
+                                        <tr>
+                                            <td class="ing-bullet">&bull;</td>
+                                            <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
+                                            <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
+                                        </tr>
                                     @endforeach
-                                </div>
+                                </table>
                             </td>
                         </tr>
                     @endif

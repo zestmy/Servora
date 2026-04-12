@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
+        @@page { margin: 22mm 20mm 22mm 20mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 22mm 20mm 20mm 20mm; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.5; }
         .page-break { page-break-before: always; }
 
@@ -78,9 +78,11 @@
         .step-card .step-text { font-size: 10pt; color: #334155; line-height: 1.5; margin-top: 4px; }
 
         /* Ingredients list */
-        .ing-list { font-size: 10pt; line-height: 1.7; color: #1f2937; }
-        .ing-list strong { color: #0f172a; font-weight: bold; }
-        .ing-sep { color: #cbd5e1; margin: 0 4px; }
+        table.ing-table { width: 100%; border-collapse: collapse; }
+        table.ing-table td { padding: 2px 0; font-size: 10pt; color: #1f2937; vertical-align: top; border: none; }
+        table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 4px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; white-space: nowrap; padding-right: 10px; }
+        table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
 
         /* Plating */
         .plating-label { font-size: 9.5pt; font-weight: bold; text-transform: uppercase; color: #475569; letter-spacing: 1.8px; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #cbd5e1; }
@@ -215,11 +217,15 @@
                             <tr>
                                 <td class="label">Ingredients</td>
                                 <td>
-                                    <div class="ing-list">
+                                    <table class="ing-table">
                                         @foreach ($recipe->lines as $line)
-                                            <strong>{{ $line->ingredient?->name ?? '—' }}</strong>: {{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}@if (! $loop->last)<span class="ing-sep">·</span>@endif
+                                            <tr>
+                                                <td class="ing-bullet">&bull;</td>
+                                                <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
+                                                <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
+                                            </tr>
                                         @endforeach
-                                    </div>
+                                    </table>
                                 </td>
                             </tr>
                         @endif

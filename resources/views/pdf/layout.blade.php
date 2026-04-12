@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <title>@yield('title')</title>
     <style>
+        @@page { margin: 22mm 20mm 22mm 20mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 22mm 20mm 20mm 20mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 11pt;
@@ -196,10 +196,12 @@
             margin-top: 5px;
         }
 
-        /* ═══ Ingredient pills (hero) ═══════════════════════════ */
-        .ing-list { font-size: 10.5pt; line-height: 1.7; color: #1f2937; }
-        .ing-list strong { color: #0f172a; font-weight: bold; }
-        .ing-sep { color: #cbd5e1; margin: 0 4px; }
+        /* ═══ Ingredient list (hero) ════════════════════════════ */
+        table.ing-table { width: 100%; border-collapse: collapse; }
+        table.ing-table td { padding: 2px 0; font-size: 10.5pt; color: #1f2937; vertical-align: top; border: none; }
+        table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 4px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; white-space: nowrap; padding-right: 10px; }
+        table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
 
         /* ═══ Plating ═══════════════════════════════════════════ */
         .plating-label {
