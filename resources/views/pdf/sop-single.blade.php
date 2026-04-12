@@ -54,20 +54,25 @@
             </td>
             <td>
                 <table class="hero-info">
+                    {{-- Yield + Category on one row --}}
                     <tr>
                         <td class="label">Yield</td>
                         <td><span class="big-value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</span></td>
-                    </tr>
-                    @if ($recipe->category)
-                        <tr>
+                        @if ($recipe->category)
                             <td class="label">Category</td>
                             <td>{{ $recipe->category }}</td>
-                        </tr>
-                    @endif
+                        @else
+                            <td colspan="2"></td>
+                        @endif
+                    </tr>
                     @if ($recipe->lines->count())
+                        {{-- Ingredients title row (spans full width) --}}
                         <tr>
-                            <td class="label">Ingredients</td>
-                            <td>
+                            <td colspan="4" class="label">Ingredients</td>
+                        </tr>
+                        {{-- Ingredients list (spans full width) --}}
+                        <tr>
+                            <td colspan="4" class="ing-list-cell">
                                 <table class="ing-table">
                                     @foreach ($recipe->lines as $line)
                                         <tr>

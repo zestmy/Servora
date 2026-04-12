@@ -202,10 +202,11 @@
 
         /* ═══ Ingredient list ═══════════════════════════════════ */
         table.ing-table { width: 100%; border-collapse: collapse; }
-        table.ing-table td { padding: 1px 0; font-size: 10pt; color: #1f2937; vertical-align: top; border: none; }
-        table.ing-table td.ing-bullet { width: 10px; color: #94a3b8; font-weight: bold; padding-right: 3px; }
-        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 10px; }
+        table.ing-table td { padding: 2px 0; font-size: 10pt; color: #1f2937; vertical-align: top; border: none; }
+        table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 4px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 14px; }
         table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
+        table.hero-info td.ing-list-cell { padding: 7px 11px; background: #fff; }
 
         /* ═══ Plating ═══════════════════════════════════════════ */
         .plating-label {

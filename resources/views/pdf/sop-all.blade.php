@@ -92,8 +92,9 @@
         table.ing-table { width: 100%; border-collapse: collapse; }
         table.ing-table td { padding: 2px 0; font-size: 10pt; color: #1f2937; vertical-align: top; border: none; }
         table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 4px; }
-        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; white-space: nowrap; padding-right: 10px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 14px; }
         table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
+        table.hero-info td.ing-list-cell { padding: 7px 11px; background: #fff; }
 
         /* Plating */
         .plating-label { font-size: 9.5pt; font-weight: bold; text-transform: uppercase; color: #475569; letter-spacing: 1.8px; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #cbd5e1; }
@@ -228,14 +229,17 @@
                         <tr>
                             <td class="label">Yield</td>
                             <td><span class="big-value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</span></td>
+                            @if ($recipe->category)
+                                <td class="label">Category</td>
+                                <td>{{ $recipe->category }}</td>
+                            @else
+                                <td colspan="2"></td>
+                            @endif
                         </tr>
-                        @if ($recipe->category)
-                            <tr><td class="label">Category</td><td>{{ $recipe->category }}</td></tr>
-                        @endif
                         @if ($recipe->lines->count())
+                            <tr><td colspan="4" class="label">Ingredients</td></tr>
                             <tr>
-                                <td class="label">Ingredients</td>
-                                <td>
+                                <td colspan="4" class="ing-list-cell">
                                     <table class="ing-table">
                                         @foreach ($recipe->lines as $line)
                                             <tr>
