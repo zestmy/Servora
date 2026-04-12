@@ -15,7 +15,10 @@ class IngredientUomConversion extends Model
     ];
 
     protected $casts = [
-        'factor' => 'decimal:6',
+        'factor'        => 'decimal:6',
+        'from_uom_id'   => 'integer',
+        'to_uom_id'     => 'integer',
+        'ingredient_id' => 'integer',
     ];
 
     public function ingredient(): BelongsTo

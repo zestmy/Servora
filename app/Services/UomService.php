@@ -20,13 +20,16 @@ class UomService
             return (float) $ingredient->current_cost;
         }
 
+        $baseId   = (int) $baseUom->id;
+        $targetId = (int) $targetUom->id;
+
         // Check ingredient-specific conversion (use loaded relation if available to avoid N+1)
         if ($ingredient->relationLoaded('uomConversions')) {
             $conversion        = $ingredient->uomConversions->first(
-                fn ($c) => $c->from_uom_id === $baseUom->id && $c->to_uom_id === $targetUom->id
+                fn ($c) => (int) $c->from_uom_id === $baseId && (int) $c->to_uom_id === $targetId
             );
             $reverseConversion = $ingredient->uomConversions->first(
-                fn ($c) => $c->from_uom_id === $targetUom->id && $c->to_uom_id === $baseUom->id
+                fn ($c) => (int) $c->from_uom_id === $targetId && (int) $c->to_uom_id === $baseId
             );
         } else {
             $conversion = IngredientUomConversion::where('ingredient_id', $ingredient->id)

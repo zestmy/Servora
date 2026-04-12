@@ -118,16 +118,21 @@ class Ingredient extends Model
      */
     public function recipeCost(): ?float
     {
-        if ($this->base_uom_id === $this->recipe_uom_id) {
+        $baseId   = (int) $this->base_uom_id;
+        $recipeId = (int) $this->recipe_uom_id;
+
+        if ($baseId === $recipeId) {
             return (float) $this->current_cost;
         }
 
         // Ingredient-specific conversions first
         foreach ($this->uomConversions as $c) {
-            if ($c->from_uom_id === $this->base_uom_id && $c->to_uom_id === $this->recipe_uom_id) {
+            $from = (int) $c->from_uom_id;
+            $to   = (int) $c->to_uom_id;
+            if ($from === $baseId && $to === $recipeId) {
                 return (float) $this->current_cost / (float) $c->factor;
             }
-            if ($c->from_uom_id === $this->recipe_uom_id && $c->to_uom_id === $this->base_uom_id) {
+            if ($from === $recipeId && $to === $baseId) {
                 return (float) $this->current_cost * (float) $c->factor;
             }
         }
