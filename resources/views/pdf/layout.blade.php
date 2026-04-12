@@ -300,7 +300,9 @@
     <div class="footer">
         <span class="footer-left">
             &copy; {{ now()->format('Y') }} {{ $brandName ?? $company?->name ?? 'Servora' }}
-            @if (isset($brandName))&middot; Confidential &amp; proprietary@endif
+            @if (isset($brandName))
+                &middot; Confidential &amp; proprietary
+            @endif
         </span>
         <span class="footer-right">
             Generated {{ now()->format('d M Y, h:i A') }}{{ isset($exportedBy) ? ' &middot; ' . $exportedBy : '' }} &middot; Powered by Servora
