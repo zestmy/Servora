@@ -498,7 +498,7 @@ PROMPT;
         'carton' => 'ctn', 'cartons' => 'ctn',
         'packet' => 'pkt', 'packets' => 'pkt', 'sachet' => 'pkt',
         'bottle' => 'bottle', 'bottles' => 'bottle', 'btl' => 'bottle',
-        'can' => 'tin', 'cans' => 'tin', 'tins' => 'tin',
+        'tin' => 'can', 'tins' => 'can', 'cans' => 'can',
         'bags' => 'bag', 'sack' => 'bag',
         'pails' => 'pail', 'bucket' => 'pail',
         'boxes' => 'box', 'bx' => 'box',
