@@ -395,7 +395,7 @@
                         <div>
                             <x-input-label for="pack_size" value="Pack Size" />
                             <x-text-input id="pack_size" wire:model.live="pack_size"
-                                          type="number" step="0.0001" min="0.0001"
+                                          type="number" step="0.1" min="0.1"
                                           class="mt-1 block w-full" />
                             <p class="mt-0.5 text-xs text-gray-400">{{ $baseUomAbbr ?? 'base UOM' }} per pack (1 = no pack)</p>
                             <x-input-error :messages="$errors->get('pack_size')" class="mt-1" />
@@ -601,7 +601,7 @@
                                                     </td>
                                                     <td class="py-1 text-center text-gray-400 px-1">=</td>
                                                     <td class="py-1 pr-2">
-                                                        <input type="number" step="0.000001" min="0.000001"
+                                                        <input type="number" step="0.1" min="0.1"
                                                                wire:model.live="conversions.{{ $idx }}.factor"
                                                                placeholder="e.g. 30"
                                                                class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
@@ -706,7 +706,7 @@
                                             {{-- Pack Size row --}}
                                             <div class="flex items-center gap-2 pl-1">
                                                 <span class="text-xs text-gray-400 whitespace-nowrap">Pack size:</span>
-                                                <input type="number" step="0.0001" min="0.0001"
+                                                <input type="number" step="0.1" min="0.1"
                                                        wire:model="supplierLinks.{{ $idx }}.pack_size"
                                                        placeholder="1"
                                                        class="w-24 rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
