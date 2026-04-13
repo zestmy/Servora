@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Recipe;
+use App\Models\RecipeCategory;
 use App\Models\RecipePriceClass;
 use App\Services\UomService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -31,58 +32,161 @@ class RecipeCostPdfController extends Controller
         return $pdf->stream("recipe-cost-{$recipe->code}-{$recipe->id}.pdf");
     }
 
-    public function all()
+    public function all(Request $request)
     {
-        return $this->generateAllPdf(isPrep: false);
+        return $this->generateAllPdf($request, isPrep: false);
     }
 
-    public function summary()
+    public function summary(Request $request)
     {
-        return $this->generateSummaryPdf(isPrep: false);
+        return $this->generateSummaryPdf($request, isPrep: false);
     }
 
-    public function prepAll()
+    public function prepAll(Request $request)
     {
-        return $this->generateAllPdf(isPrep: true);
+        return $this->generateAllPdf($request, isPrep: true);
     }
 
-    public function prepSummary()
+    public function prepSummary(Request $request)
     {
-        return $this->generateSummaryPdf(isPrep: true);
+        return $this->generateSummaryPdf($request, isPrep: true);
     }
 
-    private function generateAllPdf(bool $isPrep)
+    /**
+     * Apply UI filters (search, category, status, outlet, cost) to a recipe query.
+     * Mirrors the logic in App\Livewire\Recipes\Index@render.
+     */
+    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request, bool $isPrep): \Illuminate\Database\Eloquent\Builder
+    {
+        $search   = trim((string) $request->get('search', ''));
+        $category = trim((string) $request->get('category', ''));
+        $status   = (string) $request->get('status', 'all');
+        $outletId = (int)    $request->get('outlet', 0);
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('code', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($category !== '') {
+            $selectedCat = RecipeCategory::with('children')->find((int) $category);
+            if ($selectedCat) {
+                $names = collect([$selectedCat->name]);
+                if ($selectedCat->children->isNotEmpty()) {
+                    $names = $names->merge($selectedCat->children->pluck('name'));
+                }
+                $query->whereIn('category', $names->toArray());
+            }
+        }
+
+        if ($status === 'active') {
+            $query->where('is_active', true);
+        } elseif ($status === 'inactive') {
+            $query->where('is_active', false);
+        } else {
+            // Default behavior: only active items in PDFs (matches old behavior)
+            if ($status === 'all' && ! $request->has('status')) {
+                $query->where('is_active', true);
+            }
+        }
+
+        if ($outletId > 0) {
+            $query->where(function ($q) use ($outletId) {
+                $q->whereHas('outlets', fn ($sub) => $sub->where('outlets.id', $outletId))
+                  ->orWhereDoesntHave('outlets');
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Apply the costFilter (under25/25to35/35to45/over45/none) post-query.
+     */
+    private function applyCostFilter($recipes, Request $request)
+    {
+        $costFilter = (string) $request->get('cost', '');
+        if ($costFilter === '') return $recipes;
+
+        return $recipes->filter(function ($recipe) use ($costFilter) {
+            $totalCost = $recipe->total_cost;
+            $selling   = method_exists($recipe, 'getEffectiveSellingPriceAttribute')
+                ? $recipe->effective_selling_price
+                : floatval($recipe->selling_price);
+            $pct = $selling > 0 ? ($totalCost / $selling) * 100 : null;
+
+            return match ($costFilter) {
+                'under25' => $pct !== null && $pct <= 25,
+                '25to35'  => $pct !== null && $pct > 25 && $pct <= 35,
+                '35to45'  => $pct !== null && $pct > 35 && $pct <= 45,
+                'over45'  => $pct !== null && $pct > 45,
+                'none'    => $pct === null,
+                default   => true,
+            };
+        })->values();
+    }
+
+    private function generateAllPdf(Request $request, bool $isPrep)
     {
         $label = $isPrep ? 'Prep Item' : 'Recipe';
-        $recipes = Recipe::with([
+
+        $query = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
             'lines.uom', 'yieldUom', 'ingredientCategory', 'department',
-            'prices.priceClass',
-        ])->where('is_active', true)->where('is_prep', $isPrep)->orderBy('name')->get();
+            'prices.priceClass', 'outlets',
+        ])->where('is_prep', $isPrep);
 
-        $recipesData = $recipes->map(fn ($r) => $this->buildRecipeData($r))->values()->all();
+        $this->applyFilters($query, $request, $isPrep);
+
+        // Sort by category, then by name for grouped display
+        $recipes = $query->orderByRaw("CASE WHEN category IS NULL OR category = '' THEN 1 ELSE 0 END, category")
+            ->orderBy('name')->get();
+
+        $recipes = $this->applyCostFilter($recipes, $request);
+
+        // Group by category for the PDF
+        $grouped = $recipes->groupBy(fn ($r) => $r->category ?: 'Uncategorised');
+
+        $groupedData = $grouped->map(function ($items) {
+            return $items->map(fn ($r) => $this->buildRecipeData($r))->values()->all();
+        })->toArray();
 
         $company = Auth::user()->company;
         $brandName = $company?->brand_name ?: $company?->name;
         $exportedBy = Auth::user()->name;
         $logoBase64 = $this->companyLogoBase64();
         $pageTitle = "All {$label} Costs";
+        $totalRecipes = $recipes->count();
+        $activeFilters = $this->describeActiveFilters($request);
 
-        $pdf = Pdf::loadView('pdf.recipe-cost-all', compact('recipesData', 'company', 'brandName', 'exportedBy', 'logoBase64', 'pageTitle'));
+        $pdf = Pdf::loadView('pdf.recipe-cost-all', compact(
+            'groupedData', 'company', 'brandName', 'exportedBy', 'logoBase64',
+            'pageTitle', 'totalRecipes', 'activeFilters'
+        ));
         $pdf->setPaper('a4', 'portrait');
 
         $filename = $isPrep ? 'all-prep-item-costs.pdf' : 'all-recipe-costs.pdf';
         return $pdf->stream($filename);
     }
 
-    private function generateSummaryPdf(bool $isPrep)
+    private function generateSummaryPdf(Request $request, bool $isPrep)
     {
         $label = $isPrep ? 'Prep Item' : 'Recipe';
-        $recipes = Recipe::with([
+
+        $query = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
             'lines.uom', 'yieldUom',
-            'prices.priceClass',
-        ])->where('is_active', true)->where('is_prep', $isPrep)->orderBy('category')->orderBy('name')->get();
+            'prices.priceClass', 'outlets',
+        ])->where('is_prep', $isPrep);
+
+        $this->applyFilters($query, $request, $isPrep);
+
+        $recipes = $query->orderByRaw("CASE WHEN category IS NULL OR category = '' THEN 1 ELSE 0 END, category")
+            ->orderBy('name')->get();
+
+        $recipes = $this->applyCostFilter($recipes, $request);
 
         $priceClasses = RecipePriceClass::ordered()->get();
 
@@ -114,12 +218,53 @@ class RecipeCostPdfController extends Controller
         $exportedBy = Auth::user()->name;
         $logoBase64 = $this->companyLogoBase64();
         $pageTitle = "{$label} Cost Summary";
+        $totalRecipes = $recipes->count();
+        $activeFilters = $this->describeActiveFilters($request);
 
-        $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact('summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy', 'logoBase64', 'pageTitle'));
+        $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact(
+            'summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy',
+            'logoBase64', 'pageTitle', 'totalRecipes', 'activeFilters'
+        ));
         $pdf->setPaper('a4', 'landscape');
 
         $filename = $isPrep ? 'prep-item-cost-summary.pdf' : 'recipe-cost-summary.pdf';
         return $pdf->stream($filename);
+    }
+
+    /**
+     * Build a human-readable summary of active filters for display in PDF header.
+     */
+    private function describeActiveFilters(Request $request): array
+    {
+        $filters = [];
+
+        if ($search = trim((string) $request->get('search', ''))) {
+            $filters[] = 'Search: "' . $search . '"';
+        }
+        if ($categoryId = (int) $request->get('category', 0)) {
+            $cat = RecipeCategory::find($categoryId);
+            if ($cat) $filters[] = 'Category: ' . $cat->name;
+        }
+        if ($status = $request->get('status')) {
+            if ($status === 'active') $filters[] = 'Status: Active only';
+            elseif ($status === 'inactive') $filters[] = 'Status: Inactive only';
+        }
+        if ($outletId = (int) $request->get('outlet', 0)) {
+            $outlet = \App\Models\Outlet::find($outletId);
+            if ($outlet) $filters[] = 'Outlet: ' . $outlet->name;
+        }
+        if ($costFilter = $request->get('cost')) {
+            $costLabels = [
+                'under25' => 'Cost % under 25',
+                '25to35' => 'Cost % 25–35',
+                '35to45' => 'Cost % 35–45',
+                'over45' => 'Cost % over 45',
+                'none'   => 'No price set',
+            ];
+            if (isset($costLabels[$costFilter])) $filters[] = $costLabels[$costFilter];
+        }
+
+        return $filters;
     }
 
     private function buildRecipeData(Recipe $recipe): array

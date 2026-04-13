@@ -17,6 +17,13 @@
         </div>
     </div>
 
+    @if (! empty($activeFilters))
+        <div style="background: #eef2ff; border-left: 3px solid #4f46e5; padding: 5px 10px; margin-bottom: 8px; font-size: 9pt; color: #4338ca;">
+            <strong style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 8pt;">Filtered:</strong>
+            {{ implode('  ·  ', $activeFilters) }}
+        </div>
+    @endif
+
     <table class="items">
         <thead>
             <tr>

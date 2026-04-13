@@ -62,6 +62,31 @@
         .c-red { color: #dc2626; }
 
         .pdf-footer { margin-top: 10px; padding-top: 4px; border-top: 1px solid #ddd; font-size: 6.5px; color: #aaa; text-align: center; }
+
+        /* Category section heading */
+        .cat-heading {
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+            background: #4f46e5;
+            padding: 5px 10px;
+            margin: 12px 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            page-break-after: avoid;
+        }
+        .cat-heading .cat-count { float: right; font-weight: normal; font-size: 9px; opacity: 0.85; }
+
+        /* Active filters notice */
+        .filters-notice {
+            background: #eef2ff;
+            border-left: 3px solid #4f46e5;
+            padding: 4px 8px;
+            margin-bottom: 8px;
+            font-size: 7.5px;
+            color: #4338ca;
+        }
+        .filters-notice strong { color: #312e81; text-transform: uppercase; letter-spacing: 0.5px; font-size: 7px; }
     </style>
 </head>
 <body>
@@ -77,11 +102,23 @@
         </div>
         <div class="page-header-right">
             <div class="page-title">{{ $pageTitle ?? 'All Recipe Costs' }}</div>
-            <div class="page-count">{{ count($recipesData) }} recipes | {{ now()->format('d M Y') }}</div>
+            <div class="page-count">{{ $totalRecipes ?? 0 }} recipes | {{ now()->format('d M Y') }}</div>
         </div>
     </div>
 
-    @foreach ($recipesData as $idx => $data)
+    @if (! empty($activeFilters))
+        <div class="filters-notice">
+            <strong>Filtered:</strong> {{ implode('  ·  ', $activeFilters) }}
+        </div>
+    @endif
+
+    @foreach ($groupedData as $categoryName => $recipesInCategory)
+        <div class="cat-heading">
+            {{ $categoryName }}
+            <span class="cat-count">{{ count($recipesInCategory) }} {{ count($recipesInCategory) === 1 ? 'recipe' : 'recipes' }}</span>
+        </div>
+
+        @foreach ($recipesInCategory as $idx => $data)
         @php
             $recipe = $data['recipe'];
             $activePrices = collect($data['pricingAnalysis'])->filter(fn ($p) => $p['selling_price'] > 0);
@@ -243,6 +280,7 @@
                 @endif
             </div>
         </div>
+        @endforeach
     @endforeach
 
     <div class="pdf-footer">

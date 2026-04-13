@@ -21,9 +21,18 @@
                     </button>
                     <div x-show="open" @click.away="open = false" x-transition
                          class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                        <a href="{{ route('recipes.cost-pdf-all') }}" target="_blank"
+                        @php
+                            $pdfFilters = array_filter([
+                                'search'   => $search,
+                                'category' => $categoryFilter,
+                                'status'   => $statusFilter !== 'all' ? $statusFilter : null,
+                                'outlet'   => $outletFilter,
+                                'cost'     => $costFilter,
+                            ]);
+                        @endphp
+                        <a href="{{ route('recipes.cost-pdf-all', $pdfFilters) }}" target="_blank"
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Recipe Costs</a>
-                        <a href="{{ route('recipes.cost-pdf-summary') }}" target="_blank"
+                        <a href="{{ route('recipes.cost-pdf-summary', $pdfFilters) }}" target="_blank"
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Summary</a>
                     </div>
                 </div>
@@ -48,9 +57,17 @@
                     </button>
                     <div x-show="open" @click.away="open = false" x-transition
                          class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                        <a href="{{ route('recipes.prep-cost-pdf-all') }}" target="_blank"
+                        @php
+                            $pdfPrepFilters = array_filter([
+                                'search'   => $search,
+                                'category' => $categoryFilter,
+                                'status'   => $statusFilter !== 'all' ? $statusFilter : null,
+                                'outlet'   => $outletFilter,
+                            ]);
+                        @endphp
+                        <a href="{{ route('recipes.prep-cost-pdf-all', $pdfPrepFilters) }}" target="_blank"
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Prep Item Costs</a>
-                        <a href="{{ route('recipes.prep-cost-pdf-summary') }}" target="_blank"
+                        <a href="{{ route('recipes.prep-cost-pdf-summary', $pdfPrepFilters) }}" target="_blank"
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Prep Item Cost Summary</a>
                     </div>
                 </div>
