@@ -87,10 +87,10 @@
         </tbody>
     </table>
 
-    <div style="margin-top: 10px; font-size: 8px; color: #888;">
+    <div style="margin-top: 10px; font-size: 8.5pt; color: #888;">
         <strong>Food Cost Guide:</strong>
-        <span style="color: #16a34a;">&#9632; ≤35% Good</span> &nbsp;
-        <span style="color: #ea580c;">&#9632; 35–45% High</span> &nbsp;
-        <span style="color: #dc2626;">&#9632; &gt;45% Review</span>
+        <span style="color: #16a34a; font-weight: bold;">&bull; &le;35% Good</span> &nbsp;
+        <span style="color: #ea580c; font-weight: bold;">&bull; 35-45% High</span> &nbsp;
+        <span style="color: #dc2626; font-weight: bold;">&bull; &gt;45% Review</span>
     </div>
 @endsection

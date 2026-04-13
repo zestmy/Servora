@@ -269,6 +269,43 @@
         }
         .pdf-footer .left { float: left; }
         .pdf-footer .right { float: right; }
+
+        /* ═══ Legacy header (used by recipe-cost-summary, etc) ═══ */
+        .header {
+            display: table; width: 100%;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #0f172a;
+        }
+        .header-left { display: table-cell; vertical-align: middle; width: 60%; }
+        .header-right { display: table-cell; vertical-align: middle; width: 40%; text-align: right; }
+        .company-logo { max-height: 36px; max-width: 130px; margin-bottom: 4px; vertical-align: middle; display: inline-block; }
+        .company-name { font-size: 13pt; font-weight: bold; color: #0f172a; letter-spacing: -0.2px; }
+        .doc-title { font-size: 11pt; font-weight: bold; color: #1f2937; text-transform: uppercase; letter-spacing: 1.5px; }
+        .doc-number { font-size: 10pt; color: #4b5563; margin-top: 2px; }
+
+        /* ═══ Items table (used by recipe-cost-summary) ═══ */
+        table.items {
+            width: 100%; border-collapse: collapse;
+            margin-bottom: 8px; border: 1px solid #cbd5e1;
+        }
+        table.items thead th {
+            background: #1f2937; color: #fff;
+            padding: 6px 7px;
+            font-size: 8.5pt;
+            text-transform: uppercase; letter-spacing: 0.7px;
+            text-align: left; font-weight: bold;
+        }
+        table.items thead th.right { text-align: right; }
+        table.items thead th.center { text-align: center; }
+        table.items tbody td {
+            padding: 4px 7px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 9pt; color: #1f2937;
+        }
+        table.items tbody td.right { text-align: right; }
+        table.items tbody td.center { text-align: center; }
+        table.items tbody tr:nth-child(even) td { background: #f9fafb; }
     </style>
 </head>
 <body>
