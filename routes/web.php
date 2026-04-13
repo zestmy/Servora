@@ -322,6 +322,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
         Route::get('/company-health', AdminCompanyHealth::class)->name('admin.company-health');
         Route::get('/announcements', AdminAnnouncements::class)->name('admin.announcements');
         Route::get('/pages', AdminPages::class)->name('admin.pages');
+        Route::get('/coupons', \App\Livewire\Admin\Coupons::class)->name('admin.coupons');
     });
 });
 

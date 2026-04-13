@@ -84,6 +84,21 @@
             </div>
         </div>
 
+        {{-- Coupon code (optional) --}}
+        <div x-data="{ open: {{ $coupon_code ? 'true' : 'false' }} }">
+            <button type="button" @click="open = !open" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+                <span x-show="!open">+ Have a coupon code?</span>
+                <span x-show="open" x-cloak>− Hide coupon</span>
+            </button>
+            <div x-show="open" x-cloak class="mt-2">
+                <x-text-input wire:model="coupon_code" type="text"
+                              placeholder="ENTER COUPON CODE"
+                              class="block w-full font-mono uppercase" />
+                <p class="mt-1 text-xs text-gray-400">Get free subscription with a valid promo code.</p>
+                <x-input-error :messages="$errors->get('coupon_code')" class="mt-1" />
+            </div>
+        </div>
+
         {{-- Submit --}}
         <button type="submit"
                 wire:loading.attr="disabled"

@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\Coupon;
 use App\Models\Plan;
 use App\Services\CompanyRegistrationService;
+use App\Services\CouponService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -16,6 +18,7 @@ class SaasRegister extends Component
     public string $password_confirmation = '';
     public ?int   $plan_id       = null;
     public string $billing_cycle = 'monthly';
+    public string $coupon_code   = '';
 
     public function mount(): void
     {
@@ -25,6 +28,11 @@ class SaasRegister extends Component
             if ($plan) {
                 $this->plan_id = $plan->id;
             }
+        }
+
+        // Pre-fill coupon from query string
+        if (request()->has('coupon')) {
+            $this->coupon_code = strtoupper(trim((string) request('coupon')));
         }
 
         // Default to first active plan
@@ -54,7 +62,18 @@ class SaasRegister extends Component
 
     public function register(): void
     {
+        $this->coupon_code = strtoupper(trim($this->coupon_code));
         $this->validate();
+
+        // Pre-validate coupon (if provided) so registration doesn't proceed with invalid code
+        $coupon = null;
+        if ($this->coupon_code) {
+            $coupon = Coupon::where('code', $this->coupon_code)->first();
+            if (! $coupon || ! $coupon->isRedeemable()) {
+                $this->addError('coupon_code', 'Invalid or expired coupon code.');
+                return;
+            }
+        }
 
         $result = app(CompanyRegistrationService::class)->register([
             'company_name'  => $this->company_name,
@@ -64,6 +83,17 @@ class SaasRegister extends Component
             'plan_id'       => $this->plan_id,
             'billing_cycle' => $this->billing_cycle,
         ]);
+
+        // Apply coupon after company/subscription is created
+        if ($coupon) {
+            try {
+                app(CouponService::class)->redeem($coupon, $result['company'], $result['user']->id);
+                session()->flash('success', 'Welcome! Your ' . $coupon->grantLabel() . ' free subscription has been activated.');
+            } catch (\Throwable $e) {
+                // Non-fatal: continue with trial even if coupon fails
+                session()->flash('warning', 'Coupon could not be applied: ' . $e->getMessage());
+            }
+        }
 
         // Log in the new user
         Auth::login($result['user']);

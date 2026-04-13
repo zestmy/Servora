@@ -173,6 +173,7 @@
                 $adminNavItems = [
                     ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
                     ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],
+                    ['route' => 'admin.coupons',             'icon' => '🎟️', 'label' => 'Coupons',       'permission' => null],
                     ['route' => 'admin.trials.index',        'icon' => '⏱️', 'label' => 'Trials',        'permission' => null],
                     ['route' => 'admin.referrals.index',     'icon' => '🔗', 'label' => 'Referrals',     'permission' => null],
                     ['route' => 'admin.company-health',      'icon' => '💚', 'label' => 'Health',        'permission' => null],

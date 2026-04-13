@@ -15,6 +15,32 @@
     <h1 class="text-lg font-bold text-gray-800 mb-1">Billing & Plan</h1>
     <p class="text-xs text-gray-400 mb-6">Manage your subscription and view usage.</p>
 
+    {{-- Coupon Redemption --}}
+    <div class="mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 p-5">
+        <div class="flex items-start gap-4 flex-wrap">
+            <div class="flex-shrink-0 w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <h3 class="text-sm font-semibold text-gray-800">Redeem a Coupon</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Have a promo code? Enter it below to extend your subscription.</p>
+            </div>
+            <div class="flex gap-2 w-full md:w-auto">
+                <input type="text" wire:model="couponCode"
+                       placeholder="ENTER CODE"
+                       class="flex-1 md:w-56 rounded-lg border-indigo-200 text-sm font-mono uppercase shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                <button wire:click="redeemCoupon" wire:loading.attr="disabled"
+                        class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="redeemCoupon">Redeem</span>
+                    <span wire:loading wire:target="redeemCoupon">Redeeming…</span>
+                </button>
+            </div>
+        </div>
+        <x-input-error :messages="$errors->get('couponCode')" class="mt-2 ml-14" />
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Current Plan --}}
         <div class="lg:col-span-2 space-y-6">
