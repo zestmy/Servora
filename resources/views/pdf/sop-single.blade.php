@@ -81,7 +81,7 @@
                                     @foreach ($ingredientLines as $line)
                                         <tr>
                                             <td class="ing-bullet">&bull;</td>
-                                            <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
+                                            <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}@if ($line->ingredient?->is_prep)<span style="display:inline-block; margin-left:4px; padding:1px 5px; background:#fef3c7; color:#b45309; font-size:7pt; font-weight:bold; letter-spacing:0.5px; border-radius:3px;">PREP</span>@endif</td>
                                             <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
                                         </tr>
                                     @endforeach
@@ -99,7 +99,7 @@
                                     @foreach ($packagingLines as $line)
                                         <tr>
                                             <td class="ing-bullet">&bull;</td>
-                                            <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
+                                            <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}@if ($line->ingredient?->is_prep)<span style="display:inline-block; margin-left:4px; padding:1px 5px; background:#fef3c7; color:#b45309; font-size:7pt; font-weight:bold; letter-spacing:0.5px; border-radius:3px;">PREP</span>@endif</td>
                                             <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
                                         </tr>
                                     @endforeach
