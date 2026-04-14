@@ -13,7 +13,7 @@
         .card-header { display: table; width: 100%; margin-bottom: 12px; }
         .card-header-left { display: table-cell; vertical-align: top; width: 55%; }
         .card-header-right { display: table-cell; vertical-align: top; width: 45%; text-align: right; }
-        .company-logo { max-height: 28px; max-width: 100px; margin-bottom: 2px; }
+        .company-logo { max-height: 44px; max-width: 150px; margin-bottom: 4px; }
         .brand-name { font-size: 11px; font-weight: bold; color: #1a1a1a; }
         .recipe-title { font-size: 14px; font-weight: bold; color: #111; margin-top: 8px; letter-spacing: 0.3px; }
         .recipe-code { font-size: 10px; color: #666; font-family: monospace; margin-top: 1px; }

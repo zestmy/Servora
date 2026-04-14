@@ -13,7 +13,7 @@
         .page-header { display: table; width: 100%; margin-bottom: 10px; border-bottom: 1.5px solid #2d3748; padding-bottom: 6px; }
         .page-header-left { display: table-cell; vertical-align: middle; width: 60%; }
         .page-header-right { display: table-cell; vertical-align: middle; width: 40%; text-align: right; }
-        .company-logo { max-height: 22px; max-width: 80px; margin-right: 6px; vertical-align: middle; }
+        .company-logo { max-height: 34px; max-width: 120px; margin-right: 6px; vertical-align: middle; }
         .brand-name { font-size: 10px; font-weight: bold; vertical-align: middle; }
         .page-title { font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #666; }
         .page-count { font-size: 7px; color: #999; }

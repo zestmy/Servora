@@ -17,7 +17,7 @@
             <div class="text-center mb-8">
                 @if ($company->logo)
                     <img src="{{ Storage::disk('public')->url($company->logo) }}" alt="{{ $company->brand_name ?? $company->name }}"
-                         class="h-14 max-w-[200px] mx-auto mb-4 object-contain">
+                         class="h-24 max-w-[280px] mx-auto mb-5 object-contain">
                 @endif
                 <h1 class="text-2xl font-bold text-gray-900">{{ $company->brand_name ?? $company->name }}</h1>
                 <p class="text-sm text-gray-500 mt-1">Training Portal</p>

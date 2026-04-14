@@ -58,7 +58,7 @@
                  class="flex-1 overflow-hidden whitespace-nowrap">
                 <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
                     @if ($lmsCompany?->logo)
-                        <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-8 max-w-[120px] object-contain">
+                        <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-14 max-w-[180px] object-contain">
                     @endif
                     <span class="text-sm font-bold text-white truncate">{{ $brandName }}</span>
                 </a>
@@ -193,7 +193,7 @@
             </button>
             <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
                 @if ($lmsCompany?->logo)
-                    <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-7 max-w-[100px] object-contain">
+                    <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-11 max-w-[140px] object-contain">
                 @endif
                 <span class="text-sm font-bold text-gray-900">{{ $brandName }}</span>
             </a>

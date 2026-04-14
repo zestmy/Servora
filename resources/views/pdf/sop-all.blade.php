@@ -40,7 +40,7 @@
         table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
         .dh-logo { width: 76px; padding: 10px 20px 10px 8px; vertical-align: middle; }
-        .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
+        .dh-logo img { max-height: 72px; max-width: 90px; display: block; }
         .dh-body { width: 28%; vertical-align: middle; padding: 10px 20px; border-left: 1px solid #e2e8f0; }
         .dh-recipe-cell { width: 50%; vertical-align: middle; padding: 10px 20px; border-left: 1px solid #e2e8f0; }
         .dh-qr-cell { width: 86px; vertical-align: middle; text-align: right; padding: 10px 8px 10px 20px; border-left: 1px solid #e2e8f0; }
@@ -122,7 +122,7 @@
     <div class="cover-confidential">Private &amp; Confidential</div>
     <div style="margin-top: 30px;"></div>
     @if ($logoBase64)
-        <img src="{{ $logoBase64 }}" style="max-height: 75px; max-width: 220px; margin-bottom: 22px;" />
+        <img src="{{ $logoBase64 }}" style="max-height: 110px; max-width: 300px; margin-bottom: 22px;" />
     @endif
     <div class="cover-brand">{{ $brandName }}</div>
     @if ($company->brand_name && $company->name !== $company->brand_name)

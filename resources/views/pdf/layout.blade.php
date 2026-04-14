@@ -24,7 +24,7 @@
             padding: 10px 20px 10px 8px;
             vertical-align: middle;
         }
-        .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
+        .dh-logo img { max-height: 72px; max-width: 90px; display: block; }
         .dh-body {
             width: 28%;
             vertical-align: middle;
@@ -296,7 +296,7 @@
         }
         .header-left { display: table-cell; vertical-align: middle; width: 60%; }
         .header-right { display: table-cell; vertical-align: middle; width: 40%; text-align: right; }
-        .company-logo { max-height: 36px; max-width: 130px; margin-bottom: 4px; vertical-align: middle; display: inline-block; }
+        .company-logo { max-height: 54px; max-width: 180px; margin-bottom: 4px; vertical-align: middle; display: inline-block; }
         .company-name { font-size: 13pt; font-weight: bold; color: #0f172a; letter-spacing: -0.2px; }
         .doc-title { font-size: 11pt; font-weight: bold; color: #1f2937; text-transform: uppercase; letter-spacing: 1.5px; }
         .doc-number { font-size: 10pt; color: #4b5563; margin-top: 2px; }
