@@ -58,11 +58,12 @@ class Index extends Component
         $taxRateCount        = TaxRate::count();
         $priceAlertCount     = SupplierPriceAlert::count();
         $priceClassCount     = RecipePriceClass::count();
+        $outletGroupCount    = \App\Models\OutletGroup::count();
 
         return view('livewire.settings.index', compact(
             'isSystemLevel', 'isBusinessLevel', 'hasSettingsAccess',
             'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
-            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount', 'priceClassCount'
+            'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount', 'priceClassCount', 'outletGroupCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Settings']);
     }
 }

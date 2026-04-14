@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Recipes;
 
+use App\Models\CentralKitchen;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
 use App\Models\Outlet;
+use App\Models\OutletGroup;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\RecipeImage;
@@ -177,6 +179,31 @@ class Form extends Component
         foreach ($recipe->prices as $rp) {
             $this->classPrices[$rp->recipe_price_class_id] = $this->fmt($rp->selling_price);
         }
+    }
+
+    public function applyGroup(int $groupId): void
+    {
+        $group = OutletGroup::with('outlets')->find($groupId);
+        if (! $group) return;
+
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
+        $groupOutletIds = $group->outlets
+            ->pluck('id')
+            ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (empty($groupOutletIds)) return;
+
+        // Switch to "Selected Outlets" and merge in the group's outlets.
+        $this->allOutlets = false;
+        $existing = array_map('intval', $this->outletIds);
+        $this->outletIds = array_values(array_unique(array_merge($existing, $groupOutletIds)));
+    }
+
+    public function clearOutletSelection(): void
+    {
+        $this->outletIds = [];
     }
 
     public function addIngredient(int $ingredientId): void
@@ -453,10 +480,37 @@ class Form extends Component
         $departments = \App\Models\Department::active()->ordered()->get();
         $priceClasses = RecipePriceClass::ordered()->get();
 
+        // Exclude outlets that are linked as central kitchen locations — they have
+        // their own recipe interface (ProductionRecipe) and aren't regular outlets.
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')
+            ->pluck('outlet_id')
+            ->filter()
+            ->all();
+
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
+            ->whereNotIn('id', $centralKitchenOutletIds)
             ->orderBy('name')
             ->get();
+
+        $outletGroups = OutletGroup::with('outlets')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($g) use ($centralKitchenOutletIds) {
+                $ids = $g->outlets->pluck('id')
+                    ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
+                    ->values()
+                    ->all();
+                return (object) [
+                    'id'         => $g->id,
+                    'name'       => $g->name,
+                    'outlet_ids' => $ids,
+                ];
+            })
+            ->filter(fn ($g) => count($g->outlet_ids) > 0)
+            ->values();
 
         // Ingredient search results (min 2 chars)
         $searchResults = collect();
@@ -512,7 +566,7 @@ class Form extends Component
         }
 
         return view('livewire.recipes.form', compact(
-            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'searchResults', 'lineCosts', 'totalCost',
+            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'outletGroups', 'searchResults', 'lineCosts', 'totalCost',
             'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct',
             'lineTaxes', 'totalTax', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax',
             'priceClasses', 'classCostData'

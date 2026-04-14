@@ -192,6 +192,24 @@
                         </div>
 
                         @if (! $allOutlets)
+                            @if ($outletGroups->count() > 0)
+                                <div class="mt-3 flex flex-wrap items-center gap-2">
+                                    <span class="text-xs font-medium text-gray-500">Apply Group:</span>
+                                    @foreach ($outletGroups as $group)
+                                        <button type="button"
+                                                wire:click="applyGroup({{ $group->id }})"
+                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition">
+                                            + {{ $group->name }}
+                                            <span class="text-[10px] text-gray-400">({{ count($group->outlet_ids) }})</span>
+                                        </button>
+                                    @endforeach
+                                    @if (! empty($outletIds))
+                                        <button type="button" wire:click="clearOutletSelection"
+                                                class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
+                                    @endif
+                                </div>
+                            @endif
+
                             <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                                 @foreach ($outlets as $outlet)
                                     <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition

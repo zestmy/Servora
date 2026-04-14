@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Recipes;
 
+use App\Models\CentralKitchen;
 use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
@@ -146,8 +147,10 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
+            ->whereNotIn('id', $centralKitchenOutletIds)
             ->orderBy('name')
             ->get();
 

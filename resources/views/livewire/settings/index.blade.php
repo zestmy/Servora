@@ -253,6 +253,19 @@
                     </div>
                 </a>
 
+                {{-- Outlet Groups --}}
+                <a href="{{ route('settings.outlet-groups') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6 4a3 3 0 100-6 3 3 0 000 6zM7 14a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Outlet Groups</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Group outlets to tag recipes in bulk</p>
+                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $outletGroupCount ?? 0 }} {{ Str::plural('group', $outletGroupCount ?? 0) }}</p>
+                    </div>
+                </a>
+
                 {{-- Par Levels --}}
                 <a href="{{ route('settings.par-levels') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">

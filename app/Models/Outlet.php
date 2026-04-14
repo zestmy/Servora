@@ -47,4 +47,9 @@ class Outlet extends Model
     {
         return $this->belongsToMany(Recipe::class)->withTimestamps();
     }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(OutletGroup::class, 'outlet_outlet_group')->withTimestamps();
+    }
 }
