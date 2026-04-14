@@ -1,4 +1,7 @@
 <div>
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    @endonce
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
@@ -166,6 +169,7 @@
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
+                    <th class="w-6 px-1 py-3"></th>
                     <th class="px-4 py-3 text-left">{{ $tab === 'prep-items' ? 'Prep Item' : 'Recipe' }}</th>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-center">Items</th>
@@ -181,7 +185,17 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody class="divide-y divide-gray-50"
+                   x-data
+                   x-init="new Sortable($el, {
+                       handle: '.drag-handle',
+                       animation: 150,
+                       ghostClass: 'bg-indigo-50',
+                       onEnd: () => {
+                           const ids = Array.from($el.querySelectorAll('tr[data-id]')).map(tr => tr.dataset.id);
+                           $wire.reorder(ids);
+                       }
+                   })">
                 @forelse ($recipes as $recipe)
                     @php
                         $totalCost   = $recipe->total_cost;
@@ -195,7 +209,10 @@
                             default              => 'text-red-600 font-semibold',
                         };
                     @endphp
-                    <tr class="hover:bg-gray-50 transition">
+                    <tr wire:key="recipe-row-{{ $recipe->id }}" data-id="{{ $recipe->id }}" class="hover:bg-gray-50 transition">
+                        <td class="drag-handle px-1 py-3 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
+                            <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                        </td>
                         <td class="px-4 py-3">
                             <a href="{{ $tab === 'prep-items' ? route('inventory.prep-items.show', $recipe->id) : route('recipes.show', $recipe->id) }}" class="font-medium text-gray-800 hover:text-indigo-600 transition">{{ $recipe->name }}</a>
                             @if ($recipe->code)
@@ -296,7 +313,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="10" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">📋</div>
                             <p class="font-medium">No recipes yet</p>
                             <p class="text-xs mt-1">

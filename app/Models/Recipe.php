@@ -19,11 +19,14 @@ class Recipe extends Model
         'company_id', 'name', 'code', 'description', 'video_url', 'yield_quantity', 'yield_uom_id',
         'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
         'ingredient_category_id', 'department_id', 'is_active', 'is_prep',
+        'exclude_from_lms', 'menu_sort_order',
     ];
 
     protected $casts = [
         'is_active'           => 'boolean',
         'is_prep'             => 'boolean',
+        'exclude_from_lms'    => 'boolean',
+        'menu_sort_order'     => 'integer',
         'yield_quantity'      => 'decimal:4',
         'selling_price'       => 'decimal:4',
         'cost_per_yield_unit' => 'decimal:4',

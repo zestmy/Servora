@@ -26,6 +26,7 @@ class SopPdfController extends Controller
 
         $recipe = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
+            ->where('exclude_from_lms', false)
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
             ->findOrFail($id);
 
@@ -60,6 +61,7 @@ class SopPdfController extends Controller
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('is_prep', false)
+            ->where('exclude_from_lms', false)
             ->has('steps')
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
             ->orderBy('category')

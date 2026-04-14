@@ -16,6 +16,7 @@ class SopView extends Component
         $this->recipeId = $id;
         $this->recipe = Recipe::where('company_id', Auth::guard('lms')->user()->company_id)
             ->where('is_active', true)
+            ->where('exclude_from_lms', false)
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
             ->findOrFail($id);
     }

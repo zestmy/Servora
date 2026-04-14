@@ -42,6 +42,32 @@ class Index extends Component
         $r->update(['is_active' => ! $r->is_active]);
     }
 
+    /**
+     * Reorder recipes on the current page by reassigning their existing
+     * menu_sort_order values to new positions. Stable across pages because
+     * only the dragged rows' slots are reshuffled.
+     */
+    public function reorder(array $orderedIds): void
+    {
+        $ids = array_map('intval', array_values($orderedIds));
+        if (count($ids) < 2) return;
+
+        $existing = Recipe::whereIn('id', $ids)->pluck('menu_sort_order', 'id')->toArray();
+        $values = array_values($existing);
+        sort($values, SORT_NUMERIC);
+
+        // If all rows currently share the same menu_sort_order (e.g., fresh data),
+        // use sequential slots starting from that value.
+        if (count(array_unique($values)) < count($ids)) {
+            $base = (int) ($values[0] ?? 0);
+            $values = range($base, $base + count($ids) - 1);
+        }
+
+        foreach ($ids as $idx => $id) {
+            Recipe::where('id', $id)->update(['menu_sort_order' => $values[$idx]]);
+        }
+    }
+
     public function render()
     {
         $isPrep = $this->tab === 'prep-items';
@@ -98,13 +124,14 @@ class Index extends Component
             });
         }
 
-        // Sort by category hierarchy: root sort_order → sub sort_order → recipe name.
+        // Sort by category hierarchy → manual menu order → recipe name.
         // Recipes whose category string doesn't match any category go last.
         $query->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
               ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
               ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
               ->orderBy('rc.sort_order')
               ->orderBy('rc.name')
+              ->orderBy('recipes.menu_sort_order')
               ->orderBy('recipes.name');
 
         if ($this->costFilter) {

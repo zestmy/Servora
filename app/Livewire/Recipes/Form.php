@@ -35,6 +35,7 @@ class Form extends Component
     public ?int   $ingredient_category_id = null;
     public ?int   $department_id = null;
     public bool   $is_active = true;
+    public bool   $exclude_from_lms = false;
 
     // Outlet tagging
     public bool  $allOutlets = true;
@@ -128,6 +129,7 @@ class Form extends Component
         $this->ingredient_category_id = $recipe->ingredient_category_id;
         $this->department_id          = $recipe->department_id;
         $this->is_active              = $recipe->is_active;
+        $this->exclude_from_lms       = (bool) $recipe->exclude_from_lms;
 
         // Load outlet tags
         $taggedOutletIds = $recipe->outlets->pluck('id')->toArray();
@@ -340,6 +342,7 @@ class Form extends Component
             'ingredient_category_id' => $this->ingredient_category_id,
             'department_id'          => $this->department_id,
             'is_active'              => $this->is_active,
+            'exclude_from_lms'       => $this->exclude_from_lms,
             'extra_costs'            => !empty($this->extraCosts) ? $this->extraCosts : null,
         ];
 

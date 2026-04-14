@@ -162,12 +162,17 @@
                     </div>
                 @endif
 
-                {{-- Is Active --}}
-                <div>
+                {{-- Is Active + LMS toggle --}}
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
                     <label class="inline-flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" wire:model="is_active"
                                class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                         <span class="text-sm text-gray-700 font-medium">Active</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer" title="Hide this recipe from the LMS (training) portal">
+                        <input type="checkbox" wire:model="exclude_from_lms"
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700 font-medium">Exclude from LMS</span>
                     </label>
                 </div>
 
