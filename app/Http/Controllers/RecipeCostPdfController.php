@@ -204,7 +204,7 @@ class RecipeCostPdfController extends Controller
 
         $pdf = Pdf::loadView('pdf.recipe-cost-all', compact(
             'groupedData', 'company', 'brandName', 'exportedBy', 'logoBase64',
-            'pageTitle', 'totalRecipes', 'activeFilters'
+            'pageTitle', 'totalRecipes', 'activeFilters', 'isPrep'
         ));
         $pdf->setPaper('a4', 'portrait');
 
@@ -276,7 +276,7 @@ class RecipeCostPdfController extends Controller
 
         $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact(
             'summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy',
-            'logoBase64', 'pageTitle', 'totalRecipes', 'activeFilters'
+            'logoBase64', 'pageTitle', 'totalRecipes', 'activeFilters', 'isPrep'
         ));
         $pdf->setPaper('a4', 'landscape');
 

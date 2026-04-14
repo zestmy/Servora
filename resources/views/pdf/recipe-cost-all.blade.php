@@ -230,8 +230,8 @@
                     </tfoot>
                 </table>
 
-                {{-- Profitability --}}
-                @if ($activePrices->count() > 1)
+                {{-- Profitability (skip for prep items — not sold to customers) --}}
+                @if (! ($isPrep ?? false) && $activePrices->count() > 1)
                     {{-- Multiple price classes: mini table --}}
                     <table class="class-mini">
                         <thead>
@@ -268,7 +268,7 @@
                             @endforeach
                         </tbody>
                     </table>
-                @elseif ($mainSp > 0)
+                @elseif (! ($isPrep ?? false) && $mainSp > 0)
                     {{-- Single price: compact strip --}}
                     @php
                         $fcClass = match(true) {
