@@ -6,13 +6,13 @@
     <style>
         /* Universal reset */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 12mm 12mm 12mm 18mm; }
+        @@page { margin: 12mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
-            margin: 12mm 12mm 12mm 18mm;
+            margin: 12mm;
         }
         .page-break { page-break-before: always; }
 
@@ -39,19 +39,20 @@
         /* Document header — compact */
         table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
-        .dh-logo { width: 70px; padding-right: 14px; vertical-align: middle; }
+        .dh-logo { width: 70px; padding-right: 10px; vertical-align: middle; }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
-        .dh-body { vertical-align: middle; }
-        .dh-qr-cell { width: 85px; vertical-align: top; text-align: right; padding-left: 10px; }
+        .dh-body { vertical-align: middle; padding: 0 10px; border-left: 1px solid #e2e8f0; }
+        .dh-recipe-cell { vertical-align: middle; padding: 0 10px; border-left: 1px solid #e2e8f0; }
+        .dh-qr-cell { width: 80px; vertical-align: middle; text-align: right; padding-left: 10px; border-left: 1px solid #e2e8f0; }
         .dh-qr-box { display: inline-block; text-align: center; }
         .dh-qr-box img { width: 62px; height: 62px; border: 1px solid #cbd5e1; padding: 2px; }
         .dh-qr-box .qr-label { font-size: 6.5pt; color: #64748b; font-weight: bold; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
         .dh-brand { font-size: 11pt; font-weight: bold; color: #1f2937; line-height: 1.25; }
         .dh-company { font-size: 8.5pt; color: #6b7280; margin-top: 1px; }
-        .dh-divider { width: 36px; height: 2px; background: #0f172a; margin: 6px 0; }
-        .dh-recipe { font-size: 15pt; font-weight: bold; color: #0f172a; letter-spacing: -0.3px; line-height: 1.15; margin-bottom: 2px; }
-        .dh-subtitle { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 1.8px; font-weight: bold; }
-        .dh-description { font-size: 9.5pt; color: #64748b; font-style: italic; margin-top: 4px; line-height: 1.4; }
+        .dh-sop-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; margin-top: 5px; }
+        .dh-recipe { font-size: 14pt; font-weight: bold; color: #0f172a; letter-spacing: -0.3px; line-height: 1.15; margin-bottom: 3px; }
+        .dh-subtitle { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; }
+        .dh-description { font-size: 9.5pt; color: #64748b; font-style: italic; margin-top: 4px; margin-bottom: 8px; line-height: 1.4; }
         .header-rule { height: 1px; background: #e2e8f0; margin-bottom: 12px; }
 
         /* Hero — compact */
@@ -90,9 +91,9 @@
 
         /* Ingredients list */
         table.ing-table { width: 100%; border-collapse: collapse; }
-        table.ing-table td { padding: 2px 0; font-size: 10pt; color: #1f2937; vertical-align: top; border: none; }
-        table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 4px; }
-        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 14px; }
+        table.ing-table td { padding: 1.5px 0; font-size: 8.5pt; color: #1f2937; vertical-align: top; border: none; }
+        table.ing-table td.ing-bullet { width: 10px; color: #94a3b8; font-weight: bold; padding-right: 3px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 12px; }
         table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
         table.hero-info td.ing-list-cell { padding: 7px 11px; background: #fff; }
 
@@ -179,7 +180,7 @@
         @endphp
         <div class="page-break"></div>
 
-        {{-- Header: Logo + Brand + Recipe Name + QR --}}
+        {{-- Header: Logo | Brand+Company+SOP | Recipe+Category | QR --}}
         <table class="doc-header">
             <tr>
                 @if ($logoBase64)
@@ -190,14 +191,12 @@
                     @if ($company->brand_name && $company->name !== $company->brand_name)
                         <div class="dh-company">{{ $company->name }}</div>
                     @endif
-                    <div class="dh-divider"></div>
+                    <div class="dh-sop-label">Standard Operating Procedure</div>
+                </td>
+                <td class="dh-recipe-cell">
                     <div class="dh-recipe">{{ strtoupper($recipe->name) }}</div>
-                    <div class="dh-subtitle">
-                        @if ($recipe->category){{ $recipe->category }} · @endif
-                        Standard Operating Procedure
-                    </div>
-                    @if ($recipe->description)
-                        <div class="dh-description">{{ $recipe->description }}</div>
+                    @if ($recipe->category)
+                        <div class="dh-subtitle">{{ $recipe->category }}</div>
                     @endif
                 </td>
                 @if ($qr)
@@ -210,6 +209,9 @@
                 @endif
             </tr>
         </table>
+        @if ($recipe->description)
+            <div class="dh-description">{{ $recipe->description }}</div>
+        @endif
         <div class="header-rule"></div>
 
         {{-- Hero --}}

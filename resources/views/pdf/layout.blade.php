@@ -6,14 +6,14 @@
     <style>
         /* Universal reset (excluding body — DomPDF uses body margin for page padding) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        /* Page margins — extra left for hole-punching/ring filing */
-        @@page { margin: 12mm 12mm 12mm 18mm; }
+        /* Page margins */
+        @@page { margin: 12mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
-            margin: 12mm 12mm 12mm 18mm;
+            margin: 12mm;
         }
 
         /* ═══ Document Header — compact & elegant ═══════════════ */
@@ -21,16 +21,26 @@
         table.doc-header td { vertical-align: middle; padding: 0; }
         .dh-logo {
             width: 70px;
-            padding-right: 14px;
+            padding-right: 10px;
             vertical-align: middle;
         }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
-        .dh-body { vertical-align: middle; }
+        .dh-body {
+            vertical-align: middle;
+            padding: 0 10px;
+            border-left: 1px solid #e2e8f0;
+        }
+        .dh-recipe-cell {
+            vertical-align: middle;
+            padding: 0 10px;
+            border-left: 1px solid #e2e8f0;
+        }
         .dh-qr-cell {
-            width: 85px;
-            vertical-align: top;
+            width: 80px;
+            vertical-align: middle;
             text-align: right;
             padding-left: 10px;
+            border-left: 1px solid #e2e8f0;
         }
         .dh-qr-box { display: inline-block; text-align: center; }
         .dh-qr-box img { width: 62px; height: 62px; border: 1px solid #cbd5e1; padding: 2px; }
@@ -47,25 +57,27 @@
             color: #6b7280;
             margin-top: 1px;
         }
-        .dh-divider {
-            width: 36px;
-            height: 2px;
-            background: #0f172a;
-            margin: 6px 0;
+        .dh-sop-label {
+            font-size: 7.5pt;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: bold;
+            margin-top: 5px;
         }
         .dh-recipe {
-            font-size: 15pt;
+            font-size: 14pt;
             font-weight: bold;
             color: #0f172a;
             letter-spacing: -0.3px;
             line-height: 1.15;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
         }
         .dh-subtitle {
             font-size: 8pt;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 1.8px;
+            letter-spacing: 1.5px;
             font-weight: bold;
         }
         .dh-description {
@@ -73,6 +85,7 @@
             color: #64748b;
             font-style: italic;
             margin-top: 4px;
+            margin-bottom: 8px;
             line-height: 1.4;
         }
         .header-rule {
@@ -202,9 +215,9 @@
 
         /* ═══ Ingredient list ═══════════════════════════════════ */
         table.ing-table { width: 100%; border-collapse: collapse; }
-        table.ing-table td { padding: 2px 0; font-size: 10pt; color: #1f2937; vertical-align: top; border: none; }
-        table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 4px; }
-        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 14px; }
+        table.ing-table td { padding: 1.5px 0; font-size: 8.5pt; color: #1f2937; vertical-align: top; border: none; }
+        table.ing-table td.ing-bullet { width: 10px; color: #94a3b8; font-weight: bold; padding-right: 3px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 12px; }
         table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
         table.hero-info td.ing-list-cell { padding: 7px 11px; background: #fff; }
 

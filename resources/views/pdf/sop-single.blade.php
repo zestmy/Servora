@@ -3,7 +3,7 @@
 @section('title', 'SOP - ' . $recipe->name)
 
 @section('content')
-    {{-- ═══ Header: Logo + Brand + Recipe Name + QR ═══════════════ --}}
+    {{-- ═══ Header: Logo | Brand+Company+SOP | Recipe+Category | QR ═══════════ --}}
     <table class="doc-header">
         <tr>
             @if ($logoBase64)
@@ -14,14 +14,12 @@
                 @if ($company->brand_name && $company->name !== $company->brand_name)
                     <div class="dh-company">{{ $company->name }}</div>
                 @endif
-                <div class="dh-divider"></div>
+                <div class="dh-sop-label">Standard Operating Procedure</div>
+            </td>
+            <td class="dh-recipe-cell">
                 <div class="dh-recipe">{{ strtoupper($recipe->name) }}</div>
-                <div class="dh-subtitle">
-                    @if ($recipe->category){{ $recipe->category }} · @endif
-                    Standard Operating Procedure
-                </div>
-                @if ($recipe->description)
-                    <div class="dh-description">{{ $recipe->description }}</div>
+                @if ($recipe->category)
+                    <div class="dh-subtitle">{{ $recipe->category }}</div>
                 @endif
             </td>
             @if ($videoQr)
@@ -34,6 +32,10 @@
             @endif
         </tr>
     </table>
+
+    @if ($recipe->description)
+        <div class="dh-description">{{ $recipe->description }}</div>
+    @endif
 
     <div class="header-rule"></div>
 
