@@ -61,10 +61,13 @@ class CouponService
             $subscription = Subscription::where('company_id', $company->id)
                 ->orderBy('created_at', 'desc')->first();
 
+            // MySQL TIMESTAMP columns overflow past 2038-01-19; cap at 2037-12-31.
+            $maxEnd = \Carbon\Carbon::create(2037, 12, 31, 23, 59, 59);
+
             // Compute new period end based on grant
             $start = now();
             $end = match ($coupon->grant_type) {
-                'lifetime' => now()->addYears(100),
+                'lifetime' => $maxEnd,
                 'months'   => now()->addMonths($coupon->grant_value ?: 1),
                 'days'     => now()->addDays($coupon->grant_value ?: 1),
             };
@@ -74,12 +77,18 @@ class CouponService
                 if ($subscription->isActive() && $subscription->current_period_end && $subscription->current_period_end->isFuture()) {
                     $baseEnd = $subscription->current_period_end;
                     $end = match ($coupon->grant_type) {
-                        'lifetime' => $baseEnd->copy()->addYears(100),
+                        'lifetime' => $maxEnd,
                         'months'   => $baseEnd->copy()->addMonths($coupon->grant_value ?: 1),
                         'days'     => $baseEnd->copy()->addDays($coupon->grant_value ?: 1),
                     };
                 }
+            }
 
+            if ($end->gt($maxEnd)) {
+                $end = $maxEnd;
+            }
+
+            if ($subscription) {
                 $update = [
                     'status'               => Subscription::STATUS_ACTIVE,
                     'trial_ends_at'        => null,
