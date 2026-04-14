@@ -26,11 +26,13 @@
         }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
         .dh-body {
+            width: 28%;
             vertical-align: middle;
             padding: 10px 20px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-recipe-cell {
+            width: 50%;
             vertical-align: middle;
             padding: 10px 20px;
             border-left: 1px solid #e2e8f0;
