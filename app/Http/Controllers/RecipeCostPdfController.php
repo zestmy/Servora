@@ -65,8 +65,8 @@ class RecipeCostPdfController extends Controller
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('code', 'like', '%' . $search . '%');
+                $q->where('recipes.name', 'like', '%' . $search . '%')
+                  ->orWhere('recipes.code', 'like', '%' . $search . '%');
             });
         }
 
@@ -77,18 +77,18 @@ class RecipeCostPdfController extends Controller
                 if ($selectedCat->children->isNotEmpty()) {
                     $names = $names->merge($selectedCat->children->pluck('name'));
                 }
-                $query->whereIn('category', $names->toArray());
+                $query->whereIn('recipes.category', $names->toArray());
             }
         }
 
         if ($status === 'active') {
-            $query->where('is_active', true);
+            $query->where('recipes.is_active', true);
         } elseif ($status === 'inactive') {
-            $query->where('is_active', false);
+            $query->where('recipes.is_active', false);
         } else {
             // Default behavior: only active items in PDFs (matches old behavior)
             if ($status === 'all' && ! $request->has('status')) {
-                $query->where('is_active', true);
+                $query->where('recipes.is_active', true);
             }
         }
 
@@ -100,6 +100,29 @@ class RecipeCostPdfController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * Match Recipes Index sort: category hierarchy (root, then sub) →
+     * manual menu_sort_order → recipe name. Recipes whose category string
+     * doesn't match any recipe_category land last.
+     */
+    private function applyDashboardSort(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        $query->leftJoin('recipe_categories as rc', function ($join) {
+                $join->on('rc.name', '=', 'recipes.category')
+                     ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc.deleted_at');
+            })
+            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
+            ->select('recipes.*')
+            ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
+            ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
+            ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
+            ->orderBy('rc.sort_order')
+            ->orderBy('rc.name')
+            ->orderBy('recipes.menu_sort_order')
+            ->orderBy('recipes.name');
     }
 
     /**
@@ -136,17 +159,16 @@ class RecipeCostPdfController extends Controller
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
             'lines.uom', 'yieldUom', 'ingredientCategory', 'department',
             'prices.priceClass', 'outlets',
-        ])->where('is_prep', $isPrep);
+        ])->where('recipes.is_prep', $isPrep);
 
         $this->applyFilters($query, $request, $isPrep);
+        $this->applyDashboardSort($query);
 
-        // Sort by category, then by name for grouped display
-        $recipes = $query->orderByRaw("CASE WHEN category IS NULL OR category = '' THEN 1 ELSE 0 END, category")
-            ->orderBy('name')->get();
+        $recipes = $query->get();
 
         $recipes = $this->applyCostFilter($recipes, $request);
 
-        // Group by category for the PDF
+        // Group by category for the PDF (Laravel Collections preserve insertion order)
         $grouped = $recipes->groupBy(fn ($r) => $r->category ?: 'Uncategorised');
 
         $groupedData = $grouped->map(function ($items) {
@@ -179,12 +201,12 @@ class RecipeCostPdfController extends Controller
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
             'lines.uom', 'yieldUom',
             'prices.priceClass', 'outlets',
-        ])->where('is_prep', $isPrep);
+        ])->where('recipes.is_prep', $isPrep);
 
         $this->applyFilters($query, $request, $isPrep);
+        $this->applyDashboardSort($query);
 
-        $recipes = $query->orderByRaw("CASE WHEN category IS NULL OR category = '' THEN 1 ELSE 0 END, category")
-            ->orderBy('name')->get();
+        $recipes = $query->get();
 
         $recipes = $this->applyCostFilter($recipes, $request);
 
