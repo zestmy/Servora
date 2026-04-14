@@ -88,12 +88,23 @@
     @endif
 
     {{-- Signatures --}}
-    <table style="width: 100%; border-collapse: separate; border-spacing: 14px 0; margin-top: 30px; page-break-inside: avoid;">
+    <table style="width: 100%; border-collapse: separate; border-spacing: 18px 0; margin-top: 40px; page-break-inside: avoid;">
         <tr>
             @foreach (['Counted By', 'Verified By', 'Approved By'] as $role)
                 <td style="width: 33.33%; vertical-align: top;">
-                    <div style="border-top: 1px solid #555; padding-top: 6px; text-align: center; font-size: 9.5pt; font-weight: bold; color: #0f172a;">{{ $role }}</div>
-                    <div style="margin-top: 10px; font-size: 9px; color: #666; text-align: center;">Date: _______________</div>
+                    <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #475569; margin-bottom: 6px;">{{ $role }}</div>
+
+                    {{-- Signature space --}}
+                    <div style="height: 70px; border: 1px solid #cbd5e1; background: #fafafa;"></div>
+                    <div style="font-size: 8pt; color: #94a3b8; text-align: center; margin-top: 2px; letter-spacing: 0.5px;">Signature</div>
+
+                    {{-- Name line --}}
+                    <div style="margin-top: 16px; border-bottom: 1px solid #555; height: 14px;"></div>
+                    <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Name</div>
+
+                    {{-- Date line --}}
+                    <div style="margin-top: 14px; border-bottom: 1px solid #555; height: 14px;"></div>
+                    <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Date</div>
                 </td>
             @endforeach
         </tr>
