@@ -5,8 +5,9 @@
     <title>Recipe Cost Card — {{ $recipe->name }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9px; color: #1a1a1a; line-height: 1.3; }
-        .page { padding: 18px 22px; }
+        @@page { margin: 12mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9px; color: #1a1a1a; line-height: 1.3; margin: 12mm; }
+        .page { padding: 0; }
 
         /* Header */
         .card-header { display: table; width: 100%; margin-bottom: 12px; }

@@ -5,8 +5,9 @@
     <title>{{ $pageTitle ?? 'All Recipe Costs' }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8px; color: #1a1a1a; line-height: 1.25; }
-        .page { padding: 15px 20px; }
+        @@page { margin: 12mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8px; color: #1a1a1a; line-height: 1.25; margin: 12mm; }
+        .page { padding: 0; }
 
         /* Page header */
         .page-header { display: table; width: 100%; margin-bottom: 10px; border-bottom: 1.5px solid #2d3748; padding-bottom: 6px; }
