@@ -107,15 +107,26 @@ class RecipeCostPdfController extends Controller
      * manual menu_sort_order → recipe name. Recipes whose category string
      * doesn't match any recipe_category land last.
      */
-    private function applyDashboardSort(\Illuminate\Database\Eloquent\Builder $query): void
+    private function applyDashboardSort(\Illuminate\Database\Eloquent\Builder $query, bool $isPrep = false): void
     {
-        $query->leftJoin('recipe_categories as rc', function ($join) {
-                $join->on('rc.name', '=', 'recipes.category')
-                     ->on('rc.company_id', '=', 'recipes.company_id')
-                     ->whereNull('rc.deleted_at');
-            })
-            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
-            ->select('recipes.*')
+        if ($isPrep) {
+            // Prep items use ingredient_category_id (FK).
+            $query->leftJoin('ingredient_categories as rc', function ($join) {
+                    $join->on('rc.id', '=', 'recipes.ingredient_category_id')
+                         ->whereNull('rc.deleted_at');
+                })
+                ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
+        } else {
+            // Recipes use category string joined by name to recipe_categories.
+            $query->leftJoin('recipe_categories as rc', function ($join) {
+                    $join->on('rc.name', '=', 'recipes.category')
+                         ->on('rc.company_id', '=', 'recipes.company_id')
+                         ->whereNull('rc.deleted_at');
+                })
+                ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
+        }
+
+        $query->select('recipes.*')
             ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
             ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
             ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
@@ -157,19 +168,27 @@ class RecipeCostPdfController extends Controller
 
         $query = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
-            'lines.uom', 'yieldUom', 'ingredientCategory', 'department',
+            'lines.uom', 'yieldUom', 'ingredientCategory.parent', 'department',
             'prices.priceClass', 'outlets',
         ])->where('recipes.is_prep', $isPrep);
 
         $this->applyFilters($query, $request, $isPrep);
-        $this->applyDashboardSort($query);
+        $this->applyDashboardSort($query, $isPrep);
 
         $recipes = $query->get();
 
         $recipes = $this->applyCostFilter($recipes, $request);
 
-        // Group by category for the PDF (Laravel Collections preserve insertion order)
-        $grouped = $recipes->groupBy(fn ($r) => $r->category ?: 'Uncategorised');
+        // Group by category for the PDF (Laravel Collections preserve insertion order).
+        // Prep items group by their ingredient category root; recipes group by menu category.
+        $grouped = $recipes->groupBy(function ($r) use ($isPrep) {
+            if ($isPrep) {
+                $ic = $r->ingredientCategory;
+                $root = $ic?->parent ?? $ic;
+                return $root?->name ?: 'Uncategorised';
+            }
+            return $r->category ?: 'Uncategorised';
+        });
 
         $groupedData = $grouped->map(function ($items) {
             return $items->map(fn ($r) => $this->buildRecipeData($r))->values()->all();
@@ -199,12 +218,12 @@ class RecipeCostPdfController extends Controller
 
         $query = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
-            'lines.uom', 'yieldUom',
+            'lines.uom', 'yieldUom', 'ingredientCategory.parent',
             'prices.priceClass', 'outlets',
         ])->where('recipes.is_prep', $isPrep);
 
         $this->applyFilters($query, $request, $isPrep);
-        $this->applyDashboardSort($query);
+        $this->applyDashboardSort($query, $isPrep);
 
         $recipes = $query->get();
 
@@ -212,12 +231,21 @@ class RecipeCostPdfController extends Controller
 
         $priceClasses = RecipePriceClass::ordered()->get();
 
-        $summaryRows = $recipes->map(function ($recipe) use ($priceClasses) {
+        $summaryRows = $recipes->map(function ($recipe) use ($priceClasses, $isPrep) {
             $data = $this->buildRecipeData($recipe);
+            // For prep items the "category" column shows the ingredient category
+            // root so the group headers match the hierarchical sort order.
+            if ($isPrep) {
+                $ic = $recipe->ingredientCategory;
+                $root = $ic?->parent ?? $ic;
+                $categoryLabel = $root?->name ?? '';
+            } else {
+                $categoryLabel = $recipe->category;
+            }
             $row = [
                 'name'            => $recipe->name,
                 'code'            => $recipe->code,
-                'category'        => $recipe->category,
+                'category'        => $categoryLabel,
                 'yield'           => rtrim(rtrim(number_format($data['yieldQty'], 2), '0'), '.') . ' ' . ($recipe->yieldUom?->abbreviation ?? ''),
                 'ingredient_cost' => $data['totalCost'],
                 'packaging_cost'  => $data['packagingCost'],

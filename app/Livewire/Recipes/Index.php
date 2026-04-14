@@ -81,15 +81,26 @@ class Index extends Component
             'prices.priceClass',
             'ingredientCategory.parent',
         ])
-            ->where('recipes.is_prep', $isPrep)
-            ->leftJoin('recipe_categories as rc', function ($join) {
-                $join->on('rc.name', '=', 'recipes.category')
-                     ->on('rc.company_id', '=', 'recipes.company_id')
-                     ->whereNull('rc.deleted_at');
-            })
-            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
-            ->select('recipes.*')
-            ->withCount('lines');
+            ->where('recipes.is_prep', $isPrep);
+
+        // Prep items group by ingredient_category_id; recipes group by menu
+        // category string (which FK's by name to recipe_categories).
+        if ($isPrep) {
+            $query->leftJoin('ingredient_categories as rc', function ($join) {
+                    $join->on('rc.id', '=', 'recipes.ingredient_category_id')
+                         ->whereNull('rc.deleted_at');
+                })
+                ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
+        } else {
+            $query->leftJoin('recipe_categories as rc', function ($join) {
+                    $join->on('rc.name', '=', 'recipes.category')
+                         ->on('rc.company_id', '=', 'recipes.company_id')
+                         ->whereNull('rc.deleted_at');
+                })
+                ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
+        }
+
+        $query->select('recipes.*')->withCount('lines');
 
         if ($this->search) {
             $query->where(function ($q) {
