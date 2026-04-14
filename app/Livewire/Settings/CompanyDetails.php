@@ -20,6 +20,7 @@ class CompanyDetails extends Component
     public string  $address             = '';
     public string  $billing_address     = '';
     public string  $currency            = 'MYR';
+    public string  $timezone            = '';
     public string  $tax_type            = '';
     public string  $tax_percent         = '0';
     public bool    $show_price_on_do_grn = false;
@@ -43,6 +44,7 @@ class CompanyDetails extends Component
         $this->address             = $company->address ?? '';
         $this->billing_address     = $company->billing_address ?? '';
         $this->currency            = $company->currency ?? 'MYR';
+        $this->timezone            = $company->timezone ?? '';
         $this->tax_type            = $company->tax_type ?? '';
         $this->tax_percent         = (string) ($company->tax_percent ?? '0');
         $this->show_price_on_do_grn = (bool) $company->show_price_on_do_grn;
@@ -64,6 +66,7 @@ class CompanyDetails extends Component
             'address'             => 'nullable|string|max:500',
             'billing_address'     => 'nullable|string|max:500',
             'currency'            => 'required|string|max:5',
+            'timezone'            => 'nullable|string|max:64|in:' . implode(',', \DateTimeZone::listIdentifiers()),
             'tax_type'            => 'nullable|string|max:10',
             'tax_percent'         => 'nullable|numeric|min:0|max:100',
             'logo'                => 'nullable|image|max:2048',
@@ -82,6 +85,7 @@ class CompanyDetails extends Component
             'address'             => $this->address ?: null,
             'billing_address'     => $this->billing_address ?: null,
             'currency'            => $this->currency,
+            'timezone'            => $this->timezone ?: null,
             'tax_type'              => $this->tax_type ?: null,
             'tax_percent'           => floatval($this->tax_percent),
             'show_price_on_do_grn'  => $this->show_price_on_do_grn,

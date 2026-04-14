@@ -109,10 +109,24 @@
                     <x-input-error :messages="$errors->get('billing_address')" class="mt-1" />
                 </div>
 
-                <div>
-                    <x-input-label for="currency" value="Currency *" />
-                    <x-text-input id="currency" wire:model="currency" type="text" class="mt-1 block w-full" />
-                    <x-input-error :messages="$errors->get('currency')" class="mt-1" />
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <x-input-label for="currency" value="Currency *" />
+                        <x-text-input id="currency" wire:model="currency" type="text" class="mt-1 block w-full" />
+                        <x-input-error :messages="$errors->get('currency')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="company_timezone" value="Timezone" />
+                        <select id="company_timezone" wire:model="timezone"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— App default (Asia/Kuala_Lumpur) —</option>
+                            @foreach (\DateTimeZone::listIdentifiers() as $tz)
+                                <option value="{{ $tz }}">{{ $tz }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">LMS trainees see timestamps in this zone.</p>
+                        <x-input-error :messages="$errors->get('timezone')" class="mt-1" />
+                    </div>
                 </div>
 
                 {{-- Tax Settings --}}

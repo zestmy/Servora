@@ -14,7 +14,7 @@ class User extends Authenticatable
     use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'company_id', 'outlet_id',
+        'name', 'email', 'password', 'company_id', 'outlet_id', 'timezone',
         'designation', 'can_manage_users', 'can_approve_po', 'can_approve_pr',
         'can_delete_records', 'can_view_all_outlets', 'can_receive_grn', 'can_manage_invoices',
         'workspace_mode', 'default_kitchen_id',

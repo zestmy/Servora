@@ -10,6 +10,7 @@ new class extends Component
 {
     public string $name = '';
     public string $email = '';
+    public string $timezone = '';
 
     /**
      * Mount the component.
@@ -18,6 +19,13 @@ new class extends Component
     {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
+        $this->timezone = Auth::user()->timezone ?? '';
+    }
+
+    /** Curated list of timezones exposed to users. */
+    public function getTimezoneOptionsProperty(): array
+    {
+        return \DateTimeZone::listIdentifiers();
     }
 
     /**
@@ -30,7 +38,10 @@ new class extends Component
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+            'timezone' => ['nullable', 'string', 'max:64', 'in:' . implode(',', \DateTimeZone::listIdentifiers())],
         ]);
+
+        $validated['timezone'] = $validated['timezone'] ?: null;
 
         $user->fill($validated);
 
@@ -78,6 +89,19 @@ new class extends Component
             <x-input-label for="name" :value="__('Name')" />
             <x-text-input wire:model="name" id="name" name="name" type="text" class="mt-1 block w-full" required autofocus autocomplete="name" />
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
+        </div>
+
+        <div>
+            <x-input-label for="timezone" :value="__('Timezone')" />
+            <select wire:model="timezone" id="timezone"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">— Use company default —</option>
+                @foreach ($this->timezoneOptions as $tz)
+                    <option value="{{ $tz }}">{{ $tz }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Dates and times you read are shown in this zone. Records you create stay anchored to the company timezone.</p>
+            <x-input-error class="mt-1" :messages="$errors->get('timezone')" />
         </div>
 
         <div>
