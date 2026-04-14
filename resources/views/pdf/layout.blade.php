@@ -20,8 +20,8 @@
         table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; }
         table.doc-header td.dh-logo {
-            width: 120px;
-            padding: 14px 24px 14px 10px;
+            width: 100px;
+            padding: 10px 12px 10px 4px;
         }
         table.doc-header td.dh-logo img { max-height: 72px; max-width: 90px; display: block; }
         table.doc-header td.dh-body {
@@ -129,7 +129,7 @@
         table.hero-info tr:first-child td { border-top: 1.5px solid #0f172a; }
         table.hero-info tr:last-child td { border-bottom: 1.5px solid #0f172a; }
         table.hero-info .big-value {
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
             text-transform: uppercase;
@@ -215,9 +215,9 @@
 
         /* ═══ Ingredient list ═══════════════════════════════════ */
         table.ing-table { width: 100%; border-collapse: collapse; }
-        table.ing-table td { padding: 1.5px 0; font-size: 8.5pt; color: #1f2937; vertical-align: top; border: none; }
-        table.ing-table td.ing-bullet { width: 10px; color: #94a3b8; font-weight: bold; padding-right: 3px; }
-        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 12px; }
+        table.ing-table td { padding: 2.5px 0; font-size: 9.5pt; color: #1f2937; vertical-align: top; border: none; }
+        table.ing-table td.ing-bullet { width: 12px; color: #94a3b8; font-weight: bold; padding-right: 5px; }
+        table.ing-table td.ing-name { font-weight: bold; color: #0f172a; padding-right: 16px; min-width: 60%; }
         table.ing-table td.ing-qty { color: #475569; text-align: right; white-space: nowrap; }
         table.hero-info td.ing-list-cell { padding: 7px 11px; background: #fff; }
 
