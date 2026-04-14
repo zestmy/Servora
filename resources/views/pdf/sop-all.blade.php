@@ -39,11 +39,11 @@
         /* Document header — compact */
         table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
-        .dh-logo { width: 70px; padding-right: 10px; vertical-align: middle; }
+        .dh-logo { width: 70px; padding: 4px 14px 4px 4px; vertical-align: middle; }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
-        .dh-body { vertical-align: middle; padding: 0 10px; border-left: 1px solid #e2e8f0; }
-        .dh-recipe-cell { vertical-align: middle; padding: 0 10px; border-left: 1px solid #e2e8f0; }
-        .dh-qr-cell { width: 80px; vertical-align: middle; text-align: right; padding-left: 10px; border-left: 1px solid #e2e8f0; }
+        .dh-body { vertical-align: middle; padding: 4px 14px; border-left: 1px solid #e2e8f0; }
+        .dh-recipe-cell { vertical-align: middle; padding: 4px 14px; border-left: 1px solid #e2e8f0; }
+        .dh-qr-cell { width: 80px; vertical-align: middle; text-align: right; padding: 4px 4px 4px 14px; border-left: 1px solid #e2e8f0; }
         .dh-qr-box { display: inline-block; text-align: center; }
         .dh-qr-box img { width: 62px; height: 62px; border: 1px solid #cbd5e1; padding: 2px; }
         .dh-qr-box .qr-label { font-size: 6.5pt; color: #64748b; font-weight: bold; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -67,7 +67,7 @@
         table.hero-info td.label { width: 78px; font-weight: bold; color: #475569; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.7px; border-right: 1px solid #e2e8f0; background: #f8fafc; }
         table.hero-info tr:first-child td { border-top: 1.5px solid #0f172a; }
         table.hero-info tr:last-child td { border-bottom: 1.5px solid #0f172a; }
-        table.hero-info .big-value { font-size: 11pt; font-weight: bold; color: #0f172a; }
+        table.hero-info .big-value { font-size: 11pt; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 0.3px; }
 
         /* Section header */
         .section-header { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #0f172a; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1.5px solid #0f172a; }
@@ -233,7 +233,7 @@
                             <td><span class="big-value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</span></td>
                             @if ($recipe->category)
                                 <td class="label">Category</td>
-                                <td>{{ $recipe->category }}</td>
+                                <td><span class="big-value">{{ $recipe->category }}</span></td>
                             @else
                                 <td colspan="2"></td>
                             @endif

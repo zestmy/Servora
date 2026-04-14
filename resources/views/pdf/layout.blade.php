@@ -21,25 +21,25 @@
         table.doc-header td { vertical-align: middle; padding: 0; }
         .dh-logo {
             width: 70px;
-            padding-right: 10px;
+            padding: 4px 14px 4px 4px;
             vertical-align: middle;
         }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
         .dh-body {
             vertical-align: middle;
-            padding: 0 10px;
+            padding: 4px 14px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-recipe-cell {
             vertical-align: middle;
-            padding: 0 10px;
+            padding: 4px 14px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-qr-cell {
             width: 80px;
             vertical-align: middle;
             text-align: right;
-            padding-left: 10px;
+            padding: 4px 4px 4px 14px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-qr-box { display: inline-block; text-align: center; }
@@ -134,6 +134,8 @@
             font-size: 11pt;
             font-weight: bold;
             color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         /* ═══ Section header ════════════════════════════════════ */

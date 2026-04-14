@@ -62,7 +62,7 @@
                         <td><span class="big-value">{{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}</span></td>
                         @if ($recipe->category)
                             <td class="label">Category</td>
-                            <td>{{ $recipe->category }}</td>
+                            <td><span class="big-value">{{ $recipe->category }}</span></td>
                         @else
                             <td colspan="2"></td>
                         @endif
