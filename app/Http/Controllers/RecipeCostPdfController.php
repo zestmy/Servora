@@ -71,13 +71,24 @@ class RecipeCostPdfController extends Controller
         }
 
         if ($category !== '') {
-            $selectedCat = RecipeCategory::with('children')->find((int) $category);
-            if ($selectedCat) {
-                $names = collect([$selectedCat->name]);
-                if ($selectedCat->children->isNotEmpty()) {
-                    $names = $names->merge($selectedCat->children->pluck('name'));
+            if ($isPrep) {
+                $selectedCat = \App\Models\IngredientCategory::with('children')->find((int) $category);
+                if ($selectedCat) {
+                    $ids = collect([$selectedCat->id]);
+                    if ($selectedCat->children->isNotEmpty()) {
+                        $ids = $ids->merge($selectedCat->children->pluck('id'));
+                    }
+                    $query->whereIn('recipes.ingredient_category_id', $ids->toArray());
                 }
-                $query->whereIn('recipes.category', $names->toArray());
+            } else {
+                $selectedCat = RecipeCategory::with('children')->find((int) $category);
+                if ($selectedCat) {
+                    $names = collect([$selectedCat->name]);
+                    if ($selectedCat->children->isNotEmpty()) {
+                        $names = $names->merge($selectedCat->children->pluck('name'));
+                    }
+                    $query->whereIn('recipes.category', $names->toArray());
+                }
             }
         }
 
@@ -200,7 +211,7 @@ class RecipeCostPdfController extends Controller
         $logoBase64 = $this->companyLogoBase64();
         $pageTitle = "All {$label} Costs";
         $totalRecipes = $recipes->count();
-        $activeFilters = $this->describeActiveFilters($request);
+        $activeFilters = $this->describeActiveFilters($request, $isPrep);
 
         $pdf = Pdf::loadView('pdf.recipe-cost-all', compact(
             'groupedData', 'company', 'brandName', 'exportedBy', 'logoBase64',
@@ -272,7 +283,7 @@ class RecipeCostPdfController extends Controller
         $logoBase64 = $this->companyLogoBase64();
         $pageTitle = "{$label} Cost Summary";
         $totalRecipes = $recipes->count();
-        $activeFilters = $this->describeActiveFilters($request);
+        $activeFilters = $this->describeActiveFilters($request, $isPrep);
 
         $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact(
             'summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy',
@@ -287,7 +298,7 @@ class RecipeCostPdfController extends Controller
     /**
      * Build a human-readable summary of active filters for display in PDF header.
      */
-    private function describeActiveFilters(Request $request): array
+    private function describeActiveFilters(Request $request, bool $isPrep = false): array
     {
         $filters = [];
 
@@ -295,7 +306,9 @@ class RecipeCostPdfController extends Controller
             $filters[] = 'Search: "' . $search . '"';
         }
         if ($categoryId = (int) $request->get('category', 0)) {
-            $cat = RecipeCategory::find($categoryId);
+            $cat = $isPrep
+                ? \App\Models\IngredientCategory::find($categoryId)
+                : RecipeCategory::find($categoryId);
             if ($cat) $filters[] = 'Category: ' . $cat->name;
         }
         if ($status = $request->get('status')) {
