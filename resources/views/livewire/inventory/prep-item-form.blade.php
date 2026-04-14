@@ -68,17 +68,39 @@
                     </div>
                 </div>
 
-                {{-- Department --}}
-                <div>
-                    <x-input-label for="p_department" value="Department" />
-                    <select id="p_department" wire:model="department_id"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">— No Department —</option>
-                        @foreach ($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                        @endforeach
-                    </select>
-                    <p class="mt-0.5 text-xs text-gray-400">Assigns cost to a department.</p>
+                {{-- Department | Cost Category --}}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <x-input-label for="p_department" value="Department" />
+                        <select id="p_department" wire:model="department_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— No Department —</option>
+                            @foreach ($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-0.5 text-xs text-gray-400">Assigns cost to a department.</p>
+                    </div>
+                    <div>
+                        <x-input-label for="p_category" value="Cost Category" />
+                        <select id="p_category" wire:model="ingredient_category_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— No Category —</option>
+                            @foreach ($categories as $cat)
+                                @if ($cat->children->isEmpty())
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                @else
+                                    <optgroup label="{{ $cat->name }}">
+                                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                        @foreach ($cat->children as $sub)
+                                            <option value="{{ $sub->id }}">&nbsp;&nbsp;{{ $sub->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
+                    </div>
                 </div>
 
                 {{-- Yield --}}
