@@ -159,7 +159,14 @@
                                 @foreach ($sopIngredientLines as $idx => $line)
                                     <tr>
                                         <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
-                                        <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
+                                        <td class="px-4 py-2">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</span>
+                                                @if ($line->ingredient?->is_prep)
+                                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-semibold rounded uppercase tracking-wide">Prep</span>
+                                                @endif
+                                            </div>
+                                        </td>
                                         <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
                                         <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
                                     </tr>
