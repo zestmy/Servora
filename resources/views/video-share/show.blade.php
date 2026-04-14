@@ -8,7 +8,9 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f0f; color: #fff; min-height: 100vh; display: flex; flex-direction: column; -webkit-user-select: none; user-select: none; }
-        .header { background: #1a1a2e; padding: 16px 20px; border-bottom: 1px solid #2a2a3e; transition: transform 0.3s; }
+        .header { background: #1a1a2e; padding: 16px 20px; border-bottom: 1px solid #2a2a3e; transition: transform 0.3s; display: flex; align-items: center; gap: 16px; }
+        .brand-logo { max-height: 48px; max-width: 140px; object-fit: contain; flex-shrink: 0; }
+        .brand-text { min-width: 0; }
         .brand { font-size: 13px; color: #8b8ba7; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         .title { font-size: 18px; font-weight: 700; color: #fff; margin-top: 2px; }
         .video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; transition: padding 0.3s; }
@@ -86,8 +88,13 @@
 </head>
 <body>
     <div class="header">
-        <div class="brand">{{ $company->brand_name ?? $company->name }}</div>
-        <div class="title">{{ $recipe->name }}</div>
+        @if ($company?->logo)
+            <img src="{{ Storage::disk('public')->url($company->logo) }}" alt="{{ $company->brand_name ?? $company->name }}" class="brand-logo">
+        @endif
+        <div class="brand-text">
+            <div class="brand">{{ $company->brand_name ?? $company->name }}</div>
+            <div class="title">{{ $recipe->name }}</div>
+        </div>
     </div>
 
     <div class="video-wrap">
