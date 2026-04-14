@@ -90,7 +90,7 @@
     {{-- Signatures --}}
     <table style="width: 100%; border-collapse: separate; border-spacing: 18px 0; margin-top: 40px; page-break-inside: avoid;">
         <tr>
-            @foreach (['Counted By', 'Verified By', 'Approved By'] as $role)
+            @foreach (['Counted By', 'Verified By', 'Audited By'] as $role)
                 <td style="width: 33.33%; vertical-align: top;">
                     <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #475569; margin-bottom: 6px;">{{ $role }}</div>
 
