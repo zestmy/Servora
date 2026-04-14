@@ -235,8 +235,13 @@
         </div>
     @endif
 
+    @php
+        $sopIngredientLines = $recipe->lines->where('is_packaging', false)->values();
+        $sopPackagingLines  = $recipe->lines->where('is_packaging', true)->values();
+    @endphp
+
     {{-- Ingredients --}}
-    @if ($recipe->lines->count())
+    @if ($sopIngredientLines->count())
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h2 class="text-sm font-semibold text-gray-700">Ingredients</h2>
@@ -256,7 +261,38 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
-                        @foreach ($recipe->lines as $idx => $line)
+                        @foreach ($sopIngredientLines as $idx => $line)
+                            <tr>
+                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
+                                <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- Packaging --}}
+    @if ($sopPackagingLines->count())
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h2 class="text-sm font-semibold text-gray-700">Packaging</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="px-4 py-2 text-left">#</th>
+                            <th class="px-4 py-2 text-left">Item</th>
+                            <th class="px-4 py-2 text-right">Quantity</th>
+                            <th class="px-4 py-2 text-left">UOM</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @foreach ($sopPackagingLines as $idx => $line)
                             <tr>
                                 <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>

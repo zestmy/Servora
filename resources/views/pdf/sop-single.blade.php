@@ -67,16 +67,36 @@
                             <td colspan="2"></td>
                         @endif
                     </tr>
-                    @if ($recipe->lines->count())
-                        {{-- Ingredients title row (spans full width) --}}
+                    @php
+                        $ingredientLines = $recipe->lines->where('is_packaging', false)->values();
+                        $packagingLines  = $recipe->lines->where('is_packaging', true)->values();
+                    @endphp
+                    @if ($ingredientLines->count())
                         <tr>
                             <td colspan="4" class="label">Ingredients</td>
                         </tr>
-                        {{-- Ingredients list (spans full width) --}}
                         <tr>
                             <td colspan="4" class="ing-list-cell">
                                 <table class="ing-table">
-                                    @foreach ($recipe->lines as $line)
+                                    @foreach ($ingredientLines as $line)
+                                        <tr>
+                                            <td class="ing-bullet">&bull;</td>
+                                            <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
+                                            <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </td>
+                        </tr>
+                    @endif
+                    @if ($packagingLines->count())
+                        <tr>
+                            <td colspan="4" class="label">Packaging</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" class="ing-list-cell">
+                                <table class="ing-table">
+                                    @foreach ($packagingLines as $line)
                                         <tr>
                                             <td class="ing-bullet">&bull;</td>
                                             <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>

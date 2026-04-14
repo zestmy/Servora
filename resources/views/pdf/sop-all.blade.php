@@ -238,12 +238,32 @@
                                 <td colspan="2"></td>
                             @endif
                         </tr>
-                        @if ($recipe->lines->count())
+                        @php
+                            $ingLines = $recipe->lines->where('is_packaging', false)->values();
+                            $pkgLines = $recipe->lines->where('is_packaging', true)->values();
+                        @endphp
+                        @if ($ingLines->count())
                             <tr><td colspan="4" class="label">Ingredients</td></tr>
                             <tr>
                                 <td colspan="4" class="ing-list-cell">
                                     <table class="ing-table">
-                                        @foreach ($recipe->lines as $line)
+                                        @foreach ($ingLines as $line)
+                                            <tr>
+                                                <td class="ing-bullet">&bull;</td>
+                                                <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
+                                                <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
+                        @if ($pkgLines->count())
+                            <tr><td colspan="4" class="label">Packaging</td></tr>
+                            <tr>
+                                <td colspan="4" class="ing-list-cell">
+                                    <table class="ing-table">
+                                        @foreach ($pkgLines as $line)
                                             <tr>
                                                 <td class="ing-bullet">&bull;</td>
                                                 <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}</td>
