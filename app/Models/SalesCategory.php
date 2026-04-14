@@ -12,7 +12,7 @@ class SalesCategory extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['company_id', 'name', 'type', 'color', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'name', 'color', 'sort_order', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 
@@ -34,11 +34,6 @@ class SalesCategory extends Model
     public function scopeOrdered(Builder $q): Builder
     {
         return $q->orderBy('sort_order')->orderBy('name');
-    }
-
-    public static function typeOptions(): array
-    {
-        return CostType::options();
     }
 
     public static function colorOptions(): array

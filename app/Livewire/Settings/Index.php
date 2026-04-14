@@ -10,7 +10,6 @@ use App\Models\Outlet;
 use App\Models\RecipeCategory;
 use App\Models\SalesCategory;
 use App\Models\SalesTarget;
-use App\Models\CostType;
 use App\Models\CentralKitchen;
 use App\Models\CentralPurchasingUnit;
 use App\Models\PoApprover;
@@ -34,7 +33,6 @@ class Index extends Component
         $hasSettingsAccess = $user->hasPermissionTo('settings.view');
 
         $departmentCount     = Department::count();
-        $costTypeCount       = CostType::count();
         $supplierCount       = Supplier::count();
         $categoryCount       = IngredientCategory::count();
         $recipeCategoryCount = RecipeCategory::count();
@@ -62,7 +60,7 @@ class Index extends Component
 
         return view('livewire.settings.index', compact(
             'isSystemLevel', 'isBusinessLevel', 'hasSettingsAccess',
-            'departmentCount', 'costTypeCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
+            'departmentCount', 'supplierCount', 'categoryCount', 'recipeCategoryCount',
             'salesCategoryCount', 'formTemplateCount', 'poApproverCount', 'calendarEventCount', 'salesTargetCount', 'labourCostCount', 'lmsUserCount', 'userCount', 'outletCount', 'cpuCount', 'kitchenCount', 'taxRateCount', 'priceAlertCount', 'priceClassCount', 'outletGroupCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Settings']);
     }

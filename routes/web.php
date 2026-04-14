@@ -35,7 +35,6 @@ use App\Livewire\Settings\ApiKeys as SettingsApiKeys;
 use App\Livewire\Settings\Outlets as SettingsOutlets;
 use App\Livewire\Settings\Users as SettingsUsers;
 use App\Livewire\Settings\CompanyDetails as SettingsCompanyDetails;
-use App\Livewire\Settings\CostTypes as SettingsCostTypes;
 use App\Livewire\Settings\PoApprovers as SettingsPoApprovers;
 use App\Livewire\Settings\CalendarEvents as SettingsCalendarEvents;
 use App\Livewire\Settings\SalesTargets as SettingsSalesTargets;
@@ -273,7 +272,6 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:settings.view');
     Route::get('/settings/recipe-categories', SettingsRecipeCategories::class)->name('settings.recipe-categories')->middleware('can:settings.view');
     Route::get('/settings/price-classes', \App\Livewire\Settings\PriceClasses::class)->name('settings.price-classes')->middleware('can:settings.view');
-    Route::get('/settings/cost-types', SettingsCostTypes::class)->name('settings.cost-types')->middleware('can:settings.view');
     Route::get('/settings/sales-categories', SettingsSalesCategories::class)->name('settings.sales-categories')->middleware('can:settings.view');
     Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:purchasing.view');
     Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:purchasing.view');

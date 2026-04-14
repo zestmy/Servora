@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Settings;
 
-use App\Models\CostType;
 use App\Models\SalesCategory;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -13,7 +12,6 @@ class SalesCategories extends Component
     public ?int $editingId = null;
 
     public string $name                    = '';
-    public string $type                    = 'food';
     public string $color                   = '#22c55e';
     public string $sort_order              = '0';
     public bool   $is_active               = true;
@@ -22,7 +20,6 @@ class SalesCategories extends Component
     {
         return [
             'name'                    => 'required|string|max:100',
-            'type'                    => 'required|in:' . implode(',', array_keys(CostType::options())),
             'color'                   => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'sort_order'              => 'required|integer|min:0|max:9999',
         ];
@@ -40,7 +37,6 @@ class SalesCategories extends Component
 
         $this->editingId              = $cat->id;
         $this->name                   = $cat->name;
-        $this->type                   = $cat->type;
         $this->color                  = $cat->color;
         $this->sort_order             = (string) $cat->sort_order;
         $this->is_active              = $cat->is_active;
@@ -54,7 +50,6 @@ class SalesCategories extends Component
 
         $data = [
             'name'                   => $this->name,
-            'type'                   => $this->type,
             'color'                  => $this->color,
             'sort_order'             => (int) $this->sort_order,
             'is_active'              => $this->is_active,
@@ -99,7 +94,6 @@ class SalesCategories extends Component
     public function render()
     {
         $categories   = SalesCategory::withTrashed()->orderBy('sort_order')->orderBy('name')->get();
-        $typeOptions  = SalesCategory::typeOptions();
         $colorOptions = SalesCategory::colorOptions();
 
         // Count sales lines per category
@@ -108,7 +102,7 @@ class SalesCategories extends Component
             ->groupBy('sales_category_id')
             ->pluck('total', 'sales_category_id');
 
-        return view('livewire.settings.sales-categories', compact('categories', 'typeOptions', 'colorOptions', 'lineCounts'))
+        return view('livewire.settings.sales-categories', compact('categories', 'colorOptions', 'lineCounts'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Sales Categories']);
     }
 
@@ -116,7 +110,6 @@ class SalesCategories extends Component
     {
         $this->editingId              = null;
         $this->name                   = '';
-        $this->type                   = 'food';
         $this->color                  = '#22c55e';
         $this->sort_order             = '0';
         $this->is_active              = true;

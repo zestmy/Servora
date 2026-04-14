@@ -16,7 +16,7 @@ class IngredientCategory extends Model
 
     protected $table = 'ingredient_categories';
 
-    protected $fillable = ['company_id', 'parent_id', 'type', 'name', 'color', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'parent_id', 'name', 'color', 'sort_order', 'is_active'];
 
     protected $casts = [
         'is_active'  => 'boolean',
@@ -75,21 +75,6 @@ class IngredientCategory extends Model
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
-
-    /**
-     * The cost type for costing reports.
-     * Only main categories (parent_id = null) have a type; sub-categories always return null.
-     */
-    public function resolvedType(): ?string
-    {
-        return $this->parent_id ? null : $this->type;
-    }
-
-    /** Cost-grouping types — loaded from cost_types table. */
-    public static function typeOptions(): array
-    {
-        return CostType::options();
-    }
 
     /** Preset color palette available to users. */
     public static function colorOptions(): array

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Settings;
 
-use App\Models\CostType;
 use App\Models\IngredientCategory;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -14,30 +13,16 @@ class Categories extends Component
     public ?int $parentId   = null; // null = main category, int = sub under this parent
 
     public string  $name       = '';
-    public string  $type       = '';  // only for main categories
     public string  $color      = '#6366f1';
     public string  $sort_order = '0';
     public bool    $is_active  = true;
 
     protected function rules(): array
     {
-        $validSlugs = implode(',', array_keys(CostType::options()));
-
         return [
             'name'       => 'required|string|max:100',
-            'type'       => $this->parentId === null
-                                ? ['required', 'string', "in:{$validSlugs}"]
-                                : ['nullable', 'string', "in:{$validSlugs}"],
             'color'      => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'sort_order' => 'required|integer|min:0|max:9999',
-        ];
-    }
-
-    protected function messages(): array
-    {
-        return [
-            'type.required' => 'Please select a cost type for this main category.',
-            'type.in'       => 'Invalid cost type selected.',
         ];
     }
 
@@ -62,7 +47,6 @@ class Categories extends Component
         $this->editingId  = $cat->id;
         $this->parentId   = $cat->parent_id;
         $this->name       = $cat->name;
-        $this->type       = $cat->type ?? '';
         $this->color      = $cat->color;
         $this->sort_order = (string) $cat->sort_order;
         $this->is_active  = $cat->is_active;
@@ -81,11 +65,6 @@ class Categories extends Component
             'sort_order' => (int) $this->sort_order,
             'is_active'  => $this->is_active,
         ];
-
-        // Only persist type on main (root) categories
-        if ($this->parentId === null) {
-            $data['type'] = $this->type ?: null;
-        }
 
         if ($this->editingId) {
             IngredientCategory::findOrFail($this->editingId)->update($data);
@@ -138,14 +117,12 @@ class Categories extends Component
             ->get();
 
         $colorOptions = IngredientCategory::colorOptions();
-        $typeOptions  = IngredientCategory::typeOptions();
-        $typeColors   = CostType::active()->pluck('color', 'slug')->toArray();
 
         $parentCategory = $this->parentId
             ? IngredientCategory::find($this->parentId)
             : null;
 
-        return view('livewire.settings.categories', compact('categories', 'colorOptions', 'typeOptions', 'typeColors', 'parentCategory'))
+        return view('livewire.settings.categories', compact('categories', 'colorOptions', 'parentCategory'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Categories']);
     }
 
@@ -154,7 +131,6 @@ class Categories extends Component
         $this->editingId  = null;
         $this->parentId   = null;
         $this->name       = '';
-        $this->type       = '';
         $this->color      = '#6366f1';
         $this->sort_order = '0';
         $this->is_active  = true;

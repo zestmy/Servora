@@ -51,7 +51,6 @@
                 <div class="bg-white/60 rounded-lg p-3">
                     <p class="font-bold text-blue-800 mb-1">Main Category Settings</p>
                     <ul class="space-y-1 text-blue-700">
-                        <li><strong>Cost Type</strong> &mdash; Links to a type (Food, Beverage, etc.) defined in <a href="{{ route('settings.cost-types') }}" class="underline">Settings &rarr; Cost Types</a></li>
                         <li><strong>Color</strong> &mdash; Visual identifier used in charts and reports</li>
                         <li><strong>Sort Order</strong> &mdash; Controls display order (lower = first)</li>
                     </ul>
@@ -78,7 +77,6 @@
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Category</th>
-                    <th class="px-4 py-3 text-center">Cost Type</th>
                     <th class="px-4 py-3 text-center">Sub-cats</th>
                     <th class="px-4 py-3 text-center">Items</th>
                     <th class="px-4 py-3 text-center">Status</th>
@@ -91,9 +89,6 @@
                         $totalItems  = ($cat->ingredients_count + $cat->recipes_count)
                                      + $cat->children->sum(fn ($c) => $c->ingredients_count + $c->recipes_count);
                         $hasChildren = $cat->children->isNotEmpty();
-
-                        $typeLabel = $typeOptions[$cat->type] ?? null;
-                        $typeColor = $typeColors[$cat->type] ?? '#6b7280';
                     @endphp
 
                     {{-- Main category row --}}
@@ -112,16 +107,6 @@
                                     </button>
                                 @endif
                             </div>
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            @if ($typeLabel)
-                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                    <span class="w-2 h-2 rounded-full" style="background-color: {{ $typeColor }}"></span>
-                                    {{ $typeLabel }}
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500">Not set</span>
-                            @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             @if ($hasChildren)
@@ -226,7 +211,7 @@
 
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="5" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🏷️</div>
                             <p class="font-medium">No categories yet</p>
                             <p class="text-xs mt-1">Create a main category, then add sub-categories under it.</p>
@@ -280,24 +265,6 @@
                                       placeholder="{{ $parentId ? 'e.g. Chicken, Seafood…' : 'e.g. Protein, Vegetables…' }}" />
                         <x-input-error :messages="$errors->get('name')" class="mt-1" />
                     </div>
-
-                    {{-- Cost Type (main categories only) --}}
-                    @if (! $parentId)
-                        <div>
-                            <x-input-label for="cat_type" value="Cost Type *" />
-                            <select id="cat_type" wire:model="type"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">— Select type —</option>
-                                @foreach ($typeOptions as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <p class="mt-0.5 text-xs text-gray-400">
-                                Links this category to the matching sales type for food cost % reports.
-                            </p>
-                            <x-input-error :messages="$errors->get('type')" class="mt-1" />
-                        </div>
-                    @endif
 
                     {{-- Color Picker --}}
                     <div>

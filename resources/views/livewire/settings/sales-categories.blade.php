@@ -34,7 +34,6 @@
             <div class="space-y-1.5">
                 <p class="font-semibold text-gray-800">How they connect to P&amp;L:</p>
                 <ol class="list-decimal list-inside space-y-1 ml-1">
-                    <li><strong>Cost Type</strong> &mdash; The broadest classification (Food, Beverage, etc.). Set in <a href="{{ route('settings.cost-types') }}" class="text-indigo-600 underline">Cost Types</a>.</li>
                     <li><strong>Department</strong> &mdash; Operational units (Kitchen, Bar, etc.) mapped to a sales category. Set in <a href="{{ route('settings.departments') }}" class="text-indigo-600 underline">Departments</a>.</li>
                     <li><strong>Sales Category</strong> (this page) &mdash; Departments map to a sales category so costs flow into the correct P&amp;L line alongside revenue.</li>
                 </ol>
@@ -56,7 +55,6 @@
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Category</th>
-                    <th class="px-4 py-3 text-left">Type</th>
                     <th class="px-4 py-3 text-center">Sort</th>
                     <th class="px-4 py-3 text-center">Lines Used</th>
                     <th class="px-4 py-3 text-center">Status</th>
@@ -72,7 +70,6 @@
                                 <span class="font-medium text-gray-800">{{ $cat->name }}</span>
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-gray-500 capitalize">{{ $typeOptions[$cat->type] ?? $cat->type }}</td>
                         <td class="px-4 py-3 text-center text-gray-500">{{ $cat->sort_order }}</td>
                         <td class="px-4 py-3 text-center text-gray-700 font-medium">
                             {{ $lineCounts[$cat->id] ?? 0 }}
@@ -127,7 +124,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="5" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🏷️</div>
                             <p class="font-medium">No sales categories yet</p>
                             <p class="text-xs mt-1">Create categories like Food, Beverage, Merchandise to classify your sales.</p>
@@ -166,18 +163,6 @@
                         <x-input-label for="scat_name" value="Category Name *" />
                         <x-text-input id="scat_name" wire:model="name" type="text" class="mt-1 block w-full" placeholder="e.g. Main Course" />
                         <x-input-error :messages="$errors->get('name')" class="mt-1" />
-                    </div>
-
-                    {{-- Type --}}
-                    <div>
-                        <x-input-label for="scat_type" value="Type *" />
-                        <select id="scat_type" wire:model="type"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                            @foreach ($typeOptions as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('type')" class="mt-1" />
                     </div>
 
                     {{-- Color Picker --}}
