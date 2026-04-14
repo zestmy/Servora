@@ -71,6 +71,8 @@ class StockTakeForm extends Component
 
         $record = StockTake::with([
             'lines.ingredient.baseUom',
+            'lines.ingredient.recipeUom',
+            'lines.ingredient.uomConversions',
             'lines.ingredient.ingredientCategory.parent',
         ])->findOrFail($id);
 
@@ -132,7 +134,7 @@ class StockTakeForm extends Component
             }
         }
 
-        $ingredient = Ingredient::with(['baseUom', 'ingredientCategory.parent'])->findOrFail($ingredientId);
+        $ingredient = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'ingredientCategory.parent'])->findOrFail($ingredientId);
         $this->lines[] = $this->buildLine($ingredient);
         $this->ingredientSearch = '';
     }
@@ -143,7 +145,7 @@ class StockTakeForm extends Component
     {
         $existing = collect($this->lines)->pluck('ingredient_id')->map(fn ($id) => (int) $id)->toArray();
 
-        $ingredients = Ingredient::with(['baseUom', 'ingredientCategory.parent'])
+        $ingredients = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'ingredientCategory.parent'])
             ->where('is_active', true)
             ->when($existing, fn ($q) => $q->whereNotIn('id', $existing))
             ->orderBy('name')
@@ -162,6 +164,8 @@ class StockTakeForm extends Component
 
         $template = FormTemplate::with([
             'lines.ingredient.baseUom',
+            'lines.ingredient.recipeUom',
+            'lines.ingredient.uomConversions',
             'lines.ingredient.ingredientCategory.parent',
         ])->find((int) $this->selectedTemplateId);
 
@@ -313,14 +317,18 @@ class StockTakeForm extends Component
 
     private function buildLine(Ingredient $ingredient): array
     {
-        $unitCost = floatval($ingredient->current_cost);
+        // Stock takes count loose (recipe) quantities — fall back to base UOM if no recipe UOM is set.
+        $countUom = $ingredient->recipeUom ?: $ingredient->baseUom;
+        $unitCost = $countUom
+            ? app(\App\Services\UomService::class)->convertCost($ingredient, $countUom)
+            : floatval($ingredient->current_cost);
 
         return [
             'ingredient_id'     => $ingredient->id,
             'ingredient_name'   => $ingredient->name,
             'is_prep'           => (bool) $ingredient->is_prep,
-            'uom_id'            => $ingredient->base_uom_id,
-            'uom_abbr'          => $ingredient->baseUom->abbreviation ?? '',
+            'uom_id'            => $countUom?->id ?? $ingredient->base_uom_id,
+            'uom_abbr'          => $countUom?->abbreviation ?? '',
             'system_quantity'   => '0',
             'actual_quantity'   => '0',
             'variance_quantity' => 0,

@@ -101,6 +101,8 @@ class WastageForm extends Component
 
         $template = FormTemplate::with([
             'lines.ingredient.baseUom',
+            'lines.ingredient.recipeUom',
+            'lines.ingredient.uomConversions',
             'lines.recipe.yieldUom',
         ])->find((int) $this->selectedTemplateId);
 
@@ -117,7 +119,10 @@ class WastageForm extends Component
             if ($tLine->item_type === 'ingredient' && $tLine->ingredient) {
                 if (in_array($tLine->ingredient_id, $existingIngIds)) continue;
 
-                $unitCost = floatval($tLine->ingredient->current_cost);
+                $countUom = $tLine->ingredient->recipeUom ?: $tLine->ingredient->baseUom;
+                $unitCost = $countUom
+                    ? app(\App\Services\UomService::class)->convertCost($tLine->ingredient, $countUom)
+                    : floatval($tLine->ingredient->current_cost);
 
                 $qty = max(0, (int) $tLine->default_quantity);
 
@@ -127,8 +132,8 @@ class WastageForm extends Component
                     'recipe_id'     => null,
                     'item_name'     => $tLine->ingredient->name,
                     'is_prep'       => (bool) $tLine->ingredient->is_prep,
-                    'uom_id'        => $tLine->ingredient->base_uom_id,
-                    'uom_abbr'      => $tLine->ingredient->baseUom?->abbreviation ?? '',
+                    'uom_id'        => $countUom?->id ?? $tLine->ingredient->base_uom_id,
+                    'uom_abbr'      => $countUom?->abbreviation ?? '',
                     'quantity'      => (string) $qty,
                     'unit_cost'     => (string) $unitCost,
                     'total_cost'    => round($qty * $unitCost, 4),
@@ -178,9 +183,12 @@ class WastageForm extends Component
             }
         }
 
-        $ingredient = Ingredient::with(['baseUom'])->findOrFail($ingredientId);
+        $ingredient = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions'])->findOrFail($ingredientId);
 
-        $unitCost = floatval($ingredient->current_cost);
+        $countUom = $ingredient->recipeUom ?: $ingredient->baseUom;
+        $unitCost = $countUom
+            ? app(\App\Services\UomService::class)->convertCost($ingredient, $countUom)
+            : floatval($ingredient->current_cost);
 
         $this->lines[] = [
             'item_type'     => 'ingredient',
@@ -188,8 +196,8 @@ class WastageForm extends Component
             'recipe_id'     => null,
             'item_name'     => $ingredient->name,
             'is_prep'       => (bool) $ingredient->is_prep,
-            'uom_id'        => $ingredient->base_uom_id,
-            'uom_abbr'      => $ingredient->baseUom->abbreviation ?? '',
+            'uom_id'        => $countUom?->id ?? $ingredient->base_uom_id,
+            'uom_abbr'      => $countUom?->abbreviation ?? '',
             'quantity'      => '1',
             'unit_cost'     => (string) $unitCost,
             'total_cost'    => $unitCost,
