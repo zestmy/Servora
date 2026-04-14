@@ -40,6 +40,7 @@ class FormTemplateEdit extends Component
 
         $template = FormTemplate::with([
             'lines.ingredient.baseUom',
+            'lines.ingredient.recipeUom',
             'lines.recipe.yieldUom',
         ])->findOrFail($id);
 
@@ -55,18 +56,24 @@ class FormTemplateEdit extends Component
         $this->receiver_name          = $template->receiver_name ?? '';
         $this->department_id          = $template->department_id;
 
-        $this->lines = $template->lines->map(function ($l) {
+        $formType = $this->form_type;
+        $this->lines = $template->lines->map(function ($l) use ($formType) {
             $packInfo = '';
-            $uomAbbr = $l->item_type === 'recipe'
-                ? ($l->recipe?->yieldUom?->abbreviation ?? '')
-                : ($l->ingredient?->baseUom?->abbreviation ?? '');
+            if ($l->item_type === 'recipe') {
+                $uomAbbr = $l->recipe?->yieldUom?->abbreviation ?? '';
+            } else {
+                $uom = $this->ingredientUomFor($l->ingredient, $formType);
+                $uomAbbr = $uom?->abbreviation ?? '';
 
-            if ($l->item_type === 'ingredient' && $l->ingredient) {
-                $packSize = floatval($l->ingredient->pack_size ?? 1) ?: 1;
-                if ($packSize > 1 && $l->ingredient->baseUom) {
-                    $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
-                    $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
-                    $uomAbbr = 'pack';
+                // Pack info only makes sense on purchase-order templates where
+                // items are ordered in packs; for counting/wastage it's noise.
+                if ($formType === 'purchase_order' && $l->ingredient) {
+                    $packSize = floatval($l->ingredient->pack_size ?? 1) ?: 1;
+                    if ($packSize > 1 && $l->ingredient->baseUom) {
+                        $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+                        $packInfo = '(' . $formatted . ' ' . strtoupper($l->ingredient->baseUom->abbreviation) . '/PACK)';
+                        $uomAbbr = 'pack';
+                    }
                 }
             }
 
@@ -121,7 +128,7 @@ class FormTemplateEdit extends Component
             }
         }
 
-        $ingredient = Ingredient::with('baseUom')->findOrFail($ingredientId);
+        $ingredient = Ingredient::with(['baseUom', 'recipeUom'])->findOrFail($ingredientId);
         $this->addIngredientToLines($ingredient);
         $this->itemSearch = '';
     }
@@ -143,7 +150,7 @@ class FormTemplateEdit extends Component
             ->map(fn ($id) => (int) $id)
             ->toArray();
 
-        $ingredients = Ingredient::with('baseUom')
+        $ingredients = Ingredient::with(['baseUom', 'recipeUom'])
             ->where('is_active', true)
             ->whereIn('ingredient_category_id', $catIds)
             ->when($existingIngIds, fn ($q) => $q->whereNotIn('id', $existingIngIds))
@@ -174,7 +181,7 @@ class FormTemplateEdit extends Component
             ->map(fn ($id) => (int) $id)
             ->toArray();
 
-        $ingredients = Ingredient::with('baseUom')
+        $ingredients = Ingredient::with(['baseUom', 'recipeUom'])
             ->where('is_active', true)
             ->whereHas('suppliers', fn ($q) => $q->where('suppliers.id', $supplierId))
             ->when($existingIngIds, fn ($q) => $q->whereNotIn('id', $existingIngIds))
@@ -206,12 +213,16 @@ class FormTemplateEdit extends Component
         ]);
 
         $packInfo = '';
-        $uomAbbr = $ingredient->baseUom?->abbreviation ?? '';
-        $packSize = floatval($ingredient->pack_size ?? 1) ?: 1;
-        if ($packSize > 1 && $ingredient->baseUom) {
-            $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
-            $packInfo = '(' . $formatted . ' ' . strtoupper($ingredient->baseUom->abbreviation) . '/PACK)';
-            $uomAbbr = 'pack';
+        $uom = $this->ingredientUomFor($ingredient, $this->form_type);
+        $uomAbbr = $uom?->abbreviation ?? '';
+
+        if ($this->form_type === 'purchase_order') {
+            $packSize = floatval($ingredient->pack_size ?? 1) ?: 1;
+            if ($packSize > 1 && $ingredient->baseUom) {
+                $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
+                $packInfo = '(' . $formatted . ' ' . strtoupper($ingredient->baseUom->abbreviation) . '/PACK)';
+                $uomAbbr = 'pack';
+            }
         }
 
         $this->lines[] = [
@@ -264,6 +275,23 @@ class FormTemplateEdit extends Component
     {
         FormTemplateLine::destroy($lineId);
         $this->lines = array_values(array_filter($this->lines, fn ($l) => $l['id'] !== $lineId));
+    }
+
+    /**
+     * Pick the UOM to display/seed for an ingredient line based on the
+     * template's form_type. Purchase orders use base UOM (pack-based);
+     * stock take / wastage / staff meal count loose quantities so they
+     * prefer the recipe UOM, falling back to base if none is set.
+     */
+    private function ingredientUomFor(?Ingredient $ingredient, string $formType): ?\App\Models\UnitOfMeasure
+    {
+        if (! $ingredient) return null;
+
+        if ($formType === 'purchase_order') {
+            return $ingredient->baseUom;
+        }
+
+        return $ingredient->recipeUom ?: $ingredient->baseUom;
     }
 
     public function reorderLines(array $orderedIds): void
