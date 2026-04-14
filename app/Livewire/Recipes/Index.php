@@ -79,6 +79,7 @@ class Index extends Component
             'lines.ingredient.uomConversions',
             'lines.uom',
             'prices.priceClass',
+            'ingredientCategory.parent',
         ])
             ->where('recipes.is_prep', $isPrep)
             ->leftJoin('recipe_categories as rc', function ($join) {

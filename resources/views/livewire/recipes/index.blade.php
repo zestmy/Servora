@@ -229,7 +229,25 @@
                             @endif
                         </td>
                         <td class="px-4 py-3">
-                            @if ($recipe->category)
+                            @if ($isPrep)
+                                @php
+                                    $ic = $recipe->ingredientCategory;
+                                    $icRoot = $ic?->parent ?? $ic;
+                                    $icSub  = $ic?->parent ? $ic : null;
+                                @endphp
+                                @if ($ic)
+                                    <div class="flex items-center gap-2">
+                                        @if ($icRoot?->color)
+                                            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $icRoot->color }}"></div>
+                                        @endif
+                                        <span class="text-gray-600">
+                                            {{ $icRoot?->name }}@if ($icSub) <span class="text-gray-400">/ {{ $icSub->name }}</span>@endif
+                                        </span>
+                                    </div>
+                                @else
+                                    <span class="text-gray-300">—</span>
+                                @endif
+                            @elseif ($recipe->category)
                                 @php $catColor = $recipeCategories->firstWhere('name', $recipe->category)?->color; @endphp
                                 <div class="flex items-center gap-2">
                                     @if ($catColor)
