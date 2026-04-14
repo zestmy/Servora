@@ -27,6 +27,8 @@ class CompanyDetails extends Component
     public bool    $auto_generate_do     = false;
     public bool    $direct_supplier_order = false;
     public string  $po_cc_emails        = '';
+    public bool    $ingredients_locked  = false;
+    public bool    $recipes_locked      = false;
     public ?string $currentLogo         = null;
     public $logo;
 
@@ -51,6 +53,8 @@ class CompanyDetails extends Component
         $this->auto_generate_do     = (bool) $company->auto_generate_do;
         $this->direct_supplier_order = (bool) $company->direct_supplier_order;
         $this->po_cc_emails        = $company->po_cc_emails ?? '';
+        $this->ingredients_locked  = (bool) $company->ingredients_locked;
+        $this->recipes_locked      = (bool) $company->recipes_locked;
         $this->currentLogo         = $company->logo;
     }
 
@@ -92,6 +96,8 @@ class CompanyDetails extends Component
             'auto_generate_do'      => $this->auto_generate_do,
             'direct_supplier_order' => $this->direct_supplier_order,
             'po_cc_emails'          => $this->po_cc_emails ?: null,
+            'ingredients_locked'    => $this->ingredients_locked,
+            'recipes_locked'        => $this->recipes_locked,
         ];
 
         if ($this->logo) {

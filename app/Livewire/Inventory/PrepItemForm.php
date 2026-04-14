@@ -123,6 +123,12 @@ class PrepItemForm extends Component
 
     public function save(): void
     {
+        $user = Auth::user();
+        if ($user?->company?->recipes_locked && ! $user->canBypassLock()) {
+            session()->flash('error', 'Prep items are locked. Ask a company admin to unlock in Settings → Company Details.');
+            return;
+        }
+
         $this->validate();
 
         [$lineCosts, $totalCost] = $this->computeLineCosts();

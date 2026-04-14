@@ -938,7 +938,12 @@ PROMPT;
 
     public function import(): void
     {
-        $companyId = Auth::user()->company_id;
+        $user = Auth::user();
+        if ($user?->company?->ingredients_locked && ! $user->canBypassLock()) {
+            session()->flash('error', 'Ingredients are locked. Ask a company admin to unlock in Settings → Company Details.');
+            return;
+        }
+        $companyId = $user->company_id;
         $imported  = 0;
         $skipped   = 0;
         $prepCreated = 0;

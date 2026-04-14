@@ -190,6 +190,24 @@
                     </div>
                 </div>
 
+                {{-- Data Locks --}}
+                <div class="border-t border-gray-100 pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Data Locks</h3>
+                    <p class="text-xs text-gray-500 mb-3">Once Ingredients or Recipes are finalized, lock them so only company admins can create, edit, import, delete, or reorder. Everyone else sees the lists in read-only mode.</p>
+                    <div class="space-y-3">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="ingredients_locked"
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700">Lock Ingredients list</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="recipes_locked"
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700">Lock Recipes &amp; Prep Items list</span>
+                        </label>
+                    </div>
+                </div>
+
                 {{-- PO Email CC List --}}
                 <div class="border-t border-gray-100 pt-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">PO Email Notifications</h3>

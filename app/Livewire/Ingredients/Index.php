@@ -136,6 +136,7 @@ class Index extends Component
 
     public function openCreate(): void
     {
+        if (! $this->assertUnlocked()) return;
         $this->resetForm();
         $this->showModal = true;
     }
@@ -192,8 +193,26 @@ class Index extends Component
         $this->showModal = true;
     }
 
+    /** True when the company admin has locked the ingredients list for this user. */
+    public function getLockedProperty(): bool
+    {
+        $user = Auth::user();
+        return (bool) ($user?->company?->ingredients_locked)
+            && ! $user?->canBypassLock();
+    }
+
+    private function assertUnlocked(): bool
+    {
+        if ($this->locked) {
+            session()->flash('error', 'Ingredients are locked. Ask a company admin to unlock in Settings → Company Details.');
+            return false;
+        }
+        return true;
+    }
+
     public function save(): void
     {
+        if (! $this->assertUnlocked()) return;
         $this->validate();
 
         $purchasePrice = floatval($this->purchase_price);
@@ -242,12 +261,14 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        if (! $this->assertUnlocked()) return;
         Ingredient::findOrFail($id)->delete();
         session()->flash('success', 'Ingredient deleted.');
     }
 
     public function bulkDelete(): void
     {
+        if (! $this->assertUnlocked()) return;
         $count = count($this->selectedIds);
         if ($count === 0) return;
 
@@ -258,6 +279,7 @@ class Index extends Component
 
     public function toggleActive(int $id): void
     {
+        if (! $this->assertUnlocked()) return;
         $ingredient = Ingredient::findOrFail($id);
         $ingredient->update(['is_active' => ! $ingredient->is_active]);
     }
@@ -312,6 +334,7 @@ class Index extends Component
 
     public function processImport(): void
     {
+        if (! $this->assertUnlocked()) return;
         $this->validate([
             'importFile' => 'required|file|mimes:csv,txt|max:5120',
         ]);

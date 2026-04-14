@@ -88,6 +88,15 @@ class User extends Authenticatable
         return (bool) ($this->{$capability} ?? false);
     }
 
+    /**
+     * Can this user bypass the Ingredients / Recipes list locks?
+     * System admins and users with the "manage users" capability can.
+     */
+    public function canBypassLock(): bool
+    {
+        return $this->isSystemRole() || $this->hasCapability('can_manage_users');
+    }
+
     public function displayDesignation(): string
     {
         return $this->designation ?: 'Team Member';

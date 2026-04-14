@@ -20,6 +20,7 @@ class Company extends Model
         'is_active', 'require_po_approval',
         'ordering_mode', 'require_pr_approval', 'default_tax_country', 'price_alert_threshold',
         'onboarding_completed_at', 'registered_via', 'trial_ends_at',
+        'ingredients_locked', 'recipes_locked',
     ];
 
     protected $casts = [
@@ -30,6 +31,8 @@ class Company extends Model
         'auto_generate_do'       => 'boolean',
         'direct_supplier_order'  => 'boolean',
         'require_pr_approval'    => 'boolean',
+        'ingredients_locked'     => 'boolean',
+        'recipes_locked'         => 'boolean',
         'onboarding_completed_at' => 'datetime',
         'trial_ends_at'          => 'datetime',
     ];

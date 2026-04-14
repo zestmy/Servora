@@ -30,14 +30,32 @@ class Index extends Component
     public function updatedOutletFilter(): void   { $this->resetPage(); }
     public function updatedCostFilter(): void     { $this->resetPage(); }
 
+    public function getLockedProperty(): bool
+    {
+        $user = Auth::user();
+        return (bool) ($user?->company?->recipes_locked)
+            && ! $user?->canBypassLock();
+    }
+
+    private function assertUnlocked(): bool
+    {
+        if ($this->locked) {
+            session()->flash('error', 'Recipes are locked. Ask a company admin to unlock in Settings → Company Details.');
+            return false;
+        }
+        return true;
+    }
+
     public function delete(int $id): void
     {
+        if (! $this->assertUnlocked()) return;
         Recipe::findOrFail($id)->delete();
         session()->flash('success', 'Recipe deleted.');
     }
 
     public function toggleActive(int $id): void
     {
+        if (! $this->assertUnlocked()) return;
         $r = Recipe::findOrFail($id);
         $r->update(['is_active' => ! $r->is_active]);
     }
@@ -49,6 +67,7 @@ class Index extends Component
      */
     public function reorder(array $orderedIds): void
     {
+        if (! $this->assertUnlocked()) return;
         $ids = array_map('intval', array_values($orderedIds));
         if (count($ids) < 2) return;
 
