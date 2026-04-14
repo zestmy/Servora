@@ -88,18 +88,14 @@
     @endif
 
     {{-- Signatures --}}
-    <div class="signatures">
-        <div class="sig-box">
-            <div class="sig-line">Counted By</div>
-            <div style="margin-top: 10px; font-size: 9px; color: #666;">Date: _______________</div>
-        </div>
-        <div class="sig-box">
-            <div class="sig-line">Verified By</div>
-            <div style="margin-top: 10px; font-size: 9px; color: #666;">Date: _______________</div>
-        </div>
-        <div class="sig-box">
-            <div class="sig-line">Approved By</div>
-            <div style="margin-top: 10px; font-size: 9px; color: #666;">Date: _______________</div>
-        </div>
-    </div>
+    <table style="width: 100%; border-collapse: separate; border-spacing: 14px 0; margin-top: 30px; page-break-inside: avoid;">
+        <tr>
+            @foreach (['Counted By', 'Verified By', 'Approved By'] as $role)
+                <td style="width: 33.33%; vertical-align: top;">
+                    <div style="border-top: 1px solid #555; padding-top: 6px; text-align: center; font-size: 9.5pt; font-weight: bold; color: #0f172a;">{{ $role }}</div>
+                    <div style="margin-top: 10px; font-size: 9px; color: #666; text-align: center;">Date: _______________</div>
+                </td>
+            @endforeach
+        </tr>
+    </table>
 @endsection
