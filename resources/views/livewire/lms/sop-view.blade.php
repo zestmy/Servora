@@ -9,16 +9,18 @@
         </a>
     </div>
 
-    {{-- Header --}}
+    {{-- ══ Row 1: Header (Name + Menu Category + PDF button) ═════════════════ --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-                @if ($recipe->category)
-                    <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">{{ $recipe->category }}</span>
-                @endif
-                <h1 class="text-2xl font-bold text-gray-900 mt-2">{{ $recipe->name }}</h1>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ $recipe->name }}</h1>
+                    @if ($recipe->category)
+                        <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">{{ $recipe->category }}</span>
+                    @endif
+                </div>
                 @if ($recipe->code)
-                    <p class="text-sm text-gray-400 mt-0.5">Code: {{ $recipe->code }}</p>
+                    <p class="text-sm text-gray-400 mt-1">Code: {{ $recipe->code }}</p>
                 @endif
                 @if ($recipe->description)
                     <p class="text-sm text-gray-600 mt-2">{{ $recipe->description }}</p>
@@ -36,7 +38,242 @@
         </div>
     </div>
 
-    {{-- Video --}}
+    @php
+        $sopIngredientLines = $recipe->lines->where('is_packaging', false)->values();
+        $sopPackagingLines  = $recipe->lines->where('is_packaging', true)->values();
+    @endphp
+
+    {{-- ══ Row 2: Hero Image (left) + Ingredients (right) ════════════════════ --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {{-- Hero Image with Dine-In / Takeaway tabs --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
+             x-data="{ tab: '{{ $dineInImages->count() ? 'dine_in' : 'takeaway' }}', lightbox: false, lightboxSrc: '', lightboxAlt: '' }">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-gray-700">Presentation</h2>
+                @if ($dineInImages->count() && $takeawayImages->count())
+                    <div class="flex rounded-lg overflow-hidden border border-gray-200">
+                        <button @click="tab = 'dine_in'"
+                                :class="tab === 'dine_in' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                class="px-3 py-1 text-xs font-medium transition">
+                            Dine-In
+                        </button>
+                        <button @click="tab = 'takeaway'"
+                                :class="tab === 'takeaway' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                class="px-3 py-1 text-xs font-medium transition border-l border-gray-200">
+                            Takeaway
+                        </button>
+                    </div>
+                @elseif ($dineInImages->count())
+                    <span class="text-xs text-gray-400">Dine-In</span>
+                @elseif ($takeawayImages->count())
+                    <span class="text-xs text-gray-400">Takeaway</span>
+                @endif
+            </div>
+
+            @if ($dineInImages->count())
+                <div x-show="tab === 'dine_in'">
+                    <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition bg-gray-50"
+                         @click="lightboxSrc = '{{ $dineInImages->first()->url() }}'; lightboxAlt = '{{ $dineInImages->first()->file_name }}'; lightbox = true">
+                        <img src="{{ $dineInImages->first()->url() }}" alt="{{ $dineInImages->first()->file_name }}"
+                             class="w-full h-80 object-contain bg-gray-50" />
+                    </div>
+                    @if ($dineInImages->count() > 1)
+                        <div class="grid grid-cols-4 gap-2 mt-2">
+                            @foreach ($dineInImages->slice(1) as $img)
+                                <div class="rounded overflow-hidden border border-gray-200 cursor-pointer hover:border-indigo-300 transition"
+                                     @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
+                                    <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-16 object-cover" />
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            @if ($takeawayImages->count())
+                <div x-show="tab === 'takeaway'" x-cloak>
+                    <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition bg-gray-50"
+                         @click="lightboxSrc = '{{ $takeawayImages->first()->url() }}'; lightboxAlt = '{{ $takeawayImages->first()->file_name }}'; lightbox = true">
+                        <img src="{{ $takeawayImages->first()->url() }}" alt="{{ $takeawayImages->first()->file_name }}"
+                             class="w-full h-80 object-contain bg-gray-50" />
+                    </div>
+                    @if ($takeawayImages->count() > 1)
+                        <div class="grid grid-cols-4 gap-2 mt-2">
+                            @foreach ($takeawayImages->slice(1) as $img)
+                                <div class="rounded overflow-hidden border border-gray-200 cursor-pointer hover:border-indigo-300 transition"
+                                     @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
+                                    <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-16 object-cover" />
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            @if (! $dineInImages->count() && ! $takeawayImages->count())
+                <div class="w-full h-80 bg-gray-50 rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                    <div class="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p class="text-xs mt-2">No presentation photo</p>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Lightbox --}}
+            <div x-show="lightbox" x-cloak @click="lightbox = false" @keydown.escape.window="lightbox = false"
+                 x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                <div @click.stop class="relative max-w-4xl max-h-[90vh] w-full">
+                    <button @click="lightbox = false" class="absolute -top-10 right-0 text-white hover:text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <img :src="lightboxSrc" :alt="lightboxAlt" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+                </div>
+            </div>
+        </div>
+
+        {{-- Ingredients (+ Packaging) --}}
+        <div class="space-y-6">
+            @if ($sopIngredientLines->count())
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-gray-700">Ingredients</h2>
+                        <span class="text-xs text-gray-400">
+                            Yield {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
+                        </span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-2 text-left w-8">#</th>
+                                    <th class="px-4 py-2 text-left">Ingredient</th>
+                                    <th class="px-4 py-2 text-right">Qty</th>
+                                    <th class="px-4 py-2 text-left w-16">UOM</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach ($sopIngredientLines as $idx => $line)
+                                    <tr>
+                                        <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                        <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
+                                        <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+
+            @if ($sopPackagingLines->count())
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100">
+                        <h2 class="text-sm font-semibold text-gray-700">Packaging</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-2 text-left w-8">#</th>
+                                    <th class="px-4 py-2 text-left">Item</th>
+                                    <th class="px-4 py-2 text-right">Qty</th>
+                                    <th class="px-4 py-2 text-left w-16">UOM</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach ($sopPackagingLines as $idx => $line)
+                                    <tr>
+                                        <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                        <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
+                                        <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- ══ Row 3: Preparation Steps ══════════════════════════════════════════ --}}
+    @if ($recipe->steps->count())
+        @php $hasStepImages = $recipe->steps->contains(fn($s) => !empty($s->image_path)); @endphp
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6"
+             @if ($hasStepImages) x-data="{ lightbox: false, lightboxSrc: '' }" @endif>
+            <h2 class="text-sm font-semibold text-gray-700 mb-4">Preparation Steps</h2>
+
+            @if ($hasStepImages)
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @foreach ($recipe->steps as $step)
+                        <div class="bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex flex-col">
+                            @if ($step->image_path)
+                                <img src="{{ $step->imageUrl() }}" alt="Step {{ $step->sort_order + 1 }}"
+                                     class="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition"
+                                     @click="lightboxSrc = '{{ $step->imageUrl() }}'; lightbox = true" />
+                            @else
+                                <div class="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                            @endif
+                            <div class="p-4 flex-1">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                        {{ $step->sort_order + 1 }}
+                                    </div>
+                                    <div class="flex-1">
+                                        @if ($step->title)
+                                            <h3 class="font-semibold text-gray-800 text-sm leading-tight">{{ $step->title }}</h3>
+                                        @endif
+                                        <p class="text-sm text-gray-600 mt-1 whitespace-pre-line leading-relaxed">{{ $step->instruction }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div x-show="lightbox" x-cloak @click="lightbox = false" @keydown.escape.window="lightbox = false"
+                     x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                    <div @click.stop class="relative max-w-4xl max-h-[90vh] w-full">
+                        <button @click="lightbox = false" class="absolute -top-10 right-0 text-white hover:text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <img :src="lightboxSrc" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+                    </div>
+                </div>
+            @else
+                <div class="space-y-4">
+                    @foreach ($recipe->steps as $step)
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                {{ $step->sort_order + 1 }}
+                            </div>
+                            <div class="flex-1 pt-1">
+                                @if ($step->title)
+                                    <h3 class="font-semibold text-gray-800 text-sm">{{ $step->title }}</h3>
+                                @endif
+                                <p class="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{{ $step->instruction }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @endif
+
+    {{-- ══ Row 4: Training Video (bottom) ════════════════════════════════════ --}}
     @php
         $videoData = $this->getVideoData($recipe->video_url);
     @endphp
@@ -159,218 +396,5 @@
             })();
         </script>
         @endscript
-    @endif
-
-    {{-- Preparation Steps --}}
-    @if ($recipe->steps->count())
-        @php $hasStepImages = $recipe->steps->contains(fn($s) => !empty($s->image_path)); @endphp
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6"
-             @if ($hasStepImages) x-data="{ lightbox: false, lightboxSrc: '' }" @endif>
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Preparation Steps</h2>
-
-            @if ($hasStepImages)
-                {{-- 3-column grid layout when images are present --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach ($recipe->steps as $step)
-                        <div class="bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex flex-col">
-                            @if ($step->image_path)
-                                <img src="{{ $step->imageUrl() }}" alt="Step {{ $step->sort_order + 1 }}"
-                                     class="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition"
-                                     @click="lightboxSrc = '{{ $step->imageUrl() }}'; lightbox = true" />
-                            @else
-                                <div class="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-300">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            @endif
-                            <div class="p-4 flex-1">
-                                <div class="flex items-start gap-3">
-                                    <div class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                        {{ $step->sort_order + 1 }}
-                                    </div>
-                                    <div class="flex-1">
-                                        @if ($step->title)
-                                            <h3 class="font-semibold text-gray-800 text-sm leading-tight">{{ $step->title }}</h3>
-                                        @endif
-                                        <p class="text-sm text-gray-600 mt-1 whitespace-pre-line leading-relaxed">{{ $step->instruction }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                {{-- Image lightbox --}}
-                <div x-show="lightbox" x-cloak @click="lightbox = false" @keydown.escape.window="lightbox = false"
-                     x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-                    <div @click.stop class="relative max-w-4xl max-h-[90vh] w-full">
-                        <button @click="lightbox = false" class="absolute -top-10 right-0 text-white hover:text-gray-300">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                        <img :src="lightboxSrc" class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
-                    </div>
-                </div>
-            @else
-                {{-- Single column text layout when no images --}}
-                <div class="space-y-4">
-                    @foreach ($recipe->steps as $step)
-                        <div class="flex gap-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                                {{ $step->sort_order + 1 }}
-                            </div>
-                            <div class="flex-1 pt-1">
-                                @if ($step->title)
-                                    <h3 class="font-semibold text-gray-800 text-sm">{{ $step->title }}</h3>
-                                @endif
-                                <p class="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{{ $step->instruction }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-    @endif
-
-    @php
-        $sopIngredientLines = $recipe->lines->where('is_packaging', false)->values();
-        $sopPackagingLines  = $recipe->lines->where('is_packaging', true)->values();
-    @endphp
-
-    {{-- Ingredients --}}
-    @if ($sopIngredientLines->count())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-            <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-sm font-semibold text-gray-700">Ingredients</h2>
-                <p class="text-xs text-gray-400 mt-0.5">
-                    Yield: {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }}
-                    {{ $recipe->yieldUom?->abbreviation }}
-                </p>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
-                        <tr>
-                            <th class="px-4 py-2 text-left">#</th>
-                            <th class="px-4 py-2 text-left">Ingredient</th>
-                            <th class="px-4 py-2 text-right">Quantity</th>
-                            <th class="px-4 py-2 text-left">UOM</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach ($sopIngredientLines as $idx => $line)
-                            <tr>
-                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
-                                <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
-                                <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    @endif
-
-    {{-- Packaging --}}
-    @if ($sopPackagingLines->count())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-            <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-sm font-semibold text-gray-700">Packaging</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
-                        <tr>
-                            <th class="px-4 py-2 text-left">#</th>
-                            <th class="px-4 py-2 text-left">Item</th>
-                            <th class="px-4 py-2 text-right">Quantity</th>
-                            <th class="px-4 py-2 text-left">UOM</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach ($sopPackagingLines as $idx => $line)
-                            <tr>
-                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
-                                <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
-                                <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    @endif
-
-    {{-- Plating Images --}}
-    @if ($dineInImages->count() || $takeawayImages->count())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6"
-             x-data="{ tab: 'dine_in', lightbox: false, lightboxSrc: '', lightboxAlt: '' }">
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Plating Presentation</h2>
-
-            @if ($dineInImages->count() && $takeawayImages->count())
-                <div class="flex rounded-lg overflow-hidden border border-gray-200 mb-4 w-fit">
-                    <button @click="tab = 'dine_in'"
-                            :class="tab === 'dine_in' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                            class="px-4 py-1.5 text-sm font-medium transition">
-                        Dine-In
-                    </button>
-                    <button @click="tab = 'takeaway'"
-                            :class="tab === 'takeaway' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                            class="px-4 py-1.5 text-sm font-medium transition border-l border-gray-200">
-                        Takeaway
-                    </button>
-                </div>
-            @endif
-
-            @if ($dineInImages->count())
-                <div x-show="tab === 'dine_in'" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    @foreach ($dineInImages as $img)
-                        <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition"
-                             @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
-                            <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-48 object-cover" />
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
-            @if ($takeawayImages->count())
-                <div x-show="tab === 'takeaway'" x-cloak class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    @foreach ($takeawayImages as $img)
-                        <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition"
-                             @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
-                            <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-48 object-cover" />
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
-            {{-- Lightbox Modal --}}
-            <div x-show="lightbox" x-cloak
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-100"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0"
-                 @click="lightbox = false"
-                 @keydown.escape.window="lightbox = false"
-                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-                <div @click.stop class="relative max-w-4xl max-h-[90vh] w-full">
-                    <button @click="lightbox = false"
-                            class="absolute -top-10 right-0 text-white hover:text-gray-300 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                    <img :src="lightboxSrc" :alt="lightboxAlt"
-                         class="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
-                </div>
-            </div>
-        </div>
     @endif
 </div>
