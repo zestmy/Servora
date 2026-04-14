@@ -110,14 +110,26 @@ class Index extends Component
         }
 
         if ($this->categoryFilter) {
-            // Match both the selected category name and any sub-category names
-            $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
-            if ($selectedCat) {
-                $names = collect([$selectedCat->name]);
-                if ($selectedCat->children->isNotEmpty()) {
-                    $names = $names->merge($selectedCat->children->pluck('name'));
+            if ($isPrep) {
+                // Prep items use ingredient_category_id (FK). Include children.
+                $selectedCat = \App\Models\IngredientCategory::with('children')->find((int) $this->categoryFilter);
+                if ($selectedCat) {
+                    $ids = collect([$selectedCat->id]);
+                    if ($selectedCat->children->isNotEmpty()) {
+                        $ids = $ids->merge($selectedCat->children->pluck('id'));
+                    }
+                    $query->whereIn('recipes.ingredient_category_id', $ids->toArray());
                 }
-                $query->whereIn('recipes.category', $names->toArray());
+            } else {
+                // Recipes match by the menu-category string.
+                $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
+                if ($selectedCat) {
+                    $names = collect([$selectedCat->name]);
+                    if ($selectedCat->children->isNotEmpty()) {
+                        $names = $names->merge($selectedCat->children->pluck('name'));
+                    }
+                    $query->whereIn('recipes.category', $names->toArray());
+                }
             }
         }
 
@@ -177,14 +189,26 @@ class Index extends Component
             $recipes = $query->paginate(15);
         }
 
-        $recipeCategories = RecipeCategory::with(['children' => function ($q) {
-                $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
-            }])
-            ->roots()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
+        if ($isPrep) {
+            // Cost-category picker for prep items.
+            $recipeCategories = \App\Models\IngredientCategory::with(['children' => function ($q) {
+                    $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+                }])
+                ->roots()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get();
+        } else {
+            $recipeCategories = RecipeCategory::with(['children' => function ($q) {
+                    $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+                }])
+                ->roots()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get();
+        }
 
         $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
