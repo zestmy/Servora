@@ -12,12 +12,13 @@ class RecipeLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'recipe_id', 'ingredient_id', 'quantity', 'uom_id', 'waste_percentage', 'sort_order',
+        'recipe_id', 'ingredient_id', 'quantity', 'uom_id', 'waste_percentage', 'sort_order', 'is_packaging',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:4',
         'waste_percentage' => 'decimal:2',
+        'is_packaging' => 'boolean',
     ];
 
     public function recipe(): BelongsTo

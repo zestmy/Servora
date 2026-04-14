@@ -44,6 +44,9 @@ class Form extends Component
     // Ingredient lines: each row = [ingredient_id, ingredient_name, quantity, uom_id, waste_percentage]
     public array $lines = [];
 
+    // Packaging lines: same shape as $lines; stored with is_packaging=true
+    public array $packagingLines = [];
+
     // Images (dine-in & takeaway)
     public array $newDineInImages = [];
     public array $newTakeawayImages = [];
@@ -62,6 +65,7 @@ class Form extends Component
 
     // Ingredient search
     public string $ingredientSearch = '';
+    public string $packagingSearch = '';
 
     protected function rules(): array
     {
@@ -79,6 +83,10 @@ class Form extends Component
             'lines.*.quantity'           => 'required|numeric|min:0.0001',
             'lines.*.uom_id'             => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage'   => 'required|numeric|min:0|max:100',
+            'packagingLines.*.ingredient_id'    => 'required|exists:ingredients,id',
+            'packagingLines.*.quantity'         => 'required|numeric|min:0.0001',
+            'packagingLines.*.uom_id'           => 'required|exists:units_of_measure,id',
+            'packagingLines.*.waste_percentage' => 'required|numeric|min:0|max:100',
             'newDineInImages.*'          => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'newTakeawayImages.*'        => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'extraCosts.*.label'         => 'required|string|max:100',
@@ -141,14 +149,16 @@ class Form extends Component
             $this->outletIds  = $taggedOutletIds;
         }
 
-        $this->lines = $recipe->lines->map(fn ($l) => [
+        $mapLine = fn ($l) => [
             'ingredient_id'    => $l->ingredient_id,
             'ingredient_name'  => $l->ingredient?->name ?? '—',
             'is_prep'          => (bool) ($l->ingredient?->is_prep ?? false),
             'quantity'         => $this->fmt($l->quantity),
             'uom_id'           => $l->uom_id,
             'waste_percentage' => $this->fmt($l->waste_percentage, 2),
-        ])->toArray();
+        ];
+        $this->lines          = $recipe->lines->where('is_packaging', false)->values()->map($mapLine)->toArray();
+        $this->packagingLines = $recipe->lines->where('is_packaging', true)->values()->map($mapLine)->toArray();
 
         $this->extraCosts = is_array($recipe->extra_costs) ? $recipe->extra_costs : [];
 
@@ -251,6 +261,52 @@ class Form extends Component
         }
         if (count($ordered) === count($this->lines)) {
             $this->lines = $ordered;
+        }
+    }
+
+    // ── Packaging lines ───────────────────────────────────────────────────
+
+    public function addPackaging(int $ingredientId): void
+    {
+        $ingredient = Ingredient::find($ingredientId);
+        if (! $ingredient) return;
+
+        foreach ($this->packagingLines as $line) {
+            if ((int) $line['ingredient_id'] === $ingredientId) {
+                $this->packagingSearch = '';
+                return;
+            }
+        }
+
+        $this->packagingLines[] = [
+            'ingredient_id'    => $ingredientId,
+            'ingredient_name'  => $ingredient->name,
+            'is_prep'          => (bool) $ingredient->is_prep,
+            'quantity'         => '1',
+            'uom_id'           => $ingredient->recipe_uom_id ?? $ingredient->base_uom_id,
+            'waste_percentage' => '0',
+        ];
+
+        $this->packagingSearch = '';
+    }
+
+    public function removePackagingLine(int $idx): void
+    {
+        unset($this->packagingLines[$idx]);
+        $this->packagingLines = array_values($this->packagingLines);
+    }
+
+    public function reorderPackagingLines(array $orderedIndexes): void
+    {
+        $ordered = [];
+        foreach ($orderedIndexes as $idx) {
+            $idx = (int) $idx;
+            if (isset($this->packagingLines[$idx])) {
+                $ordered[] = $this->packagingLines[$idx];
+            }
+        }
+        if (count($ordered) === count($this->packagingLines)) {
+            $this->packagingLines = $ordered;
         }
     }
 
@@ -378,7 +434,7 @@ class Form extends Component
             $recipe->outlets()->sync(array_map('intval', $this->outletIds));
         }
 
-        // Sync lines
+        // Sync lines (ingredients + packaging together; keep is_packaging flag)
         $recipe->lines()->delete();
         foreach ($this->lines as $idx => $line) {
             $recipe->lines()->create([
@@ -387,6 +443,17 @@ class Form extends Component
                 'uom_id'           => $line['uom_id'],
                 'waste_percentage' => $line['waste_percentage'],
                 'sort_order'       => $idx,
+                'is_packaging'     => false,
+            ]);
+        }
+        foreach ($this->packagingLines as $idx => $line) {
+            $recipe->lines()->create([
+                'ingredient_id'    => $line['ingredient_id'],
+                'quantity'         => $line['quantity'],
+                'uom_id'           => $line['uom_id'],
+                'waste_percentage' => $line['waste_percentage'],
+                'sort_order'       => $idx,
+                'is_packaging'     => true,
             ]);
         }
 
@@ -545,8 +612,25 @@ class Form extends Component
                 ->get();
         }
 
+        // Packaging search results (min 2 chars)
+        $packagingSearchResults = collect();
+        if (strlen($this->packagingSearch) >= 2) {
+            $packExistingIds = collect($this->packagingLines)->pluck('ingredient_id')->filter()->toArray();
+            $packagingSearchResults = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions'])
+                ->where(function ($q) {
+                    $q->where('name', 'like', '%' . $this->packagingSearch . '%')
+                      ->orWhere('code', 'like', '%' . $this->packagingSearch . '%');
+                })
+                ->where('is_active', true)
+                ->when($packExistingIds, fn ($q) => $q->whereNotIn('id', $packExistingIds))
+                ->orderBy('name')
+                ->limit(8)
+                ->get();
+        }
+
         // Live cost calculations
-        [$lineCosts, $totalCost, $lineTaxes, $totalTax] = $this->computeLineCosts();
+        [$lineCosts, $totalCost, $lineTaxes, $totalTax] = $this->computeLineCosts($this->lines);
+        [$packagingLineCosts, $packagingCost, $packagingLineTaxes, $packagingTax] = $this->computeLineCosts($this->packagingLines);
 
         $extraCostTotal = collect($this->extraCosts)->sum(function ($c) use ($totalCost) {
             if (($c['type'] ?? 'value') === 'percent') {
@@ -554,7 +638,7 @@ class Form extends Component
             }
             return floatval($c['amount'] ?? 0);
         });
-        $grandCost      = $totalCost + $extraCostTotal;
+        $grandCost      = $totalCost + $packagingCost + $extraCostTotal;
 
         $yieldQty     = max(floatval($this->yield_quantity), 0.0001);
         $sellingPrice = floatval($this->selling_price);
@@ -564,7 +648,8 @@ class Form extends Component
         $grossProfit     = $sellingPrice > 0 ? $sellingPrice - $grandCost : null;
         $grossProfitPct  = $sellingPrice > 0 ? (($sellingPrice - $grandCost) / $sellingPrice) * 100 : null;
 
-        $grandCostWithTax    = $grandCost + $totalTax;
+        $totalTaxWithPackaging = $totalTax + $packagingTax;
+        $grandCostWithTax    = $grandCost + $totalTaxWithPackaging;
         $costPerServingWithTax = $grandCostWithTax / $yieldQty;
         $foodCostPctWithTax  = $sellingPrice > 0 ? ($grandCostWithTax / $sellingPrice) * 100 : null;
 
@@ -584,21 +669,23 @@ class Form extends Component
         }
 
         return view('livewire.recipes.form', compact(
-            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'outletGroups', 'searchResults', 'lineCosts', 'totalCost',
+            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'outletGroups', 'searchResults', 'packagingSearchResults', 'lineCosts', 'totalCost',
+            'packagingLineCosts', 'packagingCost', 'packagingTax',
             'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct',
-            'lineTaxes', 'totalTax', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax',
+            'lineTaxes', 'totalTax', 'totalTaxWithPackaging', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax',
             'priceClasses', 'classCostData'
         ))->layout('layouts.app', ['title' => $pageTitle]);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private function computeLineCosts(): array
+    private function computeLineCosts(?array $lines = null): array
     {
-        if (empty($this->lines)) return [[], 0.0, [], 0.0];
+        $lines ??= $this->lines;
+        if (empty($lines)) return [[], 0.0, [], 0.0];
 
-        $ingredientIds = collect($this->lines)->pluck('ingredient_id')->filter()->unique()->values();
-        $uomIds        = collect($this->lines)->pluck('uom_id')->filter()->unique()->values();
+        $ingredientIds = collect($lines)->pluck('ingredient_id')->filter()->unique()->values();
+        $uomIds        = collect($lines)->pluck('uom_id')->filter()->unique()->values();
 
         $ingredientsMap = $ingredientIds->isNotEmpty()
             ? Ingredient::with(['baseUom', 'uomConversions', 'taxRate'])
@@ -617,7 +704,7 @@ class Form extends Component
         $totalCost  = 0.0;
         $totalTax   = 0.0;
 
-        foreach ($this->lines as $line) {
+        foreach ($lines as $line) {
             $ingredient = $ingredientsMap->get($line['ingredient_id'] ?? 0);
             $uom        = $uomsMap->get($line['uom_id'] ?? 0);
             $qty        = floatval($line['quantity'] ?? 0);

@@ -255,6 +255,13 @@
                         <dd class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</dd>
                     </div>
 
+                    @if ($packagingCost > 0)
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Packaging Cost</dt>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format($packagingCost, 2) }}</dd>
+                        </div>
+                    @endif
+
                     @if ($extraCostTotal > 0)
                         <div class="flex justify-between">
                             <dt class="text-gray-500">Extra Costs</dt>
@@ -269,10 +276,10 @@
                         </dd>
                     </div>
 
-                    @if ($totalTax > 0)
+                    @if ($totalTaxWithPackaging > 0)
                         <div class="flex justify-between">
                             <dt class="text-gray-500">Tax</dt>
-                            <dd class="text-gray-700 tabular-nums">{{ number_format($totalTax, 2) }}</dd>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format($totalTaxWithPackaging, 2) }}</dd>
                         </div>
 
                         <div class="flex justify-between">
@@ -290,7 +297,7 @@
                         </dt>
                         <dd class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</dd>
                     </div>
-                    @if ($totalTax > 0)
+                    @if ($totalTaxWithPackaging > 0)
                         <div class="flex justify-between">
                             <dt class="text-gray-500">
                                 Cost / {{ $yieldUomAbbr }} <span class="text-xs text-gray-400">(w/ tax)</span>
@@ -377,7 +384,7 @@
                                     {{ number_format($foodCostPct, 1) }}%
                                 </dd>
                             </div>
-                            @if ($totalTax > 0 && $foodCostPctWithTax !== null)
+                            @if ($totalTaxWithPackaging > 0 && $foodCostPctWithTax !== null)
                                 <div class="flex justify-between mt-1 text-xs">
                                     <span class="text-gray-500">Food Cost % (w/ tax)</span>
                                     <span class="font-medium text-indigo-600 tabular-nums">{{ number_format($foodCostPctWithTax, 1) }}%</span>
@@ -827,6 +834,142 @@
                 <p class="text-xs mt-1">Use the search above to find and add ingredients.</p>
             </div>
         @endif
+
+        {{-- ── Packaging ── --}}
+        <div class="border-t border-gray-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700">Packaging</h3>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ count($packagingLines) }} item{{ count($packagingLines) !== 1 ? 's' : '' }} · counted separately so packaging cost appears as its own line</p>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-b border-gray-100">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                        </svg>
+                    </div>
+                    <input type="text"
+                           wire:model.live.debounce.300ms="packagingSearch"
+                           placeholder="Search packaging items to add… (type at least 2 characters)"
+                           class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                </div>
+
+                @if ($packagingSearchResults->isNotEmpty())
+                    <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
+                        @foreach ($packagingSearchResults as $ingredient)
+                            <button type="button"
+                                    wire:click="addPackaging({{ $ingredient->id }})"
+                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
+                                    @if ($ingredient->code)
+                                        <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                    @endif
+                                </div>
+                                <div class="text-right flex-shrink-0 ml-4">
+                                    <span class="text-xs text-indigo-600 font-medium">
+                                        {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
+                                    </span>
+                                    <span class="text-xs text-gray-400 ml-1">
+                                        RM {{ number_format($ingredient->current_cost, 4) }}/{{ $ingredient->baseUom?->abbreviation }}
+                                    </span>
+                                    <span class="ml-2 text-xs text-indigo-400">+ Add</span>
+                                </div>
+                            </button>
+                        @endforeach
+                    </div>
+                @elseif (strlen($packagingSearch) >= 2)
+                    <p class="mt-2 text-sm text-gray-400 text-center py-2">No items found for "{{ $packagingSearch }}".</p>
+                @endif
+            </div>
+
+            @if (count($packagingLines))
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                            <tr>
+                                <th class="px-2 py-2 text-left w-6"></th>
+                                <th class="px-4 py-2 text-left w-8">#</th>
+                                <th class="px-4 py-2 text-left">Packaging</th>
+                                <th class="px-4 py-2 text-right w-28">Qty</th>
+                                <th class="px-4 py-2 text-left w-36">UOM</th>
+                                <th class="px-4 py-2 text-right w-24">Waste %</th>
+                                <th class="px-4 py-2 text-right w-32">Line Cost</th>
+                                <th class="px-4 py-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50"
+                               x-data
+                               x-init="new Sortable($el, {
+                                   handle: '.pack-drag-handle',
+                                   animation: 150,
+                                   ghostClass: 'bg-indigo-50',
+                                   onEnd: () => {
+                                       const idxs = Array.from($el.querySelectorAll('tr[data-pack-idx]')).map(tr => tr.dataset.packIdx);
+                                       $wire.reorderPackagingLines(idxs);
+                                   }
+                               })">
+                            @foreach ($packagingLines as $idx => $line)
+                                <tr wire:key="pack-line-{{ $line['ingredient_id'] ?? $idx }}" data-pack-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
+                                    <td class="pack-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
+                                        <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                                    </td>
+                                    <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                    <td class="px-4 py-2">
+                                        <span class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</span>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" step="0.0001" min="0.0001"
+                                               wire:model.live.debounce.400ms="packagingLines.{{ $idx }}.quantity"
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <select wire:model.live="packagingLines.{{ $idx }}.uom_id"
+                                                class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                            @foreach ($uoms as $uom)
+                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" step="0.1" min="0" max="100"
+                                               wire:model.live.debounce.400ms="packagingLines.{{ $idx }}.waste_percentage"
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                    </td>
+                                    <td class="px-4 py-2 text-right tabular-nums">
+                                        @if (($packagingLineCosts[$idx] ?? null) !== null)
+                                            <span class="font-medium text-gray-800">{{ number_format($packagingLineCosts[$idx], 4) }}</span>
+                                        @else
+                                            <span class="text-gray-300 text-xs italic">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 transition">
+                                        <button type="button" wire:click="removePackagingLine({{ $idx }})"
+                                                class="text-red-400 hover:text-red-600 transition">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                            <tr>
+                                <td colspan="6" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Packaging Cost</td>
+                                <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
+                                    {{ number_format($packagingCost, 2) }}
+                                </td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            @endif
+        </div>
 
         {{-- Extra Costs --}}
         <div class="px-6 py-4 border-t border-gray-100">
