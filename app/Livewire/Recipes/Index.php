@@ -52,12 +52,21 @@ class Index extends Component
             'lines.ingredient.uomConversions',
             'lines.uom',
             'prices.priceClass',
-        ])->where('is_prep', $isPrep)->withCount('lines');
+        ])
+            ->where('recipes.is_prep', $isPrep)
+            ->withCount('lines')
+            ->leftJoin('recipe_categories as rc', function ($join) {
+                $join->on('rc.name', '=', 'recipes.category')
+                     ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc.deleted_at');
+            })
+            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
+            ->select('recipes.*');
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('code', 'like', '%' . $this->search . '%');
+                $q->where('recipes.name', 'like', '%' . $this->search . '%')
+                  ->orWhere('recipes.code', 'like', '%' . $this->search . '%');
             });
         }
 
@@ -69,14 +78,14 @@ class Index extends Component
                 if ($selectedCat->children->isNotEmpty()) {
                     $names = $names->merge($selectedCat->children->pluck('name'));
                 }
-                $query->whereIn('category', $names->toArray());
+                $query->whereIn('recipes.category', $names->toArray());
             }
         }
 
         if ($this->statusFilter === 'active') {
-            $query->where('is_active', true);
+            $query->where('recipes.is_active', true);
         } elseif ($this->statusFilter === 'inactive') {
-            $query->where('is_active', false);
+            $query->where('recipes.is_active', false);
         }
 
         if ($this->outletFilter) {
@@ -88,8 +97,17 @@ class Index extends Component
             });
         }
 
+        // Sort by category hierarchy: root sort_order → sub sort_order → recipe name.
+        // Recipes whose category string doesn't match any category go last.
+        $query->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
+              ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
+              ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
+              ->orderBy('rc.sort_order')
+              ->orderBy('rc.name')
+              ->orderBy('recipes.name');
+
         if ($this->costFilter) {
-            $allRecipes = $query->orderBy('name')->get();
+            $allRecipes = $query->get();
 
             $filtered = $allRecipes->filter(function ($recipe) {
                 $totalCost = $recipe->total_cost;
@@ -116,7 +134,7 @@ class Index extends Component
                 ['path' => request()->url()],
             );
         } else {
-            $recipes = $query->orderBy('name')->paginate(15);
+            $recipes = $query->paginate(15);
         }
 
         $recipeCategories = RecipeCategory::with(['children' => function ($q) {
