@@ -64,14 +64,14 @@ class LmsUsers extends Component
         $approvedCount   = LmsUser::where('company_id', $companyId)->where('status', 'approved')->count();
         $rejectedCount   = LmsUser::where('company_id', $companyId)->where('status', 'rejected')->count();
 
-        $totalSops       = Recipe::where('is_active', true)->where('is_prep', false)->has('steps')->count();
+        $totalSops       = Recipe::where('is_active', true)->where('is_prep', false)->where('exclude_from_lms', false)->count();
         $totalRecipes    = Recipe::where('is_active', true)->where('is_prep', false)->count();
         $recipesWithVideo = Recipe::where('is_active', true)->where('is_prep', false)->whereNotNull('video_url')->count();
 
         // SOP categories
         $sopCategories = Recipe::where('is_active', true)
             ->where('is_prep', false)
-            ->has('steps')
+            ->where('exclude_from_lms', false)
             ->whereNotNull('category')
             ->distinct()
             ->pluck('category')

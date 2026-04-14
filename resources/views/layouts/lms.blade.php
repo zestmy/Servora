@@ -13,9 +13,10 @@
         $sidebarSops = \App\Models\Recipe::where('company_id', Auth::guard('lms')->user()->company_id)
             ->where('is_active', true)
             ->where('is_prep', false)
-            ->has('steps')
-            ->select('id', 'name', 'code', 'category')
+            ->where('exclude_from_lms', false)
+            ->select('id', 'name', 'code', 'category', 'menu_sort_order')
             ->orderBy('category')
+            ->orderBy('menu_sort_order')
             ->orderBy('name')
             ->get()
             ->groupBy(fn ($r) => $r->category ?? 'Uncategorised');
