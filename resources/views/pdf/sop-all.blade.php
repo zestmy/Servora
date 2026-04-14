@@ -39,11 +39,11 @@
         /* Document header — compact */
         table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; }
-        table.doc-header td.dh-logo { width: 100px; padding: 10px 12px 10px 4px; }
-        table.doc-header td.dh-logo img { max-height: 72px; max-width: 90px; display: block; }
-        table.doc-header td.dh-body { width: 28%; padding: 14px 24px; border-left: 1px solid #e2e8f0; }
-        table.doc-header td.dh-recipe-cell { width: 50%; padding: 14px 24px; border-left: 1px solid #e2e8f0; }
-        table.doc-header td.dh-qr-cell { width: 96px; text-align: right; padding: 14px 10px 14px 24px; border-left: 1px solid #e2e8f0; }
+        table.doc-header td.dh-logo { width: 80px; padding: 8px 8px 8px 2px; }
+        table.doc-header td.dh-logo img { max-height: 68px; max-width: 78px; display: block; }
+        table.doc-header td.dh-body { width: 20%; padding: 10px 14px; border-left: 1px solid #e2e8f0; }
+        table.doc-header td.dh-recipe-cell { width: 62%; padding: 10px 16px; border-left: 1px solid #e2e8f0; }
+        table.doc-header td.dh-qr-cell { width: 86px; text-align: right; padding: 10px 4px 10px 14px; border-left: 1px solid #e2e8f0; }
         .dh-qr-box { display: inline-block; text-align: center; }
         .dh-qr-box img { width: 62px; height: 62px; border: 1px solid #cbd5e1; padding: 2px; }
         .dh-qr-box .qr-label { font-size: 6.5pt; color: #64748b; font-weight: bold; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
