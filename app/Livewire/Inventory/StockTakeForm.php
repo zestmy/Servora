@@ -92,8 +92,8 @@ class StockTakeForm extends Component
 
             return [
                 'ingredient_id'        => $l->ingredient_id,
-                'ingredient_name'      => $l->ingredient->name,
-                'is_prep'              => (bool) ($l->ingredient->is_prep ?? false),
+                'ingredient_name'      => $l->ingredient?->name ?? '(Deleted ingredient)',
+                'is_prep'              => (bool) ($l->ingredient?->is_prep ?? false),
                 'uom_id'               => $l->uom_id,
                 'uom_abbr'             => $l->uom->abbreviation ?? '',
                 'system_quantity'      => (string) floatval($l->system_quantity),
@@ -315,8 +315,17 @@ class StockTakeForm extends Component
         ];
     }
 
-    private function categoryFields(Ingredient $ingredient): array
+    private function categoryFields(?Ingredient $ingredient): array
     {
+        if (! $ingredient) {
+            return [
+                'category_group_id'    => null,
+                'category_group_name'  => 'Uncategorized',
+                'category_group_color' => '#6b7280',
+                'category_sub_name'    => '',
+            ];
+        }
+
         $cat    = $ingredient->relationLoaded('ingredientCategory') ? $ingredient->ingredientCategory : null;
         $parent = $cat?->relationLoaded('parent') ? $cat->parent : null;
 
