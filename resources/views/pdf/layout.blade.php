@@ -20,26 +20,26 @@
         table.doc-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         table.doc-header td { vertical-align: middle; padding: 0; }
         .dh-logo {
-            width: 70px;
-            padding: 4px 14px 4px 4px;
+            width: 76px;
+            padding: 10px 20px 10px 8px;
             vertical-align: middle;
         }
         .dh-logo img { max-height: 52px; max-width: 65px; display: block; }
         .dh-body {
             vertical-align: middle;
-            padding: 4px 14px;
+            padding: 10px 20px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-recipe-cell {
             vertical-align: middle;
-            padding: 4px 14px;
+            padding: 10px 20px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-qr-cell {
-            width: 80px;
+            width: 86px;
             vertical-align: middle;
             text-align: right;
-            padding: 4px 4px 4px 14px;
+            padding: 10px 8px 10px 20px;
             border-left: 1px solid #e2e8f0;
         }
         .dh-qr-box { display: inline-block; text-align: center; }
@@ -131,7 +131,7 @@
         table.hero-info tr:first-child td { border-top: 1.5px solid #0f172a; }
         table.hero-info tr:last-child td { border-bottom: 1.5px solid #0f172a; }
         table.hero-info .big-value {
-            font-size: 11pt;
+            font-size: 8.5pt;
             font-weight: bold;
             color: #0f172a;
             text-transform: uppercase;
