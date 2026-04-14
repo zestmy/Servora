@@ -239,6 +239,21 @@ class Form extends Component
         $this->lines = array_values($this->lines);
     }
 
+    /** Receives an array of current line indexes in the new order. */
+    public function reorderLines(array $orderedIndexes): void
+    {
+        $ordered = [];
+        foreach ($orderedIndexes as $idx) {
+            $idx = (int) $idx;
+            if (isset($this->lines[$idx])) {
+                $ordered[] = $this->lines[$idx];
+            }
+        }
+        if (count($ordered) === count($this->lines)) {
+            $this->lines = $ordered;
+        }
+    }
+
     public function removeExistingImage(int $id): void
     {
         $image = RecipeImage::find($id);

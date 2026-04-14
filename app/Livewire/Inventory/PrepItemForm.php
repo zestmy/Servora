@@ -185,7 +185,7 @@ class PrepItemForm extends Component
 
         $flash = $this->recipeId ? 'Prep item updated.' : 'Prep item created.';
         session()->flash('success', $flash);
-        $this->redirectRoute('inventory.index');
+        $this->redirect(route('recipes.index', ['tab' => 'prep-items']));
     }
 
     public function render()
