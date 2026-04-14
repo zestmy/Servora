@@ -22,18 +22,18 @@
     </div>
 
     {{-- Meta --}}
-    <table class="meta-table">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border: 1px solid #e5e7eb;">
         <tr>
-            <td class="label">Count Date:</td>
-            <td class="value">{{ $stockTake->stock_take_date?->format('d M Y') ?? '—' }}</td>
-            <td class="label">Outlet:</td>
-            <td class="value">{{ $stockTake->outlet?->name ?? '—' }}</td>
+            <td style="width: 14%; padding: 6px 10px; background: #f9fafb; font-size: 8.5pt; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;">Count Date</td>
+            <td style="width: 36%; padding: 6px 10px; font-size: 9.5pt; color: #0f172a; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;">{{ $stockTake->stock_take_date?->format('d M Y') ?? '—' }}</td>
+            <td style="width: 14%; padding: 6px 10px; background: #f9fafb; font-size: 8.5pt; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;">Outlet</td>
+            <td style="width: 36%; padding: 6px 10px; font-size: 9.5pt; color: #0f172a; border-bottom: 1px solid #e5e7eb;">{{ $stockTake->outlet?->name ?? '—' }}</td>
         </tr>
         <tr>
-            <td class="label">Department:</td>
-            <td class="value">{{ $stockTake->department?->name ?? 'All' }}</td>
-            <td class="label">Prepared By:</td>
-            <td class="value">{{ $stockTake->createdBy?->name ?? '—' }}</td>
+            <td style="padding: 6px 10px; background: #f9fafb; font-size: 8.5pt; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e5e7eb;">Department</td>
+            <td style="padding: 6px 10px; font-size: 9.5pt; color: #0f172a; border-right: 1px solid #e5e7eb;">{{ $stockTake->department?->name ?? 'All' }}</td>
+            <td style="padding: 6px 10px; background: #f9fafb; font-size: 8.5pt; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e5e7eb;">Prepared By</td>
+            <td style="padding: 6px 10px; font-size: 9.5pt; color: #0f172a;">{{ $stockTake->createdBy?->name ?? '—' }}</td>
         </tr>
     </table>
 
