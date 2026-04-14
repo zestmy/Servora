@@ -81,14 +81,14 @@ class Index extends Component
             'prices.priceClass',
         ])
             ->where('recipes.is_prep', $isPrep)
-            ->withCount('lines')
             ->leftJoin('recipe_categories as rc', function ($join) {
                 $join->on('rc.name', '=', 'recipes.category')
                      ->on('rc.company_id', '=', 'recipes.company_id')
                      ->whereNull('rc.deleted_at');
             })
             ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
-            ->select('recipes.*');
+            ->select('recipes.*')
+            ->withCount('lines');
 
         if ($this->search) {
             $query->where(function ($q) {

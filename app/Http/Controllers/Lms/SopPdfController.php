@@ -62,7 +62,6 @@ class SopPdfController extends Controller
             ->where('is_active', true)
             ->where('is_prep', false)
             ->where('exclude_from_lms', false)
-            ->has('steps')
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
             ->orderBy('category')
             ->orderBy('name')
