@@ -1,4 +1,7 @@
 <div>
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    @endonce
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -294,7 +297,8 @@
         {{-- Lines table — grouped by category --}}
         @if (count($lines))
             @php
-                $colSpan = ($isCompleted ? 8 : 9) - ($hideSystemQty ? 2 : 0);
+                // +1 for the drag handle column when the form is editable
+                $colSpan = ($isCompleted ? 8 : 10) - ($hideSystemQty ? 2 : 0);
 
                 // Build indexed + grouped lines
                 $indexedLines = collect($lines)->map(fn($line, $idx) => array_merge($line, ['_idx' => $idx]));
@@ -311,6 +315,9 @@
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                         <tr>
+                            @if (! $isCompleted)
+                                <th class="px-2 py-2 w-6"></th>
+                            @endif
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Ingredient</th>
                             @if (! $hideSystemQty)
@@ -328,7 +335,22 @@
                             @endif
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody
+                        @if (! $isCompleted)
+                            x-data
+                            x-init="new Sortable($el, {
+                                handle: '.line-drag-handle',
+                                filter: '.sortable-skip',
+                                preventOnFilter: false,
+                                animation: 150,
+                                ghostClass: 'bg-indigo-50',
+                                onEnd: () => {
+                                    const idxs = Array.from($el.querySelectorAll('tr[data-idx]')).map(tr => tr.dataset.idx);
+                                    $wire.reorderLines(idxs);
+                                }
+                            })"
+                        @endif
+                    >
                         @php $rowNum = 0; @endphp
                         @foreach ($grouped as $groupName => $groupLines)
                             @php
@@ -338,7 +360,7 @@
                             @endphp
 
                             {{-- Category header row --}}
-                            <tr class="bg-gray-50 border-t border-gray-200">
+                            <tr class="bg-gray-50 border-t border-gray-200 sortable-skip">
                                 <td colspan="{{ $colSpan }}" class="px-4 py-2">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-2">
@@ -373,7 +395,12 @@
                                     $varColor     = $variance > 0 ? 'text-green-600' : ($variance < 0 ? 'text-red-500' : 'text-gray-400');
                                     $rowNum++;
                                 @endphp
-                                <tr class="hover:bg-gray-50 transition group border-t border-gray-50">
+                                <tr wire:key="st-line-{{ $line['ingredient_id'] ?? $idx }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group border-t border-gray-50">
+                                    @if (! $isCompleted)
+                                        <td class="line-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
+                                            <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                                        </td>
+                                    @endif
                                     <td class="px-4 py-2 text-gray-400 text-xs">{{ $rowNum }}</td>
                                     <td class="px-4 py-2">
                                         <div class="flex items-center gap-1.5">

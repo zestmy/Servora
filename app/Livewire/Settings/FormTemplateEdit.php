@@ -266,6 +266,26 @@ class FormTemplateEdit extends Component
         $this->lines = array_values(array_filter($this->lines, fn ($l) => $l['id'] !== $lineId));
     }
 
+    public function reorderLines(array $orderedIds): void
+    {
+        $ids = array_map('intval', $orderedIds);
+
+        foreach ($ids as $idx => $id) {
+            FormTemplateLine::where('id', $id)->update(['sort_order' => $idx]);
+        }
+
+        $byId = collect($this->lines)->keyBy('id');
+        $ordered = [];
+        foreach ($ids as $id) {
+            if (isset($byId[$id])) {
+                $ordered[] = $byId[$id];
+            }
+        }
+        if (count($ordered) === count($this->lines)) {
+            $this->lines = $ordered;
+        }
+    }
+
     public function updateQty(int $lineId, string $qty): void
     {
         $val = max(0, (int) $qty);

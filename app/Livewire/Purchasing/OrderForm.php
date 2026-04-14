@@ -313,6 +313,20 @@ class OrderForm extends Component
         $this->lines = array_values($this->lines);
     }
 
+    public function reorderLines(array $orderedIndexes): void
+    {
+        $ordered = [];
+        foreach ($orderedIndexes as $idx) {
+            $idx = (int) $idx;
+            if (isset($this->lines[$idx])) {
+                $ordered[] = $this->lines[$idx];
+            }
+        }
+        if (count($ordered) === count($this->lines)) {
+            $this->lines = $ordered;
+        }
+    }
+
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
