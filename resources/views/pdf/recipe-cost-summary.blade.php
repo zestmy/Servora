@@ -30,8 +30,11 @@
                 <th style="width: 25px;">#</th>
                 <th>Recipe</th>
                 <th>Category</th>
+                <th class="right" style="width: 55px;">Ingredients</th>
+                <th class="right" style="width: 50px;">Packaging</th>
+                <th class="right" style="width: 45px;">Tax</th>
                 <th class="right" style="width: 65px;">Total Cost</th>
-                <th class="right" style="width: 65px;">Cost/Srv</th>
+                <th class="right" style="width: 60px;">Cost/Srv</th>
                 @if ($priceClasses->isNotEmpty())
                     @foreach ($priceClasses as $pc)
                         <th class="right" style="width: 55px;">{{ $pc->name }}</th>
@@ -50,7 +53,7 @@
                     @php $currentCategory = $row['category']; @endphp
                     @if ($currentCategory)
                         <tr>
-                            <td colspan="{{ $priceClasses->isNotEmpty() ? 5 + ($priceClasses->count() * 2) : 7 }}"
+                            <td colspan="{{ $priceClasses->isNotEmpty() ? 8 + ($priceClasses->count() * 2) : 10 }}"
                                 style="background: #f3f4f6; font-weight: bold; font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 6px; color: #374151;">
                                 {{ $currentCategory }}
                             </td>
@@ -66,7 +69,14 @@
                         @endif
                     </td>
                     <td style="font-size: 8px; color: #666;">{{ $row['category'] }}</td>
-                    <td class="right">{{ number_format($row['total_cost'], 2) }}</td>
+                    <td class="right">{{ number_format($row['ingredient_cost'] ?? 0, 2) }}</td>
+                    <td class="right" style="color: {{ ($row['packaging_cost'] ?? 0) > 0 ? '#4338ca' : '#ccc' }};">
+                        {{ ($row['packaging_cost'] ?? 0) > 0 ? number_format($row['packaging_cost'], 2) : '—' }}
+                    </td>
+                    <td class="right" style="color: {{ ($row['tax'] ?? 0) > 0 ? '#6b7280' : '#ccc' }};">
+                        {{ ($row['tax'] ?? 0) > 0 ? number_format($row['tax'], 2) : '—' }}
+                    </td>
+                    <td class="right" style="font-weight: 600;">{{ number_format($row['total_cost'], 2) }}</td>
                     <td class="right">{{ number_format($row['cost_per_serving'], 4) }}</td>
                     @if ($priceClasses->isNotEmpty())
                         @foreach ($priceClasses as $pc)

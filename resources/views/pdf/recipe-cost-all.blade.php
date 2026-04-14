@@ -185,11 +185,31 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        @if ($data['extraCostTotal'] > 0)
+                        @if (! empty($data['packagingData']) || $data['extraCostTotal'] > 0 || ($data['totalTaxAll'] ?? 0) > 0)
                             <tr>
                                 <td colspan="6" class="r">Ingredients</td>
                                 <td class="r">{{ number_format($data['totalCost'], 2) }}</td>
                             </tr>
+                        @endif
+                        @if (! empty($data['packagingData']))
+                            @foreach ($data['packagingData'] as $pd)
+                                <tr class="sub">
+                                    <td colspan="3" class="r" style="color: #6b7280; font-style: italic;">
+                                        <span style="font-size: 6px; background: #e0e7ff; color: #4338ca; padding: 1px 3px; border-radius: 2px;">PKG</span>
+                                        {{ $pd['ingredient'] }}
+                                    </td>
+                                    <td class="r">{{ rtrim(rtrim(number_format($pd['quantity'], 4), '0'), '.') }} {{ $pd['uom'] }}</td>
+                                    <td class="r">{{ $pd['waste_percentage'] > 0 ? number_format($pd['waste_percentage'], 1) . '%' : '—' }}</td>
+                                    <td class="r">{{ number_format($pd['unit_cost'], 4) }}</td>
+                                    <td class="r">{{ number_format($pd['line_cost'], 4) }}</td>
+                                </tr>
+                            @endforeach
+                            <tr>
+                                <td colspan="6" class="r">Packaging</td>
+                                <td class="r">{{ number_format($data['packagingCost'], 2) }}</td>
+                            </tr>
+                        @endif
+                        @if ($data['extraCostTotal'] > 0)
                             @foreach ($data['extraCosts'] as $ec)
                                 <tr class="sub">
                                     <td colspan="6" class="r">{{ $ec['label'] ?? 'Extra' }}</td>
@@ -197,9 +217,15 @@
                                 </tr>
                             @endforeach
                         @endif
+                        @if (($data['totalTaxAll'] ?? 0) > 0)
+                            <tr class="sub">
+                                <td colspan="6" class="r" style="color: #6b7280;">Tax</td>
+                                <td class="r" style="color: #6b7280;">{{ number_format($data['totalTaxAll'], 2) }}</td>
+                            </tr>
+                        @endif
                         <tr>
-                            <td colspan="6" class="r">Total Cost</td>
-                            <td class="r" style="font-size: 9px;">{{ number_format($data['grandCost'], 2) }}</td>
+                            <td colspan="6" class="r">Total Cost @if (($data['totalTaxAll'] ?? 0) > 0)<span style="font-size: 6px; font-weight: normal; color: #888;">(incl. tax)</span>@endif</td>
+                            <td class="r" style="font-size: 9px;">{{ number_format($data['grandCost'] + ($data['totalTaxAll'] ?? 0), 2) }}</td>
                         </tr>
                     </tfoot>
                 </table>

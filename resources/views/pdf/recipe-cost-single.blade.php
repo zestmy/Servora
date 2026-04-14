@@ -146,6 +146,24 @@
                 <td colspan="6" class="r">Ingredient Cost</td>
                 <td class="r">{{ number_format($totalCost, 2) }}</td>
             </tr>
+            @if (! empty($packagingData))
+                @foreach ($packagingData as $pd)
+                    <tr class="sub">
+                        <td colspan="3" class="r" style="color: #6b7280; font-style: italic;">
+                            <span style="font-size: 7px; background: #e0e7ff; color: #4338ca; padding: 1px 4px; border-radius: 2px; margin-right: 3px;">PKG</span>
+                            {{ $pd['ingredient'] }}
+                        </td>
+                        <td class="r">{{ rtrim(rtrim(number_format($pd['quantity'], 4), '0'), '.') }} {{ $pd['uom'] }}</td>
+                        <td class="r">{{ $pd['waste_percentage'] > 0 ? number_format($pd['waste_percentage'], 1) . '%' : '—' }}</td>
+                        <td class="r">{{ number_format($pd['unit_cost'], 4) }}</td>
+                        <td class="r">{{ number_format($pd['line_cost'], 4) }}</td>
+                    </tr>
+                @endforeach
+                <tr>
+                    <td colspan="6" class="r">Packaging Cost</td>
+                    <td class="r">{{ number_format($packagingCost, 2) }}</td>
+                </tr>
+            @endif
             @if (count($extraCosts))
                 @foreach ($extraCosts as $ec)
                     <tr class="sub">
@@ -159,10 +177,16 @@
                     </tr>
                 @endforeach
             @endif
-            @if ($extraCostTotal > 0)
+            @if ($totalTaxAll > 0)
+                <tr class="sub">
+                    <td colspan="6" class="r" style="color: #6b7280;">Tax</td>
+                    <td class="r" style="color: #6b7280;">{{ number_format($totalTaxAll, 2) }}</td>
+                </tr>
+            @endif
+            @if ($extraCostTotal > 0 || $packagingCost > 0 || $totalTaxAll > 0)
                 <tr>
-                    <td colspan="6" class="r">Total Cost</td>
-                    <td class="r" style="font-size: 10px;">{{ number_format($grandCost, 2) }}</td>
+                    <td colspan="6" class="r">Total Cost @if ($totalTaxAll > 0)<span style="font-size: 7px; font-weight: normal; color: #888;">(incl. tax)</span>@endif</td>
+                    <td class="r" style="font-size: 10px;">{{ number_format($grandCost + $totalTaxAll, 2) }}</td>
                 </tr>
             @endif
         </tfoot>

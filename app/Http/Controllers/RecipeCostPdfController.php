@@ -219,6 +219,9 @@ class RecipeCostPdfController extends Controller
                 'code'            => $recipe->code,
                 'category'        => $recipe->category,
                 'yield'           => rtrim(rtrim(number_format($data['yieldQty'], 2), '0'), '.') . ' ' . ($recipe->yieldUom?->abbreviation ?? ''),
+                'ingredient_cost' => $data['totalCost'],
+                'packaging_cost'  => $data['packagingCost'],
+                'tax'             => $data['totalTaxAll'],
                 'total_cost'      => $data['grandCost'],
                 'cost_per_serving' => $data['costPerServing'],
                 'class_prices'    => [],
@@ -295,8 +298,11 @@ class RecipeCostPdfController extends Controller
         $company = Auth::user()?->company;
 
         $lineData = [];
+        $packagingData = [];
         $totalCost = 0;
+        $packagingCost = 0;
         $totalTax = 0;
+        $packagingTax = 0;
 
         foreach ($recipe->lines as $line) {
             $ingredient = $line->ingredient;
@@ -307,14 +313,12 @@ class RecipeCostPdfController extends Controller
                 $costPerUom = $uomService->convertCost($ingredient, $uom);
                 $wasteFactor = 1 + (floatval($line->waste_percentage) / 100);
                 $lineCost = $costPerUom * $wasteFactor * $qty;
-                $totalCost += $lineCost;
 
                 $taxRate = $ingredient->effectiveTaxRate($company);
                 $taxPct = $taxRate ? floatval($taxRate->rate) : 0;
                 $lineTax = $lineCost * ($taxPct / 100);
-                $totalTax += $lineTax;
 
-                $lineData[] = [
+                $row = [
                     'ingredient'       => $ingredient->name,
                     'quantity'         => $qty,
                     'uom'              => $uom->abbreviation,
@@ -322,6 +326,16 @@ class RecipeCostPdfController extends Controller
                     'unit_cost'        => $costPerUom,
                     'line_cost'        => $lineCost,
                 ];
+
+                if ($line->is_packaging) {
+                    $packagingCost += $lineCost;
+                    $packagingTax  += $lineTax;
+                    $packagingData[] = $row;
+                } else {
+                    $totalCost += $lineCost;
+                    $totalTax  += $lineTax;
+                    $lineData[] = $row;
+                }
             }
         }
 
@@ -332,7 +346,8 @@ class RecipeCostPdfController extends Controller
             }
             return floatval($c['amount'] ?? 0);
         });
-        $grandCost = $totalCost + $extraCostTotal;
+        $totalTaxAll = $totalTax + $packagingTax;
+        $grandCost = $totalCost + $packagingCost + $extraCostTotal;
 
         $yieldQty = max(floatval($recipe->yield_quantity), 0.0001);
         $costPerServing = $grandCost / $yieldQty;
@@ -358,7 +373,9 @@ class RecipeCostPdfController extends Controller
         $legacyFoodCostPct = $legacyPrice > 0 ? ($grandCost / $legacyPrice) * 100 : null;
 
         return compact(
-            'recipe', 'lineData', 'totalCost', 'totalTax', 'extraCosts', 'extraCostTotal',
+            'recipe', 'lineData', 'packagingData', 'totalCost', 'packagingCost',
+            'totalTax', 'packagingTax', 'totalTaxAll',
+            'extraCosts', 'extraCostTotal',
             'grandCost', 'yieldQty', 'costPerServing', 'pricingAnalysis',
             'legacyPrice', 'legacyFoodCostPct'
         );
