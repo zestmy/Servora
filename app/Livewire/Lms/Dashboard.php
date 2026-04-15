@@ -25,12 +25,12 @@ class Dashboard extends Component
 
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
-            ->where('is_prep', false)
             ->where('exclude_from_lms', false)
             ->tap($outletScope)
             ->with(['images', 'steps'])
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
             ->when($this->categoryFilter, fn ($q) => $q->where('category', $this->categoryFilter))
+            ->orderBy('is_prep')
             ->orderBy('category')
             ->orderBy('menu_sort_order')
             ->orderBy('name')
@@ -47,7 +47,9 @@ class Dashboard extends Component
             ->sort()
             ->values();
 
-        $grouped = $recipes->groupBy(fn ($r) => $r->category ?? 'Uncategorised');
+        $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
+            ? 'Prep Items'
+            : ($r->category ?? 'Uncategorised'));
 
         return view('livewire.lms.dashboard', compact('recipes', 'categories', 'grouped'))
             ->layout('layouts.lms', ['title' => 'Training SOPs']);

@@ -59,11 +59,16 @@
                         <x-text-input id="p_code" wire:model="code" type="text"
                                       class="mt-1 block w-full" placeholder="e.g. PREP-RICE-001" />
                     </div>
-                    <div>
-                        <label class="inline-flex items-center gap-2 cursor-pointer mt-6">
+                    <div class="flex items-center gap-5 mt-6">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="is_active"
                                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                             <span class="text-sm text-gray-700 font-medium">Active</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer" title="Hide this prep item from the LMS (training) portal">
+                            <input type="checkbox" wire:model="exclude_from_lms"
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700 font-medium">Exclude from LMS</span>
                         </label>
                     </div>
                 </div>
@@ -133,6 +138,69 @@
                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
                               placeholder="Optional preparation notes…"></textarea>
                 </div>
+
+                {{-- Outlet Tagging --}}
+                @if ($outlets->count() > 1)
+                    <div class="border-t border-gray-100 pt-4">
+                        <x-input-label value="Available At" />
+                        <p class="text-xs text-gray-400 mt-0.5 mb-3">Tag this prep item to specific outlets, or leave as "All Outlets" to make it available everywhere.</p>
+
+                        <div class="space-y-2">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" wire:model.live="allOutlets" value="1"
+                                       class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700 font-medium">All Outlets</span>
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" wire:model.live="allOutlets" value=""
+                                       class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700 font-medium">Selected Outlets</span>
+                            </label>
+                        </div>
+
+                        @if (! $allOutlets)
+                            @if ($outletGroups->count() > 0)
+                                <div class="mt-3 flex flex-wrap items-center gap-2">
+                                    <span class="text-xs font-medium text-gray-500">Apply Group:</span>
+                                    @foreach ($outletGroups as $group)
+                                        <button type="button"
+                                                wire:click="applyGroup({{ $group->id }})"
+                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition">
+                                            + {{ $group->name }}
+                                            <span class="text-[10px] text-gray-400">({{ count($group->outlet_ids) }})</span>
+                                        </button>
+                                    @endforeach
+                                    @if (! empty($outletIds))
+                                        <button type="button" wire:click="clearOutletSelection"
+                                                class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
+                                    @endif
+                                </div>
+                            @endif
+
+                            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                @foreach ($outlets as $outlet)
+                                    <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
+                                        {{ in_array($outlet->id, $outletIds) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                        <input type="checkbox"
+                                               value="{{ $outlet->id }}"
+                                               wire:model.live="outletIds"
+                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                        <div class="min-w-0">
+                                            <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet->name }}</span>
+                                            @if ($outlet->code)
+                                                <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
+                                            @endif
+                                        </div>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @if (empty($outletIds))
+                                <p class="mt-1 text-xs text-amber-500">Select at least one outlet, or switch to "All Outlets".</p>
+                            @endif
+                        @endif
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -325,6 +393,112 @@
                     class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                 Save Prep Item
             </button>
+        </div>
+    </div>
+
+    {{-- ── Training / SOP ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ sopOpen: {{ count($steps) || $video_url ? 'true' : 'false' }} }">
+        <button type="button" @click="sopOpen = !sopOpen"
+                class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+            <div class="text-left">
+                <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Preparation steps, video & training content</p>
+            </div>
+            <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <div x-show="sopOpen" x-cloak class="px-6 pb-6 space-y-4 border-t border-gray-100">
+            {{-- Video URL --}}
+            <div class="pt-4">
+                <x-input-label for="p_video_url" value="Video URL" />
+                <x-text-input id="p_video_url" wire:model="video_url" type="url"
+                              class="mt-1 block w-full text-sm"
+                              placeholder="https://www.youtube.com/watch?v=..." />
+                <p class="text-xs text-gray-400 mt-1">YouTube or Vimeo link for the training video</p>
+                <x-input-error :messages="$errors->get('video_url')" class="mt-1" />
+            </div>
+
+            {{-- Preparation Steps --}}
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
+                    </div>
+                    <button type="button" wire:click="addStep"
+                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                        + Add Step
+                    </button>
+                </div>
+
+                @if (count($steps))
+                    <div class="space-y-3">
+                        @foreach ($steps as $idx => $step)
+                            <div class="relative bg-gray-50 rounded-lg p-4 border border-gray-200" wire:key="prep-step-{{ $idx }}">
+                                <div class="flex items-start gap-3">
+                                    <span class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $idx + 1 }}</span>
+                                    <div class="flex-1 space-y-2">
+                                        <input type="text"
+                                               wire:model.blur="steps.{{ $idx }}.title"
+                                               placeholder="Step title (optional, e.g. Preparation)"
+                                               class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                        <textarea wire:model.blur="steps.{{ $idx }}.instruction"
+                                                  rows="3"
+                                                  placeholder="Describe the preparation step..."
+                                                  class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                        <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
+
+                                        {{-- Image upload --}}
+                                        <div class="flex items-start gap-3 pt-1">
+                                            <div class="flex-shrink-0">
+                                                @if (!empty($step['new_image']))
+                                                    <div class="relative">
+                                                        <img src="{{ $step['new_image']->temporaryUrl() }}" class="w-20 h-20 object-cover rounded border border-indigo-300" />
+                                                        <button type="button" wire:click="clearStepNewImage({{ $idx }})"
+                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                                                    </div>
+                                                @elseif (!empty($step['image_url']) && empty($step['remove_image']))
+                                                    <div class="relative">
+                                                        <img src="{{ $step['image_url'] }}" class="w-20 h-20 object-cover rounded border border-gray-300" />
+                                                        <button type="button" wire:click="removeStepImage({{ $idx }})"
+                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600" title="Remove image">×</button>
+                                                    </div>
+                                                @else
+                                                    <label class="cursor-pointer inline-flex flex-col items-center justify-center w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <span class="text-[10px] text-gray-500 mt-1">Add photo</span>
+                                                        <input type="file" wire:model="steps.{{ $idx }}.new_image" accept="image/*" class="hidden" />
+                                                    </label>
+                                                @endif
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-xs text-gray-500 pt-1">Optional step photo (max 5MB). Images enhance training visuals in the LMS and SOP PDFs.</p>
+                                                <x-input-error :messages="$errors->get('steps.'.$idx.'.new_image')" class="mt-1" />
+                                                <div wire:loading wire:target="steps.{{ $idx }}.new_image" class="text-xs text-indigo-500 mt-1">Uploading…</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" wire:click="removeStep({{ $idx }})"
+                                            class="flex-shrink-0 text-red-400 hover:text-red-600 transition mt-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6 text-gray-400">
+                        <p class="text-sm">No preparation steps added yet.</p>
+                        <p class="text-xs mt-1">Add steps to create training content for this prep item.</p>
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
 </div>

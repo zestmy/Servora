@@ -70,18 +70,20 @@ class SopPdfController extends Controller
 
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
-            ->where('is_prep', false)
             ->where('exclude_from_lms', false)
             ->when($traineeOutletId, fn ($q) => $q->where(function ($q) use ($traineeOutletId) {
                 $q->whereDoesntHave('outlets')
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
             }))
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
+            ->orderBy('is_prep')
             ->orderBy('category')
             ->orderBy('name')
             ->get();
 
-        $grouped = $recipes->groupBy(fn ($r) => $r->category ?? 'Uncategorised');
+        $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
+            ? 'Prep Items'
+            : ($r->category ?? 'Uncategorised'));
         $logoBase64 = $this->logoToBase64($company);
 
         // Pre-compute base64 images and QR codes for all recipes

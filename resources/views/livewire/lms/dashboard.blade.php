@@ -45,7 +45,12 @@
                                 </div>
                             @endif
                             <div class="p-4">
-                                <h3 class="font-semibold text-gray-800 text-sm group-hover:text-indigo-600 transition">{{ $recipe->name }}</h3>
+                                <div class="flex items-start justify-between gap-2">
+                                    <h3 class="font-semibold text-gray-800 text-sm group-hover:text-indigo-600 transition">{{ $recipe->name }}</h3>
+                                    @if ($recipe->is_prep)
+                                        <span class="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full tracking-wider">PREP</span>
+                                    @endif
+                                </div>
                                 @if ($recipe->description)
                                     <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ $recipe->description }}</p>
                                 @endif

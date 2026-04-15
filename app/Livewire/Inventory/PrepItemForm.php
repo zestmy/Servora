@@ -2,18 +2,25 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Models\CentralKitchen;
 use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
+use App\Models\Outlet;
+use App\Models\OutletGroup;
 use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class PrepItemForm extends Component
 {
+    use WithFileUploads;
+
     // Linked IDs (null = new)
     public ?int $recipeId     = null;
     public ?int $ingredientId = null;
@@ -25,12 +32,21 @@ class PrepItemForm extends Component
     public string $yield_quantity         = '1';
     public ?int   $yield_uom_id           = null;
     public bool   $is_active              = true;
+    public bool   $exclude_from_lms       = false;
     public ?int   $department_id          = null;
     public ?int   $ingredient_category_id = null;
+
+    // Outlet tagging
+    public bool  $allOutlets = true;
+    public array $outletIds  = [];
 
     // Recipe lines: [ingredient_id, ingredient_name, quantity, uom_id, uom_name, waste_percentage]
     public array  $lines            = [];
     public string $ingredientSearch = '';
+
+    // Training / SOP
+    public string $video_url = '';
+    public array  $steps     = [];
 
     protected function rules(): array
     {
@@ -46,6 +62,10 @@ class PrepItemForm extends Component
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
             'lines.*.uom_id'           => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage' => 'required|numeric|min:0|max:100',
+            'video_url'                => 'nullable|url|max:500',
+            'steps.*.title'            => 'nullable|string|max:255',
+            'steps.*.instruction'      => 'required|string',
+            'steps.*.new_image'        => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
         ];
     }
 
@@ -65,7 +85,7 @@ class PrepItemForm extends Component
         if (! $id) return;
 
         // $id is the Recipe ID for the prep item
-        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'ingredient'])->findOrFail($id);
+        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'ingredient', 'outlets', 'steps'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->ingredientId           = $recipe->ingredient?->id;
@@ -75,8 +95,19 @@ class PrepItemForm extends Component
         $this->yield_quantity         = $this->fmt($recipe->yield_quantity);
         $this->yield_uom_id           = $recipe->yield_uom_id;
         $this->is_active              = $recipe->is_active;
+        $this->exclude_from_lms       = (bool) $recipe->exclude_from_lms;
         $this->department_id          = $recipe->department_id;
         $this->ingredient_category_id = $recipe->ingredient_category_id;
+
+        // Outlet tags
+        $taggedOutletIds = $recipe->outlets->pluck('id')->toArray();
+        if (empty($taggedOutletIds)) {
+            $this->allOutlets = true;
+            $this->outletIds  = [];
+        } else {
+            $this->allOutlets = false;
+            $this->outletIds  = $taggedOutletIds;
+        }
 
         $this->lines = $recipe->lines->map(fn ($l) => [
             'ingredient_id'    => $l->ingredient_id,
@@ -86,6 +117,78 @@ class PrepItemForm extends Component
             'uom_name'         => $l->uom?->name ?? '',
             'waste_percentage' => $this->fmt($l->waste_percentage, 2),
         ])->toArray();
+
+        // Training / SOP
+        $this->video_url = $recipe->video_url ?? '';
+        $this->steps = $recipe->steps->map(fn ($s) => [
+            'id'           => $s->id,
+            'title'        => $s->title ?? '',
+            'instruction'  => $s->instruction,
+            'image_path'   => $s->image_path,
+            'image_url'    => $s->imageUrl(),
+            'new_image'    => null,
+            'remove_image' => false,
+        ])->toArray();
+    }
+
+    public function applyGroup(int $groupId): void
+    {
+        $group = OutletGroup::with('outlets')->find($groupId);
+        if (! $group) return;
+
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
+        $groupOutletIds = $group->outlets
+            ->pluck('id')
+            ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (empty($groupOutletIds)) return;
+
+        $this->allOutlets = false;
+        $existing = array_map('intval', $this->outletIds);
+        $this->outletIds = array_values(array_unique(array_merge($existing, $groupOutletIds)));
+    }
+
+    public function clearOutletSelection(): void
+    {
+        $this->outletIds = [];
+    }
+
+    // ── Steps ────────────────────────────────────────────────────────────
+
+    public function addStep(): void
+    {
+        $this->steps[] = [
+            'id'           => null,
+            'title'        => '',
+            'instruction'  => '',
+            'image_path'   => null,
+            'image_url'    => null,
+            'new_image'    => null,
+            'remove_image' => false,
+        ];
+    }
+
+    public function removeStep(int $idx): void
+    {
+        unset($this->steps[$idx]);
+        $this->steps = array_values($this->steps);
+    }
+
+    public function removeStepImage(int $idx): void
+    {
+        if (! isset($this->steps[$idx])) return;
+        $this->steps[$idx]['remove_image'] = true;
+        $this->steps[$idx]['new_image']    = null;
+        $this->steps[$idx]['image_url']    = null;
+    }
+
+    public function clearStepNewImage(int $idx): void
+    {
+        if (isset($this->steps[$idx])) {
+            $this->steps[$idx]['new_image'] = null;
+        }
     }
 
     // ── Ingredient search ─────────────────────────────────────────────────
@@ -140,12 +243,14 @@ class PrepItemForm extends Component
                 'name'                   => $this->name,
                 'code'                   => $this->code ?: null,
                 'description'            => $this->notes ?: null,
+                'video_url'              => $this->video_url ?: null,
                 'yield_quantity'         => $this->yield_quantity,
                 'yield_uom_id'           => $this->yield_uom_id,
                 'selling_price'          => 0,
                 'cost_per_yield_unit'    => round($costPerYieldUnit, 4),
                 'is_active'              => $this->is_active,
                 'is_prep'                => true,
+                'exclude_from_lms'       => $this->exclude_from_lms,
                 'department_id'          => $this->department_id,
                 'ingredient_category_id' => $this->ingredient_category_id,
             ];
@@ -159,6 +264,13 @@ class PrepItemForm extends Component
                 $this->recipeId = $recipe->id;
             }
 
+            // Sync outlet tags
+            if ($this->allOutlets) {
+                $recipe->outlets()->detach();
+            } else {
+                $recipe->outlets()->sync(array_map('intval', $this->outletIds));
+            }
+
             // Sync recipe lines
             $recipe->lines()->delete();
             foreach ($this->lines as $idx => $line) {
@@ -170,6 +282,51 @@ class PrepItemForm extends Component
                     'sort_order'       => $idx,
                 ]);
             }
+
+            // Sync training steps (upsert, preserve images)
+            $keepStepIds = [];
+            foreach ($this->steps as $idx => $step) {
+                if (trim($step['instruction'] ?? '') === '') continue;
+
+                $imagePath = $step['image_path'] ?? null;
+
+                if (! empty($step['remove_image']) && $imagePath) {
+                    Storage::disk('public')->delete($imagePath);
+                    $imagePath = null;
+                }
+
+                if (! empty($step['new_image']) && is_object($step['new_image'])) {
+                    if ($imagePath) {
+                        Storage::disk('public')->delete($imagePath);
+                    }
+                    $imagePath = $step['new_image']->store('recipe-steps', 'public');
+                }
+
+                $stepData = [
+                    'sort_order'  => $idx,
+                    'title'       => $step['title'] ?: null,
+                    'instruction' => $step['instruction'],
+                    'image_path'  => $imagePath,
+                ];
+
+                if (! empty($step['id'])) {
+                    $existing = $recipe->steps()->find($step['id']);
+                    if ($existing) {
+                        $existing->update($stepData);
+                        $keepStepIds[] = $existing->id;
+                        continue;
+                    }
+                }
+
+                $newStep = $recipe->steps()->create($stepData);
+                $keepStepIds[] = $newStep->id;
+            }
+            $recipe->steps()->whereNotIn('id', $keepStepIds)->get()->each(function ($s) {
+                if ($s->image_path) {
+                    Storage::disk('public')->delete($s->image_path);
+                }
+                $s->delete();
+            });
 
             // Sync the corresponding Ingredient record (prep item)
             $ingredientData = [
@@ -213,6 +370,37 @@ class PrepItemForm extends Component
             ->orderBy('name')
             ->get();
 
+        // Outlets (exclude central kitchen outlets)
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')
+            ->pluck('outlet_id')
+            ->filter()
+            ->all();
+
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->whereNotIn('id', $centralKitchenOutletIds)
+            ->orderBy('name')
+            ->get();
+
+        $outletGroups = OutletGroup::with('outlets')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($g) use ($centralKitchenOutletIds) {
+                $ids = $g->outlets->pluck('id')
+                    ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
+                    ->values()
+                    ->all();
+                return (object) [
+                    'id'         => $g->id,
+                    'name'       => $g->name,
+                    'outlet_ids' => $ids,
+                ];
+            })
+            ->filter(fn ($g) => count($g->outlet_ids) > 0)
+            ->values();
+
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
             $existingIds = collect($this->lines)->pluck('ingredient_id')->filter()->toArray();
@@ -237,7 +425,7 @@ class PrepItemForm extends Component
         $pageTitle = $this->recipeId ? 'Edit: ' . ($this->name ?: 'Prep Item') : 'New Prep Item';
 
         return view('livewire.inventory.prep-item-form', compact(
-            'uoms', 'departments', 'categories', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
+            'uoms', 'departments', 'categories', 'outlets', 'outletGroups', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
