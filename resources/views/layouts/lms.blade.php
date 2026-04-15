@@ -10,6 +10,12 @@
         $lmsCompany = $lmsUser?->company;
         $brandName = $lmsCompany->brand_name ?? $lmsCompany->name ?? 'Training';
 
+        // Category sort-order lookup (matches Settings → Menu Categories order)
+        $lmsCategorySortMap = \App\Models\RecipeCategory::where('company_id', $lmsUser->company_id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('sort_order', 'name');
+
         // Build sidebar SOP list grouped by category (filtered to trainee's outlet)
         $sidebarSops = \App\Models\Recipe::where('company_id', $lmsUser->company_id)
             ->where('is_active', true)
@@ -19,11 +25,15 @@
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $lmsUser->outlet_id));
             }))
             ->select('id', 'name', 'code', 'category', 'menu_sort_order', 'is_prep')
-            ->orderBy('is_prep')
-            ->orderBy('category')
-            ->orderBy('menu_sort_order')
-            ->orderBy('name')
             ->get()
+            ->sortBy(fn ($r) => [
+                $r->is_prep ? 1 : 0,
+                $lmsCategorySortMap[$r->category] ?? PHP_INT_MAX,
+                $r->category ?? '~',
+                $r->menu_sort_order ?? 0,
+                strtolower($r->name),
+            ])
+            ->values()
             ->groupBy(fn ($r) => $r->is_prep
                 ? 'Prep Items'
                 : ($r->category ?? 'Uncategorised'));

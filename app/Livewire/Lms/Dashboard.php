@@ -5,6 +5,7 @@ namespace App\Livewire\Lms;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class Dashboard extends Component
@@ -23,6 +24,11 @@ class Dashboard extends Component
             })
             : $q;
 
+        $categorySortMap = RecipeCategory::where('company_id', $user->company_id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('sort_order', 'name');
+
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
@@ -30,22 +36,21 @@ class Dashboard extends Component
             ->with(['images', 'steps'])
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
             ->when($this->categoryFilter, fn ($q) => $q->where('category', $this->categoryFilter))
-            ->orderBy('is_prep')
-            ->orderBy('category')
-            ->orderBy('menu_sort_order')
-            ->orderBy('name')
-            ->get();
-
-        $categories = Recipe::where('company_id', $user->company_id)
-            ->where('is_active', true)
-            ->where('is_prep', false)
-            ->where('exclude_from_lms', false)
-            ->tap($outletScope)
-            ->whereNotNull('category')
-            ->distinct()
-            ->pluck('category')
-            ->sort()
+            ->get()
+            ->sortBy(fn ($r) => [
+                $r->is_prep ? 1 : 0,
+                $categorySortMap[$r->category] ?? PHP_INT_MAX,
+                $r->category ?? '~',
+                $r->menu_sort_order ?? 0,
+                strtolower($r->name),
+            ])
             ->values();
+
+        $categories = RecipeCategory::where('company_id', $user->company_id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name');
 
         $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
             ? 'Prep Items'

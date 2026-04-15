@@ -68,6 +68,11 @@ class SopPdfController extends Controller
 
         $traineeOutletId = $isLmsTrainee ? $user->outlet_id : null;
 
+        $categorySortMap = RecipeCategory::where('company_id', $user->company_id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('sort_order', 'name');
+
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
@@ -76,10 +81,15 @@ class SopPdfController extends Controller
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
             }))
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
-            ->orderBy('is_prep')
-            ->orderBy('category')
-            ->orderBy('name')
-            ->get();
+            ->get()
+            ->sortBy(fn ($r) => [
+                $r->is_prep ? 1 : 0,
+                $categorySortMap[$r->category] ?? PHP_INT_MAX,
+                $r->category ?? '~',
+                $r->menu_sort_order ?? 0,
+                strtolower($r->name),
+            ])
+            ->values();
 
         $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
             ? 'Prep Items'
