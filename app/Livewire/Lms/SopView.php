@@ -13,10 +13,15 @@ class SopView extends Component
 
     public function mount(int $id): void
     {
+        $user = Auth::guard('lms')->user();
         $this->recipeId = $id;
-        $this->recipe = Recipe::where('company_id', Auth::guard('lms')->user()->company_id)
+        $this->recipe = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
+            ->when($user->outlet_id, fn ($q) => $q->where(function ($q) use ($user) {
+                $q->whereDoesntHave('outlets')
+                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $user->outlet_id));
+            }))
             ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
             ->findOrFail($id);
     }

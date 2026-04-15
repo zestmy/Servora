@@ -6,14 +6,19 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @php
-        $lmsCompany = Auth::guard('lms')->user()?->company;
+        $lmsUser = Auth::guard('lms')->user();
+        $lmsCompany = $lmsUser?->company;
         $brandName = $lmsCompany->brand_name ?? $lmsCompany->name ?? 'Training';
 
-        // Build sidebar SOP list grouped by category
-        $sidebarSops = \App\Models\Recipe::where('company_id', Auth::guard('lms')->user()->company_id)
+        // Build sidebar SOP list grouped by category (filtered to trainee's outlet)
+        $sidebarSops = \App\Models\Recipe::where('company_id', $lmsUser->company_id)
             ->where('is_active', true)
             ->where('is_prep', false)
             ->where('exclude_from_lms', false)
+            ->when($lmsUser->outlet_id, fn ($q) => $q->where(function ($q) use ($lmsUser) {
+                $q->whereDoesntHave('outlets')
+                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $lmsUser->outlet_id));
+            }))
             ->select('id', 'name', 'code', 'category', 'menu_sort_order')
             ->orderBy('category')
             ->orderBy('menu_sort_order')
