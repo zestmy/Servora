@@ -53,7 +53,7 @@ class CompanyRegistrationService
             $user->givePermissionTo([
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
-                'settings.view', 'users.manage',
+                'settings.view', 'users.manage', 'hr.view',
             ]);
 
             // Create default outlet
