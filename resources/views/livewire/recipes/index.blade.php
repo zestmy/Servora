@@ -103,20 +103,6 @@
         </div>
     </div>
 
-    {{-- Tabs --}}
-    <div class="border-b border-gray-200 mb-4">
-        <nav class="flex gap-6 -mb-px">
-            <button wire:click="$set('tab', 'recipes')"
-                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'recipes' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Recipes
-            </button>
-            <button wire:click="$set('tab', 'prep-items')"
-                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'prep-items' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                Prep Items
-            </button>
-        </nav>
-    </div>
-
     {{-- Filter Bar --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-col sm:flex-row gap-3">
