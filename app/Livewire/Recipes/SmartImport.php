@@ -3,7 +3,10 @@
 namespace App\Livewire\Recipes;
 
 use App\Models\AppSetting;
+use App\Models\CentralKitchen;
 use App\Models\Ingredient;
+use App\Models\Outlet;
+use App\Models\OutletGroup;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\UnitOfMeasure;
@@ -55,6 +58,10 @@ class SmartImport extends Component
     public int   $importedCount  = 0;
     public int   $skippedCount   = 0;
     public int   $linesImported  = 0;
+
+    // Global outlet tagging (applied to all imported recipes)
+    public bool  $allOutlets     = true;
+    public array $outletIds      = [];
 
     protected function rules(): array
     {
@@ -696,6 +703,32 @@ PROMPT;
         $this->validRecipes = collect($this->recipes)->where('skip', false)->count();
     }
 
+    // ── Outlet tagging ──────────────────────────────────────────────────
+
+    public function applyGroup(int $groupId): void
+    {
+        $group = OutletGroup::with('outlets')->find($groupId);
+        if (! $group) return;
+
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
+        $groupOutletIds = $group->outlets
+            ->pluck('id')
+            ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (empty($groupOutletIds)) return;
+
+        $this->allOutlets = false;
+        $existing = array_map('intval', $this->outletIds);
+        $this->outletIds = array_values(array_unique(array_merge($existing, $groupOutletIds)));
+    }
+
+    public function clearOutletSelection(): void
+    {
+        $this->outletIds = [];
+    }
+
     // ── Step 3: Import ────────────────────────────────────────────────────
 
     public function import(): void
@@ -761,6 +794,11 @@ PROMPT;
                 $yieldQty = max($recipeData['yield_quantity'], 0.0001);
                 $recipe->update(['cost_per_yield_unit' => round($totalCost / $yieldQty, 4)]);
 
+                // Sync outlet tags
+                if (! $this->allOutlets && ! empty($this->outletIds)) {
+                    $recipe->outlets()->sync(array_map('intval', $this->outletIds));
+                }
+
                 $imported++;
             });
         }
@@ -787,6 +825,8 @@ PROMPT;
         $this->importedCount = 0;
         $this->skippedCount  = 0;
         $this->linesImported = 0;
+        $this->allOutlets    = true;
+        $this->outletIds     = [];
         $this->resetValidation();
     }
 
@@ -843,7 +883,30 @@ PROMPT;
                 ->get();
         }
 
-        return view('livewire.recipes.smart-import', compact('uoms', 'ingredients', 'recipeCategories'))
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->filter()->all();
+
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->whereNotIn('id', $centralKitchenOutletIds)
+            ->orderBy('name')
+            ->get();
+
+        $outletGroups = OutletGroup::with('outlets')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($g) use ($centralKitchenOutletIds) {
+                $ids = $g->outlets->pluck('id')
+                    ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
+                    ->values()
+                    ->all();
+                return (object) ['id' => $g->id, 'name' => $g->name, 'outlet_ids' => $ids];
+            })
+            ->filter(fn ($g) => count($g->outlet_ids) > 0)
+            ->values();
+
+        return view('livewire.recipes.smart-import', compact('uoms', 'ingredients', 'recipeCategories', 'outlets', 'outletGroups'))
             ->layout('layouts.app', ['title' => $title]);
     }
 

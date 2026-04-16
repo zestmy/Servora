@@ -239,6 +239,68 @@
             </div>
         </div>
 
+        {{-- Outlet tagging (applies to all imported recipes) --}}
+        @if ($outlets->count() > 1)
+            <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="text-sm font-semibold text-gray-700 mb-1">Available At</h3>
+                <p class="text-xs text-gray-400 mb-3">Tag all imported {{ $isPrep ? 'prep items' : 'recipes' }} to specific outlets, or leave as "All Outlets".</p>
+
+                <div class="flex items-center gap-4 mb-3">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" wire:model.live="allOutlets" value="1"
+                               class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700 font-medium">All Outlets</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" wire:model.live="allOutlets" value=""
+                               class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700 font-medium">Selected Outlets</span>
+                    </label>
+                </div>
+
+                @if (! $allOutlets)
+                    @if ($outletGroups->count() > 0)
+                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                            <span class="text-xs font-medium text-gray-500">Apply Group:</span>
+                            @foreach ($outletGroups as $group)
+                                <button type="button"
+                                        wire:click="applyGroup({{ $group->id }})"
+                                        class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition">
+                                    + {{ $group->name }}
+                                    <span class="text-[10px] text-gray-400">({{ count($group->outlet_ids) }})</span>
+                                </button>
+                            @endforeach
+                            @if (! empty($outletIds))
+                                <button type="button" wire:click="clearOutletSelection"
+                                        class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
+                            @endif
+                        </div>
+                    @endif
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                        @foreach ($outlets as $outlet)
+                            <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
+                                {{ in_array($outlet->id, $outletIds) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                <input type="checkbox"
+                                       value="{{ $outlet->id }}"
+                                       wire:model.live="outletIds"
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                <div class="min-w-0">
+                                    <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet->name }}</span>
+                                    @if ($outlet->code)
+                                        <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
+                                    @endif
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                    @if (empty($outletIds))
+                        <p class="mt-2 text-xs text-amber-500">Select at least one outlet, or switch to "All Outlets".</p>
+                    @endif
+                @endif
+            </div>
+        @endif
+
         {{-- Recipe cards --}}
         <div class="space-y-4 mb-6">
             @foreach ($recipes as $rIdx => $recipe)
