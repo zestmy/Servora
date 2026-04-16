@@ -70,7 +70,15 @@ class RecipeCategories extends Component
         ];
 
         if ($this->editingId) {
-            RecipeCategory::findOrFail($this->editingId)->update($data);
+            $cat = RecipeCategory::findOrFail($this->editingId);
+            $oldName = $cat->name;
+            $cat->update($data);
+
+            // Sync the text category field on recipes when name changes
+            if ($oldName !== $this->name) {
+                \App\Models\Recipe::where('category', $oldName)->update(['category' => $this->name]);
+            }
+
             session()->flash('success', 'Category updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
