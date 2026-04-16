@@ -10,16 +10,29 @@
         $lmsCompany = $lmsUser?->company;
         $brandName = $lmsCompany->brand_name ?? $lmsCompany->name ?? 'Training';
 
-        // Category sort-order lookups (Settings → Menu Categories / Cost Categories)
-        $lmsCategorySortMap = \App\Models\RecipeCategory::where('company_id', $lmsUser->company_id)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('sort_order', 'name');
+        // Category sort-order lookup with parent hierarchy (parent_sort → parent_name → sub_sort → sub_name)
+        $lmsCategorySortMap = [];
+        $lmsRecipeCategories = \App\Models\RecipeCategory::where('company_id', $lmsUser->company_id)
+            ->with('parent')
+            ->get();
+        foreach ($lmsRecipeCategories as $rc) {
+            $parentSort = $rc->parent ? $rc->parent->sort_order : $rc->sort_order;
+            $parentName = $rc->parent ? strtolower($rc->parent->name) : strtolower($rc->name);
+            $subSort    = $rc->parent ? $rc->sort_order : 0;
+            $subName    = $rc->parent ? strtolower($rc->name) : '';
+            $lmsCategorySortMap[strtolower($rc->name)] = [$parentSort, $parentName, $subSort, $subName];
+        }
 
         $lmsPrepCategorySortMap = \App\Models\IngredientCategory::where('company_id', $lmsUser->company_id)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('sort_order', 'id');
+            ->with('parent')
+            ->get()
+            ->mapWithKeys(fn ($ic) => [
+                $ic->id => [
+                    $ic->parent ? $ic->parent->sort_order : $ic->sort_order,
+                    strtolower($ic->parent ? $ic->parent->name : $ic->name),
+                    $ic->parent ? $ic->sort_order : 0,
+                ],
+            ]);
 
         // Build sidebar SOP list grouped by category (filtered to trainee's outlet)
         $sidebarSops = \App\Models\Recipe::where('company_id', $lmsUser->company_id)
@@ -32,17 +45,14 @@
             ->with(['ingredientCategory:id,name'])
             ->select('id', 'name', 'code', 'category', 'menu_sort_order', 'is_prep', 'ingredient_category_id')
             ->get()
-            ->sortBy(fn ($r) => [
-                $r->is_prep ? 1 : 0,
-                $r->is_prep
-                    ? ($lmsPrepCategorySortMap[$r->ingredient_category_id] ?? PHP_INT_MAX)
-                    : ($lmsCategorySortMap[$r->category] ?? PHP_INT_MAX),
-                $r->is_prep
-                    ? strtolower($r->ingredientCategory?->name ?? '~')
-                    : strtolower($r->category ?? '~'),
-                $r->menu_sort_order ?? 0,
-                strtolower($r->name),
-            ])
+            ->sortBy(function ($r) use ($lmsCategorySortMap, $lmsPrepCategorySortMap) {
+                if ($r->is_prep) {
+                    $ps = $lmsPrepCategorySortMap[$r->ingredient_category_id] ?? [PHP_INT_MAX, '~', 0];
+                    return [1, $ps[0], $ps[1], $ps[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
+                }
+                $cs = $lmsCategorySortMap[strtolower($r->category ?? '')] ?? [PHP_INT_MAX, '~', 0, ''];
+                return [0, $cs[0], $cs[1], $cs[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
+            })
             ->values()
             ->groupBy(fn ($r) => $r->is_prep
                 ? 'Prep — ' . ($r->ingredientCategory?->name ?? 'Uncategorised')
