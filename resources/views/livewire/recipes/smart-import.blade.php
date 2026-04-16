@@ -334,8 +334,16 @@
                             </div>
                         </div>
 
+                        @if (! empty($recipe['duplicate_of']))
+                            <span class="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full">DUPLICATE</span>
+                        @elseif (! empty($recipe['similar_to']))
+                            <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full">SIMILAR</span>
+                        @endif
+
                         @if (! empty($recipe['errors']) || collect($recipe['lines'])->contains(fn ($l) => ! $l['ingredient_id'] || ! $l['uom_id']))
                             <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full">NEEDS FIX</span>
+                        @elseif ($recipe['skip'])
+                            <span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-full">SKIPPED</span>
                         @else
                             <span class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full">READY</span>
                         @endif
@@ -345,11 +353,42 @@
                         </svg>
                     </div>
 
+                    {{-- Duplicate / similar warning --}}
+                    @if (! empty($recipe['duplicate_of']))
+                        <div class="px-5 py-2 bg-red-50 border-t border-red-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <p class="text-xs text-red-700"><strong>Duplicate:</strong> "{{ $recipe['duplicate_of'] }}" already exists in your {{ $isPrep ? 'prep items' : 'recipes' }}.</p>
+                            </div>
+                            <button type="button" wire:click="toggleSkip({{ $rIdx }})"
+                                    class="text-xs font-medium px-3 py-1 rounded-lg transition {{ $recipe['skip'] ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' : 'text-gray-500 bg-gray-100 hover:bg-gray-200' }}">
+                                {{ $recipe['skip'] ? 'Import Anyway' : 'Skip' }}
+                            </button>
+                        </div>
+                    @elseif (! empty($recipe['similar_to']))
+                        <div class="px-5 py-2 bg-orange-50 border-t border-orange-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="text-xs text-orange-700"><strong>Similar:</strong> "{{ $recipe['similar_to'] }}" found in your {{ $isPrep ? 'prep items' : 'recipes' }}. Is this a duplicate?</p>
+                            </div>
+                            <button type="button" wire:click="toggleSkip({{ $rIdx }})"
+                                    class="text-xs font-medium px-3 py-1 rounded-lg transition {{ $recipe['skip'] ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' : 'text-gray-500 bg-gray-100 hover:bg-gray-200' }}">
+                                {{ $recipe['skip'] ? 'Import Anyway' : 'Skip' }}
+                            </button>
+                        </div>
+                    @endif
+
                     {{-- Recipe errors --}}
                     @if (! empty($recipe['errors']))
                         <div class="px-5 py-2 bg-red-50 border-t border-red-100">
                             @foreach ($recipe['errors'] as $err)
-                                <p class="text-xs text-red-600">{{ $err }}</p>
+                                @if (! str_starts_with($err, 'Duplicate'))
+                                    <p class="text-xs text-red-600">{{ $err }}</p>
+                                @endif
                             @endforeach
                             @if (! $recipe['yield_uom_id'])
                                 <div class="mt-1 flex items-center gap-2">

@@ -543,6 +543,14 @@ PROMPT;
             ->get()
             ->keyBy(fn ($i) => strtolower($i->name));
 
+        // Load existing recipe names for duplicate detection
+        $existingRecipes = Recipe::where('company_id', $companyId)
+            ->where('is_prep', $this->isPrep)
+            ->select('id', 'name')
+            ->get();
+
+        $existingRecipesByName = $existingRecipes->keyBy(fn ($r) => strtolower($r->name));
+
         // Build case-insensitive category lookup for matching AI output to existing names
         $existingCategories = RecipeCategory::where('company_id', $companyId)
             ->where('is_active', true)
@@ -581,8 +589,30 @@ PROMPT;
                     }
                 }
 
+                // Check for duplicate or similar existing recipe
+                $duplicateOf = null;
+                $similarTo   = null;
+                $upperName   = strtoupper($recipeName);
+
+                if (isset($existingRecipesByName[$recipeKey])) {
+                    $duplicateOf = $existingRecipesByName[$recipeKey]->name;
+                } else {
+                    $bestScore = 0;
+                    $bestMatch = null;
+                    foreach ($existingRecipesByName as $exKey => $exRecipe) {
+                        similar_text($recipeKey, $exKey, $pct);
+                        if ($pct > $bestScore && $pct >= 75) {
+                            $bestScore = $pct;
+                            $bestMatch = $exRecipe;
+                        }
+                    }
+                    if ($bestMatch) {
+                        $similarTo = $bestMatch->name . ' (' . (int) $bestScore . '% match)';
+                    }
+                }
+
                 $grouped[$recipeKey] = [
-                    'name'               => strtoupper($recipeName),
+                    'name'               => $upperName,
                     'code'               => $getValue($raw, 'recipe_code') ?: null,
                     'category'           => $matchedCategory,
                     'category_unmatched' => $categoryUnmatched ? $rawCategory : null,
@@ -594,7 +624,14 @@ PROMPT;
                     'lines'              => [],
                     'errors'             => [],
                     'skip'               => false,
+                    'duplicate_of'       => $duplicateOf,
+                    'similar_to'         => $similarTo,
                 ];
+
+                if ($duplicateOf) {
+                    $grouped[$recipeKey]['errors'][] = 'Duplicate — "' . $duplicateOf . '" already exists';
+                    $grouped[$recipeKey]['skip'] = true;
+                }
 
                 if ($categoryUnmatched) {
                     $grouped[$recipeKey]['errors'][] = 'Category "' . $rawCategory . '" not found — please select a valid category';
