@@ -542,6 +542,12 @@ PROMPT;
             ->get()
             ->keyBy(fn ($i) => strtolower($i->name));
 
+        // Build case-insensitive category lookup for matching AI output to existing names
+        $existingCategories = RecipeCategory::where('company_id', $companyId)
+            ->where('is_active', true)
+            ->pluck('name')
+            ->keyBy(fn ($n) => strtolower($n));
+
         $mapping = $this->columnMapping;
 
         $getValue = function (array $raw, string $sysField) use ($mapping): string {
@@ -563,10 +569,16 @@ PROMPT;
                 $yieldUomRaw = $getValue($raw, 'yield_uom');
                 $yieldUomId  = $this->resolveUom($yieldUomRaw ?: 'portion');
 
+                // Match category case-insensitively to existing RecipeCategory names
+                $rawCategory = $getValue($raw, 'category') ?: null;
+                $matchedCategory = $rawCategory
+                    ? ($existingCategories[strtolower($rawCategory)] ?? $rawCategory)
+                    : null;
+
                 $grouped[$recipeKey] = [
                     'name'           => strtoupper($recipeName),
                     'code'           => $getValue($raw, 'recipe_code') ?: null,
-                    'category'       => $getValue($raw, 'category') ?: null,
+                    'category'       => $matchedCategory,
                     'yield_quantity' => max(0.0001, $this->parseNumber($getValue($raw, 'yield_quantity'), 1)),
                     'yield_uom_id'   => $yieldUomId,
                     'yield_uom_label'=> $yieldUomRaw ?: 'portion',
