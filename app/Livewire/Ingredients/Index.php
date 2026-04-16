@@ -59,6 +59,10 @@ class Index extends Component
     // Additional supplier links (secondary suppliers)
     public array $supplierLinks = [];
 
+    // Quick edit
+    public bool  $quickEdit     = false;
+    public array $editableRows  = [];
+
     // Import
     public $importFile = null;
     public bool $showImportModal = false;
@@ -653,6 +657,126 @@ class Index extends Component
             'ingredients', 'uoms', 'suppliers', 'categories', 'outlets', 'taxRates',
             'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Ingredients']);
+    }
+
+    // ── Quick Edit ──────────────────────────────────────────────────────
+
+    public function enterQuickEdit(): void
+    {
+        $companyId = Auth::user()->company_id;
+
+        $ingredients = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'ingredientCategory'])
+            ->where('company_id', $companyId);
+
+        // Apply same filters as render()
+        if ($this->search) {
+            $ingredients->where(function ($q) {
+                $q->where('name', 'like', '%' . $this->search . '%')
+                  ->orWhere('code', 'like', '%' . $this->search . '%');
+            });
+        }
+        if ($this->categoryFilter) {
+            $cat = IngredientCategory::with('children')->find((int) $this->categoryFilter);
+            if ($cat) {
+                $ids = $cat->children->isNotEmpty()
+                    ? $cat->children->pluck('id')->push($cat->id)->toArray()
+                    : [$cat->id];
+                $ingredients->whereIn('ingredient_category_id', $ids);
+            }
+        }
+        if ($this->statusFilter === 'active') {
+            $ingredients->where('is_active', true);
+        } elseif ($this->statusFilter === 'inactive') {
+            $ingredients->where('is_active', false);
+        }
+        if ($this->supplierFilter) {
+            if ($this->supplierFilter === 'none') {
+                $ingredients->whereDoesntHave('suppliers');
+            } else {
+                $ingredients->whereHas('suppliers', fn ($q) => $q->where('suppliers.id', (int) $this->supplierFilter));
+            }
+        }
+
+        $rows = [];
+        foreach ($ingredients->orderBy('name')->get() as $ing) {
+            $conv = $ing->uomConversions->first();
+            $rows[$ing->id] = [
+                'name'                   => $ing->name,
+                'code'                   => $ing->code ?? '',
+                'ingredient_category_id' => $ing->ingredient_category_id,
+                'base_uom_id'            => $ing->base_uom_id,
+                'recipe_uom_id'          => $ing->recipe_uom_id,
+                'purchase_price'         => rtrim(rtrim(number_format(floatval($ing->purchase_price), 4), '0'), '.'),
+                'pack_size'              => rtrim(rtrim(number_format(floatval($ing->pack_size ?? 1), 4), '0'), '.'),
+                'yield_percent'          => rtrim(rtrim(number_format(floatval($ing->yield_percent), 2), '0'), '.'),
+                'factor'                 => $conv ? rtrim(rtrim(number_format(floatval($conv->factor), 4), '0'), '.') : '',
+                'tax_rate_id'            => $ing->tax_rate_id,
+                'is_active'              => $ing->is_active,
+            ];
+        }
+
+        $this->editableRows = $rows;
+        $this->quickEdit = true;
+    }
+
+    public function exitQuickEdit(): void
+    {
+        $this->quickEdit = false;
+        $this->editableRows = [];
+    }
+
+    public function saveQuickEdit(): void
+    {
+        $user = Auth::user();
+        if ($user?->company?->ingredients_locked && ! $user->canBypassLock()) {
+            session()->flash('error', 'Ingredients are locked.');
+            return;
+        }
+
+        $uomService = app(\App\Services\UomService::class);
+        $saved = 0;
+
+        foreach ($this->editableRows as $id => $row) {
+            $ingredient = Ingredient::find($id);
+            if (! $ingredient) continue;
+
+            $pp = floatval($row['purchase_price'] ?? 0);
+            $ps = max(floatval($row['pack_size'] ?? 1), 0.0001);
+            $yp = max(floatval($row['yield_percent'] ?? 100), 0.01);
+            $baseCost = $pp / $ps;
+            $effectiveCost = $baseCost / ($yp / 100);
+
+            $ingredient->update([
+                'name'                   => trim($row['name']) ?: $ingredient->name,
+                'code'                   => trim($row['code'] ?? '') ?: null,
+                'ingredient_category_id' => $row['ingredient_category_id'] ?: null,
+                'base_uom_id'            => $row['base_uom_id'] ?: $ingredient->base_uom_id,
+                'recipe_uom_id'          => $row['recipe_uom_id'] ?: $ingredient->recipe_uom_id,
+                'purchase_price'         => $pp,
+                'pack_size'              => $ps,
+                'yield_percent'          => min(100, max(0.01, $yp)),
+                'current_cost'           => round($effectiveCost, 4),
+                'tax_rate_id'            => $row['tax_rate_id'] ?: null,
+                'is_active'              => (bool) ($row['is_active'] ?? true),
+            ]);
+
+            // Sync conversion factor
+            $factor = floatval($row['factor'] ?? 0);
+            if ($factor > 0 && $ingredient->base_uom_id && $ingredient->recipe_uom_id && $ingredient->base_uom_id !== ($row['recipe_uom_id'] ?: $ingredient->recipe_uom_id)) {
+                $ingredient->uomConversions()->updateOrCreate(
+                    ['from_uom_id' => $row['base_uom_id'] ?: $ingredient->base_uom_id, 'to_uom_id' => $row['recipe_uom_id'] ?: $ingredient->recipe_uom_id],
+                    ['factor' => $factor]
+                );
+            } elseif ($factor <= 0) {
+                $ingredient->uomConversions()->delete();
+            }
+
+            $saved++;
+        }
+
+        session()->flash('success', $saved . ' ingredient' . ($saved !== 1 ? 's' : '') . ' updated.');
+        $this->quickEdit = false;
+        $this->editableRows = [];
     }
 
     private function resetForm(): void

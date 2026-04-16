@@ -11,6 +11,15 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Ingredients</h2>
         <div class="flex items-center gap-2">
+            @if (! $this->locked && ! $quickEdit)
+                <button wire:click="enterQuickEdit"
+                        class="px-3 py-2 text-sm font-medium text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                    Quick Edit
+                </button>
+            @endif
             <a href="{{ route('ingredients.export') }}"
                class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
                title="Export to CSV">
@@ -149,7 +158,150 @@
         </div>
     @endif
 
+    {{-- Quick Edit Mode --}}
+    @if ($quickEdit)
+        <div class="mb-4 px-4 py-3 bg-purple-50 border border-purple-200 text-purple-800 text-sm rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span><strong>Quick Edit Mode</strong> — edit fields inline, then click Save All. Eff. Cost & Recipe Cost auto-calculate.</span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button wire:click="exitQuickEdit"
+                        class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button wire:click="saveQuickEdit" wire:loading.attr="disabled"
+                        class="px-4 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="saveQuickEdit">Save All ({{ count($editableRows) }})</span>
+                    <span wire:loading wire:target="saveQuickEdit">Saving…</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden mb-4">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs">
+                    <thead class="bg-purple-50 text-purple-700 uppercase text-[10px] tracking-wider">
+                        <tr>
+                            <th class="px-2 py-2 text-left w-8">#</th>
+                            <th class="px-2 py-2 text-left" style="min-width:180px;">Name</th>
+                            <th class="px-2 py-2 text-left" style="min-width:70px;">Code</th>
+                            <th class="px-2 py-2 text-left" style="min-width:120px;">Category</th>
+                            <th class="px-2 py-2 text-left" style="min-width:80px;">Base UOM</th>
+                            <th class="px-2 py-2 text-left" style="min-width:80px;">Recipe UOM</th>
+                            <th class="px-2 py-2 text-right" style="min-width:80px;">Price/Pack</th>
+                            <th class="px-2 py-2 text-right" style="min-width:60px;">Pack Size</th>
+                            <th class="px-2 py-2 text-right" style="min-width:70px;">Factor</th>
+                            <th class="px-2 py-2 text-right" style="min-width:55px;">Yield%</th>
+                            <th class="px-2 py-2 text-left" style="min-width:90px;">Tax</th>
+                            <th class="px-2 py-2 text-center" style="min-width:50px;">Active</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @php $qn = 0; @endphp
+                        @foreach ($editableRows as $ingId => $row)
+                            @php $qn++; @endphp
+                            <tr class="hover:bg-purple-50/30">
+                                <td class="px-2 py-1.5 text-gray-400">{{ $qn }}</td>
+                                <td class="px-2 py-1.5">
+                                    <input type="text" wire:model.blur="editableRows.{{ $ingId }}.name"
+                                           class="w-full text-xs rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <input type="text" wire:model.blur="editableRows.{{ $ingId }}.code"
+                                           class="w-full text-xs rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <select wire:model="editableRows.{{ $ingId }}.ingredient_category_id"
+                                            class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-purple-500 focus:ring-purple-500">
+                                        <option value="">—</option>
+                                        @foreach ($categories as $cat)
+                                            @if ($cat->children->isNotEmpty())
+                                                <optgroup label="{{ $cat->name }}">
+                                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                                    @foreach ($cat->children as $sub)
+                                                        <option value="{{ $sub->id }}">{{ $sub->name }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @else
+                                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <select wire:model="editableRows.{{ $ingId }}.base_uom_id"
+                                            class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-purple-500 focus:ring-purple-500">
+                                        @foreach ($uoms as $uom)
+                                            <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <select wire:model="editableRows.{{ $ingId }}.recipe_uom_id"
+                                            class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-purple-500 focus:ring-purple-500">
+                                        @foreach ($uoms as $uom)
+                                            <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <input type="number" step="0.01" min="0" wire:model.blur="editableRows.{{ $ingId }}.purchase_price"
+                                           class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <input type="number" step="0.01" min="0.0001" wire:model.blur="editableRows.{{ $ingId }}.pack_size"
+                                           class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <input type="number" step="1" min="0" wire:model.blur="editableRows.{{ $ingId }}.factor"
+                                           class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500"
+                                           placeholder="—" />
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <input type="number" step="0.1" min="0.01" max="100" wire:model.blur="editableRows.{{ $ingId }}.yield_percent"
+                                           class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <select wire:model="editableRows.{{ $ingId }}.tax_rate_id"
+                                            class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-purple-500 focus:ring-purple-500">
+                                        <option value="">Default</option>
+                                        @foreach ($taxRates as $tr)
+                                            <option value="{{ $tr->id }}">{{ $tr->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-2 py-1.5 text-center">
+                                    <input type="checkbox" wire:model="editableRows.{{ $ingId }}.is_active"
+                                           class="rounded border-gray-300 text-purple-600 shadow-sm focus:ring-purple-500" />
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-sm text-gray-500">{{ count($editableRows) }} ingredients</span>
+            <div class="flex items-center gap-2">
+                <button wire:click="exitQuickEdit"
+                        class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button wire:click="saveQuickEdit" wire:loading.attr="disabled"
+                        class="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="saveQuickEdit">Save All Changes</span>
+                    <span wire:loading wire:target="saveQuickEdit">Saving…</span>
+                </button>
+            </div>
+        </div>
+    @endif
+
     {{-- Table --}}
+    @if (! $quickEdit)
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
@@ -321,6 +473,7 @@
             </div>
         @endif
     </div>
+    @endif
 
     {{-- Modal --}}
     @teleport('body')
