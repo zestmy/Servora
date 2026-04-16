@@ -111,10 +111,18 @@ class Index extends Component
                 })
                 ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
         } else {
+            // Prefer sub-category match (has parent_id) over root when same name exists at both levels
             $query->leftJoin('recipe_categories as rc', function ($join) {
                     $join->on('rc.name', '=', 'recipes.category')
                          ->on('rc.company_id', '=', 'recipes.company_id')
-                         ->whereNull('rc.deleted_at');
+                         ->whereNull('rc.deleted_at')
+                         ->whereNotNull('rc.parent_id');
+                })
+                ->leftJoin('recipe_categories as rc_root', function ($join) {
+                    $join->on('rc_root.name', '=', 'recipes.category')
+                         ->on('rc_root.company_id', '=', 'recipes.company_id')
+                         ->whereNull('rc_root.deleted_at')
+                         ->whereNull('rc_root.parent_id');
                 })
                 ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
         }
@@ -169,12 +177,22 @@ class Index extends Component
 
         // Sort by category hierarchy → manual menu order → recipe name.
         // Recipes whose category string doesn't match any category go last.
-        $query->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
-              ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
-              ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
-              ->orderBy('rc.sort_order')
-              ->orderBy('rc.name')
-              ->orderBy('recipes.menu_sort_order')
+        if ($isPrep) {
+            $query->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
+                  ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
+                  ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
+                  ->orderBy('rc.sort_order')
+                  ->orderBy('rc.name');
+        } else {
+            // rc = sub-category match, rc_root = root fallback, rcp = parent of sub
+            // Parent sort: if sub matched → use rcp (parent), else use rc_root
+            $query->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) IS NULL')
+                  ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) ASC')
+                  ->orderByRaw('COALESCE(rcp.name, rc_root.name, rc.name) ASC')
+                  ->orderByRaw('COALESCE(rc.sort_order, rc_root.sort_order) ASC')
+                  ->orderByRaw('COALESCE(rc.name, rc_root.name) ASC');
+        }
+        $query->orderBy('recipes.menu_sort_order')
               ->orderBy('recipes.name');
 
         if ($this->costFilter) {
