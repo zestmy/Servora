@@ -721,13 +721,13 @@ PROMPT;
             DB::transaction(function () use ($recipeData, $companyId, $uomService, &$imported, &$lines) {
                 $recipe = Recipe::create([
                     'company_id'          => $companyId,
-                    'name'                => $recipeData['name'],
-                    'code'                => $recipeData['code'],
-                    'description'         => $recipeData['description'],
-                    'category'            => $recipeData['category'],
-                    'yield_quantity'      => $recipeData['yield_quantity'],
-                    'yield_uom_id'        => $recipeData['yield_uom_id'],
-                    'selling_price'       => $recipeData['selling_price'],
+                    'name'                => trim($recipeData['name']) ?: 'Untitled',
+                    'code'                => trim($recipeData['code'] ?? '') ?: null,
+                    'description'         => trim($recipeData['description'] ?? '') ?: null,
+                    'category'            => trim($recipeData['category'] ?? '') ?: null,
+                    'yield_quantity'      => max(0.0001, floatval($recipeData['yield_quantity'] ?? 1)),
+                    'yield_uom_id'        => $recipeData['yield_uom_id'] ?: null,
+                    'selling_price'       => floatval($recipeData['selling_price'] ?? 0),
                     'cost_per_yield_unit' => 0,
                     'is_active'           => true,
                     'is_prep'             => $this->isPrep,
@@ -740,9 +740,9 @@ PROMPT;
 
                     $recipe->lines()->create([
                         'ingredient_id'    => $line['ingredient_id'],
-                        'quantity'         => $line['quantity'],
+                        'quantity'         => max(0.0001, floatval($line['quantity'] ?? 0)),
                         'uom_id'           => $line['uom_id'],
-                        'waste_percentage' => $line['waste_percentage'],
+                        'waste_percentage' => min(100, max(0, floatval($line['waste_percentage'] ?? 0))),
                         'sort_order'       => $idx,
                         'is_packaging'     => false,
                     ]);
