@@ -405,13 +405,13 @@ class RecipeCostPdfController extends Controller
                 'name'          => $pc->name,
                 'is_default'    => $pc->is_default,
                 'selling_price' => $sp,
-                'food_cost_pct' => $sp > 0 ? ($grandCost / $sp) * 100 : null,
-                'gross_profit'  => $sp > 0 ? $sp - $grandCost : null,
+                'food_cost_pct' => $sp > 0 ? ($costPerServing / $sp) * 100 : null,
+                'gross_profit'  => $sp > 0 ? $sp - $costPerServing : null,
             ];
         }
 
         $legacyPrice = floatval($recipe->selling_price);
-        $legacyFoodCostPct = $legacyPrice > 0 ? ($grandCost / $legacyPrice) * 100 : null;
+        $legacyFoodCostPct = $legacyPrice > 0 ? ($costPerServing / $legacyPrice) * 100 : null;
 
         return compact(
             'recipe', 'lineData', 'packagingData', 'totalCost', 'packagingCost',

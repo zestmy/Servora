@@ -199,11 +199,11 @@
             $defaultPa = collect($pricingAnalysis)->first(fn ($p) => $p['selling_price'] > 0);
         }
         $mainSp = $defaultPa ? $defaultPa['selling_price'] : $legacyPrice;
-        $mainFc = $mainSp > 0 ? ($grandCost / $mainSp) * 100 : null;
-        $mainGp = $mainSp > 0 ? $mainSp - $grandCost : null;
-        $mainMargin = $mainSp > 0 ? (($mainSp - $grandCost) / $mainSp) * 100 : null;
-        $mainMarkup = $grandCost > 0 ? (($mainSp - $grandCost) / $grandCost) * 100 : null;
-        $costRatio = $mainSp > 0 ? $grandCost / $mainSp : null;
+        $mainFc = $mainSp > 0 ? ($costPerServing / $mainSp) * 100 : null;
+        $mainGp = $mainSp > 0 ? $mainSp - $costPerServing : null;
+        $mainMargin = $mainSp > 0 ? (($mainSp - $costPerServing) / $mainSp) * 100 : null;
+        $mainMarkup = $costPerServing > 0 ? (($mainSp - $costPerServing) / $costPerServing) * 100 : null;
+        $costRatio = $mainSp > 0 ? $costPerServing / $mainSp : null;
 
         $fcBoxClass = match(true) {
             $mainFc === null => '',
@@ -267,8 +267,8 @@
                             $sp = $pa['selling_price'];
                             $gp = $pa['gross_profit'];
                             $margin = $sp > 0 ? ($gp / $sp) * 100 : 0;
-                            $markup = $grandCost > 0 ? ($gp / $grandCost) * 100 : 0;
-                            $ratio = $sp > 0 ? $grandCost / $sp : 0;
+                            $markup = $costPerServing > 0 ? ($gp / $costPerServing) * 100 : 0;
+                            $ratio = $sp > 0 ? $costPerServing / $sp : 0;
                             $rowFcClass = match(true) {
                                 $pa['food_cost_pct'] <= 25 => 'c-green',
                                 $pa['food_cost_pct'] <= 35 => 'c-yellow',
@@ -294,10 +294,10 @@
         </div>
     @elseif ($legacyPrice > 0)
         @php
-            $gp = $legacyPrice - $grandCost;
+            $gp = $legacyPrice - $costPerServing;
             $margin = ($gp / $legacyPrice) * 100;
-            $markup = $grandCost > 0 ? ($gp / $grandCost) * 100 : 0;
-            $ratio = $grandCost / $legacyPrice;
+            $markup = $costPerServing > 0 ? ($gp / $costPerServing) * 100 : 0;
+            $ratio = $costPerServing / $legacyPrice;
         @endphp
         <div class="profit-panel">
             <h4>Profitability Analysis</h4>

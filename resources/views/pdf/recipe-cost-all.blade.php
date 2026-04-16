@@ -130,10 +130,10 @@
                 $defaultPa = $activePrices->first();
             }
             $mainSp = $defaultPa ? $defaultPa['selling_price'] : $data['legacyPrice'];
-            $mainFc = $mainSp > 0 ? ($data['grandCost'] / $mainSp) * 100 : null;
-            $mainGp = $mainSp > 0 ? $mainSp - $data['grandCost'] : null;
+            $mainFc = $mainSp > 0 ? ($data['costPerServing'] / $mainSp) * 100 : null;
+            $mainGp = $mainSp > 0 ? $mainSp - $data['costPerServing'] : null;
             $mainMargin = $mainSp > 0 ? ($mainGp / $mainSp) * 100 : null;
-            $mainMarkup = $data['grandCost'] > 0 && $mainSp > 0 ? ($mainGp / $data['grandCost']) * 100 : null;
+            $mainMarkup = $data['costPerServing'] > 0 && $mainSp > 0 ? ($mainGp / $data['costPerServing']) * 100 : null;
         @endphp
 
         <div class="recipe-card">
@@ -249,7 +249,7 @@
                                 @php
                                     $gp = $pa['gross_profit'];
                                     $margin = $pa['selling_price'] > 0 ? ($gp / $pa['selling_price']) * 100 : 0;
-                                    $markup = $data['grandCost'] > 0 ? ($gp / $data['grandCost']) * 100 : 0;
+                                    $markup = $data['costPerServing'] > 0 ? ($gp / $data['costPerServing']) * 100 : 0;
                                     $fcClass = match(true) {
                                         $pa['food_cost_pct'] <= 25 => 'c-green',
                                         $pa['food_cost_pct'] <= 35 => 'c-yellow',
