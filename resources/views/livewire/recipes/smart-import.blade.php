@@ -415,14 +415,14 @@
                             </div>
                             <div>
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase">Category</label>
-                                @if (! empty($recipe['category_unmatched']))
+                                @if (! empty($recipe['category_unmatched']) && ($recipe['category'] ?? '') !== '__new__')
                                     <p class="text-[10px] text-amber-600 font-medium mt-0.5">
-                                        "{{ $recipe['category_unmatched'] }}" not found — select a category:
+                                        "{{ $recipe['category_unmatched'] }}" not found — select or create:
                                     </p>
                                 @endif
                                 <select wire:model.live="recipes.{{ $rIdx }}.category"
                                         class="mt-0.5 w-full text-xs rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500
-                                        {{ ! empty($recipe['category_unmatched']) ? 'border-amber-400 bg-amber-50' : 'border-gray-200' }}">
+                                        {{ ! empty($recipe['category_unmatched']) && ($recipe['category'] ?? '') !== '__new__' ? 'border-amber-400 bg-amber-50' : 'border-gray-200' }}">
                                     <option value="">— Select Category —</option>
                                     @foreach ($recipeCategories as $rc)
                                         @if ($rc->children->isEmpty())
@@ -436,7 +436,36 @@
                                             </optgroup>
                                         @endif
                                     @endforeach
+                                    <option value="__new__">+ Create New Category…</option>
                                 </select>
+
+                                {{-- Inline create form --}}
+                                @if (($recipe['category'] ?? '') === '__new__')
+                                    <div class="mt-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
+                                        <div>
+                                            <label class="text-[10px] font-semibold text-gray-500">New Category Name</label>
+                                            <input type="text" wire:model.blur="recipes.{{ $rIdx }}.new_cat_name"
+                                                   value="{{ $recipe['new_cat_name'] ?? '' }}"
+                                                   placeholder="e.g. Breakfast"
+                                                   class="w-full text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500" />
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] font-semibold text-gray-500">Parent Category (optional — leave empty for top-level)</label>
+                                            <select wire:model="recipes.{{ $rIdx }}.new_cat_parent_id"
+                                                    class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-indigo-500 focus:ring-indigo-500">
+                                                <option value="">— Top Level —</option>
+                                                @foreach ($recipeCategories as $rc)
+                                                    <option value="{{ $rc->id }}">{{ $rc->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <button type="button"
+                                                wire:click="createCategoryFromPreview({{ $rIdx }})"
+                                                class="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                                            Create & Apply
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                             <div>
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase">Selling Price (RM)</label>

@@ -616,6 +616,8 @@ PROMPT;
                     'code'               => $getValue($raw, 'recipe_code') ?: null,
                     'category'           => $matchedCategory,
                     'category_unmatched' => $categoryUnmatched ? $rawCategory : null,
+                    'new_cat_name'       => $categoryUnmatched ? ucwords(strtolower($rawCategory)) : '',
+                    'new_cat_parent_id'  => null,
                     'yield_quantity'     => max(0.0001, $this->parseNumber($getValue($raw, 'yield_quantity'), 1)),
                     'yield_uom_id'       => $yieldUomId,
                     'yield_uom_label'    => $yieldUomRaw ?: 'portion',
@@ -740,10 +742,15 @@ PROMPT;
 
     public function updatedRecipes($value, $key): void
     {
-        // When user changes a recipe's category via dropdown, clear the unmatched error
         if (preg_match('/^(\d+)\.category$/', $key, $m)) {
             $idx = (int) $m[1];
             if (isset($this->recipes[$idx])) {
+                // If user selected "__new__", keep the unmatched state for the inline create form
+                if ($value === '__new__') {
+                    $this->recipes[$idx]['category'] = '__new__';
+                    return;
+                }
+
                 $this->recipes[$idx]['category_unmatched'] = null;
                 $this->recipes[$idx]['errors'] = array_values(array_filter(
                     $this->recipes[$idx]['errors'],
@@ -752,6 +759,40 @@ PROMPT;
                 $this->recalcRecipeSkip($idx);
             }
         }
+    }
+
+    public function createCategoryFromPreview(int $recipeIdx): void
+    {
+        if (! isset($this->recipes[$recipeIdx])) return;
+        $name     = trim($this->recipes[$recipeIdx]['new_cat_name'] ?? '');
+        $parentId = $this->recipes[$recipeIdx]['new_cat_parent_id'] ?? null;
+        $this->createCategory($recipeIdx, $name, $parentId ? (int) $parentId : null);
+    }
+
+    public function createCategory(int $recipeIdx, string $name, ?int $parentId = null): void
+    {
+        $name = trim($name);
+        if (! $name || ! isset($this->recipes[$recipeIdx])) return;
+
+        $companyId = Auth::user()->company_id;
+
+        $cat = RecipeCategory::create([
+            'company_id' => $companyId,
+            'name'       => $name,
+            'parent_id'  => $parentId ?: null,
+            'is_active'  => true,
+            'sort_order'  => 0,
+        ]);
+
+        $this->recipes[$recipeIdx]['category'] = $cat->name;
+        $this->recipes[$recipeIdx]['category_unmatched'] = null;
+        $this->recipes[$recipeIdx]['new_cat_name'] = '';
+        $this->recipes[$recipeIdx]['new_cat_parent_id'] = null;
+        $this->recipes[$recipeIdx]['errors'] = array_values(array_filter(
+            $this->recipes[$recipeIdx]['errors'],
+            fn ($e) => ! str_starts_with($e, 'Category')
+        ));
+        $this->recalcRecipeSkip($recipeIdx);
     }
 
     public function toggleSkip(int $recipeIdx): void
@@ -833,7 +874,7 @@ PROMPT;
                     'name'                => trim($recipeData['name']) ?: 'Untitled',
                     'code'                => trim($recipeData['code'] ?? '') ?: null,
                     'description'         => trim($recipeData['description'] ?? '') ?: null,
-                    'category'            => trim($recipeData['category'] ?? '') ?: null,
+                    'category'            => (($cat = trim($recipeData['category'] ?? '')) && $cat !== '__new__') ? $cat : null,
                     'yield_quantity'      => max(0.0001, floatval($recipeData['yield_quantity'] ?? 1)),
                     'yield_uom_id'        => $recipeData['yield_uom_id'] ?: null,
                     'selling_price'       => floatval($recipeData['selling_price'] ?? 0),
