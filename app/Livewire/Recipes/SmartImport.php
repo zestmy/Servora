@@ -827,15 +827,23 @@ PROMPT;
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
         $ingredients = [];
+        $recipeCategories = [];
         if ($this->step === 'preview') {
             $ingredients = Ingredient::where('company_id', Auth::user()->company_id)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->select('id', 'name')
                 ->get();
+
+            $recipeCategories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+                ->roots()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get();
         }
 
-        return view('livewire.recipes.smart-import', compact('uoms', 'ingredients'))
+        return view('livewire.recipes.smart-import', compact('uoms', 'ingredients', 'recipeCategories'))
             ->layout('layouts.app', ['title' => $title]);
     }
 

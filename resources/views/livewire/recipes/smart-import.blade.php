@@ -245,7 +245,7 @@
                 <div class="bg-white rounded-xl shadow-sm border {{ $recipe['skip'] ? 'border-amber-200' : 'border-gray-100' }} overflow-hidden"
                      x-data="{ open: {{ $recipe['skip'] ? 'true' : 'false' }} }">
 
-                    {{-- Recipe header --}}
+                    {{-- Recipe header row --}}
                     <div class="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-50 transition" @click="open = !open">
                         <button type="button" wire:click.stop="toggleSkip({{ $rIdx }})"
                                 class="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition
@@ -260,16 +260,12 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
                                 <span class="font-semibold text-sm text-gray-800 truncate">{{ $recipe['name'] }}</span>
-                                @if ($recipe['code'])
-                                    <span class="text-xs text-gray-400">{{ $recipe['code'] }}</span>
-                                @endif
                                 @if ($recipe['category'])
                                     <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-medium rounded-full">{{ $recipe['category'] }}</span>
                                 @endif
                             </div>
                             <div class="text-xs text-gray-400 mt-0.5">
                                 {{ count($recipe['lines']) }} ingredient{{ count($recipe['lines']) !== 1 ? 's' : '' }}
-                                · Yield: {{ $recipe['yield_quantity'] }} {{ $recipe['yield_uom_label'] }}
                                 @if ($recipe['selling_price'] > 0)
                                     · RM {{ number_format($recipe['selling_price'], 2) }}
                                 @endif
@@ -308,66 +304,124 @@
                         </div>
                     @endif
 
-                    {{-- Ingredient lines --}}
-                    <div x-show="open" x-cloak class="border-t border-gray-100">
-                        <table class="min-w-full text-xs">
-                            <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
-                                <tr>
-                                    <th class="px-4 py-2 text-left w-8">#</th>
-                                    <th class="px-4 py-2 text-left">Ingredient (file)</th>
-                                    <th class="px-4 py-2 text-left">Matched To</th>
-                                    <th class="px-4 py-2 text-right w-20">Qty</th>
-                                    <th class="px-4 py-2 text-left w-24">UOM</th>
-                                    <th class="px-4 py-2 text-right w-16">Waste%</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                @foreach ($recipe['lines'] as $lIdx => $line)
-                                    <tr class="{{ ! $line['ingredient_id'] || ! $line['uom_id'] ? 'bg-amber-50' : '' }}">
-                                        <td class="px-4 py-2 text-gray-400">{{ $lIdx + 1 }}</td>
-                                        <td class="px-4 py-2 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
-                                        <td class="px-4 py-2">
-                                            @if ($line['ingredient_id'])
-                                                <span class="text-green-700">{{ $line['matched_name'] }}</span>
-                                                @if ($line['confidence'] < 100)
-                                                    <span class="text-[10px] text-amber-500 ml-1">{{ $line['confidence'] }}%</span>
-                                                @endif
-                                            @else
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="text-red-500 text-[10px] font-semibold">NOT FOUND</span>
-                                                    <select wire:change="fixIngredient({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
-                                                            class="text-[11px] border-gray-200 rounded py-0.5 px-1 max-w-[180px]">
-                                                        <option value="">Select ingredient…</option>
-                                                        @foreach ($ingredients as $ing)
-                                                            <option value="{{ $ing->id }}">{{ $ing->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-2 text-right tabular-nums">{{ $line['quantity'] }}</td>
-                                        <td class="px-4 py-2">
-                                            @if ($line['uom_id'])
-                                                <span class="text-gray-600">{{ $line['uom_raw'] }}</span>
-                                            @else
-                                                <div class="flex items-center gap-1">
-                                                    <span class="text-red-500 text-[10px]">{{ $line['uom_raw'] ?: '?' }}</span>
-                                                    <select wire:change="fixLineUom({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
-                                                            class="text-[11px] border-gray-200 rounded py-0.5 px-1">
-                                                        <option value="">Fix UOM</option>
-                                                        @foreach ($uoms as $uom)
-                                                            <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-2 text-right tabular-nums text-gray-500">{{ $line['waste_percentage'] }}%</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                    {{-- Editable recipe details --}}
+                    <div x-show="open" x-cloak class="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase">Name</label>
+                                <input type="text" wire:model.blur="recipes.{{ $rIdx }}.name"
+                                       class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase">Category</label>
+                                <select wire:model.live="recipes.{{ $rIdx }}.category"
+                                        class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">— No Category —</option>
+                                    @foreach ($recipeCategories as $rc)
+                                        @if ($rc->children->isEmpty())
+                                            <option value="{{ $rc->name }}">{{ $rc->name }}</option>
+                                        @else
+                                            <optgroup label="{{ $rc->name }}">
+                                                <option value="{{ $rc->name }}">{{ $rc->name }}</option>
+                                                @foreach ($rc->children as $sub)
+                                                    <option value="{{ $sub->name }}">{{ $sub->name }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endif
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase">Selling Price (RM)</label>
+                                <input type="number" step="0.01" min="0" wire:model.blur="recipes.{{ $rIdx }}.selling_price"
+                                       class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase">Code</label>
+                                <input type="text" wire:model.blur="recipes.{{ $rIdx }}.code"
+                                       class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-semibold text-gray-500 uppercase">Description</label>
+                            <textarea wire:model.blur="recipes.{{ $rIdx }}.description" rows="2"
+                                      class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                      placeholder="Optional description…"></textarea>
+                        </div>
                     </div>
+
+                    {{-- Ingredient lines --}}
+                    @if (count($recipe['lines']) > 0)
+                        <div x-show="open" x-cloak class="border-t border-gray-100">
+                            <table class="min-w-full text-xs">
+                                <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left w-8">#</th>
+                                        <th class="px-4 py-2 text-left">Ingredient (file)</th>
+                                        <th class="px-4 py-2 text-left">Matched To</th>
+                                        <th class="px-4 py-2 text-right w-24">Qty</th>
+                                        <th class="px-4 py-2 text-left w-32">UOM</th>
+                                        <th class="px-4 py-2 text-right w-20">Waste%</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    @foreach ($recipe['lines'] as $lIdx => $line)
+                                        <tr class="{{ ! $line['ingredient_id'] || ! $line['uom_id'] ? 'bg-amber-50' : '' }}">
+                                            <td class="px-4 py-2 text-gray-400">{{ $lIdx + 1 }}</td>
+                                            <td class="px-4 py-2 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
+                                            <td class="px-4 py-2">
+                                                @if ($line['ingredient_id'])
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="text-green-700">{{ $line['matched_name'] }}</span>
+                                                        @if ($line['confidence'] < 100)
+                                                            <span class="text-[10px] text-amber-500">{{ $line['confidence'] }}%</span>
+                                                        @endif
+                                                        <select wire:change="fixIngredient({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
+                                                                class="text-[11px] border-gray-200 rounded py-0.5 px-1 max-w-[140px] ml-1">
+                                                            <option value="">Change…</option>
+                                                            @foreach ($ingredients as $ing)
+                                                                <option value="{{ $ing->id }}">{{ $ing->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                @else
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="text-red-500 text-[10px] font-semibold">NOT FOUND</span>
+                                                        <select wire:change="fixIngredient({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
+                                                                class="text-[11px] border-gray-200 rounded py-0.5 px-1 max-w-[180px]">
+                                                            <option value="">Select ingredient…</option>
+                                                            @foreach ($ingredients as $ing)
+                                                                <option value="{{ $ing->id }}">{{ $ing->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-2">
+                                                <input type="number" step="0.01" min="0.0001"
+                                                       wire:model.blur="recipes.{{ $rIdx }}.lines.{{ $lIdx }}.quantity"
+                                                       class="w-full text-right text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500" />
+                                            </td>
+                                            <td class="px-4 py-2">
+                                                <select wire:model.live="recipes.{{ $rIdx }}.lines.{{ $lIdx }}.uom_id"
+                                                        class="w-full text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500">
+                                                    <option value="">Select…</option>
+                                                    @foreach ($uoms as $uom)
+                                                        <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-2">
+                                                <input type="number" step="0.1" min="0" max="100"
+                                                       wire:model.blur="recipes.{{ $rIdx }}.lines.{{ $lIdx }}.waste_percentage"
+                                                       class="w-full text-right text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500" />
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>
