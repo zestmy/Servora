@@ -571,23 +571,33 @@ PROMPT;
 
                 // Match category case-insensitively to existing RecipeCategory names
                 $rawCategory = $getValue($raw, 'category') ?: null;
-                $matchedCategory = $rawCategory
-                    ? ($existingCategories[strtolower($rawCategory)] ?? $rawCategory)
-                    : null;
+                $matchedCategory = null;
+                $categoryUnmatched = false;
+                if ($rawCategory) {
+                    $matchedCategory = $existingCategories[strtolower($rawCategory)] ?? null;
+                    if (! $matchedCategory) {
+                        $categoryUnmatched = true;
+                    }
+                }
 
                 $grouped[$recipeKey] = [
-                    'name'           => strtoupper($recipeName),
-                    'code'           => $getValue($raw, 'recipe_code') ?: null,
-                    'category'       => $matchedCategory,
-                    'yield_quantity' => max(0.0001, $this->parseNumber($getValue($raw, 'yield_quantity'), 1)),
-                    'yield_uom_id'   => $yieldUomId,
-                    'yield_uom_label'=> $yieldUomRaw ?: 'portion',
-                    'selling_price'  => $this->parseNumber($getValue($raw, 'selling_price'), 0),
-                    'description'    => $getValue($raw, 'description') ?: null,
-                    'lines'          => [],
-                    'errors'         => [],
-                    'skip'           => false,
+                    'name'               => strtoupper($recipeName),
+                    'code'               => $getValue($raw, 'recipe_code') ?: null,
+                    'category'           => $matchedCategory,
+                    'category_unmatched' => $categoryUnmatched ? $rawCategory : null,
+                    'yield_quantity'     => max(0.0001, $this->parseNumber($getValue($raw, 'yield_quantity'), 1)),
+                    'yield_uom_id'       => $yieldUomId,
+                    'yield_uom_label'    => $yieldUomRaw ?: 'portion',
+                    'selling_price'      => $this->parseNumber($getValue($raw, 'selling_price'), 0),
+                    'description'        => $getValue($raw, 'description') ?: null,
+                    'lines'              => [],
+                    'errors'             => [],
+                    'skip'               => false,
                 ];
+
+                if ($categoryUnmatched) {
+                    $grouped[$recipeKey]['errors'][] = 'Category "' . $rawCategory . '" not found — please select a valid category';
+                }
 
                 if (! $yieldUomId) {
                     $grouped[$recipeKey]['errors'][] = 'Yield UOM "' . $yieldUomRaw . '" not found';
@@ -688,6 +698,22 @@ PROMPT;
         );
 
         $this->recalcRecipeSkip($recipeIdx);
+    }
+
+    public function updatedRecipes($value, $key): void
+    {
+        // When user changes a recipe's category via dropdown, clear the unmatched error
+        if (preg_match('/^(\d+)\.category$/', $key, $m)) {
+            $idx = (int) $m[1];
+            if (isset($this->recipes[$idx])) {
+                $this->recipes[$idx]['category_unmatched'] = null;
+                $this->recipes[$idx]['errors'] = array_values(array_filter(
+                    $this->recipes[$idx]['errors'],
+                    fn ($e) => ! str_starts_with($e, 'Category')
+                ));
+                $this->recalcRecipeSkip($idx);
+            }
+        }
     }
 
     public function toggleSkip(int $recipeIdx): void

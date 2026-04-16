@@ -376,9 +376,15 @@
                             </div>
                             <div>
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase">Category</label>
+                                @if (! empty($recipe['category_unmatched']))
+                                    <p class="text-[10px] text-amber-600 font-medium mt-0.5">
+                                        "{{ $recipe['category_unmatched'] }}" not found — select a category:
+                                    </p>
+                                @endif
                                 <select wire:model.live="recipes.{{ $rIdx }}.category"
-                                        class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">— No Category —</option>
+                                        class="mt-0.5 w-full text-xs rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500
+                                        {{ ! empty($recipe['category_unmatched']) ? 'border-amber-400 bg-amber-50' : 'border-gray-200' }}">
+                                    <option value="">— Select Category —</option>
                                     @foreach ($recipeCategories as $rc)
                                         @if ($rc->children->isEmpty())
                                             <option value="{{ $rc->name }}">{{ $rc->name }}</option>
