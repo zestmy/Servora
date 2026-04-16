@@ -9,6 +9,7 @@ use App\Models\Outlet;
 use App\Models\OutletGroup;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
+use App\Models\RecipePriceClass;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
 use Illuminate\Support\Facades\Auth;
@@ -835,6 +836,20 @@ PROMPT;
                 // Sync outlet tags
                 if (! $this->allOutlets && ! empty($this->outletIds)) {
                     $recipe->outlets()->sync(array_map('intval', $this->outletIds));
+                }
+
+                // Create default price class entry if price classes exist
+                $sellingPrice = floatval($recipeData['selling_price'] ?? 0);
+                if ($sellingPrice > 0) {
+                    $defaultPriceClass = RecipePriceClass::where('is_default', true)->first()
+                        ?? RecipePriceClass::ordered()->first();
+
+                    if ($defaultPriceClass) {
+                        $recipe->prices()->create([
+                            'recipe_price_class_id' => $defaultPriceClass->id,
+                            'selling_price'         => $sellingPrice,
+                        ]);
+                    }
                 }
 
                 $imported++;
