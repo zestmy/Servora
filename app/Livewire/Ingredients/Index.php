@@ -118,9 +118,10 @@ class Index extends Component
         ];
     }
 
-    public function updatedSearch(): void           { $this->resetPage(); $this->clearSelection(); }
-    public function updatedCategoryFilter(): void   { $this->resetPage(); $this->clearSelection(); }
-    public function updatedStatusFilter(): void     { $this->resetPage(); $this->clearSelection(); }
+    public function updatedSearch(): void           { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
+    public function updatedCategoryFilter(): void   { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
+    public function updatedStatusFilter(): void     { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
+    public function updatedSupplierFilter(): void   { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
     public function updatedPerPage(): void          { $this->resetPage(); $this->clearSelection(); }
 
     public function updatedSelectAll(bool $value): void
