@@ -163,6 +163,7 @@
                     <th class="px-4 py-3 text-left">UOM</th>
                     <th class="px-4 py-3 text-right">Price/Pack</th>
                     <th class="px-4 py-3 text-right">Pack Size</th>
+                    <th class="px-4 py-3 text-right">Factor</th>
                     <th class="px-4 py-3 text-right">Eff. Cost</th>
                     <th class="px-4 py-3 text-right">Recipe Cost</th>
                     <th class="px-4 py-3 text-center">Tax</th>
@@ -225,6 +226,17 @@
                                 <span class="text-gray-400 text-xs">{{ $ingredient->baseUom->abbreviation }}</span>
                             @else
                                 <span class="text-gray-400">1</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-right tabular-nums">
+                            @php
+                                $conv = $ingredient->uomConversions->first();
+                            @endphp
+                            @if ($conv)
+                                <span class="text-purple-600 font-medium">{{ rtrim(rtrim(number_format(floatval($conv->factor), 4), '0'), '.') }}</span>
+                                <span class="text-gray-400 text-xs">{{ $ingredient->baseUom->abbreviation }}→{{ $ingredient->recipeUom->abbreviation }}</span>
+                            @else
+                                <span class="text-gray-300">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
