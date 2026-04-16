@@ -250,24 +250,37 @@ PROMPT;
             $this->fileHeaders  = array_keys(self::SYSTEM_FIELDS);
             $this->fileDataRows = [];
 
+            $docType = $result['document_type'] ?? 'recipe_card';
+
             foreach ($recipeItems as $recipe) {
                 $ingredients = $recipe['ingredients'] ?? $recipe['lines'] ?? $recipe['items'] ?? [];
-                if (empty($ingredients)) continue;
 
-                foreach ($ingredients as $ing) {
-                    $this->fileDataRows[] = [
-                        'recipe_name'      => (string) ($recipe['recipe_name'] ?? $recipe['name'] ?? ''),
-                        'recipe_code'      => (string) ($recipe['recipe_code'] ?? $recipe['code'] ?? ''),
-                        'category'         => (string) ($recipe['category'] ?? ''),
-                        'yield_quantity'   => (string) ($recipe['yield_quantity'] ?? '1'),
-                        'yield_uom'        => (string) ($recipe['yield_uom'] ?? 'portion'),
-                        'selling_price'    => (string) ($recipe['selling_price'] ?? '0'),
-                        'description'      => (string) ($recipe['description'] ?? ''),
-                        'ingredient_name'  => (string) ($ing['ingredient_name'] ?? $ing['name'] ?? ''),
-                        'quantity'         => (string) ($ing['quantity'] ?? '0'),
-                        'uom'              => (string) ($ing['uom'] ?? $ing['unit'] ?? ''),
-                        'waste_percentage' => (string) ($ing['waste_percentage'] ?? '0'),
-                    ];
+                $baseRow = [
+                    'recipe_name'      => (string) ($recipe['recipe_name'] ?? $recipe['name'] ?? ''),
+                    'recipe_code'      => (string) ($recipe['recipe_code'] ?? $recipe['code'] ?? ''),
+                    'category'         => (string) ($recipe['category'] ?? ''),
+                    'yield_quantity'   => (string) ($recipe['yield_quantity'] ?? '1'),
+                    'yield_uom'        => (string) ($recipe['yield_uom'] ?? 'portion'),
+                    'selling_price'    => (string) ($recipe['selling_price'] ?? '0'),
+                    'description'      => (string) ($recipe['description'] ?? ''),
+                    'ingredient_name'  => '',
+                    'quantity'         => '',
+                    'uom'              => '',
+                    'waste_percentage' => '0',
+                ];
+
+                if (empty($ingredients)) {
+                    // Menu item with no ingredients — still create the row
+                    $this->fileDataRows[] = $baseRow;
+                } else {
+                    foreach ($ingredients as $ing) {
+                        $this->fileDataRows[] = array_merge($baseRow, [
+                            'ingredient_name'  => (string) ($ing['ingredient_name'] ?? $ing['name'] ?? ''),
+                            'quantity'         => (string) ($ing['quantity'] ?? '0'),
+                            'uom'              => (string) ($ing['uom'] ?? $ing['unit'] ?? ''),
+                            'waste_percentage' => (string) ($ing['waste_percentage'] ?? '0'),
+                        ]);
+                    }
                 }
             }
 
@@ -430,10 +443,6 @@ PROMPT;
     {
         if (empty($this->columnMapping['recipe_name'])) {
             $this->addError('mapping', 'The "Recipe Name" field must be mapped.');
-            return;
-        }
-        if (empty($this->columnMapping['ingredient_name'])) {
-            $this->addError('mapping', 'The "Ingredient Name" field must be mapped.');
             return;
         }
 
@@ -605,7 +614,7 @@ PROMPT;
                     break;
                 }
             }
-            if ($hasUnmatched || ! empty($recipe['errors']) || empty($recipe['lines'])) {
+            if ($hasUnmatched || ! empty($recipe['errors'])) {
                 $recipe['skip'] = true;
             }
         }
