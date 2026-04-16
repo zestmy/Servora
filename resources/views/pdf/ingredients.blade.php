@@ -105,13 +105,13 @@
                         $preferred = $ing->suppliers->firstWhere('pivot.is_preferred', true);
                         $additional = $ing->suppliers->where('pivot.is_preferred', false);
                         $ic = $ing->ingredientCategory;
-                        $subCat = ($ic && $ic->parent) ? $ic->name : null;
+                        $catLabel = $ic ? ($ic->parent ? $ic->parent->name . ' / ' . $ic->name : $ic->name) : '';
                     @endphp
                     <tr>
                         <td>{{ $n }}</td>
                         <td style="font-weight: 600;">{{ $ing->name }}</td>
                         <td>{{ $ing->code ?? '' }}</td>
-                        <td>{{ $subCat ?? '' }}</td>
+                        <td>{{ $catLabel }}</td>
                         <td class="c">{{ $ing->baseUom?->abbreviation ?? '' }}</td>
                         <td class="c">{{ $ing->recipeUom?->abbreviation ?? '' }}</td>
                         <td class="r">{{ rtrim(rtrim(number_format(floatval($ing->pack_size ?? 1), 2), '0'), '.') }}</td>
