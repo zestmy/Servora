@@ -158,6 +158,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 
     Route::get('/ingredients', IngredientsIndex::class)->name('ingredients.index')->middleware('can:ingredients.view');
     Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
+    Route::get('/ingredients/pdf', \App\Http\Controllers\IngredientPdfController::class)->name('ingredients.pdf')->middleware('can:ingredients.view');
     Route::get('/ingredients/import', IngredientsImport::class)->name('ingredients.import')->middleware('can:ingredients.view');
     Route::get('/ingredients/supplier-match', \App\Livewire\Ingredients\SupplierMatch::class)->name('ingredients.supplier-match')->middleware('can:ingredients.view');
     Route::get('/recipes', RecipesIndex::class)->name('recipes.index')->middleware('can:recipes.view');

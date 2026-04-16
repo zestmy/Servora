@@ -20,6 +20,7 @@ class Index extends Component
     public string $search = '';
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
+    public string $supplierFilter = '';
     public int    $perPage = 100;
 
     // Bulk selection
@@ -564,6 +565,14 @@ class Index extends Component
             $query->where('is_active', true);
         } elseif ($this->statusFilter === 'inactive') {
             $query->where('is_active', false);
+        }
+
+        if ($this->supplierFilter) {
+            if ($this->supplierFilter === 'none') {
+                $query->whereDoesntHave('suppliers');
+            } else {
+                $query->whereHas('suppliers', fn ($q) => $q->where('suppliers.id', (int) $this->supplierFilter));
+            }
         }
 
         // Filter by active outlet visibility (assigned to outlet OR not assigned to any = visible everywhere)
