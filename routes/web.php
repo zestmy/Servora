@@ -8,7 +8,7 @@ use App\Livewire\Ingredients\Import as IngredientsImport;
 use App\Livewire\Recipes\Index as RecipesIndex;
 use App\Livewire\Recipes\Form as RecipesForm;
 use App\Livewire\Recipes\Show as RecipesShow;
-use App\Livewire\Recipes\Import as RecipesImport;
+use App\Livewire\Recipes\SmartImport as RecipesImport;
 use App\Http\Controllers\RecipeCostPdfController;
 use App\Livewire\Purchasing\Index as PurchasingIndex;
 use App\Livewire\Purchasing\OrderForm as PurchasingOrderForm;
