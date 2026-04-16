@@ -303,6 +303,32 @@
             .lms-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(255,255,255,0.2); z-index: 11; cursor: pointer; }
             .lms-progress:hover { height: 6px; }
             .lms-progress-fill { height: 100%; background: #6366f1; width: 0%; transition: width 0.3s linear; }
+            .lms-fs-btn {
+                position: absolute; bottom: 12px; right: 12px; z-index: 12;
+                background: rgba(0,0,0,0.5); border: none; color: #fff;
+                width: 36px; height: 36px; border-radius: 6px;
+                cursor: pointer; display: flex; align-items: center; justify-content: center;
+                opacity: 0; transition: opacity 0.2s;
+            }
+            #lms-player-outer:hover .lms-fs-btn { opacity: 0.8; }
+            .lms-fs-btn:hover { opacity: 1 !important; background: rgba(99,102,241,0.7); }
+            .lms-fs-btn svg { width: 18px; height: 18px; }
+            .lms-fs-close {
+                display: none;
+                position: absolute; top: 12px; right: 12px; z-index: 15;
+                background: rgba(0,0,0,0.6); border: none; color: #fff;
+                width: 40px; height: 40px; border-radius: 50%;
+                cursor: pointer; align-items: center; justify-content: center;
+                font-size: 20px; line-height: 1;
+            }
+            body.lms-video-fs .lms-fs-close { display: flex; }
+            body.lms-video-fs .lms-fs-btn { display: none; }
+            body.lms-video-fs #lms-player-outer {
+                position: fixed; inset: 0; z-index: 9999;
+                width: 100% !important; height: 100% !important;
+                padding-bottom: 0 !important; border-radius: 0;
+                background: #000;
+            }
         </style>
 
         @script
@@ -355,6 +381,8 @@
                     iframe.src = 'https://player.vimeo.com/video/' + videoId + '?dnt=1&title=0&byline=0&portrait=0&controls=1';
                     iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
                     outer.appendChild(iframe);
+                    addFullscreenBtn();
+                    addCloseBtn();
                 }
 
                 function addControls() {
@@ -375,6 +403,35 @@
                         ytPlayer.seekTo(ytPlayer.getDuration() * ((e.clientX - rect.left) / rect.width), true);
                     });
                     outer.appendChild(bar);
+                    addFullscreenBtn();
+                    addCloseBtn();
+                }
+
+                function addFullscreenBtn() {
+                    var btn = document.createElement('button');
+                    btn.className = 'lms-fs-btn';
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>';
+                    btn.addEventListener('click', function(e) { e.stopPropagation(); toggleFullscreen(); });
+                    outer.appendChild(btn);
+                }
+
+                function addCloseBtn() {
+                    var btn = document.createElement('button');
+                    btn.className = 'lms-fs-close';
+                    btn.innerHTML = '\u2715';
+                    btn.addEventListener('click', function(e) { e.stopPropagation(); toggleFullscreen(); });
+                    outer.appendChild(btn);
+                }
+
+                var isFs = false;
+                function toggleFullscreen() {
+                    isFs = !isFs;
+                    document.body.classList.toggle('lms-video-fs', isFs);
+                    if (isFs && screen.orientation && screen.orientation.lock) {
+                        screen.orientation.lock('landscape').catch(function(){});
+                    } else if (!isFs && screen.orientation && screen.orientation.unlock) {
+                        screen.orientation.unlock();
+                    }
                 }
 
                 function togglePlay() {
