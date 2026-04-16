@@ -6,7 +6,6 @@ use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class Dashboard extends Component
@@ -25,15 +24,41 @@ class Dashboard extends Component
             })
             : $q;
 
-        $categorySortMap = RecipeCategory::where('company_id', $user->company_id)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('sort_order', 'name');
+        // Build parent/sub hierarchy sort map (same approach as LMS sidebar)
+        $categorySortMap = [];
+        $allRecipeCategories = RecipeCategory::where('company_id', $user->company_id)
+            ->with('parent')
+            ->get();
+        foreach ($allRecipeCategories as $rc) {
+            $parentSort = $rc->parent ? $rc->parent->sort_order : $rc->sort_order;
+            $parentName = $rc->parent ? strtolower($rc->parent->name) : strtolower($rc->name);
+            $subSort    = $rc->parent ? $rc->sort_order : 0;
+            $subName    = $rc->parent ? strtolower($rc->name) : '';
+            $categorySortMap[strtolower($rc->name)] = [$parentSort, $parentName, $subSort, $subName];
+        }
 
         $prepCategorySortMap = IngredientCategory::where('company_id', $user->company_id)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('sort_order', 'id');
+            ->with('parent')
+            ->get()
+            ->mapWithKeys(fn ($ic) => [
+                $ic->id => [
+                    $ic->parent ? $ic->parent->sort_order : $ic->sort_order,
+                    strtolower($ic->parent ? $ic->parent->name : $ic->name),
+                    $ic->parent ? $ic->sort_order : 0,
+                ],
+            ]);
+
+        // Build category filter names (include children when parent selected)
+        $filterNames = null;
+        if ($this->categoryFilter) {
+            $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
+            if ($selectedCat) {
+                $filterNames = collect([$selectedCat->name]);
+                if ($selectedCat->children->isNotEmpty()) {
+                    $filterNames = $filterNames->merge($selectedCat->children->pluck('name'));
+                }
+            }
+        }
 
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
@@ -41,26 +66,26 @@ class Dashboard extends Component
             ->tap($outletScope)
             ->with(['images', 'steps', 'ingredientCategory'])
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
-            ->when($this->categoryFilter, fn ($q) => $q->where('category', $this->categoryFilter))
+            ->when($filterNames, fn ($q) => $q->whereIn('category', $filterNames->toArray()))
             ->get()
-            ->sortBy(fn ($r) => [
-                $r->is_prep ? 1 : 0,
-                $r->is_prep
-                    ? ($prepCategorySortMap[$r->ingredient_category_id] ?? PHP_INT_MAX)
-                    : ($categorySortMap[$r->category] ?? PHP_INT_MAX),
-                $r->is_prep
-                    ? strtolower($r->ingredientCategory?->name ?? '~')
-                    : strtolower($r->category ?? '~'),
-                $r->menu_sort_order ?? 0,
-                strtolower($r->name),
-            ])
+            ->sortBy(function ($r) use ($categorySortMap, $prepCategorySortMap) {
+                if ($r->is_prep) {
+                    $ps = $prepCategorySortMap[$r->ingredient_category_id] ?? [PHP_INT_MAX, '~', 0];
+                    return [1, $ps[0], $ps[1], $ps[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
+                }
+                $cs = $categorySortMap[strtolower($r->category ?? '')] ?? [PHP_INT_MAX, '~', 0, ''];
+                return [0, $cs[0], $cs[1], $cs[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
+            })
             ->values();
 
-        $categories = RecipeCategory::where('company_id', $user->company_id)
+        // Category dropdown with hierarchy
+        $categories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+            ->roots()
+            ->where('company_id', $user->company_id)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->pluck('name');
+            ->get();
 
         $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
             ? 'Prep — ' . ($r->ingredientCategory?->name ?? 'Uncategorised')

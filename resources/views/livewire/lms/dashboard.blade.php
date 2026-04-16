@@ -16,7 +16,16 @@
                     class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 <option value="">All Categories</option>
                 @foreach ($categories as $cat)
-                    <option value="{{ $cat }}">{{ $cat }}</option>
+                    @if ($cat->children->isNotEmpty())
+                        <optgroup label="{{ $cat->name }}">
+                            <option value="{{ $cat->id }}">All {{ $cat->name }}</option>
+                            @foreach ($cat->children as $sub)
+                                <option value="{{ $sub->id }}">{{ $sub->name }}</option>
+                            @endforeach
+                        </optgroup>
+                    @else
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                    @endif
                 @endforeach
             </select>
         </div>
