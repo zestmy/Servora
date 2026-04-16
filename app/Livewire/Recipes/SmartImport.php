@@ -141,40 +141,51 @@ class SmartImport extends Component
         $dataUri  = "data:{$mimeType};base64,{$base64}";
 
         $prompt = <<<'PROMPT'
-Extract all recipes from this PDF document. This is a recipe book, menu, or recipe collection for a restaurant.
+Extract all items from this PDF document. It could be a restaurant MENU or a RECIPE CARD/BOOK — determine which type it is first.
 
 Return a JSON object with this structure:
 {
+  "document_type": "menu" or "recipe_card",
   "recipes": [
     {
-      "recipe_name": "Recipe Name",
+      "recipe_name": "Item/Recipe Name",
       "recipe_code": "code or null",
-      "category": "menu category or null",
+      "category": "menu category/section or null",
       "yield_quantity": 1,
       "yield_uom": "portion",
       "selling_price": 0.00,
-      "description": "brief description or null",
-      "ingredients": [
-        {
-          "ingredient_name": "Ingredient Name",
-          "quantity": 100,
-          "uom": "g",
-          "waste_percentage": 0
-        }
-      ]
+      "description": "item description or null",
+      "ingredients": []
     }
   ]
 }
 
-## Rules:
-- Extract EVERY recipe found in the document
-- For each recipe, extract ALL ingredients with quantities and units
+## CRITICAL: Determine document type first
+
+**MENU** — a list of dishes/drinks with names, descriptions, and prices (like a customer-facing menu, price list, or catalogue). Clues: selling prices, short descriptions, no ingredient quantities.
+
+**RECIPE CARD** — detailed preparation instructions with ingredient lists, quantities, and units. Clues: ingredient tables, gram/ml measurements, step-by-step instructions.
+
+## Rules based on document type:
+
+### If MENU:
+- Extract every menu item: name, description, price, and category/section
+- Set "ingredients" to an EMPTY array [] — do NOT guess or infer ingredients from the description
+- Capture the description as-is from the menu (e.g. "Grilled chicken with sambal, served with rice and salad")
+- Extract the selling price — this is the most important field for menus
+- Use categories/sections visible in the menu (Appetizers, Mains, Beverages, etc.)
+
+### If RECIPE CARD:
+- Extract every recipe with its FULL ingredient list
+- Include ingredient_name, quantity, uom, waste_percentage for each ingredient
+- Use standard UOM abbreviations: g, kg, ml, L, pcs, tbsp, tsp, cup, etc.
 - Clean ingredient names: remove quantities/units from the name itself
-- Use standard abbreviations for UOM: g, kg, ml, L, pcs, tbsp, tsp, cup, etc.
-- If a selling price is shown, extract it; otherwise default to 0
 - If yield/servings info is present, extract it; otherwise default to 1 portion
 - waste_percentage defaults to 0 unless explicitly stated
-- If categories/sections are visible in the document, use them
+
+## General rules:
+- Extract EVERY item found in the document
+- If a selling price is shown, extract it; otherwise default to 0
 - Use numeric values for quantity, yield_quantity, selling_price, waste_percentage
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation — just the JSON object.
