@@ -106,6 +106,22 @@ class RecipeCategories extends Component
         $cat->update(['is_active' => ! $cat->is_active]);
     }
 
+    public function reorderParents(array $orderedIds): void
+    {
+        foreach ($orderedIds as $index => $id) {
+            RecipeCategory::where('id', (int) $id)->update(['sort_order' => $index]);
+        }
+    }
+
+    public function reorderChildren(int $parentId, array $orderedIds): void
+    {
+        foreach ($orderedIds as $index => $id) {
+            RecipeCategory::where('id', (int) $id)
+                ->where('parent_id', $parentId)
+                ->update(['sort_order' => $index]);
+        }
+    }
+
     public function closeModal(): void
     {
         $this->showModal = false;
