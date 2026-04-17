@@ -240,40 +240,59 @@
         </div>
 
         {{-- Outlet tagging (applies to all imported recipes) --}}
-        @if ($outlets->count() > 1)
-            <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        @if (count($outlets) > 1)
+            <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+                 x-data="{
+                    allOutlets: @entangle('allOutlets'),
+                    outletIds: @entangle('outletIds'),
+                    applyGroup(ids) {
+                        this.allOutlets = false;
+                        const current = (this.outletIds || []).map(Number);
+                        const merged = [...new Set([...current, ...ids.map(Number)])];
+                        this.outletIds = merged;
+                    },
+                    toggleOutlet(id) {
+                        id = Number(id);
+                        const arr = (this.outletIds || []).map(Number);
+                        const i = arr.indexOf(id);
+                        if (i === -1) arr.push(id); else arr.splice(i, 1);
+                        this.outletIds = arr;
+                    },
+                    isSelected(id) {
+                        return (this.outletIds || []).map(Number).includes(Number(id));
+                    },
+                    clear() { this.outletIds = []; },
+                 }">
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Available At</h3>
                 <p class="text-xs text-gray-400 mb-3">Tag all imported {{ $isPrep ? 'prep items' : 'recipes' }} to specific outlets, or leave as "All Outlets".</p>
 
                 <div class="flex items-center gap-4 mb-3">
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" wire:model.live="allOutlets" value="1"
+                        <input type="radio" :checked="allOutlets" @change="allOutlets = true"
                                class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
                         <span class="text-sm text-gray-700 font-medium">All Outlets</span>
                     </label>
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" wire:model.live="allOutlets" value=""
+                        <input type="radio" :checked="!allOutlets" @change="allOutlets = false"
                                class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
                         <span class="text-sm text-gray-700 font-medium">Selected Outlets</span>
                     </label>
                 </div>
 
-                @if (! $allOutlets)
-                    @if ($outletGroups->count() > 0)
+                <div x-show="!allOutlets" x-cloak>
+                    @if (count($outletGroups) > 0)
                         <div class="flex flex-wrap items-center gap-2 mb-3">
                             <span class="text-xs font-medium text-gray-500">Apply Group:</span>
                             @foreach ($outletGroups as $group)
                                 <button type="button"
-                                        wire:click="applyGroup({{ $group->id }})"
+                                        @click="applyGroup(@js($group['outlet_ids']))"
                                         class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition">
-                                    + {{ $group->name }}
-                                    <span class="text-[10px] text-gray-400">({{ count($group->outlet_ids) }})</span>
+                                    + {{ $group['name'] }}
+                                    <span class="text-[10px] text-gray-400">({{ count($group['outlet_ids']) }})</span>
                                 </button>
                             @endforeach
-                            @if (! empty($outletIds))
-                                <button type="button" wire:click="clearOutletSelection"
-                                        class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
-                            @endif
+                            <button type="button" x-show="(outletIds || []).length > 0" @click="clear()"
+                                    class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
                         </div>
                     @endif
 
@@ -283,21 +302,21 @@
                                 border-gray-200 hover:border-gray-300
                                 has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-50">
                                 <input type="checkbox"
-                                       value="{{ $outlet->id }}"
-                                       wire:model="outletIds"
-                                       @if (in_array($outlet->id, $outletIds)) checked @endif
+                                       value="{{ $outlet['id'] }}"
+                                       :checked="isSelected({{ $outlet['id'] }})"
+                                       @change="toggleOutlet({{ $outlet['id'] }})"
                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                                 <div class="min-w-0">
-                                    <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet->name }}</span>
-                                    @if ($outlet->code)
-                                        <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
+                                    <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet['name'] }}</span>
+                                    @if (! empty($outlet['code']))
+                                        <span class="text-xs text-gray-400">{{ $outlet['code'] }}</span>
                                     @endif
                                 </div>
                             </label>
                         @endforeach
                     </div>
                     <p class="mt-2 text-xs text-gray-400">Selection is applied on Import.</p>
-                @endif
+                </div>
             </div>
         @endif
 
@@ -305,6 +324,7 @@
         <div class="space-y-4 mb-6">
             @foreach ($recipes as $rIdx => $recipe)
                 <div class="bg-white rounded-xl shadow-sm border {{ $recipe['skip'] ? 'border-amber-200' : 'border-gray-100' }} overflow-hidden"
+                     wire:key="smart-import-recipe-{{ $rIdx }}"
                      x-data="{ open: {{ $recipe['skip'] ? 'true' : 'false' }} }">
 
                     {{-- Recipe header row --}}
@@ -397,7 +417,7 @@
                                             class="text-xs border-gray-200 rounded-lg py-1 px-2">
                                         <option value="">Select UOM</option>
                                         @foreach ($uoms as $uom)
-                                            <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
+                                            <option value="{{ $uom['id'] }}">{{ $uom['name'] }} ({{ $uom['abbreviation'] }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -413,25 +433,26 @@
                                 <input type="text" wire:model.blur="recipes.{{ $rIdx }}.name"
                                        class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
                             </div>
-                            <div>
+                            <div x-data="{ cat: @entangle('recipes.'.$rIdx.'.category') }">
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase">Category</label>
-                                @if (! empty($recipe['category_unmatched']) && ($recipe['category'] ?? '') !== '__new__')
-                                    <p class="text-[10px] text-amber-600 font-medium mt-0.5">
+                                @if (! empty($recipe['category_unmatched']))
+                                    <p x-show="!cat || cat === @js($recipe['category_unmatched'])" x-cloak
+                                       class="text-[10px] text-amber-600 font-medium mt-0.5">
                                         "{{ $recipe['category_unmatched'] }}" not found — select or create:
                                     </p>
                                 @endif
-                                <select wire:model.live="recipes.{{ $rIdx }}.category"
-                                        class="mt-0.5 w-full text-xs rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500
-                                        {{ ! empty($recipe['category_unmatched']) && ($recipe['category'] ?? '') !== '__new__' ? 'border-amber-400 bg-amber-50' : 'border-gray-200' }}">
+                                <select x-model="cat"
+                                        class="mt-0.5 w-full text-xs rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-gray-200"
+                                        :class="(!cat && @js(! empty($recipe['category_unmatched']))) ? 'border-amber-400 bg-amber-50' : ''">
                                     <option value="">— Select Category —</option>
                                     @foreach ($recipeCategories as $rc)
-                                        @if ($rc->children->isEmpty())
-                                            <option value="{{ $rc->name }}">{{ $rc->name }}</option>
+                                        @if (empty($rc['children']))
+                                            <option value="{{ $rc['name'] }}">{{ $rc['name'] }}</option>
                                         @else
-                                            <optgroup label="{{ $rc->name }}">
-                                                <option value="{{ $rc->name }}">{{ $rc->name }}</option>
-                                                @foreach ($rc->children as $sub)
-                                                    <option value="{{ $sub->name }}">{{ $sub->name }}</option>
+                                            <optgroup label="{{ $rc['name'] }}">
+                                                <option value="{{ $rc['name'] }}">{{ $rc['name'] }}</option>
+                                                @foreach ($rc['children'] as $sub)
+                                                    <option value="{{ $sub['name'] }}">{{ $sub['name'] }}</option>
                                                 @endforeach
                                             </optgroup>
                                         @endif
@@ -439,33 +460,32 @@
                                     <option value="__new__">+ Create New Category…</option>
                                 </select>
 
-                                {{-- Inline create form --}}
-                                @if (($recipe['category'] ?? '') === '__new__')
-                                    <div class="mt-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
-                                        <div>
-                                            <label class="text-[10px] font-semibold text-gray-500">New Category Name</label>
-                                            <input type="text" wire:model.blur="recipes.{{ $rIdx }}.new_cat_name"
-                                                   value="{{ $recipe['new_cat_name'] ?? '' }}"
-                                                   placeholder="e.g. Breakfast"
-                                                   class="w-full text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500" />
-                                        </div>
-                                        <div>
-                                            <label class="text-[10px] font-semibold text-gray-500">Parent Category (optional — leave empty for top-level)</label>
-                                            <select wire:model="recipes.{{ $rIdx }}.new_cat_parent_id"
-                                                    class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-indigo-500 focus:ring-indigo-500">
-                                                <option value="">— Top Level —</option>
-                                                @foreach ($recipeCategories as $rc)
-                                                    <option value="{{ $rc->id }}">{{ $rc->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <button type="button"
-                                                wire:click="createCategoryFromPreview({{ $rIdx }})"
-                                                class="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
-                                            Create & Apply
-                                        </button>
+                                {{-- Inline create form (Alpine-driven visibility, server-side create) --}}
+                                <div x-show="cat === '__new__'" x-cloak
+                                     class="mt-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
+                                    <div>
+                                        <label class="text-[10px] font-semibold text-gray-500">New Category Name</label>
+                                        <input type="text" wire:model.blur="recipes.{{ $rIdx }}.new_cat_name"
+                                               value="{{ $recipe['new_cat_name'] ?? '' }}"
+                                               placeholder="e.g. Breakfast"
+                                               class="w-full text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500" />
                                     </div>
-                                @endif
+                                    <div>
+                                        <label class="text-[10px] font-semibold text-gray-500">Parent Category (optional — leave empty for top-level)</label>
+                                        <select wire:model="recipes.{{ $rIdx }}.new_cat_parent_id"
+                                                class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-indigo-500 focus:ring-indigo-500">
+                                            <option value="">— Top Level —</option>
+                                            @foreach ($recipeCategories as $rc)
+                                                <option value="{{ $rc['id'] }}">{{ $rc['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <button type="button"
+                                            wire:click="createCategoryFromPreview({{ $rIdx }})"
+                                            class="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                                        Create & Apply
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase">Selling Price (RM)</label>
@@ -533,7 +553,7 @@
                                                         class="w-full text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500">
                                                     <option value="">Select…</option>
                                                     @foreach ($uoms as $uom)
-                                                        <option value="{{ $uom->id }}" @selected($line['uom_id'] == $uom->id)>{{ $uom->abbreviation }}</option>
+                                                        <option value="{{ $uom['id'] }}" @selected($line['uom_id'] == $uom['id'])>{{ $uom['abbreviation'] }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
@@ -642,7 +662,7 @@
                                         class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="">Select UOM…</option>
                                     @foreach ($uoms as $uom)
-                                        <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
+                                        <option value="{{ $uom['id'] }}">{{ $uom['name'] }} ({{ $uom['abbreviation'] }})</option>
                                     @endforeach
                                 </select>
                                 <p class="mt-1 text-[10px] text-gray-400">Base stocking unit. You can edit other fields (category, price, pack size…) later in Ingredients.</p>
@@ -665,7 +685,7 @@
         </div>
 
         <script>
-            window.__ingredientsList = @json($ingredients->map(fn ($i) => ['id' => $i->id, 'name' => $i->name])->values());
+            window.__ingredientsList = @json(array_values($ingredients));
 
             (function registerPickerComponents() {
                 const register = () => {
@@ -683,7 +703,11 @@
                         popupStyle: '',
 
                         init() {
-                            this.$watch('query', () => this.filter());
+                            this._filterTimer = null;
+                            this.$watch('query', () => {
+                                if (this._filterTimer) clearTimeout(this._filterTimer);
+                                this._filterTimer = setTimeout(() => this.filter(), 150);
+                            });
                             this.$watch('open', (v) => {
                                 if (v) {
                                     this.updatePosition();
@@ -833,8 +857,8 @@
                         },
 
                         close() {
-                            if (this.submitting) return;
                             this.isOpen = false;
+                            this.submitting = false;
                             this.error = '';
                         },
 
@@ -847,20 +871,24 @@
                                     name: this.name.trim(),
                                     base_uom_id: parseInt(this.baseUomId, 10),
                                 });
-                                // onCreated event will close the modal
+                                // Server dispatches `ingredient-created` on success; onCreated closes the modal.
+                                // Safety net: if the event doesn't round-trip back, still reset submitting
+                                // so the user can retry or close manually.
                             } catch (e) {
                                 console.error('createIngredientForLine failed', e);
-                                this.submitting = false;
                                 this.error = 'Failed to create ingredient. Please try again.';
+                            } finally {
+                                this.submitting = false;
                             }
                         },
 
                         onCreated(detail) {
                             if (!detail) return;
-                            // Only close if this modal's request produced this event
-                            if (this.submitting && detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
+                            // Close the modal for the line that owned this create request
+                            if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
                                 this.submitting = false;
                                 this.isOpen = false;
+                                this.error = '';
                             }
                         },
 

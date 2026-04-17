@@ -13,6 +13,7 @@ use App\Models\RecipePriceClass;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -63,6 +64,11 @@ class SmartImport extends Component
     // Global outlet tagging (applied to all imported recipes)
     public bool  $allOutlets     = true;
     public array $outletIds      = [];
+
+    // Per-request memoization of lookup data. Not a public property so Livewire
+    // doesn't serialize it to the client on every round-trip. Across requests,
+    // the underlying Laravel cache provides the real savings.
+    protected ?array $cachedLookups = null;
 
     protected function rules(): array
     {
@@ -844,6 +850,9 @@ PROMPT;
 
         $this->recalcRecipeSkip($recipeIdx);
 
+        // New ingredient — bust cached lookups so next render picks it up
+        $this->invalidatePreviewLookupsCache();
+
         $this->dispatch('ingredient-created',
             id: $ingredient->id,
             name: $ingredient->name,
@@ -931,6 +940,9 @@ PROMPT;
             fn ($e) => ! str_starts_with($e, 'Category')
         ));
         $this->recalcRecipeSkip($recipeIdx);
+
+        // New category — bust cached lookups so next render shows it in dropdowns
+        $this->invalidatePreviewLookupsCache();
     }
 
     public function toggleSkip(int $recipeIdx): void
@@ -1096,6 +1108,7 @@ PROMPT;
         $this->linesImported = 0;
         $this->allOutlets    = true;
         $this->outletIds     = [];
+        $this->cachedLookups = null;
         $this->resetValidation();
     }
 
@@ -1133,50 +1146,115 @@ PROMPT;
     {
         $title = $this->isPrep ? 'Smart Import Prep Items' : 'Smart Import Recipes';
 
-        $uoms = UnitOfMeasure::orderBy('name')->get();
-
-        $ingredients = [];
-        $recipeCategories = [];
         if ($this->step === 'preview') {
-            $ingredients = Ingredient::where('company_id', Auth::user()->company_id)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->select('id', 'name')
-                ->get();
-
-            $recipeCategories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
-                ->roots()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get();
+            $lookups = $this->getPreviewLookups();
+        } else {
+            // Upload / mapping / done steps don't render lookup-driven UI
+            $lookups = [
+                'uoms'             => [],
+                'ingredients'      => [],
+                'recipeCategories' => [],
+                'outlets'          => [],
+                'outletGroups'     => [],
+            ];
         }
 
-        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->filter()->all();
+        return view('livewire.recipes.smart-import', [
+            'uoms' => $lookups['uoms'],
+            'ingredients' => $lookups['ingredients'],
+            'recipeCategories' => $lookups['recipeCategories'],
+            'outlets' => $lookups['outlets'],
+            'outletGroups' => $lookups['outletGroups'],
+        ])->layout('layouts.app', ['title' => $title]);
+    }
 
-        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+    private function getPreviewLookups(): array
+    {
+        if ($this->cachedLookups !== null) return $this->cachedLookups;
+
+        $companyId = Auth::user()->company_id;
+
+        return $this->cachedLookups = Cache::remember(
+            "smart-import-lookups:{$companyId}",
+            now()->addMinutes(5),
+            fn () => $this->queryPreviewLookups($companyId),
+        );
+    }
+
+    private function invalidatePreviewLookupsCache(): void
+    {
+        $companyId = Auth::user()->company_id;
+        Cache::forget("smart-import-lookups:{$companyId}");
+        $this->cachedLookups = null;
+    }
+
+    private function queryPreviewLookups(int $companyId): array
+    {
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')
+            ->pluck('outlet_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $uoms = UnitOfMeasure::orderBy('name')
+            ->get(['id', 'name', 'abbreviation'])
+            ->toArray();
+
+        $ingredients = Ingredient::where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($i) => ['id' => (int) $i->id, 'name' => $i->name])
+            ->all();
+
+        $recipeCategories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+            ->roots()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($rc) => [
+                'id' => (int) $rc->id,
+                'name' => $rc->name,
+                'children' => $rc->children->map(fn ($sub) => [
+                    'id' => (int) $sub->id,
+                    'name' => $sub->name,
+                ])->values()->all(),
+            ])
+            ->all();
+
+        $outlets = Outlet::where('company_id', $companyId)
             ->where('is_active', true)
             ->whereNotIn('id', $centralKitchenOutletIds)
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name', 'code'])
+            ->map(fn ($o) => ['id' => (int) $o->id, 'name' => $o->name, 'code' => $o->code])
+            ->all();
 
-        $outletGroups = OutletGroup::with('outlets')
+        $outletGroups = OutletGroup::with('outlets:id')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
             ->map(function ($g) use ($centralKitchenOutletIds) {
                 $ids = $g->outlets->pluck('id')
+                    ->map(fn ($id) => (int) $id)
                     ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
                     ->values()
                     ->all();
-                return (object) ['id' => $g->id, 'name' => $g->name, 'outlet_ids' => $ids];
+                return ['id' => (int) $g->id, 'name' => $g->name, 'outlet_ids' => $ids];
             })
-            ->filter(fn ($g) => count($g->outlet_ids) > 0)
-            ->values();
+            ->filter(fn ($g) => count($g['outlet_ids']) > 0)
+            ->values()
+            ->all();
 
-        return view('livewire.recipes.smart-import', compact('uoms', 'ingredients', 'recipeCategories', 'outlets', 'outletGroups'))
-            ->layout('layouts.app', ['title' => $title]);
+        return [
+            'uoms'             => $uoms,
+            'ingredients'      => $ingredients,
+            'recipeCategories' => $recipeCategories,
+            'outlets'          => $outlets,
+            'outletGroups'     => $outletGroups,
+        ];
     }
 
     // ── Parsers ───────────────────────────────────────────────────────────
