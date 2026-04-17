@@ -196,6 +196,7 @@
                             <th class="px-2 py-2 text-right" style="min-width:70px;">Factor</th>
                             <th class="px-2 py-2 text-right" style="min-width:55px;">Yield%</th>
                             <th class="px-2 py-2 text-left" style="min-width:90px;">Tax</th>
+                            <th class="px-2 py-2 text-left" style="min-width:160px;">Preferred Supplier</th>
                             <th class="px-2 py-2 text-center" style="min-width:50px;">Active</th>
                         </tr>
                     </thead>
@@ -270,6 +271,15 @@
                                         <option value="">Default</option>
                                         @foreach ($taxRates as $tr)
                                             <option value="{{ $tr->id }}">{{ $tr->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <select wire:model="editableRows.{{ $ingId }}.preferred_supplier_id"
+                                            class="w-full text-xs rounded border-gray-200 py-1 px-1 focus:border-purple-500 focus:ring-purple-500">
+                                        <option value="">— None —</option>
+                                        @foreach ($suppliers as $sup)
+                                            <option value="{{ $sup->id }}">{{ $sup->name }}</option>
                                         @endforeach
                                     </select>
                                 </td>

@@ -699,8 +699,11 @@ class Index extends Component
         }
 
         $rows = [];
-        foreach ($ingredients->orderBy('name')->get() as $ing) {
+        $ingredientRows = $ingredients->with('suppliers')->orderBy('name')->get();
+        foreach ($ingredientRows as $ing) {
             $conv = $ing->uomConversions->first();
+            $preferred = $ing->suppliers->firstWhere('pivot.is_preferred', 1)
+                     ?? $ing->suppliers->first();
             $rows[$ing->id] = [
                 'name'                   => $ing->name,
                 'code'                   => $ing->code ?? '',
@@ -713,6 +716,7 @@ class Index extends Component
                 'factor'                 => $conv ? rtrim(rtrim(number_format(floatval($conv->factor), 4), '0'), '.') : '',
                 'tax_rate_id'            => $ing->tax_rate_id,
                 'is_active'              => $ing->is_active,
+                'preferred_supplier_id'  => $preferred?->id,
             ];
         }
 
@@ -770,6 +774,31 @@ class Index extends Component
                 );
             } elseif ($factor <= 0) {
                 $ingredient->uomConversions()->delete();
+            }
+
+            // Sync preferred supplier
+            $preferredId = ! empty($row['preferred_supplier_id']) ? (int) $row['preferred_supplier_id'] : null;
+            if ($preferredId) {
+                // Ensure mapping exists (create with zero last_cost if new)
+                $exists = $ingredient->suppliers()->where('suppliers.id', $preferredId)->exists();
+                if (! $exists) {
+                    $ingredient->suppliers()->attach($preferredId, [
+                        'last_cost'   => floatval($ingredient->purchase_price ?? 0),
+                        'uom_id'      => $ingredient->base_uom_id,
+                        'pack_size'   => floatval($ingredient->pack_size ?? 1),
+                        'is_preferred' => false,
+                    ]);
+                }
+                // Clear other preferred, set this one
+                $ingredient->suppliers()->newPivotStatement()
+                    ->where('ingredient_id', $ingredient->id)
+                    ->update(['is_preferred' => false]);
+                $ingredient->suppliers()->updateExistingPivot($preferredId, ['is_preferred' => true]);
+            } else {
+                // Clear any preferred flag
+                $ingredient->suppliers()->newPivotStatement()
+                    ->where('ingredient_id', $ingredient->id)
+                    ->update(['is_preferred' => false]);
             }
 
             $saved++;
