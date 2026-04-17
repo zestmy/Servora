@@ -228,6 +228,12 @@
     {{-- ── STEP 3: Preview ─────────────────────────────────────── --}}
     @elseif ($step === 'preview')
 
+        {{-- Populate global ingredient list before any picker initializes. Using x-init
+             (not a plain <script>) so Alpine runs it synchronously when Livewire morphs
+             this block in — plain inline scripts don't reliably re-execute on morph. --}}
+        <div x-init="window.__ingredientsList = @js(array_values($ingredients))"
+             wire:key="smart-import-ingredients-init" class="hidden"></div>
+
         {{-- Summary bar --}}
         <div class="mb-4 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div class="flex items-center gap-4 text-sm">
@@ -663,9 +669,6 @@
             </template>
         </div>
 
-        <script>
-            window.__ingredientsList = @json(array_values($ingredients));
-        </script>
     @endif
 
     @script
