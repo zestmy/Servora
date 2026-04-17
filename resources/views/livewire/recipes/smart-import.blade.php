@@ -831,8 +831,13 @@
                             if (!ing) return;
                             this.currentName = ing.name;
                             this.open = false;
-                            try { this.$wire.fixIngredient(this.rIdx, this.lIdx, ing.id); }
-                            catch (e) { console.error('fixIngredient failed', e); }
+                            const rIdx = Number(this.rIdx);
+                            const lIdx = Number(this.lIdx);
+                            const id = Number(ing.id);
+                            console.log('[ingredient-picker] pick', {rIdx, lIdx, id, name: ing.name});
+                            this.$wire.call('fixIngredient', rIdx, lIdx, id)
+                                .then((r) => console.log('[ingredient-picker] fixIngredient ok', r))
+                                .catch((e) => console.error('[ingredient-picker] fixIngredient failed', e));
                         },
 
                         requestCreate() {
