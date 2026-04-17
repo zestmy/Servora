@@ -665,12 +665,15 @@
 
         <script>
             window.__ingredientsList = @json(array_values($ingredients));
+        </script>
+    @endif
 
+    @script
+        <script>
             (function registerPickerComponents() {
-                const register = () => {
-                    if (!window.Alpine) return false;
+                if (!window.Alpine) return;
 
-                    window.Alpine.data('smartImportOutletSection', () => ({
+                window.Alpine.data('smartImportOutletSection', () => ({
                         get allOutlets() { return this.$wire.allOutlets; },
                         set allOutlets(v) { this.$wire.set('allOutlets', !!v, false); },
                         get outletIds() {
@@ -929,16 +932,7 @@
                             this.error = (detail && detail.message) || 'Failed to create ingredient.';
                         },
                     }));
-
-                    return true;
-                };
-
-                if (window.Alpine && window.Alpine.version) {
-                    register();
-                } else {
-                    document.addEventListener('alpine:init', register, {once: true});
-                }
             })();
         </script>
-    @endif
+    @endscript
 </div>
