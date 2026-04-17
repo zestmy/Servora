@@ -242,27 +242,7 @@
         {{-- Outlet tagging (applies to all imported recipes) --}}
         @if (count($outlets) > 1)
             <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5"
-                 x-data="{
-                    allOutlets: @entangle('allOutlets'),
-                    outletIds: @entangle('outletIds'),
-                    applyGroup(ids) {
-                        this.allOutlets = false;
-                        const current = (this.outletIds || []).map(Number);
-                        const merged = [...new Set([...current, ...ids.map(Number)])];
-                        this.outletIds = merged;
-                    },
-                    toggleOutlet(id) {
-                        id = Number(id);
-                        const arr = (this.outletIds || []).map(Number);
-                        const i = arr.indexOf(id);
-                        if (i === -1) arr.push(id); else arr.splice(i, 1);
-                        this.outletIds = arr;
-                    },
-                    isSelected(id) {
-                        return (this.outletIds || []).map(Number).includes(Number(id));
-                    },
-                    clear() { this.outletIds = []; },
-                 }">
+                 x-data="smartImportOutletSection()">
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Available At</h3>
                 <p class="text-xs text-gray-400 mb-3">Tag all imported {{ $isPrep ? 'prep items' : 'recipes' }} to specific outlets, or leave as "All Outlets".</p>
 
@@ -433,17 +413,15 @@
                                 <input type="text" wire:model.blur="recipes.{{ $rIdx }}.name"
                                        class="mt-0.5 w-full text-xs rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
                             </div>
-                            <div x-data="{ cat: @entangle('recipes.'.$rIdx.'.category') }">
+                            <div x-data="smartImportCategoryField({ rIdx: {{ $rIdx }} })">
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase">Category</label>
-                                @if (! empty($recipe['category_unmatched']))
-                                    <p x-show="!cat || cat === @js($recipe['category_unmatched'])" x-cloak
-                                       class="text-[10px] text-amber-600 font-medium mt-0.5">
-                                        "{{ $recipe['category_unmatched'] }}" not found — select or create:
-                                    </p>
-                                @endif
+                                <p x-show="unmatched && (!cat || cat === unmatched)" x-cloak
+                                   class="text-[10px] text-amber-600 font-medium mt-0.5">
+                                    "<span x-text="unmatched"></span>" not found — select or create:
+                                </p>
                                 <select x-model="cat"
-                                        class="mt-0.5 w-full text-xs rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-gray-200"
-                                        :class="(!cat && @js(! empty($recipe['category_unmatched']))) ? 'border-amber-400 bg-amber-50' : ''">
+                                        class="mt-0.5 w-full text-xs rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        :class="(!cat && unmatched) ? 'border-amber-400 bg-amber-50' : 'border-gray-200'">
                                     <option value="">— Select Category —</option>
                                     @foreach ($recipeCategories as $rc)
                                         @if (empty($rc['children']))
@@ -691,6 +669,47 @@
             (function registerPickerComponents() {
                 const register = () => {
                     if (!window.Alpine) return false;
+
+                    window.Alpine.data('smartImportOutletSection', () => ({
+                        get allOutlets() { return this.$wire.allOutlets; },
+                        set allOutlets(v) { this.$wire.set('allOutlets', !!v, false); },
+                        get outletIds() {
+                            const v = this.$wire.outletIds;
+                            return Array.isArray(v) ? v.map(Number) : [];
+                        },
+                        set outletIds(v) {
+                            this.$wire.set('outletIds', Array.from(v || []).map(Number), false);
+                        },
+                        applyGroup(ids) {
+                            this.allOutlets = false;
+                            const merged = Array.from(new Set([...this.outletIds, ...ids.map(Number)]));
+                            this.outletIds = merged;
+                        },
+                        toggleOutlet(id) {
+                            id = Number(id);
+                            const arr = this.outletIds.slice();
+                            const i = arr.indexOf(id);
+                            if (i === -1) arr.push(id); else arr.splice(i, 1);
+                            this.outletIds = arr;
+                        },
+                        isSelected(id) { return this.outletIds.includes(Number(id)); },
+                        clear() { this.outletIds = []; },
+                    }));
+
+                    window.Alpine.data('smartImportCategoryField', (config) => ({
+                        rIdx: config.rIdx,
+                        get cat() {
+                            const recipes = this.$wire.recipes || [];
+                            return (recipes[this.rIdx] && recipes[this.rIdx].category) || '';
+                        },
+                        set cat(v) {
+                            this.$wire.set('recipes.' + this.rIdx + '.category', v, false);
+                        },
+                        get unmatched() {
+                            const recipes = this.$wire.recipes || [];
+                            return (recipes[this.rIdx] && recipes[this.rIdx].category_unmatched) || '';
+                        },
+                    }));
 
                     window.Alpine.data('ingredientPicker', (config) => ({
                         rIdx: config.rIdx,
