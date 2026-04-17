@@ -604,158 +604,281 @@
 
     @endif
 
-    {{-- ── Create Ingredient Modal (shared by all pickers) ─────────────────────── --}}
+    {{-- ── Create Ingredient Modal (shared by all pickers, teleported to body) ─── --}}
     @if ($step === 'preview')
         <div x-data="ingredientCreateModal()"
              @open-create-ingredient.window="openModal($event.detail)"
-             @ingredient-create-failed.window="error = $event.detail.message || 'Failed to create ingredient'"
-             @ingredient-created.window="onCreated($event.detail)"
-             x-show="isOpen" x-cloak
-             class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-             @click.self="close()">
+             @ingredient-create-failed.window="onFailed($event.detail)"
+             @ingredient-created.window="onCreated($event.detail)">
 
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" @click.stop>
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Create New Ingredient</h3>
+            <template x-teleport="body">
+                <div x-show="isOpen" x-cloak
+                     class="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+                     @click.self="close()"
+                     @keydown.escape.window="close()">
 
-                <div x-show="error" x-cloak class="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded" x-text="error"></div>
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" @click.stop>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Create New Ingredient</h3>
+                            <button type="button" @click="close()" class="text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
 
-                <div class="space-y-3">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Name <span class="text-red-500">*</span></label>
-                        <input type="text" x-model="name"
-                               class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Base UOM <span class="text-red-500">*</span></label>
-                        <select x-model="baseUomId"
-                                class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">Select UOM…</option>
-                            @foreach ($uoms as $uom)
-                                <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-1 text-[10px] text-gray-400">The base unit for stocking this ingredient. You can edit other fields later in Ingredients.</p>
+                        <div x-show="error" x-cloak class="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded" x-text="error"></div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Name <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="name" x-ref="nameInput"
+                                       @keydown.enter.prevent="submit()"
+                                       class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Base UOM <span class="text-red-500">*</span></label>
+                                <select x-model="baseUomId"
+                                        class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">Select UOM…</option>
+                                    @foreach ($uoms as $uom)
+                                        <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-[10px] text-gray-400">Base stocking unit. You can edit other fields (category, price, pack size…) later in Ingredients.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 flex items-center justify-end gap-2">
+                            <button type="button" @click="close()" :disabled="submitting"
+                                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                            <button type="button" @click="submit()"
+                                    :disabled="!name.trim() || !baseUomId || submitting"
+                                    class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                                <span x-show="!submitting">Create & Use</span>
+                                <span x-show="submitting" x-cloak>Creating…</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-
-                <div class="mt-5 flex items-center justify-end gap-2">
-                    <button type="button" @click="close()"
-                            class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button type="button" @click="submit()"
-                            :disabled="!name.trim() || !baseUomId || submitting"
-                            class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                        <span x-show="!submitting">Create & Use</span>
-                        <span x-show="submitting" x-cloak>Creating…</span>
-                    </button>
-                </div>
-            </div>
+            </template>
         </div>
 
         <script>
             window.__ingredientsList = @json($ingredients->map(fn ($i) => ['id' => $i->id, 'name' => $i->name])->values());
 
-            function ingredientPicker(config) {
-                return {
-                    rIdx: config.rIdx,
-                    lIdx: config.lIdx,
-                    currentName: config.currentName || '',
-                    rawName: config.rawName || '',
-                    open: false,
-                    query: '',
-                    results: [],
-                    toggle() {
-                        this.open = !this.open;
-                        if (this.open) {
-                            // Default query to raw extracted name for unmatched lines
-                            if (!this.currentName && this.rawName && !this.query) this.query = this.rawName;
-                            this.filter();
-                            this.$nextTick(() => this.$refs.input?.focus());
-                        }
-                    },
-                    filter() {
-                        const q = (this.query || '').trim().toLowerCase();
-                        const list = window.__ingredientsList || [];
-                        this.results = q
-                            ? list.filter(i => i.name.toLowerCase().includes(q)).slice(0, 30)
-                            : list.slice(0, 30);
-                    },
-                    exactMatch() {
-                        const q = (this.query || '').trim().toLowerCase();
-                        if (!q) return false;
-                        return (window.__ingredientsList || []).some(i => i.name.toLowerCase() === q);
-                    },
-                    onEnter() {
-                        if (this.results.length > 0) {
-                            this.pick(this.results[0]);
-                        } else if (this.query.trim().length > 0 && !this.exactMatch()) {
-                            this.requestCreate();
-                        }
-                    },
-                    pick(ing) {
-                        this.currentName = ing.name;
-                        this.open = false;
-                        this.$wire.fixIngredient(this.rIdx, this.lIdx, ing.id);
-                    },
-                    requestCreate() {
-                        this.open = false;
-                        this.$dispatch('open-create-ingredient', {
-                            rIdx: this.rIdx,
-                            lIdx: this.lIdx,
-                            name: this.query.trim(),
-                        });
-                    },
-                    handleCreated(detail) {
-                        if (!detail) return;
-                        // Add newly-created ingredient to cache
-                        if (detail.id && detail.name && !(window.__ingredientsList || []).some(i => i.id === detail.id)) {
-                            window.__ingredientsList.push({id: detail.id, name: detail.name});
-                        }
-                        if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
-                            this.currentName = detail.name;
-                        }
-                    },
-                };
-            }
+            (function registerPickerComponents() {
+                const register = () => {
+                    if (!window.Alpine) return false;
 
-            function ingredientCreateModal() {
-                return {
-                    isOpen: false,
-                    submitting: false,
-                    rIdx: null,
-                    lIdx: null,
-                    name: '',
-                    baseUomId: '',
-                    error: '',
-                    openModal(detail) {
-                        this.rIdx = detail.rIdx;
-                        this.lIdx = detail.lIdx;
-                        this.name = (detail.name || '').trim();
-                        this.baseUomId = '';
-                        this.error = '';
-                        this.isOpen = true;
-                    },
-                    close() {
-                        this.isOpen = false;
-                        this.submitting = false;
-                    },
-                    submit() {
-                        if (!this.name.trim() || !this.baseUomId || this.submitting) return;
-                        this.submitting = true;
-                        this.error = '';
-                        this.$wire.createIngredientForLine(this.rIdx, this.lIdx, {
-                            name: this.name.trim(),
-                            base_uom_id: parseInt(this.baseUomId, 10),
-                        });
-                    },
-                    onCreated() {
-                        // Close only if this modal initiated the create
-                        if (this.submitting) {
+                    window.Alpine.data('ingredientPicker', (config) => ({
+                        rIdx: config.rIdx,
+                        lIdx: config.lIdx,
+                        currentName: config.currentName || '',
+                        rawName: config.rawName || '',
+                        open: false,
+                        query: '',
+                        results: [],
+                        highlightIdx: 0,
+                        popupStyle: '',
+
+                        init() {
+                            this.$watch('query', () => this.filter());
+                            this.$watch('open', (v) => {
+                                if (v) {
+                                    this.updatePosition();
+                                    this.$nextTick(() => {
+                                        this.$refs.input && this.$refs.input.focus();
+                                        this.$refs.input && this.$refs.input.select();
+                                    });
+                                    // Reposition on viewport changes while open
+                                    this._onReposition = () => this.updatePosition();
+                                    window.addEventListener('scroll', this._onReposition, true);
+                                    window.addEventListener('resize', this._onReposition);
+                                } else if (this._onReposition) {
+                                    window.removeEventListener('scroll', this._onReposition, true);
+                                    window.removeEventListener('resize', this._onReposition);
+                                    this._onReposition = null;
+                                }
+                            });
+                            this.filter();
+                        },
+
+                        updatePosition() {
+                            const trigger = this.$refs.trigger;
+                            if (!trigger) return;
+                            const rect = trigger.getBoundingClientRect();
+                            const popupWidth = 320;
+                            const popupHeight = 320;
+                            const vw = window.innerWidth;
+                            const vh = window.innerHeight;
+                            let left = rect.left;
+                            if (left + popupWidth > vw - 8) left = Math.max(8, vw - popupWidth - 8);
+                            let top = rect.bottom + 4;
+                            if (top + popupHeight > vh - 8 && rect.top > popupHeight) {
+                                top = rect.top - popupHeight - 4;
+                            }
+                            this.popupStyle = `left:${left}px;top:${top}px;`;
+                        },
+
+                        toggle() {
+                            if (!this.open) {
+                                if (!this.currentName && this.rawName && !this.query) {
+                                    this.query = this.rawName;
+                                }
+                            }
+                            this.open = !this.open;
+                        },
+
+                        handleOutsideClick(event) {
+                            const trigger = this.$refs.trigger;
+                            if (trigger && trigger.contains(event.target)) return;
+                            this.open = false;
+                        },
+
+                        filter() {
+                            const q = (this.query || '').trim().toLowerCase();
+                            const list = window.__ingredientsList || [];
+                            this.results = q
+                                ? list.filter(i => (i.name || '').toLowerCase().includes(q)).slice(0, 50)
+                                : list.slice(0, 50);
+                            this.highlightIdx = 0;
+                        },
+
+                        exactMatch() {
+                            const q = (this.query || '').trim().toLowerCase();
+                            if (!q) return false;
+                            return (window.__ingredientsList || []).some(i => (i.name || '').toLowerCase() === q);
+                        },
+
+                        moveHighlight(delta) {
+                            const total = this.results.length;
+                            if (total === 0) return;
+                            this.highlightIdx = (this.highlightIdx + delta + total) % total;
+                            this.$nextTick(() => {
+                                const list = this.$refs.list;
+                                if (!list) return;
+                                const el = list.children[this.highlightIdx];
+                                if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'});
+                            });
+                        },
+
+                        onEnter() {
+                            if (this.results.length > 0) {
+                                this.pick(this.results[this.highlightIdx] || this.results[0]);
+                            } else if (this.query.trim() && !this.exactMatch()) {
+                                this.requestCreate();
+                            }
+                        },
+
+                        pick(ing) {
+                            if (!ing) return;
+                            this.currentName = ing.name;
+                            this.open = false;
+                            try { this.$wire.fixIngredient(this.rIdx, this.lIdx, ing.id); }
+                            catch (e) { console.error('fixIngredient failed', e); }
+                        },
+
+                        requestCreate() {
+                            const payload = {
+                                rIdx: this.rIdx,
+                                lIdx: this.lIdx,
+                                name: (this.query || '').trim(),
+                            };
+                            this.open = false;
+                            window.dispatchEvent(new CustomEvent('open-create-ingredient', {detail: payload}));
+                        },
+
+                        handleCreated(detail) {
+                            if (!detail) return;
+                            if (detail.id && detail.name && !(window.__ingredientsList || []).some(i => i.id === detail.id)) {
+                                window.__ingredientsList.push({id: detail.id, name: detail.name});
+                            }
+                            if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
+                                this.currentName = detail.name;
+                            }
+                        },
+
+                        destroy() {
+                            if (this._onReposition) {
+                                window.removeEventListener('scroll', this._onReposition, true);
+                                window.removeEventListener('resize', this._onReposition);
+                                this._onReposition = null;
+                            }
+                        },
+                    }));
+
+                    window.Alpine.data('ingredientCreateModal', () => ({
+                        isOpen: false,
+                        submitting: false,
+                        rIdx: null,
+                        lIdx: null,
+                        name: '',
+                        baseUomId: '',
+                        error: '',
+
+                        openModal(detail) {
+                            if (!detail) return;
+                            this.rIdx = detail.rIdx;
+                            this.lIdx = detail.lIdx;
+                            this.name = (detail.name || '').trim();
+                            this.baseUomId = '';
+                            this.error = '';
                             this.submitting = false;
+                            this.isOpen = true;
+                            this.$nextTick(() => {
+                                const input = this.$refs.nameInput;
+                                if (input) { input.focus(); input.select(); }
+                            });
+                        },
+
+                        close() {
+                            if (this.submitting) return;
                             this.isOpen = false;
-                        }
-                    },
+                            this.error = '';
+                        },
+
+                        async submit() {
+                            if (!this.name.trim() || !this.baseUomId || this.submitting) return;
+                            this.submitting = true;
+                            this.error = '';
+                            try {
+                                await this.$wire.createIngredientForLine(this.rIdx, this.lIdx, {
+                                    name: this.name.trim(),
+                                    base_uom_id: parseInt(this.baseUomId, 10),
+                                });
+                                // onCreated event will close the modal
+                            } catch (e) {
+                                console.error('createIngredientForLine failed', e);
+                                this.submitting = false;
+                                this.error = 'Failed to create ingredient. Please try again.';
+                            }
+                        },
+
+                        onCreated(detail) {
+                            if (!detail) return;
+                            // Only close if this modal's request produced this event
+                            if (this.submitting && detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
+                                this.submitting = false;
+                                this.isOpen = false;
+                            }
+                        },
+
+                        onFailed(detail) {
+                            this.submitting = false;
+                            this.error = (detail && detail.message) || 'Failed to create ingredient.';
+                        },
+                    }));
+
+                    return true;
                 };
-            }
+
+                if (window.Alpine && window.Alpine.version) {
+                    register();
+                } else {
+                    document.addEventListener('alpine:init', register, {once: true});
+                }
+            })();
         </script>
     @endif
 </div>
