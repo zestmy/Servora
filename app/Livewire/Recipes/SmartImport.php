@@ -142,113 +142,37 @@ class SmartImport extends Component
             return;
         }
 
-        $model = 'google/gemini-2.5-flash';
-
-        $mimeType = mime_content_type($path) ?: 'application/pdf';
-        $base64   = base64_encode(file_get_contents($path));
-        $dataUri  = "data:{$mimeType};base64,{$base64}";
-
-        $prompt = <<<'PROMPT'
-Extract all items from this PDF document. It could be a restaurant MENU or a RECIPE CARD/BOOK — determine which type it is first.
-
-Return a JSON object with this structure:
-{
-  "document_type": "menu" or "recipe_card",
-  "recipes": [
-    {
-      "recipe_name": "Item/Recipe Name",
-      "recipe_code": "code or null",
-      "category": "menu category/section or null",
-      "yield_quantity": 1,
-      "yield_uom": "portion",
-      "selling_price": 0.00,
-      "description": "item description or null",
-      "ingredients": []
-    }
-  ]
-}
-
-## CRITICAL: Determine document type first
-
-**MENU** — a list of dishes/drinks with names, descriptions, and prices (like a customer-facing menu, price list, or catalogue). Clues: selling prices, short descriptions, no ingredient quantities.
-
-**RECIPE CARD** — detailed preparation instructions with ingredient lists, quantities, and units. Clues: ingredient tables, gram/ml measurements, step-by-step instructions.
-
-## Rules based on document type:
-
-### If MENU:
-- Extract every menu item: name, description, price, and category/section
-- Set "ingredients" to an EMPTY array [] — do NOT guess or infer ingredients from the description
-- Capture the description as-is from the menu (e.g. "Grilled chicken with sambal, served with rice and salad")
-- Extract the selling price — this is the most important field for menus
-- Use categories/sections visible in the menu (Appetizers, Mains, Beverages, etc.)
-
-### If RECIPE CARD:
-- Extract every recipe with its FULL ingredient list
-- Include ingredient_name, quantity, uom, waste_percentage for each ingredient
-- Use standard UOM abbreviations: g, kg, ml, L, pcs, tbsp, tsp, cup, etc.
-- Clean ingredient names: remove quantities/units from the name itself
-- If yield/servings info is present, extract it; otherwise default to 1 portion
-- waste_percentage defaults to 0 unless explicitly stated
-
-## General rules:
-- Extract EVERY item found in the document
-- If a selling price is shown, extract it; otherwise default to 0
-- Use numeric values for quantity, yield_quantity, selling_price, waste_percentage
-
-IMPORTANT: Return ONLY valid JSON. No markdown, no explanation — just the JSON object.
-PROMPT;
+        $pagesPerChunk = 6;
+        $pageTexts = $this->extractPdfPageTexts($path);
 
         $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $chunkCount = max(1, (int) ceil(count($pageTexts) / $pagesPerChunk));
+        set_time_limit(max(300, $chunkCount * 120));
 
         try {
-            $response = Http::timeout(90)
-                ->withHeaders([
-                    'Authorization' => 'Bearer ' . $apiKey,
-                    'Content-Type'  => 'application/json',
-                    'HTTP-Referer'  => config('app.url', 'http://localhost'),
-                    'X-Title'       => config('app.name', 'Servora'),
-                ])
-                ->post('https://openrouter.ai/api/v1/chat/completions', [
-                    'model'      => $model,
-                    'max_tokens' => 16384,
-                    'messages'   => [
-                        ['role' => 'user', 'content' => [
-                            ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
-                            ['type' => 'text', 'text' => $prompt],
-                        ]],
-                    ],
-                    'response_format' => ['type' => 'json_object'],
-                ]);
+            $recipeItems = [];
 
-            set_time_limit((int) $previousTimeout ?: 60);
-
-            if (! $response->successful()) {
-                $body = $response->json();
-                $msg = $body['error']['message'] ?? $body['message'] ?? ('HTTP ' . $response->status());
-                throw new \RuntimeException($msg);
-            }
-
-            $data    = $response->json();
-            $content = $data['choices'][0]['message']['content'] ?? '';
-            $result  = $this->robustJsonDecode($content);
-
-            $recipeItems = null;
-            if (is_array($result)) {
-                $recipeItems = $result['recipes'] ?? $result['data'] ?? $result['items'] ?? null;
-                if (! $recipeItems && isset($result[0]) && is_array($result[0])) {
-                    $recipeItems = $result;
-                }
-                if (! $recipeItems) {
-                    foreach ($result as $val) {
-                        if (is_array($val) && ! empty($val) && isset($val[0]) && is_array($val[0])) {
-                            $recipeItems = $val;
-                            break;
-                        }
+            if (empty($pageTexts)) {
+                // No text layer — fall back to sending whole PDF as a file (image-based PDFs)
+                $recipeItems = $this->extractRecipesFromPdfFile($path, $apiKey);
+            } else {
+                for ($i = 0; $i < count($pageTexts); $i += $pagesPerChunk) {
+                    $slice = array_slice($pageTexts, $i, $pagesPerChunk);
+                    $chunkText = '';
+                    foreach ($slice as $idx => $txt) {
+                        $pageNum = $i + $idx + 1;
+                        $chunkText .= "\n\n===== PAGE {$pageNum} =====\n{$txt}\n";
+                    }
+                    try {
+                        $chunkItems = $this->extractRecipesFromText($chunkText, $apiKey);
+                        $recipeItems = array_merge($recipeItems, $chunkItems);
+                    } catch (\Throwable $e) {
+                        Log::warning('PDF chunk extraction failed (pages ' . ($i + 1) . '-' . min($i + $pagesPerChunk, count($pageTexts)) . '): ' . $e->getMessage());
                     }
                 }
             }
+
+            set_time_limit((int) $previousTimeout ?: 60);
 
             if (empty($recipeItems)) {
                 throw new \RuntimeException('AI could not extract any recipes from this PDF.');
@@ -257,8 +181,6 @@ PROMPT;
             // Convert to flat CSV-like rows for the same preview pipeline
             $this->fileHeaders  = array_keys(self::SYSTEM_FIELDS);
             $this->fileDataRows = [];
-
-            $docType = $result['document_type'] ?? 'recipe_card';
 
             foreach ($recipeItems as $recipe) {
                 $ingredients = $recipe['ingredients'] ?? $recipe['lines'] ?? $recipe['items'] ?? [];
@@ -306,6 +228,166 @@ PROMPT;
             Log::error('PDF recipe extraction failed: ' . $e->getMessage());
             $this->addError('file', 'Failed to extract recipes from PDF: ' . $e->getMessage());
         }
+    }
+
+    private function extractPdfPageTexts(string $path): array
+    {
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf    = $parser->parseFile($path);
+            $texts  = [];
+            foreach ($pdf->getPages() as $page) {
+                $t = trim($page->getText());
+                if ($t !== '') $texts[] = $t;
+            }
+            return $texts;
+        } catch (\Throwable $e) {
+            Log::warning('PDF text extraction failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private const PDF_EXTRACTION_PROMPT = <<<'PROMPT'
+You are extracting recipes from a PDF. The content may be a restaurant MENU or a RECIPE CARD / COSTING SHEET. Determine which.
+
+Return ONLY valid JSON with this structure:
+{
+  "document_type": "menu" or "recipe_card",
+  "recipes": [
+    {
+      "recipe_name": "Name of the recipe/item",
+      "recipe_code": "code or null",
+      "category": "category or null",
+      "yield_quantity": 1,
+      "yield_uom": "portion",
+      "selling_price": 0.00,
+      "description": "description or null",
+      "ingredients": [
+        {"ingredient_name": "name", "quantity": 0.0, "uom": "g", "waste_percentage": 0}
+      ]
+    }
+  ]
+}
+
+## Document types
+
+**MENU**: customer-facing list of dishes with prices. No ingredient quantities.
+- Extract every item with name, description, price, section/category.
+- Set "ingredients" to an empty array [] — do NOT infer ingredients from descriptions.
+
+**RECIPE CARD / COSTING SHEET**: preparation sheets with ingredient tables, quantities, costs.
+- Pages often contain MULTIPLE recipes stacked vertically, each with its own "Name" label, "Portion" line, numbered ingredient rows, then a "TOTAL COST" line that marks the END of a recipe block.
+- Recipe names often start with "PREP - XXX" or a plain title on a "Name" row.
+- IMPORTANT: when given raw extracted text, ingredient blocks and recipe-name headers may appear SEPARATELY within a page because PDF text ordering is not visual. Specifically the recipe names (on lines like "Name\tPREP - XXX") may be listed AFTER all the ingredient blocks and in REVERSE visual order. Use the following rules to correlate:
+  1. Split each page into N ingredient blocks — one block ends at each "TOTAL COST" line.
+  2. On the same page, collect every "Name\t..." header. If there are exactly N name headers, the LAST name header in text order corresponds to the FIRST ingredient block visually, the SECOND LAST to the SECOND block, and so on (i.e. names are listed in reverse visual order).
+  3. If a page has fewer name headers than ingredient blocks, the missing names may be on a previous page's trailing text — infer when sensible, otherwise leave as null.
+- Extract EVERY recipe on EVERY page.
+- For each recipe, extract every numbered ingredient row: ingredient_name, quantity, uom, waste_percentage.
+- Clean ingredient names: keep brand names and pack descriptions as shown (e.g. "HEINZ Baked Beans 2.95kg", "Seri Murni Cooking Oil 17L") — they matter for matching.
+- Use standard UOM abbreviations: g, kg, ml, L, pcs, NOS, tbsp, tsp, cup, portion, etc.
+- yield_quantity / yield_uom come from the "Portion" field. Examples: "7.333 KG" → yield_quantity=7.333, yield_uom=kg; "8.000 PORT" → yield_quantity=8, yield_uom=portion; "6" alone → yield_quantity=6, yield_uom=portion.
+- selling_price defaults to 0 for costing sheets unless a price is explicitly shown.
+- waste_percentage defaults to 0.
+
+## Critical rules
+- Output numeric values (not strings) for quantity, yield_quantity, selling_price, waste_percentage.
+- Return ONLY the JSON object. No markdown fences, no commentary.
+- If no recipes can be extracted, return {"document_type":"recipe_card","recipes":[]}.
+PROMPT;
+
+    private function extractRecipesFromText(string $text, string $apiKey): array
+    {
+        $model = 'google/gemini-2.5-flash';
+
+        $userMessage = "Extract all recipes from the following PDF text. The content below is raw extracted text from one or more pages.\n\n"
+            . "--- PDF TEXT START ---\n"
+            . $text
+            . "\n--- PDF TEXT END ---";
+
+        $response = Http::timeout(120)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                'X-Title'       => config('app.name', 'Servora'),
+            ])
+            ->post('https://openrouter.ai/api/v1/chat/completions', [
+                'model'      => $model,
+                'max_tokens' => 32768,
+                'messages'   => [
+                    ['role' => 'system', 'content' => self::PDF_EXTRACTION_PROMPT],
+                    ['role' => 'user',   'content' => $userMessage],
+                ],
+                'response_format' => ['type' => 'json_object'],
+            ]);
+
+        return $this->parseRecipesResponse($response);
+    }
+
+    private function extractRecipesFromPdfFile(string $path, string $apiKey): array
+    {
+        $model = 'google/gemini-2.5-flash';
+
+        $mimeType = mime_content_type($path) ?: 'application/pdf';
+        $base64   = base64_encode(file_get_contents($path));
+        $dataUri  = "data:{$mimeType};base64,{$base64}";
+
+        $response = Http::timeout(120)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                'X-Title'       => config('app.name', 'Servora'),
+            ])
+            ->post('https://openrouter.ai/api/v1/chat/completions', [
+                'model'      => $model,
+                'max_tokens' => 32768,
+                'messages'   => [
+                    ['role' => 'system', 'content' => self::PDF_EXTRACTION_PROMPT],
+                    ['role' => 'user', 'content' => [
+                        ['type' => 'file', 'file' => [
+                            'filename'  => basename($path),
+                            'file_data' => $dataUri,
+                        ]],
+                        ['type' => 'text', 'text' => 'Extract all recipes from the attached PDF.'],
+                    ]],
+                ],
+                'response_format' => ['type' => 'json_object'],
+            ]);
+
+        return $this->parseRecipesResponse($response);
+    }
+
+    private function parseRecipesResponse($response): array
+    {
+        if (! $response->successful()) {
+            $body = $response->json();
+            $msg = $body['error']['message'] ?? $body['message'] ?? ('HTTP ' . $response->status());
+            throw new \RuntimeException($msg);
+        }
+
+        $data    = $response->json();
+        $content = $data['choices'][0]['message']['content'] ?? '';
+        $result  = $this->robustJsonDecode($content);
+
+        $recipeItems = null;
+        if (is_array($result)) {
+            $recipeItems = $result['recipes'] ?? $result['data'] ?? $result['items'] ?? null;
+            if (! $recipeItems && isset($result[0]) && is_array($result[0])) {
+                $recipeItems = $result;
+            }
+            if (! $recipeItems) {
+                foreach ($result as $val) {
+                    if (is_array($val) && ! empty($val) && isset($val[0]) && is_array($val[0])) {
+                        $recipeItems = $val;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return is_array($recipeItems) ? $recipeItems : [];
     }
 
     // ── Exact header matching ─────────────────────────────────────────────
