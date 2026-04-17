@@ -609,6 +609,70 @@
 
     @endif
 
+    {{-- ── Shared Ingredient Picker (one instance for all lines) ────────── --}}
+    @if ($step === 'preview')
+        <div x-data="sharedIngredientPicker()"
+             @open-ingredient-picker.window="openFor($event.detail)"
+             @ingredient-created.window="onIngredientCreated($event.detail)">
+
+            <template x-teleport="body">
+                <div x-show="open" x-cloak
+                     @click.outside="handleOutsideClick($event)"
+                     @keydown.escape.window="open = false"
+                     :style="popupStyle"
+                     class="fixed z-[80] w-80 bg-white border border-gray-200 rounded-lg shadow-xl text-gray-800">
+
+                    <div class="p-2 border-b border-gray-100">
+                        <input type="text" x-model="query" x-ref="input"
+                               @keydown.arrow-down.prevent="moveHighlight(1)"
+                               @keydown.arrow-up.prevent="moveHighlight(-1)"
+                               @keydown.enter.prevent="onEnter()"
+                               placeholder="Search existing ingredient…"
+                               class="w-full text-xs border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" />
+                    </div>
+
+                    <ul x-show="results.length > 0" class="max-h-64 overflow-y-auto py-1" x-ref="list">
+                        <template x-for="(ing, idx) in results" :key="ing.id">
+                            <li @click.stop="pick(ing)"
+                                @mouseenter="highlightIdx = idx"
+                                :class="idx === highlightIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-indigo-50'"
+                                class="px-3 py-1.5 text-xs cursor-pointer"
+                                x-text="ing.name"></li>
+                        </template>
+                    </ul>
+
+                    <div x-show="results.length === 0 && query.trim().length === 0" x-cloak
+                         class="px-3 py-3 text-[11px] text-gray-400 italic text-center">
+                        Start typing to search ingredients…
+                    </div>
+
+                    <div x-show="results.length === 0 && query.trim().length > 0" x-cloak
+                         class="divide-y divide-gray-100">
+                        <div class="px-3 py-2 text-[11px] text-gray-500 bg-gray-50">
+                            No matching ingredient found for "<span x-text="query.trim()" class="font-semibold text-gray-700"></span>".
+                        </div>
+
+                        <button type="button" @click.stop="requestCreate()"
+                                class="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-indigo-600 hover:bg-indigo-50 transition font-medium text-left">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Create "<span x-text="query.trim()" class="font-semibold"></span>" as new ingredient</span>
+                        </button>
+
+                        <button type="button" x-show="isUnmatched" @click.stop="removeLine()"
+                                class="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-600 hover:bg-red-50 transition text-left">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" />
+                            </svg>
+                            <span>Remove this ingredient line</span>
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    @endif
+
     {{-- ── Create Ingredient Modal (shared by all pickers, teleported to body) ─── --}}
     @if ($step === 'preview')
         <div x-data="ingredientCreateModal()"
@@ -717,13 +781,14 @@
                         },
                     }));
 
-                    window.Alpine.data('ingredientPicker', (config) => ({
-                        rIdx: config.rIdx,
-                        lIdx: config.lIdx,
-                        currentName: config.currentName || '',
-                        rawName: config.rawName || '',
-                        isUnmatched: !!config.isUnmatched,
+                    window.Alpine.data('sharedIngredientPicker', () => ({
                         open: false,
+                        rIdx: null,
+                        lIdx: null,
+                        currentName: '',
+                        rawName: '',
+                        isUnmatched: true,
+                        triggerEl: null,
                         query: '',
                         results: [],
                         highlightIdx: 0,
@@ -737,12 +802,6 @@
                             });
                             this.$watch('open', (v) => {
                                 if (v) {
-                                    this.updatePosition();
-                                    this.$nextTick(() => {
-                                        this.$refs.input && this.$refs.input.focus();
-                                        this.$refs.input && this.$refs.input.select();
-                                    });
-                                    // Reposition on viewport changes while open
                                     this._onReposition = () => this.updatePosition();
                                     window.addEventListener('scroll', this._onReposition, true);
                                     window.addEventListener('resize', this._onReposition);
@@ -752,13 +811,32 @@
                                     this._onReposition = null;
                                 }
                             });
+                        },
+
+                        openFor(detail) {
+                            if (!detail) return;
+                            this.rIdx = Number(detail.rIdx);
+                            this.lIdx = Number(detail.lIdx);
+                            this.currentName = detail.currentName || '';
+                            this.rawName = detail.rawName || '';
+                            this.isUnmatched = !this.currentName;
+                            this.triggerEl = detail.triggerEl || null;
+                            this.query = this.isUnmatched && this.rawName ? this.rawName : '';
                             this.filter();
+                            this.updatePosition();
+                            this.open = true;
+                            this.$nextTick(() => {
+                                const input = this.$refs.input;
+                                if (input) { input.focus(); input.select(); }
+                            });
                         },
 
                         updatePosition() {
-                            const trigger = this.$refs.trigger;
-                            if (!trigger) return;
-                            const rect = trigger.getBoundingClientRect();
+                            if (!this.triggerEl) {
+                                this.popupStyle = 'top:50%;left:50%;transform:translate(-50%,-50%);';
+                                return;
+                            }
+                            const rect = this.triggerEl.getBoundingClientRect();
                             const popupWidth = 320;
                             const popupHeight = 320;
                             const vw = window.innerWidth;
@@ -772,23 +850,8 @@
                             this.popupStyle = `left:${left}px;top:${top}px;`;
                         },
 
-                        toggle() {
-                            if (!this.open) {
-                                // Pre-fill with raw imported name so user immediately sees if any
-                                // DB match exists (or discovers there isn't one).
-                                if (this.isUnmatched && this.rawName && !this.query) {
-                                    this.query = this.rawName;
-                                }
-                                // Bypass debounce on open so the list reflects the current query
-                                // immediately instead of after 150ms.
-                                this.filter();
-                            }
-                            this.open = !this.open;
-                        },
-
                         handleOutsideClick(event) {
-                            const trigger = this.$refs.trigger;
-                            if (trigger && trigger.contains(event.target)) return;
+                            if (this.triggerEl && this.triggerEl.contains(event.target)) return;
                             this.open = false;
                         },
 
@@ -829,48 +892,29 @@
 
                         pick(ing) {
                             if (!ing) return;
-                            this.currentName = ing.name;
+                            const rIdx = this.rIdx, lIdx = this.lIdx, id = Number(ing.id);
                             this.open = false;
-                            const rIdx = Number(this.rIdx);
-                            const lIdx = Number(this.lIdx);
-                            const id = Number(ing.id);
-                            console.log('[ingredient-picker] pick', {rIdx, lIdx, id, name: ing.name});
                             this.$wire.call('fixIngredient', rIdx, lIdx, id)
-                                .then((r) => console.log('[ingredient-picker] fixIngredient ok', r))
-                                .catch((e) => console.error('[ingredient-picker] fixIngredient failed', e));
+                                .catch((e) => console.error('fixIngredient failed', e));
                         },
 
                         requestCreate() {
-                            const payload = {
-                                rIdx: this.rIdx,
-                                lIdx: this.lIdx,
-                                name: (this.query || '').trim(),
-                            };
+                            const payload = { rIdx: this.rIdx, lIdx: this.lIdx, name: (this.query || '').trim() };
                             this.open = false;
                             window.dispatchEvent(new CustomEvent('open-create-ingredient', {detail: payload}));
                         },
 
                         removeLine() {
+                            const rIdx = this.rIdx, lIdx = this.lIdx;
                             this.open = false;
-                            try { this.$wire.removeLine(this.rIdx, this.lIdx); }
-                            catch (e) { console.error('removeLine failed', e); }
+                            this.$wire.call('removeLine', rIdx, lIdx)
+                                .catch((e) => console.error('removeLine failed', e));
                         },
 
-                        handleCreated(detail) {
+                        onIngredientCreated(detail) {
                             if (!detail) return;
                             if (detail.id && detail.name && !(window.__ingredientsList || []).some(i => i.id === detail.id)) {
                                 window.__ingredientsList.push({id: detail.id, name: detail.name});
-                            }
-                            if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
-                                this.currentName = detail.name;
-                            }
-                        },
-
-                        destroy() {
-                            if (this._onReposition) {
-                                window.removeEventListener('scroll', this._onReposition, true);
-                                window.removeEventListener('resize', this._onReposition);
-                                this._onReposition = null;
                             }
                         },
                     }));
