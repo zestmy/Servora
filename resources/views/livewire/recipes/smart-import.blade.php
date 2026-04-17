@@ -1,4 +1,266 @@
 <div>
+    {{-- Register shared Alpine components via alpine:init so they exist before
+         Alpine processes any x-data on the page (including on a refresh that
+         lands on the preview step). Using @script fires AFTER Alpine start,
+         which is too late if the preview DOM is already rendered. --}}
+    <script data-navigate-once>
+        (function () {
+            if (window.__servoraSmartImportPickersRegistered) return;
+            window.__servoraSmartImportPickersRegistered = true;
+
+            const register = () => {
+                if (!window.Alpine || !window.Alpine.data) return;
+
+                window.Alpine.data('smartImportOutletSection', () => ({
+                    get allOutlets() { return this.$wire.allOutlets; },
+                    set allOutlets(v) { this.$wire.set('allOutlets', !!v, false); },
+                    get outletIds() {
+                        const v = this.$wire.outletIds;
+                        return Array.isArray(v) ? v.map(Number) : [];
+                    },
+                    set outletIds(v) {
+                        this.$wire.set('outletIds', Array.from(v || []).map(Number), false);
+                    },
+                    applyGroup(ids) {
+                        this.allOutlets = false;
+                        const merged = Array.from(new Set([...this.outletIds, ...ids.map(Number)]));
+                        this.outletIds = merged;
+                    },
+                    toggleOutlet(id) {
+                        id = Number(id);
+                        const arr = this.outletIds.slice();
+                        const i = arr.indexOf(id);
+                        if (i === -1) arr.push(id); else arr.splice(i, 1);
+                        this.outletIds = arr;
+                    },
+                    isSelected(id) { return this.outletIds.includes(Number(id)); },
+                    clear() { this.outletIds = []; },
+                }));
+
+                window.Alpine.data('smartImportCategoryField', (config) => ({
+                    rIdx: config.rIdx,
+                    get cat() {
+                        const recipes = this.$wire.recipes || [];
+                        return (recipes[this.rIdx] && recipes[this.rIdx].category) || '';
+                    },
+                    set cat(v) {
+                        this.$wire.set('recipes.' + this.rIdx + '.category', v, false);
+                    },
+                    get unmatched() {
+                        const recipes = this.$wire.recipes || [];
+                        return (recipes[this.rIdx] && recipes[this.rIdx].category_unmatched) || '';
+                    },
+                }));
+
+                window.Alpine.data('sharedIngredientPicker', () => ({
+                    open: false,
+                    rIdx: null,
+                    lIdx: null,
+                    currentName: '',
+                    rawName: '',
+                    isUnmatched: true,
+                    triggerEl: null,
+                    query: '',
+                    results: [],
+                    highlightIdx: 0,
+                    popupStyle: '',
+
+                    init() {
+                        this._filterTimer = null;
+                        this.$watch('query', () => {
+                            if (this._filterTimer) clearTimeout(this._filterTimer);
+                            this._filterTimer = setTimeout(() => this.filter(), 150);
+                        });
+                        this.$watch('open', (v) => {
+                            if (v) {
+                                this._onReposition = () => this.updatePosition();
+                                window.addEventListener('scroll', this._onReposition, true);
+                                window.addEventListener('resize', this._onReposition);
+                            } else if (this._onReposition) {
+                                window.removeEventListener('scroll', this._onReposition, true);
+                                window.removeEventListener('resize', this._onReposition);
+                                this._onReposition = null;
+                            }
+                        });
+                    },
+
+                    openFor(detail) {
+                        if (!detail) return;
+                        this.rIdx = Number(detail.rIdx);
+                        this.lIdx = Number(detail.lIdx);
+                        this.currentName = detail.currentName || '';
+                        this.rawName = detail.rawName || '';
+                        this.isUnmatched = !this.currentName;
+                        this.triggerEl = detail.triggerEl || null;
+                        this.query = this.isUnmatched && this.rawName ? this.rawName : '';
+                        this.filter();
+                        this.updatePosition();
+                        this.open = true;
+                        this.$nextTick(() => {
+                            const input = this.$refs.input;
+                            if (input) { input.focus(); input.select(); }
+                        });
+                    },
+
+                    updatePosition() {
+                        if (!this.triggerEl) {
+                            this.popupStyle = 'top:50%;left:50%;transform:translate(-50%,-50%);';
+                            return;
+                        }
+                        const rect = this.triggerEl.getBoundingClientRect();
+                        const popupWidth = 320;
+                        const popupHeight = 320;
+                        const vw = window.innerWidth;
+                        const vh = window.innerHeight;
+                        let left = rect.left;
+                        if (left + popupWidth > vw - 8) left = Math.max(8, vw - popupWidth - 8);
+                        let top = rect.bottom + 4;
+                        if (top + popupHeight > vh - 8 && rect.top > popupHeight) {
+                            top = rect.top - popupHeight - 4;
+                        }
+                        this.popupStyle = `left:${left}px;top:${top}px;`;
+                    },
+
+                    handleOutsideClick(event) {
+                        if (this.triggerEl && this.triggerEl.contains(event.target)) return;
+                        this.open = false;
+                    },
+
+                    filter() {
+                        const q = (this.query || '').trim().toLowerCase();
+                        const list = window.__ingredientsList || [];
+                        this.results = q
+                            ? list.filter(i => (i.name || '').toLowerCase().includes(q)).slice(0, 50)
+                            : list.slice(0, 50);
+                        this.highlightIdx = 0;
+                    },
+
+                    exactMatch() {
+                        const q = (this.query || '').trim().toLowerCase();
+                        if (!q) return false;
+                        return (window.__ingredientsList || []).some(i => (i.name || '').toLowerCase() === q);
+                    },
+
+                    moveHighlight(delta) {
+                        const total = this.results.length;
+                        if (total === 0) return;
+                        this.highlightIdx = (this.highlightIdx + delta + total) % total;
+                        this.$nextTick(() => {
+                            const list = this.$refs.list;
+                            if (!list) return;
+                            const el = list.children[this.highlightIdx];
+                            if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'});
+                        });
+                    },
+
+                    onEnter() {
+                        if (this.results.length > 0) {
+                            this.pick(this.results[this.highlightIdx] || this.results[0]);
+                        } else if (this.query.trim() && !this.exactMatch()) {
+                            this.requestCreate();
+                        }
+                    },
+
+                    pick(ing) {
+                        if (!ing) return;
+                        const rIdx = this.rIdx, lIdx = this.lIdx, id = Number(ing.id);
+                        this.open = false;
+                        this.$wire.call('fixIngredient', rIdx, lIdx, id)
+                            .catch((e) => console.error('fixIngredient failed', e));
+                    },
+
+                    requestCreate() {
+                        const payload = { rIdx: this.rIdx, lIdx: this.lIdx, name: (this.query || '').trim() };
+                        this.open = false;
+                        window.dispatchEvent(new CustomEvent('open-create-ingredient', {detail: payload}));
+                    },
+
+                    removeLine() {
+                        const rIdx = this.rIdx, lIdx = this.lIdx;
+                        this.open = false;
+                        this.$wire.call('removeLine', rIdx, lIdx)
+                            .catch((e) => console.error('removeLine failed', e));
+                    },
+
+                    onIngredientCreated(detail) {
+                        if (!detail) return;
+                        if (detail.id && detail.name && !(window.__ingredientsList || []).some(i => i.id === detail.id)) {
+                            window.__ingredientsList.push({id: detail.id, name: detail.name});
+                        }
+                    },
+                }));
+
+                window.Alpine.data('ingredientCreateModal', () => ({
+                    isOpen: false,
+                    submitting: false,
+                    rIdx: null,
+                    lIdx: null,
+                    name: '',
+                    baseUomId: '',
+                    error: '',
+
+                    openModal(detail) {
+                        if (!detail) return;
+                        this.rIdx = detail.rIdx;
+                        this.lIdx = detail.lIdx;
+                        this.name = (detail.name || '').trim();
+                        this.baseUomId = '';
+                        this.error = '';
+                        this.submitting = false;
+                        this.isOpen = true;
+                        this.$nextTick(() => {
+                            const input = this.$refs.nameInput;
+                            if (input) { input.focus(); input.select(); }
+                        });
+                    },
+
+                    close() {
+                        this.isOpen = false;
+                        this.submitting = false;
+                        this.error = '';
+                    },
+
+                    async submit() {
+                        if (!this.name.trim() || !this.baseUomId || this.submitting) return;
+                        this.submitting = true;
+                        this.error = '';
+                        try {
+                            await this.$wire.createIngredientForLine(this.rIdx, this.lIdx, {
+                                name: this.name.trim(),
+                                base_uom_id: parseInt(this.baseUomId, 10),
+                            });
+                        } catch (e) {
+                            console.error('createIngredientForLine failed', e);
+                            this.error = 'Failed to create ingredient. Please try again.';
+                        } finally {
+                            this.submitting = false;
+                        }
+                    },
+
+                    onCreated(detail) {
+                        if (!detail) return;
+                        if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
+                            this.submitting = false;
+                            this.isOpen = false;
+                            this.error = '';
+                        }
+                    },
+
+                    onFailed(detail) {
+                        this.submitting = false;
+                        this.error = (detail && detail.message) || 'Failed to create ingredient.';
+                    },
+                }));
+            };
+
+            if (window.Alpine && window.Alpine.version) {
+                register();
+            } else {
+                document.addEventListener('alpine:init', register, { once: true });
+            }
+        })();
+    </script>
+
     @if (session()->has('error'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
              class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
@@ -735,256 +997,4 @@
 
     @endif
 
-    @script
-        <script>
-            (function registerPickerComponents() {
-                if (!window.Alpine) return;
-
-                window.Alpine.data('smartImportOutletSection', () => ({
-                        get allOutlets() { return this.$wire.allOutlets; },
-                        set allOutlets(v) { this.$wire.set('allOutlets', !!v, false); },
-                        get outletIds() {
-                            const v = this.$wire.outletIds;
-                            return Array.isArray(v) ? v.map(Number) : [];
-                        },
-                        set outletIds(v) {
-                            this.$wire.set('outletIds', Array.from(v || []).map(Number), false);
-                        },
-                        applyGroup(ids) {
-                            this.allOutlets = false;
-                            const merged = Array.from(new Set([...this.outletIds, ...ids.map(Number)]));
-                            this.outletIds = merged;
-                        },
-                        toggleOutlet(id) {
-                            id = Number(id);
-                            const arr = this.outletIds.slice();
-                            const i = arr.indexOf(id);
-                            if (i === -1) arr.push(id); else arr.splice(i, 1);
-                            this.outletIds = arr;
-                        },
-                        isSelected(id) { return this.outletIds.includes(Number(id)); },
-                        clear() { this.outletIds = []; },
-                    }));
-
-                    window.Alpine.data('smartImportCategoryField', (config) => ({
-                        rIdx: config.rIdx,
-                        get cat() {
-                            const recipes = this.$wire.recipes || [];
-                            return (recipes[this.rIdx] && recipes[this.rIdx].category) || '';
-                        },
-                        set cat(v) {
-                            this.$wire.set('recipes.' + this.rIdx + '.category', v, false);
-                        },
-                        get unmatched() {
-                            const recipes = this.$wire.recipes || [];
-                            return (recipes[this.rIdx] && recipes[this.rIdx].category_unmatched) || '';
-                        },
-                    }));
-
-                    window.Alpine.data('sharedIngredientPicker', () => ({
-                        open: false,
-                        rIdx: null,
-                        lIdx: null,
-                        currentName: '',
-                        rawName: '',
-                        isUnmatched: true,
-                        triggerEl: null,
-                        query: '',
-                        results: [],
-                        highlightIdx: 0,
-                        popupStyle: '',
-
-                        init() {
-                            this._filterTimer = null;
-                            this.$watch('query', () => {
-                                if (this._filterTimer) clearTimeout(this._filterTimer);
-                                this._filterTimer = setTimeout(() => this.filter(), 150);
-                            });
-                            this.$watch('open', (v) => {
-                                if (v) {
-                                    this._onReposition = () => this.updatePosition();
-                                    window.addEventListener('scroll', this._onReposition, true);
-                                    window.addEventListener('resize', this._onReposition);
-                                } else if (this._onReposition) {
-                                    window.removeEventListener('scroll', this._onReposition, true);
-                                    window.removeEventListener('resize', this._onReposition);
-                                    this._onReposition = null;
-                                }
-                            });
-                        },
-
-                        openFor(detail) {
-                            if (!detail) return;
-                            this.rIdx = Number(detail.rIdx);
-                            this.lIdx = Number(detail.lIdx);
-                            this.currentName = detail.currentName || '';
-                            this.rawName = detail.rawName || '';
-                            this.isUnmatched = !this.currentName;
-                            this.triggerEl = detail.triggerEl || null;
-                            this.query = this.isUnmatched && this.rawName ? this.rawName : '';
-                            this.filter();
-                            this.updatePosition();
-                            this.open = true;
-                            this.$nextTick(() => {
-                                const input = this.$refs.input;
-                                if (input) { input.focus(); input.select(); }
-                            });
-                        },
-
-                        updatePosition() {
-                            if (!this.triggerEl) {
-                                this.popupStyle = 'top:50%;left:50%;transform:translate(-50%,-50%);';
-                                return;
-                            }
-                            const rect = this.triggerEl.getBoundingClientRect();
-                            const popupWidth = 320;
-                            const popupHeight = 320;
-                            const vw = window.innerWidth;
-                            const vh = window.innerHeight;
-                            let left = rect.left;
-                            if (left + popupWidth > vw - 8) left = Math.max(8, vw - popupWidth - 8);
-                            let top = rect.bottom + 4;
-                            if (top + popupHeight > vh - 8 && rect.top > popupHeight) {
-                                top = rect.top - popupHeight - 4;
-                            }
-                            this.popupStyle = `left:${left}px;top:${top}px;`;
-                        },
-
-                        handleOutsideClick(event) {
-                            if (this.triggerEl && this.triggerEl.contains(event.target)) return;
-                            this.open = false;
-                        },
-
-                        filter() {
-                            const q = (this.query || '').trim().toLowerCase();
-                            const list = window.__ingredientsList || [];
-                            this.results = q
-                                ? list.filter(i => (i.name || '').toLowerCase().includes(q)).slice(0, 50)
-                                : list.slice(0, 50);
-                            this.highlightIdx = 0;
-                        },
-
-                        exactMatch() {
-                            const q = (this.query || '').trim().toLowerCase();
-                            if (!q) return false;
-                            return (window.__ingredientsList || []).some(i => (i.name || '').toLowerCase() === q);
-                        },
-
-                        moveHighlight(delta) {
-                            const total = this.results.length;
-                            if (total === 0) return;
-                            this.highlightIdx = (this.highlightIdx + delta + total) % total;
-                            this.$nextTick(() => {
-                                const list = this.$refs.list;
-                                if (!list) return;
-                                const el = list.children[this.highlightIdx];
-                                if (el && el.scrollIntoView) el.scrollIntoView({block: 'nearest'});
-                            });
-                        },
-
-                        onEnter() {
-                            if (this.results.length > 0) {
-                                this.pick(this.results[this.highlightIdx] || this.results[0]);
-                            } else if (this.query.trim() && !this.exactMatch()) {
-                                this.requestCreate();
-                            }
-                        },
-
-                        pick(ing) {
-                            if (!ing) return;
-                            const rIdx = this.rIdx, lIdx = this.lIdx, id = Number(ing.id);
-                            this.open = false;
-                            this.$wire.call('fixIngredient', rIdx, lIdx, id)
-                                .catch((e) => console.error('fixIngredient failed', e));
-                        },
-
-                        requestCreate() {
-                            const payload = { rIdx: this.rIdx, lIdx: this.lIdx, name: (this.query || '').trim() };
-                            this.open = false;
-                            window.dispatchEvent(new CustomEvent('open-create-ingredient', {detail: payload}));
-                        },
-
-                        removeLine() {
-                            const rIdx = this.rIdx, lIdx = this.lIdx;
-                            this.open = false;
-                            this.$wire.call('removeLine', rIdx, lIdx)
-                                .catch((e) => console.error('removeLine failed', e));
-                        },
-
-                        onIngredientCreated(detail) {
-                            if (!detail) return;
-                            if (detail.id && detail.name && !(window.__ingredientsList || []).some(i => i.id === detail.id)) {
-                                window.__ingredientsList.push({id: detail.id, name: detail.name});
-                            }
-                        },
-                    }));
-
-                    window.Alpine.data('ingredientCreateModal', () => ({
-                        isOpen: false,
-                        submitting: false,
-                        rIdx: null,
-                        lIdx: null,
-                        name: '',
-                        baseUomId: '',
-                        error: '',
-
-                        openModal(detail) {
-                            if (!detail) return;
-                            this.rIdx = detail.rIdx;
-                            this.lIdx = detail.lIdx;
-                            this.name = (detail.name || '').trim();
-                            this.baseUomId = '';
-                            this.error = '';
-                            this.submitting = false;
-                            this.isOpen = true;
-                            this.$nextTick(() => {
-                                const input = this.$refs.nameInput;
-                                if (input) { input.focus(); input.select(); }
-                            });
-                        },
-
-                        close() {
-                            this.isOpen = false;
-                            this.submitting = false;
-                            this.error = '';
-                        },
-
-                        async submit() {
-                            if (!this.name.trim() || !this.baseUomId || this.submitting) return;
-                            this.submitting = true;
-                            this.error = '';
-                            try {
-                                await this.$wire.createIngredientForLine(this.rIdx, this.lIdx, {
-                                    name: this.name.trim(),
-                                    base_uom_id: parseInt(this.baseUomId, 10),
-                                });
-                                // Server dispatches `ingredient-created` on success; onCreated closes the modal.
-                                // Safety net: if the event doesn't round-trip back, still reset submitting
-                                // so the user can retry or close manually.
-                            } catch (e) {
-                                console.error('createIngredientForLine failed', e);
-                                this.error = 'Failed to create ingredient. Please try again.';
-                            } finally {
-                                this.submitting = false;
-                            }
-                        },
-
-                        onCreated(detail) {
-                            if (!detail) return;
-                            // Close the modal for the line that owned this create request
-                            if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
-                                this.submitting = false;
-                                this.isOpen = false;
-                                this.error = '';
-                            }
-                        },
-
-                        onFailed(detail) {
-                            this.submitting = false;
-                            this.error = (detail && detail.message) || 'Failed to create ingredient.';
-                        },
-                    }));
-            })();
-        </script>
-    @endscript
 </div>
