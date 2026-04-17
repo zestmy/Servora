@@ -796,6 +796,62 @@ PROMPT;
         $this->recalcRecipeSkip($recipeIdx);
     }
 
+    public function createIngredientForLine(int $recipeIdx, int $lineIdx, array $data): void
+    {
+        if (! isset($this->recipes[$recipeIdx]['lines'][$lineIdx])) return;
+
+        $name = trim($data['name'] ?? '');
+        $baseUomId = (int) ($data['base_uom_id'] ?? 0);
+        $categoryId = ! empty($data['ingredient_category_id']) ? (int) $data['ingredient_category_id'] : null;
+
+        if ($name === '' || ! $baseUomId) {
+            $this->dispatch('ingredient-create-failed', message: 'Name and base UOM are required.');
+            return;
+        }
+
+        if (! UnitOfMeasure::whereKey($baseUomId)->exists()) {
+            $this->dispatch('ingredient-create-failed', message: 'Selected UOM does not exist.');
+            return;
+        }
+
+        $companyId = Auth::user()->company_id;
+
+        // Avoid duplicate by name
+        $existing = Ingredient::where('company_id', $companyId)
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->first();
+
+        $ingredient = $existing ?? Ingredient::create([
+            'company_id'             => $companyId,
+            'name'                   => $name,
+            'base_uom_id'            => $baseUomId,
+            'recipe_uom_id'          => $baseUomId,
+            'purchase_price'         => 0,
+            'current_cost'           => 0,
+            'pack_size'              => 1,
+            'yield_percent'          => 100,
+            'ingredient_category_id' => $categoryId,
+            'is_active'              => true,
+        ]);
+
+        $this->recipes[$recipeIdx]['lines'][$lineIdx]['ingredient_id'] = $ingredient->id;
+        $this->recipes[$recipeIdx]['lines'][$lineIdx]['matched_name']  = $ingredient->name;
+        $this->recipes[$recipeIdx]['lines'][$lineIdx]['confidence']    = 100;
+        $this->recipes[$recipeIdx]['lines'][$lineIdx]['errors'] = array_values(array_filter(
+            $this->recipes[$recipeIdx]['lines'][$lineIdx]['errors'],
+            fn ($e) => ! str_starts_with($e, 'Ingredient')
+        ));
+
+        $this->recalcRecipeSkip($recipeIdx);
+
+        $this->dispatch('ingredient-created',
+            id: $ingredient->id,
+            name: $ingredient->name,
+            recipeIdx: $recipeIdx,
+            lineIdx: $lineIdx,
+        );
+    }
+
     public function fixLineUom(int $recipeIdx, int $lineIdx, int $uomId): void
     {
         if (! isset($this->recipes[$recipeIdx]['lines'][$lineIdx])) return;

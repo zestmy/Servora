@@ -280,10 +280,12 @@
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                         @foreach ($outlets as $outlet)
                             <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
-                                {{ in_array($outlet->id, $outletIds) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                border-gray-200 hover:border-gray-300
+                                has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-50">
                                 <input type="checkbox"
                                        value="{{ $outlet->id }}"
-                                       wire:model.live="outletIds"
+                                       wire:model="outletIds"
+                                       @if (in_array($outlet->id, $outletIds)) checked @endif
                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                                 <div class="min-w-0">
                                     <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet->name }}</span>
@@ -294,9 +296,7 @@
                             </label>
                         @endforeach
                     </div>
-                    @if (empty($outletIds))
-                        <p class="mt-2 text-xs text-amber-500">Select at least one outlet, or switch to "All Outlets".</p>
-                    @endif
+                    <p class="mt-2 text-xs text-gray-400">Selection is applied on Import.</p>
                 @endif
             </div>
         @endif
@@ -506,32 +506,22 @@
                                             <td class="px-4 py-2 text-gray-400">{{ $lIdx + 1 }}</td>
                                             <td class="px-4 py-2 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
                                             <td class="px-4 py-2">
-                                                @if ($line['ingredient_id'])
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="text-green-700">{{ $line['matched_name'] }}</span>
+                                                <div class="flex items-center gap-1.5">
+                                                    @if ($line['ingredient_id'])
+                                                        <span class="text-green-700 text-xs truncate max-w-[140px]">{{ $line['matched_name'] }}</span>
                                                         @if ($line['confidence'] < 100)
                                                             <span class="text-[10px] text-amber-500">{{ $line['confidence'] }}%</span>
                                                         @endif
-                                                        <select wire:change="fixIngredient({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
-                                                                class="text-[11px] border-gray-200 rounded py-0.5 px-1 max-w-[140px] ml-1">
-                                                            <option value="">Change…</option>
-                                                            @foreach ($ingredients as $ing)
-                                                                <option value="{{ $ing->id }}">{{ $ing->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                                @else
-                                                    <div class="flex items-center gap-1.5">
+                                                    @else
                                                         <span class="text-red-500 text-[10px] font-semibold">NOT FOUND</span>
-                                                        <select wire:change="fixIngredient({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
-                                                                class="text-[11px] border-gray-200 rounded py-0.5 px-1 max-w-[180px]">
-                                                            <option value="">Select ingredient…</option>
-                                                            @foreach ($ingredients as $ing)
-                                                                <option value="{{ $ing->id }}">{{ $ing->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                                @endif
+                                                    @endif
+                                                    @include('livewire.recipes.partials.ingredient-picker', [
+                                                        'rIdx' => $rIdx,
+                                                        'lIdx' => $lIdx,
+                                                        'currentName' => $line['matched_name'] ?? '',
+                                                        'rawName' => $line['ingredient_name'] ?? '',
+                                                    ])
+                                                </div>
                                             </td>
                                             <td class="px-4 py-2">
                                                 <input type="number" step="0.01" min="0.0001"
@@ -539,11 +529,11 @@
                                                        class="w-full text-right text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500" />
                                             </td>
                                             <td class="px-4 py-2">
-                                                <select wire:model.live="recipes.{{ $rIdx }}.lines.{{ $lIdx }}.uom_id"
+                                                <select wire:change="fixLineUom({{ $rIdx }}, {{ $lIdx }}, $event.target.value)"
                                                         class="w-full text-xs rounded border-gray-200 py-1 px-2 focus:border-indigo-500 focus:ring-indigo-500">
                                                     <option value="">Select…</option>
                                                     @foreach ($uoms as $uom)
-                                                        <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                        <option value="{{ $uom->id }}" @selected($line['uom_id'] == $uom->id)>{{ $uom->abbreviation }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
@@ -612,5 +602,160 @@
             </div>
         </div>
 
+    @endif
+
+    {{-- ── Create Ingredient Modal (shared by all pickers) ─────────────────────── --}}
+    @if ($step === 'preview')
+        <div x-data="ingredientCreateModal()"
+             @open-create-ingredient.window="openModal($event.detail)"
+             @ingredient-create-failed.window="error = $event.detail.message || 'Failed to create ingredient'"
+             @ingredient-created.window="onCreated($event.detail)"
+             x-show="isOpen" x-cloak
+             class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+             @click.self="close()">
+
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6" @click.stop>
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Create New Ingredient</h3>
+
+                <div x-show="error" x-cloak class="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded" x-text="error"></div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Name <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="name"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Base UOM <span class="text-red-500">*</span></label>
+                        <select x-model="baseUomId"
+                                class="mt-1 w-full text-sm rounded-lg border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">Select UOM…</option>
+                            @foreach ($uoms as $uom)
+                                <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-[10px] text-gray-400">The base unit for stocking this ingredient. You can edit other fields later in Ingredients.</p>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex items-center justify-end gap-2">
+                    <button type="button" @click="close()"
+                            class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button type="button" @click="submit()"
+                            :disabled="!name.trim() || !baseUomId || submitting"
+                            class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                        <span x-show="!submitting">Create & Use</span>
+                        <span x-show="submitting" x-cloak>Creating…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.__ingredientsList = @json($ingredients->map(fn ($i) => ['id' => $i->id, 'name' => $i->name])->values());
+
+            function ingredientPicker(config) {
+                return {
+                    rIdx: config.rIdx,
+                    lIdx: config.lIdx,
+                    currentName: config.currentName || '',
+                    rawName: config.rawName || '',
+                    open: false,
+                    query: '',
+                    results: [],
+                    toggle() {
+                        this.open = !this.open;
+                        if (this.open) {
+                            // Default query to raw extracted name for unmatched lines
+                            if (!this.currentName && this.rawName && !this.query) this.query = this.rawName;
+                            this.filter();
+                            this.$nextTick(() => this.$refs.input?.focus());
+                        }
+                    },
+                    filter() {
+                        const q = (this.query || '').trim().toLowerCase();
+                        const list = window.__ingredientsList || [];
+                        this.results = q
+                            ? list.filter(i => i.name.toLowerCase().includes(q)).slice(0, 30)
+                            : list.slice(0, 30);
+                    },
+                    exactMatch() {
+                        const q = (this.query || '').trim().toLowerCase();
+                        if (!q) return false;
+                        return (window.__ingredientsList || []).some(i => i.name.toLowerCase() === q);
+                    },
+                    onEnter() {
+                        if (this.results.length > 0) {
+                            this.pick(this.results[0]);
+                        } else if (this.query.trim().length > 0 && !this.exactMatch()) {
+                            this.requestCreate();
+                        }
+                    },
+                    pick(ing) {
+                        this.currentName = ing.name;
+                        this.open = false;
+                        this.$wire.fixIngredient(this.rIdx, this.lIdx, ing.id);
+                    },
+                    requestCreate() {
+                        this.open = false;
+                        this.$dispatch('open-create-ingredient', {
+                            rIdx: this.rIdx,
+                            lIdx: this.lIdx,
+                            name: this.query.trim(),
+                        });
+                    },
+                    handleCreated(detail) {
+                        if (!detail) return;
+                        // Add newly-created ingredient to cache
+                        if (detail.id && detail.name && !(window.__ingredientsList || []).some(i => i.id === detail.id)) {
+                            window.__ingredientsList.push({id: detail.id, name: detail.name});
+                        }
+                        if (detail.recipeIdx === this.rIdx && detail.lineIdx === this.lIdx) {
+                            this.currentName = detail.name;
+                        }
+                    },
+                };
+            }
+
+            function ingredientCreateModal() {
+                return {
+                    isOpen: false,
+                    submitting: false,
+                    rIdx: null,
+                    lIdx: null,
+                    name: '',
+                    baseUomId: '',
+                    error: '',
+                    openModal(detail) {
+                        this.rIdx = detail.rIdx;
+                        this.lIdx = detail.lIdx;
+                        this.name = (detail.name || '').trim();
+                        this.baseUomId = '';
+                        this.error = '';
+                        this.isOpen = true;
+                    },
+                    close() {
+                        this.isOpen = false;
+                        this.submitting = false;
+                    },
+                    submit() {
+                        if (!this.name.trim() || !this.baseUomId || this.submitting) return;
+                        this.submitting = true;
+                        this.error = '';
+                        this.$wire.createIngredientForLine(this.rIdx, this.lIdx, {
+                            name: this.name.trim(),
+                            base_uom_id: parseInt(this.baseUomId, 10),
+                        });
+                    },
+                    onCreated() {
+                        // Close only if this modal initiated the create
+                        if (this.submitting) {
+                            this.submitting = false;
+                            this.isOpen = false;
+                        }
+                    },
+                };
+            }
+        </script>
     @endif
 </div>
