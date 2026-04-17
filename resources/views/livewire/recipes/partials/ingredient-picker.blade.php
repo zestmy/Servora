@@ -6,9 +6,11 @@
         rawName: @js($rawName),
     })"
      @ingredient-created.window="handleCreated($event.detail)"
+     @click.outside="open = false"
+     @keydown.escape.window="open = false"
      class="relative inline-block">
 
-    <button type="button" @click="toggle()"
+    <button type="button" @click.stop="toggle()"
             class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition">
         <span x-text="currentName ? 'Change' : 'Select…'"></span>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -17,8 +19,7 @@
     </button>
 
     <div x-show="open" x-cloak x-transition.opacity.duration.100ms
-         @click.outside="open = false"
-         @keydown.escape.window="open = false"
+         @click.stop
          class="absolute left-0 top-full mt-1 z-30 w-72 bg-white border border-gray-200 rounded-lg shadow-lg">
 
         <div class="p-2 border-b border-gray-100">
