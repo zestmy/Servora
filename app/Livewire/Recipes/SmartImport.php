@@ -750,6 +750,7 @@ PROMPT;
             }
 
             $grouped[$recipeKey]['lines'][] = [
+                'uid'              => uniqid('line_', true),
                 'ingredient_name'  => $ingName,
                 'ingredient_id'    => $match['id'] ?? null,
                 'matched_name'     => $match['name'] ?? null,
@@ -943,6 +944,16 @@ PROMPT;
 
         // New category — bust cached lookups so next render shows it in dropdowns
         $this->invalidatePreviewLookupsCache();
+    }
+
+    public function removeLine(int $recipeIdx, int $lineIdx): void
+    {
+        if (! isset($this->recipes[$recipeIdx]['lines'][$lineIdx])) return;
+
+        array_splice($this->recipes[$recipeIdx]['lines'], $lineIdx, 1);
+        $this->recipes[$recipeIdx]['lines'] = array_values($this->recipes[$recipeIdx]['lines']);
+
+        $this->recalcRecipeSkip($recipeIdx);
     }
 
     public function toggleSkip(int $recipeIdx): void

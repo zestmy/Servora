@@ -522,7 +522,8 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-50">
                                     @foreach ($recipe['lines'] as $lIdx => $line)
-                                        <tr class="{{ ! $line['ingredient_id'] || ! $line['uom_id'] ? 'bg-amber-50' : '' }}">
+                                        <tr wire:key="smart-import-line-{{ $line['uid'] ?? ($rIdx.'-'.$lIdx) }}"
+                                            class="{{ ! $line['ingredient_id'] || ! $line['uom_id'] ? 'bg-amber-50' : '' }}">
                                             <td class="px-4 py-2 text-gray-400">{{ $lIdx + 1 }}</td>
                                             <td class="px-4 py-2 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
                                             <td class="px-4 py-2">
@@ -696,6 +697,7 @@
                         lIdx: config.lIdx,
                         currentName: config.currentName || '',
                         rawName: config.rawName || '',
+                        isUnmatched: !!config.isUnmatched,
                         open: false,
                         query: '',
                         results: [],
@@ -747,9 +749,14 @@
 
                         toggle() {
                             if (!this.open) {
-                                if (!this.currentName && this.rawName && !this.query) {
+                                // Pre-fill with raw imported name so user immediately sees if any
+                                // DB match exists (or discovers there isn't one).
+                                if (this.isUnmatched && this.rawName && !this.query) {
                                     this.query = this.rawName;
                                 }
+                                // Bypass debounce on open so the list reflects the current query
+                                // immediately instead of after 150ms.
+                                this.filter();
                             }
                             this.open = !this.open;
                         },
@@ -811,6 +818,12 @@
                             };
                             this.open = false;
                             window.dispatchEvent(new CustomEvent('open-create-ingredient', {detail: payload}));
+                        },
+
+                        removeLine() {
+                            this.open = false;
+                            try { this.$wire.removeLine(this.rIdx, this.lIdx); }
+                            catch (e) { console.error('removeLine failed', e); }
                         },
 
                         handleCreated(detail) {
