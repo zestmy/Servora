@@ -69,11 +69,20 @@
     </div>
 </div>
 
+@php
+    $movementLabel = match ($filters['movement'] ?? 'all') {
+        'increase'  => 'Increase only',
+        'decrease'  => 'Decrease only',
+        'unchanged' => 'No change',
+        default     => 'All movement',
+    };
+@endphp
 <table class="filter-bar">
     <tr>
         <td><span class="k">Date range</span><span class="v">{{ $filters['from'] }} → {{ $filters['to'] }}</span></td>
         <td><span class="k">Supplier</span><span class="v">{{ $filters['supplier'] ?? 'All suppliers' }}</span></td>
         <td><span class="k">Category</span><span class="v">{{ $filters['category'] ?? 'All categories' }}</span></td>
+        <td><span class="k">Movement</span><span class="v">{{ $movementLabel }}</span></td>
         <td><span class="k">Search</span><span class="v">{{ $filters['search'] ?? '—' }}</span></td>
         <td><span class="k">Sort</span><span class="v">{{ ucfirst($filters['sort']) }}</span></td>
         <td><span class="k">Rows</span><span class="v">{{ $rows->count() }}</span></td>

@@ -72,6 +72,16 @@
                 @endforeach
             </select>
 
+            {{-- Movement --}}
+            <select wire:model.live="movementFilter"
+                    title="Filter by price movement"
+                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="all">All movement</option>
+                <option value="increase">▲ Increase only</option>
+                <option value="decrease">▼ Decrease only</option>
+                <option value="unchanged">No change</option>
+            </select>
+
             {{-- Per page --}}
             <select wire:model.live="perPage"
                     title="Rows per page"

@@ -23,6 +23,7 @@ class PriceHistory extends Component
     public string $categoryFilter = '';
     public string $sortBy = 'latest';
     public string $perPage = '100'; // '100' | '200' | '300' | '400' | '500' | 'all'
+    public string $movementFilter = 'all'; // 'all' | 'increase' | 'decrease' | 'unchanged'
 
     // Detail view
     public ?int $detailIngredientId = null;
@@ -46,6 +47,7 @@ class PriceHistory extends Component
     public function updatedDateTo(): void        { $this->resetPage(); }
     public function updatedSortBy(): void        { $this->resetPage(); }
     public function updatedPerPage(): void       { $this->resetPage(); }
+    public function updatedMovementFilter(): void { $this->resetPage(); }
 
     public function showDetail(int $id): void
     {
@@ -79,13 +81,15 @@ class PriceHistory extends Component
             'supplier' => $supplier,
             'category' => $category,
             'sort'     => $this->sortBy,
+            'movement' => $this->movementFilter,
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.price-history-report', compact(
             'company', 'stats', 'rows', 'filters'
         ))->setPaper('a4', 'landscape');
 
-        $filename = 'price-history-' . $from->format('Ymd') . '-to-' . $to->format('Ymd') . '.pdf';
+        $movementSuffix = $this->movementFilter !== 'all' ? '-' . $this->movementFilter : '';
+        $filename = 'price-history-' . $from->format('Ymd') . '-to-' . $to->format('Ymd') . $movementSuffix . '.pdf';
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);
     }
@@ -249,6 +253,17 @@ class PriceHistory extends Component
                     : [$cat->id];
                 $query->whereIn('i.ingredient_category_id', $ids);
             }
+        }
+
+        // Movement filter — only show ingredients whose first→latest price
+        // moved in the requested direction. "unchanged" keeps rows with no
+        // price movement (first_cost == last_cost) for completeness.
+        if ($this->movementFilter === 'increase') {
+            $query->havingRaw('last_cost > first_cost');
+        } elseif ($this->movementFilter === 'decrease') {
+            $query->havingRaw('last_cost < first_cost');
+        } elseif ($this->movementFilter === 'unchanged') {
+            $query->havingRaw('last_cost = first_cost');
         }
 
         $query->orderBy(match ($this->sortBy) {
