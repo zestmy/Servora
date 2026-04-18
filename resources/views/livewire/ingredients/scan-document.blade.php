@@ -11,12 +11,20 @@
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Scan Documents</h2>
             <p class="text-xs text-gray-500 mt-0.5">Upload a supplier invoice / quotation / price list (PDF or photo). The AI reads the supplier name, date, and every line item — you'll review and match them in the next step.</p>
         </div>
-        @if ($pendingReviewCount > 0)
-            <a href="{{ route('ingredients.review-documents') }}"
-               class="px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition whitespace-nowrap">
-                {{ $pendingReviewCount }} pending review →
-            </a>
-        @endif
+        <div class="flex flex-wrap items-center gap-2">
+            @if ($pendingReviewCount > 0)
+                <a href="{{ route('ingredients.review-documents') }}"
+                   class="px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition whitespace-nowrap">
+                    {{ $pendingReviewCount }} pending review →
+                </a>
+            @endif
+            @can('reports.view')
+                <a href="{{ route('reports.price-history') }}"
+                   class="px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition whitespace-nowrap">
+                    Price History Report
+                </a>
+            @endcan
+        </div>
     </div>
 
     {{-- Upload form --}}

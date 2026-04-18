@@ -15,7 +15,7 @@ class Hub extends Component
                 'reports' => [
                     ['label' => 'Purchase Analysis', 'route' => 'reports.purchase-analysis'],
                     ['label' => 'Purchase Order Summary', 'route' => 'reports.po-summary'],
-                    ['label' => 'Purchase Price History', 'route' => 'reports.price-history'],
+                    ['label' => 'Price History & Changes', 'route' => 'reports.price-history'],
                 ],
             ],
             [

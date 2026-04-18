@@ -12,10 +12,18 @@
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Documents</h2>
             <p class="text-xs text-gray-500 mt-0.5">Scanned supplier documents waiting for review. Open one to match the line items against your ingredient list and import.</p>
         </div>
-        <a href="{{ route('ingredients.scan-document') }}"
-           class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-            + Scan Document
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+            @can('reports.view')
+                <a href="{{ route('reports.price-history') }}"
+                   class="px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition whitespace-nowrap">
+                    Price History Report
+                </a>
+            @endcan
+            <a href="{{ route('ingredients.scan-document') }}"
+               class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                + Scan Document
+            </a>
+        </div>
     </div>
 
     {{-- Status tabs --}}
