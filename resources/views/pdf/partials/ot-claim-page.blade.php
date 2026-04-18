@@ -143,54 +143,48 @@
     </tfoot>
 </table>
 
-{{-- Signatures --}}
+{{-- Approvals (digital — see note below) --}}
 <div class="signatures">
     <div class="sig-cell">
         <div class="sig-role">Employee</div>
-        <div class="sig-line">
-            <div class="sig-name">{{ $employee->name }}</div>
-            @if ($employee->designation)
-                <div class="sig-title">{{ $employee->designation }}@if ($employee->staff_id) · {{ $employee->staff_id }}@endif</div>
-            @elseif ($employee->staff_id)
-                <div class="sig-title">{{ $employee->staff_id }}</div>
-            @endif
-        </div>
-        <div class="sig-date">Date: ____________________</div>
+        <div class="sig-name">{{ $employee->name }}</div>
+        @if ($employee->designation)
+            <div class="sig-title">{{ $employee->designation }}@if ($employee->staff_id) · {{ $employee->staff_id }}@endif</div>
+        @elseif ($employee->staff_id)
+            <div class="sig-title">{{ $employee->staff_id }}</div>
+        @endif
     </div>
 
     <div class="sig-cell">
         <div class="sig-role">Verified By</div>
-        <div class="sig-line">
-            @if ($submitters->count())
-                @foreach ($submitters as $s)
-                    <div class="sig-name">{{ $s->name }}</div>
-                    @if ($s->designation)
-                        <div class="sig-title">{{ $s->designation }}</div>
-                    @endif
-                @endforeach
-            @else
-                <div class="sig-name">&nbsp;</div>
-                <div class="sig-title">&nbsp;</div>
-            @endif
-        </div>
-        <div class="sig-date">Date: ____________________</div>
+        @if ($submitters->count())
+            @foreach ($submitters as $s)
+                <div class="sig-name">{{ $s->name }}</div>
+                @if ($s->designation)
+                    <div class="sig-title">{{ $s->designation }}</div>
+                @endif
+            @endforeach
+        @else
+            <div class="sig-name">—</div>
+        @endif
     </div>
 
     <div class="sig-cell">
         <div class="sig-role">Approved By</div>
-        <div class="sig-line">
-            @if ($approvers->count())
-                @foreach ($approvers as $a)
-                    <div class="sig-name">{{ $a->name }}</div>
-                    @if ($a->designation)
-                        <div class="sig-title">{{ $a->designation }}</div>
-                    @endif
-                @endforeach
-            @else
-                <div class="sig-name">&nbsp;</div>
-                <div class="sig-title">&nbsp;</div>
-            @endif
-        </div>
-        <div class="sig-date">Date: ____________________</div>
+        @if ($approvers->count())
+            @foreach ($approvers as $a)
+                <div class="sig-name">{{ $a->name }}</div>
+                @if ($a->designation)
+                    <div class="sig-title">{{ $a->designation }}</div>
+                @endif
+            @endforeach
+        @else
+            <div class="sig-name">—</div>
+        @endif
     </div>
+</div>
+
+<div class="computer-generated-note">
+    This is a computer-generated document; therefore, no signature is required.
+    All approvals have been completed digitally.
 </div>

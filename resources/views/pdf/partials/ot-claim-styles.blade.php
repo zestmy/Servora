@@ -51,19 +51,36 @@
     table.hours-table tr.total td { border-top: 1.5px solid #0f172a; padding-top: 5px; font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
     table.hours-table tr.total td.type-hours { font-size: 11.5pt; color: #0369a1; }
 
-    /* Signatures */
-    .signatures { display: table; width: 100%; margin-top: 34px; border-collapse: separate; border-spacing: 8px 0; }
-    .sig-cell { display: table-cell; width: 33.33%; vertical-align: top; padding: 0; text-align: center; }
+    /* Approvals (digital — no hand-signature area) */
+    .signatures { display: table; width: 100%; margin-top: 22px; border-collapse: separate; border-spacing: 8px 0; }
+    .sig-cell {
+        display: table-cell;
+        width: 33.33%;
+        vertical-align: top;
+        text-align: center;
+        padding: 8px 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
     .sig-role {
         font-size: 7.5pt;
         text-transform: uppercase;
         letter-spacing: 1.4px;
         color: #64748b;
         font-weight: bold;
-        margin-bottom: 64px;
+        margin-bottom: 4px;
     }
-    .sig-line { border-top: 1px solid #1f2937; padding-top: 5px; min-height: 20px; }
     .sig-name { font-size: 10pt; font-weight: bold; color: #0f172a; }
     .sig-title { font-size: 8pt; color: #64748b; margin-top: 1px; }
-    .sig-date { font-size: 7.5pt; color: #94a3b8; margin-top: 6px; }
+
+    .computer-generated-note {
+        margin-top: 14px;
+        padding: 8px 12px;
+        border-top: 1px dashed #cbd5e1;
+        font-size: 7.5pt;
+        color: #64748b;
+        text-align: center;
+        font-style: italic;
+        line-height: 1.45;
+    }
 </style>
