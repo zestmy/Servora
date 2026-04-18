@@ -43,7 +43,7 @@
 
     {{-- Events Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="overflow-x-auto"><table class="min-w-[720px] text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Date</th>
@@ -110,7 +110,7 @@
                     </tr>
                 @endforelse
             </tbody>
-        </table>
+        </table></div>
     </div>
 
     <div class="mt-4">{{ $events->links() }}</div>

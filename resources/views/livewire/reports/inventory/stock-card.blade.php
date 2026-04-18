@@ -64,7 +64,7 @@
                 <p class="text-xs mt-1">No stock movements recorded for this ingredient in the selected period.</p>
             </div>
         @else
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
@@ -95,7 +95,7 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
+            </table></div>
         @endif
     </div>
 </div>

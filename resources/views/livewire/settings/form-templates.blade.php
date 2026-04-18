@@ -47,10 +47,11 @@
         @endforeach
     </div>
 
-    {{-- Templates table --}}
+    {{-- Templates table — horizontally scrollable on mobile. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         @if ($templates->isNotEmpty())
-            <table class="min-w-full text-sm">
+          <div class="overflow-x-auto">
+            <table class="min-w-[900px] text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-100">
                     <tr>
                         <th class="px-4 py-3 text-left">Template Name</th>
@@ -119,6 +120,7 @@
                     @endforeach
                 </tbody>
             </table>
+          </div>
         @else
             <div class="py-16 text-center text-gray-400">
                 <p class="text-4xl mb-3">📋</p>

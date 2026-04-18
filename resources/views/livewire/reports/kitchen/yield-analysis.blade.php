@@ -15,7 +15,7 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Recipe</th>
@@ -45,7 +45,7 @@
                     <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">No production data yet.</td></tr>
                 @endforelse
             </tbody>
-        </table>
+        </table></div>
         @if ($recipes->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">{{ $recipes->links() }}</div>
         @endif

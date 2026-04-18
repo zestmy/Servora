@@ -29,7 +29,7 @@
 
     @if ($supplierId && $products->count() > 0)
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                     <tr>
                         <th class="px-4 py-3 text-left">SKU</th>
@@ -77,7 +77,7 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
+            </table></div>
             @if ($products->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">{{ $products->links() }}</div>
             @endif

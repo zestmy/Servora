@@ -51,7 +51,7 @@
 
     {{-- List --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+        <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Category</th>
@@ -132,7 +132,7 @@
                     </tr>
                 @endforelse
             </tbody>
-        </table>
+        </table></div>
     </div>
 
     {{-- Modal --}}

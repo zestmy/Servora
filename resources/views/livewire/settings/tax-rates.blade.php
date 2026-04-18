@@ -20,7 +20,7 @@
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         @if ($taxRates->count() > 0)
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
                         <th class="px-4 py-3 text-left">Country</th>
@@ -60,7 +60,7 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
+            </table></div>
         @else
             <div class="p-8 text-center text-gray-400 text-sm">No tax rates configured.</div>
         @endif

@@ -31,9 +31,10 @@
 
     <p class="text-xs text-gray-400 mb-4">Departments are cost centres for purchasing, inventory and costing. Link each department to a sales category for P&L reporting.</p>
 
-    {{-- List --}}
+    {{-- List — horizontally scrollable on mobile. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-[820px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Department</th>
@@ -103,6 +104,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
     </div>
 
     {{-- Modal --}}

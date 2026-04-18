@@ -31,7 +31,7 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Order #</th>
@@ -59,7 +59,7 @@
                     <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No production orders found.</td></tr>
                 @endforelse
             </tbody>
-        </table>
+        </table></div>
         @if ($orders->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">{{ $orders->links() }}</div>
         @endif

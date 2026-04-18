@@ -86,7 +86,7 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             @if ($poApprovers->count() > 0)
-                <table class="min-w-full divide-y divide-gray-100 text-sm">
+                <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
                     <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                         <tr>
                             <th class="px-5 py-3 text-left">User</th>
@@ -123,7 +123,7 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
+                </table></div>
             @else
                 <div class="p-8 text-center text-gray-400 text-sm">No PO approvers assigned. Click "+ Add PO Approver" to get started.</div>
             @endif
@@ -142,7 +142,7 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             @if ($prApprovers->count() > 0)
-                <table class="min-w-full divide-y divide-gray-100 text-sm">
+                <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
                     <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                         <tr>
                             <th class="px-5 py-3 text-left">User</th>
@@ -179,7 +179,7 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
+                </table></div>
             @else
                 <div class="p-8 text-center text-gray-400 text-sm">No PR approvers assigned. Click "+ Add PR Approver" to get started.</div>
             @endif

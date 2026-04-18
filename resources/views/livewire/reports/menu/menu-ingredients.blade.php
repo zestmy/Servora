@@ -54,7 +54,7 @@
                 </div>
 
                 @if ($recipe->lines->isNotEmpty())
-                    <table class="min-w-full text-sm">
+                    <div class="overflow-x-auto"><table class="min-w-[1100px] text-sm">
                         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                             <tr>
                                 <th class="px-4 py-2 text-left">Ingredient</th>
@@ -73,7 +73,7 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                    </table>
+                    </table></div>
                 @else
                     <div class="px-4 py-6 text-center text-gray-400 text-xs">No ingredients defined</div>
                 @endif

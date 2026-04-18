@@ -28,7 +28,7 @@
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         @if ($priceClasses->count())
-            <table class="min-w-full text-sm">
+            <div class="overflow-x-auto"><table class="min-w-[780px] text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
                         <th class="px-6 py-3 text-left">Name</th>
@@ -59,7 +59,7 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
+            </table></div>
         @else
             <div class="px-6 py-12 text-center text-gray-400">
                 <p class="text-sm font-medium">No price classes yet</p>
