@@ -216,7 +216,16 @@ class OvertimeClaims extends Component
     public function deleteClaim(int $id): void
     {
         $claim = OvertimeClaim::findOrFail($id);
-        if (! in_array($claim->status, ['draft', 'rejected'])) return;
+        $user  = Auth::user();
+
+        // Admins (can_delete_records) can remove any claim regardless of status.
+        // Everyone else can only delete drafts or rejected claims.
+        $isAdminDelete = $user->hasCapability('can_delete_records');
+        if (! $isAdminDelete && ! in_array($claim->status, ['draft', 'rejected'])) {
+            session()->flash('error', 'Only drafts or rejected claims can be deleted. Ask an admin to remove approved claims.');
+            return;
+        }
+
         $claim->delete();
         session()->flash('success', 'OT claim deleted.');
     }
@@ -333,6 +342,9 @@ class OvertimeClaims extends Component
 
         $sections = Section::active()->ordered()->get();
 
+        // Company Admin / Business Manager / system roles can delete at any status.
+        $canDeleteAny = $user->hasCapability('can_delete_records');
+
         // Stats
         $monthStart = now()->startOfMonth()->toDateString();
         $monthEnd   = now()->endOfMonth()->toDateString();
@@ -344,7 +356,7 @@ class OvertimeClaims extends Component
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'totalHoursMonth', 'pendingCount', 'approvedCount'
+            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canDeleteAny', 'totalHoursMonth', 'pendingCount', 'approvedCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 

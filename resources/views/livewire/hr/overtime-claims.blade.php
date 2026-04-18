@@ -204,14 +204,15 @@
                                     @if ($claim->status === 'draft')
                                         <button wire:click="openEdit({{ $claim->id }})" class="text-indigo-500 hover:text-indigo-700 text-xs font-medium">Edit</button>
                                         <button wire:click="submitClaim({{ $claim->id }})" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Submit</button>
-                                        <button wire:click="deleteClaim({{ $claim->id }})" wire:confirm="Delete this OT claim?" class="text-red-400 hover:text-red-600 text-xs font-medium">Delete</button>
                                     @endif
                                     @if ($claim->status === 'submitted' && $isApprover)
                                         <button wire:click="approveClaim({{ $claim->id }})" class="text-green-600 hover:text-green-800 text-xs font-medium">Approve</button>
                                         <button wire:click="openReject({{ $claim->id }})" class="text-red-500 hover:text-red-700 text-xs font-medium">Reject</button>
                                     @endif
-                                    @if ($claim->status === 'rejected')
-                                        <button wire:click="deleteClaim({{ $claim->id }})" wire:confirm="Delete this rejected claim?" class="text-red-400 hover:text-red-600 text-xs font-medium">Delete</button>
+                                    @if (in_array($claim->status, ['draft', 'rejected']) || $canDeleteAny)
+                                        <button wire:click="deleteClaim({{ $claim->id }})"
+                                                wire:confirm="Delete this OT claim? This cannot be undone."
+                                                class="text-red-400 hover:text-red-600 text-xs font-medium">Delete</button>
                                     @endif
                                 </div>
                             </td>
