@@ -64,7 +64,59 @@
 
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+
+        {{-- ── Mobile cards (md:hidden) ──────────────────────────────────── --}}
+        <div class="md:hidden divide-y divide-gray-100">
+            @forelse ($creditNotes as $cn)
+                @php
+                    $mStatus = match($cn->status) {
+                        'draft'     => 'bg-gray-100 text-gray-600',
+                        'issued'    => 'bg-blue-100 text-blue-700',
+                        'applied'   => 'bg-green-100 text-green-700',
+                        'acknowledged' => 'bg-teal-100 text-teal-700',
+                        'cancelled' => 'bg-red-100 text-red-600',
+                        default     => 'bg-gray-100 text-gray-500',
+                    };
+                    $mType = $cn->type === 'debit_note' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600';
+                @endphp
+                <div class="p-3 space-y-2">
+                    <div class="flex items-start justify-between gap-2">
+                        <a href="{{ route('purchasing.credit-notes.edit', $cn->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $cn->credit_note_number }}</a>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mStatus }}">{{ ucfirst($cn->status) }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="px-2 py-0.5 rounded {{ $mType }}">{{ $cn->type === 'debit_note' ? 'Debit' : 'Credit' }}</span>
+                        <span class="text-gray-500">{{ ucfirst($cn->direction ?? '—') }}</span>
+                    </div>
+                    <div class="text-sm text-gray-700 truncate">{{ $cn->supplier?->name ?? '—' }}</div>
+                    <div class="text-xs text-gray-500 truncate">{{ $cn->outlet?->name ?? '—' }}</div>
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        <span>{{ $cn->issued_date?->format('d M Y') ?? '—' }}</span>
+                        <span class="tabular-nums font-semibold text-gray-900">RM {{ number_format($cn->total_amount, 2) }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
+                        <x-doc-action-menu
+                            :pdfUrl="route('purchasing.pdf', ['type' => 'cn', 'id' => $cn->id])"
+                            :duplicateUrl="route('purchasing.credit-notes.create', ['duplicate' => $cn->id])"
+                            :docNumber="$cn->credit_note_number"
+                            :docType="$cn->type === 'debit_note' ? 'Debit Note' : 'Credit Note'"
+                        />
+                        @if ($cn->status === 'draft')
+                            <button wire:click="issue({{ $cn->id }})" wire:confirm="Issue this note?"
+                                    class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">Issue</button>
+                        @elseif ($cn->status === 'issued')
+                            <button wire:click="apply({{ $cn->id }})" wire:confirm="Apply this note to the linked invoice?"
+                                    class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">Apply</button>
+                        @endif
+                    </div>
+                </div>
+            @empty
+                <div class="p-8 text-center text-gray-400 text-sm font-medium">No credit/debit notes found.</div>
+            @endforelse
+        </div>
+
+        {{-- ── Desktop table (md+) ───────────────────────────────────────── --}}
+        <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Number</th>

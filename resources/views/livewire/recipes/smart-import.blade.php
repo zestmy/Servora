@@ -490,6 +490,8 @@
     {{-- ── STEP 3: Preview ─────────────────────────────────────── --}}
     @elseif ($step === 'preview')
 
+        <x-desktop-hint storageKey="desktop-hint-smart-import" message="Reviewing imported recipes is much faster on a desktop — the preview has many editable columns per row." />
+
         {{-- Populate global ingredient list before any picker initializes. Using x-init
              (not a plain <script>) so Alpine runs it synchronously when Livewire morphs
              this block in — plain inline scripts don't reliably re-execute on morph. --}}

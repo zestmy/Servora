@@ -2,6 +2,7 @@
     @once
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     @endonce
+    <x-desktop-hint storageKey="desktop-hint-po-form" message="Building purchase orders is easier on a desktop — line-item editing benefits from a wider screen." />
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">

@@ -164,13 +164,13 @@
         {{-- Mobile top bar --}}
         <div class="md:hidden sticky top-0 z-30 flex items-center h-14 px-3 bg-gray-900 text-white shadow">
             <button @click="mobileNavOpen = true"
-                    class="-ml-1 p-2 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
+                    class="-ml-2 p-3 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
                     aria-label="Open menu">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
-            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7 ml-1">
+            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7">
             <span class="ml-2 px-2 py-0.5 rounded bg-purple-900/60 text-[10px] uppercase tracking-widest text-purple-200 font-semibold">Kitchen</span>
             @if (! empty($title))
                 <span class="ml-auto text-sm text-gray-300 truncate max-w-[40%]">{{ $title }}</span>

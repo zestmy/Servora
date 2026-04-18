@@ -1,5 +1,85 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-100 text-sm">
+
+    {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
+    <div class="md:hidden divide-y divide-gray-100">
+        @forelse ($orders as $po)
+            @php
+                $mBadge = match($po->status) {
+                    'draft'     => 'bg-gray-100 text-gray-600',
+                    'submitted' => 'bg-yellow-100 text-yellow-700',
+                    'approved'  => 'bg-indigo-100 text-indigo-700',
+                    'sent'      => 'bg-blue-100 text-blue-700',
+                    'partial'   => 'bg-orange-100 text-orange-700',
+                    'received'  => 'bg-green-100 text-green-700',
+                    'cancelled' => 'bg-red-100 text-red-600',
+                    default     => 'bg-gray-100 text-gray-500',
+                };
+                $mStatus = match($po->status) {
+                    'submitted' => 'Pending',
+                    'approved'  => 'Approved',
+                    'sent'      => 'Processing',
+                    default     => ucfirst($po->status),
+                };
+                $mCanApprove = $isAppointed && collect($approverAssignments)->contains(function ($a) use ($po) {
+                    if ($a['outlet_id'] != $po->outlet_id) return false;
+                    if (! $po->department_id) return true;
+                    return $a['department_id'] == $po->department_id;
+                });
+            @endphp
+            <div class="p-3 space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                    <a href="{{ route('purchasing.orders.edit', $po->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $po->po_number }}</a>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ $mStatus }}</span>
+                </div>
+                <div class="text-sm text-gray-700 truncate">{{ $po->supplier?->name ?? '—' }}</div>
+                @if ($seesAllOutlets)
+                    <div class="text-xs text-gray-500 truncate">{{ $po->outlet?->name ?? '—' }}</div>
+                @endif
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                    <div class="flex items-center gap-3">
+                        <span>{{ $po->order_date->format('d M Y') }}</span>
+                        <span>{{ $po->lines_count }} item{{ $po->lines_count !== 1 ? 's' : '' }}</span>
+                    </div>
+                    <span class="tabular-nums font-semibold text-gray-900">RM {{ number_format($po->total_amount, 2) }}</span>
+                </div>
+                <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <x-doc-action-menu
+                        :pdfUrl="route('purchasing.pdf', ['type' => 'po', 'id' => $po->id])"
+                        :duplicateUrl="route('purchasing.orders.create', ['duplicate' => $po->id])"
+                        :docNumber="$po->po_number"
+                        docType="Purchase Order"
+                    />
+                    @if ($po->status === 'draft')
+                        <button wire:click="submitPo({{ $po->id }})" wire:confirm="{{ $requirePoApproval ? "Submit '{$po->po_number}' for approval?" : "Submit & approve '{$po->po_number}'?" }}"
+                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">
+                            {{ $requirePoApproval ? 'Submit' : 'Submit & Approve' }}
+                        </button>
+                    @elseif ($po->status === 'submitted' && $mCanApprove)
+                        <button wire:click="approvePo({{ $po->id }})" wire:confirm="Approve '{{ $po->po_number }}'?"
+                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">
+                            Approve
+                        </button>
+                        <button wire:click="rejectPo({{ $po->id }})" wire:confirm="Reject '{{ $po->po_number }}'?"
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100">
+                            Reject
+                        </button>
+                    @elseif ($po->status === 'submitted')
+                        <span class="flex-1 text-xs text-yellow-600 text-center">Awaiting approval</span>
+                    @elseif (in_array($po->status, ['approved', 'sent', 'partial']))
+                        <a href="{{ route('purchasing.orders.receive', $po->id) }}"
+                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">
+                            Receive
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @empty
+            <div class="p-8 text-center text-gray-400 text-sm font-medium">No purchase orders found</div>
+        @endforelse
+    </div>
+
+    {{-- ── Desktop table (md+) ───────────────────────────────────────────── --}}
+    <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
             <tr>
                 <th class="px-4 py-3 text-left">PO Number</th>

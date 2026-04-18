@@ -1,5 +1,54 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-100 text-sm">
+
+    {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
+    <div class="md:hidden divide-y divide-gray-100">
+        @forelse ($grns as $grn)
+            @php
+                $mBadge = match($grn->status) {
+                    'pending'  => 'bg-yellow-100 text-yellow-700',
+                    'received' => 'bg-green-100 text-green-700',
+                    'partial'  => 'bg-blue-100 text-blue-700',
+                    'rejected' => 'bg-red-100 text-red-600',
+                    default    => 'bg-gray-100 text-gray-500',
+                };
+            @endphp
+            <div class="p-3 space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="font-mono text-sm font-medium text-gray-800">{{ $grn->grn_number }}</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ ucfirst($grn->status) }}</span>
+                </div>
+                <div class="text-sm text-gray-700 truncate">{{ $grn->supplier?->name ?? '—' }}</div>
+                <div class="text-xs text-gray-500 truncate">{{ $grn->outlet?->name ?? '—' }} · DO {{ $grn->deliveryOrder?->do_number ?? '—' }}</div>
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                    <div class="flex items-center gap-3">
+                        <span>{{ $grn->received_date?->format('d M Y') ?? '—' }}</span>
+                        <span>{{ $grn->lines_count }} item{{ $grn->lines_count !== 1 ? 's' : '' }}</span>
+                    </div>
+                    @if ($showPrice)
+                        <span class="tabular-nums font-semibold text-gray-900">RM {{ number_format($grn->total_amount, 2) }}</span>
+                    @endif
+                </div>
+                <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <x-doc-action-menu
+                        :pdfUrl="route('purchasing.pdf', ['type' => 'grn', 'id' => $grn->id])"
+                        :docNumber="$grn->grn_number"
+                        docType="Goods Received Note"
+                    />
+                    @if ($grn->status === 'pending')
+                        <a href="{{ route('purchasing.grn.receive', $grn->id) }}"
+                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">
+                            Receive
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @empty
+            <div class="p-8 text-center text-gray-400 text-sm font-medium">No goods received notes found</div>
+        @endforelse
+    </div>
+
+    {{-- ── Desktop table (md+) ───────────────────────────────────────────── --}}
+    <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
             <tr>
                 <th class="px-4 py-3 text-left">GRN Number</th>

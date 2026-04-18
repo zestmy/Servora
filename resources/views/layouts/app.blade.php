@@ -8,6 +8,14 @@
     <title>{{ config('app.name', 'Servora') }} — {{ $title ?? 'Dashboard' }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
+    {{-- PWA: installable on mobile, offline fallback, no-cache for auth routes --}}
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#111827">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Servora">
+    <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -401,13 +409,13 @@
         {{-- Mobile top bar (md+ hidden). Sticky to top of the scroll container. --}}
         <div class="md:hidden sticky top-0 z-30 flex items-center h-14 px-3 bg-gray-900 text-white shadow">
             <button @click="mobileNavOpen = true"
-                    class="-ml-1 p-2 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
+                    class="-ml-2 p-3 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
                     aria-label="Open menu">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
-            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7 ml-1">
+            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7">
             @if (! empty($title))
                 <span class="ml-auto text-sm text-gray-300 truncate max-w-[50%]">{{ $title }}</span>
             @endif
@@ -505,6 +513,82 @@
 
 {{-- Progress bar element --}}
 <div id="nav-progress"></div>
+
+{{-- PWA install prompt — only shown on mobile when the browser fires
+     beforeinstallprompt. Dismissable and remembers for 7 days. --}}
+<div id="pwa-install-banner"
+     style="display:none;"
+     class="fixed bottom-3 inset-x-3 z-[120] md:hidden flex items-center gap-3 px-3 py-2.5 bg-gray-900 text-white rounded-xl shadow-lg border border-gray-700">
+    <img src="{{ asset('favicon.png') }}" alt="" class="h-8 w-8 rounded-lg">
+    <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold">Install Servora</p>
+        <p class="text-[11px] text-gray-300 leading-tight">Add to home screen for quick access.</p>
+    </div>
+    <button id="pwa-install-btn" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500">Install</button>
+    <button id="pwa-install-dismiss" class="p-1 text-gray-400 hover:text-white" aria-label="Dismiss">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
+</div>
+
+<script>
+// Service worker registration + install prompt handling
+(function () {
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function (err) {
+                console.warn('SW registration failed', err);
+            });
+        });
+    }
+
+    const DISMISS_KEY = 'pwa-install-dismissed-at';
+    const DISMISS_DAYS = 7;
+    const wasDismissedRecently = () => {
+        try {
+            const raw = localStorage.getItem(DISMISS_KEY);
+            if (!raw) return false;
+            const ts = parseInt(raw, 10);
+            if (!ts) return false;
+            return (Date.now() - ts) < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+        } catch (e) { return false; }
+    };
+
+    let deferredPrompt = null;
+    const banner = document.getElementById('pwa-install-banner');
+    const installBtn = document.getElementById('pwa-install-btn');
+    const dismissBtn = document.getElementById('pwa-install-dismiss');
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        if (wasDismissedRecently()) return;
+        deferredPrompt = e;
+        banner.style.display = 'flex';
+    });
+
+    if (installBtn) {
+        installBtn.addEventListener('click', async function () {
+            if (!deferredPrompt) return;
+            banner.style.display = 'none';
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+        });
+    }
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function () {
+            banner.style.display = 'none';
+            try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (e) {}
+        });
+    }
+
+    window.addEventListener('appinstalled', function () {
+        banner.style.display = 'none';
+        deferredPrompt = null;
+    });
+})();
+</script>
 
 <script>
 (function(){

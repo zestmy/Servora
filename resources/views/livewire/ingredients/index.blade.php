@@ -160,6 +160,7 @@
 
     {{-- Quick Edit Mode --}}
     @if ($quickEdit)
+        <x-desktop-hint storageKey="desktop-hint-quick-edit" message="Quick Edit is a spreadsheet view — it works best on a desktop with a full keyboard." />
         <div class="mb-4 px-4 py-3 bg-purple-50 border border-purple-200 text-purple-800 text-sm rounded-xl flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

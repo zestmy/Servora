@@ -1,5 +1,74 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-100 text-sm">
+
+    {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
+    <div class="md:hidden divide-y divide-gray-100">
+        @forelse ($purchaseRequests as $pr)
+            @php
+                $mBadge = match($pr->status) {
+                    'draft'     => 'bg-gray-100 text-gray-600',
+                    'submitted' => 'bg-yellow-100 text-yellow-700',
+                    'approved'  => 'bg-green-100 text-green-700',
+                    'rejected'  => 'bg-red-100 text-red-600',
+                    'converted' => 'bg-indigo-100 text-indigo-700',
+                    'cancelled' => 'bg-gray-100 text-gray-500',
+                    default     => 'bg-gray-100 text-gray-500',
+                };
+                $mCanApprove = $isPrApprover && $pr->status === 'submitted';
+                $mNeededRed = $pr->needed_by_date && $pr->needed_by_date->isPast() && ! in_array($pr->status, ['approved','converted','cancelled','rejected']);
+            @endphp
+            <div class="p-3 space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                    <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $pr->pr_number }}</a>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ ucfirst($pr->status) }}</span>
+                </div>
+                @if ($seesAllOutlets)
+                    <div class="text-xs text-gray-500 truncate">{{ $pr->outlet?->name ?? '—' }}</div>
+                @endif
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                    <div class="flex items-center gap-3">
+                        <span>{{ $pr->requested_date->format('d M Y') }}</span>
+                        <span>{{ $pr->lines_count }} item{{ $pr->lines_count !== 1 ? 's' : '' }}</span>
+                    </div>
+                    @if ($pr->needed_by_date)
+                        <span class="{{ $mNeededRed ? 'text-red-500 font-medium' : 'text-gray-500' }}">
+                            Need {{ $pr->needed_by_date->format('d M') }}
+                        </span>
+                    @endif
+                </div>
+                <div class="text-xs text-gray-400 truncate">By {{ $pr->createdBy?->name ?? '—' }}</div>
+                @if ($pr->status === 'rejected' && $pr->rejected_reason)
+                    <div class="text-xs text-red-500 italic">{{ Str::limit($pr->rejected_reason, 80) }}</div>
+                @endif
+                <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <x-doc-action-menu
+                        :pdfUrl="route('purchasing.pdf', ['type' => 'pr', 'id' => $pr->id])"
+                        :duplicateUrl="route('purchasing.requests.create', ['duplicate' => $pr->id])"
+                        :docNumber="$pr->pr_number"
+                        docType="Purchase Request"
+                    />
+                    @if ($pr->status === 'draft')
+                        <button wire:click="submitPr({{ $pr->id }})" wire:confirm="Submit this purchase request?"
+                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">Submit</button>
+                    @elseif ($mCanApprove)
+                        <button wire:click="approvePr({{ $pr->id }})" wire:confirm="Approve '{{ $pr->pr_number }}'?"
+                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">Approve</button>
+                    @elseif ($pr->status === 'submitted')
+                        <span class="flex-1 text-xs text-yellow-600 text-center">Awaiting approval</span>
+                    @elseif ($pr->status === 'approved')
+                        <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}"
+                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                            Convert to PO
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @empty
+            <div class="p-8 text-center text-gray-400 text-sm font-medium">No purchase requests found</div>
+        @endforelse
+    </div>
+
+    {{-- ── Desktop table (md+) ───────────────────────────────────────────── --}}
+    <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
             <tr>
                 <th class="px-4 py-3 text-left">PR Number</th>
