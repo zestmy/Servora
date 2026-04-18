@@ -47,7 +47,7 @@ class AuthController extends Controller
     {
         $company = $this->resolveCompany($companySlug);
 
-        return view('lms.auth.login', compact('company'));
+        return $this->noStore(response()->view('lms.auth.login', compact('company')));
     }
 
     public function login(Request $request, ?string $companySlug = null)
@@ -91,7 +91,20 @@ class AuthController extends Controller
         $company = $this->resolveCompany($companySlug);
         $outlets = Outlet::where('company_id', $company->id)->where('is_active', true)->orderBy('name')->get();
 
-        return view('lms.auth.register', compact('company', 'outlets'));
+        return $this->noStore(response()->view('lms.auth.register', compact('company', 'outlets')));
+    }
+
+    /**
+     * CSRF tokens are per-session; if a login/register page gets cached
+     * (browser HTTP cache or service worker), a form POST will 419. Force
+     * these auth pages to always come from the network.
+     */
+    private function noStore($response)
+    {
+        return $response
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function register(Request $request, ?string $companySlug = null)

@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'company.scope'       => \App\Http\Middleware\EnsureCompanyScope::class,
             'company.subdomain'   => \App\Http\Middleware\ResolveCompanyFromSubdomain::class,
             'lms.auth'            => \App\Http\Middleware\LmsAuthenticate::class,
+            'lms.guest'           => \App\Http\Middleware\LmsGuest::class,
             'onboarding'          => \App\Http\Middleware\EnsureOnboardingComplete::class,
             'check.subscription'  => \App\Http\Middleware\CheckSubscription::class,
             'enforce.subscription' => \App\Http\Middleware\EnforceSubscription::class,

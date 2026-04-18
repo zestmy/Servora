@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Route;
 
 // Subdomain-based LMS routes ({slug}.servora.com.my/lms)
 // ResolveCompanyFromSubdomain middleware resolves the company from subdomain
-Route::prefix('lms')->middleware('company.subdomain')->group(function () {
+// lms.guest sends already-authenticated users straight to the dashboard so a
+// stale/cached login page can never intercept them with a 419.
+Route::prefix('lms')->middleware(['company.subdomain', 'lms.guest'])->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('lms.subdomain.login');
     Route::post('/login', [AuthController::class, 'login'])->name('lms.subdomain.login.submit');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('lms.subdomain.register');
@@ -16,7 +18,7 @@ Route::prefix('lms')->middleware('company.subdomain')->group(function () {
 });
 
 // Path-based LMS routes (servora.com.my/lms/{slug})
-Route::prefix('lms/{companySlug}')->group(function () {
+Route::prefix('lms/{companySlug}')->middleware('lms.guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('lms.login');
     Route::post('/login', [AuthController::class, 'login'])->name('lms.login.submit');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('lms.register');
