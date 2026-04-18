@@ -6,10 +6,12 @@ use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class OtEmployee extends Model
+class Employee extends Model
 {
     protected $fillable = [
-        'company_id', 'outlet_id', 'name', 'position', 'is_active',
+        'company_id', 'outlet_id', 'staff_id',
+        'name', 'designation', 'department',
+        'email', 'phone', 'is_active',
     ];
 
     protected $casts = [

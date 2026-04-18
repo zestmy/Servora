@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Hr;
 
-use App\Models\OtEmployee;
+use App\Models\Employee;
 use App\Models\OvertimeClaim;
 use App\Models\OvertimeClaimApprover;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +47,7 @@ class OvertimeClaims extends Component
     public bool   $showEmployeeListModal = false;
     public ?int   $editingEmployeeId     = null;
     public string $emp_name              = '';
-    public string $emp_position          = '';
+    public string $emp_designation          = '';
 
     // Bulk selection
     public array  $selected = [];
@@ -61,7 +61,7 @@ class OvertimeClaims extends Component
     protected function rules(): array
     {
         return [
-            'employee_id'    => 'required|exists:ot_employees,id',
+            'employee_id'    => 'required|exists:employees,id',
             'claim_date'     => 'required|date',
             'ot_time_start'  => 'required|date_format:H:i',
             'ot_time_end'    => 'required|date_format:H:i',
@@ -305,8 +305,8 @@ class OvertimeClaims extends Component
 
         // Sorting
         if ($this->sortField === 'employee') {
-            $query->join('ot_employees', 'overtime_claims.employee_id', '=', 'ot_employees.id')
-                ->orderBy('ot_employees.name', $this->sortDirection)
+            $query->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+                ->orderBy('employees.name', $this->sortDirection)
                 ->select('overtime_claims.*');
         } else {
             $query->orderBy($this->sortField, $this->sortDirection);
@@ -315,7 +315,7 @@ class OvertimeClaims extends Component
         $claims = $query->paginate($this->perPage);
 
         // Employee list for dropdown (active only) and management modal (all)
-        $allEmployees = OtEmployee::where('outlet_id', $outletId)
+        $allEmployees = Employee::where('outlet_id', $outletId)
             ->orderBy('name')
             ->get();
         $employees = $allEmployees->where('is_active', true);
@@ -359,7 +359,7 @@ class OvertimeClaims extends Component
     {
         $this->editingEmployeeId = null;
         $this->emp_name          = '';
-        $this->emp_position      = '';
+        $this->emp_designation      = '';
         $this->showEmployeeModal = true;
     }
 
@@ -370,10 +370,10 @@ class OvertimeClaims extends Component
 
     public function openEditEmployee(int $id): void
     {
-        $emp = OtEmployee::findOrFail($id);
+        $emp = Employee::findOrFail($id);
         $this->editingEmployeeId     = $emp->id;
         $this->emp_name              = $emp->name;
-        $this->emp_position          = $emp->position ?? '';
+        $this->emp_designation          = $emp->designation ?? '';
         $this->showEmployeeModal     = true;
         $this->showEmployeeListModal = false;
     }
@@ -382,7 +382,7 @@ class OvertimeClaims extends Component
     {
         $this->validate([
             'emp_name'     => 'required|string|max:255',
-            'emp_position' => 'nullable|string|max:255',
+            'emp_designation' => 'nullable|string|max:255',
         ]);
 
         $user     = Auth::user();
@@ -392,14 +392,14 @@ class OvertimeClaims extends Component
             'company_id' => $user->company_id,
             'outlet_id'  => $outletId,
             'name'       => $this->emp_name,
-            'position'   => $this->emp_position ?: null,
+            'designation' => $this->emp_designation ?: null,
         ];
 
         if ($this->editingEmployeeId) {
-            OtEmployee::findOrFail($this->editingEmployeeId)->update($data);
+            Employee::findOrFail($this->editingEmployeeId)->update($data);
             session()->flash('success', 'Employee updated.');
         } else {
-            OtEmployee::create($data);
+            Employee::create($data);
             session()->flash('success', 'Employee added to list.');
         }
 
@@ -408,13 +408,13 @@ class OvertimeClaims extends Component
 
     public function toggleEmployee(int $id): void
     {
-        $emp = OtEmployee::findOrFail($id);
+        $emp = Employee::findOrFail($id);
         $emp->update(['is_active' => ! $emp->is_active]);
     }
 
     public function deleteEmployee(int $id): void
     {
-        $emp = OtEmployee::findOrFail($id);
+        $emp = Employee::findOrFail($id);
 
         if (OvertimeClaim::where('employee_id', $id)->exists()) {
             session()->flash('error', 'Cannot delete employee with existing OT claims. Deactivate instead.');

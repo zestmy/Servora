@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
-use App\Models\OtEmployee;
+use App\Models\Employee;
 use App\Models\OvertimeClaim;
 use App\Models\OvertimeClaimApprover;
 use App\Models\User;
@@ -32,7 +32,7 @@ class OtClaimPdfController extends Controller
             ->unique('id');
 
         if ($employee === 'all') {
-            $employees = OtEmployee::where('outlet_id', $outletId)
+            $employees = Employee::where('outlet_id', $outletId)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get();
@@ -69,7 +69,7 @@ class OtClaimPdfController extends Controller
         }
 
         // Single employee
-        $employee = OtEmployee::findOrFail((int) $employee);
+        $employee = Employee::findOrFail((int) $employee);
 
         $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
             ->where('employee_id', $employee->id)

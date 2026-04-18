@@ -247,7 +247,7 @@
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">— Select Employee —</option>
                             @foreach ($employees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }}@if($emp->position) — {{ $emp->position }}@endif</option>
+                                <option value="{{ $emp->id }}">{{ $emp->name }}@if($emp->designation) — {{ $emp->designation }}@endif</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('employee_id')" class="mt-1" />
@@ -396,9 +396,9 @@
                         <x-input-error :messages="$errors->get('emp_name')" class="mt-1" />
                     </div>
                     <div>
-                        <x-input-label for="emp_position" value="Position" />
-                        <x-text-input id="emp_position" wire:model="emp_position" type="text" class="mt-1 block w-full" placeholder="e.g. Kitchen Helper, Waiter" />
-                        <x-input-error :messages="$errors->get('emp_position')" class="mt-1" />
+                        <x-input-label for="emp_designation" value="Designation" />
+                        <x-text-input id="emp_designation" wire:model="emp_designation" type="text" class="mt-1 block w-full" placeholder="e.g. Kitchen Helper, Waiter" />
+                        <x-input-error :messages="$errors->get('emp_designation')" class="mt-1" />
                     </div>
                 </div>
 
@@ -493,7 +493,7 @@
                                 @foreach ($allEmployees as $emp)
                                     <tr wire:key="emplist-{{ $emp->id }}" class="{{ !$emp->is_active ? 'opacity-50' : '' }}">
                                         <td class="px-4 py-2.5 font-medium text-gray-800">{{ $emp->name }}</td>
-                                        <td class="px-4 py-2.5 text-gray-600">{{ $emp->position ?? '—' }}</td>
+                                        <td class="px-4 py-2.5 text-gray-600">{{ $emp->designation ?? '—' }}</td>
                                         <td class="px-4 py-2.5 text-center">
                                             <span class="px-2 py-0.5 text-[10px] font-medium rounded-full {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                                 {{ $emp->is_active ? 'Active' : 'Inactive' }}
