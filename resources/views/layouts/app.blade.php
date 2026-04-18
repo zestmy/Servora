@@ -172,10 +172,9 @@
                     [
                         'label' => 'HR',
                         'items' => [
-                            ['route' => 'settings.lms-users',      'label' => 'LMS Users',       'permission' => 'hr.view'],
-                            ['route' => 'training.sop.pdf-all',    'label' => 'Export All SOPs',  'permission' => 'hr.view'],
+                            ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view'],
                             ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
-                            ['route' => 'hr.overtime-claims', 'label' => 'Overtime Claims', 'permission' => 'hr.view'],
+                            ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.view'],
                         ],
                     ],
                     [

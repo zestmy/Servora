@@ -6,9 +6,9 @@
         </div>
     @endif
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400"><a href="{{ route('recipes.index') }}" class="hover:underline">Training</a> / LMS Users</p>
+            <p class="text-xs text-gray-400">HR / Training Portal</p>
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Training Portal</h2>
         </div>
         <div class="flex gap-2">
