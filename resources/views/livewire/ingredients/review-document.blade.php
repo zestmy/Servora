@@ -187,11 +187,16 @@
                                             <span>{{ $item['price_change'] > 0 ? '▲' : '▼' }}</span>
                                             <span>{{ $item['price_change_pct'] > 0 ? '+' : '' }}{{ $item['price_change_pct'] }}%</span>
                                         </div>
-                                        <div class="text-[10px] text-gray-400 leading-tight">was {{ number_format($item['old_price'], 2) }}</div>
+                                        <div class="text-[10px] text-gray-400 leading-tight">
+                                            was {{ number_format($item['old_price'], 2) }}
+                                            @if (($item['old_price_source'] ?? null) === 'ingredient')
+                                                <span class="text-gray-400" title="Compared against the ingredient's saved purchase price — this supplier has no prior price yet.">(ingredient)</span>
+                                            @endif
+                                        </div>
                                     @else
                                         <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">no change</div>
                                     @endif
-                                @elseif ($item['already_linked'])
+                                @elseif ($item['ingredient_id'])
                                     <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">no prior price</div>
                                 @endif
                             </td>

@@ -113,21 +113,34 @@ class ReviewDocument extends Component
             $alreadyLinked = $match && isset($existingLinks[$match['id']]);
             $status = $match ? ($alreadyLinked ? 'already_linked' : 'match') : 'new';
 
-            // Old price + delta (only meaningful when matched to an existing
-            // link, so the current supplier had a prior last_cost for this
-            // ingredient).
-            $oldPrice     = null;
-            $priceChange  = null;  // absolute delta
+            // Old price + delta. Priority:
+            //   1) This supplier's prior last_cost (same supplier → most
+            //      accurate price history).
+            //   2) Ingredient's purchase_price (fallback — this is what recipe
+            //      costing uses, so it's the relevant benchmark when the
+            //      supplier is brand new for this ingredient).
+            $oldPrice       = null;
+            $oldPriceSource = null; // 'supplier' | 'ingredient'
+            $priceChange    = null;
             $priceChangePct = null;
-            if ($alreadyLinked) {
-                $row = $existingLinks[$match['id']];
-                if ($row->last_cost !== null) {
-                    $oldPrice = (float) $row->last_cost;
-                    if ($price > 0 && $oldPrice > 0 && abs($price - $oldPrice) > 0.0001) {
-                        $priceChange    = $price - $oldPrice;
-                        $priceChangePct = round(($priceChange / $oldPrice) * 100, 1);
+
+            if ($match) {
+                if ($alreadyLinked) {
+                    $row = $existingLinks[$match['id']];
+                    if ($row->last_cost !== null) {
+                        $oldPrice       = (float) $row->last_cost;
+                        $oldPriceSource = 'supplier';
                     }
                 }
+                if ($oldPrice === null && ($match['purchase_price'] ?? 0) > 0) {
+                    $oldPrice       = (float) $match['purchase_price'];
+                    $oldPriceSource = 'ingredient';
+                }
+            }
+
+            if ($oldPrice !== null && $price > 0 && $oldPrice > 0 && abs($price - $oldPrice) > 0.0001) {
+                $priceChange    = $price - $oldPrice;
+                $priceChangePct = round(($priceChange / $oldPrice) * 100, 1);
             }
 
             // Smart default action:
@@ -154,6 +167,7 @@ class ReviewDocument extends Component
                 'pack_size'        => $pack,
                 'price'            => $price,
                 'old_price'        => $oldPrice,
+                'old_price_source' => $oldPriceSource,
                 'price_change'     => $priceChange,
                 'price_change_pct' => $priceChangePct,
                 'category'         => trim((string) ($item['category'] ?? '')) ?: null,
@@ -174,14 +188,24 @@ class ReviewDocument extends Component
         $key = strtolower(trim($name));
         if (isset($ingredientsByName[$key])) {
             $ing = $ingredientsByName[$key];
-            return ['id' => $ing->id, 'name' => $ing->name, 'confidence' => 100];
+            return [
+                'id'             => $ing->id,
+                'name'           => $ing->name,
+                'confidence'     => 100,
+                'purchase_price' => (float) ($ing->purchase_price ?? 0),
+            ];
         }
         $bestScore = 0; $bestMatch = null;
         foreach ($ingredientsByName as $k => $ing) {
             similar_text($key, $k, $pct);
             if ($pct > $bestScore && $pct >= 60) { $bestScore = $pct; $bestMatch = $ing; }
         }
-        return $bestMatch ? ['id' => $bestMatch->id, 'name' => $bestMatch->name, 'confidence' => (int) $bestScore] : null;
+        return $bestMatch ? [
+            'id'             => $bestMatch->id,
+            'name'           => $bestMatch->name,
+            'confidence'     => (int) $bestScore,
+            'purchase_price' => (float) ($bestMatch->purchase_price ?? 0),
+        ] : null;
     }
 
     private function resolveUom(string $raw, $uomsByAbbr, $uomsByName): ?int
@@ -220,7 +244,20 @@ class ReviewDocument extends Component
             : null;
 
         $newPrice = (float) ($this->items[$idx]['price'] ?? 0);
-        $old = $link && $link->last_cost !== null ? (float) $link->last_cost : null;
+
+        // Prefer supplier-specific last_cost; fall back to the ingredient's
+        // own purchase_price so a brand-new supplier link still shows a diff
+        // against the benchmark recipe costing already uses.
+        $old = null;
+        $oldSource = null;
+        if ($link && $link->last_cost !== null) {
+            $old = (float) $link->last_cost;
+            $oldSource = 'supplier';
+        } elseif (((float) ($ing->purchase_price ?? 0)) > 0) {
+            $old = (float) $ing->purchase_price;
+            $oldSource = 'ingredient';
+        }
+
         [$change, $changePct] = $this->diff($old, $newPrice);
 
         $this->items[$idx]['ingredient_id']    = $ing->id;
@@ -229,6 +266,7 @@ class ReviewDocument extends Component
         $this->items[$idx]['already_linked']   = (bool) $link;
         $this->items[$idx]['status']           = $link ? 'already_linked' : 'match';
         $this->items[$idx]['old_price']        = $old;
+        $this->items[$idx]['old_price_source'] = $oldSource;
         $this->items[$idx]['price_change']     = $change;
         $this->items[$idx]['price_change_pct'] = $changePct;
         $this->items[$idx]['action']           = $link
@@ -299,16 +337,32 @@ class ReviewDocument extends Component
             ->get()
             ->keyBy('ingredient_id');
 
+        // Cache ingredient purchase_price for fallback diff when this
+        // supplier doesn't have a last_cost yet.
+        $ingredientIds  = collect($this->items)->pluck('ingredient_id')->filter()->unique()->all();
+        $purchasePrices = Ingredient::whereIn('id', $ingredientIds)->pluck('purchase_price', 'id');
+
         foreach ($this->items as $idx => $item) {
             if (! $item['ingredient_id']) continue;
             $link   = $existing[$item['ingredient_id']] ?? null;
             $linked = (bool) $link;
-            $old    = $link && $link->last_cost !== null ? (float) $link->last_cost : null;
+
+            $old = null;
+            $oldSource = null;
+            if ($link && $link->last_cost !== null) {
+                $old = (float) $link->last_cost;
+                $oldSource = 'supplier';
+            } elseif (((float) ($purchasePrices[$item['ingredient_id']] ?? 0)) > 0) {
+                $old = (float) $purchasePrices[$item['ingredient_id']];
+                $oldSource = 'ingredient';
+            }
+
             [$change, $changePct] = $this->diff($old, (float) ($item['price'] ?? 0));
 
             $this->items[$idx]['already_linked']   = $linked;
             $this->items[$idx]['status']           = $linked ? 'already_linked' : 'match';
             $this->items[$idx]['old_price']        = $old;
+            $this->items[$idx]['old_price_source'] = $oldSource;
             $this->items[$idx]['price_change']     = $change;
             $this->items[$idx]['price_change_pct'] = $changePct;
             $this->items[$idx]['action']           = $linked
