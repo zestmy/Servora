@@ -163,11 +163,12 @@
         @endif
     </div>
 
-    {{-- ── Add / Edit modal ─────────────────────────────────────────────── --}}
-    <div x-data="{ open: @entangle('showForm') }"
-         x-show="open" x-cloak
+    {{-- ── Add / Edit modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showForm') }">
+    <template x-teleport="body">
+    <div x-show="open" x-cloak
          @keydown.escape.window="open = false"
-         class="fixed inset-0 z-50 overflow-y-auto">
+         class="fixed inset-0 z-[100] overflow-y-auto">
         <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
         <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg" @click.stop>
@@ -233,12 +234,15 @@
             </div>
         </div>
     </div>
+    </template>
+    </div>
 
-    {{-- ── CSV import modal ─────────────────────────────────────────────── --}}
-    <div x-data="{ open: @entangle('showImport') }"
-         x-show="open" x-cloak
+    {{-- ── CSV import modal (teleported to body) ───────────────────────── --}}
+    <div x-data="{ open: @entangle('showImport') }">
+    <template x-teleport="body">
+    <div x-show="open" x-cloak
          @keydown.escape.window="open = false"
-         class="fixed inset-0 z-50 overflow-y-auto">
+         class="fixed inset-0 z-[100] overflow-y-auto">
         <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
         <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg" @click.stop>
@@ -294,5 +298,7 @@
                 </div>
             </div>
         </div>
+    </div>
+    </template>
     </div>
 </div>
