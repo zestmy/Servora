@@ -44,13 +44,12 @@ class OvertimeClaims extends Component
     public bool   $showBulkRejectModal   = false;
     public string $bulk_rejected_reason  = '';
 
-    // Employee modals
-    public bool   $showEmployeeModal     = false;
-    public bool   $showEmployeeListModal = false;
-    public ?int   $editingEmployeeId     = null;
-    public string $emp_name              = '';
-    public string $emp_designation       = '';
-    public ?int   $emp_section_id     = null;
+    // Employee modals (list lives on /hr/employees now)
+    public bool   $showEmployeeModal = false;
+    public ?int   $editingEmployeeId = null;
+    public string $emp_name          = '';
+    public string $emp_designation   = '';
+    public ?int   $emp_section_id    = null;
 
     // Bulk selection
     public array  $selected = [];
@@ -376,20 +375,14 @@ class OvertimeClaims extends Component
         $this->showEmployeeModal  = true;
     }
 
-    public function openEmployeeList(): void
-    {
-        $this->showEmployeeListModal = true;
-    }
-
     public function openEditEmployee(int $id): void
     {
         $emp = Employee::findOrFail($id);
-        $this->editingEmployeeId     = $emp->id;
-        $this->emp_name              = $emp->name;
-        $this->emp_designation       = $emp->designation ?? '';
+        $this->editingEmployeeId  = $emp->id;
+        $this->emp_name           = $emp->name;
+        $this->emp_designation    = $emp->designation ?? '';
         $this->emp_section_id     = $emp->section_id;
-        $this->showEmployeeModal     = true;
-        $this->showEmployeeListModal = false;
+        $this->showEmployeeModal  = true;
     }
 
     public function saveEmployee(): void

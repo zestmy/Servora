@@ -23,10 +23,10 @@
                     class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 Print PDF
             </button>
-            <button wire:click="openEmployeeList"
-                    class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+            <a href="{{ route('hr.employees') }}"
+               class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 Employee List
-            </button>
+            </a>
             <button wire:click="openAddEmployee"
                     class="px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 + Add Employee
@@ -487,76 +487,6 @@
         @endteleport
     @endif
 
-    {{-- Employee List Modal --}}
-    @if ($showEmployeeListModal)
-        @teleport('body')
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showEmployeeListModal', false)">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-base font-semibold text-gray-800">Employee List</h3>
-                    <button wire:click="openAddEmployee" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">+ Add New</button>
-                </div>
-
-                @if ($allEmployees->count())
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th class="px-4 py-2 text-left">Name</th>
-                                    <th class="px-4 py-2 text-left">Designation</th>
-                                    <th class="px-4 py-2 text-left">Section</th>
-                                    <th class="px-4 py-2 text-center">Status</th>
-                                    <th class="px-4 py-2 text-center">Print PDF</th>
-                                    <th class="px-4 py-2 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                @foreach ($allEmployees as $emp)
-                                    <tr wire:key="emplist-{{ $emp->id }}" class="{{ !$emp->is_active ? 'opacity-50' : '' }}">
-                                        <td class="px-4 py-2.5 font-medium text-gray-800">{{ $emp->name }}</td>
-                                        <td class="px-4 py-2.5 text-gray-600">{{ $emp->designation ?? '—' }}</td>
-                                        <td class="px-4 py-2.5 text-gray-600">{{ $emp->section?->name ?? '—' }}</td>
-                                        <td class="px-4 py-2.5 text-center">
-                                            <span class="px-2 py-0.5 text-[10px] font-medium rounded-full {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                                                {{ $emp->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-2.5 text-center">
-                                            <a href="{{ route('hr.ot-claims.pdf', ['employee' => $emp->id, 'from' => $dateFrom, 'to' => $dateTo]) }}"
-                                               target="_blank"
-                                               class="text-indigo-500 hover:text-indigo-700 text-xs font-medium">
-                                                PDF
-                                            </a>
-                                        </td>
-                                        <td class="px-4 py-2.5 text-center">
-                                            <div class="flex items-center justify-center gap-2">
-                                                <button wire:click="openEditEmployee({{ $emp->id }})" class="text-indigo-500 hover:text-indigo-700 text-xs font-medium">Edit</button>
-                                                <button wire:click="toggleEmployee({{ $emp->id }})" class="text-xs font-medium {{ $emp->is_active ? 'text-amber-500 hover:text-amber-700' : 'text-green-500 hover:text-green-700' }}">
-                                                    {{ $emp->is_active ? 'Deactivate' : 'Activate' }}
-                                                </button>
-                                                <button wire:click="deleteEmployee({{ $emp->id }})" wire:confirm="Delete this employee?" class="text-red-400 hover:text-red-600 text-xs font-medium">Delete</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="py-8 text-center text-gray-400">
-                        <p class="font-medium">No employees added yet</p>
-                        <p class="text-xs mt-1">Click "+ Add New" to add your first employee.</p>
-                    </div>
-                @endif
-
-                <div class="flex justify-end mt-4">
-                    <button wire:click="$set('showEmployeeListModal', false)"
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-        @endteleport
-    @endif
+    {{-- Employee list lives on the dedicated /hr/employees page (full screen, CSV import, filters).
+         The old in-page modal was prone to being clipped on small laptops — removed. --}}
 </div>
