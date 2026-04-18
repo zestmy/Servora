@@ -124,6 +124,23 @@
             </button>
         </div>
 
+        {{-- Top CTA — scan a supplier document (Price Watcher entry point) --}}
+        @if (Auth::user()->hasPermissionTo('ingredients.view'))
+            <div class="flex-shrink-0" :class="sidebarExpanded ? 'px-3 pt-3' : 'px-2 pt-3'">
+                <a href="{{ route('ingredients.scan-document') }}"
+                   title="Scan a supplier invoice, quotation, or price list"
+                   class="flex items-center gap-2 rounded-lg transition font-semibold
+                          {{ request()->routeIs('ingredients.scan-document') ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white hover:bg-emerald-400' }}
+                          shadow-sm"
+                   :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center p-2'">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2M4 7h16M4 7l1 10a2 2 0 002 2h10a2 2 0 002-2l1-10M9 11h6" />
+                    </svg>
+                    <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Scan Documents</span>
+                </a>
+            </div>
+        @endif
+
         {{-- Navigation --}}
         <nav class="flex-1 overflow-y-auto py-4 space-y-1" :class="sidebarExpanded ? 'px-3' : 'px-2'">
             @php
@@ -161,10 +178,11 @@
                     [
                         'label' => 'Inventory & Recipes',
                         'items' => [
-                            ['route' => 'ingredients.index',    'label' => 'Ingredients',   'permission' => 'ingredients.view'],
-                            ['route' => 'recipes.index',        'label' => 'Recipes',       'permission' => 'recipes.view'],
-                            ['route' => 'recipes.index',        'label' => 'Prep Items',    'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                            ['route' => 'inventory.index',      'label' => 'Stock Levels',  'permission' => 'inventory.view'],
+                            ['route' => 'ingredients.index',          'label' => 'Ingredients',      'permission' => 'ingredients.view'],
+                            ['route' => 'recipes.index',              'label' => 'Recipes',          'permission' => 'recipes.view'],
+                            ['route' => 'recipes.index',              'label' => 'Prep Items',       'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
+                            ['route' => 'inventory.index',            'label' => 'Stock Levels',     'permission' => 'inventory.view'],
+                            ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.view'],
                         ],
                     ],
                     [

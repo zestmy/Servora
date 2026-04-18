@@ -52,13 +52,13 @@
                     </svg>
                     <span class="hidden sm:inline">Bulk Update</span>
                 </button>
-                <a href="{{ route('ingredients.price-watcher') }}"
+                <a href="{{ route('ingredients.scan-document') }}"
                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
-                   title="Price Watcher — upload supplier invoices / quotations / price lists">
+                   title="Price Watcher — scan supplier documents (invoice / quotation / price list)">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 14l4-4 4 4 6-6" />
                     </svg>
-                    <span class="hidden sm:inline">Price Watcher</span>
+                    <span class="hidden sm:inline">Scan Documents</span>
                 </a>
                 <a href="{{ route('ingredients.import') }}"
                    title="Import"

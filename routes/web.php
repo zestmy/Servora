@@ -160,10 +160,21 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
     Route::get('/ingredients/pdf', \App\Http\Controllers\IngredientPdfController::class)->name('ingredients.pdf')->middleware('can:ingredients.view');
     Route::get('/ingredients/import', IngredientsImport::class)->name('ingredients.import')->middleware('can:ingredients.view');
-    // Price Watcher (formerly Supplier Match). Route name kept for back-compat;
-    // URL changed for the rebrand. Legacy URL redirects so old bookmarks still land.
-    Route::get('/ingredients/price-watcher', \App\Livewire\Ingredients\SupplierMatch::class)->name('ingredients.price-watcher')->middleware('can:ingredients.view');
-    Route::redirect('/ingredients/supplier-match', '/ingredients/price-watcher');
+    // Price Watcher — two-step flow:
+    // 1) Scan Documents: upload / photograph a supplier document; AI extracts
+    //    the supplier, date, and line items and stages it for review.
+    // 2) Review Documents: match the extracted items against existing
+    //    ingredients and import. Opens per-document review pages.
+    Route::get('/ingredients/scan-document', \App\Livewire\Ingredients\ScanDocument::class)
+        ->name('ingredients.scan-document')->middleware('can:ingredients.view');
+    Route::get('/ingredients/review-documents', \App\Livewire\Ingredients\ReviewDocuments::class)
+        ->name('ingredients.review-documents')->middleware('can:ingredients.view');
+    Route::get('/ingredients/review-documents/{document}', \App\Livewire\Ingredients\ReviewDocument::class)
+        ->name('ingredients.review-documents.show')->middleware('can:ingredients.view');
+
+    // Legacy redirects so old bookmarks / links keep working.
+    Route::redirect('/ingredients/price-watcher', '/ingredients/scan-document');
+    Route::redirect('/ingredients/supplier-match', '/ingredients/scan-document');
     Route::get('/recipes', RecipesIndex::class)->name('recipes.index')->middleware('can:recipes.view');
     Route::get('/recipes/import', RecipesImport::class)->name('recipes.import')->middleware('can:recipes.view');
     Route::get('/recipes/create', RecipesForm::class)->name('recipes.create')->middleware('can:recipes.view');
