@@ -376,6 +376,32 @@ class ReviewDocument extends Component
                     $old = $existing->last_cost !== null ? (float) $existing->last_cost : null;
                     $changed = $price > 0 && $old !== null && abs($price - $old) > 0.0001;
 
+                    // Back-fill a baseline history row when this is the first
+                    // time we're logging iph for this (ingredient, supplier).
+                    // Otherwise the Price History report has nothing to diff
+                    // the new row against and the price increase is invisible.
+                    if ($changed && $old > 0) {
+                        $priorExists = IngredientPriceHistory::where('ingredient_id', $item['ingredient_id'])
+                            ->where('supplier_id', $this->supplierId)
+                            ->exists();
+                        if (! $priorExists) {
+                            $backfillDate = $existing->updated_at
+                                ? \Carbon\Carbon::parse($existing->updated_at)->toDateString()
+                                : \Carbon\Carbon::parse($effectiveDate)->subDay()->toDateString();
+                            if ($backfillDate >= $effectiveDate) {
+                                $backfillDate = \Carbon\Carbon::parse($effectiveDate)->subDay()->toDateString();
+                            }
+                            IngredientPriceHistory::create([
+                                'ingredient_id'  => $item['ingredient_id'],
+                                'supplier_id'    => $this->supplierId,
+                                'cost'           => $old,
+                                'uom_id'         => $existing->uom_id ?: $uomId,
+                                'effective_date' => $backfillDate,
+                                'source'         => 'price_watcher_backfill',
+                            ]);
+                        }
+                    }
+
                     DB::table('supplier_ingredients')->where('id', $existing->id)->update([
                         'supplier_sku' => $item['code'] ?: $existing->supplier_sku,
                         'last_cost'    => $price > 0 ? $price : $existing->last_cost,
