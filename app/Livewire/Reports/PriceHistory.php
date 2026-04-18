@@ -22,6 +22,7 @@ class PriceHistory extends Component
     public string $supplierFilter = '';
     public string $categoryFilter = '';
     public string $sortBy = 'latest';
+    public string $perPage = '100'; // '100' | '200' | '300' | '400' | '500' | 'all'
 
     // Detail view
     public ?int $detailIngredientId = null;
@@ -38,12 +39,13 @@ class PriceHistory extends Component
         $this->resetPage();
     }
 
-    public function updatedSearch(): void    { $this->resetPage(); }
+    public function updatedSearch(): void        { $this->resetPage(); }
     public function updatedSupplierFilter(): void { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
-    public function updatedDateFrom(): void  { $this->resetPage(); }
-    public function updatedDateTo(): void    { $this->resetPage(); }
-    public function updatedSortBy(): void    { $this->resetPage(); }
+    public function updatedDateFrom(): void      { $this->resetPage(); }
+    public function updatedDateTo(): void        { $this->resetPage(); }
+    public function updatedSortBy(): void        { $this->resetPage(); }
+    public function updatedPerPage(): void       { $this->resetPage(); }
 
     public function showDetail(int $id): void
     {
@@ -55,6 +57,39 @@ class PriceHistory extends Component
         $this->detailIngredientId = null;
     }
 
+    public function exportPdf()
+    {
+        $from = Carbon::parse($this->dateFrom)->startOfDay();
+        $to   = Carbon::parse($this->dateTo)->endOfDay();
+
+        $stats   = $this->getStats($from, $to);
+        $rows    = $this->buildChangesQuery($from, $to)->get();
+        $company = \App\Models\Company::find(\Illuminate\Support\Facades\Auth::user()->company_id);
+
+        $supplier = $this->supplierFilter ? Supplier::find((int) $this->supplierFilter)?->name : null;
+        $category = null;
+        if ($this->categoryFilter) {
+            $category = IngredientCategory::find((int) $this->categoryFilter)?->name;
+        }
+
+        $filters = [
+            'from'     => $from->format('d M Y'),
+            'to'       => $to->format('d M Y'),
+            'search'   => $this->search ?: null,
+            'supplier' => $supplier,
+            'category' => $category,
+            'sort'     => $this->sortBy,
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.price-history-report', compact(
+            'company', 'stats', 'rows', 'filters'
+        ))->setPaper('a4', 'landscape');
+
+        $filename = 'price-history-' . $from->format('Ymd') . '-to-' . $to->format('Ymd') . '.pdf';
+
+        return response()->streamDownload(fn () => print($pdf->output()), $filename);
+    }
+
     public function render()
     {
         $from = Carbon::parse($this->dateFrom)->startOfDay();
@@ -63,9 +98,17 @@ class PriceHistory extends Component
         // Stats cards
         $stats = $this->getStats($from, $to);
 
-        // Price changes summary per ingredient
+        // Price changes summary per ingredient. perPage lets the user widen
+        // the page to 100/200/…/500, or ALL for full export-ready tables.
         $changesQuery = $this->buildChangesQuery($from, $to);
-        $changes = $changesQuery->paginate(20);
+        if ($this->perPage === 'all') {
+            // "All": return everything as a simple collection; the view
+            // branches on paginator-vs-collection for the footer.
+            $changes = $changesQuery->get();
+        } else {
+            $size = max(20, (int) $this->perPage);
+            $changes = $changesQuery->paginate($size);
+        }
 
         // Detail view data
         $detailData = null;

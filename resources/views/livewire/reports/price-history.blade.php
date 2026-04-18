@@ -1,11 +1,19 @@
 <div>
     {{-- Page Header --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
             <h2 class="text-lg font-semibold text-gray-700">Price History</h2>
             <p class="text-xs text-gray-400 mt-0.5">Track ingredient purchase price changes over time</p>
         </div>
-        <a href="{{ route('reports.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
+        <div class="flex items-center gap-3">
+            <button wire:click="exportPdf" wire:loading.attr="disabled"
+                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5 disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                <span wire:loading.remove wire:target="exportPdf">Export PDF</span>
+                <span wire:loading wire:target="exportPdf">Generating…</span>
+            </button>
+            <a href="{{ route('reports.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
+        </div>
     </div>
 
     {{-- Filter Bar --}}
@@ -62,6 +70,18 @@
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                     @endif
                 @endforeach
+            </select>
+
+            {{-- Per page --}}
+            <select wire:model.live="perPage"
+                    title="Rows per page"
+                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="100">100 rows</option>
+                <option value="200">200 rows</option>
+                <option value="300">300 rows</option>
+                <option value="400">400 rows</option>
+                <option value="500">500 rows</option>
+                <option value="all">All records</option>
             </select>
         </div>
     </div>
@@ -297,9 +317,15 @@
             </tbody>
         </table>
 
-        @if ($changes->hasPages())
-            <div class="px-4 py-3 border-t border-gray-100">
-                {{ $changes->links() }}
+        @if ($changes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
+            @if ($changes->hasPages())
+                <div class="px-4 py-3 border-t border-gray-100">
+                    {{ $changes->links() }}
+                </div>
+            @endif
+        @else
+            <div class="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500">
+                Showing all {{ $changes->count() }} record{{ $changes->count() === 1 ? '' : 's' }} for the selected filter.
             </div>
         @endif
     </div>
