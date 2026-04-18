@@ -53,6 +53,7 @@ class Users extends Component
         'purchasing.view'  => 'Purchasing',
         'sales.view'       => 'Sales',
         'inventory.view'   => 'Inventory & Kitchen',
+        'hr.view'          => 'HR',
         'reports.view'     => 'Reports',
         'settings.view'    => 'Settings',
     ];
