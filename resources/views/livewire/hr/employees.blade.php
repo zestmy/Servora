@@ -51,7 +51,9 @@
                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
             <select wire:model.live="outletFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="">All Outlets</option>
+                @if ($canViewAll)
+                    <option value="">All Outlets</option>
+                @endif
                 @foreach ($outlets as $o)
                     <option value="{{ $o->id }}">{{ $o->name }}</option>
                 @endforeach

@@ -37,10 +37,40 @@ class Employees extends Component
     public $csvFile            = null;
     public ?array $importResult = null;
 
+    public function mount(): void
+    {
+        // Default the outlet filter to the user's active outlet so screens feel
+        // consistent with the rest of Servora (they only see their current
+        // outlet unless they explicitly opt into "All").
+        if ($this->outletFilter === '') {
+            $activeOutletId = Auth::user()?->activeOutletId();
+            if ($activeOutletId) $this->outletFilter = (string) $activeOutletId;
+        }
+    }
+
+    /**
+     * Outlet IDs this user is allowed to see. Drives the list query, the
+     * filter dropdown options, the form's outlet picker, and the CSV import
+     * allow-list so a user with limited outlet access can't read / write
+     * employees outside their scope.
+     */
+    protected function accessibleOutletIds(): array
+    {
+        $user = Auth::user();
+        if ($user->canViewAllOutlets()) {
+            return Outlet::where('company_id', $user->company_id)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+        return $user->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+    }
+
     protected function rules(): array
     {
+        $accessible = $this->accessibleOutletIds();
         return [
-            'f_outlet_id'      => 'required|integer|exists:outlets,id',
+            'f_outlet_id'      => [
+                'required', 'integer',
+                \Illuminate\Validation\Rule::in($accessible),
+            ],
             'f_section_id'  => 'nullable|integer|exists:sections,id',
             'f_staff_id'       => 'nullable|string|max:100',
             'f_name'           => 'required|string|max:255',
@@ -48,6 +78,13 @@ class Employees extends Component
             'f_email'          => 'nullable|email|max:255',
             'f_phone'          => 'nullable|string|max:50',
             'f_is_active'      => 'boolean',
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'f_outlet_id.in' => 'You do not have access to the selected outlet.',
         ];
     }
 
@@ -59,15 +96,21 @@ class Employees extends Component
     public function openCreate(): void
     {
         $this->resetForm();
+        // Default new employees to the user's active outlet.
+        $this->f_outlet_id = Auth::user()?->activeOutletId();
         $this->showForm = true;
     }
 
     public function openEdit(int $id): void
     {
         $emp = Employee::findOrFail($id);
+        if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
+            session()->flash('error', 'You do not have access to this employee.');
+            return;
+        }
         $this->editingId       = $emp->id;
         $this->f_outlet_id     = $emp->outlet_id;
-        $this->f_section_id = $emp->section_id;
+        $this->f_section_id    = $emp->section_id;
         $this->f_staff_id      = $emp->staff_id ?? '';
         $this->f_name          = $emp->name;
         $this->f_designation   = $emp->designation ?? '';
@@ -109,12 +152,21 @@ class Employees extends Component
     public function toggleActive(int $id): void
     {
         $emp = Employee::findOrFail($id);
+        if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
+            session()->flash('error', 'You do not have access to this employee.');
+            return;
+        }
         $emp->update(['is_active' => ! $emp->is_active]);
     }
 
     public function delete(int $id): void
     {
-        Employee::findOrFail($id)->delete();
+        $emp = Employee::findOrFail($id);
+        if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
+            session()->flash('error', 'You do not have access to this employee.');
+            return;
+        }
+        $emp->delete();
         session()->flash('success', 'Employee deleted.');
     }
 
@@ -145,11 +197,15 @@ class Employees extends Component
             'csvFile' => 'required|file|mimes:csv,txt|max:5120',
         ]);
 
-        $user      = Auth::user();
-        $companyId = $user->company_id;
+        $user       = Auth::user();
+        $companyId  = $user->company_id;
+        $accessible = $this->accessibleOutletIds();
 
         // Build outlet + section lookups for this company (name lowercased → id).
+        // Outlet map is limited to the user's accessible outlets so a row for
+        // an outlet they can't see is rejected rather than silently written.
         $outletMap = Outlet::where('company_id', $companyId)
+            ->whereIn('id', $accessible)
             ->pluck('id', 'name')
             ->mapWithKeys(fn ($id, $name) => [strtolower(trim($name)) => $id])
             ->all();
@@ -265,7 +321,7 @@ class Employees extends Component
             $outletName = strtolower(trim($data['outlet'] ?? ''));
             $outletId   = $outletMap[$outletName] ?? null;
             if (! $outletId) {
-                $errors[] = "Row $rowNum: outlet '" . ($data['outlet'] ?? '') . "' not found for your company";
+                $errors[] = "Row $rowNum: outlet '" . ($data['outlet'] ?? '') . "' not found or not accessible";
                 $skipped++;
                 continue;
             }
@@ -369,14 +425,24 @@ class Employees extends Component
         $user      = Auth::user();
         $companyId = $user->company_id;
 
+        $accessible    = $this->accessibleOutletIds();
+        $canViewAll    = $user->canViewAllOutlets();
+
+        // Only show outlets the current user can actually access.
         $outlets = Outlet::where('company_id', $companyId)
             ->where('is_active', true)
+            ->whereIn('id', $accessible)
             ->orderBy('name')
             ->get();
 
         $sections = Section::active()->ordered()->get();
 
-        $query = Employee::with(['outlet', 'section'])->orderBy('name');
+        // Hard-scope the query to accessible outlets regardless of filter —
+        // a user cannot list (or act on) employees from outlets outside
+        // their outlet-access grants.
+        $query = Employee::with(['outlet', 'section'])
+            ->whereIn('outlet_id', $accessible ?: [0])
+            ->orderBy('name');
 
         if ($this->search !== '') {
             $s = '%' . $this->search . '%';
@@ -398,7 +464,7 @@ class Employees extends Component
 
         $employees = $query->paginate(25);
 
-        return view('livewire.hr.employees', compact('employees', 'outlets', 'sections'))
+        return view('livewire.hr.employees', compact('employees', 'outlets', 'sections', 'canViewAll'))
             ->layout('layouts.app', ['title' => 'Employees']);
     }
 }
