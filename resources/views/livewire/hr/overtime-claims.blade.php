@@ -122,20 +122,20 @@
                         <th class="px-4 py-3 text-left cursor-pointer hover:text-gray-700" wire:click="sortBy('claim_date')">
                             Date
                             @if ($sortField === 'claim_date')
-                                <span class="ml-0.5">{{ $sortDirection === 'asc' ? '&#9650;' : '&#9660;' }}</span>
+                                <span class="ml-0.5">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                             @endif
                         </th>
                         <th class="px-4 py-3 text-left cursor-pointer hover:text-gray-700" wire:click="sortBy('employee')">
                             Employee
                             @if ($sortField === 'employee')
-                                <span class="ml-0.5">{{ $sortDirection === 'asc' ? '&#9650;' : '&#9660;' }}</span>
+                                <span class="ml-0.5">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                             @endif
                         </th>
                         <th class="px-4 py-3 text-center">Time</th>
                         <th class="px-4 py-3 text-center cursor-pointer hover:text-gray-700" wire:click="sortBy('total_ot_hours')">
                             Hours
                             @if ($sortField === 'total_ot_hours')
-                                <span class="ml-0.5">{{ $sortDirection === 'asc' ? '&#9650;' : '&#9660;' }}</span>
+                                <span class="ml-0.5">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                             @endif
                         </th>
                         <th class="px-4 py-3 text-center">Type</th>
