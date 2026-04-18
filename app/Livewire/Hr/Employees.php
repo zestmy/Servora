@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Hr;
 
-use App\Models\Department;
+use App\Models\Section;
 use App\Models\Employee;
 use App\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
@@ -17,14 +17,14 @@ class Employees extends Component
     // Filters
     public string $search           = '';
     public string $outletFilter     = '';
-    public string $departmentFilter = '';
+    public string $sectionFilter = '';
     public string $statusFilter     = 'active';
 
     // Add/edit modal
     public bool  $showForm          = false;
     public ?int  $editingId         = null;
     public ?int  $f_outlet_id       = null;
-    public ?int  $f_department_id   = null;
+    public ?int  $f_section_id   = null;
     public string $f_staff_id       = '';
     public string $f_name           = '';
     public string $f_designation    = '';
@@ -41,7 +41,7 @@ class Employees extends Component
     {
         return [
             'f_outlet_id'      => 'required|integer|exists:outlets,id',
-            'f_department_id'  => 'nullable|integer|exists:departments,id',
+            'f_section_id'  => 'nullable|integer|exists:sections,id',
             'f_staff_id'       => 'nullable|string|max:100',
             'f_name'           => 'required|string|max:255',
             'f_designation'    => 'nullable|string|max:255',
@@ -51,10 +51,10 @@ class Employees extends Component
         ];
     }
 
-    public function updatingSearch(): void            { $this->resetPage(); }
-    public function updatingOutletFilter(): void      { $this->resetPage(); }
-    public function updatingDepartmentFilter(): void  { $this->resetPage(); }
-    public function updatingStatusFilter(): void      { $this->resetPage(); }
+    public function updatingSearch(): void         { $this->resetPage(); }
+    public function updatingOutletFilter(): void   { $this->resetPage(); }
+    public function updatingSectionFilter(): void  { $this->resetPage(); }
+    public function updatingStatusFilter(): void   { $this->resetPage(); }
 
     public function openCreate(): void
     {
@@ -67,7 +67,7 @@ class Employees extends Component
         $emp = Employee::findOrFail($id);
         $this->editingId       = $emp->id;
         $this->f_outlet_id     = $emp->outlet_id;
-        $this->f_department_id = $emp->department_id;
+        $this->f_section_id = $emp->section_id;
         $this->f_staff_id      = $emp->staff_id ?? '';
         $this->f_name          = $emp->name;
         $this->f_designation   = $emp->designation ?? '';
@@ -85,7 +85,7 @@ class Employees extends Component
         $data = [
             'company_id'    => $user->company_id,
             'outlet_id'     => $this->f_outlet_id,
-            'department_id' => $this->f_department_id ?: null,
+            'section_id' => $this->f_section_id ?: null,
             'staff_id'      => $this->f_staff_id ?: null,
             'name'          => $this->f_name,
             'designation'   => $this->f_designation ?: null,
@@ -122,7 +122,7 @@ class Employees extends Component
     {
         $this->editingId       = null;
         $this->f_outlet_id     = null;
-        $this->f_department_id = null;
+        $this->f_section_id = null;
         $this->f_staff_id      = '';
         $this->f_name          = '';
         $this->f_designation   = '';
@@ -148,13 +148,13 @@ class Employees extends Component
         $user      = Auth::user();
         $companyId = $user->company_id;
 
-        // Build outlet + department lookups for this company (name lowercased → id).
+        // Build outlet + section lookups for this company (name lowercased → id).
         $outletMap = Outlet::where('company_id', $companyId)
             ->pluck('id', 'name')
             ->mapWithKeys(fn ($id, $name) => [strtolower(trim($name)) => $id])
             ->all();
 
-        $departmentMap = Department::where('company_id', $companyId)
+        $sectionMap = Section::where('company_id', $companyId)
             ->pluck('id', 'name')
             ->mapWithKeys(fn ($id, $name) => [strtolower(trim($name)) => $id])
             ->all();
@@ -200,8 +200,9 @@ class Employees extends Component
             'position'        => 'designation',
             'job title'       => 'designation',
             'role'            => 'designation',
-            'department'      => 'department',
-            'dept'            => 'department',
+            'section'         => 'section',
+            'department'      => 'section',
+            'dept'            => 'section',
             'staff id'        => 'staff_id',
             'staff no'        => 'staff_id',
             'staff no.'       => 'staff_id',
@@ -237,7 +238,7 @@ class Employees extends Component
                         'errors'  => [
                             'Required columns Outlet and Employee Name were not found.',
                             'Headers detected: ' . implode(', ', array_map(fn ($h) => '"' . $h . '"', $row)),
-                            'Expected: Outlet, Employee Name, Designation, Department, Staff ID, E-mail, Phone Number',
+                            'Expected: Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number',
                         ],
                     ];
                     $this->csvFile = null;
@@ -272,23 +273,23 @@ class Employees extends Component
             $staffId = $data['staff_id'] ?? null;
             $email   = $data['email'] ?? null;
 
-            // Resolve department by name; auto-create on the fly so a recognised
+            // Resolve section by name; auto-create on the fly so a recognised
             // column with unknown values (e.g. "Bar") doesn't silently drop data.
-            $deptId = null;
-            $deptRaw = trim((string) ($data['department'] ?? ''));
-            if ($deptRaw !== '') {
-                $deptKey = strtolower($deptRaw);
-                if (isset($departmentMap[$deptKey])) {
-                    $deptId = $departmentMap[$deptKey];
+            $sectionId = null;
+            $sectionRaw = trim((string) ($data['section'] ?? ''));
+            if ($sectionRaw !== '') {
+                $sectionKey = strtolower($sectionRaw);
+                if (isset($sectionMap[$sectionKey])) {
+                    $sectionId = $sectionMap[$sectionKey];
                 } else {
-                    $created_dept = Department::create([
+                    $createdSection = Section::create([
                         'company_id' => $companyId,
-                        'name'       => $deptRaw,
+                        'name'       => $sectionRaw,
                         'sort_order' => 99,
                         'is_active'  => true,
                     ]);
-                    $deptId = $created_dept->id;
-                    $departmentMap[$deptKey] = $deptId;
+                    $sectionId = $createdSection->id;
+                    $sectionMap[$sectionKey] = $sectionId;
                 }
             }
 
@@ -311,7 +312,7 @@ class Employees extends Component
             $payload = [
                 'company_id'    => $companyId,
                 'outlet_id'     => $outletId,
-                'department_id' => $deptId,
+                'section_id'    => $sectionId,
                 'staff_id'      => $staffId ?: null,
                 'name'          => $name,
                 'designation'   => ($data['designation'] ?? null) ?: null,
@@ -343,10 +344,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Department', 'Staff ID', 'E-mail', 'Phone Number'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'Kitchen', 'EMP-001', 'ali@example.com',  '+60123456789'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'Front',   'EMP-002', 'siti@example.com', '+60129876543'],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543'],
         ];
 
         $output = fopen('php://temp', 'r+');
@@ -373,9 +374,9 @@ class Employees extends Component
             ->orderBy('name')
             ->get();
 
-        $departments = Department::active()->ordered()->get();
+        $sections = Section::active()->ordered()->get();
 
-        $query = Employee::with(['outlet', 'department'])->orderBy('name');
+        $query = Employee::with(['outlet', 'section'])->orderBy('name');
 
         if ($this->search !== '') {
             $s = '%' . $this->search . '%';
@@ -389,15 +390,15 @@ class Employees extends Component
         if ($this->outletFilter !== '') {
             $query->where('outlet_id', (int) $this->outletFilter);
         }
-        if ($this->departmentFilter !== '') {
-            $query->where('department_id', (int) $this->departmentFilter);
+        if ($this->sectionFilter !== '') {
+            $query->where('section_id', (int) $this->sectionFilter);
         }
         if ($this->statusFilter === 'active')   $query->where('is_active', true);
         if ($this->statusFilter === 'inactive') $query->where('is_active', false);
 
         $employees = $query->paginate(25);
 
-        return view('livewire.hr.employees', compact('employees', 'outlets', 'departments'))
+        return view('livewire.hr.employees', compact('employees', 'outlets', 'sections'))
             ->layout('layouts.app', ['title' => 'Employees']);
     }
 }

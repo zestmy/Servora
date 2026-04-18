@@ -56,10 +56,10 @@
                     <option value="{{ $o->id }}">{{ $o->name }}</option>
                 @endforeach
             </select>
-            <select wire:model.live="departmentFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="">All Departments</option>
-                @foreach ($departments as $d)
-                    <option value="{{ $d->id }}">{{ $d->name }}</option>
+            <select wire:model.live="sectionFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Sections</option>
+                @foreach ($sections as $s)
+                    <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
             </select>
             <select wire:model.live="statusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
@@ -67,9 +67,9 @@
                 <option value="inactive">Inactive</option>
                 <option value="">All</option>
             </select>
-            <a href="{{ route('settings.departments') }}"
+            <a href="{{ route('settings.sections') }}"
                class="text-xs text-indigo-600 hover:text-indigo-800 underline self-center">
-                Manage Departments
+                Manage Sections
             </a>
         </div>
     </div>
@@ -85,7 +85,7 @@
                         <div class="min-w-0">
                             <div class="text-sm font-medium text-gray-800 truncate">{{ $emp->name }}</div>
                             <div class="text-xs text-gray-500 truncate">
-                                {{ $emp->designation ?? '—' }}@if ($emp->department) · {{ $emp->department->name }}@endif
+                                {{ $emp->designation ?? '—' }}@if ($emp->section) · {{ $emp->section->name }}@endif
                             </div>
                         </div>
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
@@ -119,7 +119,7 @@
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Staff ID</th>
                     <th class="px-4 py-3 text-left">Designation</th>
-                    <th class="px-4 py-3 text-left">Department</th>
+                    <th class="px-4 py-3 text-left">Section</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
                     <th class="px-4 py-3 text-left">Email</th>
                     <th class="px-4 py-3 text-left">Phone</th>
@@ -133,7 +133,7 @@
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $emp->name }}</td>
                         <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->designation ?? '—' }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $emp->department?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $emp->section?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->outlet?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->email ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->phone ?? '—' }}</td>
@@ -217,14 +217,14 @@
                             <input type="text" wire:model="f_designation" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. Kitchen Helper" />
                         </div>
                         <div>
-                            <label class="text-xs font-semibold text-gray-600">Department</label>
-                            <select wire:model="f_department_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                            <label class="text-xs font-semibold text-gray-600">Section</label>
+                            <select wire:model="f_section_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
                                 <option value="">— None —</option>
-                                @foreach ($departments as $d)
-                                    <option value="{{ $d->id }}">{{ $d->name }}</option>
+                                @foreach ($sections as $s)
+                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
                                 @endforeach
                             </select>
-                            <x-input-error :messages="$errors->get('f_department_id')" class="mt-1" />
+                            <x-input-error :messages="$errors->get('f_section_id')" class="mt-1" />
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -271,7 +271,8 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Department, Staff ID, E-mail, Phone Number</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number</p>
+                        <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>
 

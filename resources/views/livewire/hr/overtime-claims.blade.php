@@ -64,16 +64,16 @@
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
             </select>
-            <select wire:model.live="departmentFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">All Departments</option>
-                @foreach ($departments as $d)
-                    <option value="{{ $d->id }}">{{ $d->name }}</option>
+            <select wire:model.live="sectionFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">All Sections</option>
+                @foreach ($sections as $s)
+                    <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
             </select>
             <select wire:model.live="employeeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 <option value="">All Employees</option>
                 @foreach ($allEmployees as $emp)
-                    <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->department) — {{ $emp->department->name }}@endif</option>
+                    <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->section) — {{ $emp->section->name }}@endif</option>
                 @endforeach
             </select>
             <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="From" />
@@ -253,7 +253,7 @@
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">— Select Employee —</option>
                             @foreach ($employees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }}@if($emp->designation) — {{ $emp->designation }}@endif@if($emp->department) · {{ $emp->department->name }}@endif</option>
+                                <option value="{{ $emp->id }}">{{ $emp->name }}@if($emp->designation) — {{ $emp->designation }}@endif@if($emp->section) · {{ $emp->section->name }}@endif</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('employee_id')" class="mt-1" />
@@ -407,18 +407,18 @@
                         <x-input-error :messages="$errors->get('emp_designation')" class="mt-1" />
                     </div>
                     <div>
-                        <x-input-label for="emp_department_id" value="Department" />
-                        <select id="emp_department_id" wire:model="emp_department_id"
+                        <x-input-label for="emp_section_id" value="Section" />
+                        <select id="emp_section_id" wire:model="emp_section_id"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">— None —</option>
-                            @foreach ($departments as $d)
-                                <option value="{{ $d->id }}">{{ $d->name }}</option>
+                            @foreach ($sections as $s)
+                                <option value="{{ $s->id }}">{{ $s->name }}</option>
                             @endforeach
                         </select>
                         <p class="text-[10px] text-gray-400 mt-1">
-                            Manage the list at <a href="{{ route('settings.departments') }}" class="text-indigo-600 hover:underline">Settings → Departments</a>.
+                            Manage the list at <a href="{{ route('settings.sections') }}" class="text-indigo-600 hover:underline">Settings → Sections</a>.
                         </p>
-                        <x-input-error :messages="$errors->get('emp_department_id')" class="mt-1" />
+                        <x-input-error :messages="$errors->get('emp_section_id')" class="mt-1" />
                     </div>
                 </div>
 
@@ -504,7 +504,7 @@
                                 <tr>
                                     <th class="px-4 py-2 text-left">Name</th>
                                     <th class="px-4 py-2 text-left">Designation</th>
-                                    <th class="px-4 py-2 text-left">Department</th>
+                                    <th class="px-4 py-2 text-left">Section</th>
                                     <th class="px-4 py-2 text-center">Status</th>
                                     <th class="px-4 py-2 text-center">Print PDF</th>
                                     <th class="px-4 py-2 text-center">Actions</th>
@@ -515,7 +515,7 @@
                                     <tr wire:key="emplist-{{ $emp->id }}" class="{{ !$emp->is_active ? 'opacity-50' : '' }}">
                                         <td class="px-4 py-2.5 font-medium text-gray-800">{{ $emp->name }}</td>
                                         <td class="px-4 py-2.5 text-gray-600">{{ $emp->designation ?? '—' }}</td>
-                                        <td class="px-4 py-2.5 text-gray-600">{{ $emp->department?->name ?? '—' }}</td>
+                                        <td class="px-4 py-2.5 text-gray-600">{{ $emp->section?->name ?? '—' }}</td>
                                         <td class="px-4 py-2.5 text-center">
                                             <span class="px-2 py-0.5 text-[10px] font-medium rounded-full {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                                 {{ $emp->is_active ? 'Active' : 'Inactive' }}

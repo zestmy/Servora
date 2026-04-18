@@ -5,13 +5,12 @@ namespace App\Models;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Employee extends Model
+class Section extends Model
 {
     protected $fillable = [
-        'company_id', 'outlet_id', 'section_id', 'staff_id',
-        'name', 'designation',
-        'email', 'phone', 'is_active',
+        'company_id', 'name', 'sort_order', 'is_active',
     ];
 
     protected $casts = [
@@ -28,13 +27,18 @@ class Employee extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function outlet(): BelongsTo
+    public function employees(): HasMany
     {
-        return $this->belongsTo(Outlet::class);
+        return $this->hasMany(Employee::class);
     }
 
-    public function section(): BelongsTo
+    public function scopeActive($query)
     {
-        return $this->belongsTo(Section::class);
+        return $query->where('is_active', true);
+    }
+
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('sort_order')->orderBy('name');
     }
 }
