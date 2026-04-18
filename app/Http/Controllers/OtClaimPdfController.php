@@ -32,7 +32,8 @@ class OtClaimPdfController extends Controller
             ->unique('id');
 
         if ($employee === 'all') {
-            $employees = Employee::where('outlet_id', $outletId)
+            $employees = Employee::with('section')
+                ->where('outlet_id', $outletId)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get();
@@ -69,7 +70,7 @@ class OtClaimPdfController extends Controller
         }
 
         // Single employee
-        $employee = Employee::findOrFail((int) $employee);
+        $employee = Employee::with('section')->findOrFail((int) $employee);
 
         $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
             ->where('employee_id', $employee->id)
