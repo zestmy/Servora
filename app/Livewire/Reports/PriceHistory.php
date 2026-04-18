@@ -150,14 +150,34 @@ class PriceHistory extends Component
         $totalRecords = (clone $records)->count();
         $uniqueIngredients = (clone $records)->distinct('ingredient_id')->count('ingredient_id');
 
-        // Get ingredients with multiple price points to calculate changes
+        // Change detection: compare latest-in-range against the baseline
+        // (last cost BEFORE range, falling back to first in-range when none).
+        // havingRaw was previously requiring COUNT>=2 which hid any ingredient
+        // whose only in-range record was an import that moved price vs. an
+        // outside-range baseline — so new price-watcher imports were invisible.
         $ingredientPrices = IngredientPriceHistory::select('ingredient_id')
             ->selectRaw('MIN(cost) as min_cost, MAX(cost) as max_cost')
-            ->selectRaw('(SELECT cost FROM ingredient_price_history iph2 WHERE iph2.ingredient_id = ingredient_price_history.ingredient_id AND iph2.effective_date >= ? AND iph2.effective_date <= ? ORDER BY iph2.effective_date ASC, iph2.id ASC LIMIT 1) as first_cost', [$from, $to])
-            ->selectRaw('(SELECT cost FROM ingredient_price_history iph3 WHERE iph3.ingredient_id = ingredient_price_history.ingredient_id AND iph3.effective_date >= ? AND iph3.effective_date <= ? ORDER BY iph3.effective_date DESC, iph3.id DESC LIMIT 1) as last_cost', [$from, $to])
+            ->selectRaw('(
+                COALESCE(
+                    (SELECT cost FROM ingredient_price_history iph2
+                     WHERE iph2.ingredient_id = ingredient_price_history.ingredient_id
+                       AND iph2.effective_date < ?
+                     ORDER BY iph2.effective_date DESC, iph2.id DESC
+                     LIMIT 1),
+                    (SELECT cost FROM ingredient_price_history iph3
+                     WHERE iph3.ingredient_id = ingredient_price_history.ingredient_id
+                       AND iph3.effective_date BETWEEN ? AND ?
+                     ORDER BY iph3.effective_date ASC, iph3.id ASC
+                     LIMIT 1)
+                )
+            ) as first_cost', [$from, $from, $to])
+            ->selectRaw('(SELECT cost FROM ingredient_price_history iph4
+                WHERE iph4.ingredient_id = ingredient_price_history.ingredient_id
+                  AND iph4.effective_date BETWEEN ? AND ?
+                ORDER BY iph4.effective_date DESC, iph4.id DESC
+                LIMIT 1) as last_cost', [$from, $to])
             ->whereBetween('effective_date', [$from, $to])
             ->groupBy('ingredient_id')
-            ->havingRaw('COUNT(*) >= 2')
             ->get();
 
         $increases = 0;
@@ -212,7 +232,16 @@ class PriceHistory extends Component
 
     private function buildChangesQuery(Carbon $from, Carbon $to)
     {
-        // Get the latest and earliest price per ingredient in the date range
+        // For each ingredient with activity in the range, compute:
+        //   last_cost  — most recent cost in [from, to]
+        //   first_cost — baseline price at the START of the range: the last
+        //                known cost BEFORE `from`, or the first cost in-range
+        //                when no prior record exists. This is what makes
+        //                "price increase" detection work when the previous
+        //                price was recorded outside the filter window.
+        $fromQ = DB::getPdo()->quote($from->toDateString());
+        $toQ   = DB::getPdo()->quote($to->toDateString());
+
         $query = DB::table('ingredient_price_history as iph')
             ->join('ingredients as i', 'i.id', '=', 'iph.ingredient_id')
             ->leftJoin('suppliers as s', 's.id', '=', 'iph.supplier_id')
@@ -227,8 +256,25 @@ class PriceHistory extends Component
                 DB::raw('COUNT(iph.id) as record_count'),
                 DB::raw('MIN(iph.cost) as min_cost'),
                 DB::raw('MAX(iph.cost) as max_cost'),
-                DB::raw('(SELECT iph2.cost FROM ingredient_price_history iph2 WHERE iph2.ingredient_id = i.id AND iph2.effective_date >= ' . DB::getPdo()->quote($from->toDateString()) . ' AND iph2.effective_date <= ' . DB::getPdo()->quote($to->toDateString()) . ' ORDER BY iph2.effective_date ASC, iph2.id ASC LIMIT 1) as first_cost'),
-                DB::raw('(SELECT iph3.cost FROM ingredient_price_history iph3 WHERE iph3.ingredient_id = i.id AND iph3.effective_date >= ' . DB::getPdo()->quote($from->toDateString()) . ' AND iph3.effective_date <= ' . DB::getPdo()->quote($to->toDateString()) . ' ORDER BY iph3.effective_date DESC, iph3.id DESC LIMIT 1) as last_cost'),
+                DB::raw("(
+                    COALESCE(
+                        (SELECT iph2.cost FROM ingredient_price_history iph2
+                         WHERE iph2.ingredient_id = i.id
+                           AND iph2.effective_date < {$fromQ}
+                         ORDER BY iph2.effective_date DESC, iph2.id DESC
+                         LIMIT 1),
+                        (SELECT iph3.cost FROM ingredient_price_history iph3
+                         WHERE iph3.ingredient_id = i.id
+                           AND iph3.effective_date BETWEEN {$fromQ} AND {$toQ}
+                         ORDER BY iph3.effective_date ASC, iph3.id ASC
+                         LIMIT 1)
+                    )
+                ) as first_cost"),
+                DB::raw("(SELECT iph4.cost FROM ingredient_price_history iph4
+                          WHERE iph4.ingredient_id = i.id
+                            AND iph4.effective_date BETWEEN {$fromQ} AND {$toQ}
+                          ORDER BY iph4.effective_date DESC, iph4.id DESC
+                          LIMIT 1) as last_cost"),
                 DB::raw('MAX(iph.effective_date) as latest_date'),
             ])
             ->whereBetween('iph.effective_date', [$from, $to])
