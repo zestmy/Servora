@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
@@ -14,21 +15,22 @@ class Employees extends Component
     use WithFileUploads, WithPagination;
 
     // Filters
-    public string $search       = '';
-    public string $outletFilter = '';
-    public string $statusFilter = 'active';
+    public string $search           = '';
+    public string $outletFilter     = '';
+    public string $departmentFilter = '';
+    public string $statusFilter     = 'active';
 
     // Add/edit modal
-    public bool  $showForm        = false;
-    public ?int  $editingId       = null;
-    public ?int  $f_outlet_id     = null;
-    public string $f_staff_id     = '';
-    public string $f_name         = '';
-    public string $f_designation  = '';
-    public string $f_department   = '';
-    public string $f_email        = '';
-    public string $f_phone        = '';
-    public bool   $f_is_active    = true;
+    public bool  $showForm          = false;
+    public ?int  $editingId         = null;
+    public ?int  $f_outlet_id       = null;
+    public ?int  $f_department_id   = null;
+    public string $f_staff_id       = '';
+    public string $f_name           = '';
+    public string $f_designation    = '';
+    public string $f_email          = '';
+    public string $f_phone          = '';
+    public bool   $f_is_active      = true;
 
     // CSV import modal
     public bool  $showImport   = false;
@@ -38,20 +40,21 @@ class Employees extends Component
     protected function rules(): array
     {
         return [
-            'f_outlet_id'    => 'required|integer|exists:outlets,id',
-            'f_staff_id'     => 'nullable|string|max:100',
-            'f_name'         => 'required|string|max:255',
-            'f_designation'  => 'nullable|string|max:255',
-            'f_department'   => 'nullable|string|max:255',
-            'f_email'        => 'nullable|email|max:255',
-            'f_phone'        => 'nullable|string|max:50',
-            'f_is_active'    => 'boolean',
+            'f_outlet_id'      => 'required|integer|exists:outlets,id',
+            'f_department_id'  => 'nullable|integer|exists:departments,id',
+            'f_staff_id'       => 'nullable|string|max:100',
+            'f_name'           => 'required|string|max:255',
+            'f_designation'    => 'nullable|string|max:255',
+            'f_email'          => 'nullable|email|max:255',
+            'f_phone'          => 'nullable|string|max:50',
+            'f_is_active'      => 'boolean',
         ];
     }
 
-    public function updatingSearch(): void        { $this->resetPage(); }
-    public function updatingOutletFilter(): void  { $this->resetPage(); }
-    public function updatingStatusFilter(): void  { $this->resetPage(); }
+    public function updatingSearch(): void            { $this->resetPage(); }
+    public function updatingOutletFilter(): void      { $this->resetPage(); }
+    public function updatingDepartmentFilter(): void  { $this->resetPage(); }
+    public function updatingStatusFilter(): void      { $this->resetPage(); }
 
     public function openCreate(): void
     {
@@ -62,16 +65,16 @@ class Employees extends Component
     public function openEdit(int $id): void
     {
         $emp = Employee::findOrFail($id);
-        $this->editingId    = $emp->id;
-        $this->f_outlet_id  = $emp->outlet_id;
-        $this->f_staff_id   = $emp->staff_id ?? '';
-        $this->f_name       = $emp->name;
-        $this->f_designation = $emp->designation ?? '';
-        $this->f_department = $emp->department ?? '';
-        $this->f_email      = $emp->email ?? '';
-        $this->f_phone      = $emp->phone ?? '';
-        $this->f_is_active  = (bool) $emp->is_active;
-        $this->showForm     = true;
+        $this->editingId       = $emp->id;
+        $this->f_outlet_id     = $emp->outlet_id;
+        $this->f_department_id = $emp->department_id;
+        $this->f_staff_id      = $emp->staff_id ?? '';
+        $this->f_name          = $emp->name;
+        $this->f_designation   = $emp->designation ?? '';
+        $this->f_email         = $emp->email ?? '';
+        $this->f_phone         = $emp->phone ?? '';
+        $this->f_is_active     = (bool) $emp->is_active;
+        $this->showForm        = true;
     }
 
     public function save(): void
@@ -80,15 +83,15 @@ class Employees extends Component
         $user = Auth::user();
 
         $data = [
-            'company_id'  => $user->company_id,
-            'outlet_id'   => $this->f_outlet_id,
-            'staff_id'    => $this->f_staff_id ?: null,
-            'name'        => $this->f_name,
-            'designation' => $this->f_designation ?: null,
-            'department'  => $this->f_department ?: null,
-            'email'       => $this->f_email ?: null,
-            'phone'       => $this->f_phone ?: null,
-            'is_active'   => $this->f_is_active,
+            'company_id'    => $user->company_id,
+            'outlet_id'     => $this->f_outlet_id,
+            'department_id' => $this->f_department_id ?: null,
+            'staff_id'      => $this->f_staff_id ?: null,
+            'name'          => $this->f_name,
+            'designation'   => $this->f_designation ?: null,
+            'email'         => $this->f_email ?: null,
+            'phone'         => $this->f_phone ?: null,
+            'is_active'     => $this->f_is_active,
         ];
 
         if ($this->editingId) {
@@ -117,15 +120,15 @@ class Employees extends Component
 
     protected function resetForm(): void
     {
-        $this->editingId     = null;
-        $this->f_outlet_id   = null;
-        $this->f_staff_id    = '';
-        $this->f_name        = '';
-        $this->f_designation = '';
-        $this->f_department  = '';
-        $this->f_email       = '';
-        $this->f_phone       = '';
-        $this->f_is_active   = true;
+        $this->editingId       = null;
+        $this->f_outlet_id     = null;
+        $this->f_department_id = null;
+        $this->f_staff_id      = '';
+        $this->f_name          = '';
+        $this->f_designation   = '';
+        $this->f_email         = '';
+        $this->f_phone         = '';
+        $this->f_is_active     = true;
     }
 
     // ── CSV import ─────────────────────────────────────────────────────────
@@ -145,8 +148,13 @@ class Employees extends Component
         $user      = Auth::user();
         $companyId = $user->company_id;
 
-        // Build outlet lookup for this company (name lowercased → id)
+        // Build outlet + department lookups for this company (name lowercased → id).
         $outletMap = Outlet::where('company_id', $companyId)
+            ->pluck('id', 'name')
+            ->mapWithKeys(fn ($id, $name) => [strtolower(trim($name)) => $id])
+            ->all();
+
+        $departmentMap = Department::where('company_id', $companyId)
             ->pluck('id', 'name')
             ->mapWithKeys(fn ($id, $name) => [strtolower(trim($name)) => $id])
             ->all();
@@ -264,6 +272,26 @@ class Employees extends Component
             $staffId = $data['staff_id'] ?? null;
             $email   = $data['email'] ?? null;
 
+            // Resolve department by name; auto-create on the fly so a recognised
+            // column with unknown values (e.g. "Bar") doesn't silently drop data.
+            $deptId = null;
+            $deptRaw = trim((string) ($data['department'] ?? ''));
+            if ($deptRaw !== '') {
+                $deptKey = strtolower($deptRaw);
+                if (isset($departmentMap[$deptKey])) {
+                    $deptId = $departmentMap[$deptKey];
+                } else {
+                    $created_dept = Department::create([
+                        'company_id' => $companyId,
+                        'name'       => $deptRaw,
+                        'sort_order' => 99,
+                        'is_active'  => true,
+                    ]);
+                    $deptId = $created_dept->id;
+                    $departmentMap[$deptKey] = $deptId;
+                }
+            }
+
             // Upsert key preference: staff_id → email → (outlet, name)
             $query = Employee::where('company_id', $companyId);
             $existing = null;
@@ -281,15 +309,15 @@ class Employees extends Component
             }
 
             $payload = [
-                'company_id'  => $companyId,
-                'outlet_id'   => $outletId,
-                'staff_id'    => $staffId ?: null,
-                'name'        => $name,
-                'designation' => ($data['designation'] ?? null) ?: null,
-                'department'  => ($data['department'] ?? null) ?: null,
-                'email'       => $email ?: null,
-                'phone'       => ($data['phone'] ?? null) ?: null,
-                'is_active'   => true,
+                'company_id'    => $companyId,
+                'outlet_id'     => $outletId,
+                'department_id' => $deptId,
+                'staff_id'      => $staffId ?: null,
+                'name'          => $name,
+                'designation'   => ($data['designation'] ?? null) ?: null,
+                'email'         => $email ?: null,
+                'phone'         => ($data['phone'] ?? null) ?: null,
+                'is_active'     => true,
             ];
 
             if ($existing) {
@@ -345,7 +373,9 @@ class Employees extends Component
             ->orderBy('name')
             ->get();
 
-        $query = Employee::with('outlet')->orderBy('name');
+        $departments = Department::active()->ordered()->get();
+
+        $query = Employee::with(['outlet', 'department'])->orderBy('name');
 
         if ($this->search !== '') {
             $s = '%' . $this->search . '%';
@@ -353,19 +383,21 @@ class Employees extends Component
                 $q->where('name', 'like', $s)
                   ->orWhere('staff_id', 'like', $s)
                   ->orWhere('email', 'like', $s)
-                  ->orWhere('designation', 'like', $s)
-                  ->orWhere('department', 'like', $s);
+                  ->orWhere('designation', 'like', $s);
             });
         }
         if ($this->outletFilter !== '') {
             $query->where('outlet_id', (int) $this->outletFilter);
+        }
+        if ($this->departmentFilter !== '') {
+            $query->where('department_id', (int) $this->departmentFilter);
         }
         if ($this->statusFilter === 'active')   $query->where('is_active', true);
         if ($this->statusFilter === 'inactive') $query->where('is_active', false);
 
         $employees = $query->paginate(25);
 
-        return view('livewire.hr.employees', compact('employees', 'outlets'))
+        return view('livewire.hr.employees', compact('employees', 'outlets', 'departments'))
             ->layout('layouts.app', ['title' => 'Employees']);
     }
 }

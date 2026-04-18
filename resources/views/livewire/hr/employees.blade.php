@@ -44,8 +44,8 @@
 
     {{-- Filter Bar --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex-1">
+        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+            <div class="flex-1 min-w-[180px]">
                 <input type="text" wire:model.live.debounce.300ms="search"
                        placeholder="Search name, staff ID, email, designation…"
                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
@@ -56,11 +56,21 @@
                     <option value="{{ $o->id }}">{{ $o->name }}</option>
                 @endforeach
             </select>
+            <select wire:model.live="departmentFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Departments</option>
+                @foreach ($departments as $d)
+                    <option value="{{ $d->id }}">{{ $d->name }}</option>
+                @endforeach
+            </select>
             <select wire:model.live="statusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="">All</option>
             </select>
+            <a href="{{ route('settings.departments') }}"
+               class="text-xs text-indigo-600 hover:text-indigo-800 underline self-center">
+                Manage Departments
+            </a>
         </div>
     </div>
 
@@ -75,7 +85,7 @@
                         <div class="min-w-0">
                             <div class="text-sm font-medium text-gray-800 truncate">{{ $emp->name }}</div>
                             <div class="text-xs text-gray-500 truncate">
-                                {{ $emp->designation ?? '—' }}@if ($emp->department) · {{ $emp->department }}@endif
+                                {{ $emp->designation ?? '—' }}@if ($emp->department) · {{ $emp->department->name }}@endif
                             </div>
                         </div>
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
@@ -123,7 +133,7 @@
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $emp->name }}</td>
                         <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->designation ?? '—' }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $emp->department ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $emp->department?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->outlet?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->email ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->phone ?? '—' }}</td>
@@ -208,7 +218,13 @@
                         </div>
                         <div>
                             <label class="text-xs font-semibold text-gray-600">Department</label>
-                            <input type="text" wire:model="f_department" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. Kitchen" />
+                            <select wire:model="f_department_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                <option value="">— None —</option>
+                                @foreach ($departments as $d)
+                                    <option value="{{ $d->id }}">{{ $d->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('f_department_id')" class="mt-1" />
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">

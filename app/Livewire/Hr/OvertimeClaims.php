@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\OvertimeClaim;
 use App\Models\OvertimeClaimApprover;
@@ -14,13 +15,14 @@ class OvertimeClaims extends Component
     use WithPagination;
 
     // Filters
-    public string $statusFilter   = '';
-    public string $dateFrom       = '';
-    public string $dateTo         = '';
-    public string $employeeFilter = '';
-    public string $sortField      = 'claim_date';
-    public string $sortDirection  = 'desc';
-    public int    $perPage        = 25;
+    public string $statusFilter     = '';
+    public string $dateFrom         = '';
+    public string $dateTo           = '';
+    public string $employeeFilter   = '';
+    public string $departmentFilter = '';
+    public string $sortField        = 'claim_date';
+    public string $sortDirection    = 'desc';
+    public int    $perPage          = 25;
 
     // Form modal
     public bool   $showModal         = false;
@@ -47,7 +49,8 @@ class OvertimeClaims extends Component
     public bool   $showEmployeeListModal = false;
     public ?int   $editingEmployeeId     = null;
     public string $emp_name              = '';
-    public string $emp_designation          = '';
+    public string $emp_designation       = '';
+    public ?int   $emp_department_id     = null;
 
     // Bulk selection
     public array  $selected = [];
@@ -287,7 +290,7 @@ class OvertimeClaims extends Component
         $outletId = $user->activeOutletId();
         $isApprover = OvertimeClaimApprover::isApproverFor($user->id, $outletId) || $user->isSystemRole();
 
-        $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
+        $query = OvertimeClaim::with(['employee.department', 'submitter', 'approver', 'outlet'])
             ->where('outlet_id', $outletId);
 
         if ($this->statusFilter) {
@@ -302,6 +305,12 @@ class OvertimeClaims extends Component
         if ($this->employeeFilter) {
             $query->where('employee_id', $this->employeeFilter);
         }
+        if ($this->departmentFilter) {
+            $query->whereIn('employee_id', function ($sub) {
+                $sub->select('id')->from('employees')
+                    ->where('department_id', (int) $this->departmentFilter);
+            });
+        }
 
         // Sorting
         if ($this->sortField === 'employee') {
@@ -315,10 +324,13 @@ class OvertimeClaims extends Component
         $claims = $query->paginate($this->perPage);
 
         // Employee list for dropdown (active only) and management modal (all)
-        $allEmployees = Employee::where('outlet_id', $outletId)
+        $allEmployees = Employee::with('department')
+            ->where('outlet_id', $outletId)
             ->orderBy('name')
             ->get();
         $employees = $allEmployees->where('is_active', true);
+
+        $departments = Department::active()->ordered()->get();
 
         // Stats
         $monthStart = now()->startOfMonth()->toDateString();
@@ -331,7 +343,7 @@ class OvertimeClaims extends Component
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'isApprover', 'totalHoursMonth', 'pendingCount', 'approvedCount'
+            'claims', 'employees', 'allEmployees', 'departments', 'isApprover', 'totalHoursMonth', 'pendingCount', 'approvedCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 
@@ -357,10 +369,11 @@ class OvertimeClaims extends Component
 
     public function openAddEmployee(): void
     {
-        $this->editingEmployeeId = null;
-        $this->emp_name          = '';
-        $this->emp_designation      = '';
-        $this->showEmployeeModal = true;
+        $this->editingEmployeeId  = null;
+        $this->emp_name           = '';
+        $this->emp_designation    = '';
+        $this->emp_department_id  = null;
+        $this->showEmployeeModal  = true;
     }
 
     public function openEmployeeList(): void
@@ -373,7 +386,8 @@ class OvertimeClaims extends Component
         $emp = Employee::findOrFail($id);
         $this->editingEmployeeId     = $emp->id;
         $this->emp_name              = $emp->name;
-        $this->emp_designation          = $emp->designation ?? '';
+        $this->emp_designation       = $emp->designation ?? '';
+        $this->emp_department_id     = $emp->department_id;
         $this->showEmployeeModal     = true;
         $this->showEmployeeListModal = false;
     }
@@ -381,18 +395,20 @@ class OvertimeClaims extends Component
     public function saveEmployee(): void
     {
         $this->validate([
-            'emp_name'     => 'required|string|max:255',
-            'emp_designation' => 'nullable|string|max:255',
+            'emp_name'          => 'required|string|max:255',
+            'emp_designation'   => 'nullable|string|max:255',
+            'emp_department_id' => 'nullable|integer|exists:departments,id',
         ]);
 
         $user     = Auth::user();
         $outletId = $user->activeOutletId();
 
         $data = [
-            'company_id' => $user->company_id,
-            'outlet_id'  => $outletId,
-            'name'       => $this->emp_name,
-            'designation' => $this->emp_designation ?: null,
+            'company_id'    => $user->company_id,
+            'outlet_id'     => $outletId,
+            'name'          => $this->emp_name,
+            'designation'   => $this->emp_designation ?: null,
+            'department_id' => $this->emp_department_id ?: null,
         ];
 
         if ($this->editingEmployeeId) {

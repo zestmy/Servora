@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Employee extends Model
 {
     protected $fillable = [
-        'company_id', 'outlet_id', 'staff_id',
-        'name', 'designation', 'department',
+        'company_id', 'outlet_id', 'department_id', 'staff_id',
+        'name', 'designation',
         'email', 'phone', 'is_active',
     ];
 
@@ -31,5 +31,10 @@ class Employee extends Model
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 }
