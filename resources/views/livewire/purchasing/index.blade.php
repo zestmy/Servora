@@ -13,29 +13,33 @@
     @endif
 
     {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Purchasing</h2>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             @if ($canCreatePr)
                 <a href="{{ route('purchasing.requests.create') }}"
-                   class="px-4 py-2 {{ $canCreatePo ? 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700' }} text-sm font-medium rounded-lg transition">
-                    + Purchase Request
+                   class="px-3 md:px-4 py-2 {{ $canCreatePo ? 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700' }} text-sm font-medium rounded-lg transition">
+                    <span class="sm:hidden">+ PR</span>
+                    <span class="hidden sm:inline">+ Purchase Request</span>
                 </a>
             @endif
             @if ($canCreatePo)
                 <a href="{{ route('purchasing.orders.create') }}"
-                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    + New Purchase Order
+                   class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    <span class="sm:hidden">+ PO</span>
+                    <span class="hidden sm:inline">+ New Purchase Order</span>
                 </a>
             @endif
             @if ($cpuMode && $isCpuUser)
                 <a href="{{ route('purchasing.consolidate') }}"
-                   class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
-                    Consolidate PRs
+                   class="px-3 md:px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
+                    <span class="sm:hidden">Consolidate</span>
+                    <span class="hidden sm:inline">Consolidate PRs</span>
                 </a>
                 <a href="{{ route('purchasing.transfers.create') }}"
-                   class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
-                    + Stock Transfer
+                   class="px-3 md:px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">
+                    <span class="sm:hidden">+ Transfer</span>
+                    <span class="hidden sm:inline">+ Stock Transfer</span>
                 </a>
             @endif
         </div>
