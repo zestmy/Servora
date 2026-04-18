@@ -65,7 +65,8 @@
                 @php
                     $rec = $records[$type] ?? null;
                     $totalAllowances = $rec ? (float) $rec->allowances->sum('amount') : 0;
-                    $totalCost = $rec ? ((float) $rec->basic_salary + (float) $rec->service_point + (float) $rec->epf + (float) $rec->eis + (float) $rec->socso + $totalAllowances) : 0;
+                    $totalCost = $rec ? ((float) $rec->basic_salary + (float) $rec->service_point + (float) $rec->overtime + (float) $rec->epf + (float) $rec->eis + (float) $rec->socso + $totalAllowances) : 0;
+                    $deptPct = ($rec && $monthlySales > 0) ? ($totalCost / $monthlySales) * 100 : null;
                 @endphp
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 {{ $type === 'foh' ? 'bg-blue-50' : 'bg-amber-50' }}">
@@ -85,6 +86,10 @@
                             <div class="flex justify-between">
                                 <span class="text-gray-500">Service Point</span>
                                 <span class="font-medium text-gray-800">{{ number_format((float) $rec->service_point, 2) }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Overtime</span>
+                                <span class="font-medium text-gray-800">{{ number_format((float) $rec->overtime, 2) }}</span>
                             </div>
                             @foreach ($rec->allowances as $allowance)
                                 <div class="flex justify-between">
@@ -108,6 +113,12 @@
                                 <span class="font-semibold text-gray-700">Total Labour Cost</span>
                                 <span class="font-bold {{ $type === 'foh' ? 'text-blue-700' : 'text-amber-700' }}">{{ number_format($totalCost, 2) }}</span>
                             </div>
+                            @if ($deptPct !== null)
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-gray-400 uppercase tracking-wider">% of monthly sales</span>
+                                    <span class="font-semibold {{ $type === 'foh' ? 'text-blue-700' : 'text-amber-700' }}">{{ number_format($deptPct, 1) }}%</span>
+                                </div>
+                            @endif
                         </div>
                     @else
                         <div class="px-5 py-8 text-center text-gray-400 text-sm">
@@ -126,32 +137,57 @@
             $fohTotal = $foh ? $foh->total_cost : 0;
             $bohTotal = $boh ? $boh->total_cost : 0;
             $grandTotal = $fohTotal + $bohTotal;
+            $fohPctSales   = $monthlySales > 0 ? ($fohTotal   / $monthlySales) * 100 : null;
+            $bohPctSales   = $monthlySales > 0 ? ($bohTotal   / $monthlySales) * 100 : null;
+            $totalPctSales = $monthlySales > 0 ? ($grandTotal / $monthlySales) * 100 : null;
         @endphp
         @if ($foh || $boh)
             <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">{{ $periodLabel }} — Total Labour Cost</h3>
-                <div class="grid grid-cols-3 gap-4 text-center">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                     <div>
-                        <p class="text-xs text-gray-400 uppercase tracking-wider">FOH</p>
-                        <p class="text-lg font-bold text-blue-700">{{ number_format($fohTotal, 2) }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-400 uppercase tracking-wider">BOH</p>
-                        <p class="text-lg font-bold text-amber-700">{{ number_format($bohTotal, 2) }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-400 uppercase tracking-wider">Total</p>
-                        <p class="text-lg font-bold text-gray-800">{{ number_format($grandTotal, 2) }}</p>
+                        <h3 class="text-sm font-semibold text-gray-700">{{ $periodLabel }} — Total Labour Cost</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            Monthly sales: <span class="font-semibold text-gray-600 tabular-nums">RM {{ number_format($monthlySales, 2) }}</span>
+                            @if ($monthlySales === 0.0)
+                                · <a href="{{ route('sales.index') }}" class="text-indigo-600 hover:underline">no sales recorded yet</a>
+                            @endif
+                        </p>
                     </div>
                 </div>
+
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+                        <p class="text-xs text-blue-700 uppercase tracking-wider font-semibold">FOH</p>
+                        <p class="text-lg font-bold text-blue-800 tabular-nums mt-0.5">{{ number_format($fohTotal, 2) }}</p>
+                        <p class="text-xs text-blue-600 font-medium mt-1">
+                            {{ $fohPctSales !== null ? number_format($fohPctSales, 1) . '% of sales' : '—' }}
+                        </p>
+                    </div>
+                    <div class="rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+                        <p class="text-xs text-amber-700 uppercase tracking-wider font-semibold">BOH</p>
+                        <p class="text-lg font-bold text-amber-800 tabular-nums mt-0.5">{{ number_format($bohTotal, 2) }}</p>
+                        <p class="text-xs text-amber-600 font-medium mt-1">
+                            {{ $bohPctSales !== null ? number_format($bohPctSales, 1) . '% of sales' : '—' }}
+                        </p>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold">Total Outlet</p>
+                        <p class="text-lg font-bold text-gray-900 tabular-nums mt-0.5">{{ number_format($grandTotal, 2) }}</p>
+                        <p class="text-xs {{ $totalPctSales !== null && $totalPctSales > 30 ? 'text-red-600' : 'text-gray-600' }} font-medium mt-1">
+                            {{ $totalPctSales !== null ? number_format($totalPctSales, 1) . '% of sales' : '—' }}
+                        </p>
+                    </div>
+                </div>
+
+                {{-- FOH vs BOH split of the labour cost --}}
                 @if ($grandTotal > 0)
-                    <div class="mt-3 flex rounded-full overflow-hidden h-2.5">
+                    <div class="mt-4 flex rounded-full overflow-hidden h-2.5 bg-gray-100">
                         <div class="bg-blue-500" style="width: {{ round($fohTotal / $grandTotal * 100) }}%"></div>
                         <div class="bg-amber-500" style="width: {{ round($bohTotal / $grandTotal * 100) }}%"></div>
                     </div>
                     <div class="flex justify-between mt-1 text-xs text-gray-400">
-                        <span>FOH {{ $grandTotal > 0 ? round($fohTotal / $grandTotal * 100, 1) : 0 }}%</span>
-                        <span>BOH {{ $grandTotal > 0 ? round($bohTotal / $grandTotal * 100, 1) : 0 }}%</span>
+                        <span>FOH {{ round($fohTotal / $grandTotal * 100, 1) }}% of labour</span>
+                        <span>BOH {{ round($bohTotal / $grandTotal * 100, 1) }}% of labour</span>
                     </div>
                 @endif
             </div>
@@ -192,6 +228,14 @@
                         <x-input-label for="lc_sp" value="Service Point *" />
                         <x-text-input id="lc_sp" wire:model="service_point" type="number" step="0.01" min="0" class="mt-1 block w-full" />
                         <x-input-error :messages="$errors->get('service_point')" class="mt-1" />
+                    </div>
+
+                    {{-- Overtime --}}
+                    <div>
+                        <x-input-label for="lc_ot" value="Overtime *" />
+                        <x-text-input id="lc_ot" wire:model="overtime" type="number" step="0.01" min="0" class="mt-1 block w-full" />
+                        <x-input-error :messages="$errors->get('overtime')" class="mt-1" />
+                        <p class="text-[10px] text-gray-400 mt-1">Total overtime payout for the month. You can sum approved OT claims from <a href="{{ route('hr.overtime-claims') }}" class="text-indigo-600 hover:underline">HR → Overtime Claims</a>.</p>
                     </div>
 
                     {{-- Allowances --}}

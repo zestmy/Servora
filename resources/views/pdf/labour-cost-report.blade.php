@@ -87,6 +87,12 @@
                     <td class="right">{{ $boh ? number_format($boh['service_point'], 2) : '—' }}</td>
                     <td class="right">{{ number_format(($foh['service_point'] ?? 0) + ($boh['service_point'] ?? 0), 2) }}</td>
                 </tr>
+                <tr>
+                    <td>Overtime</td>
+                    <td class="right">{{ $foh ? number_format($foh['overtime'] ?? 0, 2) : '—' }}</td>
+                    <td class="right">{{ $boh ? number_format($boh['overtime'] ?? 0, 2) : '—' }}</td>
+                    <td class="right">{{ number_format(($foh['overtime'] ?? 0) + ($boh['overtime'] ?? 0), 2) }}</td>
+                </tr>
 
                 {{-- Allowances --}}
                 @php

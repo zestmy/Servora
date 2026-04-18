@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\LabourCost;
 use App\Models\LabourCostAllowance;
 use App\Models\Outlet;
+use App\Models\SalesRecord;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -20,6 +21,7 @@ class LabourCosts extends Component
     public string $editDeptType = 'foh';
     public string $basic_salary = '0';
     public string $service_point = '0';
+    public string $overtime = '0';
     public string $epf = '0';
     public string $eis = '0';
     public string $socso = '0';
@@ -37,6 +39,7 @@ class LabourCosts extends Component
         return [
             'basic_salary'      => 'required|numeric|min:0',
             'service_point'     => 'required|numeric|min:0',
+            'overtime'          => 'required|numeric|min:0',
             'epf'               => 'required|numeric|min:0',
             'eis'               => 'required|numeric|min:0',
             'socso'             => 'required|numeric|min:0',
@@ -72,6 +75,7 @@ class LabourCosts extends Component
             $this->editingId     = $record->id;
             $this->basic_salary  = (string) $record->basic_salary;
             $this->service_point = (string) $record->service_point;
+            $this->overtime      = (string) $record->overtime;
             $this->epf           = (string) $record->epf;
             $this->eis           = (string) $record->eis;
             $this->socso         = (string) $record->socso;
@@ -109,6 +113,7 @@ class LabourCosts extends Component
             'department_type'  => $this->editDeptType,
             'basic_salary'    => (float) $this->basic_salary,
             'service_point'   => (float) $this->service_point,
+            'overtime'        => (float) $this->overtime,
             'epf'             => (float) $this->epf,
             'eis'             => (float) $this->eis,
             'socso'           => (float) $this->socso,
@@ -159,21 +164,32 @@ class LabourCosts extends Component
     {
         $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
 
-        $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
+        $periodCarbon = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth();
+        $month        = $periodCarbon->toDateString();
+        $monthStart   = $periodCarbon->copy()->startOfMonth()->toDateString();
+        $monthEnd     = $periodCarbon->copy()->endOfMonth()->toDateString();
 
         $records = [];
+        $monthlySales = 0.0;
         if ($this->outletId) {
             $records = LabourCost::where('outlet_id', $this->outletId)
                 ->where('month', $month)
                 ->with('allowances')
                 ->get()
                 ->keyBy('department_type');
+
+            // Real-time monthly sales for this outlet — drives the
+            // labour-cost-as-%-of-sales display.
+            $monthlySales = (float) SalesRecord::where('outlet_id', $this->outletId)
+                ->whereBetween('sale_date', [$monthStart, $monthEnd])
+                ->sum('total_revenue');
         }
 
-        $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
+        $periodLabel = $periodCarbon->format('F Y');
 
-        return view('livewire.settings.labour-costs', compact('outlets', 'records', 'periodLabel'))
-            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Labour Costs']);
+        return view('livewire.settings.labour-costs', compact(
+            'outlets', 'records', 'periodLabel', 'monthlySales'
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Labour Costs']);
     }
 
     private function resetForm(): void
@@ -182,6 +198,7 @@ class LabourCosts extends Component
         $this->editDeptType  = 'foh';
         $this->basic_salary  = '0';
         $this->service_point = '0';
+        $this->overtime      = '0';
         $this->epf           = '0';
         $this->eis           = '0';
         $this->socso         = '0';

@@ -697,12 +697,13 @@ class Index extends Component
             }
 
             $totalAllowances = (float) $rec->allowances->sum('amount');
-            $totalCost = (float) $rec->basic_salary + (float) $rec->service_point
+            $totalCost = (float) $rec->basic_salary + (float) $rec->service_point + (float) $rec->overtime
                 + (float) $rec->epf + (float) $rec->eis + (float) $rec->socso + $totalAllowances;
 
             $outlets[$oid][$rec->department_type] = [
                 'basic_salary'    => (float) $rec->basic_salary,
                 'service_point'   => (float) $rec->service_point,
+                'overtime'        => (float) $rec->overtime,
                 'allowances'      => $rec->allowances->map(fn ($a) => ['label' => $a->label, 'amount' => (float) $a->amount])->toArray(),
                 'total_allowances' => $totalAllowances,
                 'epf'             => (float) $rec->epf,

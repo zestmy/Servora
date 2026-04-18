@@ -11,13 +11,14 @@ class LabourCost extends Model
 {
     protected $fillable = [
         'company_id', 'outlet_id', 'month', 'department_type',
-        'basic_salary', 'service_point', 'epf', 'eis', 'socso',
+        'basic_salary', 'service_point', 'overtime', 'epf', 'eis', 'socso',
     ];
 
     protected $casts = [
         'month'         => 'date',
         'basic_salary'  => 'decimal:2',
         'service_point' => 'decimal:2',
+        'overtime'      => 'decimal:2',
         'epf'           => 'decimal:2',
         'eis'           => 'decimal:2',
         'socso'         => 'decimal:2',
@@ -57,6 +58,7 @@ class LabourCost extends Model
     {
         return (float) $this->basic_salary
             + (float) $this->service_point
+            + (float) $this->overtime
             + (float) $this->epf
             + (float) $this->eis
             + (float) $this->socso
