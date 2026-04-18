@@ -58,6 +58,11 @@
             localStorage.setItem('sidebar', this.sidebarOpen ? '1' : '0');
         },
         mobileNavOpen: false,
+        // True whenever the sidebar should look expanded — either the desktop
+        // toggle is on, OR the mobile drawer is currently open (which always
+        // renders at full width). Used instead of bare sidebarOpen for anything
+        // that shows / hides labels, logos, etc.
+        get sidebarExpanded() { return this.sidebarOpen || this.mobileNavOpen; },
         userMenuOpen: false,
         userMenuStyle: {},
         openUserMenu() {
@@ -95,7 +100,7 @@
 
         {{-- Logo + toggle --}}
         <div class="flex items-center h-16 px-3 bg-gray-800 flex-shrink-0 gap-2">
-            <div x-show="sidebarOpen"
+            <div x-show="sidebarExpanded"
                  x-transition:enter="transition-opacity duration-200 delay-150"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
@@ -120,7 +125,7 @@
         </div>
 
         {{-- Navigation --}}
-        <nav class="flex-1 overflow-y-auto py-4 space-y-1" :class="sidebarOpen ? 'px-3' : 'px-2'">
+        <nav class="flex-1 overflow-y-auto py-4 space-y-1" :class="sidebarExpanded ? 'px-3' : 'px-2'">
             @php
                 $authUser = Auth::user();
                 $isSystemRole = $authUser->isSystemRole();
@@ -355,7 +360,7 @@
                     ? \App\Models\Outlet::find($activeOutletId)?->name ?? '—'
                     : 'All Outlets';
             @endphp
-            <div x-show="sidebarOpen"
+            <div x-show="sidebarExpanded"
                  x-transition:enter="transition-opacity duration-150 delay-100"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
@@ -380,11 +385,11 @@
                 <button x-ref="userBtn"
                         @click="sidebarOpen || toggleSidebar(); $nextTick(() => openUserMenu())"
                         class="flex items-center w-full rounded-lg px-3 py-2 hover:bg-gray-800 transition gap-3"
-                        :class="sidebarOpen ? '' : 'justify-center px-2'">
+                        :class="sidebarExpanded ? '' : 'justify-center px-2'">
                     <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
                         {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
                     </div>
-                    <div x-show="sidebarOpen"
+                    <div x-show="sidebarExpanded"
                          x-transition:enter="transition-opacity duration-150 delay-100"
                          x-transition:enter-start="opacity-0"
                          x-transition:enter-end="opacity-100"
@@ -395,7 +400,7 @@
                         <p class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</p>
                         <p class="text-xs text-indigo-300 truncate">{{ Auth::user()->displayDesignation() }}</p>
                     </div>
-                    <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg x-show="sidebarExpanded" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                     </svg>
                 </button>
