@@ -40,8 +40,8 @@
                 </select>
                 <x-input-error :messages="$errors->get('user_id')" class="mt-1" />
             </div>
-            <div class="flex-1 min-w-[200px]">
-                <x-input-label for="approver_outlet" value="Outlet (leave blank for all)" />
+            <div class="flex-1 min-w-[180px]">
+                <x-input-label for="approver_outlet" value="Outlet (blank = all)" />
                 <select id="approver_outlet" wire:model="outlet_id"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">— All Outlets —</option>
@@ -49,6 +49,19 @@
                         <option value="{{ $o->id }}">{{ $o->name }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div class="flex-1 min-w-[180px]">
+                <x-input-label for="approver_section" value="Section (blank = all)" />
+                <select id="approver_section" wire:model="section_id"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">— All Sections —</option>
+                    @foreach ($sections as $s)
+                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-[10px] text-gray-400 mt-1">
+                    Manage at <a href="{{ route('settings.sections') }}" class="text-indigo-600 hover:underline">Settings → Sections</a>.
+                </p>
             </div>
             <button wire:click="addApprover"
                     class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
@@ -64,6 +77,7 @@
                 <tr>
                     <th class="px-4 py-3 text-left">User</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
+                    <th class="px-4 py-3 text-left">Section</th>
                     <th class="px-4 py-3 text-center w-20">Actions</th>
                 </tr>
             </thead>
@@ -71,9 +85,8 @@
                 @forelse ($approvers as $a)
                     <tr>
                         <td class="px-4 py-3 text-gray-700 font-medium">{{ $a->user?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 text-gray-600">
-                            {{ $a->outlet?->name ?? 'All Outlets' }}
-                        </td>
+                        <td class="px-4 py-3 text-gray-600">{{ $a->outlet?->name ?? 'All Outlets' }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $a->section?->name ?? 'All Sections' }}</td>
                         <td class="px-4 py-3 text-center">
                             <button wire:click="removeApprover({{ $a->id }})" wire:confirm="Remove this approver?"
                                     class="text-red-400 hover:text-red-600 text-xs font-medium">
@@ -83,7 +96,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="3" class="px-4 py-8 text-center text-gray-400">
+                        <td colspan="4" class="px-4 py-8 text-center text-gray-400">
                             No approvers configured yet. Add one above.
                         </td>
                     </tr>

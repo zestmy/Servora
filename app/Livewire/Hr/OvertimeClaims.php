@@ -168,10 +168,10 @@ class OvertimeClaims extends Component
 
     public function approveClaim(int $id): void
     {
-        $claim = OvertimeClaim::findOrFail($id);
+        $claim = OvertimeClaim::with('employee')->findOrFail($id);
         if ($claim->status !== 'submitted') return;
 
-        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->outlet_id) && ! Auth::user()->isSystemRole()) {
+        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->outlet_id, $claim->employee?->section_id) && ! Auth::user()->isSystemRole()) {
             session()->flash('error', 'You are not authorized to approve this claim.');
             return;
         }
@@ -195,10 +195,10 @@ class OvertimeClaims extends Component
     {
         $this->validate(['rejected_reason' => 'required|string|max:500']);
 
-        $claim = OvertimeClaim::findOrFail($this->rejectingId);
+        $claim = OvertimeClaim::with('employee')->findOrFail($this->rejectingId);
         if ($claim->status !== 'submitted') return;
 
-        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->outlet_id) && ! Auth::user()->isSystemRole()) {
+        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->outlet_id, $claim->employee?->section_id) && ! Auth::user()->isSystemRole()) {
             session()->flash('error', 'You are not authorized to reject this claim.');
             return;
         }
@@ -228,13 +228,14 @@ class OvertimeClaims extends Component
         if (empty($this->selected)) return;
 
         $user = Auth::user();
-        $claims = OvertimeClaim::whereIn('id', $this->selected)
+        $claims = OvertimeClaim::with('employee')
+            ->whereIn('id', $this->selected)
             ->where('status', 'submitted')
             ->get();
 
         $count = 0;
         foreach ($claims as $claim) {
-            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id) || $user->isSystemRole()) {
+            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
                 $claim->update([
                     'status'      => 'approved',
                     'approved_by' => $user->id,
@@ -260,13 +261,14 @@ class OvertimeClaims extends Component
         $this->validate(['bulk_rejected_reason' => 'required|string|max:500']);
 
         $user = Auth::user();
-        $claims = OvertimeClaim::whereIn('id', $this->selected)
+        $claims = OvertimeClaim::with('employee')
+            ->whereIn('id', $this->selected)
             ->where('status', 'submitted')
             ->get();
 
         $count = 0;
         foreach ($claims as $claim) {
-            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id) || $user->isSystemRole()) {
+            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
                 $claim->update([
                     'status'          => 'rejected',
                     'approved_by'     => $user->id,
