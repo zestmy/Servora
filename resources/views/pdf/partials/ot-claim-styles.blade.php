@@ -55,7 +55,7 @@
     .signatures { display: table; width: 100%; margin-top: 22px; border-collapse: separate; border-spacing: 8px 0; }
     .sig-cell {
         display: table-cell;
-        width: 33.33%;
+        width: 50%;
         vertical-align: top;
         text-align: center;
         padding: 8px 10px;

@@ -117,7 +117,14 @@
         @foreach ($claims as $i => $claim)
             <tr>
                 <td>{{ $i + 1 }}</td>
-                <td style="font-weight: 500;">{{ $claim->claim_date->format('d M Y') }}</td>
+                <td style="font-weight: 500;">
+                    {{ $claim->claim_date->format('d M Y') }}
+                    @if ($claim->submitter)
+                        <div style="font-size: 6.5pt; color: #94a3b8; font-weight: normal; margin-top: 1px;">
+                            Submitted by {{ $claim->submitter->name }}
+                        </div>
+                    @endif
+                </td>
                 <td>{{ $claim->claim_date->format('l') }}</td>
                 <td class="center">{{ substr($claim->ot_time_start, 0, 5) }}</td>
                 <td class="center">{{ substr($claim->ot_time_end, 0, 5) }}</td>
@@ -143,7 +150,8 @@
     </tfoot>
 </table>
 
-{{-- Approvals (digital — see note below) --}}
+{{-- Approvals (digital — see note below). Verified By removed: submitter
+     is now shown per-row in the claims table under the Date column. --}}
 <div class="signatures">
     <div class="sig-cell">
         <div class="sig-role">Employee</div>
@@ -152,20 +160,6 @@
             <div class="sig-title">{{ $employee->designation }}@if ($employee->staff_id) · {{ $employee->staff_id }}@endif</div>
         @elseif ($employee->staff_id)
             <div class="sig-title">{{ $employee->staff_id }}</div>
-        @endif
-    </div>
-
-    <div class="sig-cell">
-        <div class="sig-role">Verified By</div>
-        @if ($submitters->count())
-            @foreach ($submitters as $s)
-                <div class="sig-name">{{ $s->name }}</div>
-                @if ($s->designation)
-                    <div class="sig-title">{{ $s->designation }}</div>
-                @endif
-            @endforeach
-        @else
-            <div class="sig-name">—</div>
         @endif
     </div>
 
