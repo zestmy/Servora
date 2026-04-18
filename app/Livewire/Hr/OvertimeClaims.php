@@ -444,7 +444,9 @@ class OvertimeClaims extends Component
             if ($end->lte($start)) {
                 $end->addDay();
             }
-            $this->total_ot_hours = (string) round($end->diffInMinutes($start) / 60, 2);
+            // Carbon 3 returns signed diffs — use start->end so we always get
+            // a positive value (e.g. 19:00 → 20:00 = 60 minutes, not −60).
+            $this->total_ot_hours = (string) round($start->diffInMinutes($end) / 60, 2);
         } catch (\Exception) {}
     }
 
