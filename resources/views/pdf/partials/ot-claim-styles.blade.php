@@ -60,7 +60,7 @@
         letter-spacing: 1.4px;
         color: #64748b;
         font-weight: bold;
-        margin-bottom: 30px;
+        margin-bottom: 64px;
     }
     .sig-line { border-top: 1px solid #1f2937; padding-top: 5px; min-height: 20px; }
     .sig-name { font-size: 10pt; font-weight: bold; color: #0f172a; }
