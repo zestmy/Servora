@@ -298,7 +298,15 @@ class OvertimeClaims extends Component
     {
         $user     = Auth::user();
         $outletId = $user->activeOutletId();
-        $isApprover = OvertimeClaimApprover::isApproverFor($user->id, $outletId) || $user->isSystemRole();
+
+        // Outlet-level flag: does this user have ANY approver grant at this
+        // outlet (regardless of section)? Drives UI gating (bulk bar, column
+        // visibility). Per-claim section matching happens below.
+        $isApprover = OvertimeClaimApprover::isApproverAtOutlet($user->id, $outletId)
+            || $user->isSystemRole();
+        $approverScopes = $user->isSystemRole()
+            ? null  // sentinel: everything allowed
+            : OvertimeClaimApprover::scopesForOutlet($user->id, $outletId);
 
         $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet'])
             ->where('outlet_id', $outletId);
@@ -333,6 +341,22 @@ class OvertimeClaims extends Component
 
         $claims = $query->paginate($this->perPage);
 
+        // Per-claim approve eligibility. System roles can approve everything;
+        // everyone else is matched against their approver scopes (in-memory,
+        // no extra queries per claim).
+        $canApproveMap = [];
+        foreach ($claims as $c) {
+            if ($approverScopes === null) {
+                $canApproveMap[$c->id] = true;
+            } else {
+                $canApproveMap[$c->id] = OvertimeClaimApprover::scopesMatch(
+                    $approverScopes,
+                    $c->outlet_id,
+                    $c->employee?->section_id
+                );
+            }
+        }
+
         // Employee list for dropdown (active only) and management modal (all)
         $allEmployees = Employee::with('section')
             ->where('outlet_id', $outletId)
@@ -356,7 +380,7 @@ class OvertimeClaims extends Component
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canDeleteAny', 'totalHoursMonth', 'pendingCount', 'approvedCount'
+            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canApproveMap', 'canDeleteAny', 'totalHoursMonth', 'pendingCount', 'approvedCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 

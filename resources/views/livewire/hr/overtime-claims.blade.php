@@ -205,7 +205,7 @@
                                         <button wire:click="openEdit({{ $claim->id }})" class="text-indigo-500 hover:text-indigo-700 text-xs font-medium">Edit</button>
                                         <button wire:click="submitClaim({{ $claim->id }})" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Submit</button>
                                     @endif
-                                    @if ($claim->status === 'submitted' && $isApprover)
+                                    @if ($claim->status === 'submitted' && ($canApproveMap[$claim->id] ?? false))
                                         <button wire:click="approveClaim({{ $claim->id }})" class="text-green-600 hover:text-green-800 text-xs font-medium">Approve</button>
                                         <button wire:click="openReject({{ $claim->id }})" class="text-red-500 hover:text-red-700 text-xs font-medium">Reject</button>
                                     @endif
