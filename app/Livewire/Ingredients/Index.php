@@ -21,6 +21,7 @@ class Index extends Component
     public string $categoryFilter = '';
     public string $statusFilter = 'all';
     public string $supplierFilter = '';
+    public string $factorFilter = ''; // '' | 'missing' — ingredients that need a UOM conversion factor but have none
     public int    $perPage = 100;
 
     // Bulk selection
@@ -122,6 +123,7 @@ class Index extends Component
     public function updatedCategoryFilter(): void   { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
     public function updatedStatusFilter(): void     { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
     public function updatedSupplierFilter(): void   { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
+    public function updatedFactorFilter(): void     { $this->resetPage(); $this->clearSelection(); if ($this->quickEdit) $this->enterQuickEdit(); }
     public function updatedPerPage(): void          { $this->resetPage(); $this->clearSelection(); }
 
     public function updatedSelectAll(bool $value): void
@@ -580,6 +582,17 @@ class Index extends Component
             }
         }
 
+        // "Needs factor": base UOM differs from recipe UOM AND there is no
+        // uom_conversions row with a non-zero factor. These ingredients silently
+        // break recipe costing until the user enters a conversion.
+        if ($this->factorFilter === 'missing') {
+            $query->whereColumn('base_uom_id', '!=', 'recipe_uom_id')
+                  ->where(function ($q) {
+                      $q->whereDoesntHave('uomConversions')
+                        ->orWhereDoesntHave('uomConversions', fn ($s) => $s->where('factor', '>', 0));
+                  });
+        }
+
         // Filter by active outlet visibility (assigned to outlet OR not assigned to any = visible everywhere)
         $outletId = Auth::user()->activeOutletId();
         if ($outletId) {
@@ -696,6 +709,13 @@ class Index extends Component
             } else {
                 $ingredients->whereHas('suppliers', fn ($q) => $q->where('suppliers.id', (int) $this->supplierFilter));
             }
+        }
+        if ($this->factorFilter === 'missing') {
+            $ingredients->whereColumn('base_uom_id', '!=', 'recipe_uom_id')
+                ->where(function ($q) {
+                    $q->whereDoesntHave('uomConversions')
+                      ->orWhereDoesntHave('uomConversions', fn ($s) => $s->where('factor', '>', 0));
+                });
         }
 
         $rows = [];

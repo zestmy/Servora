@@ -29,7 +29,7 @@
                 </svg>
                 CSV
             </a>
-            <a href="{{ route('ingredients.pdf', ['search' => $search, 'category' => $categoryFilter, 'status' => $statusFilter, 'supplier' => $supplierFilter]) }}"
+            <a href="{{ route('ingredients.pdf', ['search' => $search, 'category' => $categoryFilter, 'status' => $statusFilter, 'supplier' => $supplierFilter, 'factor' => $factorFilter]) }}"
                target="_blank"
                class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
                title="Export filtered list as PDF">
@@ -118,6 +118,14 @@
                     @foreach ($suppliers as $s)
                         <option value="{{ $s->id }}">{{ $s->name }}</option>
                     @endforeach
+                </select>
+            </div>
+            <div>
+                <select wire:model.live="factorFilter"
+                        title="Filter ingredients missing a UOM conversion factor"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Factors</option>
+                    <option value="missing">Missing Factor</option>
                 </select>
             </div>
             <div>
