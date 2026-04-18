@@ -22,9 +22,21 @@
     $hasOutletAccess = $authUser->outlets()->count() > 0 || $authUser->canViewAllOutlets();
 @endphp
 
-<div class="flex h-screen overflow-hidden">
-    {{-- Sidebar --}}
-    <aside class="w-56 flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-y-auto">
+<div x-data="{ mobileNavOpen: false }" class="flex h-screen overflow-hidden">
+
+    {{-- Mobile scrim --}}
+    <div x-show="mobileNavOpen" x-cloak
+         x-transition:enter="transition-opacity ease-out duration-200"
+         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-in duration-150"
+         x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         @click="mobileNavOpen = false"
+         class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
+
+    {{-- Sidebar: off-canvas on mobile, fixed-width on desktop --}}
+    <aside :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
+           @click="if ($event.target.closest && $event.target.closest('a')) mobileNavOpen = false"
+           class="fixed inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-auto md:w-56 flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-y-auto transform transition-transform duration-300 ease-in-out">
 
         {{-- Logo --}}
         <div class="flex items-center h-14 px-4 bg-gray-800 flex-shrink-0">
@@ -148,8 +160,26 @@
     </aside>
 
     {{-- Main Content --}}
-    <main class="flex-1 overflow-y-auto p-6">
-        {{ $slot }}
+    <main class="flex-1 overflow-y-auto">
+        {{-- Mobile top bar --}}
+        <div class="md:hidden sticky top-0 z-30 flex items-center h-14 px-3 bg-gray-900 text-white shadow">
+            <button @click="mobileNavOpen = true"
+                    class="-ml-1 p-2 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
+                    aria-label="Open menu">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7 ml-1">
+            <span class="ml-2 px-2 py-0.5 rounded bg-purple-900/60 text-[10px] uppercase tracking-widest text-purple-200 font-semibold">Kitchen</span>
+            @if (! empty($title))
+                <span class="ml-auto text-sm text-gray-300 truncate max-w-[40%]">{{ $title }}</span>
+            @endif
+        </div>
+
+        <div class="p-4 sm:p-6">
+            {{ $slot }}
+        </div>
     </main>
 </div>
 

@@ -49,6 +49,7 @@
             this.sidebarOpen = !this.sidebarOpen;
             localStorage.setItem('sidebar', this.sidebarOpen ? '1' : '0');
         },
+        mobileNavOpen: false,
         userMenuOpen: false,
         userMenuStyle: {},
         openUserMenu() {
@@ -64,9 +65,25 @@
      }"
      class="flex h-screen overflow-hidden">
 
+    {{-- Mobile scrim — tap to dismiss the drawer --}}
+    <div x-show="mobileNavOpen" x-cloak
+         x-transition:enter="transition-opacity ease-out duration-200"
+         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-in duration-150"
+         x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         @click="mobileNavOpen = false"
+         class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
+
     {{-- ── Sidebar ──────────────────────────────────────────────────────── --}}
-    <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
-           class="flex flex-col bg-gray-900 text-white flex-shrink-0 transition-[width] duration-300 ease-in-out overflow-hidden">
+    {{-- Mobile: off-canvas drawer (fixed, slides in). Desktop: in-flow, toggles w-64/w-16. --}}
+    <aside :class="{
+               '-translate-x-full md:translate-x-0': !mobileNavOpen,
+               'translate-x-0': mobileNavOpen,
+               'md:w-16': !sidebarOpen,
+               'md:w-64': sidebarOpen,
+           }"
+           @click="if ($event.target.closest && $event.target.closest('a')) mobileNavOpen = false"
+           class="fixed inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-auto flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-hidden transform transition-all duration-300 ease-in-out">
 
         {{-- Logo + toggle --}}
         <div class="flex items-center h-16 px-3 bg-gray-800 flex-shrink-0 gap-2">
@@ -84,7 +101,7 @@
             <button @click="toggleSidebar()"
                     :class="sidebarOpen ? '' : 'mx-auto'"
                     title="Toggle sidebar"
-                    class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
+                    class="hidden md:flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
                 <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
                 </svg>
@@ -380,7 +397,23 @@
     </aside>
 
     {{-- ── Main content ─────────────────────────────────────────────────── --}}
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex-1 overflow-y-auto">
+        {{-- Mobile top bar (md+ hidden). Sticky to top of the scroll container. --}}
+        <div class="md:hidden sticky top-0 z-30 flex items-center h-14 px-3 bg-gray-900 text-white shadow">
+            <button @click="mobileNavOpen = true"
+                    class="-ml-1 p-2 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
+                    aria-label="Open menu">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7 ml-1">
+            @if (! empty($title))
+                <span class="ml-auto text-sm text-gray-300 truncate max-w-[50%]">{{ $title }}</span>
+            @endif
+        </div>
+
+        <div class="p-4 sm:p-6">
         {{-- Subscription banner --}}
         @if (!empty($subscriptionBanner))
             <div class="mb-4 px-4 py-3 rounded-lg flex items-center justify-between
@@ -409,6 +442,7 @@
         <div class="page-enter">
             {{ $slot }}
         </div>
+        </div>{{-- end content padding wrapper --}}
     </main>
 
     {{-- ── User menu (teleported to body to escape overflow clipping) ────── --}}
