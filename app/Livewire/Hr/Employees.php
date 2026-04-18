@@ -151,12 +151,27 @@ class Employees extends Component
             ->mapWithKeys(fn ($id, $name) => [strtolower(trim($name)) => $id])
             ->all();
 
-        $path = $this->csvFile->getRealPath();
-        $fh   = fopen($path, 'r');
-        if (! $fh) {
+        // Read file as text first so we can strip BOM, normalise line endings,
+        // and auto-detect the delimiter (Excel on some locales emits ';' or '\t').
+        $raw = file_get_contents($this->csvFile->getRealPath()) ?: '';
+        if ($raw === '') {
             session()->flash('error', 'Could not read CSV file.');
             return;
         }
+        $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);    // strip UTF-8 BOM
+        $raw = str_replace(["\r\n", "\r"], "\n", $raw);
+
+        $firstLine = strtok($raw, "\n") ?: '';
+        $delim = ',';
+        foreach ([",", ";", "\t"] as $candidate) {
+            if (substr_count($firstLine, $candidate) > substr_count($firstLine, $delim)) {
+                $delim = $candidate;
+            }
+        }
+
+        $tmp = tmpfile();
+        fwrite($tmp, $raw);
+        rewind($tmp);
 
         $headers = null;
         $created = 0;
@@ -168,29 +183,58 @@ class Employees extends Component
         // Normalise header tokens so small wording differences still map.
         $aliasMap = [
             'outlet'          => 'outlet',
+            'branch'          => 'outlet',
+            'location'        => 'outlet',
             'employee name'   => 'name',
             'name'            => 'name',
+            'full name'       => 'name',
             'designation'     => 'designation',
             'position'        => 'designation',
+            'job title'       => 'designation',
+            'role'            => 'designation',
             'department'      => 'department',
+            'dept'            => 'department',
             'staff id'        => 'staff_id',
             'staff no'        => 'staff_id',
+            'staff no.'       => 'staff_id',
             'employee id'     => 'staff_id',
+            'emp id'          => 'staff_id',
             'e-mail'          => 'email',
             'email'           => 'email',
+            'email address'   => 'email',
             'phone number'    => 'phone',
             'phone'           => 'phone',
+            'phone no'        => 'phone',
             'mobile'          => 'phone',
+            'mobile number'   => 'phone',
             'contact'         => 'phone',
+            'contact number'  => 'phone',
         ];
 
-        while (($row = fgetcsv($fh)) !== false) {
+        while (($row = fgetcsv($tmp, 0, $delim)) !== false) {
             $rowNum++;
             if ($rowNum === 1) {
-                $headers = array_map(function ($h) use ($aliasMap) {
-                    $key = strtolower(trim((string) $h));
-                    return $aliasMap[$key] ?? null;
+                $unmapped = [];
+                $headers = array_map(function ($h) use ($aliasMap, &$unmapped) {
+                    $key = strtolower(trim((string) $h, " \t\n\r\0\x0B\xEF\xBB\xBF"));
+                    $mapped = $aliasMap[$key] ?? null;
+                    if (! $mapped && $key !== '') $unmapped[] = $h;
+                    return $mapped;
                 }, $row);
+
+                if (! in_array('outlet', $headers, true) || ! in_array('name', $headers, true)) {
+                    fclose($tmp);
+                    $this->importResult = [
+                        'created' => 0, 'updated' => 0, 'skipped' => 0,
+                        'errors'  => [
+                            'Required columns Outlet and Employee Name were not found.',
+                            'Headers detected: ' . implode(', ', array_map(fn ($h) => '"' . $h . '"', $row)),
+                            'Expected: Outlet, Employee Name, Designation, Department, Staff ID, E-mail, Phone Number',
+                        ],
+                    ];
+                    $this->csvFile = null;
+                    return;
+                }
                 continue;
             }
             // Skip empty rows
@@ -257,7 +301,7 @@ class Employees extends Component
             }
         }
 
-        fclose($fh);
+        fclose($tmp);
 
         $this->importResult = [
             'created' => $created,
