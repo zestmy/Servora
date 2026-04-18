@@ -368,9 +368,10 @@
         </div>
     @endif
 
-    {{-- Table --}}
+    {{-- Table — horizontally scrollable on mobile so all columns are reachable. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     @if ($canDelete)
@@ -541,6 +542,7 @@
                 </tfoot>
             @endif
         </table>
+      </div>
 
         @if ($records->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">

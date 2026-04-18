@@ -79,43 +79,10 @@
     {{-- List --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
-        {{-- Mobile cards --}}
-        <div class="md:hidden divide-y divide-gray-100">
-            @forelse ($employees as $emp)
-                <div class="p-3 space-y-1.5">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="min-w-0">
-                            <div class="text-sm font-medium text-gray-800 truncate">{{ $emp->name }}</div>
-                            <div class="text-xs text-gray-500 truncate">
-                                {{ $emp->designation ?? '—' }}@if ($emp->section) · {{ $emp->section->name }}@endif
-                            </div>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                            {{ $emp->is_active ? 'Active' : 'Inactive' }}
-                        </span>
-                    </div>
-                    <div class="text-xs text-gray-500 truncate">{{ $emp->outlet?->name ?? '—' }}@if ($emp->staff_id) · {{ $emp->staff_id }}@endif</div>
-                    @if ($emp->email || $emp->phone)
-                        <div class="text-xs text-gray-500 truncate">{{ $emp->email ?? '' }}@if ($emp->email && $emp->phone) · @endif{{ $emp->phone ?? '' }}</div>
-                    @endif
-                    <div class="flex items-center gap-2 pt-1.5 border-t border-gray-100">
-                        <button wire:click="openEdit({{ $emp->id }})"
-                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Edit</button>
-                        <button wire:click="toggleActive({{ $emp->id }})"
-                                class="px-3 py-1.5 text-xs font-medium rounded-lg {{ $emp->is_active ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-green-50 text-green-700 hover:bg-green-100' }}">
-                            {{ $emp->is_active ? 'Deactivate' : 'Activate' }}
-                        </button>
-                        <button wire:click="delete({{ $emp->id }})" wire:confirm="Delete this employee?"
-                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100">Delete</button>
-                    </div>
-                </div>
-            @empty
-                <div class="p-8 text-center text-gray-400 text-sm font-medium">No employees yet. Add one or import from CSV.</div>
-            @endforelse
-        </div>
-
-        {{-- Desktop table --}}
-        <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
+        {{-- Table — horizontally scrollable on mobile so every column (staff ID,
+             designation, section, email, phone…) stays reachable. --}}
+      <div class="overflow-x-auto">
+        <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
@@ -169,6 +136,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
 
         @if ($employees->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">{{ $employees->links() }}</div>

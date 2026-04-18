@@ -168,9 +168,10 @@
         </div>
     </div>
 
-    {{-- Table --}}
+    {{-- Table — horizontally scrollable on mobile. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="w-6 px-1 py-3"></th>
@@ -350,6 +351,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
 
         @if ($recipes->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">

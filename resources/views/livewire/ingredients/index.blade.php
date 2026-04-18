@@ -314,10 +314,11 @@
         </div>
     @endif
 
-    {{-- Table --}}
+    {{-- Table — horizontally scrollable on mobile. --}}
     @if (! $quickEdit)
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 w-10">
@@ -480,6 +481,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
 
         @if ($ingredients->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">

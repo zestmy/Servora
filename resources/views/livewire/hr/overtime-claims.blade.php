@@ -102,10 +102,10 @@
         </div>
     @endif
 
-    {{-- Table --}}
+    {{-- Table — horizontally scrollable on mobile so every column stays reachable. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="min-w-[960px] w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                     <tr>
                         @if ($isApprover)

@@ -22,9 +22,10 @@
         <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search users..." class="w-full max-w-md rounded-lg border-gray-300 text-sm" />
     </div>
 
-    {{-- User List --}}
+    {{-- User List — horizontally scrollable on mobile. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
                     <th class="px-5 py-3 text-left">Name</th>
@@ -89,6 +90,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
         @if ($users->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">{{ $users->links() }}</div>
         @endif
