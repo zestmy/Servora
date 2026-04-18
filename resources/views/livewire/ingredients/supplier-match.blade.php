@@ -6,6 +6,13 @@
         </div>
     @endif
 
+    @if (session()->has('success'))
+        <div wire:key="flash-ok-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
+             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+            {{ session('success') }}
+        </div>
+    @endif
+
     {{-- Header --}}
     <div class="flex items-center gap-3 mb-6">
         <a href="{{ route('ingredients.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
@@ -15,9 +22,10 @@
         </a>
         <div class="flex-1">
             <p class="text-xs text-gray-400">
-                <a href="{{ route('ingredients.index') }}" class="hover:underline">Ingredients</a> / Supplier Product Match
+                <a href="{{ route('ingredients.index') }}" class="hover:underline">Ingredients</a> / Price Watcher
             </p>
-            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Supplier Product Match</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Price Watcher</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Upload supplier invoices / quotations / price lists — AI reads the supplier, date and prices, links them to your ingredients, and logs every price change.</p>
         </div>
     </div>
 
@@ -36,24 +44,24 @@
         <div class="mb-6 px-4 py-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-xl space-y-2">
             <p class="font-semibold">How it works</p>
             <ol class="list-decimal list-inside space-y-1 text-blue-700">
-                <li>Select the supplier and upload their invoice, quotation, or product list (PDF, image, or spreadsheet).</li>
-                <li>AI extracts items and matches them against your existing ingredients.</li>
-                <li>Review matches — link existing ingredients or create new ones. Linked suppliers appear as additional suppliers.</li>
+                <li>Upload the supplier's invoice, quotation, delivery order, or price list (PDF, image, or spreadsheet).</li>
+                <li>AI extracts the <strong>supplier name</strong>, <strong>document date</strong> and every line item — you don't need to pick the supplier up front.</li>
+                <li>Review the match screen, create the supplier if it's new, then import. Prices (and any changes) are logged against the document date.</li>
             </ol>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
-            {{-- Supplier selector --}}
+            {{-- Optional supplier pre-select (spreadsheets need this; images/PDFs can auto-detect) --}}
             <div>
-                <x-input-label for="sm_supplier" value="Supplier *" />
+                <x-input-label for="sm_supplier" value="Supplier (optional for PDFs / images)" />
                 <select id="sm_supplier" wire:model="supplierId"
                         class="mt-1 block w-full sm:max-w-md rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">— Select Supplier —</option>
+                    <option value="">— Auto-detect from document —</option>
                     @foreach ($suppliers as $s)
                         <option value="{{ $s->id }}">{{ $s->name }}</option>
                     @endforeach
                 </select>
-                <x-input-error :messages="$errors->get('supplierId')" class="mt-1" />
+                <p class="text-[11px] text-gray-400 mt-1">Pre-selecting is only required for CSV / Excel uploads. For PDFs or images, the AI will read the supplier name off the document; you can confirm or override on the next step.</p>
             </div>
 
             {{-- File upload --}}
@@ -84,12 +92,21 @@
                 <x-input-error :messages="$errors->get('file')" class="mt-1" />
             </div>
 
-            @if ($file && $supplierId)
-                <div class="flex justify-end">
+            @if ($file)
+                @php
+                    $ext = strtolower($file->getClientOriginalExtension());
+                    $isSpreadsheet = in_array($ext, ['csv', 'txt', 'xlsx']);
+                    $canSubmit = ! $isSpreadsheet || $supplierId;
+                @endphp
+                <div class="flex items-center justify-end gap-3">
+                    @if ($isSpreadsheet && ! $supplierId)
+                        <span class="text-xs text-amber-600">CSV / Excel uploads need the supplier picked above.</span>
+                    @endif
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
-                        <span wire:loading.remove wire:target="processUpload">Extract & Match →</span>
-                        <span wire:loading wire:target="processUpload">Extracting with AI…</span>
+                            @disabled(! $canSubmit)
+                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span wire:loading.remove wire:target="processUpload">Extract & Review →</span>
+                        <span wire:loading wire:target="processUpload">Reading with AI…</span>
                     </button>
                 </div>
             @endif
@@ -98,15 +115,72 @@
     {{-- ── STEP 2: Preview ─────────────────────────────────────── --}}
     @elseif ($step === 'preview')
 
+        {{-- Supplier + document date — AI-detected, user can override --}}
+        <div class="mb-4 px-4 py-4 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
+            @if ($detectedSupplierName)
+                <div class="px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs rounded-lg">
+                    AI detected supplier: <strong>{{ $detectedSupplierName }}</strong>
+                    @if ($supplierId && $supplierName)
+                        — matched to your existing supplier <strong>{{ $supplierName }}</strong>.
+                    @elseif ($supplierMode === 'new')
+                        — no matching supplier yet. Create below, or pick an existing one.
+                    @endif
+                </div>
+            @endif
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <x-input-label value="Supplier" />
+                    <div class="mt-1 flex items-center gap-2 text-xs">
+                        <button type="button" wire:click="$set('supplierMode','existing')"
+                                class="px-2.5 py-1 rounded-md border {{ $supplierMode === 'existing' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50' }}">
+                            Use existing
+                        </button>
+                        <button type="button" wire:click="$set('supplierMode','new')"
+                                class="px-2.5 py-1 rounded-md border {{ $supplierMode === 'new' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50' }}">
+                            Create new
+                        </button>
+                    </div>
+
+                    @if ($supplierMode === 'existing')
+                        <select wire:model.live="supplierId"
+                                class="mt-2 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— Select Supplier —</option>
+                            @foreach ($suppliers as $s)
+                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <div class="mt-2 flex items-center gap-2">
+                            <input type="text" wire:model="newSupplierName" placeholder="New supplier name"
+                                   class="flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <button type="button" wire:click="createSupplier"
+                                    class="px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition whitespace-nowrap">
+                                Create & link
+                            </button>
+                        </div>
+                        <x-input-error :messages="$errors->get('newSupplierName')" class="mt-1" />
+                    @endif
+                </div>
+
+                <div>
+                    <x-input-label for="sm_date" value="Price effective date" />
+                    <input id="sm_date" type="date" wire:model="effectiveDate"
+                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                    <p class="text-[11px] text-gray-400 mt-1">Pulled from the document date. Every price logged on this import uses this as its effective date.</p>
+                </div>
+            </div>
+        </div>
+
         {{-- Summary --}}
         <div class="mb-4 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4 text-sm">
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+                @if ($supplierName)
                     <span class="text-gray-500">Supplier: <strong class="text-gray-800">{{ $supplierName }}</strong></span>
-                    <span class="text-gray-500">Items: <strong>{{ $totalItems }}</strong></span>
-                    <span class="text-green-600">Matched: <strong>{{ $matchedCount }}</strong></span>
-                    <span class="text-indigo-600">New: <strong>{{ $newCount }}</strong></span>
-                </div>
+                @endif
+                <span class="text-gray-500">Items: <strong>{{ $totalItems }}</strong></span>
+                <span class="text-green-600">Matched: <strong>{{ $matchedCount }}</strong></span>
+                <span class="text-indigo-600">New: <strong>{{ $newCount }}</strong></span>
             </div>
         </div>
 
@@ -243,18 +317,24 @@
                 </svg>
             </div>
             <h3 class="text-lg font-bold text-gray-800 mb-2">Import Complete</h3>
-            <p class="text-sm text-gray-500 mb-4">Supplier: <strong>{{ $supplierName }}</strong></p>
-            <div class="flex items-center justify-center gap-6 text-sm mb-6">
+            <p class="text-sm text-gray-500 mb-4">Supplier: <strong>{{ $supplierName }}</strong> · Effective <strong>{{ $effectiveDate }}</strong></p>
+            <div class="flex flex-wrap items-center justify-center gap-6 text-sm mb-6">
                 @if ($linkedCount > 0)
                     <div class="text-center">
                         <p class="text-2xl font-bold text-green-600">{{ $linkedCount }}</p>
-                        <p class="text-xs text-gray-500">Supplier Links Added</p>
+                        <p class="text-xs text-gray-500">Supplier Links Added / Updated</p>
                     </div>
                 @endif
                 @if ($createdCount > 0)
                     <div class="text-center">
                         <p class="text-2xl font-bold text-indigo-600">{{ $createdCount }}</p>
                         <p class="text-xs text-gray-500">New Ingredients</p>
+                    </div>
+                @endif
+                @if ($priceChangedCount > 0)
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-amber-600">{{ $priceChangedCount }}</p>
+                        <p class="text-xs text-gray-500">Price Changes Logged</p>
                     </div>
                 @endif
                 @if ($skippedCount > 0)

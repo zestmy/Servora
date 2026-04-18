@@ -23,9 +23,16 @@ class SupplierMatch extends Component
 
     public string $step = 'upload'; // upload | preview | done
 
-    // Supplier selection
+    // Supplier selection — now optional at upload. AI tries to detect the
+    // supplier from the document; the user confirms / overrides at preview.
     public ?int $supplierId = null;
     public string $supplierName = '';
+
+    // AI-detected supplier identity + document date (populated at preview step)
+    public string $detectedSupplierName = '';
+    public string $supplierMode         = 'existing'; // existing | new
+    public string $newSupplierName      = '';
+    public string $effectiveDate        = ''; // YYYY-MM-DD — used as price history effective_date
 
     // Preview items
     public array $items        = [];
@@ -37,21 +44,22 @@ class SupplierMatch extends Component
     public int $linkedCount    = 0;
     public int $createdCount   = 0;
     public int $skippedCount   = 0;
+    public int $priceChangedCount = 0;
 
     protected function rules(): array
     {
+        // Upload step only requires a file. Supplier + date are
+        // AI-detected / confirmed at the preview step.
         return [
-            'file'       => 'required|file|mimes:csv,txt,xlsx,pdf,jpg,jpeg,png,webp|max:10240',
-            'supplierId' => 'required|exists:suppliers,id',
+            'file' => 'required|file|mimes:csv,txt,xlsx,pdf,jpg,jpeg,png,webp|max:10240',
         ];
     }
 
     protected function messages(): array
     {
         return [
-            'file.mimes'          => 'Supported: CSV, Excel, PDF, or image (JPG/PNG).',
-            'file.max'            => 'File size must not exceed 10 MB.',
-            'supplierId.required' => 'Please select the supplier this document is from.',
+            'file.mimes' => 'Supported: CSV, Excel, PDF, or image (JPG/PNG).',
+            'file.max'   => 'File size must not exceed 10 MB.',
         ];
     }
 
@@ -61,8 +69,15 @@ class SupplierMatch extends Component
     {
         $this->validate();
 
-        $supplier = Supplier::find($this->supplierId);
-        $this->supplierName = $supplier?->name ?? '';
+        // Pre-seed supplier label if the user picked one up front; otherwise
+        // it'll be populated by AI extraction (or stays blank for spreadsheet
+        // imports, which force the user to pick at preview).
+        if ($this->supplierId) {
+            $supplier = Supplier::find($this->supplierId);
+            $this->supplierName = $supplier?->name ?? '';
+        }
+
+        $this->effectiveDate = now()->toDateString();
 
         $path = $this->file->getRealPath();
         $ext  = strtolower($this->file->getClientOriginalExtension());
@@ -88,10 +103,12 @@ class SupplierMatch extends Component
         $dataUri  = "data:{$mimeType};base64,{$base64}";
 
         $prompt = <<<'PROMPT'
-Extract all product/ingredient items from this supplier document (invoice, quotation, delivery order, or price list).
+Extract the supplier metadata AND all product/ingredient items from this supplier document (invoice, quotation, delivery order, or price list).
 
 Return a JSON object:
 {
+  "supplier_name": "exactly as shown on the letterhead, or null",
+  "document_date": "YYYY-MM-DD (invoice / quotation / DO date), or null",
   "items": [
     {
       "name": "clean product name",
@@ -107,18 +124,20 @@ Return a JSON object:
 }
 
 ## Rules:
-- Extract EVERY line item from the document
-- "name": clean product name — remove weight/volume info (1KG, 500ML) but keep size gradings for seafood (6-8, 16/20)
-- "code": supplier's SKU, product code, or item number if shown
-- "uom": the unit the item is SOLD in (box, ctn, kg, pail, bag, bottle, pack, tray, etc.)
-- "recipe_uom": the smaller unit used in recipes (g, ml, pcs, etc.)
+- "supplier_name": the company issuing the document (usually the letterhead / top of page). Preserve capitalisation. If genuinely not shown, use null.
+- "document_date": the date printed on the document (invoice date / quotation date / DO date). Convert to YYYY-MM-DD. If no date is shown, use null.
+- Extract EVERY line item from the document.
+- "name": clean product name — remove weight/volume info (1KG, 500ML) but keep size gradings for seafood (6-8, 16/20).
+- "code": supplier's SKU, product code, or item number if shown.
+- "uom": the unit the item is SOLD in (box, ctn, kg, pail, bag, bottle, pack, tray, etc.).
+- "recipe_uom": the smaller unit used in recipes (g, ml, pcs, etc.).
 - "pack_size": how many recipe_uom in 1 purchasing uom. Set to 0 if unknown.
   Examples: "SUGAR 1KG" → uom: "bag", recipe_uom: "g", pack_size: 1000
            "EGG 30'S" → uom: "tray", recipe_uom: "pcs", pack_size: 30
            "COOKING OIL 5L" → uom: "pail", recipe_uom: "ml", pack_size: 5000
 - "price": the unit price shown (per purchasing uom). Extract actual prices, never default to 0 if visible.
-- "quantity": ordered/delivered quantity if shown, otherwise 0
-- Use numeric values for price, pack_size, quantity
+- "quantity": ordered/delivered quantity if shown, otherwise 0.
+- Use numeric values for price, pack_size, quantity.
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no commentary.
 PROMPT;
@@ -159,8 +178,13 @@ PROMPT;
             $result  = $this->robustJsonDecode($content);
 
             $extracted = null;
+            $detectedSupplier = null;
+            $detectedDate     = null;
             if (is_array($result)) {
-                $extracted = $result['items'] ?? $result['ingredients'] ?? $result['products'] ?? $result['data'] ?? null;
+                $extracted        = $result['items'] ?? $result['ingredients'] ?? $result['products'] ?? $result['data'] ?? null;
+                $detectedSupplier = $result['supplier_name'] ?? $result['supplier'] ?? null;
+                $detectedDate     = $result['document_date'] ?? $result['date'] ?? $result['invoice_date'] ?? null;
+
                 if (! $extracted && isset($result[0]) && is_array($result[0])) {
                     $extracted = $result;
                 }
@@ -178,6 +202,8 @@ PROMPT;
                 throw new \RuntimeException('AI could not extract any items from this document.');
             }
 
+            $this->applyDetectedSupplier($detectedSupplier);
+            $this->applyDetectedDate($detectedDate);
             $this->buildPreview($extracted);
 
         } catch (\Throwable $e) {
@@ -375,6 +401,97 @@ PROMPT;
         return null;
     }
 
+    // ── Detected supplier + date handling ────────────────────────────────
+
+    /**
+     * Try to match an AI-detected supplier name against existing suppliers;
+     * otherwise leave the user on the "new supplier" path with the name
+     * pre-filled so they can create it with one click at the preview step.
+     */
+    private function applyDetectedSupplier(?string $name): void
+    {
+        $this->detectedSupplierName = trim((string) $name);
+
+        if ($this->supplierId) {
+            // User pre-selected a supplier — respect their choice.
+            return;
+        }
+
+        if ($this->detectedSupplierName === '') {
+            $this->supplierMode = 'existing';
+            return;
+        }
+
+        $companyId = Auth::user()->company_id;
+        $match = Supplier::where('company_id', $companyId)
+            ->whereRaw('LOWER(name) = ?', [strtolower($this->detectedSupplierName)])
+            ->first();
+
+        if ($match) {
+            $this->supplierId   = $match->id;
+            $this->supplierName = $match->name;
+            $this->supplierMode = 'existing';
+        } else {
+            $this->supplierMode    = 'new';
+            $this->newSupplierName = $this->detectedSupplierName;
+        }
+    }
+
+    private function applyDetectedDate(?string $isoDate): void
+    {
+        $candidate = trim((string) $isoDate);
+        if ($candidate === '') return;
+        try {
+            $this->effectiveDate = \Carbon\Carbon::parse($candidate)->toDateString();
+        } catch (\Throwable $e) {
+            // Leave the default (today).
+        }
+    }
+
+    /** Called from the preview step when the user clicks "Create this supplier". */
+    public function createSupplier(): void
+    {
+        $this->validate([
+            'newSupplierName' => 'required|string|max:255',
+        ], [
+            'newSupplierName.required' => 'Give the new supplier a name.',
+        ]);
+
+        $companyId = Auth::user()->company_id;
+        $supplier = Supplier::create([
+            'company_id' => $companyId,
+            'name'       => trim($this->newSupplierName),
+            'is_active'  => true,
+        ]);
+
+        $this->supplierId      = $supplier->id;
+        $this->supplierName    = $supplier->name;
+        $this->supplierMode    = 'existing';
+        $this->newSupplierName = '';
+        session()->flash('success', "Supplier \"{$supplier->name}\" created and linked.");
+
+        // Recompute which items are already linked to this supplier.
+        $this->refreshExistingLinks();
+    }
+
+    private function refreshExistingLinks(): void
+    {
+        if (! $this->supplierId) return;
+        $existingLinks = DB::table('supplier_ingredients')
+            ->where('supplier_id', $this->supplierId)
+            ->pluck('ingredient_id')
+            ->flip();
+
+        foreach ($this->items as $idx => $item) {
+            if (! $item['ingredient_id']) continue;
+            $linked = isset($existingLinks[$item['ingredient_id']]);
+            $this->items[$idx]['already_linked'] = $linked;
+            $this->items[$idx]['status']         = $linked ? 'already_linked' : 'match';
+            $this->items[$idx]['action']         = $linked ? 'skip' : 'link';
+        }
+        $this->recalcCounts();
+    }
+
     // ── Fix actions ───────────────────────────────────────────────────────
 
     public function fixMatch(int $idx, int $ingredientId): void
@@ -424,9 +541,32 @@ PROMPT;
     {
         $user      = Auth::user();
         $companyId = $user->company_id;
-        $linked    = 0;
-        $created   = 0;
-        $skipped   = 0;
+
+        // Auto-create the supplier on the fly if the user left the form in
+        // "new supplier" mode without pressing the Create button.
+        if (! $this->supplierId && $this->supplierMode === 'new' && trim($this->newSupplierName) !== '') {
+            $supplier = Supplier::create([
+                'company_id' => $companyId,
+                'name'       => trim($this->newSupplierName),
+                'is_active'  => true,
+            ]);
+            $this->supplierId   = $supplier->id;
+            $this->supplierName = $supplier->name;
+        }
+
+        if (! $this->supplierId) {
+            session()->flash('error', 'Pick an existing supplier or create a new one before importing.');
+            return;
+        }
+
+        // Use the document's effective date for every price history row so
+        // the timeline reflects when the prices actually took effect.
+        $effectiveDate = $this->effectiveDate ?: now()->toDateString();
+
+        $linked       = 0;
+        $created      = 0;
+        $skipped      = 0;
+        $priceChanged = 0;
 
         foreach ($this->items as $item) {
             if ($item['action'] === 'skip') {
@@ -435,34 +575,62 @@ PROMPT;
             }
 
             if ($item['action'] === 'link' && $item['ingredient_id']) {
-                // Add supplier to existing ingredient
-                $exists = DB::table('supplier_ingredients')
+                $uomId = $item['uom_id'] ?? UnitOfMeasure::first()?->id;
+                $pack  = max($item['pack_size'], 0.0001) ?: 1;
+                $price = floatval($item['price'] ?? 0);
+
+                $existing = DB::table('supplier_ingredients')
                     ->where('supplier_id', $this->supplierId)
                     ->where('ingredient_id', $item['ingredient_id'])
-                    ->exists();
+                    ->first();
 
-                if (! $exists) {
+                if ($existing) {
+                    // Already linked — detect price change and refresh last_cost.
+                    $oldPrice = $existing->last_cost !== null ? (float) $existing->last_cost : null;
+                    $changed  = $price > 0 && $oldPrice !== null && abs($price - $oldPrice) > 0.0001;
+
+                    DB::table('supplier_ingredients')
+                        ->where('id', $existing->id)
+                        ->update([
+                            'supplier_sku' => $item['code'] ?: $existing->supplier_sku,
+                            'last_cost'    => $price > 0 ? $price : $existing->last_cost,
+                            'uom_id'       => $uomId,
+                            'pack_size'    => $pack,
+                            'updated_at'   => now(),
+                        ]);
+
+                    if ($price > 0) {
+                        IngredientPriceHistory::create([
+                            'ingredient_id'  => $item['ingredient_id'],
+                            'supplier_id'    => $this->supplierId,
+                            'cost'           => $price,
+                            'uom_id'         => $uomId,
+                            'effective_date' => $effectiveDate,
+                            'source'         => 'price_watcher_import',
+                        ]);
+                    }
+                    if ($changed) $priceChanged++;
+                } else {
                     DB::table('supplier_ingredients')->insert([
                         'supplier_id'   => $this->supplierId,
                         'ingredient_id' => $item['ingredient_id'],
                         'supplier_sku'  => $item['code'],
-                        'last_cost'     => $item['price'] > 0 ? $item['price'] : null,
-                        'uom_id'        => $item['uom_id'] ?? UnitOfMeasure::first()?->id,
-                        'pack_size'     => max($item['pack_size'], 0.0001) ?: 1,
+                        'last_cost'     => $price > 0 ? $price : null,
+                        'uom_id'        => $uomId,
+                        'pack_size'     => $pack,
                         'is_preferred'  => false,
                         'created_at'    => now(),
                         'updated_at'    => now(),
                     ]);
 
-                    // Record price history
-                    if ($item['price'] > 0) {
+                    if ($price > 0) {
                         IngredientPriceHistory::create([
                             'ingredient_id'  => $item['ingredient_id'],
                             'supplier_id'    => $this->supplierId,
-                            'cost'           => $item['price'],
-                            'uom_id'         => $item['uom_id'] ?? UnitOfMeasure::first()?->id,
-                            'effective_date'  => now()->toDateString(),
-                            'source'          => 'supplier_match_import',
+                            'cost'           => $price,
+                            'uom_id'         => $uomId,
+                            'effective_date' => $effectiveDate,
+                            'source'         => 'price_watcher_import',
                         ]);
                     }
                 }
@@ -470,7 +638,7 @@ PROMPT;
                 $linked++;
 
             } elseif ($item['action'] === 'create') {
-                DB::transaction(function () use ($item, $companyId, &$created) {
+                DB::transaction(function () use ($item, $companyId, $effectiveDate, &$created) {
                     $baseUomId   = $item['uom_id'] ?? UnitOfMeasure::first()?->id;
                     $recipeUomId = $item['recipe_uom_id'] ?? $baseUomId;
                     $packSize    = max($item['pack_size'], 0.0001) ?: 1;
@@ -478,19 +646,18 @@ PROMPT;
                     $currentCost = $packSize > 0 && $price > 0 ? round($price / $packSize, 4) : 0;
 
                     $ingredient = Ingredient::create([
-                        'company_id'             => $companyId,
-                        'name'                   => $item['name'],
-                        'code'                   => $item['code'],
-                        'base_uom_id'            => $baseUomId,
-                        'recipe_uom_id'          => $recipeUomId,
-                        'purchase_price'         => $price,
-                        'current_cost'           => $currentCost,
-                        'yield_percent'          => 100,
-                        'is_active'              => true,
-                        'is_prep'                => false,
+                        'company_id'     => $companyId,
+                        'name'           => $item['name'],
+                        'code'           => $item['code'],
+                        'base_uom_id'    => $baseUomId,
+                        'recipe_uom_id'  => $recipeUomId,
+                        'purchase_price' => $price,
+                        'current_cost'   => $currentCost,
+                        'yield_percent'  => 100,
+                        'is_active'      => true,
+                        'is_prep'        => false,
                     ]);
 
-                    // Link supplier as preferred
                     $ingredient->suppliers()->attach($this->supplierId, [
                         'supplier_sku' => $item['code'],
                         'last_cost'    => $price > 0 ? $price : null,
@@ -505,8 +672,8 @@ PROMPT;
                             'supplier_id'    => $this->supplierId,
                             'cost'           => $price,
                             'uom_id'         => $baseUomId,
-                            'effective_date'  => now()->toDateString(),
-                            'source'          => 'supplier_match_import',
+                            'effective_date' => $effectiveDate,
+                            'source'         => 'price_watcher_import',
                         ]);
                     }
 
@@ -515,23 +682,29 @@ PROMPT;
             }
         }
 
-        $this->linkedCount  = $linked;
-        $this->createdCount = $created;
-        $this->skippedCount = $skipped;
-        $this->step         = 'done';
+        $this->linkedCount       = $linked;
+        $this->createdCount      = $created;
+        $this->skippedCount      = $skipped;
+        $this->priceChangedCount = $priceChanged;
+        $this->step              = 'done';
     }
 
     public function restart(): void
     {
-        $this->file         = null;
-        $this->step         = 'upload';
-        $this->items        = [];
-        $this->totalItems   = 0;
-        $this->matchedCount = 0;
-        $this->newCount     = 0;
-        $this->linkedCount  = 0;
-        $this->createdCount = 0;
-        $this->skippedCount = 0;
+        $this->file                = null;
+        $this->step                = 'upload';
+        $this->items               = [];
+        $this->totalItems          = 0;
+        $this->matchedCount        = 0;
+        $this->newCount            = 0;
+        $this->linkedCount         = 0;
+        $this->createdCount        = 0;
+        $this->skippedCount        = 0;
+        $this->priceChangedCount   = 0;
+        $this->detectedSupplierName = '';
+        $this->newSupplierName      = '';
+        $this->supplierMode         = 'existing';
+        $this->effectiveDate        = '';
         $this->resetValidation();
     }
 

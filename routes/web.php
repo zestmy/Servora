@@ -160,7 +160,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
     Route::get('/ingredients/pdf', \App\Http\Controllers\IngredientPdfController::class)->name('ingredients.pdf')->middleware('can:ingredients.view');
     Route::get('/ingredients/import', IngredientsImport::class)->name('ingredients.import')->middleware('can:ingredients.view');
-    Route::get('/ingredients/supplier-match', \App\Livewire\Ingredients\SupplierMatch::class)->name('ingredients.supplier-match')->middleware('can:ingredients.view');
+    // Price Watcher (formerly Supplier Match). Route name kept for back-compat;
+    // URL changed for the rebrand. Legacy URL redirects so old bookmarks still land.
+    Route::get('/ingredients/price-watcher', \App\Livewire\Ingredients\SupplierMatch::class)->name('ingredients.price-watcher')->middleware('can:ingredients.view');
+    Route::redirect('/ingredients/supplier-match', '/ingredients/price-watcher');
     Route::get('/recipes', RecipesIndex::class)->name('recipes.index')->middleware('can:recipes.view');
     Route::get('/recipes/import', RecipesImport::class)->name('recipes.import')->middleware('can:recipes.view');
     Route::get('/recipes/create', RecipesForm::class)->name('recipes.create')->middleware('can:recipes.view');
