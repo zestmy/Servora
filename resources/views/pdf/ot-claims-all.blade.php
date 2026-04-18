@@ -17,7 +17,7 @@
             'totalHours'  => $group['totalHours'],
             'hoursByType' => $group['hoursByType'],
             'submitters'  => $group['submitters'],
-            'approvers'   => $approvers,
+            'approvers'   => $group['approvers'],
             'from'        => $from,
             'to'          => $to,
         ])
