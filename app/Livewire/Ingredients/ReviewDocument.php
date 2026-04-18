@@ -79,12 +79,17 @@ class ReviewDocument extends Component
             ->get()
             ->keyBy(fn ($i) => strtolower(trim($i->name)));
 
-        $existingLinks = $this->supplierId
-            ? DB::table('supplier_ingredients')
+        // Current per-supplier last_cost lookup keyed by ingredient_id → row
+        // so we can surface the existing price + compute the delta vs. the
+        // new price in the document.
+        $existingLinks = collect();
+        if ($this->supplierId) {
+            $existingLinks = DB::table('supplier_ingredients')
                 ->where('supplier_id', $this->supplierId)
-                ->pluck('ingredient_id')
-                ->flip()
-            : collect();
+                ->select('ingredient_id', 'last_cost', 'uom_id', 'pack_size')
+                ->get()
+                ->keyBy('ingredient_id');
+        }
 
         $uomsByAbbr = UnitOfMeasure::all()->mapWithKeys(fn ($u) => [strtolower($u->abbreviation) => $u]);
         $uomsByName = UnitOfMeasure::all()->mapWithKeys(fn ($u) => [strtolower($u->name) => $u]);
@@ -108,22 +113,56 @@ class ReviewDocument extends Component
             $alreadyLinked = $match && isset($existingLinks[$match['id']]);
             $status = $match ? ($alreadyLinked ? 'already_linked' : 'match') : 'new';
 
+            // Old price + delta (only meaningful when matched to an existing
+            // link, so the current supplier had a prior last_cost for this
+            // ingredient).
+            $oldPrice     = null;
+            $priceChange  = null;  // absolute delta
+            $priceChangePct = null;
+            if ($alreadyLinked) {
+                $row = $existingLinks[$match['id']];
+                if ($row->last_cost !== null) {
+                    $oldPrice = (float) $row->last_cost;
+                    if ($price > 0 && $oldPrice > 0 && abs($price - $oldPrice) > 0.0001) {
+                        $priceChange    = $price - $oldPrice;
+                        $priceChangePct = round(($priceChange / $oldPrice) * 100, 1);
+                    }
+                }
+            }
+
+            // Smart default action:
+            // - new match  → link (add new supplier link)
+            // - no match   → create
+            // - already linked + price changed → link (will update last_cost)
+            // - already linked + same price    → skip
+            $defaultAction = 'create';
+            if ($match) {
+                if ($alreadyLinked) {
+                    $defaultAction = $priceChange !== null ? 'link' : 'skip';
+                } else {
+                    $defaultAction = 'link';
+                }
+            }
+
             $this->items[] = [
-                'name'           => $name,
-                'code'           => $code,
-                'uom_raw'        => $uomRaw,
-                'uom_id'         => $uomId,
-                'recipe_uom_raw' => $recipeUomRaw,
-                'recipe_uom_id'  => $recipeUomId,
-                'pack_size'      => $pack,
-                'price'          => $price,
-                'category'       => trim((string) ($item['category'] ?? '')) ?: null,
-                'ingredient_id'  => $match['id'] ?? null,
-                'matched_name'   => $match['name'] ?? null,
-                'confidence'     => $match['confidence'] ?? 0,
-                'already_linked' => $alreadyLinked,
-                'status'         => $status,
-                'action'         => $alreadyLinked ? 'skip' : ($match ? 'link' : 'create'),
+                'name'             => $name,
+                'code'             => $code,
+                'uom_raw'          => $uomRaw,
+                'uom_id'           => $uomId,
+                'recipe_uom_raw'   => $recipeUomRaw,
+                'recipe_uom_id'    => $recipeUomId,
+                'pack_size'        => $pack,
+                'price'            => $price,
+                'old_price'        => $oldPrice,
+                'price_change'     => $priceChange,
+                'price_change_pct' => $priceChangePct,
+                'category'         => trim((string) ($item['category'] ?? '')) ?: null,
+                'ingredient_id'    => $match['id'] ?? null,
+                'matched_name'     => $match['name'] ?? null,
+                'confidence'       => $match['confidence'] ?? 0,
+                'already_linked'   => $alreadyLinked,
+                'status'           => $status,
+                'action'           => $defaultAction,
             ];
         }
 
@@ -173,18 +212,38 @@ class ReviewDocument extends Component
         $ing = Ingredient::find($ingredientId);
         if (! $ing) return;
 
-        $alreadyLinked = $this->supplierId && DB::table('supplier_ingredients')
-            ->where('supplier_id', $this->supplierId)
-            ->where('ingredient_id', $ingredientId)
-            ->exists();
+        $link = $this->supplierId
+            ? DB::table('supplier_ingredients')
+                ->where('supplier_id', $this->supplierId)
+                ->where('ingredient_id', $ingredientId)
+                ->first()
+            : null;
 
-        $this->items[$idx]['ingredient_id']  = $ing->id;
-        $this->items[$idx]['matched_name']   = $ing->name;
-        $this->items[$idx]['confidence']     = 100;
-        $this->items[$idx]['already_linked'] = $alreadyLinked;
-        $this->items[$idx]['status']         = $alreadyLinked ? 'already_linked' : 'match';
-        $this->items[$idx]['action']         = $alreadyLinked ? 'skip' : 'link';
+        $newPrice = (float) ($this->items[$idx]['price'] ?? 0);
+        $old = $link && $link->last_cost !== null ? (float) $link->last_cost : null;
+        [$change, $changePct] = $this->diff($old, $newPrice);
+
+        $this->items[$idx]['ingredient_id']    = $ing->id;
+        $this->items[$idx]['matched_name']     = $ing->name;
+        $this->items[$idx]['confidence']       = 100;
+        $this->items[$idx]['already_linked']   = (bool) $link;
+        $this->items[$idx]['status']           = $link ? 'already_linked' : 'match';
+        $this->items[$idx]['old_price']        = $old;
+        $this->items[$idx]['price_change']     = $change;
+        $this->items[$idx]['price_change_pct'] = $changePct;
+        $this->items[$idx]['action']           = $link
+            ? ($change !== null ? 'link' : 'skip')
+            : 'link';
         $this->recalcCounts();
+    }
+
+    private function diff(?float $old, ?float $new): array
+    {
+        if ($old === null || $old <= 0 || $new === null || $new <= 0) return [null, null];
+        if (abs($new - $old) <= 0.0001) return [null, null];
+        $delta = $new - $old;
+        $pct   = round(($delta / $old) * 100, 1);
+        return [$delta, $pct];
     }
 
     public function fixUom(int $idx, int $uomId): void
@@ -236,15 +295,25 @@ class ReviewDocument extends Component
         if (! $this->supplierId) return;
         $existing = DB::table('supplier_ingredients')
             ->where('supplier_id', $this->supplierId)
-            ->pluck('ingredient_id')
-            ->flip();
+            ->select('ingredient_id', 'last_cost')
+            ->get()
+            ->keyBy('ingredient_id');
 
         foreach ($this->items as $idx => $item) {
             if (! $item['ingredient_id']) continue;
-            $linked = isset($existing[$item['ingredient_id']]);
-            $this->items[$idx]['already_linked'] = $linked;
-            $this->items[$idx]['status']         = $linked ? 'already_linked' : 'match';
-            $this->items[$idx]['action']         = $linked ? 'skip' : 'link';
+            $link   = $existing[$item['ingredient_id']] ?? null;
+            $linked = (bool) $link;
+            $old    = $link && $link->last_cost !== null ? (float) $link->last_cost : null;
+            [$change, $changePct] = $this->diff($old, (float) ($item['price'] ?? 0));
+
+            $this->items[$idx]['already_linked']   = $linked;
+            $this->items[$idx]['status']           = $linked ? 'already_linked' : 'match';
+            $this->items[$idx]['old_price']        = $old;
+            $this->items[$idx]['price_change']     = $change;
+            $this->items[$idx]['price_change_pct'] = $changePct;
+            $this->items[$idx]['action']           = $linked
+                ? ($change !== null ? 'link' : 'skip')
+                : 'link';
         }
         $this->recalcCounts();
     }

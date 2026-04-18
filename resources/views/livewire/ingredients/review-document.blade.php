@@ -103,11 +103,25 @@
         </div>
 
         {{-- Summary + legend --}}
+        @php
+            $priceChangeCount = collect($items)->whereNotNull('price_change')->count();
+        @endphp
         <div class="mb-4 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-                <span class="text-gray-500">Items: <strong>{{ $totalItems }}</strong></span>
-                <span class="text-green-600">Matched: <strong>{{ $matchedCount }}</strong></span>
-                <span class="text-indigo-600">New: <strong>{{ $newCount }}</strong></span>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-4 text-sm">
+                    <span class="text-gray-500">Items: <strong>{{ $totalItems }}</strong></span>
+                    <span class="text-green-600">Matched: <strong>{{ $matchedCount }}</strong></span>
+                    <span class="text-indigo-600">New: <strong>{{ $newCount }}</strong></span>
+                    @if ($priceChangeCount > 0)
+                        <span class="text-amber-600">Price changes: <strong>{{ $priceChangeCount }}</strong></span>
+                    @endif
+                </div>
+                @can('reports.view')
+                    <a href="{{ route('reports.price-history') }}" target="_blank"
+                       class="text-xs text-indigo-600 hover:text-indigo-800 underline">
+                        Price history report →
+                    </a>
+                @endcan
             </div>
         </div>
 
@@ -120,7 +134,7 @@
                         <th class="px-4 py-2 text-left">Item (from document)</th>
                         <th class="px-4 py-2 text-left">Matched Ingredient</th>
                         <th class="px-4 py-2 text-left w-20">SKU</th>
-                        <th class="px-4 py-2 text-right w-24">Price</th>
+                        <th class="px-4 py-2 text-right w-32">Price</th>
                         <th class="px-4 py-2 text-left w-24">UOM</th>
                         <th class="px-4 py-2 text-center w-28">Action</th>
                     </tr>
@@ -162,7 +176,25 @@
                                 ])
                             </td>
                             <td class="px-4 py-2.5 font-mono text-gray-500 text-[11px]">{{ $item['code'] ?? '—' }}</td>
-                            <td class="px-4 py-2.5 text-right tabular-nums">{{ $item['price'] > 0 ? number_format($item['price'], 2) : '—' }}</td>
+                            <td class="px-4 py-2.5 text-right tabular-nums">
+                                <div class="{{ $item['price_change'] !== null ? 'font-semibold' : '' }}">
+                                    {{ $item['price'] > 0 ? number_format($item['price'], 2) : '—' }}
+                                </div>
+                                @if ($item['old_price'] !== null)
+                                    @if ($item['price_change'] !== null)
+                                        <div class="mt-0.5 text-[10px] flex items-center justify-end gap-1 leading-tight
+                                                    {{ $item['price_change'] > 0 ? 'text-red-600' : 'text-green-600' }}">
+                                            <span>{{ $item['price_change'] > 0 ? '▲' : '▼' }}</span>
+                                            <span>{{ $item['price_change_pct'] > 0 ? '+' : '' }}{{ $item['price_change_pct'] }}%</span>
+                                        </div>
+                                        <div class="text-[10px] text-gray-400 leading-tight">was {{ number_format($item['old_price'], 2) }}</div>
+                                    @else
+                                        <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">no change</div>
+                                    @endif
+                                @elseif ($item['already_linked'])
+                                    <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">no prior price</div>
+                                @endif
+                            </td>
                             <td class="px-4 py-2.5">
                                 <select wire:change="fixUom({{ $idx }}, $event.target.value)"
                                         class="w-full text-xs rounded border-gray-200 py-1 px-2">
