@@ -78,6 +78,148 @@ class VisionService
     }
 
     /**
+     * End-to-end Z-report extraction — single Claude Vision call that returns
+     * structured JSON (totals, guest/transaction metrics, sessions, departments).
+     *
+     * Preferred over extractText()+parseZReport() for new code; handles POS
+     * variations (Artisan Ilusi, BMS, StoreHub, etc.) without regex tuning.
+     *
+     * Returns:
+     *  [
+     *    'date'         => 'YYYY-MM-DD' | null,
+     *    'summary'      => [gross_amount, discount_incl_tax, net_sales, exclusive_tax,
+     *                       exclusive_charges, bill_rounding, total_sales, total_guests,
+     *                       total_transactions, avg_guest_value, atv_net, atv_gross],
+     *    'sessions'     => [{label, meal_period, transactions, amount}],
+     *    'departments'  => [{name, amount, transactions}],
+     *    'service_types'=> [{label, transactions, amount}],   // Takeaway / Dine In / Delivery
+     *  ]
+     */
+    public function extractZReportData(string $imagePath): array
+    {
+        if (empty($this->apiKey)) {
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
+        }
+
+        if (! file_exists($imagePath)) {
+            throw new \RuntimeException('Uploaded file not found.');
+        }
+
+        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
+        $dataUri  = 'data:' . $mimeType . ';base64,' . base64_encode(file_get_contents($imagePath));
+
+        $previousTimeout = ini_get('max_execution_time');
+        set_time_limit(120);
+
+        $response = Http::timeout(90)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                'X-Title'       => config('app.name', 'Servora'),
+            ])
+            ->post($this->endpoint, [
+                'model'      => $this->model,
+                'max_tokens' => 4096,
+                'messages'   => [
+                    ['role' => 'system', 'content' => 'You extract structured data from F&B Z-reports / daily sales receipts. Return ONLY valid JSON — no commentary, no markdown, no code fences.'],
+                    ['role' => 'user', 'content' => [
+                        ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
+                        ['type' => 'text', 'text' => self::zReportPrompt()],
+                    ]],
+                ],
+                'response_format' => ['type' => 'json_object'],
+            ]);
+
+        set_time_limit((int) $previousTimeout ?: 60);
+
+        if ($response->failed()) {
+            Log::error('OpenRouter Z-report extraction error', ['status' => $response->status(), 'body' => $response->body()]);
+            $msg = $response->json('error.message') ?? ('HTTP ' . $response->status());
+            throw new \RuntimeException('Z-report extraction failed: ' . $msg);
+        }
+
+        $content = $response->json('choices.0.message.content', '');
+        $data = json_decode($content, true);
+        if (json_last_error() !== JSON_ERROR_NONE && preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $content, $m)) {
+            $data = json_decode(trim($m[1]), true);
+        }
+        if (! is_array($data)) {
+            throw new \RuntimeException('Z-report extraction returned invalid JSON.');
+        }
+
+        // Normalise output shape
+        return [
+            'date'          => $data['date'] ?? null,
+            'summary'       => array_merge([
+                'gross_amount'       => null,
+                'discount_incl_tax'  => null,
+                'net_sales'          => null,
+                'exclusive_tax'      => null,
+                'exclusive_charges'  => null,
+                'bill_rounding'      => null,
+                'total_sales'        => null,
+                'total_guests'       => null,
+                'total_transactions' => null,
+                'avg_guest_value'    => null,
+                'atv_net'            => null,
+                'atv_gross'          => null,
+            ], is_array($data['summary'] ?? null) ? $data['summary'] : []),
+            'sessions'      => is_array($data['sessions'] ?? null) ? $data['sessions'] : [],
+            'departments'   => is_array($data['departments'] ?? null) ? $data['departments'] : [],
+            'service_types' => is_array($data['service_types'] ?? null) ? $data['service_types'] : [],
+        ];
+    }
+
+    private static function zReportPrompt(): string
+    {
+        return <<<'PROMPT'
+Extract the Z-report / daily sales receipt into this JSON shape:
+
+{
+  "date": "YYYY-MM-DD or null",
+  "summary": {
+    "gross_amount":       number | null,
+    "discount_incl_tax":  number | null,  // signed — negative if shown negative
+    "net_sales":          number | null,
+    "exclusive_tax":      number | null,
+    "exclusive_charges":  number | null,  // service charge
+    "bill_rounding":      number | null,  // signed
+    "total_sales":        number | null,  // gross tender / total collected
+    "total_guests":       integer | null, // pax / covers
+    "total_transactions": integer | null, // bills / chits / checks
+    "avg_guest_value":    number | null,
+    "atv_net":            number | null,
+    "atv_gross":          number | null
+  },
+  "sessions": [
+    {
+      "label": "Breakfast",
+      "meal_period": "breakfast" | "lunch" | "tea_time" | "dinner" | "supper" | "all_day",
+      "transactions": integer | null,   // bills in this session (NOT guests)
+      "amount": number
+    }
+  ],
+  "departments": [
+    { "name": "Food", "amount": number, "transactions": integer | null }
+  ],
+  "service_types": [
+    { "label": "Takeaway", "transactions": integer | null, "amount": number }
+  ]
+}
+
+Rules:
+- ALL amounts are numbers (not strings). Preserve sign for discounts and rounding.
+- "transactions" means bills/chits — NEVER confuse with guests/pax/covers.
+- Pax/guest count is ONLY in summary.total_guests, never per session unless the receipt explicitly shows per-session guest count.
+- Map session labels to meal_period using the time window or name ("Breakfast"→breakfast, "Lunch"→lunch, "Tea Time"/"Tea"/"High Tea"→tea_time, "Dinner"→dinner, "Supper"→supper, "All Day"→all_day).
+- service_types captures order fulfilment type (Dine In / Takeaway / Delivery) when listed; skip if not present.
+- departments is the F&B category breakdown (Food / Beverage / Dessert etc). Skip if the receipt only has payment/tender breakdown.
+- If a field cannot be determined from the image, use null — do NOT invent values.
+PROMPT;
+    }
+
+    /**
      * Parse Z-report OCR text into structured data.
      *
      * Extracts:

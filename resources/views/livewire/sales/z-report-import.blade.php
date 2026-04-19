@@ -70,9 +70,10 @@
                     <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 space-y-1">
                         <p class="font-medium">What gets extracted:</p>
                         <ul class="list-disc list-inside space-y-0.5 text-blue-600">
-                            <li><strong>All Day entry</strong> — dept breakdown from Department Sales Z-Read (Food / Beverage / Dessert etc.)</li>
-                            <li><strong>Session entries</strong> — Breakfast / Lunch / Tea Time totals from Session Report</li>
-                            <li>You can review and edit everything before saving</li>
+                            <li><strong>Z-report totals</strong> — gross, discount, net sales, tax, charges, rounding</li>
+                            <li><strong>Guest &amp; transaction stats</strong> — total guests, total transactions, ATV (net &amp; gross), avg guest value</li>
+                            <li><strong>All Day entry</strong> — department breakdown (if shown) or a single Net Sales line</li>
+                            <li><strong>Session entries</strong> — per-session transactions (bills) with pax pro-rated from total guests; all editable</li>
                         </ul>
                     </div>
 
@@ -95,9 +96,75 @@
                         </div>
                     </div>
 
+                    {{-- ── Z-REPORT SUMMARY (extracted totals) ── --}}
+                    @if (!empty($summary))
+                        @php
+                            $fmt = fn ($v) => $v === null ? '—' : 'RM ' . number_format((float) $v, 2);
+                            $fmtInt = fn ($v) => $v === null ? '—' : number_format((int) $v);
+                        @endphp
+                        <div class="border border-gray-200 rounded-xl overflow-hidden">
+                            <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                                <h4 class="text-sm font-semibold text-slate-800">Z-Report Summary</h4>
+                                <p class="text-xs text-slate-500 mt-0.5">Extracted from the receipt — for reference; totals are saved with the All Day record.</p>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 px-4 py-4 text-sm">
+                                <div>
+                                    <div class="text-xs text-gray-500">Gross Amount</div>
+                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['gross_amount'] ?? null) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Discount (incl. tax)</div>
+                                    <div class="font-semibold text-rose-600 tabular-nums">{{ $fmt($summary['discount_incl_tax'] ?? null) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Net Sales</div>
+                                    <div class="font-semibold text-emerald-700 tabular-nums">{{ $fmt($summary['net_sales'] ?? null) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Exclusive Tax</div>
+                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['exclusive_tax'] ?? null) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Exclusive Charges</div>
+                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['exclusive_charges'] ?? null) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Bill Rounding</div>
+                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['bill_rounding'] ?? null) }}</div>
+                                </div>
+                                <div class="col-span-2 sm:col-span-3 border-t border-gray-100 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                                    <div>
+                                        <div class="text-xs text-gray-500">Total Guests</div>
+                                        <div class="font-semibold text-gray-800 tabular-nums">{{ $fmtInt($summary['total_guests'] ?? null) }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Avg Guest Value</div>
+                                        <div class="font-semibold text-indigo-600 tabular-nums">{{ $fmt($summary['avg_guest_value'] ?? null) }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Total Transactions</div>
+                                        <div class="font-semibold text-gray-800 tabular-nums">{{ $fmtInt($summary['total_transactions'] ?? null) }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">ATV (Net Sales)</div>
+                                        <div class="font-semibold text-indigo-600 tabular-nums">{{ $fmt($summary['atv_net'] ?? null) }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">ATV (Gross Sales)</div>
+                                        <div class="font-semibold text-indigo-600 tabular-nums">{{ $fmt($summary['atv_gross'] ?? null) }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Total Sales</div>
+                                        <div class="font-semibold text-gray-900 tabular-nums">{{ $fmt($summary['total_sales'] ?? null) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- ── ALL DAY ENTRY ── --}}
                     <div class="border border-gray-200 rounded-xl overflow-hidden">
-                        <div class="flex items-center justify-between px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+                        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-indigo-50 border-b border-indigo-100">
                             <div class="flex items-center gap-3">
                                 <input type="checkbox" wire:model.live="includeAllDay" id="inc_allday"
                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
@@ -106,11 +173,16 @@
                                 </label>
                                 <span class="text-xs text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">For food cost% tracking</span>
                             </div>
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-4">
                                 <div>
-                                    <label class="text-xs text-indigo-600">Total Bills / Pax</label>
+                                    <label class="text-xs text-indigo-600 block">Guests (Pax)</label>
                                     <input type="number" wire:model="allDayPax" min="1" step="1"
-                                           class="ml-2 w-16 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="w-20 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                </div>
+                                <div>
+                                    <label class="text-xs text-indigo-600 block">Transactions (Bills)</label>
+                                    <input type="number" wire:model="allDayTransactions" min="1" step="1"
+                                           class="w-20 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                 </div>
                             </div>
                         </div>
@@ -190,7 +262,7 @@
                                         <input type="checkbox" wire:model.live="sessionEntries.{{ $idx }}.include"
                                                class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500 flex-shrink-0" />
 
-                                        <div class="flex-1 grid grid-cols-3 gap-3">
+                                        <div class="flex-1 grid grid-cols-4 gap-3">
                                             <div>
                                                 <label class="text-xs text-gray-500 block mb-0.5">Meal Period *</label>
                                                 <select wire:model="sessionEntries.{{ $idx }}.meal_period"
@@ -209,14 +281,21 @@
                                                 <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.meal_period')" class="mt-0.5" />
                                             </div>
                                             <div>
-                                                <label class="text-xs text-gray-500 block mb-0.5">Total Revenue (RM)</label>
+                                                <label class="text-xs text-gray-500 block mb-0.5">Revenue (RM)</label>
                                                 <input type="number" step="0.01" min="0"
                                                        wire:model="sessionEntries.{{ $idx }}.total_revenue"
                                                        class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                                 <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.total_revenue')" class="mt-0.5" />
                                             </div>
                                             <div>
-                                                <label class="text-xs text-gray-500 block mb-0.5">Pax / Bills</label>
+                                                <label class="text-xs text-gray-500 block mb-0.5">Transactions</label>
+                                                <input type="number" step="1" min="1"
+                                                       wire:model="sessionEntries.{{ $idx }}.transactions"
+                                                       class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.transactions')" class="mt-0.5" />
+                                            </div>
+                                            <div>
+                                                <label class="text-xs text-gray-500 block mb-0.5">Guests (Pax)</label>
                                                 <input type="number" step="1" min="1"
                                                        wire:model="sessionEntries.{{ $idx }}.pax"
                                                        class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
@@ -224,15 +303,25 @@
                                             </div>
                                         </div>
 
-                                        <div class="text-right text-xs text-gray-500 flex-shrink-0 w-24">
+                                        <div class="text-right text-xs text-gray-500 flex-shrink-0 w-28">
                                             @php
-                                                $sessRev = floatval($entry['total_revenue']);
-                                                $sessPax = max((int)$entry['pax'], 1);
-                                                $sessAvg = $sessRev > 0 ? round($sessRev / $sessPax, 2) : null;
+                                                $sessRev    = (float) $entry['total_revenue'];
+                                                $sessPax    = max((int) $entry['pax'], 1);
+                                                $sessTrans  = max((int) $entry['transactions'], 1);
+                                                $sessAtv    = $sessRev > 0 ? round($sessRev / $sessTrans, 2) : null;
+                                                $sessAvgPax = $sessRev > 0 ? round($sessRev / $sessPax, 2) : null;
                                             @endphp
-                                            @if ($sessAvg)
-                                                <span class="text-indigo-600 font-medium">RM {{ number_format($sessAvg, 2) }}</span>
-                                                <span class="block text-gray-400">avg/pax</span>
+                                            @if ($sessAtv)
+                                                <div>
+                                                    <span class="text-indigo-600 font-medium">RM {{ number_format($sessAtv, 2) }}</span>
+                                                    <span class="block text-gray-400">ATV</span>
+                                                </div>
+                                            @endif
+                                            @if ($sessAvgPax)
+                                                <div class="mt-1">
+                                                    <span class="text-emerald-600 font-medium">RM {{ number_format($sessAvgPax, 2) }}</span>
+                                                    <span class="block text-gray-400">avg/pax</span>
+                                                </div>
                                             @endif
                                         </div>
                                     </div>
