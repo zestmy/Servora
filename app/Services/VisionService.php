@@ -9,39 +9,72 @@ use Illuminate\Support\Facades\Log;
 class VisionService
 {
     private string $apiKey;
-    private string $endpoint = 'https://vision.googleapis.com/v1/images:annotate';
+    private string $model    = 'anthropic/claude-sonnet-4';
+    private string $endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
     public function __construct()
     {
         // DB setting takes priority over .env config
-        $this->apiKey = AppSetting::get('google_vision_api_key')
-                     ?? config('services.google_vision.key', '');
+        $this->apiKey = AppSetting::get('openrouter_api_key')
+                     ?? config('services.openrouter.key', '');
     }
 
     /**
-     * Extract text from an image file using Google Vision OCR.
+     * Extract text from a Z-report / receipt image or PDF using OpenRouter Claude Vision.
+     *
+     * Returns raw text preserving line breaks, which parseZReport() / parseSalesText() then parse.
      */
     public function extractText(string $imagePath): string
     {
         if (empty($this->apiKey)) {
-            throw new \RuntimeException('Google Vision API key not configured.');
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
         }
 
-        $imageData = base64_encode(file_get_contents($imagePath));
+        if (! file_exists($imagePath)) {
+            throw new \RuntimeException('Uploaded file not found.');
+        }
 
-        $response = Http::timeout(30)->post($this->endpoint . '?key=' . $this->apiKey, [
-            'requests' => [[
-                'image'    => ['content' => $imageData],
-                'features' => [['type' => 'DOCUMENT_TEXT_DETECTION', 'maxResults' => 1]],
-            ]],
-        ]);
+        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
+        $dataUri  = 'data:' . $mimeType . ';base64,' . base64_encode(file_get_contents($imagePath));
+
+        $previousTimeout = ini_get('max_execution_time');
+        set_time_limit(120);
+
+        $response = Http::timeout(90)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                'X-Title'       => config('app.name', 'Servora'),
+            ])
+            ->post($this->endpoint, [
+                'model'      => $this->model,
+                'max_tokens' => 4096,
+                'messages'   => [
+                    ['role' => 'system', 'content' => 'You are an OCR assistant. Transcribe the document exactly — preserve line breaks, spacing between columns, punctuation, and all numbers. Return ONLY the raw transcribed text with no commentary, no markdown, no code fences.'],
+                    ['role' => 'user', 'content' => [
+                        ['type' => 'image_url', 'image_url' => ['url' => $dataUri]],
+                        ['type' => 'text', 'text' => 'Transcribe every character of this Z-report / sales receipt, line by line, preserving the original column alignment. Keep numeric values, currency, dates, and punctuation exactly as shown. Do not summarise.'],
+                    ]],
+                ],
+            ]);
+
+        set_time_limit((int) $previousTimeout ?: 60);
 
         if ($response->failed()) {
-            Log::error('Google Vision API error', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \RuntimeException('Google Vision API request failed: ' . $response->status());
+            Log::error('OpenRouter Vision OCR error', ['status' => $response->status(), 'body' => $response->body()]);
+            $msg = $response->json('error.message') ?? ('HTTP ' . $response->status());
+            throw new \RuntimeException('Vision OCR request failed: ' . $msg);
         }
 
-        return $response->json('responses.0.fullTextAnnotation.text', '');
+        $text = $response->json('choices.0.message.content', '');
+
+        // Strip accidental markdown code fences
+        if (preg_match('/^```(?:\w+)?\s*\n?(.*?)\n?```\s*$/s', $text, $m)) {
+            $text = $m[1];
+        }
+
+        return trim($text);
     }
 
     /**
