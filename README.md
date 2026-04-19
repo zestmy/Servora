@@ -2,6 +2,8 @@
 
 A comprehensive multi-tenant Food & Beverage operations management system built with Laravel 12, Livewire 3, and Tailwind CSS. Manage ingredients, recipes, purchasing, sales, inventory, and cost reporting across multiple outlets from a single platform.
 
+> **Developer docs:** see [docs/README.md](docs/README.md) — architecture, domain model, Livewire modules, services, workflows, routes, database schema, and a feature playbook for speedy feature development.
+
 ## Tech Stack
 
 | Layer       | Technology                                    |
