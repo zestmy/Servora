@@ -17,13 +17,9 @@ jobs:
           host: 206.189.155.9
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GH_PAT
           script: |
             set -e
             cd /var/www/servora
-            git config --global url."https://$GH_PAT@github.com/".insteadOf "https://github.com/"
-            git fetch origin main
-            git reset --hard origin/main
+            git fetch "https://zestmy:${{ secrets.GH_PAT }}@github.com/zestmy/Servora.git" main
+            git reset --hard FETCH_HEAD
             bash deploy/update.sh
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
