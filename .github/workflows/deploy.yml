@@ -20,6 +20,6 @@ jobs:
           script: |
             set -e
             cd /var/www/servora
-            git fetch "https://zestmy:${{ secrets.GH_PAT }}@github.com/zestmy/Servora.git" main
+            git fetch https://github.com/zestmy/Servora.git main
             git reset --hard FETCH_HEAD
             bash deploy/update.sh
