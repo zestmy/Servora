@@ -70,10 +70,9 @@
                     <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 space-y-1">
                         <p class="font-medium">What gets extracted:</p>
                         <ul class="list-disc list-inside space-y-0.5 text-blue-600">
-                            <li><strong>Z-report totals</strong> — gross, discount, net sales, tax, charges, rounding</li>
-                            <li><strong>Guest &amp; transaction stats</strong> — total guests, total transactions, ATV (net &amp; gross), avg guest value</li>
-                            <li><strong>All Day entry</strong> — department breakdown (if shown) or a single Net Sales line</li>
-                            <li><strong>Session entries</strong> — per-session transactions (bills) with pax pro-rated from total guests; all editable</li>
+                            <li><strong>All Day entry</strong> — dept breakdown from Department Sales Z-Read (Food / Beverage / Dessert etc.)</li>
+                            <li><strong>Session entries</strong> — Breakfast / Lunch / Tea Time totals from Session Report</li>
+                            <li>You can review and edit everything before saving</li>
                         </ul>
                     </div>
 
@@ -96,93 +95,39 @@
                         </div>
                     </div>
 
-                    {{-- ── Z-REPORT SUMMARY (extracted totals) ── --}}
-                    @if (!empty($summary))
-                        @php
-                            $fmt = fn ($v) => $v === null ? '—' : 'RM ' . number_format((float) $v, 2);
-                            $fmtInt = fn ($v) => $v === null ? '—' : number_format((int) $v);
-                        @endphp
-                        <div class="border border-gray-200 rounded-xl overflow-hidden">
-                            <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
-                                <h4 class="text-sm font-semibold text-slate-800">Z-Report Summary</h4>
-                                <p class="text-xs text-slate-500 mt-0.5">Extracted from the receipt — for reference; totals are saved with the All Day record.</p>
-                            </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 px-4 py-4 text-sm">
-                                <div>
-                                    <div class="text-xs text-gray-500">Gross Amount</div>
-                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['gross_amount'] ?? null) }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Discount (incl. tax)</div>
-                                    <div class="font-semibold text-rose-600 tabular-nums">{{ $fmt($summary['discount_incl_tax'] ?? null) }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Net Sales</div>
-                                    <div class="font-semibold text-emerald-700 tabular-nums">{{ $fmt($summary['net_sales'] ?? null) }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Exclusive Tax</div>
-                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['exclusive_tax'] ?? null) }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Exclusive Charges</div>
-                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['exclusive_charges'] ?? null) }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-gray-500">Bill Rounding</div>
-                                    <div class="font-semibold text-gray-800 tabular-nums">{{ $fmt($summary['bill_rounding'] ?? null) }}</div>
-                                </div>
-                                <div class="col-span-2 sm:col-span-3 border-t border-gray-100 pt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                                    <div>
-                                        <div class="text-xs text-gray-500">Total Guests</div>
-                                        <div class="font-semibold text-gray-800 tabular-nums">{{ $fmtInt($summary['total_guests'] ?? null) }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Avg Guest Value</div>
-                                        <div class="font-semibold text-indigo-600 tabular-nums">{{ $fmt($summary['avg_guest_value'] ?? null) }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Total Transactions</div>
-                                        <div class="font-semibold text-gray-800 tabular-nums">{{ $fmtInt($summary['total_transactions'] ?? null) }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">ATV (Net Sales)</div>
-                                        <div class="font-semibold text-indigo-600 tabular-nums">{{ $fmt($summary['atv_net'] ?? null) }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">ATV (Gross Sales)</div>
-                                        <div class="font-semibold text-indigo-600 tabular-nums">{{ $fmt($summary['atv_gross'] ?? null) }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Total Sales</div>
-                                        <div class="font-semibold text-gray-900 tabular-nums">{{ $fmt($summary['total_sales'] ?? null) }}</div>
-                                    </div>
-                                </div>
+                    {{-- ── SESSION SUPPRESSED BANNER ── --}}
+                    @if ($this->hasSessionEntries())
+                        <div class="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div>
+                                <span class="font-semibold">Session records detected</span> — All Day entry is suppressed to avoid double-counting revenue for this day.
+                                Only the session records below will be saved.
                             </div>
                         </div>
                     @endif
 
                     {{-- ── ALL DAY ENTRY ── --}}
-                    <div class="border border-gray-200 rounded-xl overflow-hidden">
-                        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+                    <div class="border rounded-xl overflow-hidden {{ $this->hasSessionEntries() ? 'border-gray-100 opacity-40 pointer-events-none' : 'border-gray-200' }}">
+                        <div class="flex items-center justify-between px-4 py-3 bg-indigo-50 border-b border-indigo-100">
                             <div class="flex items-center gap-3">
                                 <input type="checkbox" wire:model.live="includeAllDay" id="inc_allday"
-                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                       {{ $this->hasSessionEntries() ? 'disabled' : '' }} />
                                 <label for="inc_allday" class="text-sm font-semibold text-indigo-800 cursor-pointer">
                                     All Day Entry — Dept Breakdown
                                 </label>
                                 <span class="text-xs text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">For food cost% tracking</span>
+                                @if ($this->hasSessionEntries())
+                                    <span class="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Suppressed</span>
+                                @endif
                             </div>
-                            <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-3">
                                 <div>
-                                    <label class="text-xs text-indigo-600 block">Guests (Pax)</label>
+                                    <label class="text-xs text-indigo-600">Total Bills / Pax</label>
                                     <input type="number" wire:model="allDayPax" min="1" step="1"
-                                           class="w-20 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                </div>
-                                <div>
-                                    <label class="text-xs text-indigo-600 block">Transactions (Bills)</label>
-                                    <input type="number" wire:model="allDayTransactions" min="1" step="1"
-                                           class="w-20 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="ml-2 w-16 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                 </div>
                             </div>
                         </div>
@@ -250,93 +195,152 @@
 
                     {{-- ── SESSION ENTRIES ── --}}
                     @if (count($sessionEntries) > 0)
-                        <div class="border border-gray-200 rounded-xl overflow-hidden">
-                            <div class="px-4 py-3 bg-green-50 border-b border-green-100">
-                                <h4 class="text-sm font-semibold text-green-800">Session Entries</h4>
-                                <p class="text-xs text-green-600 mt-0.5">For analytics — pax and average check per session</p>
+                        @php
+                            $summaryGross = floatval($summary['gross_amount'] ?? 0);
+                            $summaryNet   = floatval($summary['net_sales']    ?? 0);
+                            $netRatio     = ($summaryGross > 0 && $summaryNet > 0) ? $summaryNet / $summaryGross : 1.0;
+                        @endphp
+                        <div class="border border-green-200 rounded-xl overflow-hidden">
+                            <div class="px-4 py-3 bg-green-50 border-b border-green-100 flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-green-800">Session Entries</h4>
+                                    <p class="text-xs text-green-600 mt-0.5">
+                                        Gross amounts are inclusive of tax &amp; charges.
+                                        Net revenue is back-calculated using the day's net-to-gross ratio
+                                        @if ($summaryGross > 0)
+                                            ({{ number_format($netRatio * 100, 1) }}%).
+                                        @else
+                                            .
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="text-right text-xs text-green-700 bg-green-100 px-3 py-1.5 rounded-lg">
+                                    <span class="font-semibold">{{ collect($sessionEntries)->where('include', true)->count() }}</span> session(s) included
+                                </div>
                             </div>
 
                             <div class="divide-y divide-gray-100">
                                 @foreach ($sessionEntries as $idx => $entry)
-                                    <div class="px-4 py-3 flex items-center gap-4 {{ empty($entry['include']) ? 'opacity-50' : '' }}">
-                                        <input type="checkbox" wire:model.live="sessionEntries.{{ $idx }}.include"
-                                               class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500 flex-shrink-0" />
+                                    @php
+                                        $sessGross = floatval($entry['gross_amount'] ?? 0);
+                                        $sessNet   = round($sessGross * $netRatio, 2);
+                                        $sessPax   = max((int)($entry['pax'] ?? 1), 1);
+                                        $sessAvg   = $sessNet > 0 ? round($sessNet / $sessPax, 2) : null;
+                                    @endphp
+                                    <div class="px-4 py-4 {{ empty($entry['include']) ? 'opacity-50' : '' }}">
+                                        <div class="flex items-start gap-3">
+                                            <input type="checkbox" wire:model.live="sessionEntries.{{ $idx }}.include"
+                                                   class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500 flex-shrink-0 mt-1" />
 
-                                        <div class="flex-1 grid grid-cols-4 gap-3">
-                                            <div>
-                                                <label class="text-xs text-gray-500 block mb-0.5">Meal Period *</label>
-                                                <select wire:model="sessionEntries.{{ $idx }}.meal_period"
-                                                        class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1
-                                                               {{ empty($entry['meal_period']) ? 'border-red-300 bg-red-50' : '' }}">
-                                                    <option value="">— Select —</option>
-                                                    @foreach ($mealPeriodOptions as $val => $label)
-                                                        @if ($val !== 'all_day')
-                                                            <option value="{{ $val }}" {{ $entry['meal_period'] === $val ? 'selected' : '' }}>{{ $label }}</option>
-                                                        @endif
-                                                    @endforeach
-                                                </select>
-                                                @if (empty($entry['meal_period']))
-                                                    <p class="text-xs text-red-500 mt-0.5">Please select a period</p>
-                                                @endif
-                                                <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.meal_period')" class="mt-0.5" />
-                                            </div>
-                                            <div>
-                                                <label class="text-xs text-gray-500 block mb-0.5">Revenue (RM)</label>
-                                                <input type="number" step="0.01" min="0"
-                                                       wire:model="sessionEntries.{{ $idx }}.total_revenue"
-                                                       class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                                <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.total_revenue')" class="mt-0.5" />
-                                            </div>
-                                            <div>
-                                                <label class="text-xs text-gray-500 block mb-0.5">Transactions</label>
-                                                <input type="number" step="1" min="1"
-                                                       wire:model="sessionEntries.{{ $idx }}.transactions"
-                                                       class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                                <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.transactions')" class="mt-0.5" />
-                                            </div>
-                                            <div>
-                                                <label class="text-xs text-gray-500 block mb-0.5">Guests (Pax)</label>
-                                                <input type="number" step="1" min="1"
-                                                       wire:model="sessionEntries.{{ $idx }}.pax"
-                                                       class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                                <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.pax')" class="mt-0.5" />
-                                            </div>
-                                        </div>
-
-                                        <div class="text-right text-xs text-gray-500 flex-shrink-0 w-28">
-                                            @php
-                                                $sessRev    = (float) $entry['total_revenue'];
-                                                $sessPax    = max((int) $entry['pax'], 1);
-                                                $sessTrans  = max((int) $entry['transactions'], 1);
-                                                $sessAtv    = $sessRev > 0 ? round($sessRev / $sessTrans, 2) : null;
-                                                $sessAvgPax = $sessRev > 0 ? round($sessRev / $sessPax, 2) : null;
-                                            @endphp
-                                            @if ($sessAtv)
+                                            <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                {{-- Meal Period --}}
                                                 <div>
-                                                    <span class="text-indigo-600 font-medium">RM {{ number_format($sessAtv, 2) }}</span>
-                                                    <span class="block text-gray-400">ATV</span>
+                                                    <label class="text-xs text-gray-500 block mb-0.5">Meal Period *</label>
+                                                    <select wire:model="sessionEntries.{{ $idx }}.meal_period"
+                                                            class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1
+                                                                   {{ empty($entry['meal_period']) ? 'border-red-300 bg-red-50' : '' }}">
+                                                        <option value="">— Select —</option>
+                                                        @foreach ($mealPeriodOptions as $val => $label)
+                                                            @if ($val !== 'all_day')
+                                                                <option value="{{ $val }}" {{ $entry['meal_period'] === $val ? 'selected' : '' }}>{{ $label }}</option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                    @if (empty($entry['meal_period']))
+                                                        <p class="text-xs text-red-500 mt-0.5">Required</p>
+                                                    @endif
+                                                    <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.meal_period')" class="mt-0.5" />
                                                 </div>
-                                            @endif
-                                            @if ($sessAvgPax)
-                                                <div class="mt-1">
-                                                    <span class="text-emerald-600 font-medium">RM {{ number_format($sessAvgPax, 2) }}</span>
-                                                    <span class="block text-gray-400">avg/pax</span>
+
+                                                {{-- Gross Amount --}}
+                                                <div>
+                                                    <label class="text-xs text-gray-500 block mb-0.5">
+                                                        Gross Amount (RM)
+                                                        <span class="text-gray-400">incl. tax &amp; charges</span>
+                                                    </label>
+                                                    <input type="number" step="0.01" min="0"
+                                                           wire:model.live.debounce.300ms="sessionEntries.{{ $idx }}.gross_amount"
+                                                           class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                    <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.gross_amount')" class="mt-0.5" />
                                                 </div>
-                                            @endif
+
+                                                {{-- Pax + Transactions --}}
+                                                <div>
+                                                    <label class="text-xs text-gray-500 block mb-0.5">Pax</label>
+                                                    <input type="number" step="1" min="1"
+                                                           wire:model="sessionEntries.{{ $idx }}.pax"
+                                                           class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                    <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.pax')" class="mt-0.5" />
+                                                </div>
+
+                                                <div>
+                                                    <label class="text-xs text-gray-500 block mb-0.5">Transactions</label>
+                                                    <input type="number" step="1" min="1"
+                                                           wire:model="sessionEntries.{{ $idx }}.transactions"
+                                                           class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                    <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.transactions')" class="mt-0.5" />
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        {{-- Net preview row --}}
+                                        @if ($sessGross > 0)
+                                            <div class="mt-2 ml-7 flex items-center gap-4 text-xs">
+                                                <div class="flex items-center gap-1.5 text-gray-500">
+                                                    <span>Net saved to DB:</span>
+                                                    <span class="font-semibold text-green-700">RM {{ number_format($sessNet, 2) }}</span>
+                                                </div>
+                                                @if ($sessAvg)
+                                                    <div class="flex items-center gap-1.5 text-gray-500">
+                                                        <span>Avg/pax:</span>
+                                                        <span class="font-semibold text-indigo-600">RM {{ number_format($sessAvg, 2) }}</span>
+                                                    </div>
+                                                @endif
+                                                <div class="text-gray-400 italic">
+                                                    {{ $entry['label'] ?? '' }}
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
+                            </div>
+
+                            {{-- Session totals footer --}}
+                            @php
+                                $totalSessionGross = collect($sessionEntries)->where('include', true)->sum(fn($e) => floatval($e['gross_amount'] ?? 0));
+                                $totalSessionNet   = round($totalSessionGross * $netRatio, 2);
+                            @endphp
+                            <div class="px-4 py-3 bg-gray-50 border-t-2 border-gray-200 flex items-center justify-between text-sm">
+                                <span class="text-gray-600">Included sessions total</span>
+                                <div class="flex items-center gap-6 tabular-nums">
+                                    <div class="text-right">
+                                        <span class="text-xs text-gray-400 block">Gross</span>
+                                        <span class="font-semibold text-gray-700">RM {{ number_format($totalSessionGross, 2) }}</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-xs text-gray-400 block">Net (saved)</span>
+                                        <span class="font-bold text-green-700">RM {{ number_format($totalSessionNet, 2) }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     @endif
 
                     {{-- Summary --}}
                     @php
-                        $totalRecords = ($includeAllDay ? 1 : 0) + collect($sessionEntries)->where('include', true)->count();
+                        $hasSessions  = $this->hasSessionEntries();
+                        $totalRecords = $hasSessions
+                            ? collect($sessionEntries)->where('include', true)->count()
+                            : ($includeAllDay ? 1 : 0);
                     @endphp
-                    <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-600">
-                        <span class="font-medium text-gray-800">{{ $totalRecords }}</span> record(s) will be created for
-                        <span class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($importDate)->format('d M Y') }}</span>
+                    <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-600 flex items-center justify-between">
+                        <div>
+                            <span class="font-medium text-gray-800">{{ $totalRecords }}</span> record(s) will be created for
+                            <span class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($importDate)->format('d M Y') }}</span>
+                        </div>
+                        @if ($hasSessions)
+                            <span class="text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-full">Session priority active</span>
+                        @endif
                     </div>
 
                 @endif
@@ -373,7 +377,12 @@
                         <button type="button" wire:click="saveAll"
                                 wire:loading.attr="disabled"
                                 class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2">
-                            <span wire:loading.remove wire:target="saveAll">Save {{ $totalRecords }} Record(s)</span>
+                            @php
+                                $footerRecords = $this->hasSessionEntries()
+                                    ? collect($sessionEntries)->where('include', true)->count()
+                                    : ($includeAllDay ? 1 : 0);
+                            @endphp
+                            <span wire:loading.remove wire:target="saveAll">Save {{ $footerRecords }} Record(s)</span>
                             <span wire:loading wire:target="saveAll" class="flex items-center gap-1.5">
                                 <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

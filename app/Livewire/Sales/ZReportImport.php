@@ -8,6 +8,7 @@ use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use App\Services\VisionService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -32,19 +33,19 @@ class ZReportImport extends Component
     public array $summary = [];
 
     // All Day entry (one record covering the whole day)
+    // Only used when NO session entries are detected — sessions take priority
+    // to avoid double-counting revenue for the day.
     public bool   $includeAllDay       = true;
     public        $allDayPax           = 1;
     public        $allDayTransactions  = 1;
     public string $allDayReference     = '';
     // [{ingredient_category_id|null, sales_category_id|null, category_name,
     //   category_color, revenue, unmatched}]
-    // Populated from departments[] when the POS provides an F&B breakdown,
-    // otherwise a single "Net Sales" line so the all-day record has a body.
     public array  $allDayLines         = [];
 
-    // Session entries — transactions come from the receipt; pax is pro-rated
-    // from total_guests by each session's transaction share, editable.
-    // [{meal_period, label, total_revenue, transactions, pax, include}]
+    // Session entries — gross_amount is the inclusive amount from the receipt.
+    // net_revenue is back-calculated at save time via proportional ratio.
+    // [{meal_period, label, gross_amount, transactions, pax, include}]
     public array $sessionEntries = [];
 
     // ── Open / Close ─────────────────────────────────────────────────────────
@@ -86,6 +87,38 @@ class ZReportImport extends Component
         $this->sessionEntries      = [];
     }
 
+    // ── Computed helpers ──────────────────────────────────────────────────────
+
+    /** Whether sessions were extracted — when true, all-day is suppressed. */
+    public function hasSessionEntries(): bool
+    {
+        return count($this->sessionEntries) > 0;
+    }
+
+    /**
+     * Net-to-gross ratio derived from the Z-report summary.
+     * Session gross amounts × this ratio = net revenue to store.
+     * Falls back to 1.0 if summary data is incomplete.
+     */
+    private function netRatio(): float
+    {
+        $gross = (float) ($this->summary['gross_amount'] ?? 0);
+        $net   = (float) ($this->summary['net_sales']    ?? 0);
+        return ($gross > 0 && $net > 0) ? $net / $gross : 1.0;
+    }
+
+    /**
+     * Proportionally distribute a Z-report summary total to a single session
+     * based on that session's share of the day's gross revenue.
+     */
+    private function proportional(float $sessionGross, string $summaryKey): ?float
+    {
+        $gross = (float) ($this->summary['gross_amount'] ?? 0);
+        $total = (float) ($this->summary[$summaryKey]   ?? 0);
+        if ($gross <= 0 || $total <= 0) return null;
+        return round($sessionGross * ($total / $gross), 4);
+    }
+
     // ── Process uploaded image ────────────────────────────────────────────────
 
     public function processZReport(): void
@@ -99,9 +132,9 @@ class ZReportImport extends Component
             $vision = new VisionService();
             $data   = $vision->extractZReportData($this->importFile->getRealPath());
 
-            $sessions    = $data['sessions'] ?? [];
+            $sessions    = $data['sessions']    ?? [];
             $departments = $data['departments'] ?? [];
-            $summary     = $data['summary'] ?? [];
+            $summary     = $data['summary']     ?? [];
 
             if (empty($sessions) && empty($departments) && empty($summary['net_sales'])) {
                 $this->importError      = 'Could not detect Z-report data. Ensure the image is clear and shows totals (Net Sales, Guests, Transactions).';
@@ -112,12 +145,14 @@ class ZReportImport extends Component
             $this->summary    = $summary;
             $this->importDate = $data['date'] ?? now()->toDateString();
 
-            // All-day totals from the receipt
-            $this->allDayPax          = (int) ($summary['total_guests'] ?? 0) ?: 1;
+            $this->allDayPax          = (int) ($summary['total_guests']       ?? 0) ?: 1;
             $this->allDayTransactions = (int) ($summary['total_transactions'] ?? 0) ?: 1;
 
-            $this->allDayLines = $this->buildAllDayLines($departments, $summary);
+            $this->allDayLines    = $this->buildAllDayLines($departments, $summary);
             $this->sessionEntries = $this->buildSessionEntries($sessions, $summary);
+
+            // Sessions take priority — suppress all-day to avoid double-counting.
+            $this->includeAllDay = count($this->sessionEntries) === 0;
 
             $this->step = 'review';
 
@@ -130,11 +165,7 @@ class ZReportImport extends Component
 
     private function buildAllDayLines(array $departments, array $summary): array
     {
-        // If the POS gave us an F&B department breakdown, match it against
-        // IngredientCategory and SalesCategory. Otherwise emit a single
-        // "Net Sales" line so the all-day record has at least one line.
-
-        $categoryIndex     = IngredientCategory::roots()->active()->ordered()->get()
+        $categoryIndex      = IngredientCategory::roots()->active()->ordered()->get()
             ->keyBy(fn ($c) => strtolower(trim($c->name)));
         $salesCategoryIndex = SalesCategory::active()->ordered()->get()
             ->keyBy(fn ($c) => strtolower(trim($c->name)));
@@ -160,9 +191,7 @@ class ZReportImport extends Component
                     'unmatched'              => $category === null && $salesCat === null,
                 ];
             }
-            if (! empty($lines)) {
-                return $lines;
-            }
+            if (! empty($lines)) return $lines;
         }
 
         // Fallback — single Net Sales line
@@ -179,7 +208,7 @@ class ZReportImport extends Component
     private function buildSessionEntries(array $sessions, array $summary): array
     {
         $totalTrans  = (int) ($summary['total_transactions'] ?? 0);
-        $totalGuests = (int) ($summary['total_guests'] ?? 0);
+        $totalGuests = (int) ($summary['total_guests']       ?? 0);
 
         $entries = [];
         foreach ($sessions as $s) {
@@ -191,20 +220,18 @@ class ZReportImport extends Component
                 ? (int) $s['transactions']
                 : 0;
 
-            // Pro-rate pax from total guests by this session's transaction share.
-            // Editable in the UI so the user can correct it.
             $pax = 1;
             if ($totalGuests > 0 && $totalTrans > 0 && $transactions > 0) {
                 $pax = max(1, (int) round($transactions / $totalTrans * $totalGuests));
             }
 
             $entries[] = [
-                'meal_period'   => (string) ($s['meal_period'] ?? ''),
-                'label'         => $label,
-                'total_revenue' => (string) $amount,
-                'transactions'  => $transactions > 0 ? $transactions : 1,
-                'pax'           => $pax,
-                'include'       => true,
+                'meal_period'  => (string) ($s['meal_period'] ?? ''),
+                'label'        => $label,
+                'gross_amount' => (string) $amount,   // inclusive amount from receipt
+                'transactions' => $transactions > 0 ? $transactions : 1,
+                'pax'          => $pax,
+                'include'      => true,
             ];
         }
 
@@ -215,24 +242,80 @@ class ZReportImport extends Component
 
     public function saveAll(): void
     {
-        $this->validate([
-            'importDate'                     => 'required|date',
-            'allDayPax'                      => 'required|integer|min:1',
-            'allDayTransactions'             => 'required|integer|min:1',
-            'allDayLines.*.revenue'          => 'required|numeric|min:0',
-            'sessionEntries.*.total_revenue' => 'required|numeric|min:0',
-            'sessionEntries.*.pax'           => 'required|integer|min:1',
-            'sessionEntries.*.transactions'  => 'required|integer|min:1',
-            'sessionEntries.*.meal_period'   => 'required|in:all_day,breakfast,lunch,tea_time,dinner,supper',
-        ]);
+        $hasSessions = $this->hasSessionEntries();
+
+        $rules = [
+            'importDate'                      => 'required|date',
+            'sessionEntries.*.gross_amount'   => 'required|numeric|min:0',
+            'sessionEntries.*.pax'            => 'required|integer|min:1',
+            'sessionEntries.*.transactions'   => 'required|integer|min:1',
+            'sessionEntries.*.meal_period'    => 'required|in:all_day,breakfast,lunch,tea_time,dinner,supper',
+        ];
+
+        // Only validate all-day fields when sessions are absent
+        if (! $hasSessions) {
+            $rules['allDayPax']             = 'required|integer|min:1';
+            $rules['allDayTransactions']    = 'required|integer|min:1';
+            $rules['allDayLines.*.revenue'] = 'required|numeric|min:0';
+        }
+
+        $this->validate($rules);
 
         $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
         $companyId = Auth::user()->company_id;
         $userId    = Auth::id();
+        $netRatio  = $this->netRatio();
 
-        // All-day record — carries the Z-report-level totals (gross, discount, tax, etc.)
-        if ($this->includeAllDay) {
+        // ── Session records (priority) ────────────────────────────────────────
+        // When sessions are present, these replace the all-day record entirely.
+        if ($hasSessions) {
+            $includedCount = 0;
+            foreach ($this->sessionEntries as $entry) {
+                if (empty($entry['include'])) continue;
+
+                $gross = (float) $entry['gross_amount'];
+                if ($gross <= 0) continue;
+
+                // Back-calculate net revenue by stripping tax and service charges
+                // proportionally, using the day's total net-to-gross ratio.
+                $net = round($gross * $netRatio, 4);
+
+                $record = SalesRecord::create([
+                    'company_id'       => $companyId,
+                    'outlet_id'        => $outletId,
+                    'sale_date'        => $this->importDate,
+                    'meal_period'      => $entry['meal_period'],
+                    'pax'              => (int) $entry['pax'],
+                    'transactions'     => (int) $entry['transactions'],
+                    'total_revenue'    => $net,
+                    'gross_revenue'    => $gross,
+                    'discount_amount'  => $this->proportional($gross, 'discount_incl_tax'),
+                    'tax_amount'       => $this->proportional($gross, 'exclusive_tax'),
+                    'service_charges'  => $this->proportional($gross, 'exclusive_charges'),
+                    'rounding_amount'  => $this->proportional($gross, 'bill_rounding'),
+                    'total_cost'       => 0,
+                    'created_by'       => $userId,
+                ]);
+
+                $record->lines()->create([
+                    'ingredient_category_id' => null,
+                    'item_name'              => $entry['label'] . ' Session',
+                    'quantity'               => 1,
+                    'unit_price'             => $net,
+                    'unit_cost'              => 0,
+                    'total_revenue'          => $net,
+                    'total_cost'             => 0,
+                ]);
+
+                $includedCount++;
+            }
+
+            session()->flash('success', "Z-Report imported — {$includedCount} session record(s) created.");
+
+        // ── All Day record (fallback when no sessions) ────────────────────────
+        } elseif ($this->includeAllDay) {
             $totalRevenue = collect($this->allDayLines)->sum(fn ($l) => (float) $l['revenue']);
+
             if ($totalRevenue > 0) {
                 $record = SalesRecord::create([
                     'company_id'       => $companyId,
@@ -267,41 +350,9 @@ class ZReportImport extends Component
                     ]);
                 }
             }
+
+            session()->flash('success', 'Z-Report imported — 1 All Day record created.');
         }
-
-        // Session records — pax (guests) and transactions (bills) stored separately
-        // so reports can compute Avg Guest Value and ATV per session.
-        foreach ($this->sessionEntries as $entry) {
-            if (empty($entry['include'])) continue;
-            $rev = (float) $entry['total_revenue'];
-            if ($rev <= 0) continue;
-
-            $record = SalesRecord::create([
-                'company_id'    => $companyId,
-                'outlet_id'     => $outletId,
-                'sale_date'     => $this->importDate,
-                'meal_period'   => $entry['meal_period'],
-                'pax'           => (int) $entry['pax'],
-                'transactions'  => (int) $entry['transactions'],
-                'total_revenue' => round($rev, 4),
-                'total_cost'    => 0,
-                'created_by'    => $userId,
-            ]);
-
-            $record->lines()->create([
-                'ingredient_category_id' => null,
-                'item_name'              => $entry['label'] . ' Session',
-                'quantity'               => 1,
-                'unit_price'             => $rev,
-                'unit_cost'              => 0,
-                'total_revenue'          => round($rev, 4),
-                'total_cost'             => 0,
-            ]);
-        }
-
-        session()->flash('success', 'Z-Report imported — ' .
-            ($this->includeAllDay ? '1 All Day + ' : '') .
-            collect($this->sessionEntries)->where('include', true)->count() . ' session record(s) created.');
 
         $this->showModal = false;
         $this->dispatch('z-report-saved');
