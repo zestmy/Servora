@@ -78,18 +78,25 @@ class SalesForm extends Component
             'size'      => $a->humanSize(),
         ])->toArray();
 
-        // Map saved line revenues back — try sales_category_id first, fall back to ingredient_category_id
+        // Map saved line revenues back — try sales_category_id first, fall back to item_name
         $savedBySalesCategory = $record->lines->whereNotNull('sales_category_id')->keyBy('sales_category_id');
-        $savedByIngCategory   = $record->lines->whereNull('sales_category_id')->keyBy('ingredient_category_id');
+        $savedByItemName      = $record->lines->keyBy(fn ($l) => strtolower(trim((string) $l->item_name)));
 
         foreach ($this->lines as $idx => $line) {
-            $saved = $savedBySalesCategory->get($line['sales_category_id']);
-            if (! $saved && $line['ingredient_category_id']) {
-                $saved = $savedByIngCategory->get($line['ingredient_category_id']);
-            }
+            $saved = $savedBySalesCategory->get($line['sales_category_id'])
+                  ?? $savedByItemName->get(strtolower(trim($line['category_name'])));
+
             if ($saved) {
                 $this->lines[$idx]['revenue'] = (string) floatval($saved->total_revenue);
             }
+        }
+
+        // Last-resort fallback: if zero revenue mapped but the record has a non-zero total
+        // (e.g. Z-report session records where lines have no category ID or name match),
+        // put the record total into the first line so the user isn't staring at RM0.00.
+        $mapped = collect($this->lines)->sum(fn ($l) => floatval($l['revenue']));
+        if ($mapped == 0 && $record->total_revenue > 0 && !empty($this->lines)) {
+            $this->lines[0]['revenue'] = (string) round((float) $record->total_revenue, 4);
         }
     }
 
