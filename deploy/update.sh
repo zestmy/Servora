@@ -5,6 +5,8 @@
 # Usage:  bash deploy/update.sh
 # ─────────────────────────────────────────────────────────────────────────────
 
+set -e  # Exit immediately on any error
+
 APP_DIR="/var/www/servora"
 WEB_USER="www-data"
 
