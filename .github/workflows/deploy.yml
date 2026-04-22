@@ -17,23 +17,13 @@ jobs:
           host: 206.189.155.9
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GH_PAT
           script: |
             set -e
             cd /var/www/servora
-
-            echo "=== BEFORE RESET ==="
-            git log --oneline -3
-            echo "--- app.blade.php scan z-report check ---"
-            grep -c "Scan Z-Report" resources/views/layouts/app.blade.php || echo "NOT FOUND"
-
-            echo "=== FETCHING ==="
+            git config --global url."https://$GH_PAT@github.com/".insteadOf "https://github.com/"
             git fetch origin main
             git reset --hard origin/main
-
-            echo "=== AFTER RESET ==="
-            git log --oneline -3
-            echo "--- app.blade.php scan z-report check ---"
-            grep -c "Scan Z-Report" resources/views/layouts/app.blade.php || echo "NOT FOUND"
-
-            echo "=== RUNNING DEPLOY ==="
             bash deploy/update.sh
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
