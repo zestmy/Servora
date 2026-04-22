@@ -8,7 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
-- 2026-04-23 — CI/CD: GitHub Actions auto-deploy on push to main via appleboy/ssh-action + VPS_SSH_KEY secret
+- 2026-04-23 — CI/CD: GitHub Actions auto-deploy on push to main via appleboy/ssh-action + VPS_SSH_KEY + GH_PAT secrets
 - 2026-04-23 — Nav sidebar: "Scan Z-Report" CTA button (sky blue, permission-gated, auto-opens modal via ?scan=zreport)
 - 2026-04-20 — Ingredients: filter for ingredients missing a UOM conversion factor
 - 2026-04-20 — Price History summary: horizontally scrollable on mobile
