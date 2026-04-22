@@ -28,8 +28,9 @@ trap cleanup EXIT
 info "Enabling maintenance mode..."
 php artisan down --refresh=15
 
-info "Pulling latest code..."
-git pull origin main
+info "Fetching latest code..."
+git fetch origin main
+git reset --hard origin/main
 
 info "Installing dependencies..."
 composer install --no-dev --optimize-autoloader --no-interaction --quiet
