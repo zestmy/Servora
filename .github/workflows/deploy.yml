@@ -20,6 +20,20 @@ jobs:
           script: |
             set -e
             cd /var/www/servora
+
+            echo "=== BEFORE RESET ==="
+            git log --oneline -3
+            echo "--- app.blade.php scan z-report check ---"
+            grep -c "Scan Z-Report" resources/views/layouts/app.blade.php || echo "NOT FOUND"
+
+            echo "=== FETCHING ==="
             git fetch origin main
             git reset --hard origin/main
+
+            echo "=== AFTER RESET ==="
+            git log --oneline -3
+            echo "--- app.blade.php scan z-report check ---"
+            grep -c "Scan Z-Report" resources/views/layouts/app.blade.php || echo "NOT FOUND"
+
+            echo "=== RUNNING DEPLOY ==="
             bash deploy/update.sh
