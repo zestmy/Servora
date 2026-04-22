@@ -124,22 +124,38 @@
             </button>
         </div>
 
-        {{-- Top CTA — scan a supplier document (Price Watcher entry point) --}}
-        @if (Auth::user()->hasPermissionTo('ingredients.view'))
-            <div class="flex-shrink-0" :class="sidebarExpanded ? 'px-3 pt-3' : 'px-2 pt-3'">
+        {{-- Top CTAs --}}
+        <div class="flex-shrink-0 space-y-1.5" :class="sidebarExpanded ? 'px-3 pt-3' : 'px-2 pt-3'">
+
+            {{-- Scan Documents — Price Watcher entry point --}}
+            @if (Auth::user()->hasPermissionTo('ingredients.view'))
                 <a href="{{ route('ingredients.scan-document') }}"
                    title="Scan a supplier invoice, quotation, or price list"
-                   class="flex items-center gap-2 rounded-lg transition font-semibold
-                          {{ request()->routeIs('ingredients.scan-document') ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white hover:bg-emerald-400' }}
-                          shadow-sm"
+                   class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
+                          {{ request()->routeIs('ingredients.scan-document') ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white hover:bg-emerald-400' }}"
                    :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center p-2'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2M4 7h16M4 7l1 10a2 2 0 002 2h10a2 2 0 002-2l1-10M9 11h6" />
                     </svg>
                     <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Scan Documents</span>
                 </a>
-            </div>
-        @endif
+            @endif
+
+            {{-- Scan Z-Report — Sales Z-report import entry point --}}
+            @if (Auth::user()->hasPermissionTo('sales.view'))
+                <a href="{{ route('sales.index') }}?scan=zreport"
+                   title="Scan and import a Z-report"
+                   class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
+                          {{ request()->routeIs('sales.index') && request()->query('scan') === 'zreport' ? 'bg-sky-600 text-white' : 'bg-sky-500 text-white hover:bg-sky-400' }}"
+                   :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center p-2'">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Scan Z-Report</span>
+                </a>
+            @endif
+
+        </div>
 
         {{-- Navigation --}}
         <nav class="flex-1 overflow-y-auto py-4 space-y-1" :class="sidebarExpanded ? 'px-3' : 'px-2'">

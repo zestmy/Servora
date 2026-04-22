@@ -49,6 +49,14 @@ class ZReportImport extends Component
 
     // ── Open / Close ─────────────────────────────────────────────────────────
 
+    public function mount(): void
+    {
+        if (request()->query('scan') === 'zreport') {
+            $this->resetImport();
+            $this->showModal = true;
+        }
+    }
+
     #[On('open-z-import')]
     public function open(): void
     {
