@@ -18,8 +18,16 @@ class SalesForm extends Component
     public string  $sale_date        = '';
     public string  $meal_period      = 'all_day';
     public         $pax              = 1;
+    public         $transactions     = null;
     public string  $reference_number = '';
     public string  $notes            = '';
+
+    // Z-report financial breakdown (all nullable)
+    public $gross_revenue   = null;
+    public $discount_amount = null;
+    public $tax_amount      = null;
+    public $service_charges = null;
+    public $rounding_amount = null;
 
     public array $newAttachments    = [];
     public array $existingAttachments = [];
@@ -36,10 +44,16 @@ class SalesForm extends Component
             'sale_date'       => 'required|date',
             'meal_period'     => 'required|in:all_day,breakfast,lunch,tea_time,dinner,supper',
             'pax'             => 'required|integer|min:1',
+            'transactions'    => 'nullable|integer|min:0',
             'reference_number'=> 'nullable|string|max:100',
             'notes'           => 'nullable|string',
             'lines.*.revenue'    => 'required|numeric|min:0',
             'newAttachments.*'   => 'file|mimes:jpg,jpeg,png,gif,webp,pdf|max:5120',
+            'gross_revenue'   => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'tax_amount'      => 'nullable|numeric|min:0',
+            'service_charges' => 'nullable|numeric|min:0',
+            'rounding_amount' => 'nullable|numeric',
         ];
     }
 
@@ -66,8 +80,16 @@ class SalesForm extends Component
         $this->sale_date        = $record->sale_date->toDateString();
         $this->meal_period      = $record->meal_period ?? 'all_day';
         $this->pax              = $record->pax ?? 1;
+        $this->transactions     = $record->transactions;
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
+
+        // Z-report financial breakdown
+        $this->gross_revenue   = $record->gross_revenue   !== null ? (string) floatval($record->gross_revenue)   : null;
+        $this->discount_amount = $record->discount_amount !== null ? (string) floatval($record->discount_amount) : null;
+        $this->tax_amount      = $record->tax_amount      !== null ? (string) floatval($record->tax_amount)      : null;
+        $this->service_charges = $record->service_charges !== null ? (string) floatval($record->service_charges) : null;
+        $this->rounding_amount = $record->rounding_amount !== null ? (string) floatval($record->rounding_amount) : null;
 
         // Load existing attachments for display
         $this->existingAttachments = $record->attachments->map(fn ($a) => [
@@ -111,10 +133,16 @@ class SalesForm extends Component
             'sale_date'        => $this->sale_date,
             'meal_period'      => $this->meal_period,
             'pax'              => (int) $this->pax,
+            'transactions'     => $this->transactions !== null && $this->transactions !== '' ? (int) $this->transactions : null,
             'reference_number' => $this->reference_number ?: null,
             'notes'            => $this->notes ?: null,
             'total_revenue'    => round($totalRevenue, 4),
             'total_cost'       => 0,
+            'gross_revenue'    => $this->gross_revenue   !== null && $this->gross_revenue   !== '' ? round((float) $this->gross_revenue, 4)   : null,
+            'discount_amount'  => $this->discount_amount !== null && $this->discount_amount !== '' ? round((float) $this->discount_amount, 4) : null,
+            'tax_amount'       => $this->tax_amount      !== null && $this->tax_amount      !== '' ? round((float) $this->tax_amount, 4)      : null,
+            'service_charges'  => $this->service_charges !== null && $this->service_charges !== '' ? round((float) $this->service_charges, 4) : null,
+            'rounding_amount'  => $this->rounding_amount !== null && $this->rounding_amount !== '' ? round((float) $this->rounding_amount, 4) : null,
         ];
 
         if ($this->recordId) {

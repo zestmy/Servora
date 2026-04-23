@@ -15,22 +15,21 @@ class SalesRecord extends Model
 
     protected $fillable = [
         'company_id', 'outlet_id', 'reference_number', 'sale_date',
-        'total_revenue', 'total_cost', 'notes', 'pax', 'meal_period', 'created_by',
-        'transactions', 'gross_revenue', 'discount_amount',
-        'tax_amount', 'service_charges', 'rounding_amount',
+        'total_revenue', 'total_cost', 'notes', 'pax', 'transactions', 'meal_period', 'created_by',
+        'gross_revenue', 'discount_amount', 'tax_amount', 'service_charges', 'rounding_amount',
     ];
 
     protected $casts = [
         'sale_date'       => 'date',
         'total_revenue'   => 'decimal:4',
         'total_cost'      => 'decimal:4',
-        'pax'             => 'integer',
-        'transactions'    => 'integer',
         'gross_revenue'   => 'decimal:4',
         'discount_amount' => 'decimal:4',
         'tax_amount'      => 'decimal:4',
         'service_charges' => 'decimal:4',
         'rounding_amount' => 'decimal:4',
+        'pax'             => 'integer',
+        'transactions'    => 'integer',
     ];
 
     protected static function booted(): void
