@@ -391,6 +391,10 @@
                                 <span class="text-gray-300 mx-0.5">/</span>
                                 <span class="text-indigo-500">{{ $ingredient->recipeUom->abbreviation }}</span>
                             @endif
+                            @if ($ingredient->secondary_recipe_uom_id)
+                                <span class="text-gray-300 mx-0.5">/</span>
+                                <span class="text-purple-500" title="Secondary recipe UOM">{{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">
                             {{ number_format($ingredient->purchase_price, 2) }}
@@ -590,7 +594,7 @@
                                     <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Base unit for costing (e.g. kg, L)</p>
+                            <p class="mt-0.5 text-xs text-gray-400">Purchase / stock unit (e.g. kg, L)</p>
                             <x-input-error :messages="$errors->get('base_uom_id')" class="mt-1" />
                         </div>
                         <div>
@@ -602,8 +606,67 @@
                                     <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Unit used in recipes</p>
+                            <p class="mt-0.5 text-xs text-gray-400">Primary unit used in recipes (e.g. g, ml)</p>
                             <x-input-error :messages="$errors->get('recipe_uom_id')" class="mt-1" />
+                        </div>
+                    </div>
+
+                    {{-- Secondary Recipe UOM --}}
+                    <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-indigo-800">Secondary Recipe UOM <span class="text-xs font-normal text-indigo-500">(optional)</span></p>
+                                <p class="text-xs text-indigo-500 mt-0.5">For ingredients measured in a different unit in recipes — e.g. Calamansi bought in kg, stocked in g, but recipes use <strong>nos</strong></p>
+                            </div>
+                            @if ($secondary_recipe_uom_id)
+                                <button type="button" wire:click="$set('secondary_recipe_uom_id', null); $set('secondary_uom_factor', '')"
+                                        class="text-xs text-red-400 hover:text-red-600 transition">Clear</button>
+                            @endif
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-medium text-gray-600 block mb-1">Secondary UOM</label>
+                                <select wire:model.live="secondary_recipe_uom_id"
+                                        class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">— none —</option>
+                                    @foreach ($uoms as $uom)
+                                        <option value="{{ $uom->id }}"
+                                            {{ (string)$secondary_recipe_uom_id === (string)$uom->id ? 'selected' : '' }}>
+                                            {{ $uom->name }} ({{ $uom->abbreviation }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('secondary_recipe_uom_id')" class="mt-1" />
+                            </div>
+
+                            @if ($secondary_recipe_uom_id)
+                                <div>
+                                    @php
+                                        $baseAbbr = collect($uoms)->firstWhere('id', $base_uom_id)?->abbreviation ?? 'base';
+                                        $secAbbr  = collect($uoms)->firstWhere('id', $secondary_recipe_uom_id)?->abbreviation ?? 'unit';
+                                    @endphp
+                                    <label class="text-xs font-medium text-gray-600 block mb-1">
+                                        1 {{ $baseAbbr }} = how many {{ $secAbbr }}?
+                                    </label>
+                                    <x-text-input wire:model.live="secondary_uom_factor"
+                                                  type="number" step="0.0001" min="0.0001"
+                                                  placeholder="e.g. 30"
+                                                  class="block w-full" />
+                                    <p class="mt-0.5 text-xs text-gray-400">
+                                        @if ($secondary_uom_factor && floatval($secondary_uom_factor) > 0)
+                                            Cost per {{ $secAbbr }} = cost per {{ $baseAbbr }} ÷ {{ $secondary_uom_factor }}
+                                        @else
+                                            Enter how many {{ $secAbbr }} are in 1 {{ $baseAbbr }}
+                                        @endif
+                                    </p>
+                                    <x-input-error :messages="$errors->get('secondary_uom_factor')" class="mt-1" />
+                                </div>
+                            @else
+                                <div class="flex items-center">
+                                    <p class="text-xs text-indigo-400 italic">Select a secondary UOM to set conversion</p>
+                                </div>
+                            @endif
                         </div>
                     </div>
 
