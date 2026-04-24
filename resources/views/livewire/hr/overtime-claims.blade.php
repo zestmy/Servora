@@ -54,6 +54,142 @@
         </div>
     </div>
 
+    {{-- ── Overtime Trend Chart ─────────────────────────────────────────────── --}}
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    @endonce
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
+        {{-- Card header --}}
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-sm font-semibold text-gray-800">Overtime Trend — Last 12 Weeks</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Approved OT hours only, by type</p>
+            </div>
+            {{-- Mini stats --}}
+            <div class="flex items-center gap-5">
+                <div class="text-right">
+                    <p class="text-xs text-gray-400">This Week</p>
+                    <p class="text-sm font-bold text-gray-800 tabular-nums">{{ number_format($thisWeekHours, 1) }} hrs</p>
+                    @if ($wowChange !== null)
+                        <p class="text-xs font-medium {{ $wowChange > 0 ? 'text-red-500' : 'text-green-600' }}">
+                            {{ $wowChange > 0 ? '↑' : '↓' }} {{ abs($wowChange) }}% vs last week
+                        </p>
+                    @endif
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-400">12-wk Avg / Week</p>
+                    <p class="text-sm font-bold text-gray-800 tabular-nums">{{ number_format($avgWeekHours, 1) }} hrs</p>
+                </div>
+                @if ($peakWeekLabel)
+                    <div class="text-right">
+                        <p class="text-xs text-gray-400">Peak Week</p>
+                        <p class="text-sm font-bold text-amber-600 tabular-nums">{{ number_format($peakWeekHours, 1) }} hrs</p>
+                        <p class="text-xs text-gray-400">w/c {{ $peakWeekLabel }}</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Chart --}}
+        <div class="relative h-56"
+             x-data="{
+                chartInstance: null,
+                init() {
+                    const data = @js($trendChartData);
+                    const ctx = this.$refs.canvas.getContext('2d');
+                    this.chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                {
+                                    label: 'Normal Day',
+                                    data: data.normal,
+                                    backgroundColor: 'rgba(99,102,241,0.75)',
+                                    borderRadius: 3,
+                                    stack: 'ot',
+                                },
+                                {
+                                    label: 'Rest Day',
+                                    data: data.rest,
+                                    backgroundColor: 'rgba(251,146,60,0.75)',
+                                    borderRadius: 3,
+                                    stack: 'ot',
+                                },
+                                {
+                                    label: 'Public Holiday',
+                                    data: data.holiday,
+                                    backgroundColor: 'rgba(239,68,68,0.75)',
+                                    borderRadius: 3,
+                                    stack: 'ot',
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { boxWidth: 12, padding: 16, font: { size: 11 } },
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        footer(items) {
+                                            const total = items.reduce((s, i) => s + i.parsed.y, 0);
+                                            return total > 0 ? 'Total: ' + total.toFixed(1) + ' hrs' : '';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    grid: { display: false },
+                                    ticks: { font: { size: 10 }, maxRotation: 45 },
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(0,0,0,0.05)' },
+                                    ticks: {
+                                        font: { size: 10 },
+                                        callback: v => v + ' hrs',
+                                    },
+                                },
+                            },
+                        },
+                    });
+                },
+             }"
+             x-init="init()">
+            <canvas x-ref="canvas"></canvas>
+        </div>
+
+        {{-- Top employees this month --}}
+        @if ($topEmployees->isNotEmpty())
+            <div class="mt-5 border-t border-gray-100 pt-4">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Top OT — {{ now()->format('F') }}</p>
+                @php $maxHours = $topEmployees->max('hours'); @endphp
+                <div class="space-y-2">
+                    @foreach ($topEmployees as $rank => $row)
+                        @php $pct = $maxHours > 0 ? ($row->hours / $maxHours * 100) : 0; @endphp
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-400 w-4 text-right">{{ $rank + 1 }}</span>
+                            <span class="text-xs font-medium text-gray-700 w-32 truncate">{{ $row->employee?->name ?? '—' }}</span>
+                            <div class="flex-1 bg-gray-100 rounded-full h-2">
+                                <div class="h-2 rounded-full {{ $pct >= 80 ? 'bg-red-400' : ($pct >= 50 ? 'bg-amber-400' : 'bg-indigo-400') }}"
+                                     style="width: {{ number_format($pct, 1) }}%"></div>
+                            </div>
+                            <span class="text-xs font-semibold tabular-nums text-gray-700 w-16 text-right">{{ number_format($row->hours, 1) }} hrs</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+
     {{-- Filters --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-wrap gap-3">

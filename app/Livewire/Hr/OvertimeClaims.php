@@ -379,8 +379,77 @@ class OvertimeClaims extends Component
         $pendingCount      = (clone $monthStats)->where('status', 'submitted')->count();
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
+        // ── OT Trend — last 12 weeks (approved claims only) ──────────────────
+        $trendWeeks = [];
+        $thisWeekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY);
+        for ($i = 11; $i >= 0; $i--) {
+            $ws = $thisWeekStart->copy()->subWeeks($i);
+            $we = $ws->copy()->endOfWeek(\Carbon\Carbon::SUNDAY);
+            $trendWeeks[] = [$ws->toDateString(), $we->toDateString()];
+        }
+
+        // Single query for the whole 12-week window, grouped by week start + type
+        $trendFrom = $trendWeeks[0][0];
+        $trendTo   = $trendWeeks[11][1];
+
+        $rawTrend = OvertimeClaim::where('outlet_id', $outletId)
+            ->where('status', 'approved')
+            ->whereBetween('claim_date', [$trendFrom, $trendTo])
+            ->selectRaw("DATE(DATE_SUB(claim_date, INTERVAL (WEEKDAY(claim_date)) DAY)) as week_start,
+                         ot_type,
+                         SUM(total_ot_hours) as hours")
+            ->groupByRaw("week_start, ot_type")
+            ->get()
+            ->groupBy('week_start');
+
+        $trendLabels     = [];
+        $trendNormalDay  = [];
+        $trendPublicHol  = [];
+        $trendRestDay    = [];
+
+        foreach ($trendWeeks as [$ws, $we]) {
+            $trendLabels[]    = \Carbon\Carbon::parse($ws)->format('d M');
+            $rows             = $rawTrend->get($ws, collect())->keyBy('ot_type');
+            $trendNormalDay[] = round((float) ($rows['normal_day']?->hours ?? 0), 2);
+            $trendPublicHol[] = round((float) ($rows['public_holiday']?->hours ?? 0), 2);
+            $trendRestDay[]   = round((float) ($rows['rest_day']?->hours ?? 0), 2);
+        }
+
+        // Week-on-week stats
+        $thisWeekHours = $trendNormalDay[11] + $trendPublicHol[11] + $trendRestDay[11];
+        $lastWeekHours = $trendNormalDay[10] + $trendPublicHol[10] + $trendRestDay[10];
+        $wowChange     = $lastWeekHours > 0 ? round(($thisWeekHours - $lastWeekHours) / $lastWeekHours * 100, 1) : null;
+
+        $weekTotals = array_map(fn ($i) => $trendNormalDay[$i] + $trendPublicHol[$i] + $trendRestDay[$i], range(0, 11));
+        $peakWeekHours = max($weekTotals) ?: 0;
+        $peakWeekLabel = $peakWeekHours > 0 ? $trendLabels[array_search($peakWeekHours, $weekTotals)] : null;
+        $avgWeekHours  = count(array_filter($weekTotals)) > 0
+            ? round(array_sum($weekTotals) / max(1, count(array_filter($weekTotals))), 1)
+            : 0;
+
+        // Top 5 employees by OT hours this month
+        $topEmployees = OvertimeClaim::where('outlet_id', $outletId)
+            ->where('status', 'approved')
+            ->whereBetween('claim_date', [$monthStart, $monthEnd])
+            ->selectRaw('employee_id, SUM(total_ot_hours) as hours')
+            ->groupBy('employee_id')
+            ->orderByDesc('hours')
+            ->limit(5)
+            ->with('employee:id,name')
+            ->get();
+
+        $trendChartData = [
+            'labels'  => $trendLabels,
+            'normal'  => $trendNormalDay,
+            'holiday' => $trendPublicHol,
+            'rest'    => $trendRestDay,
+        ];
+
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canApproveMap', 'canDeleteAny', 'totalHoursMonth', 'pendingCount', 'approvedCount'
+            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canApproveMap', 'canDeleteAny',
+            'totalHoursMonth', 'pendingCount', 'approvedCount',
+            'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
+            'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 
