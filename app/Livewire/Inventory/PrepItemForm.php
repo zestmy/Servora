@@ -110,12 +110,15 @@ class PrepItemForm extends Component
         }
 
         $this->lines = $recipe->lines->map(fn ($l) => [
-            'ingredient_id'    => $l->ingredient_id,
-            'ingredient_name'  => $l->ingredient?->name ?? '—',
-            'quantity'         => $this->fmt($l->quantity),
-            'uom_id'           => $l->uom_id,
-            'uom_name'         => $l->uom?->name ?? '',
-            'waste_percentage' => $this->fmt($l->waste_percentage, 2),
+            'ingredient_id'           => $l->ingredient_id,
+            'ingredient_name'         => $l->ingredient?->name ?? '—',
+            'is_prep'                 => (bool) ($l->ingredient?->is_prep ?? false),
+            'quantity'                => $this->fmt($l->quantity),
+            'uom_id'                  => $l->uom_id,
+            'uom_name'                => $l->uom?->name ?? '',
+            'waste_percentage'        => $this->fmt($l->waste_percentage, 2),
+            'recipe_uom_id'           => $l->ingredient?->recipe_uom_id,
+            'secondary_recipe_uom_id' => $l->ingredient?->secondary_recipe_uom_id,
         ])->toArray();
 
         // Training / SOP
@@ -202,15 +205,18 @@ class PrepItemForm extends Component
             }
         }
 
-        $ingredient = Ingredient::with(['baseUom', 'recipeUom'])->findOrFail($ingredientId);
+        $ingredient = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom'])->findOrFail($ingredientId);
 
         $this->lines[] = [
-            'ingredient_id'    => $ingredient->id,
-            'ingredient_name'  => $ingredient->name,
-            'quantity'         => '1',
-            'uom_id'           => $ingredient->recipe_uom_id ?? $ingredient->base_uom_id,
-            'uom_name'         => $ingredient->recipeUom?->name ?? $ingredient->baseUom?->name ?? '',
-            'waste_percentage' => '0',
+            'ingredient_id'           => $ingredient->id,
+            'ingredient_name'         => $ingredient->name,
+            'is_prep'                 => (bool) $ingredient->is_prep,
+            'quantity'                => '1',
+            'uom_id'                  => $ingredient->recipe_uom_id ?? $ingredient->base_uom_id,
+            'uom_name'                => $ingredient->recipeUom?->name ?? $ingredient->baseUom?->name ?? '',
+            'waste_percentage'        => '0',
+            'recipe_uom_id'           => $ingredient->recipe_uom_id,
+            'secondary_recipe_uom_id' => $ingredient->secondary_recipe_uom_id,
         ];
 
         $this->ingredientSearch = '';
@@ -404,10 +410,12 @@ class PrepItemForm extends Component
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
             $existingIds = collect($this->lines)->pluck('ingredient_id')->filter()->toArray();
-            // Exclude other prep items from being used as sub-ingredients (avoid circular refs)
-            $searchResults = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions'])
+            // Exclude self (the ingredient this prep recipe produces) to prevent self-reference
+            if ($this->ingredientId) {
+                $existingIds[] = $this->ingredientId;
+            }
+            $searchResults = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom', 'uomConversions'])
                 ->where('is_active', true)
-                ->where('is_prep', false)
                 ->where(function ($q) {
                     $q->where('name', 'like', '%' . $this->ingredientSearch . '%')
                       ->orWhere('code', 'like', '%' . $this->ingredientSearch . '%');

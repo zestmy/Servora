@@ -260,7 +260,7 @@
                 </div>
                 <input type="text"
                        wire:model.live.debounce.300ms="ingredientSearch"
-                       placeholder="Search raw ingredients…"
+                       placeholder="Search ingredients &amp; prep items…"
                        class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
 
@@ -269,16 +269,28 @@
                     @foreach ($searchResults as $ingredient)
                         <button type="button" wire:click="addIngredient({{ $ingredient->id }})"
                                 class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
-                            <div>
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
+                                @if ($ingredient->is_prep)
+                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                @endif
+                                @if ($ingredient->code)
+                                    <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                @endif
                                 @if ($ingredient->category)
-                                    <span class="ml-2 text-xs text-gray-400">· {{ $ingredient->category }}</span>
+                                    <span class="text-xs text-gray-400">· {{ $ingredient->category }}</span>
                                 @endif
                             </div>
                             <div class="text-right text-xs flex-shrink-0 ml-4">
-                                <span class="text-gray-400">
-                                    RM {{ number_format($ingredient->purchase_price, 4) }}
-                                    / {{ $ingredient->baseUom?->abbreviation }}
+                                <span class="text-indigo-600 font-medium">
+                                    {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
+                                    @if ($ingredient->secondaryRecipeUom)
+                                        <span class="text-purple-500">· {{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
+                                    @endif
+                                </span>
+                                <span class="ml-2 text-gray-400">
+                                    RM {{ number_format($ingredient->current_cost, 4) }}
+                                    / {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
                                 </span>
                                 <span class="ml-2 text-indigo-400">+ Add</span>
                             </div>
@@ -316,7 +328,14 @@
                         @foreach ($lines as $idx => $line)
                             <tr class="hover:bg-gray-50 transition group">
                                 <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
-                                <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
+                                <td class="px-4 py-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</span>
+                                        @if ($line['is_prep'] ?? false)
+                                            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                        @endif
+                                    </div>
+                                </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.01" min="0.0001"
                                            wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
@@ -324,11 +343,36 @@
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
+                                    @php
+                                        $piUomIds = array_filter([
+                                            $line['recipe_uom_id'] ?? null,
+                                            $line['secondary_recipe_uom_id'] ?? null,
+                                        ]);
+                                        $piValidUoms = count($piUomIds)
+                                            ? $uoms->whereIn('id', $piUomIds)->values()
+                                            : $uoms;
+                                        $piOtherUoms = count($piUomIds)
+                                            ? $uoms->whereNotIn('id', $piUomIds)->values()
+                                            : collect();
+                                    @endphp
                                     <select wire:model.live="lines.{{ $idx }}.uom_id"
                                             class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        @foreach ($uoms as $uom)
-                                            <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
-                                        @endforeach
+                                        @if (count($piUomIds))
+                                            <optgroup label="Recipe UOMs">
+                                                @foreach ($piValidUoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                            <optgroup label="Other UOMs">
+                                                @foreach ($piOtherUoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @else
+                                            @foreach ($uoms as $uom)
+                                                <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
+                                            @endforeach
+                                        @endif
                                     </select>
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.uom_id')" class="mt-0.5" />
                                 </td>
