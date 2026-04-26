@@ -464,12 +464,16 @@ class PrepItemForm extends Component
             $qty        = floatval($line['quantity'] ?? 0);
 
             if ($ingredient && $uom && $qty > 0) {
-                // Use purchase_price as the base (pre-yield) cost for prep item recipe costing.
-                // Temporarily override current_cost for the conversion so UomService scales it correctly.
-                $originalCost = $ingredient->current_cost;
-                $ingredient->current_cost = $ingredient->purchase_price;
-                $costPerUom = $uomService->convertCost($ingredient, $uom);
-                $ingredient->current_cost = $originalCost;
+                if ($ingredient->is_prep) {
+                    // Prep items store their unit cost in current_cost (purchase_price is always 0).
+                    $costPerUom = $uomService->convertCost($ingredient, $uom);
+                } else {
+                    // Regular ingredients: use purchase_price (pre-yield cost) as the base.
+                    $originalCost = $ingredient->current_cost;
+                    $ingredient->current_cost = $ingredient->purchase_price;
+                    $costPerUom = $uomService->convertCost($ingredient, $uom);
+                    $ingredient->current_cost = $originalCost;
+                }
 
                 $wasteFactor = 1 + (floatval($line['waste_percentage'] ?? 0) / 100);
                 $lineCost    = $costPerUom * $wasteFactor * $qty;
