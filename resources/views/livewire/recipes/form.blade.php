@@ -709,6 +709,9 @@
                             <div class="text-right flex-shrink-0 ml-4">
                                 <span class="text-xs text-indigo-600 font-medium">
                                     {{ $ingredient->recipeUom->abbreviation }}
+                                    @if ($ingredient->secondaryRecipeUom)
+                                        <span class="text-purple-500">· {{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
+                                    @endif
                                 </span>
                                 <span class="text-xs text-gray-400 ml-1">
                                     @php $rc = $ingredient->recipeCost(); @endphp
@@ -782,11 +785,36 @@
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
+                                    @php
+                                        $lineRecipeUomIds = array_filter([
+                                            $line['recipe_uom_id'] ?? null,
+                                            $line['secondary_recipe_uom_id'] ?? null,
+                                        ]);
+                                        $lineValidUoms = count($lineRecipeUomIds)
+                                            ? $uoms->whereIn('id', $lineRecipeUomIds)->values()
+                                            : $uoms;
+                                        $lineOtherUoms = count($lineRecipeUomIds)
+                                            ? $uoms->whereNotIn('id', $lineRecipeUomIds)->values()
+                                            : collect();
+                                    @endphp
                                     <select wire:model.live="lines.{{ $idx }}.uom_id"
                                             class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        @foreach ($uoms as $uom)
-                                            <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                        @endforeach
+                                        @if (count($lineRecipeUomIds))
+                                            <optgroup label="Recipe UOMs">
+                                                @foreach ($lineValidUoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                            <optgroup label="Other UOMs">
+                                                @foreach ($lineOtherUoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @else
+                                            @foreach ($uoms as $uom)
+                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                            @endforeach
+                                        @endif
                                     </select>
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.uom_id')" class="mt-0.5" />
                                 </td>
@@ -928,11 +956,36 @@
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     </td>
                                     <td class="px-4 py-2">
+                                        @php
+                                            $pkgUomIds = array_filter([
+                                                $line['recipe_uom_id'] ?? null,
+                                                $line['secondary_recipe_uom_id'] ?? null,
+                                            ]);
+                                            $pkgValidUoms = count($pkgUomIds)
+                                                ? $uoms->whereIn('id', $pkgUomIds)->values()
+                                                : $uoms;
+                                            $pkgOtherUoms = count($pkgUomIds)
+                                                ? $uoms->whereNotIn('id', $pkgUomIds)->values()
+                                                : collect();
+                                        @endphp
                                         <select wire:model.live="packagingLines.{{ $idx }}.uom_id"
                                                 class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                            @foreach ($uoms as $uom)
-                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                            @endforeach
+                                            @if (count($pkgUomIds))
+                                                <optgroup label="Recipe UOMs">
+                                                    @foreach ($pkgValidUoms as $uom)
+                                                        <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                                <optgroup label="Other UOMs">
+                                                    @foreach ($pkgOtherUoms as $uom)
+                                                        <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @else
+                                                @foreach ($uoms as $uom)
+                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                @endforeach
+                                            @endif
                                         </select>
                                     </td>
                                     <td class="px-4 py-2">

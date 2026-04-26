@@ -150,12 +150,14 @@ class Form extends Component
         }
 
         $mapLine = fn ($l) => [
-            'ingredient_id'    => $l->ingredient_id,
-            'ingredient_name'  => $l->ingredient?->name ?? '—',
-            'is_prep'          => (bool) ($l->ingredient?->is_prep ?? false),
-            'quantity'         => $this->fmt($l->quantity),
-            'uom_id'           => $l->uom_id,
-            'waste_percentage' => $this->fmt($l->waste_percentage, 2),
+            'ingredient_id'           => $l->ingredient_id,
+            'ingredient_name'         => $l->ingredient?->name ?? '—',
+            'is_prep'                 => (bool) ($l->ingredient?->is_prep ?? false),
+            'quantity'                => $this->fmt($l->quantity),
+            'uom_id'                  => $l->uom_id,
+            'waste_percentage'        => $this->fmt($l->waste_percentage, 2),
+            'recipe_uom_id'           => $l->ingredient?->recipe_uom_id,
+            'secondary_recipe_uom_id' => $l->ingredient?->secondary_recipe_uom_id,
         ];
         $this->lines          = $recipe->lines->where('is_packaging', false)->values()->map($mapLine)->toArray();
         $this->packagingLines = $recipe->lines->where('is_packaging', true)->values()->map($mapLine)->toArray();
@@ -232,12 +234,14 @@ class Form extends Component
         }
 
         $this->lines[] = [
-            'ingredient_id'    => $ingredientId,
-            'ingredient_name'  => $ingredient->name,
-            'is_prep'          => (bool) $ingredient->is_prep,
-            'quantity'         => '1',
-            'uom_id'           => $ingredient->recipe_uom_id,
-            'waste_percentage' => '0',
+            'ingredient_id'           => $ingredientId,
+            'ingredient_name'         => $ingredient->name,
+            'is_prep'                 => (bool) $ingredient->is_prep,
+            'quantity'                => '1',
+            'uom_id'                  => $ingredient->recipe_uom_id,
+            'waste_percentage'        => '0',
+            'recipe_uom_id'           => $ingredient->recipe_uom_id,
+            'secondary_recipe_uom_id' => $ingredient->secondary_recipe_uom_id,
         ];
 
         $this->ingredientSearch = '';
@@ -279,12 +283,14 @@ class Form extends Component
         }
 
         $this->packagingLines[] = [
-            'ingredient_id'    => $ingredientId,
-            'ingredient_name'  => $ingredient->name,
-            'is_prep'          => (bool) $ingredient->is_prep,
-            'quantity'         => '1',
-            'uom_id'           => $ingredient->recipe_uom_id ?? $ingredient->base_uom_id,
-            'waste_percentage' => '0',
+            'ingredient_id'           => $ingredientId,
+            'ingredient_name'         => $ingredient->name,
+            'is_prep'                 => (bool) $ingredient->is_prep,
+            'quantity'                => '1',
+            'uom_id'                  => $ingredient->recipe_uom_id ?? $ingredient->base_uom_id,
+            'waste_percentage'        => '0',
+            'recipe_uom_id'           => $ingredient->recipe_uom_id,
+            'secondary_recipe_uom_id' => $ingredient->secondary_recipe_uom_id,
         ];
 
         $this->packagingSearch = '';
@@ -607,7 +613,7 @@ class Form extends Component
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
             $existingIds = collect($this->lines)->pluck('ingredient_id')->filter()->toArray();
-            $searchResults = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions'])
+            $searchResults = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom', 'uomConversions'])
                 ->where(function ($q) {
                     $q->where('name', 'like', '%' . $this->ingredientSearch . '%')
                       ->orWhere('code', 'like', '%' . $this->ingredientSearch . '%');
