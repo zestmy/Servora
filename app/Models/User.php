@@ -56,7 +56,10 @@ class User extends Authenticatable
      */
     public function activeOutletId(): ?int
     {
-        return $this->outlets()->orderBy('pivot_created_at')->value('outlets.id');
+        // 'pivot_created_at' is the Eloquent accessor name; the actual DB column
+        // in the pivot table is 'created_at'. Use the qualified table.column form
+        // to avoid ambiguity with other created_at columns in the join.
+        return $this->outlets()->orderBy('outlet_user.created_at')->value('outlets.id');
     }
 
     public function activeOutlet(): ?Outlet
