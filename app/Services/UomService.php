@@ -52,34 +52,36 @@ class UomService
             return (float) $ingredient->current_cost * (float) $reverseConversion->factor;
         }
 
-        // Chain through recipe UOM: base → recipe → target.
-        // Used when the secondary recipe UOM factor is stored as (recipe → secondary) rather
-        // than (base → secondary). E.g. ingredient bought in KG, recipe in G, secondary in Tbsp:
-        //   1. cost per G   = convertCost(ingredient, G)      [direct or factor fallback]
-        //   2. conversion G → Tbsp stored with factor 0.0667  [1 G = 0.0667 Tbsp]
-        //   3. cost per Tbsp = cost per G / 0.0667
+        // Chain through recipe UOM for secondary recipe UOM resolution.
+        // The secondary conversion is stored as: target → recipe, factor = N
+        // meaning "1 [secondary/target] = N [recipe_uom]".
+        // e.g. Recipe=G, Secondary=bsp, factor=27 → stored as bsp→G, factor=27.
+        //   1. cost per G   = convertCost(ingredient, G)    [direct or standard-factor]
+        //   2. conversion bsp→G factor=27  →  1 bsp = 27 G
+        //   3. cost per bsp = cost per G × 27
+        // This chain fires when base ≠ recipe (e.g. base=KG, recipe=G) so the direct
+        // lookups above (base↔target) don't find the bsp row.
         if ($ingredient->recipe_uom_id && (int) $ingredient->recipe_uom_id !== $baseId) {
             $recipeId = (int) $ingredient->recipe_uom_id;
 
-            // Find recipe → target conversion
+            // Look for target → recipe conversion (1 target = N recipe)
             if ($ingredient->relationLoaded('uomConversions')) {
-                $recipeToTarget = $ingredient->uomConversions->first(
-                    fn ($c) => (int) $c->from_uom_id === $recipeId && (int) $c->to_uom_id === $targetId
+                $targetToRecipe = $ingredient->uomConversions->first(
+                    fn ($c) => (int) $c->from_uom_id === $targetId && (int) $c->to_uom_id === $recipeId
                 );
             } else {
-                $recipeToTarget = IngredientUomConversion::where('ingredient_id', $ingredient->id)
-                    ->where('from_uom_id', $recipeId)
-                    ->where('to_uom_id', $targetId)
+                $targetToRecipe = IngredientUomConversion::where('ingredient_id', $ingredient->id)
+                    ->where('from_uom_id', $targetId)
+                    ->where('to_uom_id', $recipeId)
                     ->first();
             }
 
-            if ($recipeToTarget && (float) $recipeToTarget->factor != 0) {
-                // Recursively get cost per recipe UOM, then apply factor
+            if ($targetToRecipe && (float) $targetToRecipe->factor > 0) {
                 $recipeUom = $targetUom->newQuery()->find($recipeId);
                 if ($recipeUom) {
                     $costPerRecipe = $this->convertCost($ingredient, $recipeUom);
-                    // factor = "how many target in 1 recipe unit", so cost per target = cost per recipe / factor
-                    return $costPerRecipe / (float) $recipeToTarget->factor;
+                    // 1 target = factor recipe-units, so cost per target = cost per recipe × factor
+                    return $costPerRecipe * (float) $targetToRecipe->factor;
                 }
             }
         }
