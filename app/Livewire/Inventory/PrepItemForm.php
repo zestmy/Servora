@@ -428,11 +428,10 @@ class PrepItemForm extends Component
 
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
+            // Exclude ingredients already in the line table (duplicates)
             $existingIds = collect($this->lines)->pluck('ingredient_id')->filter()->toArray();
-            // Exclude self (the ingredient this prep recipe produces) to prevent self-reference
-            if ($this->ingredientId) {
-                $existingIds[] = $this->ingredientId;
-            }
+            // Keep the output ingredient OUT of the regular exclusion list so it can appear
+            // in the results with a "circular reference" badge (handled in the blade).
             $searchResults = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom', 'uomConversions'])
                 ->where(function ($q) {
                     $q->where('name', 'like', '%' . $this->ingredientSearch . '%')
@@ -451,8 +450,10 @@ class PrepItemForm extends Component
 
         $pageTitle = $this->recipeId ? 'Edit: ' . ($this->name ?: 'Prep Item') : 'New Prep Item';
 
+        $outputIngredientId = $this->ingredientId; // the ingredient this prep recipe produces
+
         return view('livewire.inventory.prep-item-form', compact(
-            'uoms', 'departments', 'categories', 'outlets', 'outletGroups', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit'
+            'uoms', 'departments', 'categories', 'outlets', 'outletGroups', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit', 'outputIngredientId'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 

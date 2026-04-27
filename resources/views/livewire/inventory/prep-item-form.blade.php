@@ -269,7 +269,19 @@
             @if ($searchResults->isNotEmpty())
                 <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
                     @foreach ($searchResults as $ingredient)
-                        @if ($ingredient->is_active)
+                        @php $isOutputIngredient = $outputIngredientId && $ingredient->id === $outputIngredientId; @endphp
+                        @if ($isOutputIngredient)
+                            {{-- This ingredient is what this prep recipe produces — circular reference --}}
+                            <div class="w-full flex items-center justify-between px-4 py-2.5 bg-amber-50 opacity-70 cursor-not-allowed text-left"
+                                 title="This is the output of this prep recipe. An ingredient cannot be an input of its own recipe.">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-gray-600 text-sm">{{ $ingredient->name }}</span>
+                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">OUTPUT</span>
+                                    <span class="text-xs text-amber-600">This is what this recipe produces</span>
+                                </div>
+                                <div class="text-right text-xs text-amber-500 flex-shrink-0 ml-4">Cannot add</div>
+                            </div>
+                        @elseif ($ingredient->is_active)
                             <button type="button" wire:click="addIngredient({{ $ingredient->id }})"
                                     class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
                                 <div class="flex items-center gap-2 flex-wrap">
