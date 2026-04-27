@@ -4,258 +4,165 @@
 
 @section('content')
 <style>
-    /* ── Summary-specific styles ─────────────────────────────── */
-    .rpt-header {
-        border-bottom: 2.5px solid #0f172a;
-        margin-bottom: 14px;
-        padding-bottom: 10px;
-    }
-    .rpt-company {
-        font-size: 13pt;
-        font-weight: bold;
-        color: #0f172a;
-        letter-spacing: -0.2px;
-    }
-    .rpt-title {
-        font-size: 10pt;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: #475569;
-        margin-top: 2px;
-    }
-    .rpt-period {
-        font-size: 9pt;
-        color: #64748b;
-        margin-top: 1px;
-    }
+    .rpt-title-block { margin-bottom: 14px; border-bottom: 2px solid #0f172a; padding-bottom: 10px; }
+    .rpt-company     { font-size: 13pt; font-weight: bold; color: #0f172a; }
+    .rpt-doc-title   { font-size: 9.5pt; text-transform: uppercase; letter-spacing: 2px; color: #475569; font-weight: bold; margin-top: 2px; }
+    .rpt-period      { font-size: 8.5pt; color: #64748b; margin-top: 2px; }
 
-    /* ── Data table ──────────────────────────────────────────── */
-    table.summary-tbl {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 14px;
-        font-size: 8.5pt;
-    }
-    table.summary-tbl thead tr th {
+    table.ot-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 2px; }
+
+    table.ot-tbl thead th {
         background: #1e293b;
         color: #f8fafc;
-        padding: 6px 8px;
+        padding: 7px 8px;
         text-align: left;
         font-size: 7.5pt;
         text-transform: uppercase;
         letter-spacing: 0.8px;
         font-weight: bold;
-        white-space: nowrap;
     }
-    table.summary-tbl thead tr th.right { text-align: right; }
-    table.summary-tbl thead tr th.center { text-align: center; }
+    table.ot-tbl thead th.right  { text-align: right; }
+    table.ot-tbl thead th.center { text-align: center; }
 
-    table.summary-tbl tbody td {
-        padding: 5px 8px;
+    /* Regular data rows */
+    table.ot-tbl tbody td {
+        padding: 6px 8px;
         border-bottom: 1px solid #e5e7eb;
         color: #1f2937;
         vertical-align: middle;
     }
-    table.summary-tbl tbody td.right  { text-align: right; }
-    table.summary-tbl tbody td.center { text-align: center; }
-    table.summary-tbl tbody tr:nth-child(even) td { background: #f8fafc; }
+    table.ot-tbl tbody td.right  { text-align: right; }
+    table.ot-tbl tbody td.center { text-align: center; }
 
-    /* Type group header row */
-    table.summary-tbl tbody tr.type-header td {
-        background: #e0e7ef;
-        font-weight: bold;
-        font-size: 8pt;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #1e3a5f;
-        padding: 5px 8px;
-        border-bottom: 1px solid #cbd5e1;
-        border-top: 2px solid #94a3b8;
-    }
-    /* Subtotal row */
-    table.summary-tbl tbody tr.subtotal td {
+    /* Continuation rows (2nd, 3rd OT type for same employee) */
+    table.ot-tbl tbody tr.cont-row td { background: #fafafa; }
+
+    /* Employee total row */
+    table.ot-tbl tbody tr.emp-total td {
         background: #f1f5f9;
-        font-weight: bold;
-        font-size: 8pt;
-        color: #334155;
-        border-top: 1.5px solid #cbd5e1;
+        border-top: 1px solid #cbd5e1;
         border-bottom: 2px solid #94a3b8;
+        font-weight: bold;
+        font-size: 8.5pt;
+        color: #334155;
         padding: 5px 8px;
     }
-    table.summary-tbl tbody tr.subtotal td.right { text-align: right; }
+    table.ot-tbl tbody tr.emp-total td.right { text-align: right; }
 
-    /* Grand total row */
-    table.summary-tbl tfoot tr td {
+    /* Grand total footer */
+    table.ot-tbl tfoot td {
         background: #1e293b;
         color: #f8fafc;
         font-weight: bold;
-        font-size: 9pt;
-        padding: 7px 8px;
+        font-size: 9.5pt;
+        padding: 8px 8px;
         border-top: 2px solid #0f172a;
     }
-    table.summary-tbl tfoot tr td.right { text-align: right; }
-
-    /* ── Subtotals card ──────────────────────────────────────── */
-    table.subtotal-cards {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 8px 0;
-        margin-top: 8px;
-    }
-    table.subtotal-cards td {
-        border: 1.5px solid #cbd5e1;
-        border-radius: 4px;
-        padding: 10px 14px;
-        vertical-align: top;
-        width: 33%;
-    }
-    .sc-label {
-        font-size: 7.5pt;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        color: #64748b;
-        font-weight: bold;
-    }
-    .sc-hours {
-        font-size: 18pt;
-        font-weight: bold;
-        color: #0f172a;
-        line-height: 1.2;
-        margin-top: 3px;
-    }
-    .sc-meta {
-        font-size: 7.5pt;
-        color: #94a3b8;
-        margin-top: 2px;
-    }
-    .sc-grand td {
-        background: #1e293b;
-        border-color: #1e293b;
-    }
-    .sc-grand .sc-label { color: #94a3b8; }
-    .sc-grand .sc-hours { color: #f8fafc; }
-    .sc-grand .sc-meta  { color: #64748b; }
+    table.ot-tbl tfoot td.right { text-align: right; }
 </style>
 
-{{-- ── Report Header ───────────────────────────────────────── --}}
-<table style="width:100%; border-collapse:collapse;" class="rpt-header">
+{{-- Report header --}}
+<table style="width:100%; border-collapse:collapse;" class="rpt-title-block">
     <tr>
-        <td style="vertical-align:middle; width:70%;">
+        <td style="vertical-align:middle; width:65%;">
             @if ($company?->logo_url)
                 <img src="{{ public_path('storage/' . ltrim(parse_url($company->logo_url, PHP_URL_PATH), '/storage/')) }}"
-                     style="max-height:44px; max-width:140px; display:block; margin-bottom:6px;">
+                     style="max-height:40px; max-width:130px; display:block; margin-bottom:5px;">
             @endif
             <div class="rpt-company">{{ $company?->name ?? 'Servora' }}</div>
-            <div class="rpt-title">Overtime Claims — Detailed Summary</div>
-            <div class="rpt-period">Period: {{ $periodLabel }}&emsp;|&emsp;{{ \Carbon\Carbon::parse($from)->format('d M Y') }} – {{ \Carbon\Carbon::parse($to)->format('d M Y') }}</div>
+            <div class="rpt-doc-title">Overtime Claims — Summary Report</div>
+            <div class="rpt-period">Period: {{ $periodLabel }}</div>
         </td>
-        <td style="vertical-align:middle; text-align:right; width:30%;">
-            <div style="font-size:8pt; color:#64748b; margin-bottom:2px;">Generated by</div>
+        <td style="vertical-align:middle; text-align:right; width:35%;">
+            <div style="font-size:7.5pt; color:#94a3b8;">Generated by</div>
             <div style="font-size:9pt; font-weight:bold; color:#1e293b;">{{ $exportedBy }}</div>
-            <div style="font-size:8pt; color:#94a3b8; margin-top:2px;">{{ now()->format('d M Y, h:i A') }}</div>
+            <div style="font-size:7.5pt; color:#94a3b8; margin-top:2px;">{{ now()->format('d M Y, h:i A') }}</div>
         </td>
     </tr>
 </table>
 
-{{-- ── Claims table ────────────────────────────────────────── --}}
-@if ($claims->isEmpty())
+@if ($rows->isEmpty())
     <div style="text-align:center; padding:40px 0; color:#94a3b8; font-size:10pt; font-style:italic;">
         No approved overtime claims found for {{ $periodLabel }}.
     </div>
 @else
-    @php
-        $otTypeOrder = ['normal_day', 'rest_day', 'public_holiday'];
-        $otTypeLabels = [
-            'normal_day'     => 'Normal Day',
-            'rest_day'       => 'Rest Day',
-            'public_holiday' => 'Public Holiday',
-        ];
-        $rowNum = 0;
-    @endphp
-
-    <table class="summary-tbl">
+    <table class="ot-tbl">
         <thead>
             <tr>
-                <th style="width:28px;" class="center">#</th>
-                <th style="width:72px;">Date</th>
-                <th>Employee</th>
-                <th style="width:80px;">Section</th>
-                <th style="width:62px;" class="center">Start</th>
-                <th style="width:62px;" class="center">End</th>
-                <th style="width:54px;" class="right">Hours</th>
-                <th style="width:110px;">Reason</th>
+                <th style="width:30px;" class="center">No.</th>
+                <th>Employee Name</th>
+                <th style="width:80px;">Staff ID</th>
+                <th style="width:110px;">Designation</th>
+                <th style="width:110px;">OT Type</th>
+                <th style="width:70px;" class="right">OT Hours</th>
+                <th style="width:80px;" class="right">Total OT Hours</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($otTypeOrder as $typeKey)
+            @foreach ($rows as $i => $row)
                 @php
-                    $typeGroup = $claims->where('ot_type', $typeKey);
-                    if ($typeGroup->isEmpty()) continue;
-                    $typeHours = (float) $typeGroup->sum('total_ot_hours');
-                    $typeCount = $typeGroup->count();
+                    $emp      = $row['employee'];
+                    $byType   = $row['byType'];
+                    $total    = $row['totalHours'];
+                    $rowCount = $byType->count();
                 @endphp
 
-                {{-- OT type group header --}}
-                <tr class="type-header">
-                    <td colspan="8">{{ $otTypeLabels[$typeKey] }}</td>
-                </tr>
+                @foreach ($byType as $ti => $typeRow)
+                    <tr class="{{ $ti > 0 ? 'cont-row' : '' }}">
+                        {{-- No. — only on first OT type row for this employee --}}
+                        <td class="center" style="color:#94a3b8; font-size:8pt;">
+                            @if ($ti === 0) {{ $i + 1 }} @endif
+                        </td>
 
-                @foreach ($typeGroup->sortBy(fn($c) => [$c->claim_date->toDateString(), $c->employee?->name]) as $claim)
-                    @php $rowNum++ @endphp
-                    <tr>
-                        <td class="center" style="color:#94a3b8; font-size:7.5pt;">{{ $rowNum }}</td>
-                        <td style="white-space:nowrap;">{{ $claim->claim_date->format('d M Y') }}</td>
-                        <td style="font-weight:600;">{{ $claim->employee?->name ?? '—' }}</td>
-                        <td style="color:#64748b; font-size:7.5pt;">{{ $claim->employee?->section?->name ?? '—' }}</td>
-                        <td class="center" style="font-size:8pt; color:#475569;">{{ $claim->ot_time_start ? \Carbon\Carbon::parse($claim->ot_time_start)->format('H:i') : '—' }}</td>
-                        <td class="center" style="font-size:8pt; color:#475569;">{{ $claim->ot_time_end   ? \Carbon\Carbon::parse($claim->ot_time_end)->format('H:i')   : '—' }}</td>
-                        <td class="right" style="font-weight:600;">{{ number_format($claim->total_ot_hours, 2) }}</td>
-                        <td style="font-size:7.5pt; color:#64748b; max-width:110px; word-break:break-word;">{{ $claim->reason }}</td>
+                        {{-- Employee Name — only on first row --}}
+                        <td style="font-weight:{{ $ti === 0 ? '600' : '400' }}; color:{{ $ti === 0 ? '#0f172a' : '#9ca3af' }};">
+                            @if ($ti === 0)
+                                {{ $emp?->name ?? '—' }}
+                            @else
+                                &nbsp;
+                            @endif
+                        </td>
+
+                        {{-- Staff ID — only on first row --}}
+                        <td style="font-size:8.5pt; color:{{ $ti === 0 ? '#475569' : '#d1d5db' }};">
+                            @if ($ti === 0) {{ $emp?->staff_id ?? '—' }} @endif
+                        </td>
+
+                        {{-- Designation — only on first row --}}
+                        <td style="font-size:8.5pt; color:{{ $ti === 0 ? '#475569' : '#d1d5db' }};">
+                            @if ($ti === 0) {{ $emp?->designation ?? '—' }} @endif
+                        </td>
+
+                        {{-- OT Type --}}
+                        <td style="font-size:8.5pt; color:#334155;">{{ $typeRow['label'] }}</td>
+
+                        {{-- OT Hours for this type --}}
+                        <td class="right" style="font-size:9pt;">{{ number_format($typeRow['hours'], 2) }}</td>
+
+                        {{-- Total OT Hours — only on first row, spanning visually --}}
+                        <td class="right" style="font-weight:700; font-size:9pt; color:#1e3a5f;">
+                            @if ($ti === 0) {{ number_format($total, 2) }} @endif
+                        </td>
                     </tr>
                 @endforeach
 
-                {{-- OT type subtotal --}}
-                <tr class="subtotal">
-                    <td colspan="6" class="right">{{ $otTypeLabels[$typeKey] }} Subtotal — {{ $typeCount }} {{ Str::plural('claim', $typeCount) }}</td>
-                    <td class="right">{{ number_format($typeHours, 2) }}</td>
-                    <td></td>
-                </tr>
+                {{-- Thin separator between employees (skip after last) --}}
+                @if (! $loop->last)
+                    <tr style="height:1px;">
+                        <td colspan="7" style="padding:0; border-bottom:2px solid #e5e7eb;"></td>
+                    </tr>
+                @endif
             @endforeach
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="6" class="right">Grand Total — {{ $grandTotalCount }} {{ Str::plural('claim', $grandTotalCount) }}</td>
+                <td colspan="5" style="text-align:right; font-size:8.5pt; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">
+                    Grand Total &mdash; {{ $rows->count() }} {{ Str::plural('employee', $rows->count()) }}
+                </td>
+                <td class="right">—</td>
                 <td class="right">{{ number_format($grandTotalHours, 2) }}</td>
-                <td></td>
             </tr>
         </tfoot>
-    </table>
-
-    {{-- ── Summary Cards ──────────────────────────────────────── --}}
-    <table class="subtotal-cards">
-        <tr>
-            @foreach ($otTypeOrder as $typeKey)
-                @php $s = $subtotals[$typeKey]; @endphp
-                @if ($s['count'] > 0)
-                    <td>
-                        <div class="sc-label">{{ $s['label'] }}</div>
-                        <div class="sc-hours">{{ number_format($s['hours'], 2) }} hrs</div>
-                        <div class="sc-meta">{{ $s['count'] }} {{ Str::plural('claim', $s['count']) }}</div>
-                    </td>
-                @endif
-            @endforeach
-        </tr>
-    </table>
-
-    <table class="subtotal-cards sc-grand" style="margin-top:4px;">
-        <tr>
-            <td style="background:#1e293b; border-color:#1e293b;">
-                <div class="sc-label" style="color:#94a3b8;">Grand Total</div>
-                <div class="sc-hours" style="color:#f8fafc;">{{ number_format($grandTotalHours, 2) }} hrs</div>
-                <div class="sc-meta" style="color:#64748b;">{{ $grandTotalCount }} approved {{ Str::plural('claim', $grandTotalCount) }} &middot; {{ $periodLabel }}</div>
-            </td>
-        </tr>
     </table>
 @endif
 @endsection
