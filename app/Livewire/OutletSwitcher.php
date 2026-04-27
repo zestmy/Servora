@@ -17,20 +17,8 @@ class OutletSwitcher extends Component
 
     public function switchOutlet(string $outletId): void
     {
-        $user = Auth::user();
-        $id = $outletId !== '' ? (int) $outletId : null;
-
-        if ($id && ! $user->canAccessOutlet($id)) {
-            return;
-        }
-
-        if ($id === null && ! $user->canViewAllOutlets()) {
-            return;
-        }
-
-        session(['active_outlet_id' => $id]);
-        $this->activeOutletId = $outletId;
-
+        // Outlet switcher removed — no session write. Listings now scope to
+        // all outlets the user can access (ScopesToActiveOutlet::availableOutletIds).
         $this->redirect(route('dashboard'));
     }
 

@@ -301,20 +301,26 @@ class OvertimeClaims extends Component
 
     public function render()
     {
-        $user     = Auth::user();
-        $outletId = $user->activeOutletId();
+        $user = Auth::user();
 
-        // Outlet-level flag: does this user have ANY approver grant at this
-        // outlet (regardless of section)? Drives UI gating (bulk bar, column
-        // visibility). Per-claim section matching happens below.
-        $isApprover = OvertimeClaimApprover::isApproverAtOutlet($user->id, $outletId)
-            || $user->isSystemRole();
+        // Outlets this user can see. Cross-outlet roles (HR Manager, Business Manager)
+        // get all company outlets; everyone else gets only their assigned outlets.
+        $availableOutletIds = $user->canViewAllOutlets()
+            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
+            : $user->outlets()->pluck('outlets.id')->all();
+
+        // For approver checks: wildcard approvers have outlet_id = null in the matrix.
+        // Pass null when cross-outlet so the null-match branch fires.
+        $approverOutletScope = $user->canViewAllOutlets() ? null : ($availableOutletIds[0] ?? null);
+
+        $isApprover = $user->isSystemRole()
+            || OvertimeClaimApprover::isApproverAtOutlet($user->id, $approverOutletScope);
         $approverScopes = $user->isSystemRole()
             ? null  // sentinel: everything allowed
-            : OvertimeClaimApprover::scopesForOutlet($user->id, $outletId);
+            : OvertimeClaimApprover::scopesForOutlet($user->id, $approverOutletScope);
 
         $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet'])
-            ->where('outlet_id', $outletId);
+            ->whereIn('outlet_id', $availableOutletIds ?: [0]);
 
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
@@ -364,7 +370,7 @@ class OvertimeClaims extends Component
 
         // Employee list for dropdown (active only) and management modal (all)
         $allEmployees = Employee::with('section')
-            ->where('outlet_id', $outletId)
+            ->whereIn('outlet_id', $availableOutletIds ?: [0])
             ->orderBy('name')
             ->get();
         $employees = $allEmployees->where('is_active', true);
@@ -377,7 +383,7 @@ class OvertimeClaims extends Component
         // Stats
         $monthStart = now()->startOfMonth()->toDateString();
         $monthEnd   = now()->endOfMonth()->toDateString();
-        $monthStats = OvertimeClaim::where('outlet_id', $outletId)
+        $monthStats = OvertimeClaim::whereIn('outlet_id', $availableOutletIds ?: [0])
             ->whereBetween('claim_date', [$monthStart, $monthEnd]);
 
         $totalHoursMonth   = (clone $monthStats)->where('status', 'approved')->sum('total_ot_hours');
@@ -397,7 +403,7 @@ class OvertimeClaims extends Component
         $trendFrom = $trendWeeks[0][0];
         $trendTo   = $trendWeeks[11][1];
 
-        $rawTrend = OvertimeClaim::where('outlet_id', $outletId)
+        $rawTrend = OvertimeClaim::whereIn('outlet_id', $availableOutletIds ?: [0])
             ->where('status', 'approved')
             ->whereBetween('claim_date', [$trendFrom, $trendTo])
             ->selectRaw("DATE(DATE_SUB(claim_date, INTERVAL (WEEKDAY(claim_date)) DAY)) as week_start,
@@ -433,7 +439,7 @@ class OvertimeClaims extends Component
             : 0;
 
         // Top 5 employees by OT hours this month
-        $topEmployees = OvertimeClaim::where('outlet_id', $outletId)
+        $topEmployees = OvertimeClaim::whereIn('outlet_id', $availableOutletIds ?: [0])
             ->where('status', 'approved')
             ->whereBetween('claim_date', [$monthStart, $monthEnd])
             ->selectRaw('employee_id, SUM(total_ot_hours) as hours')

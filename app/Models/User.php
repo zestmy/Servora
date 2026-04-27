@@ -49,13 +49,14 @@ class User extends Authenticatable
         return $this->belongsToMany(Outlet::class)->withTimestamps();
     }
 
+    /**
+     * The user's default outlet for form prefill (first assigned outlet).
+     * No longer session-driven — the outlet switcher has been removed.
+     * Listings use availableOutletIds() (in ScopesToActiveOutlet) instead.
+     */
     public function activeOutletId(): ?int
     {
-        $sessionId = session('active_outlet_id');
-        if ($sessionId && $this->canAccessOutlet($sessionId)) {
-            return (int) $sessionId;
-        }
-        return $this->outlets()->first()?->id;
+        return $this->outlets()->orderBy('pivot_created_at')->value('outlets.id');
     }
 
     public function activeOutlet(): ?Outlet
