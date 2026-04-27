@@ -105,6 +105,13 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('webhooks.chipin');
 
+// Secure deploy webhook — HMAC-signed, timestamp-protected, command allowlist
+// See: App\Http\Controllers\DeployWebhookController
+Route::post('/internal/deploy-hook', \App\Http\Controllers\DeployWebhookController::class)
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->middleware('throttle:10,1')
+    ->name('deploy.webhook');
+
 // Referral tracking (short link)
 Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
 Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
