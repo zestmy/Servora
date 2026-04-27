@@ -19,7 +19,8 @@ class OvertimeClaims extends Component
     public string $dateFrom         = '';
     public string $dateTo           = '';
     public string $employeeFilter   = '';
-    public string $sectionFilter = '';
+    public string $sectionFilter    = '';
+    public string $outletFilter     = '';
     public string $sortField        = 'claim_date';
     public string $sortDirection    = 'desc';
     public int    $perPage          = 25;
@@ -91,10 +92,11 @@ class OvertimeClaims extends Component
     public function updatedOtTimeStart(): void { $this->calcHours(); }
     public function updatedOtTimeEnd(): void   { $this->calcHours(); }
 
-    public function updatedStatusFilter(): void  { $this->resetPage(); $this->selected = []; }
-    public function updatedDateFrom(): void      { $this->resetPage(); $this->selected = []; }
-    public function updatedDateTo(): void        { $this->resetPage(); $this->selected = []; }
+    public function updatedStatusFilter(): void   { $this->resetPage(); $this->selected = []; }
+    public function updatedDateFrom(): void       { $this->resetPage(); $this->selected = []; }
+    public function updatedDateTo(): void         { $this->resetPage(); $this->selected = []; }
     public function updatedEmployeeFilter(): void { $this->resetPage(); $this->selected = []; }
+    public function updatedOutletFilter(): void   { $this->resetPage(); $this->selected = []; $this->employeeFilter = ''; }
 
     public function sortBy(string $field): void
     {
@@ -319,8 +321,17 @@ class OvertimeClaims extends Component
             ? null  // sentinel: everything allowed
             : OvertimeClaimApprover::scopesForOutlet($user->id, $approverOutletScope);
 
+        // Outlet list for filter dropdown (only shown when user has multiple outlets)
+        $outlets = \App\Models\Outlet::whereIn('id', $availableOutletIds)->orderBy('name')->get();
+        $multiOutlet = count($availableOutletIds) > 1;
+
+        // Narrow scope when outlet filter is active
+        $scopedOutletIds = ($this->outletFilter && in_array((int) $this->outletFilter, $availableOutletIds))
+            ? [(int) $this->outletFilter]
+            : $availableOutletIds;
+
         $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet'])
-            ->whereIn('outlet_id', $availableOutletIds ?: [0]);
+            ->whereIn('outlet_id', $scopedOutletIds ?: [0]);
 
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
@@ -368,9 +379,9 @@ class OvertimeClaims extends Component
             }
         }
 
-        // Employee list for dropdown (active only) and management modal (all)
+        // Employee list for dropdown — scoped to selected outlet if filtered
         $allEmployees = Employee::with('section')
-            ->whereIn('outlet_id', $availableOutletIds ?: [0])
+            ->whereIn('outlet_id', $scopedOutletIds ?: [0])
             ->orderBy('name')
             ->get();
         $employees = $allEmployees->where('is_active', true);
@@ -383,7 +394,7 @@ class OvertimeClaims extends Component
         // Stats
         $monthStart = now()->startOfMonth()->toDateString();
         $monthEnd   = now()->endOfMonth()->toDateString();
-        $monthStats = OvertimeClaim::whereIn('outlet_id', $availableOutletIds ?: [0])
+        $monthStats = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
             ->whereBetween('claim_date', [$monthStart, $monthEnd]);
 
         $totalHoursMonth   = (clone $monthStats)->where('status', 'approved')->sum('total_ot_hours');
@@ -403,7 +414,7 @@ class OvertimeClaims extends Component
         $trendFrom = $trendWeeks[0][0];
         $trendTo   = $trendWeeks[11][1];
 
-        $rawTrend = OvertimeClaim::whereIn('outlet_id', $availableOutletIds ?: [0])
+        $rawTrend = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
             ->where('status', 'approved')
             ->whereBetween('claim_date', [$trendFrom, $trendTo])
             ->selectRaw("DATE(DATE_SUB(claim_date, INTERVAL (WEEKDAY(claim_date)) DAY)) as week_start,
@@ -439,7 +450,7 @@ class OvertimeClaims extends Component
             : 0;
 
         // Top 5 employees by OT hours this month
-        $topEmployees = OvertimeClaim::whereIn('outlet_id', $availableOutletIds ?: [0])
+        $topEmployees = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
             ->where('status', 'approved')
             ->whereBetween('claim_date', [$monthStart, $monthEnd])
             ->selectRaw('employee_id, SUM(total_ot_hours) as hours')
@@ -457,7 +468,8 @@ class OvertimeClaims extends Component
         ];
 
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canApproveMap', 'canDeleteAny',
+            'claims', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
+            'isApprover', 'canApproveMap', 'canDeleteAny',
             'totalHoursMonth', 'pendingCount', 'approvedCount',
             'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
             'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
