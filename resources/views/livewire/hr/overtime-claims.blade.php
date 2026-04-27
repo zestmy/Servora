@@ -23,6 +23,10 @@
                     class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 Print PDF
             </button>
+            <button wire:click="openSummaryModal"
+                    class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                Summary Report
+            </button>
             <a href="{{ route('hr.employees') }}"
                class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
                 Employee List
@@ -616,6 +620,72 @@
                     <a x-bind:href="'{{ url('/hr/overtime-claims/pdf') }}/' + (empId || 'all') + '?from=' + fromDate + '&to=' + toDate"
                        target="_blank"
                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition inline-flex items-center">
+                        Download PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endteleport
+    @endif
+
+    {{-- Summary PDF Modal --}}
+    @if ($showSummaryModal)
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+             wire:click.self="$set('showSummaryModal', false)"
+             x-data="{
+                 month: '{{ $summaryMonth }}',
+                 year:  '{{ $summaryYear }}',
+                 months: [
+                     { v:'01', l:'January' },  { v:'02', l:'February' }, { v:'03', l:'March' },
+                     { v:'04', l:'April' },    { v:'05', l:'May' },      { v:'06', l:'June' },
+                     { v:'07', l:'July' },     { v:'08', l:'August' },   { v:'09', l:'September' },
+                     { v:'10', l:'October' },  { v:'11', l:'November' }, { v:'12', l:'December' },
+                 ],
+                 get summaryUrl() {
+                     return '{{ route('hr.ot-claims.summary-pdf') }}?month=' + this.month + '&year=' + this.year;
+                 }
+             }">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="p-1.5 bg-indigo-50 rounded-lg">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-semibold text-gray-800">OT Claims — Summary Report</h3>
+                </div>
+                <p class="text-xs text-gray-400 mb-4">All approved OT claims for the selected month, grouped by type with hours subtotals and grand total.</p>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <x-input-label for="sum_month" value="Month *" />
+                        <select id="sum_month" x-model="month"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <template x-for="m in months" :key="m.v">
+                                <option :value="m.v" x-text="m.l" :selected="m.v === month"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <x-input-label for="sum_year" value="Year *" />
+                        <input id="sum_year" x-model="year" type="number" min="2020" max="2099"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button wire:click="$set('showSummaryModal', false)"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
+                        Cancel
+                    </button>
+                    <a :href="summaryUrl" target="_blank"
+                       class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition inline-flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                         Download PDF
                     </a>
                 </div>

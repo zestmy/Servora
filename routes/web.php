@@ -316,6 +316,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/employees', \App\Livewire\Hr\Employees::class)->name('hr.employees')->middleware('can:hr.view');
     Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.view');
     Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.view');
+    Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.view');
     Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.view');
 
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(['can:reports.view', 'check.feature:analytics']);

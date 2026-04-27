@@ -60,6 +60,11 @@ class OvertimeClaims extends Component
     public string $pdfTo         = '';
     public string $pdfEmployeeId = '';
 
+    // Summary PDF modal
+    public bool   $showSummaryModal = false;
+    public string $summaryMonth     = '';
+    public string $summaryYear      = '';
+
     protected function rules(): array
     {
         return [
@@ -461,6 +466,13 @@ class OvertimeClaims extends Component
         $this->pdfTo         = $this->dateTo ?: now()->endOfMonth()->toDateString();
         $this->pdfEmployeeId = '';
         $this->showPdfModal  = true;
+    }
+
+    public function openSummaryModal(): void
+    {
+        $this->summaryMonth     = now()->format('m');
+        $this->summaryYear      = now()->format('Y');
+        $this->showSummaryModal = true;
     }
 
     public function getPdfUrl(): string
