@@ -52,6 +52,38 @@ class UomService
             return (float) $ingredient->current_cost * (float) $reverseConversion->factor;
         }
 
+        // Chain through recipe UOM: base → recipe → target.
+        // Used when the secondary recipe UOM factor is stored as (recipe → secondary) rather
+        // than (base → secondary). E.g. ingredient bought in KG, recipe in G, secondary in Tbsp:
+        //   1. cost per G   = convertCost(ingredient, G)      [direct or factor fallback]
+        //   2. conversion G → Tbsp stored with factor 0.0667  [1 G = 0.0667 Tbsp]
+        //   3. cost per Tbsp = cost per G / 0.0667
+        if ($ingredient->recipe_uom_id && (int) $ingredient->recipe_uom_id !== $baseId) {
+            $recipeId = (int) $ingredient->recipe_uom_id;
+
+            // Find recipe → target conversion
+            if ($ingredient->relationLoaded('uomConversions')) {
+                $recipeToTarget = $ingredient->uomConversions->first(
+                    fn ($c) => (int) $c->from_uom_id === $recipeId && (int) $c->to_uom_id === $targetId
+                );
+            } else {
+                $recipeToTarget = IngredientUomConversion::where('ingredient_id', $ingredient->id)
+                    ->where('from_uom_id', $recipeId)
+                    ->where('to_uom_id', $targetId)
+                    ->first();
+            }
+
+            if ($recipeToTarget && (float) $recipeToTarget->factor != 0) {
+                // Recursively get cost per recipe UOM, then apply factor
+                $recipeUom = $targetUom->newQuery()->find($recipeId);
+                if ($recipeUom) {
+                    $costPerRecipe = $this->convertCost($ingredient, $recipeUom);
+                    // factor = "how many target in 1 recipe unit", so cost per target = cost per recipe / factor
+                    return $costPerRecipe / (float) $recipeToTarget->factor;
+                }
+            }
+        }
+
         // Fall back to standard UOM base_unit_factor ratio.
         // base_unit_factor = "how many base-SI units in 1 of this UOM" (e.g. g=0.001, kg=1.0)
         // cost per target = cost per base × (base_factor / target_factor) is WRONG for cost.

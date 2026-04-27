@@ -643,21 +643,21 @@
                             @if ($secondary_recipe_uom_id)
                                 <div>
                                     @php
-                                        $baseAbbr = collect($uoms)->firstWhere('id', $base_uom_id)?->abbreviation ?? 'base';
-                                        $secAbbr  = collect($uoms)->firstWhere('id', $secondary_recipe_uom_id)?->abbreviation ?? 'unit';
+                                        $recipeAbbr = collect($uoms)->firstWhere('id', $recipe_uom_id)?->abbreviation ?? 'recipe unit';
+                                        $secAbbr    = collect($uoms)->firstWhere('id', $secondary_recipe_uom_id)?->abbreviation ?? 'unit';
                                     @endphp
                                     <label class="text-xs font-medium text-gray-600 block mb-1">
-                                        1 {{ $baseAbbr }} = how many {{ $secAbbr }}?
+                                        1 {{ $recipeAbbr }} = how many {{ $secAbbr }}?
                                     </label>
                                     <x-text-input wire:model.live="secondary_uom_factor"
                                                   type="number" step="0.0001" min="0.0001"
-                                                  placeholder="e.g. 30"
+                                                  placeholder="e.g. 0.2"
                                                   class="block w-full" />
                                     <p class="mt-0.5 text-xs text-gray-400">
                                         @if ($secondary_uom_factor && floatval($secondary_uom_factor) > 0)
-                                            Cost per {{ $secAbbr }} = cost per {{ $baseAbbr }} ÷ {{ $secondary_uom_factor }}
+                                            Cost per {{ $secAbbr }} = cost per {{ $recipeAbbr }} ÷ {{ $secondary_uom_factor }}
                                         @else
-                                            Enter how many {{ $secAbbr }} are in 1 {{ $baseAbbr }}
+                                            Enter how many {{ $secAbbr }} are in 1 {{ $recipeAbbr }}
                                         @endif
                                     </p>
                                     <x-input-error :messages="$errors->get('secondary_uom_factor')" class="mt-1" />

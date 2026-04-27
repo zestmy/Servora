@@ -182,13 +182,14 @@ class Index extends Component
             ])
             ->toArray();
 
-        // Pre-fill the secondary UOM factor from the stored conversion (base → secondary)
+        // Pre-fill the secondary UOM factor from the stored conversion (recipe → secondary).
+        // Factor expresses: 1 [recipe_uom] = N [secondary_recipe_uom].
         $this->secondary_uom_factor = '';
         if ($ingredient->secondary_recipe_uom_id) {
-            $baseId      = (int) $ingredient->base_uom_id;
+            $recipeId    = (int) $ingredient->recipe_uom_id;
             $secondaryId = (int) $ingredient->secondary_recipe_uom_id;
             $existing = $ingredient->uomConversions->first(
-                fn ($c) => (int) $c->from_uom_id === $baseId && (int) $c->to_uom_id === $secondaryId
+                fn ($c) => (int) $c->from_uom_id === $recipeId && (int) $c->to_uom_id === $secondaryId
             );
             if ($existing) {
                 $this->secondary_uom_factor = (string) floatval($existing->factor);
@@ -952,22 +953,30 @@ class Index extends Component
             ]);
         }
 
-        // Auto-create/update the base → secondary_recipe_uom conversion when a factor is provided.
-        // This keeps the "secondary UOM" factor in sync without requiring a manual conversion row.
+        // Auto-create/update the recipe → secondary_recipe_uom conversion when a factor is provided.
+        // Factor meaning: 1 [recipe_uom] = N [secondary_recipe_uom].
+        // UomService chains through recipe_uom when resolving secondary cost.
         if ($this->secondary_recipe_uom_id
             && $this->secondary_uom_factor !== ''
             && floatval($this->secondary_uom_factor) > 0
-            && (int) $this->secondary_recipe_uom_id !== (int) $this->base_uom_id
+            && $this->recipe_uom_id
+            && (int) $this->secondary_recipe_uom_id !== (int) $this->recipe_uom_id
         ) {
-            // Only add if not already covered by a manual conversion row
+            // Remove any stale recipe → secondary conversion before upserting
+            $ingredient->uomConversions()
+                ->where('from_uom_id', $this->recipe_uom_id)
+                ->where('to_uom_id', $this->secondary_recipe_uom_id)
+                ->delete();
+
+            // Only add if not already covered by a manual conversion row with the same pair
             $alreadyCovered = collect($this->conversions)->contains(function ($row) {
-                return (int) $row['from_uom_id'] === (int) $this->base_uom_id
+                return (int) $row['from_uom_id'] === (int) $this->recipe_uom_id
                     && (int) $row['to_uom_id'] === (int) $this->secondary_recipe_uom_id;
             });
 
             if (! $alreadyCovered) {
                 $ingredient->uomConversions()->create([
-                    'from_uom_id' => $this->base_uom_id,
+                    'from_uom_id' => $this->recipe_uom_id,
                     'to_uom_id'   => $this->secondary_recipe_uom_id,
                     'factor'      => floatval($this->secondary_uom_factor),
                 ]);
