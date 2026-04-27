@@ -319,7 +319,7 @@
                             <th class="px-4 py-2 text-left">Ingredient</th>
                             <th class="px-4 py-2 text-right w-28">Qty</th>
                             <th class="px-4 py-2 text-left w-44">UOM</th>
-                            <th class="px-4 py-2 text-right w-24">Waste %</th>
+                            <th class="px-4 py-2 text-right w-32">Waste %</th>
                             <th class="px-4 py-2 text-right w-32">Line Cost (RM)</th>
                             <th class="px-4 py-2 w-10"></th>
                         </tr>
@@ -380,7 +380,7 @@
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 pr-6" />
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 pr-7" />
                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
                                     </div>
                                 </td>

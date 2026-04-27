@@ -747,7 +747,7 @@
                             <th class="px-4 py-2 text-left">Ingredient</th>
                             <th class="px-4 py-2 text-right w-28">Qty</th>
                             <th class="px-4 py-2 text-left w-36">UOM</th>
-                            <th class="px-4 py-2 text-right w-24">Waste %</th>
+                            <th class="px-4 py-2 text-right w-32">Waste %</th>
                             <th class="px-4 py-2 text-right w-32">Line Cost</th>
                             <th class="px-4 py-2 w-10"></th>
                         </tr>
@@ -822,7 +822,7 @@
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
-                                               class="w-full text-right pr-6 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                               class="w-full text-right pr-7 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">%</span>
                                     </div>
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.waste_percentage')" class="mt-0.5" />
@@ -925,7 +925,7 @@
                                 <th class="px-4 py-2 text-left">Packaging</th>
                                 <th class="px-4 py-2 text-right w-28">Qty</th>
                                 <th class="px-4 py-2 text-left w-36">UOM</th>
-                                <th class="px-4 py-2 text-right w-24">Waste %</th>
+                                <th class="px-4 py-2 text-right w-32">Waste %</th>
                                 <th class="px-4 py-2 text-right w-32">Line Cost</th>
                                 <th class="px-4 py-2 w-10"></th>
                             </tr>
@@ -991,7 +991,7 @@
                                     <td class="px-4 py-2">
                                         <input type="number" step="0.1" min="0" max="100"
                                                wire:model.live.debounce.400ms="packagingLines.{{ $idx }}.waste_percentage"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                               class="w-full text-right pr-7 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     </td>
                                     <td class="px-4 py-2 text-right tabular-nums">
                                         @if (($packagingLineCosts[$idx] ?? null) !== null)
