@@ -691,39 +691,56 @@
             @if ($searchResults->isNotEmpty())
                 <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
                     @foreach ($searchResults as $ingredient)
-                        <button type="button"
-                                wire:click="addIngredient({{ $ingredient->id }})"
-                                class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
-                                @if ($ingredient->is_prep)
-                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
-                                @endif
-                                @if ($ingredient->code)
-                                    <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
-                                @endif
-                                @if ($ingredient->category)
-                                    <span class="text-xs text-gray-400">· {{ $ingredient->category }}</span>
-                                @endif
-                            </div>
-                            <div class="text-right flex-shrink-0 ml-4">
-                                <span class="text-xs text-indigo-600 font-medium">
-                                    {{ $ingredient->recipeUom->abbreviation }}
-                                    @if ($ingredient->secondaryRecipeUom)
-                                        <span class="text-purple-500">· {{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
+                        @if ($ingredient->is_active)
+                            <button type="button"
+                                    wire:click="addIngredient({{ $ingredient->id }})"
+                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
+                                    @if ($ingredient->is_prep)
+                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
                                     @endif
-                                </span>
-                                <span class="text-xs text-gray-400 ml-1">
-                                    @php $rc = $ingredient->recipeCost(); @endphp
-                                    @if ($rc !== null)
-                                        RM {{ number_format($rc, 4) }}/{{ $ingredient->recipeUom->abbreviation }}
-                                    @else
-                                        RM {{ number_format($ingredient->current_cost, 4) }}/{{ $ingredient->baseUom->abbreviation }}
+                                    @if ($ingredient->code)
+                                        <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
                                     @endif
-                                </span>
-                                <span class="ml-2 text-xs text-indigo-400">+ Add</span>
+                                    @if ($ingredient->category)
+                                        <span class="text-xs text-gray-400">· {{ $ingredient->category }}</span>
+                                    @endif
+                                </div>
+                                <div class="text-right flex-shrink-0 ml-4">
+                                    <span class="text-xs text-indigo-600 font-medium">
+                                        {{ $ingredient->recipeUom->abbreviation }}
+                                        @if ($ingredient->secondaryRecipeUom)
+                                            <span class="text-purple-500">· {{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
+                                        @endif
+                                    </span>
+                                    <span class="text-xs text-gray-400 ml-1">
+                                        @php $rc = $ingredient->recipeCost(); @endphp
+                                        @if ($rc !== null)
+                                            RM {{ number_format($rc, 4) }}/{{ $ingredient->recipeUom->abbreviation }}
+                                        @else
+                                            RM {{ number_format($ingredient->current_cost, 4) }}/{{ $ingredient->baseUom->abbreviation }}
+                                        @endif
+                                    </span>
+                                    <span class="ml-2 text-xs text-indigo-400">+ Add</span>
+                                </div>
+                            </button>
+                        @else
+                            <div class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 opacity-60 cursor-not-allowed text-left"
+                                 title="This ingredient is inactive. Activate it in the Ingredients list to use it here.">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-medium text-gray-500 text-sm">{{ $ingredient->name }}</span>
+                                    <span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-semibold rounded">INACTIVE</span>
+                                    @if ($ingredient->code)
+                                        <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                    @endif
+                                </div>
+                                <div class="text-right text-xs flex-shrink-0 ml-4">
+                                    <a href="{{ route('ingredients.index') }}" target="_blank"
+                                       class="text-red-400 hover:text-red-600 hover:underline pointer-events-auto">Activate →</a>
+                                </div>
                             </div>
-                        </button>
+                        @endif
                     @endforeach
                 </div>
             @elseif (strlen($ingredientSearch) >= 2)
@@ -889,25 +906,42 @@
                 @if ($packagingSearchResults->isNotEmpty())
                     <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
                         @foreach ($packagingSearchResults as $ingredient)
-                            <button type="button"
-                                    wire:click="addPackaging({{ $ingredient->id }})"
-                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
-                                    @if ($ingredient->code)
-                                        <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
-                                    @endif
+                            @if ($ingredient->is_active)
+                                <button type="button"
+                                        wire:click="addPackaging({{ $ingredient->id }})"
+                                        class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
+                                        @if ($ingredient->code)
+                                            <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-right flex-shrink-0 ml-4">
+                                        <span class="text-xs text-indigo-600 font-medium">
+                                            {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
+                                        </span>
+                                        <span class="text-xs text-gray-400 ml-1">
+                                            RM {{ number_format($ingredient->current_cost, 4) }}/{{ $ingredient->baseUom?->abbreviation }}
+                                        </span>
+                                        <span class="ml-2 text-xs text-indigo-400">+ Add</span>
+                                    </div>
+                                </button>
+                            @else
+                                <div class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 opacity-60 cursor-not-allowed text-left"
+                                     title="This item is inactive. Activate it in the Ingredients list to use it here.">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-medium text-gray-500 text-sm">{{ $ingredient->name }}</span>
+                                        <span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-semibold rounded">INACTIVE</span>
+                                        @if ($ingredient->code)
+                                            <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-right text-xs flex-shrink-0 ml-4">
+                                        <a href="{{ route('ingredients.index') }}" target="_blank"
+                                           class="text-red-400 hover:text-red-600 hover:underline pointer-events-auto">Activate →</a>
+                                    </div>
                                 </div>
-                                <div class="text-right flex-shrink-0 ml-4">
-                                    <span class="text-xs text-indigo-600 font-medium">
-                                        {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
-                                    </span>
-                                    <span class="text-xs text-gray-400 ml-1">
-                                        RM {{ number_format($ingredient->current_cost, 4) }}/{{ $ingredient->baseUom?->abbreviation }}
-                                    </span>
-                                    <span class="ml-2 text-xs text-indigo-400">+ Add</span>
-                                </div>
-                            </button>
+                            @endif
                         @endforeach
                     </div>
                 @elseif (strlen($packagingSearch) >= 2)

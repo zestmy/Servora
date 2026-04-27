@@ -119,16 +119,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Deploy Webhook Secret
-    |--------------------------------------------------------------------------
-    | HMAC secret used to authenticate signed requests to /internal/deploy-hook.
-    | Generate with: php -r "echo bin2hex(random_bytes(32));"
-    | Keep this secret — never commit the actual value to source control.
-    */
-    'deploy_webhook_secret' => env('DEPLOY_WEBHOOK_SECRET', ''),
-
-    /*
-    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

@@ -225,6 +225,11 @@ class Form extends Component
         $ingredient = Ingredient::find($ingredientId);
         if (! $ingredient) return;
 
+        if (! $ingredient->is_active) {
+            $this->addError('lines', "'{$ingredient->name}' is inactive. Activate it in the Ingredients list first.");
+            return;
+        }
+
         // Skip duplicate
         foreach ($this->lines as $line) {
             if ((int) $line['ingredient_id'] === $ingredientId) {
@@ -274,6 +279,11 @@ class Form extends Component
     {
         $ingredient = Ingredient::find($ingredientId);
         if (! $ingredient) return;
+
+        if (! $ingredient->is_active) {
+            $this->addError('packagingLines', "'{$ingredient->name}' is inactive. Activate it in the Ingredients list first.");
+            return;
+        }
 
         foreach ($this->packagingLines as $line) {
             if ((int) $line['ingredient_id'] === $ingredientId) {
@@ -618,9 +628,10 @@ class Form extends Component
                     $q->where('name', 'like', '%' . $this->ingredientSearch . '%')
                       ->orWhere('code', 'like', '%' . $this->ingredientSearch . '%');
                 })
-                ->where('is_active', true)
+                ->when($existingIds, fn ($q) => $q->whereNotIn('id', $existingIds))
+                ->orderByDesc('is_active')
                 ->orderBy('name')
-                ->limit(8)
+                ->limit(10)
                 ->get();
         }
 
@@ -633,10 +644,10 @@ class Form extends Component
                     $q->where('name', 'like', '%' . $this->packagingSearch . '%')
                       ->orWhere('code', 'like', '%' . $this->packagingSearch . '%');
                 })
-                ->where('is_active', true)
                 ->when($packExistingIds, fn ($q) => $q->whereNotIn('id', $packExistingIds))
+                ->orderByDesc('is_active')
                 ->orderBy('name')
-                ->limit(8)
+                ->limit(10)
                 ->get();
         }
 

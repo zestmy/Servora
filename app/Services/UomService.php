@@ -52,40 +52,6 @@ class UomService
             return (float) $ingredient->current_cost * (float) $reverseConversion->factor;
         }
 
-        // Chain through recipe UOM for secondary recipe UOM resolution.
-        // The secondary conversion is stored as: target → recipe, factor = N
-        // meaning "1 [secondary/target] = N [recipe_uom]".
-        // e.g. Recipe=G, Secondary=bsp, factor=27 → stored as bsp→G, factor=27.
-        //   1. cost per G   = convertCost(ingredient, G)    [direct or standard-factor]
-        //   2. conversion bsp→G factor=27  →  1 bsp = 27 G
-        //   3. cost per bsp = cost per G × 27
-        // This chain fires when base ≠ recipe (e.g. base=KG, recipe=G) so the direct
-        // lookups above (base↔target) don't find the bsp row.
-        if ($ingredient->recipe_uom_id && (int) $ingredient->recipe_uom_id !== $baseId) {
-            $recipeId = (int) $ingredient->recipe_uom_id;
-
-            // Look for target → recipe conversion (1 target = N recipe)
-            if ($ingredient->relationLoaded('uomConversions')) {
-                $targetToRecipe = $ingredient->uomConversions->first(
-                    fn ($c) => (int) $c->from_uom_id === $targetId && (int) $c->to_uom_id === $recipeId
-                );
-            } else {
-                $targetToRecipe = IngredientUomConversion::where('ingredient_id', $ingredient->id)
-                    ->where('from_uom_id', $targetId)
-                    ->where('to_uom_id', $recipeId)
-                    ->first();
-            }
-
-            if ($targetToRecipe && (float) $targetToRecipe->factor > 0) {
-                $recipeUom = $targetUom->newQuery()->find($recipeId);
-                if ($recipeUom) {
-                    $costPerRecipe = $this->convertCost($ingredient, $recipeUom);
-                    // 1 target = factor recipe-units, so cost per target = cost per recipe × factor
-                    return $costPerRecipe * (float) $targetToRecipe->factor;
-                }
-            }
-        }
-
         // Fall back to standard UOM base_unit_factor ratio.
         // base_unit_factor = "how many base-SI units in 1 of this UOM" (e.g. g=0.001, kg=1.0)
         // cost per target = cost per base × (base_factor / target_factor) is WRONG for cost.

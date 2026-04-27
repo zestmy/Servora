@@ -38,8 +38,6 @@ class Index extends Component
     public ?int   $ingredient_category_id = null;
     public ?int   $base_uom_id = null;
     public ?int   $recipe_uom_id = null;
-    public ?int   $secondary_recipe_uom_id = null;
-    public string $secondary_uom_factor = '';   // virtual — auto-syncs to IngredientUomConversion
     public string $purchase_price = '0';
     public string $pack_size = '1';
     public string $yield_percent = '100';
@@ -87,8 +85,6 @@ class Index extends Component
             'ingredient_category_id'        => 'nullable|exists:ingredient_categories,id',
             'base_uom_id'                   => 'required|exists:units_of_measure,id',
             'recipe_uom_id'                 => 'required|exists:units_of_measure,id',
-            'secondary_recipe_uom_id'       => 'nullable|exists:units_of_measure,id|different:recipe_uom_id',
-            'secondary_uom_factor'          => 'nullable|numeric|min:0.000001',
             'purchase_price'                => 'required|numeric|min:0',
             'pack_size'                     => 'required|numeric|min:0.0001',
             'yield_percent'                 => 'required|numeric|min:0.01|max:100',
@@ -108,10 +104,8 @@ class Index extends Component
     protected function messages(): array
     {
         return [
-            'base_uom_id.required'                       => 'Base UOM is required.',
-            'recipe_uom_id.required'                     => 'Recipe UOM is required.',
-            'secondary_recipe_uom_id.different'          => 'Secondary recipe UOM must be different from the primary recipe UOM.',
-            'secondary_uom_factor.min'                   => 'Conversion factor must be greater than zero.',
+            'base_uom_id.required'               => 'Base UOM is required.',
+            'recipe_uom_id.required'             => 'Recipe UOM is required.',
             'yield_percent.min'                  => 'Yield must be greater than 0%.',
             'yield_percent.max'                  => 'Yield cannot exceed 100%.',
             'conversions.*.from_uom_id.required' => 'From UOM is required.',
@@ -165,7 +159,6 @@ class Index extends Component
         $this->ingredient_category_id   = $ingredient->ingredient_category_id;
         $this->base_uom_id              = $ingredient->base_uom_id;
         $this->recipe_uom_id            = $ingredient->recipe_uom_id;
-        $this->secondary_recipe_uom_id  = $ingredient->secondary_recipe_uom_id;
         $this->purchase_price           = (string) $ingredient->purchase_price;
         $this->pack_size                = (string) ($ingredient->pack_size ?: '1');
         $this->yield_percent            = (string) $ingredient->yield_percent;
@@ -181,21 +174,6 @@ class Index extends Component
                 'factor'      => (string) $c->factor,
             ])
             ->toArray();
-
-        // Pre-fill the secondary UOM factor from the stored conversion (secondary → recipe).
-        // Factor expresses: 1 [secondary_recipe_uom] = N [recipe_uom].
-        // e.g. Recipe UOM = G, Secondary = bsp → user entered 27 → stored as bsp→G factor=27.
-        $this->secondary_uom_factor = '';
-        if ($ingredient->secondary_recipe_uom_id) {
-            $recipeId    = (int) $ingredient->recipe_uom_id;
-            $secondaryId = (int) $ingredient->secondary_recipe_uom_id;
-            $existing = $ingredient->uomConversions->first(
-                fn ($c) => (int) $c->from_uom_id === $secondaryId && (int) $c->to_uom_id === $recipeId
-            );
-            if ($existing) {
-                $this->secondary_uom_factor = (string) floatval($existing->factor);
-            }
-        }
 
         // Split suppliers: preferred/first = default, rest = additional
         $allSuppliers = $ingredient->suppliers->sortByDesc(fn ($s) => $s->pivot->is_preferred);
@@ -255,9 +233,8 @@ class Index extends Component
             'name'                   => strtoupper($this->name),
             'code'                   => $this->code ?: null,
             'ingredient_category_id' => $this->ingredient_category_id,
-            'base_uom_id'               => $this->base_uom_id,
-            'recipe_uom_id'             => $this->recipe_uom_id,
-            'secondary_recipe_uom_id'   => $this->secondary_recipe_uom_id ?: null,
+            'base_uom_id'            => $this->base_uom_id,
+            'recipe_uom_id'          => $this->recipe_uom_id,
             'purchase_price'         => $purchasePrice,
             'pack_size'              => $packSize,
             'yield_percent'          => $yieldPercent,
@@ -572,7 +549,7 @@ class Index extends Component
 
     public function render()
     {
-        $query = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom', 'uomConversions', 'suppliers', 'ingredientCategory.parent', 'taxRate']);
+        $query = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'suppliers', 'ingredientCategory.parent', 'taxRate']);
 
         if ($this->search) {
             $query->where(function ($q) {
@@ -858,11 +835,9 @@ class Index extends Component
         $this->name                   = '';
         $this->code                   = '';
         $this->ingredient_category_id = null;
-        $this->base_uom_id               = null;
-        $this->recipe_uom_id             = null;
-        $this->secondary_recipe_uom_id   = null;
-        $this->secondary_uom_factor      = '';
-        $this->purchase_price            = '0';
+        $this->base_uom_id            = null;
+        $this->recipe_uom_id          = null;
+        $this->purchase_price         = '0';
         $this->pack_size              = '1';
         $this->yield_percent          = '100';
         $this->is_active              = true;
@@ -952,37 +927,6 @@ class Index extends Component
                 'to_uom_id'   => $row['to_uom_id'],
                 'factor'      => $row['factor'],
             ]);
-        }
-
-        // Auto-create/update the secondary → recipe conversion when a factor is provided.
-        // Factor meaning: 1 [secondary_recipe_uom] = N [recipe_uom].
-        // e.g. Recipe=G, Secondary=bsp, factor=27 → stored as bsp→G, factor=27.
-        // UomService resolves cost per bsp = cost per G × 27 (via chain: base→recipe→secondary).
-        if ($this->secondary_recipe_uom_id
-            && $this->secondary_uom_factor !== ''
-            && floatval($this->secondary_uom_factor) > 0
-            && $this->recipe_uom_id
-            && (int) $this->secondary_recipe_uom_id !== (int) $this->recipe_uom_id
-        ) {
-            // Remove any stale secondary → recipe conversion before upserting
-            $ingredient->uomConversions()
-                ->where('from_uom_id', $this->secondary_recipe_uom_id)
-                ->where('to_uom_id', $this->recipe_uom_id)
-                ->delete();
-
-            // Only add if not already covered by a manual conversion row with the same pair
-            $alreadyCovered = collect($this->conversions)->contains(function ($row) {
-                return (int) $row['from_uom_id'] === (int) $this->secondary_recipe_uom_id
-                    && (int) $row['to_uom_id'] === (int) $this->recipe_uom_id;
-            });
-
-            if (! $alreadyCovered) {
-                $ingredient->uomConversions()->create([
-                    'from_uom_id' => $this->secondary_recipe_uom_id,
-                    'to_uom_id'   => $this->recipe_uom_id,
-                    'factor'      => floatval($this->secondary_uom_factor),
-                ]);
-            }
         }
     }
 }

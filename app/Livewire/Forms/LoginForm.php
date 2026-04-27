@@ -19,7 +19,7 @@ class LoginForm extends Form
     public string $password = '';
 
     #[Validate('boolean')]
-    public bool $remember = true;   // Persistent login — stay signed in until explicit logout
+    public bool $remember = false;
 
     /**
      * Attempt to authenticate the request's credentials.

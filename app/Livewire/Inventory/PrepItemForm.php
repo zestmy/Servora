@@ -207,6 +207,11 @@ class PrepItemForm extends Component
 
         $ingredient = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom'])->findOrFail($ingredientId);
 
+        if (! $ingredient->is_active) {
+            $this->addError('lines', "'{$ingredient->name}' is inactive. Activate it in the Ingredients list first.");
+            return;
+        }
+
         $this->lines[] = [
             'ingredient_id'           => $ingredient->id,
             'ingredient_name'         => $ingredient->name,
@@ -429,14 +434,14 @@ class PrepItemForm extends Component
                 $existingIds[] = $this->ingredientId;
             }
             $searchResults = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom', 'uomConversions'])
-                ->where('is_active', true)
                 ->where(function ($q) {
                     $q->where('name', 'like', '%' . $this->ingredientSearch . '%')
                       ->orWhere('code', 'like', '%' . $this->ingredientSearch . '%');
                 })
                 ->when($existingIds, fn ($q) => $q->whereNotIn('id', $existingIds))
+                ->orderByDesc('is_active')
                 ->orderBy('name')
-                ->limit(8)
+                ->limit(10)
                 ->get();
         }
 

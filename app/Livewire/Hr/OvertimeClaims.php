@@ -19,8 +19,7 @@ class OvertimeClaims extends Component
     public string $dateFrom         = '';
     public string $dateTo           = '';
     public string $employeeFilter   = '';
-    public string $sectionFilter    = '';
-    public string $outletFilter     = '';
+    public string $sectionFilter = '';
     public string $sortField        = 'claim_date';
     public string $sortDirection    = 'desc';
     public int    $perPage          = 25;
@@ -61,11 +60,6 @@ class OvertimeClaims extends Component
     public string $pdfTo         = '';
     public string $pdfEmployeeId = '';
 
-    // Summary PDF modal
-    public bool   $showSummaryModal = false;
-    public string $summaryMonth     = '';
-    public string $summaryYear      = '';
-
     protected function rules(): array
     {
         return [
@@ -92,11 +86,10 @@ class OvertimeClaims extends Component
     public function updatedOtTimeStart(): void { $this->calcHours(); }
     public function updatedOtTimeEnd(): void   { $this->calcHours(); }
 
-    public function updatedStatusFilter(): void   { $this->resetPage(); $this->selected = []; }
-    public function updatedDateFrom(): void       { $this->resetPage(); $this->selected = []; }
-    public function updatedDateTo(): void         { $this->resetPage(); $this->selected = []; }
+    public function updatedStatusFilter(): void  { $this->resetPage(); $this->selected = []; }
+    public function updatedDateFrom(): void      { $this->resetPage(); $this->selected = []; }
+    public function updatedDateTo(): void        { $this->resetPage(); $this->selected = []; }
     public function updatedEmployeeFilter(): void { $this->resetPage(); $this->selected = []; }
-    public function updatedOutletFilter(): void   { $this->resetPage(); $this->selected = []; $this->employeeFilter = ''; }
 
     public function sortBy(string $field): void
     {
@@ -303,35 +296,20 @@ class OvertimeClaims extends Component
 
     public function render()
     {
-        $user = Auth::user();
+        $user     = Auth::user();
+        $outletId = $user->activeOutletId();
 
-        // Outlets this user can see. Cross-outlet roles (HR Manager, Business Manager)
-        // get all company outlets; everyone else gets only their assigned outlets.
-        $availableOutletIds = $user->canViewAllOutlets()
-            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
-
-        // For approver checks: wildcard approvers have outlet_id = null in the matrix.
-        // Pass null when cross-outlet so the null-match branch fires.
-        $approverOutletScope = $user->canViewAllOutlets() ? null : ($availableOutletIds[0] ?? null);
-
-        $isApprover = $user->isSystemRole()
-            || OvertimeClaimApprover::isApproverAtOutlet($user->id, $approverOutletScope);
+        // Outlet-level flag: does this user have ANY approver grant at this
+        // outlet (regardless of section)? Drives UI gating (bulk bar, column
+        // visibility). Per-claim section matching happens below.
+        $isApprover = OvertimeClaimApprover::isApproverAtOutlet($user->id, $outletId)
+            || $user->isSystemRole();
         $approverScopes = $user->isSystemRole()
             ? null  // sentinel: everything allowed
-            : OvertimeClaimApprover::scopesForOutlet($user->id, $approverOutletScope);
-
-        // Outlet list for filter dropdown (only shown when user has multiple outlets)
-        $outlets = \App\Models\Outlet::whereIn('id', $availableOutletIds)->orderBy('name')->get();
-        $multiOutlet = count($availableOutletIds) > 1;
-
-        // Narrow scope when outlet filter is active
-        $scopedOutletIds = ($this->outletFilter && in_array((int) $this->outletFilter, $availableOutletIds))
-            ? [(int) $this->outletFilter]
-            : $availableOutletIds;
+            : OvertimeClaimApprover::scopesForOutlet($user->id, $outletId);
 
         $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet'])
-            ->whereIn('outlet_id', $scopedOutletIds ?: [0]);
+            ->where('outlet_id', $outletId);
 
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
@@ -379,9 +357,9 @@ class OvertimeClaims extends Component
             }
         }
 
-        // Employee list for dropdown — scoped to selected outlet if filtered
+        // Employee list for dropdown (active only) and management modal (all)
         $allEmployees = Employee::with('section')
-            ->whereIn('outlet_id', $scopedOutletIds ?: [0])
+            ->where('outlet_id', $outletId)
             ->orderBy('name')
             ->get();
         $employees = $allEmployees->where('is_active', true);
@@ -394,85 +372,15 @@ class OvertimeClaims extends Component
         // Stats
         $monthStart = now()->startOfMonth()->toDateString();
         $monthEnd   = now()->endOfMonth()->toDateString();
-        $monthStats = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
+        $monthStats = OvertimeClaim::where('outlet_id', $outletId)
             ->whereBetween('claim_date', [$monthStart, $monthEnd]);
 
         $totalHoursMonth   = (clone $monthStats)->where('status', 'approved')->sum('total_ot_hours');
         $pendingCount      = (clone $monthStats)->where('status', 'submitted')->count();
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
-        // ── OT Trend — last 12 weeks (approved claims only) ──────────────────
-        $trendWeeks = [];
-        $thisWeekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY);
-        for ($i = 11; $i >= 0; $i--) {
-            $ws = $thisWeekStart->copy()->subWeeks($i);
-            $we = $ws->copy()->endOfWeek(\Carbon\Carbon::SUNDAY);
-            $trendWeeks[] = [$ws->toDateString(), $we->toDateString()];
-        }
-
-        // Single query for the whole 12-week window, grouped by week start + type
-        $trendFrom = $trendWeeks[0][0];
-        $trendTo   = $trendWeeks[11][1];
-
-        $rawTrend = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
-            ->where('status', 'approved')
-            ->whereBetween('claim_date', [$trendFrom, $trendTo])
-            ->selectRaw("DATE(DATE_SUB(claim_date, INTERVAL (WEEKDAY(claim_date)) DAY)) as week_start,
-                         ot_type,
-                         SUM(total_ot_hours) as hours")
-            ->groupByRaw("week_start, ot_type")
-            ->get()
-            ->groupBy('week_start');
-
-        $trendLabels     = [];
-        $trendNormalDay  = [];
-        $trendPublicHol  = [];
-        $trendRestDay    = [];
-
-        foreach ($trendWeeks as [$ws, $we]) {
-            $trendLabels[]    = \Carbon\Carbon::parse($ws)->format('d M');
-            $rows             = $rawTrend->get($ws, collect())->keyBy('ot_type');
-            $trendNormalDay[] = round((float) ($rows['normal_day']?->hours ?? 0), 2);
-            $trendPublicHol[] = round((float) ($rows['public_holiday']?->hours ?? 0), 2);
-            $trendRestDay[]   = round((float) ($rows['rest_day']?->hours ?? 0), 2);
-        }
-
-        // Week-on-week stats
-        $thisWeekHours = $trendNormalDay[11] + $trendPublicHol[11] + $trendRestDay[11];
-        $lastWeekHours = $trendNormalDay[10] + $trendPublicHol[10] + $trendRestDay[10];
-        $wowChange     = $lastWeekHours > 0 ? round(($thisWeekHours - $lastWeekHours) / $lastWeekHours * 100, 1) : null;
-
-        $weekTotals = array_map(fn ($i) => $trendNormalDay[$i] + $trendPublicHol[$i] + $trendRestDay[$i], range(0, 11));
-        $peakWeekHours = max($weekTotals) ?: 0;
-        $peakWeekLabel = $peakWeekHours > 0 ? $trendLabels[array_search($peakWeekHours, $weekTotals)] : null;
-        $avgWeekHours  = count(array_filter($weekTotals)) > 0
-            ? round(array_sum($weekTotals) / max(1, count(array_filter($weekTotals))), 1)
-            : 0;
-
-        // Top 5 employees by OT hours this month
-        $topEmployees = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
-            ->where('status', 'approved')
-            ->whereBetween('claim_date', [$monthStart, $monthEnd])
-            ->selectRaw('employee_id, SUM(total_ot_hours) as hours')
-            ->groupBy('employee_id')
-            ->orderByDesc('hours')
-            ->limit(5)
-            ->with('employee:id,name')
-            ->get();
-
-        $trendChartData = [
-            'labels'  => $trendLabels,
-            'normal'  => $trendNormalDay,
-            'holiday' => $trendPublicHol,
-            'rest'    => $trendRestDay,
-        ];
-
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
-            'isApprover', 'canApproveMap', 'canDeleteAny',
-            'totalHoursMonth', 'pendingCount', 'approvedCount',
-            'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
-            'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
+            'claims', 'employees', 'allEmployees', 'sections', 'isApprover', 'canApproveMap', 'canDeleteAny', 'totalHoursMonth', 'pendingCount', 'approvedCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 
@@ -484,13 +392,6 @@ class OvertimeClaims extends Component
         $this->pdfTo         = $this->dateTo ?: now()->endOfMonth()->toDateString();
         $this->pdfEmployeeId = '';
         $this->showPdfModal  = true;
-    }
-
-    public function openSummaryModal(): void
-    {
-        $this->summaryMonth     = now()->format('m');
-        $this->summaryYear      = now()->format('Y');
-        $this->showSummaryModal = true;
     }
 
     public function getPdfUrl(): string
