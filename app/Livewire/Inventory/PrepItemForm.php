@@ -6,6 +6,7 @@ use App\Models\CentralKitchen;
 use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
+use App\Models\IngredientUomConversion;
 use App\Models\Outlet;
 use App\Models\OutletGroup;
 use App\Models\Recipe;
@@ -44,6 +45,10 @@ class PrepItemForm extends Component
     public array  $lines            = [];
     public string $ingredientSearch = '';
 
+    // Secondary recipe UOM (optional alternative unit for use in recipes)
+    public ?int   $secondary_recipe_uom_id = null;
+    public string $secondary_uom_factor    = ''; // virtual — synced to IngredientUomConversion
+
     // Training / SOP
     public string $video_url = '';
     public array  $steps     = [];
@@ -62,21 +67,25 @@ class PrepItemForm extends Component
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
             'lines.*.uom_id'           => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage' => 'required|numeric|min:0|max:100',
-            'video_url'                => 'nullable|url|max:500',
-            'steps.*.title'            => 'nullable|string|max:255',
-            'steps.*.instruction'      => 'required|string',
-            'steps.*.new_image'        => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
+            'video_url'                    => 'nullable|url|max:500',
+            'steps.*.title'                => 'nullable|string|max:255',
+            'steps.*.instruction'          => 'required|string',
+            'steps.*.new_image'            => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
+            'secondary_recipe_uom_id'      => 'nullable|exists:units_of_measure,id|different:yield_uom_id',
+            'secondary_uom_factor'         => 'nullable|numeric|min:0.000001',
         ];
     }
 
     protected function messages(): array
     {
         return [
-            'yield_uom_id.required'           => 'Yield UOM is required.',
-            'lines.required'                  => 'Add at least one ingredient.',
-            'lines.min'                       => 'Add at least one ingredient.',
-            'lines.*.quantity.min'            => 'Quantity must be greater than zero.',
-            'lines.*.waste_percentage.max'    => 'Waste cannot exceed 100%.',
+            'yield_uom_id.required'                     => 'Yield UOM is required.',
+            'lines.required'                            => 'Add at least one ingredient.',
+            'lines.min'                                 => 'Add at least one ingredient.',
+            'lines.*.quantity.min'                      => 'Quantity must be greater than zero.',
+            'lines.*.waste_percentage.max'              => 'Waste cannot exceed 100%.',
+            'secondary_recipe_uom_id.different'         => 'Secondary UOM must be different from the yield UOM.',
+            'secondary_uom_factor.min'                  => 'Conversion factor must be greater than zero.',
         ];
     }
 
@@ -120,6 +129,24 @@ class PrepItemForm extends Component
             'recipe_uom_id'           => $l->ingredient?->recipe_uom_id,
             'secondary_recipe_uom_id' => $l->ingredient?->secondary_recipe_uom_id,
         ])->toArray();
+
+        // Secondary recipe UOM — loaded from the linked ingredient's conversions
+        $ingredient = $recipe->ingredient;
+        if ($ingredient) {
+            $this->secondary_recipe_uom_id = $ingredient->secondary_recipe_uom_id;
+            $this->secondary_uom_factor    = '';
+            if ($ingredient->secondary_recipe_uom_id && $ingredient->recipe_uom_id) {
+                $secondaryId = (int) $ingredient->secondary_recipe_uom_id;
+                $recipeId    = (int) $ingredient->recipe_uom_id;
+                $conversion  = IngredientUomConversion::where('ingredient_id', $ingredient->id)
+                    ->where('from_uom_id', $secondaryId)
+                    ->where('to_uom_id', $recipeId)
+                    ->first();
+                if ($conversion) {
+                    $this->secondary_uom_factor = (string) floatval($conversion->factor);
+                }
+            }
+        }
 
         // Training / SOP
         $this->video_url = $recipe->video_url ?? '';
@@ -355,25 +382,49 @@ class PrepItemForm extends Component
 
             // Sync the corresponding Ingredient record (prep item)
             $ingredientData = [
-                'name'                   => $this->name,
-                'code'                   => $this->code ?: null,
-                'base_uom_id'            => $this->yield_uom_id,   // base UOM = yield UOM
-                'recipe_uom_id'          => $this->yield_uom_id,
-                'current_cost'           => round($costPerYieldUnit, 4),
-                'purchase_price'         => 0,
-                'yield_percent'          => 100,
-                'is_active'              => $this->is_active,
-                'is_prep'                => true,
-                'prep_recipe_id'         => $recipe->id,
-                'ingredient_category_id' => $this->ingredient_category_id,
+                'name'                    => $this->name,
+                'code'                    => $this->code ?: null,
+                'base_uom_id'             => $this->yield_uom_id,   // base UOM = yield UOM
+                'recipe_uom_id'           => $this->yield_uom_id,
+                'secondary_recipe_uom_id' => $this->secondary_recipe_uom_id ?: null,
+                'current_cost'            => round($costPerYieldUnit, 4),
+                'purchase_price'          => 0,
+                'yield_percent'           => 100,
+                'is_active'               => $this->is_active,
+                'is_prep'                 => true,
+                'prep_recipe_id'          => $recipe->id,
+                'ingredient_category_id'  => $this->ingredient_category_id,
             ];
 
             if ($this->ingredientId) {
-                Ingredient::findOrFail($this->ingredientId)->update($ingredientData);
+                $ingredient = Ingredient::findOrFail($this->ingredientId);
+                $ingredient->update($ingredientData);
             } else {
                 $ingredientData['company_id'] = Auth::user()->company_id;
                 $ingredient = Ingredient::create($ingredientData);
                 $this->ingredientId = $ingredient->id;
+            }
+
+            // Sync secondary → yield UOM conversion.
+            // Factor meaning: 1 [secondary] = N [yield/recipe UOM].
+            // Delete any existing secondary→yield conversion first (stale or changed), then re-create.
+            if ($this->yield_uom_id) {
+                $ingredient->uomConversions()
+                    ->where('to_uom_id', $this->yield_uom_id)
+                    ->delete();
+            }
+
+            if ($this->secondary_recipe_uom_id
+                && $this->secondary_uom_factor !== ''
+                && floatval($this->secondary_uom_factor) > 0
+                && $this->yield_uom_id
+                && (int) $this->secondary_recipe_uom_id !== (int) $this->yield_uom_id
+            ) {
+                $ingredient->uomConversions()->create([
+                    'from_uom_id' => $this->secondary_recipe_uom_id,
+                    'to_uom_id'   => $this->yield_uom_id,
+                    'factor'      => floatval($this->secondary_uom_factor),
+                ]);
             }
         });
 
