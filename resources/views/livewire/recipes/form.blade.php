@@ -8,25 +8,21 @@
     <div x-data="{
             showFloat: false,
             expanded: true,
+            init() {
+                this.checkScroll();
+                window.addEventListener('scroll', () => this.checkScroll(), { passive: true });
+            },
             checkScroll() {
                 const trigger = document.getElementById('cost-summary-anchor');
                 if (trigger) {
                     const rect = trigger.getBoundingClientRect();
-                    this.showFloat = rect.bottom < 0;
+                    this.showFloat = rect.bottom < 100;
                 }
             }
          }"
-         x-init="window.addEventListener('scroll', () => checkScroll(), { passive: true })"
-         x-show="showFloat"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 translate-x-4"
-         x-transition:enter-end="opacity-100 translate-x-0"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100 translate-x-0"
-         x-transition:leave-end="opacity-0 translate-x-4"
-         x-cloak
-         class="hidden lg:block fixed bottom-6 right-6 z-50">
-        <div class="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden" style="min-width: 280px; max-width: 320px;">
+         class="hidden lg:block fixed bottom-6 right-6 z-50 transition-all duration-300"
+         :class="showFloat ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'">
+        <div class="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden" style="width: 300px;">
             {{-- Header (always visible) --}}
             <button type="button" @click="expanded = !expanded"
                     class="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 transition">
@@ -38,15 +34,22 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-sm font-bold tabular-nums">{{ number_format($grandCost, 2) }}</span>
-                    <svg :class="expanded && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg :class="expanded && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
                 </div>
             </button>
 
             {{-- Expandable content --}}
-            <div x-show="expanded" x-collapse>
-                <div class="px-4 py-3 space-y-2 text-sm">
+            <div x-show="expanded"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 max-h-0"
+                 x-transition:enter-end="opacity-100 max-h-96"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 max-h-96"
+                 x-transition:leave-end="opacity-0 max-h-0"
+                 class="overflow-hidden">
+                <div class="px-4 py-3 space-y-2 text-sm bg-white">
                     <div class="flex justify-between">
                         <span class="text-gray-500">Ingredients</span>
                         <span class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</span>
