@@ -4,116 +4,6 @@
     @endonce
     <x-desktop-hint storageKey="desktop-hint-recipe-form" message="Editing recipes and ingredient lines is easier on a desktop. Mobile works, but a wider screen helps." />
 
-    {{-- Floating Cost Summary (appears when scrolling past original) --}}
-    <div wire:ignore
-         x-data="{ showFloat: false, expanded: true }"
-         x-init="
-            const check = () => {
-                const el = document.getElementById('cost-summary-anchor');
-                if (el) showFloat = el.getBoundingClientRect().bottom < 0;
-            };
-            check();
-            window.addEventListener('scroll', check, { passive: true });
-         "
-         x-show="showFloat"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 translate-y-8"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 translate-y-0"
-         x-transition:leave-end="opacity-0 translate-y-8"
-         style="display: none;"
-         class="hidden lg:!block fixed bottom-6 right-6 z-50">
-        <div class="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden" style="width: 300px;">
-            {{-- Header (always visible) --}}
-            <button type="button" @click="expanded = !expanded"
-                    class="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 transition">
-                <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span class="text-sm font-semibold">Cost Summary</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold tabular-nums">{{ number_format($grandCost, 2) }}</span>
-                    <svg :class="expanded && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </div>
-            </button>
-
-            {{-- Expandable content --}}
-            <div x-show="expanded"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 max-h-0"
-                 x-transition:enter-end="opacity-100 max-h-96"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="opacity-100 max-h-96"
-                 x-transition:leave-end="opacity-0 max-h-0"
-                 class="overflow-hidden">
-                <div class="px-4 py-3 space-y-2 text-sm bg-white">
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Ingredients</span>
-                        <span class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</span>
-                    </div>
-                    @if ($packagingCost > 0)
-                        <div class="flex justify-between">
-                            <span class="text-gray-500">Packaging</span>
-                            <span class="text-gray-700 tabular-nums">{{ number_format($packagingCost, 2) }}</span>
-                        </div>
-                    @endif
-                    @if ($extraCostTotal > 0)
-                        <div class="flex justify-between">
-                            <span class="text-gray-500">Extra Costs</span>
-                            <span class="text-gray-700 tabular-nums">{{ number_format($extraCostTotal, 2) }}</span>
-                        </div>
-                    @endif
-                    <div class="flex justify-between pt-2 border-t border-gray-100">
-                        <span class="text-gray-600 font-medium">Grand Total</span>
-                        <span class="font-bold text-gray-900 tabular-nums">{{ number_format($grandCost, 2) }}</span>
-                    </div>
-                    @php $floatYieldUom = collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving'; @endphp
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Cost / {{ $floatYieldUom }}</span>
-                        <span class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</span>
-                    </div>
-                    @if ($priceClasses->isNotEmpty())
-                        @php
-                            $defaultPc = $priceClasses->firstWhere('is_default', true) ?? $priceClasses->first();
-                            $defaultCd = $classCostData[$defaultPc->id] ?? [];
-                            $defaultFcp = $defaultCd['food_cost_pct'] ?? null;
-                            $defaultFcColor = match(true) {
-                                $defaultFcp === null => 'text-gray-400',
-                                $defaultFcp <= 25    => 'text-green-600',
-                                $defaultFcp <= 35    => 'text-yellow-600',
-                                $defaultFcp <= 45    => 'text-orange-500',
-                                default              => 'text-red-600',
-                            };
-                        @endphp
-                        @if (($defaultCd['selling_price'] ?? 0) > 0)
-                            <div class="flex justify-between pt-2 border-t border-gray-100">
-                                <span class="text-gray-600 font-medium">Food Cost %</span>
-                                <span class="font-bold {{ $defaultFcColor }} tabular-nums">{{ number_format($defaultFcp, 1) }}%</span>
-                            </div>
-                        @endif
-                    @elseif (floatval($selling_price) > 0 && $foodCostPct !== null)
-                        @php
-                            $floatFcColor = match(true) {
-                                $foodCostPct <= 25 => 'text-green-600',
-                                $foodCostPct <= 35 => 'text-yellow-600',
-                                $foodCostPct <= 45 => 'text-orange-500',
-                                default            => 'text-red-600',
-                            };
-                        @endphp
-                        <div class="flex justify-between pt-2 border-t border-gray-100">
-                            <span class="text-gray-600 font-medium">Food Cost %</span>
-                            <span class="font-bold {{ $floatFcColor }} tabular-nums">{{ number_format($foodCostPct, 1) }}%</span>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -149,10 +39,13 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    {{-- Main two-column layout: Left = all content, Right = sticky Cost Summary --}}
+    <div class="lg:flex lg:gap-6">
 
-        {{-- ── Details card (2/3) ── --}}
-        <div class="lg:col-span-2">
+        {{-- Left column: All form content --}}
+        <div class="flex-1 min-w-0 space-y-4">
+
+            {{-- ── Details card ── --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Recipe Details</h3>
 
@@ -354,183 +247,8 @@
                     </div>
                 @endif
             </div>
-        </div>
 
-        {{-- ── Cost Summary card (1/3, sticky) ── --}}
-        <div class="lg:col-span-1" id="cost-summary-anchor">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
-                <h3 class="text-sm font-semibold text-gray-700 mb-4">Cost Summary</h3>
-
-                <dl class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Ingredient Cost</dt>
-                        <dd class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</dd>
-                    </div>
-
-                    @if ($packagingCost > 0)
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Packaging Cost</dt>
-                            <dd class="text-gray-700 tabular-nums">{{ number_format($packagingCost, 2) }}</dd>
-                        </div>
-                    @endif
-
-                    @if ($extraCostTotal > 0)
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Extra Costs</dt>
-                            <dd class="text-gray-700 tabular-nums">{{ number_format($extraCostTotal, 2) }}</dd>
-                        </div>
-                    @endif
-
-                    <div class="flex justify-between border-t border-gray-100 pt-2">
-                        <dt class="text-gray-500 font-medium">Cost (excl. tax)</dt>
-                        <dd class="font-semibold text-gray-800 tabular-nums">
-                            {{ number_format($grandCost, 2) }}
-                        </dd>
-                    </div>
-
-                    @if ($totalTaxWithPackaging > 0)
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Tax</dt>
-                            <dd class="text-gray-700 tabular-nums">{{ number_format($totalTaxWithPackaging, 2) }}</dd>
-                        </div>
-
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500 font-medium">Cost (incl. tax)</dt>
-                            <dd class="font-semibold text-indigo-700 tabular-nums">
-                                {{ number_format($grandCostWithTax, 2) }}
-                            </dd>
-                        </div>
-                    @endif
-
-                    @php $yieldUomAbbr = collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving'; @endphp
-                    <div class="flex justify-between border-t border-gray-100 pt-2">
-                        <dt class="text-gray-500">
-                            Cost / {{ $yieldUomAbbr }}
-                        </dt>
-                        <dd class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</dd>
-                    </div>
-                    @if ($totalTaxWithPackaging > 0)
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">
-                                Cost / {{ $yieldUomAbbr }} <span class="text-xs text-gray-400">(w/ tax)</span>
-                            </dt>
-                            <dd class="text-indigo-700 tabular-nums">{{ number_format($costPerServingWithTax, 4) }}</dd>
-                        </div>
-                    @endif
-
-                    @if ($priceClasses->isNotEmpty())
-                        {{-- Multi-class pricing breakdown --}}
-                        <div class="border-t border-gray-100 pt-3 space-y-2">
-                            <dt class="text-gray-600 font-medium text-xs uppercase tracking-wider">Pricing by Class</dt>
-                            @foreach ($priceClasses as $pc)
-                                @php
-                                    $cd = $classCostData[$pc->id] ?? [];
-                                    $sp = $cd['selling_price'] ?? 0;
-                                    $fcp = $cd['food_cost_pct'] ?? null;
-                                    $gp = $cd['gross_profit'] ?? null;
-                                    $pcColor = match(true) {
-                                        $fcp === null => 'text-gray-400',
-                                        $fcp <= 25    => 'text-green-600',
-                                        $fcp <= 35    => 'text-yellow-600',
-                                        $fcp <= 45    => 'text-orange-500',
-                                        default       => 'text-red-600',
-                                    };
-                                @endphp
-                                @if ($sp > 0)
-                                    <div class="rounded-lg bg-gray-50 px-3 py-2">
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-xs font-medium text-gray-600">{{ $pc->name }}</span>
-                                            <span class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format($sp, 2) }}</span>
-                                        </div>
-                                        <div class="flex justify-between mt-1 text-xs">
-                                            <span class="text-gray-500">Food Cost %</span>
-                                            <span class="font-bold {{ $pcColor }} tabular-nums">{{ number_format($fcp, 1) }}%</span>
-                                        </div>
-                                        <div class="flex justify-between mt-0.5 text-xs">
-                                            <span class="text-gray-500">Gross Profit</span>
-                                            <span class="{{ $gp >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">{{ number_format($gp, 2) }}</span>
-                                        </div>
-                                    </div>
-                                @endif
-                            @endforeach
-                            @if (collect($classCostData)->every(fn ($cd) => ($cd['selling_price'] ?? 0) <= 0))
-                                <div class="text-xs text-gray-400 italic">Enter selling prices above to see food cost %.</div>
-                            @endif
-                        </div>
-
-                        {{-- Benchmark guide --}}
-                        <div class="text-xs text-gray-400 space-y-0.5 pt-1">
-                            <p class="font-medium text-gray-500 mb-1">Food cost guide:</p>
-                            <p><span class="text-green-600">≤25%</span> Excellent &nbsp;
-                               <span class="text-yellow-600">25–35%</span> Good</p>
-                            <p><span class="text-orange-500">35–45%</span> High &nbsp;
-                               <span class="text-red-600">&gt;45%</span> Review</p>
-                        </div>
-                    @elseif (floatval($selling_price) > 0)
-                        <div class="flex justify-between border-t border-gray-100 pt-3">
-                            <dt class="text-gray-500">Selling Price</dt>
-                            <dd class="text-gray-700 tabular-nums">{{ number_format(floatval($selling_price), 2) }}</dd>
-                        </div>
-
-                        @php
-                            $fcColor = match(true) {
-                                $foodCostPct === null => 'text-gray-400',
-                                $foodCostPct <= 25   => 'text-green-600',
-                                $foodCostPct <= 35   => 'text-yellow-600',
-                                $foodCostPct <= 45   => 'text-orange-500',
-                                default              => 'text-red-600',
-                            };
-                            $fcBg = match(true) {
-                                $foodCostPct === null => 'bg-gray-50',
-                                $foodCostPct <= 25   => 'bg-green-50',
-                                $foodCostPct <= 35   => 'bg-yellow-50',
-                                $foodCostPct <= 45   => 'bg-orange-50',
-                                default              => 'bg-red-50',
-                            };
-                        @endphp
-
-                        <div class="rounded-lg {{ $fcBg }} px-3 py-2">
-                            <div class="flex justify-between">
-                                <dt class="text-gray-600 font-medium">Food Cost %</dt>
-                                <dd class="font-bold text-lg {{ $fcColor }} tabular-nums">
-                                    {{ number_format($foodCostPct, 1) }}%
-                                </dd>
-                            </div>
-                            @if ($totalTaxWithPackaging > 0 && $foodCostPctWithTax !== null)
-                                <div class="flex justify-between mt-1 text-xs">
-                                    <span class="text-gray-500">Food Cost % (w/ tax)</span>
-                                    <span class="font-medium text-indigo-600 tabular-nums">{{ number_format($foodCostPctWithTax, 1) }}%</span>
-                                </div>
-                            @endif
-                            <div class="flex justify-between mt-1 text-xs">
-                                <span class="text-gray-500">Gross Profit</span>
-                                <span class="{{ $grossProfit >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">
-                                    {{ number_format($grossProfit, 2) }}
-                                    ({{ number_format($grossProfitPct, 1) }}%)
-                                </span>
-                            </div>
-                        </div>
-
-                        {{-- Benchmark guide --}}
-                        <div class="text-xs text-gray-400 space-y-0.5 pt-1">
-                            <p class="font-medium text-gray-500 mb-1">Food cost guide:</p>
-                            <p><span class="text-green-600">≤25%</span> Excellent &nbsp;
-                               <span class="text-yellow-600">25–35%</span> Good</p>
-                            <p><span class="text-orange-500">35–45%</span> High &nbsp;
-                               <span class="text-red-600">&gt;45%</span> Review</p>
-                        </div>
-                    @else
-                        <div class="text-xs text-gray-400 mt-2 italic">
-                            Enter a selling price to see food cost %.
-                        </div>
-                    @endif
-                </dl>
-            </div>
-        </div>
-
-    </div>
-
-    {{-- ── Ingredient Lines ── --}}
+            {{-- ── Ingredient Lines ── --}}
     <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
 
         {{-- Section header --}}
@@ -1225,4 +943,182 @@
             </div>
         </div>
     </div>
+
+        </div>{{-- End left column --}}
+
+        {{-- ── Cost Summary (sticky right column) ── --}}
+        <div class="hidden lg:block lg:w-80 flex-shrink-0">
+            <div class="sticky top-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-4">Cost Summary</h3>
+
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Ingredient Cost</dt>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</dd>
+                        </div>
+
+                        @if ($packagingCost > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">Packaging Cost</dt>
+                                <dd class="text-gray-700 tabular-nums">{{ number_format($packagingCost, 2) }}</dd>
+                            </div>
+                        @endif
+
+                        @if ($extraCostTotal > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">Extra Costs</dt>
+                                <dd class="text-gray-700 tabular-nums">{{ number_format($extraCostTotal, 2) }}</dd>
+                            </div>
+                        @endif
+
+                        <div class="flex justify-between border-t border-gray-100 pt-2">
+                            <dt class="text-gray-500 font-medium">Cost (excl. tax)</dt>
+                            <dd class="font-semibold text-gray-800 tabular-nums">
+                                {{ number_format($grandCost, 2) }}
+                            </dd>
+                        </div>
+
+                        @if ($totalTaxWithPackaging > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">Tax</dt>
+                                <dd class="text-gray-700 tabular-nums">{{ number_format($totalTaxWithPackaging, 2) }}</dd>
+                            </div>
+
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500 font-medium">Cost (incl. tax)</dt>
+                                <dd class="font-semibold text-indigo-700 tabular-nums">
+                                    {{ number_format($grandCostWithTax, 2) }}
+                                </dd>
+                            </div>
+                        @endif
+
+                        @php $yieldUomAbbr = collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving'; @endphp
+                        <div class="flex justify-between border-t border-gray-100 pt-2">
+                            <dt class="text-gray-500">
+                                Cost / {{ $yieldUomAbbr }}
+                            </dt>
+                            <dd class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</dd>
+                        </div>
+                        @if ($totalTaxWithPackaging > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">
+                                    Cost / {{ $yieldUomAbbr }} <span class="text-xs text-gray-400">(w/ tax)</span>
+                                </dt>
+                                <dd class="text-indigo-700 tabular-nums">{{ number_format($costPerServingWithTax, 4) }}</dd>
+                            </div>
+                        @endif
+
+                        @if ($priceClasses->isNotEmpty())
+                            {{-- Multi-class pricing breakdown --}}
+                            <div class="border-t border-gray-100 pt-3 space-y-2">
+                                <dt class="text-gray-600 font-medium text-xs uppercase tracking-wider">Pricing by Class</dt>
+                                @foreach ($priceClasses as $pc)
+                                    @php
+                                        $cd = $classCostData[$pc->id] ?? [];
+                                        $sp = $cd['selling_price'] ?? 0;
+                                        $fcp = $cd['food_cost_pct'] ?? null;
+                                        $gp = $cd['gross_profit'] ?? null;
+                                        $pcColor = match(true) {
+                                            $fcp === null => 'text-gray-400',
+                                            $fcp <= 25    => 'text-green-600',
+                                            $fcp <= 35    => 'text-yellow-600',
+                                            $fcp <= 45    => 'text-orange-500',
+                                            default       => 'text-red-600',
+                                        };
+                                    @endphp
+                                    @if ($sp > 0)
+                                        <div class="rounded-lg bg-gray-50 px-3 py-2">
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-xs font-medium text-gray-600">{{ $pc->name }}</span>
+                                                <span class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format($sp, 2) }}</span>
+                                            </div>
+                                            <div class="flex justify-between mt-1 text-xs">
+                                                <span class="text-gray-500">Food Cost %</span>
+                                                <span class="font-bold {{ $pcColor }} tabular-nums">{{ number_format($fcp, 1) }}%</span>
+                                            </div>
+                                            <div class="flex justify-between mt-0.5 text-xs">
+                                                <span class="text-gray-500">Gross Profit</span>
+                                                <span class="{{ $gp >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">{{ number_format($gp, 2) }}</span>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                                @if (collect($classCostData)->every(fn ($cd) => ($cd['selling_price'] ?? 0) <= 0))
+                                    <div class="text-xs text-gray-400 italic">Enter selling prices above to see food cost %.</div>
+                                @endif
+                            </div>
+
+                            {{-- Benchmark guide --}}
+                            <div class="text-xs text-gray-400 space-y-0.5 pt-1">
+                                <p class="font-medium text-gray-500 mb-1">Food cost guide:</p>
+                                <p><span class="text-green-600">≤25%</span> Excellent &nbsp;
+                                   <span class="text-yellow-600">25–35%</span> Good</p>
+                                <p><span class="text-orange-500">35–45%</span> High &nbsp;
+                                   <span class="text-red-600">&gt;45%</span> Review</p>
+                            </div>
+                        @elseif (floatval($selling_price) > 0)
+                            <div class="flex justify-between border-t border-gray-100 pt-3">
+                                <dt class="text-gray-500">Selling Price</dt>
+                                <dd class="text-gray-700 tabular-nums">{{ number_format(floatval($selling_price), 2) }}</dd>
+                            </div>
+
+                            @php
+                                $fcColor = match(true) {
+                                    $foodCostPct === null => 'text-gray-400',
+                                    $foodCostPct <= 25   => 'text-green-600',
+                                    $foodCostPct <= 35   => 'text-yellow-600',
+                                    $foodCostPct <= 45   => 'text-orange-500',
+                                    default              => 'text-red-600',
+                                };
+                                $fcBg = match(true) {
+                                    $foodCostPct === null => 'bg-gray-50',
+                                    $foodCostPct <= 25   => 'bg-green-50',
+                                    $foodCostPct <= 35   => 'bg-yellow-50',
+                                    $foodCostPct <= 45   => 'bg-orange-50',
+                                    default              => 'bg-red-50',
+                                };
+                            @endphp
+
+                            <div class="rounded-lg {{ $fcBg }} px-3 py-2">
+                                <div class="flex justify-between">
+                                    <dt class="text-gray-600 font-medium">Food Cost %</dt>
+                                    <dd class="font-bold text-lg {{ $fcColor }} tabular-nums">
+                                        {{ number_format($foodCostPct, 1) }}%
+                                    </dd>
+                                </div>
+                                @if ($totalTaxWithPackaging > 0 && $foodCostPctWithTax !== null)
+                                    <div class="flex justify-between mt-1 text-xs">
+                                        <span class="text-gray-500">Food Cost % (w/ tax)</span>
+                                        <span class="font-medium text-indigo-600 tabular-nums">{{ number_format($foodCostPctWithTax, 1) }}%</span>
+                                    </div>
+                                @endif
+                                <div class="flex justify-between mt-1 text-xs">
+                                    <span class="text-gray-500">Gross Profit</span>
+                                    <span class="{{ $grossProfit >= 0 ? 'text-green-600' : 'text-red-600' }} font-medium tabular-nums">
+                                        {{ number_format($grossProfit, 2) }}
+                                        ({{ number_format($grossProfitPct, 1) }}%)
+                                    </span>
+                                </div>
+                            </div>
+
+                            {{-- Benchmark guide --}}
+                            <div class="text-xs text-gray-400 space-y-0.5 pt-1">
+                                <p class="font-medium text-gray-500 mb-1">Food cost guide:</p>
+                                <p><span class="text-green-600">≤25%</span> Excellent &nbsp;
+                                   <span class="text-yellow-600">25–35%</span> Good</p>
+                                <p><span class="text-orange-500">35–45%</span> High &nbsp;
+                                   <span class="text-red-600">&gt;45%</span> Review</p>
+                            </div>
+                        @else
+                            <div class="text-xs text-gray-400 mt-2 italic">
+                                Enter a selling price to see food cost %.
+                            </div>
+                        @endif
+                    </dl>
+                </div>
+            </div>
+        </div>{{-- End right column --}}
+
+    </div>{{-- End flex container --}}
 </div>
