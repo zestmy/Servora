@@ -15,7 +15,7 @@ class Ingredient extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'name', 'code', 'base_uom_id', 'recipe_uom_id',
+        'company_id', 'name', 'code', 'base_uom_id', 'recipe_uom_id', 'secondary_recipe_uom_id',
         'purchase_price', 'pack_size', 'yield_percent', 'current_cost', 'category',
         'ingredient_category_id', 'tax_rate_id', 'is_active', 'is_prep', 'prep_recipe_id', 'remark',
     ];
@@ -76,6 +76,22 @@ class Ingredient extends Model
     public function recipeUom(): BelongsTo
     {
         return $this->belongsTo(UnitOfMeasure::class, 'recipe_uom_id');
+    }
+
+    public function secondaryRecipeUom(): BelongsTo
+    {
+        return $this->belongsTo(UnitOfMeasure::class, 'secondary_recipe_uom_id');
+    }
+
+    /**
+     * All UOM IDs valid for use in recipes (primary + secondary, if defined).
+     */
+    public function recipeUomIds(): array
+    {
+        return array_filter([
+            (int) $this->recipe_uom_id,
+            $this->secondary_recipe_uom_id ? (int) $this->secondary_recipe_uom_id : null,
+        ]);
     }
 
     /** The prep recipe that produces this ingredient (prep items only). */

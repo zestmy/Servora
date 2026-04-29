@@ -105,6 +105,13 @@ Route::post('/webhooks/chipin', [ChipInWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('webhooks.chipin');
 
+// Secure deploy webhook — HMAC-signed, timestamp-protected, command allowlist
+// See: App\Http\Controllers\DeployWebhookController
+Route::post('/internal/deploy-hook', \App\Http\Controllers\DeployWebhookController::class)
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->middleware('throttle:10,1')
+    ->name('deploy.webhook');
+
 // Referral tracking (short link)
 Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
 Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
@@ -316,6 +323,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/employees', \App\Livewire\Hr\Employees::class)->name('hr.employees')->middleware('can:hr.view');
     Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.view');
     Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.view');
+    Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.view');
     Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.view');
 
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(['can:reports.view', 'check.feature:analytics']);

@@ -196,6 +196,89 @@
                 </div>
             </div>
 
+            {{-- Z-Report Financials card --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ open: {{ ($gross_revenue !== null || $tax_amount !== null || $discount_amount !== null || $service_charges !== null || $rounding_amount !== null || $transactions !== null) ? 'true' : 'false' }} }">
+                <button type="button" @click="open = !open"
+                        class="w-full flex items-center justify-between px-6 py-4 text-left">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700">Z-Report Financials</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Gross, tax, charges, rounding — imported from POS Z-read</p>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <div x-show="open" x-collapse class="border-t border-gray-100">
+                    <div class="px-6 py-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="zr_transactions" value="Transactions" />
+                            <x-text-input id="zr_transactions" wire:model="transactions" type="number" min="0" step="1"
+                                          class="mt-1 block w-full" placeholder="e.g. 48" />
+                            <x-input-error :messages="$errors->get('transactions')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="zr_gross" value="Gross Revenue (RM)" />
+                            <x-text-input id="zr_gross" wire:model="gross_revenue" type="number" step="0.01" min="0"
+                                          class="mt-1 block w-full" placeholder="incl. tax & charges" />
+                            <x-input-error :messages="$errors->get('gross_revenue')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="zr_discount" value="Discount (RM)" />
+                            <x-text-input id="zr_discount" wire:model="discount_amount" type="number" step="0.01" min="0"
+                                          class="mt-1 block w-full" placeholder="0.00" />
+                            <x-input-error :messages="$errors->get('discount_amount')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="zr_tax" value="Tax Amount (RM)" />
+                            <x-text-input id="zr_tax" wire:model="tax_amount" type="number" step="0.01" min="0"
+                                          class="mt-1 block w-full" placeholder="0.00" />
+                            <x-input-error :messages="$errors->get('tax_amount')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="zr_sc" value="Service Charges (RM)" />
+                            <x-text-input id="zr_sc" wire:model="service_charges" type="number" step="0.01" min="0"
+                                          class="mt-1 block w-full" placeholder="0.00" />
+                            <x-input-error :messages="$errors->get('service_charges')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="zr_round" value="Bill Rounding (RM)" />
+                            <x-text-input id="zr_round" wire:model="rounding_amount" type="number" step="0.01"
+                                          class="mt-1 block w-full" placeholder="0.00 (can be negative)" />
+                            <x-input-error :messages="$errors->get('rounding_amount')" class="mt-1" />
+                        </div>
+                    </div>
+
+                    {{-- Reconciliation check --}}
+                    @php
+                        $grossVal    = floatval($gross_revenue ?? 0);
+                        $discountVal = floatval($discount_amount ?? 0);
+                        $taxVal      = floatval($tax_amount ?? 0);
+                        $scVal       = floatval($service_charges ?? 0);
+                        $roundVal    = floatval($rounding_amount ?? 0);
+                        $derivedNet  = $grossVal > 0 ? round($grossVal - $taxVal - $scVal - $roundVal, 2) : null;
+                        $diff        = $derivedNet !== null ? round($grandTotal - $derivedNet, 2) : null;
+                    @endphp
+                    @if ($grossVal > 0 && $grandTotal > 0)
+                        <div class="mx-6 mb-4 px-4 py-3 rounded-lg border text-xs
+                            {{ abs($diff) < 0.05 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700' }}">
+                            <div class="flex items-center justify-between">
+                                <span>Gross − Tax − S/C − Rounding = Net</span>
+                                <span class="font-semibold tabular-nums">
+                                    RM {{ number_format($grossVal, 2) }} − {{ number_format($taxVal, 2) }} − {{ number_format($scVal, 2) }} − {{ number_format($roundVal, 2) }}
+                                    = <span class="{{ abs($diff) < 0.05 ? 'text-green-700' : 'text-amber-700' }}">RM {{ number_format($derivedNet, 2) }}</span>
+                                </span>
+                            </div>
+                            @if (abs($diff) >= 0.05)
+                                <p class="mt-1">Revenue entered (RM {{ number_format($grandTotal, 2) }}) differs by RM {{ number_format(abs($diff), 2) }}</p>
+                            @else
+                                <p class="mt-1">✓ Reconciled — net revenue matches category entries</p>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             {{-- Revenue by Sales Category card --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100">
                 <div class="px-6 py-4 border-b border-gray-100">
@@ -319,12 +402,42 @@
                 @endif
 
                 {{-- Total & avg check --}}
-                <div class="border-t border-gray-100 pt-4 space-y-3">
+                <div class="border-t border-gray-100 pt-4 space-y-2">
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">Total Revenue</span>
+                        <span class="text-sm text-gray-500">Net Revenue</span>
                         <span class="text-xl font-bold text-gray-900 tabular-nums">RM {{ number_format($grandTotal, 2) }}</span>
                     </div>
-                    <div class="flex justify-between items-center">
+                    @if ($gross_revenue !== null && floatval($gross_revenue) > 0)
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400">Gross Revenue</span>
+                            <span class="text-sm font-medium text-gray-700 tabular-nums">RM {{ number_format(floatval($gross_revenue), 2) }}</span>
+                        </div>
+                        @if ($discount_amount !== null && floatval($discount_amount) > 0)
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-gray-400">Discount</span>
+                                <span class="text-sm text-red-500 tabular-nums">− RM {{ number_format(floatval($discount_amount), 2) }}</span>
+                            </div>
+                        @endif
+                        @if ($tax_amount !== null && floatval($tax_amount) > 0)
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-gray-400">Tax</span>
+                                <span class="text-sm text-gray-500 tabular-nums">RM {{ number_format(floatval($tax_amount), 2) }}</span>
+                            </div>
+                        @endif
+                        @if ($service_charges !== null && floatval($service_charges) > 0)
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-gray-400">Service Charges</span>
+                                <span class="text-sm text-gray-500 tabular-nums">RM {{ number_format(floatval($service_charges), 2) }}</span>
+                            </div>
+                        @endif
+                    @endif
+                    @if ($transactions !== null && $transactions > 0)
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400">Transactions</span>
+                            <span class="text-sm font-medium text-gray-700 tabular-nums">{{ $transactions }}</span>
+                        </div>
+                    @endif
+                    <div class="flex justify-between items-center pt-1">
                         <span class="text-xs text-gray-400">Avg Check / Pax</span>
                         <span class="text-sm font-semibold text-indigo-600 tabular-nums">
                             @if ($avgCheck !== null)
