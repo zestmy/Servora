@@ -428,16 +428,9 @@
                                     <select wire:model.live="lines.{{ $idx }}.uom_id"
                                             class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                                         @if (count($piUomIds))
-                                            <optgroup label="Recipe UOMs">
-                                                @foreach ($piValidUoms as $uom)
-                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                                @endforeach
-                                            </optgroup>
-                                            <optgroup label="Other UOMs">
-                                                @foreach ($piOtherUoms as $uom)
-                                                    <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
-                                                @endforeach
-                                            </optgroup>
+                                            @foreach ($piValidUoms as $uom)
+                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                            @endforeach
                                         @else
                                             @foreach ($uoms as $uom)
                                                 <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
