@@ -796,7 +796,7 @@
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
-                                    <input type="number" step="0.0001" min="0.0001"
+                                    <input type="number" step="0.1" min="0.1"
                                            wire:key="qty-{{ $line['ingredient_id'] }}"
                                            wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
@@ -972,7 +972,7 @@
                                         <span class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</span>
                                     </td>
                                     <td class="px-4 py-2">
-                                        <input type="number" step="0.0001" min="0.0001"
+                                        <input type="number" step="0.1" min="0.1"
                                                wire:key="pack-qty-{{ $line['ingredient_id'] }}"
                                                wire:model.live.debounce.400ms="packagingLines.{{ $idx }}.quantity"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
