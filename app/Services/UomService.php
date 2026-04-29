@@ -17,22 +17,46 @@ class UomService
     {
         $baseUom = $ingredient->baseUom;
 
-        // If target is the recipe UOM, current_cost is already stored as cost per recipe UOM
-        // (current_cost = purchase_price / pack_size, where pack_size = base_uom to recipe_uom ratio)
+        // If target is the recipe UOM, check for base → recipe conversion first
+        // (handles cases where pack_size=1 but a UOM conversion exists)
         if ($ingredient->recipe_uom_id && (int) $targetUom->id === (int) $ingredient->recipe_uom_id) {
+            $baseId = (int) $baseUom->id;
+            $recipeId = (int) $ingredient->recipe_uom_id;
+
+            // If base == recipe, current_cost is already correct
+            if ($baseId === $recipeId) {
+                return (float) $ingredient->current_cost;
+            }
+
+            // Look for base → recipe conversion (e.g. ctn → ml = 12000)
+            if ($ingredient->relationLoaded('uomConversions')) {
+                $baseToRecipe = $ingredient->uomConversions->first(
+                    fn ($c) => (int) $c->from_uom_id === $baseId && (int) $c->to_uom_id === $recipeId
+                );
+            } else {
+                $baseToRecipe = IngredientUomConversion::where('ingredient_id', $ingredient->id)
+                    ->where('from_uom_id', $baseId)
+                    ->where('to_uom_id', $recipeId)
+                    ->first();
+            }
+
+            // If conversion exists, use it: cost per recipe = purchase_price / conversion_factor
+            if ($baseToRecipe && (float) $baseToRecipe->factor > 0) {
+                return (float) $ingredient->purchase_price / (float) $baseToRecipe->factor;
+            }
+
+            // Otherwise use current_cost (assumes pack_size is correct)
             return (float) $ingredient->current_cost;
         }
 
-        // If target is the base UOM, calculate cost per base UOM from current_cost
-        // current_cost is per recipe_uom, so cost per base = current_cost × pack_size
+        // If target is the base UOM, return purchase_price (cost per base UOM)
         if ($baseUom->id === $targetUom->id) {
             // If base == recipe, current_cost is already correct
             if ((int) $baseUom->id === (int) $ingredient->recipe_uom_id) {
                 return (float) $ingredient->current_cost;
             }
-            // Otherwise, scale back: cost per base = cost per recipe × pack_size
-            $packSize = max((float) $ingredient->pack_size, 0.0001);
-            return (float) $ingredient->current_cost * $packSize;
+            // Otherwise, purchase_price is the cost per base UOM
+            return (float) $ingredient->purchase_price;
         }
 
         $baseId   = (int) $baseUom->id;
@@ -58,13 +82,15 @@ class UomService
         }
 
         // from=base, to=target, factor=N means "1 base = N target"
-        // cost per target = cost per base ÷ N  (e.g. RM60/kg ÷ 30pcs/kg = RM2/pcs)
+        // cost per target = purchase_price ÷ N  (e.g. RM60/ctn ÷ 12000ml/ctn = RM0.005/ml)
         if ($conversion && (float) $conversion->factor != 0) {
-            return (float) $ingredient->current_cost / (float) $conversion->factor;
+            return (float) $ingredient->purchase_price / (float) $conversion->factor;
         }
 
-        if ($reverseConversion) {
-            return (float) $ingredient->current_cost * (float) $reverseConversion->factor;
+        // reverse: from=target, to=base, factor=N means "1 target = N base"
+        // cost per target = purchase_price × N  (e.g. RM60/ctn × 0.001ctn/ml = RM0.06/ml)
+        if ($reverseConversion && (float) $reverseConversion->factor != 0) {
+            return (float) $ingredient->purchase_price * (float) $reverseConversion->factor;
         }
 
         // Chain through recipe UOM for secondary recipe UOM resolution.
