@@ -781,7 +781,7 @@
                                }
                            })">
                         @foreach ($lines as $idx => $line)
-                            <tr wire:key="line-{{ $line['ingredient_id'] ?? $idx }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
+                            <tr wire:key="recipe-ing-{{ $line['ingredient_id'] }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
                                 <td class="line-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
                                     <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
                                 </td>
@@ -797,6 +797,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.0001" min="0.0001"
+                                           wire:key="qty-{{ $line['ingredient_id'] }}"
                                            wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
@@ -814,7 +815,8 @@
                                             ? $uoms->whereNotIn('id', $lineRecipeUomIds)->values()
                                             : collect();
                                     @endphp
-                                    <select wire:model.live="lines.{{ $idx }}.uom_id"
+                                    <select wire:key="uom-{{ $line['ingredient_id'] }}"
+                                            wire:model.live="lines.{{ $idx }}.uom_id"
                                             class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                                         @if (count($lineRecipeUomIds))
                                             <optgroup label="Recipe UOMs">
@@ -838,6 +840,7 @@
                                 <td class="px-4 py-2">
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
+                                               wire:key="waste-{{ $line['ingredient_id'] }}"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
                                                class="w-full text-right pr-7 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">%</span>
@@ -976,7 +979,7 @@
                                    }
                                })">
                             @foreach ($packagingLines as $idx => $line)
-                                <tr wire:key="pack-line-{{ $line['ingredient_id'] ?? $idx }}" data-pack-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
+                                <tr wire:key="pack-ing-{{ $line['ingredient_id'] }}" data-pack-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
                                     <td class="pack-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
                                         <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
                                     </td>
@@ -986,6 +989,7 @@
                                     </td>
                                     <td class="px-4 py-2">
                                         <input type="number" step="0.0001" min="0.0001"
+                                               wire:key="pack-qty-{{ $line['ingredient_id'] }}"
                                                wire:model.live.debounce.400ms="packagingLines.{{ $idx }}.quantity"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     </td>
@@ -1002,7 +1006,8 @@
                                                 ? $uoms->whereNotIn('id', $pkgUomIds)->values()
                                                 : collect();
                                         @endphp
-                                        <select wire:model.live="packagingLines.{{ $idx }}.uom_id"
+                                        <select wire:key="pack-uom-{{ $line['ingredient_id'] }}"
+                                                wire:model.live="packagingLines.{{ $idx }}.uom_id"
                                                 class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                                             @if (count($pkgUomIds))
                                                 <optgroup label="Recipe UOMs">
@@ -1024,6 +1029,7 @@
                                     </td>
                                     <td class="px-4 py-2">
                                         <input type="number" step="0.1" min="0" max="100"
+                                               wire:key="pack-waste-{{ $line['ingredient_id'] }}"
                                                wire:model.live.debounce.400ms="packagingLines.{{ $idx }}.waste_percentage"
                                                class="w-full text-right pr-7 rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     </td>
