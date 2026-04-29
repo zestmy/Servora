@@ -39,10 +39,13 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    {{-- Main two-column layout: Left = all content, Right = sticky Cost Summary --}}
+    <div class="lg:flex lg:gap-6">
 
-        {{-- Details card --}}
-        <div class="lg:col-span-2">
+        {{-- Left column: All form content --}}
+        <div class="flex-1 min-w-0 space-y-4">
+
+            {{-- Details card --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 <div class="flex items-center gap-2">
                     <h3 class="text-sm font-semibold text-gray-700">Prep Item Details</h3>
@@ -263,45 +266,8 @@
                     </div>
                 @endif
             </div>
-        </div>
 
-        {{-- Cost summary card --}}
-        <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
-                <h3 class="text-sm font-semibold text-gray-700 mb-4">Cost Summary</h3>
-                <dl class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Ingredients</dt>
-                        <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Batch Total Cost</dt>
-                        <dd class="font-semibold text-gray-800 tabular-nums">RM {{ number_format($totalCost, 4) }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Yield</dt>
-                        <dd class="text-gray-700 tabular-nums">{{ $yield_quantity }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? '—' }}</dd>
-                    </div>
-                    <div class="flex justify-between border-t border-gray-100 pt-3">
-                        <dt class="font-semibold text-gray-700">Cost per Unit</dt>
-                        <dd class="font-bold text-lg text-indigo-600 tabular-nums">
-                            RM {{ number_format($costPerYieldUnit, 4) }}
-                        </dd>
-                    </div>
-                </dl>
-
-                <div class="mt-4 pt-4 border-t border-gray-100 rounded-lg bg-amber-50 px-3 py-2.5">
-                    <p class="text-xs text-amber-700 font-medium mb-1">How this works</p>
-                    <p class="text-xs text-amber-600 leading-relaxed">
-                        Saving this prep item will create/update a corresponding <strong>ingredient</strong> with cost = RM {{ number_format($costPerYieldUnit, 4) }} per unit.
-                        This ingredient can then be used in sale recipes and counted in stock takes.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Ingredients section --}}
+            {{-- Ingredients section --}}
     <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -649,4 +615,59 @@
             </div>
         </div>
     </div>
+
+        </div>{{-- End left column --}}
+
+        {{-- ── Cost Summary (sticky right column) ── --}}
+        <div class="hidden lg:block lg:w-80 flex-shrink-0">
+            <div class="sticky top-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700">Cost Summary</h3>
+                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">PREP</span>
+                    </div>
+
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Ingredients</dt>
+                            <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Batch Total Cost</dt>
+                            <dd class="font-semibold text-gray-800 tabular-nums">RM {{ number_format($totalCost, 4) }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Yield</dt>
+                            <dd class="text-gray-700 tabular-nums">{{ $yield_quantity }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? '—' }}</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-gray-100 pt-3">
+                            <dt class="font-semibold text-gray-700">Cost per Unit</dt>
+                            <dd class="font-bold text-lg text-indigo-600 tabular-nums">
+                                RM {{ number_format($costPerYieldUnit, 4) }}
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <div class="mt-4 pt-4 border-t border-gray-100 rounded-lg bg-amber-50 px-3 py-2.5">
+                        <p class="text-xs text-amber-700 font-medium mb-1">How this works</p>
+                        <p class="text-xs text-amber-600 leading-relaxed">
+                            Saving this prep item will create/update a corresponding <strong>ingredient</strong> with cost = RM {{ number_format($costPerYieldUnit, 4) }} per unit.
+                        </p>
+                    </div>
+
+                    {{-- Save Button --}}
+                    <div class="mt-6 pt-4 border-t border-gray-100">
+                        <button wire:click="save"
+                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Save Prep Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>{{-- End right column --}}
+
+    </div>{{-- End flex container --}}
 </div>

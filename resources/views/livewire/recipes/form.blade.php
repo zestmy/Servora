@@ -1116,6 +1116,17 @@
                             </div>
                         @endif
                     </dl>
+
+                    {{-- Save Button --}}
+                    <div class="mt-6 pt-4 border-t border-gray-100">
+                        <button wire:click="save"
+                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Save Recipe
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>{{-- End right column --}}
