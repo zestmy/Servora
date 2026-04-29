@@ -5,23 +5,25 @@
     <x-desktop-hint storageKey="desktop-hint-recipe-form" message="Editing recipes and ingredient lines is easier on a desktop. Mobile works, but a wider screen helps." />
 
     {{-- Floating Cost Summary (appears when scrolling past original) --}}
-    <div x-data="{
-            showFloat: false,
-            expanded: true,
-            init() {
-                this.checkScroll();
-                window.addEventListener('scroll', () => this.checkScroll(), { passive: true });
-            },
-            checkScroll() {
-                const trigger = document.getElementById('cost-summary-anchor');
-                if (trigger) {
-                    const rect = trigger.getBoundingClientRect();
-                    this.showFloat = rect.bottom < 100;
-                }
-            }
-         }"
-         class="hidden lg:block fixed bottom-6 right-6 z-50 transition-all duration-300"
-         :class="showFloat ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'">
+    <div wire:ignore
+         x-data="{ showFloat: false, expanded: true }"
+         x-init="
+            const check = () => {
+                const el = document.getElementById('cost-summary-anchor');
+                if (el) showFloat = el.getBoundingClientRect().bottom < 0;
+            };
+            check();
+            window.addEventListener('scroll', check, { passive: true });
+         "
+         x-show="showFloat"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-8"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-8"
+         style="display: none;"
+         class="hidden lg:!block fixed bottom-6 right-6 z-50">
         <div class="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden" style="width: 300px;">
             {{-- Header (always visible) --}}
             <button type="button" @click="expanded = !expanded"
