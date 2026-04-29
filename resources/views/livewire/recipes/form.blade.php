@@ -419,248 +419,6 @@
 
     </div>
 
-    {{-- ── Product Images ── --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-6" x-data="{ imageTab: 'dine_in' }">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h3 class="text-sm font-semibold text-gray-700">Product Images</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Upload final product photos for plating reference. Max 5MB per image.</p>
-            </div>
-            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-                <button type="button" @click="imageTab = 'dine_in'"
-                        :class="imageTab === 'dine_in' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                        class="px-4 py-1.5 font-medium transition">
-                    Dine-In
-                </button>
-                <button type="button" @click="imageTab = 'takeaway'"
-                        :class="imageTab === 'takeaway' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                        class="px-4 py-1.5 font-medium transition border-l border-gray-200">
-                    Takeaway
-                </button>
-            </div>
-        </div>
-
-        {{-- Dine-In Images --}}
-        <div x-show="imageTab === 'dine_in'" x-cloak>
-            @if (count($existingDineInImages))
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
-                    @foreach ($existingDineInImages as $img)
-                        <div class="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                            <img src="{{ $img['url'] }}" alt="{{ $img['file_name'] }}"
-                                 class="w-full h-32 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
-                                        wire:confirm="Remove this image?"
-                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
-                                    Remove
-                                </button>
-                            </div>
-                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $img['file_name'] }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
-            <div>
-                <label class="block">
-                    <div class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition">
-                        <div class="text-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <p class="mt-1 text-xs text-gray-500">Upload dine-in plating photos</p>
-                        </div>
-                    </div>
-                    <input type="file" wire:model="newDineInImages" multiple accept="image/*" class="hidden" />
-                </label>
-                <x-input-error :messages="$errors->get('newDineInImages.*')" class="mt-1" />
-            </div>
-
-            @if (count($newDineInImages))
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3">
-                    @foreach ($newDineInImages as $idx => $file)
-                        <div class="relative group rounded-lg overflow-hidden border border-indigo-200 bg-indigo-50">
-                            <img src="{{ $file->temporaryUrl() }}" alt="New upload"
-                                 class="w-full h-32 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                <button type="button" wire:click="removeNewDineInImage({{ $idx }})"
-                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
-                                    Remove
-                                </button>
-                            </div>
-                            <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded font-medium">New</div>
-                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-
-        {{-- Takeaway Images --}}
-        <div x-show="imageTab === 'takeaway'" x-cloak>
-            @if (count($existingTakeawayImages))
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
-                    @foreach ($existingTakeawayImages as $img)
-                        <div class="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                            <img src="{{ $img['url'] }}" alt="{{ $img['file_name'] }}"
-                                 class="w-full h-32 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
-                                        wire:confirm="Remove this image?"
-                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
-                                    Remove
-                                </button>
-                            </div>
-                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $img['file_name'] }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
-            <div>
-                <label class="block">
-                    <div class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-amber-400 hover:bg-amber-50/30 transition">
-                        <div class="text-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <p class="mt-1 text-xs text-gray-500">Upload takeaway presentation photos</p>
-                        </div>
-                    </div>
-                    <input type="file" wire:model="newTakeawayImages" multiple accept="image/*" class="hidden" />
-                </label>
-                <x-input-error :messages="$errors->get('newTakeawayImages.*')" class="mt-1" />
-            </div>
-
-            @if (count($newTakeawayImages))
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3">
-                    @foreach ($newTakeawayImages as $idx => $file)
-                        <div class="relative group rounded-lg overflow-hidden border border-amber-200 bg-amber-50">
-                            <img src="{{ $file->temporaryUrl() }}" alt="New upload"
-                                 class="w-full h-32 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                <button type="button" wire:click="removeNewTakeawayImage({{ $idx }})"
-                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
-                                    Remove
-                                </button>
-                            </div>
-                            <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-600 text-white text-xs rounded font-medium">New</div>
-                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-    </div>
-
-    {{-- ── Training / SOP ── --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ sopOpen: {{ count($steps) || $video_url ? 'true' : 'false' }} }">
-        <button type="button" @click="sopOpen = !sopOpen"
-                class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-            <div class="text-left">
-                <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Preparation steps, video & training content</p>
-            </div>
-            <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-        </button>
-
-        <div x-show="sopOpen" x-cloak class="px-6 pb-6 space-y-4 border-t border-gray-100">
-            {{-- Video URL --}}
-            <div class="pt-4">
-                <x-input-label for="video_url" value="Video URL" />
-                <x-text-input id="video_url" wire:model="video_url" type="url"
-                              class="mt-1 block w-full text-sm"
-                              placeholder="https://www.youtube.com/watch?v=..." />
-                <p class="text-xs text-gray-400 mt-1">YouTube or Vimeo link for the training video</p>
-                <x-input-error :messages="$errors->get('video_url')" class="mt-1" />
-            </div>
-
-            {{-- Preparation Steps --}}
-            <div>
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
-                        <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
-                    </div>
-                    <button type="button" wire:click="addStep"
-                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
-                        + Add Step
-                    </button>
-                </div>
-
-                @if (count($steps))
-                    <div class="space-y-3">
-                        @foreach ($steps as $idx => $step)
-                            <div class="relative bg-gray-50 rounded-lg p-4 border border-gray-200" wire:key="step-{{ $idx }}">
-                                <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $idx + 1 }}</span>
-                                    <div class="flex-1 space-y-2">
-                                        <input type="text"
-                                               wire:model.blur="steps.{{ $idx }}.title"
-                                               placeholder="Step title (optional, e.g. Preparation)"
-                                               class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                        <textarea wire:model.blur="steps.{{ $idx }}.instruction"
-                                                  rows="3"
-                                                  placeholder="Describe the preparation step..."
-                                                  class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                                        <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
-
-                                        {{-- Image upload --}}
-                                        <div class="flex items-start gap-3 pt-1">
-                                            <div class="flex-shrink-0">
-                                                @if (!empty($step['new_image']))
-                                                    {{-- Newly uploaded (pending save) --}}
-                                                    <div class="relative">
-                                                        <img src="{{ $step['new_image']->temporaryUrl() }}" class="w-20 h-20 object-cover rounded border border-indigo-300" />
-                                                        <button type="button" wire:click="clearStepNewImage({{ $idx }})"
-                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
-                                                    </div>
-                                                @elseif (!empty($step['image_url']) && empty($step['remove_image']))
-                                                    {{-- Existing saved image --}}
-                                                    <div class="relative">
-                                                        <img src="{{ $step['image_url'] }}" class="w-20 h-20 object-cover rounded border border-gray-300" />
-                                                        <button type="button" wire:click="removeStepImage({{ $idx }})"
-                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600" title="Remove image">×</button>
-                                                    </div>
-                                                @else
-                                                    <label class="cursor-pointer inline-flex flex-col items-center justify-center w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
-                                                        <span class="text-[10px] text-gray-500 mt-1">Add photo</span>
-                                                        <input type="file" wire:model="steps.{{ $idx }}.new_image" accept="image/*" class="hidden" />
-                                                    </label>
-                                                @endif
-                                            </div>
-                                            <div class="flex-1">
-                                                <p class="text-xs text-gray-500 pt-1">Optional step photo (max 5MB). Images enhance training visuals in the LMS and SOP PDFs.</p>
-                                                <x-input-error :messages="$errors->get('steps.'.$idx.'.new_image')" class="mt-1" />
-                                                <div wire:loading wire:target="steps.{{ $idx }}.new_image" class="text-xs text-indigo-500 mt-1">Uploading…</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button type="button" wire:click="removeStep({{ $idx }})"
-                                            class="flex-shrink-0 text-red-400 hover:text-red-600 transition mt-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="text-center py-6 text-gray-400">
-                        <p class="text-sm">No preparation steps added yet.</p>
-                        <p class="text-xs mt-1">Add steps to create training content for this recipe.</p>
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
-
     {{-- ── Ingredient Lines ── --}}
     <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
 
@@ -1113,5 +871,247 @@
             </button>
         </div>
 
+    </div>
+
+    {{-- ── Product Images ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-6" x-data="{ imageTab: 'dine_in' }">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Product Images</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Upload final product photos for plating reference. Max 5MB per image.</p>
+            </div>
+            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <button type="button" @click="imageTab = 'dine_in'"
+                        :class="imageTab === 'dine_in' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                        class="px-4 py-1.5 font-medium transition">
+                    Dine-In
+                </button>
+                <button type="button" @click="imageTab = 'takeaway'"
+                        :class="imageTab === 'takeaway' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                        class="px-4 py-1.5 font-medium transition border-l border-gray-200">
+                    Takeaway
+                </button>
+            </div>
+        </div>
+
+        {{-- Dine-In Images --}}
+        <div x-show="imageTab === 'dine_in'" x-cloak>
+            @if (count($existingDineInImages))
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
+                    @foreach ($existingDineInImages as $img)
+                        <div class="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                            <img src="{{ $img['url'] }}" alt="{{ $img['file_name'] }}"
+                                 class="w-full h-32 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
+                                        wire:confirm="Remove this image?"
+                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                    Remove
+                                </button>
+                            </div>
+                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $img['file_name'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <div>
+                <label class="block">
+                    <div class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition">
+                        <div class="text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p class="mt-1 text-xs text-gray-500">Upload dine-in plating photos</p>
+                        </div>
+                    </div>
+                    <input type="file" wire:model="newDineInImages" multiple accept="image/*" class="hidden" />
+                </label>
+                <x-input-error :messages="$errors->get('newDineInImages.*')" class="mt-1" />
+            </div>
+
+            @if (count($newDineInImages))
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3">
+                    @foreach ($newDineInImages as $idx => $file)
+                        <div class="relative group rounded-lg overflow-hidden border border-indigo-200 bg-indigo-50">
+                            <img src="{{ $file->temporaryUrl() }}" alt="New upload"
+                                 class="w-full h-32 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                <button type="button" wire:click="removeNewDineInImage({{ $idx }})"
+                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                    Remove
+                                </button>
+                            </div>
+                            <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded font-medium">New</div>
+                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        {{-- Takeaway Images --}}
+        <div x-show="imageTab === 'takeaway'" x-cloak>
+            @if (count($existingTakeawayImages))
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
+                    @foreach ($existingTakeawayImages as $img)
+                        <div class="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                            <img src="{{ $img['url'] }}" alt="{{ $img['file_name'] }}"
+                                 class="w-full h-32 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
+                                        wire:confirm="Remove this image?"
+                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                    Remove
+                                </button>
+                            </div>
+                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $img['file_name'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <div>
+                <label class="block">
+                    <div class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-amber-400 hover:bg-amber-50/30 transition">
+                        <div class="text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p class="mt-1 text-xs text-gray-500">Upload takeaway presentation photos</p>
+                        </div>
+                    </div>
+                    <input type="file" wire:model="newTakeawayImages" multiple accept="image/*" class="hidden" />
+                </label>
+                <x-input-error :messages="$errors->get('newTakeawayImages.*')" class="mt-1" />
+            </div>
+
+            @if (count($newTakeawayImages))
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3">
+                    @foreach ($newTakeawayImages as $idx => $file)
+                        <div class="relative group rounded-lg overflow-hidden border border-amber-200 bg-amber-50">
+                            <img src="{{ $file->temporaryUrl() }}" alt="New upload"
+                                 class="w-full h-32 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                <button type="button" wire:click="removeNewTakeawayImage({{ $idx }})"
+                                        class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                    Remove
+                                </button>
+                            </div>
+                            <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-600 text-white text-xs rounded font-medium">New</div>
+                            <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- ── Training / SOP ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ sopOpen: {{ count($steps) || $video_url ? 'true' : 'false' }} }">
+        <button type="button" @click="sopOpen = !sopOpen"
+                class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+            <div class="text-left">
+                <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Preparation steps, video & training content</p>
+            </div>
+            <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <div x-show="sopOpen" x-cloak class="px-6 pb-6 space-y-4 border-t border-gray-100">
+            {{-- Video URL --}}
+            <div class="pt-4">
+                <x-input-label for="video_url" value="Video URL" />
+                <x-text-input id="video_url" wire:model="video_url" type="url"
+                              class="mt-1 block w-full text-sm"
+                              placeholder="https://www.youtube.com/watch?v=..." />
+                <p class="text-xs text-gray-400 mt-1">YouTube or Vimeo link for the training video</p>
+                <x-input-error :messages="$errors->get('video_url')" class="mt-1" />
+            </div>
+
+            {{-- Preparation Steps --}}
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
+                    </div>
+                    <button type="button" wire:click="addStep"
+                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                        + Add Step
+                    </button>
+                </div>
+
+                @if (count($steps))
+                    <div class="space-y-3">
+                        @foreach ($steps as $idx => $step)
+                            <div class="relative bg-gray-50 rounded-lg p-4 border border-gray-200" wire:key="step-{{ $idx }}">
+                                <div class="flex items-start gap-3">
+                                    <span class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $idx + 1 }}</span>
+                                    <div class="flex-1 space-y-2">
+                                        <input type="text"
+                                               wire:model.blur="steps.{{ $idx }}.title"
+                                               placeholder="Step title (optional, e.g. Preparation)"
+                                               class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                        <textarea wire:model.blur="steps.{{ $idx }}.instruction"
+                                                  rows="3"
+                                                  placeholder="Describe the preparation step..."
+                                                  class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                        <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
+
+                                        {{-- Image upload --}}
+                                        <div class="flex items-start gap-3 pt-1">
+                                            <div class="flex-shrink-0">
+                                                @if (!empty($step['new_image']))
+                                                    {{-- Newly uploaded (pending save) --}}
+                                                    <div class="relative">
+                                                        <img src="{{ $step['new_image']->temporaryUrl() }}" class="w-20 h-20 object-cover rounded border border-indigo-300" />
+                                                        <button type="button" wire:click="clearStepNewImage({{ $idx }})"
+                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                                                    </div>
+                                                @elseif (!empty($step['image_url']) && empty($step['remove_image']))
+                                                    {{-- Existing saved image --}}
+                                                    <div class="relative">
+                                                        <img src="{{ $step['image_url'] }}" class="w-20 h-20 object-cover rounded border border-gray-300" />
+                                                        <button type="button" wire:click="removeStepImage({{ $idx }})"
+                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600" title="Remove image">×</button>
+                                                    </div>
+                                                @else
+                                                    <label class="cursor-pointer inline-flex flex-col items-center justify-center w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <span class="text-[10px] text-gray-500 mt-1">Add photo</span>
+                                                        <input type="file" wire:model="steps.{{ $idx }}.new_image" accept="image/*" class="hidden" />
+                                                    </label>
+                                                @endif
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-xs text-gray-500 pt-1">Optional step photo (max 5MB). Images enhance training visuals in the LMS and SOP PDFs.</p>
+                                                <x-input-error :messages="$errors->get('steps.'.$idx.'.new_image')" class="mt-1" />
+                                                <div wire:loading wire:target="steps.{{ $idx }}.new_image" class="text-xs text-indigo-500 mt-1">Uploading…</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" wire:click="removeStep({{ $idx }})"
+                                            class="flex-shrink-0 text-red-400 hover:text-red-600 transition mt-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6 text-gray-400">
+                        <p class="text-sm">No preparation steps added yet.</p>
+                        <p class="text-xs mt-1">Add steps to create training content for this recipe.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
     </div>
 </div>

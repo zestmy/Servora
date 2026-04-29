@@ -24,3 +24,5 @@ Homestead.yaml
 Thumbs.db
 /Servora
 CLAUDE.md
+.claude/
+.ssh_key
