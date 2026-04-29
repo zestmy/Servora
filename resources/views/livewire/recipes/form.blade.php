@@ -3,6 +3,112 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     @endonce
     <x-desktop-hint storageKey="desktop-hint-recipe-form" message="Editing recipes and ingredient lines is easier on a desktop. Mobile works, but a wider screen helps." />
+
+    {{-- Floating Cost Summary (appears when scrolling past original) --}}
+    <div x-data="{
+            showFloat: false,
+            expanded: true,
+            checkScroll() {
+                const trigger = document.getElementById('cost-summary-anchor');
+                if (trigger) {
+                    const rect = trigger.getBoundingClientRect();
+                    this.showFloat = rect.bottom < 0;
+                }
+            }
+         }"
+         x-init="window.addEventListener('scroll', () => checkScroll(), { passive: true })"
+         x-show="showFloat"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-x-4"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-4"
+         x-cloak
+         class="hidden lg:block fixed bottom-6 right-6 z-50">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden" style="min-width: 280px; max-width: 320px;">
+            {{-- Header (always visible) --}}
+            <button type="button" @click="expanded = !expanded"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 transition">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-sm font-semibold">Cost Summary</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold tabular-nums">{{ number_format($grandCost, 2) }}</span>
+                    <svg :class="expanded && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </button>
+
+            {{-- Expandable content --}}
+            <div x-show="expanded" x-collapse>
+                <div class="px-4 py-3 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Ingredients</span>
+                        <span class="text-gray-700 tabular-nums">{{ number_format($totalCost, 2) }}</span>
+                    </div>
+                    @if ($packagingCost > 0)
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Packaging</span>
+                            <span class="text-gray-700 tabular-nums">{{ number_format($packagingCost, 2) }}</span>
+                        </div>
+                    @endif
+                    @if ($extraCostTotal > 0)
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Extra Costs</span>
+                            <span class="text-gray-700 tabular-nums">{{ number_format($extraCostTotal, 2) }}</span>
+                        </div>
+                    @endif
+                    <div class="flex justify-between pt-2 border-t border-gray-100">
+                        <span class="text-gray-600 font-medium">Grand Total</span>
+                        <span class="font-bold text-gray-900 tabular-nums">{{ number_format($grandCost, 2) }}</span>
+                    </div>
+                    @php $floatYieldUom = collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'serving'; @endphp
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Cost / {{ $floatYieldUom }}</span>
+                        <span class="text-gray-700 tabular-nums">{{ number_format($costPerServing, 4) }}</span>
+                    </div>
+                    @if ($priceClasses->isNotEmpty())
+                        @php
+                            $defaultPc = $priceClasses->firstWhere('is_default', true) ?? $priceClasses->first();
+                            $defaultCd = $classCostData[$defaultPc->id] ?? [];
+                            $defaultFcp = $defaultCd['food_cost_pct'] ?? null;
+                            $defaultFcColor = match(true) {
+                                $defaultFcp === null => 'text-gray-400',
+                                $defaultFcp <= 25    => 'text-green-600',
+                                $defaultFcp <= 35    => 'text-yellow-600',
+                                $defaultFcp <= 45    => 'text-orange-500',
+                                default              => 'text-red-600',
+                            };
+                        @endphp
+                        @if (($defaultCd['selling_price'] ?? 0) > 0)
+                            <div class="flex justify-between pt-2 border-t border-gray-100">
+                                <span class="text-gray-600 font-medium">Food Cost %</span>
+                                <span class="font-bold {{ $defaultFcColor }} tabular-nums">{{ number_format($defaultFcp, 1) }}%</span>
+                            </div>
+                        @endif
+                    @elseif (floatval($selling_price) > 0 && $foodCostPct !== null)
+                        @php
+                            $floatFcColor = match(true) {
+                                $foodCostPct <= 25 => 'text-green-600',
+                                $foodCostPct <= 35 => 'text-yellow-600',
+                                $foodCostPct <= 45 => 'text-orange-500',
+                                default            => 'text-red-600',
+                            };
+                        @endphp
+                        <div class="flex justify-between pt-2 border-t border-gray-100">
+                            <span class="text-gray-600 font-medium">Food Cost %</span>
+                            <span class="font-bold {{ $floatFcColor }} tabular-nums">{{ number_format($foodCostPct, 1) }}%</span>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -246,7 +352,7 @@
         </div>
 
         {{-- ── Cost Summary card (1/3, sticky) ── --}}
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-1" id="cost-summary-anchor">
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Cost Summary</h3>
 
