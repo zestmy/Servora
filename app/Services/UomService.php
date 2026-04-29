@@ -9,15 +9,30 @@ use App\Models\UnitOfMeasure;
 class UomService
 {
     /**
-     * Convert an ingredient's current_cost (stored in base_uom) to cost per recipe_uom.
+     * Convert an ingredient's cost to cost per target UOM.
+     * Note: current_cost is stored as cost per RECIPE UOM (purchase_price / pack_size).
      * Tries ingredient-specific conversions first, then falls back to standard UOM factor ratio.
      */
     public function convertCost(Ingredient $ingredient, UnitOfMeasure $targetUom): float
     {
         $baseUom = $ingredient->baseUom;
 
-        if ($baseUom->id === $targetUom->id) {
+        // If target is the recipe UOM, current_cost is already stored as cost per recipe UOM
+        // (current_cost = purchase_price / pack_size, where pack_size = base_uom to recipe_uom ratio)
+        if ($ingredient->recipe_uom_id && (int) $targetUom->id === (int) $ingredient->recipe_uom_id) {
             return (float) $ingredient->current_cost;
+        }
+
+        // If target is the base UOM, calculate cost per base UOM from current_cost
+        // current_cost is per recipe_uom, so cost per base = current_cost × pack_size
+        if ($baseUom->id === $targetUom->id) {
+            // If base == recipe, current_cost is already correct
+            if ((int) $baseUom->id === (int) $ingredient->recipe_uom_id) {
+                return (float) $ingredient->current_cost;
+            }
+            // Otherwise, scale back: cost per base = cost per recipe × pack_size
+            $packSize = max((float) $ingredient->pack_size, 0.0001);
+            return (float) $ingredient->current_cost * $packSize;
         }
 
         $baseId   = (int) $baseUom->id;

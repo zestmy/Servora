@@ -5,11 +5,14 @@ namespace App\Livewire\Inventory;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
+use App\Traits\ScopesToActiveOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class TransferForm extends Component
 {
+    use ScopesToActiveOutlet;
+
     public ?int $transferId = null;
 
     public string $transfer_date   = '';
@@ -50,6 +53,12 @@ class TransferForm extends Component
 
         if ($id) {
             $transfer = OutletTransfer::with(['lines.ingredient.baseUom', 'lines.uom'])->findOrFail($id);
+
+            // Check user can access either the source or destination outlet
+            $user = Auth::user();
+            if (! $user->canAccessOutlet($transfer->from_outlet_id) && ! $user->canAccessOutlet($transfer->to_outlet_id)) {
+                abort(403, 'You do not have access to this transfer.');
+            }
 
             $this->transferId      = $transfer->id;
             $this->transfer_date   = $transfer->transfer_date->toDateString();
@@ -127,6 +136,13 @@ class TransferForm extends Component
         }
 
         $this->validate();
+
+        // Verify user has access to from_outlet_id
+        $user = Auth::user();
+        if (! $user->canAccessOutlet((int) $this->from_outlet_id)) {
+            session()->flash('error', 'You do not have access to the source outlet.');
+            return;
+        }
 
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
 
@@ -225,8 +241,12 @@ class TransferForm extends Component
                 ->get();
         }
 
-        $outlets   = Outlet::where('company_id', Auth::user()->company_id)
-            ->where('is_active', true)->orderBy('name')->get();
+        // Filter outlets to user's permitted outlets only
+        $availableOutletIds = $this->availableOutletIds();
+        $outlets = Outlet::whereIn('id', $availableOutletIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
         $pageTitle = $this->transferId ? 'Transfer ' . $this->transfer_number : 'New Transfer';
         $isDraft   = $this->status === 'draft';

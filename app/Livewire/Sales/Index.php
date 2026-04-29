@@ -29,6 +29,7 @@ class Index extends Component
     public string $dateFrom         = '';
     public string $dateTo           = '';
     public string $mealPeriodFilter = '';
+    public string $outletFilter     = '';
     public string $quickRange       = 'today';
 
     public array $selected   = [];
@@ -52,6 +53,7 @@ class Index extends Component
     public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPage(); }
     public function updatedDateTo(): void           { $this->quickRange = 'custom'; $this->resetPage(); }
     public function updatedMealPeriodFilter(): void { $this->resetPage(); }
+    public function updatedOutletFilter(): void     { $this->resetPage(); }
 
     public function setQuickRange(string $range): void
     {
@@ -384,8 +386,22 @@ class Index extends Component
 
     public function render()
     {
+        // Get available outlets for dropdown (only for users with multiple outlets)
+        $availableOutletIds = $this->availableOutletIds();
+        $outlets = Outlet::whereIn('id', $availableOutletIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        $showOutletFilter = $outlets->count() > 1;
+
         $query = SalesRecord::with(['lines.salesCategory', 'attachments'])->withCount('attachments');
-        $this->scopeByOutlet($query);
+
+        // Apply outlet filter (single outlet or all available)
+        if ($this->outletFilter) {
+            $query->where('outlet_id', $this->outletFilter);
+        } else {
+            $this->scopeByOutlet($query);
+        }
 
         if ($this->search) {
             $query->where('reference_number', 'like', '%' . $this->search . '%');
@@ -404,7 +420,11 @@ class Index extends Component
 
         // Stats
         $statsQ = SalesRecord::query();
-        $this->scopeByOutlet($statsQ);
+        if ($this->outletFilter) {
+            $statsQ->where('outlet_id', $this->outletFilter);
+        } else {
+            $this->scopeByOutlet($statsQ);
+        }
         if ($this->dateFrom) {
             $statsQ->where('sale_date', '>=', $this->dateFrom);
         }
@@ -502,7 +522,7 @@ class Index extends Component
         return view('livewire.sales.index', compact(
             'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount',
             'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'missingDatesData',
-            'events', 'commonReasons', 'targetData'
+            'events', 'commonReasons', 'targetData', 'outlets', 'showOutletFilter'
         ))->layout('layouts.app', ['title' => 'Sales']);
     }
 

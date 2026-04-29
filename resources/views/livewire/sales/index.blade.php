@@ -120,6 +120,17 @@
                        placeholder="Search reference number…"
                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
+            @if ($showOutletFilter)
+                <div>
+                    <select wire:model.live="outletFilter"
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">All Outlets</option>
+                        @foreach ($outlets as $outlet)
+                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div>
                 <select wire:model.live="mealPeriodFilter"
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
