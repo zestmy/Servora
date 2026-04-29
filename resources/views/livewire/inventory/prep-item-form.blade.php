@@ -407,7 +407,8 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-2">
-                                    <input type="number" step="0.01" min="0.0001"
+                                    <input type="number" step="0.1" min="0.0001"
+                                           wire:key="pi-qty-{{ $line['ingredient_id'] ?? $idx }}"
                                            wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
@@ -421,11 +422,9 @@
                                         $piValidUoms = count($piUomIds)
                                             ? $uoms->whereIn('id', $piUomIds)->values()
                                             : $uoms;
-                                        $piOtherUoms = count($piUomIds)
-                                            ? $uoms->whereNotIn('id', $piUomIds)->values()
-                                            : collect();
                                     @endphp
-                                    <select wire:model.live="lines.{{ $idx }}.uom_id"
+                                    <select wire:key="pi-uom-{{ $line['ingredient_id'] ?? $idx }}"
+                                            wire:model.live="lines.{{ $idx }}.uom_id"
                                             class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                                         @if (count($piUomIds))
                                             @foreach ($piValidUoms as $uom)
@@ -442,6 +441,7 @@
                                 <td class="px-4 py-2">
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
+                                               wire:key="pi-waste-{{ $line['ingredient_id'] ?? $idx }}"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 pr-7" />
                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
