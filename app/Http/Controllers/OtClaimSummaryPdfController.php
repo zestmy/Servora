@@ -11,9 +11,14 @@ class OtClaimSummaryPdfController extends Controller
 {
     public function __invoke(Request $request)
     {
-        $user     = $request->user();
-        $company  = Company::find($user->company_id);
-        $outletId = $user->activeOutletId();
+        $user    = $request->user();
+        $company = Company::find($user->company_id);
+
+        // Use same outlet scope as the Livewire component — cross-outlet roles
+        // see all company outlets; everyone else sees only assigned outlets.
+        $availableOutletIds = $user->canViewAllOutlets()
+            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
+            : $user->outlets()->pluck('outlets.id')->all();
 
         $month = (int) $request->input('month', now()->month);
         $year  = (int) $request->input('year',  now()->year);
@@ -27,9 +32,9 @@ class OtClaimSummaryPdfController extends Controller
             'public_holiday' => 'Public Holiday',
         ];
 
-        // Fetch all approved claims for the period, eager-load employee
+        // Fetch all approved claims for the period from accessible outlets
         $claims = OvertimeClaim::with('employee')
-            ->where('outlet_id', $outletId)
+            ->whereIn('outlet_id', $availableOutletIds)
             ->where('status', 'approved')
             ->whereBetween('claim_date', [$from, $to])
             ->get();
