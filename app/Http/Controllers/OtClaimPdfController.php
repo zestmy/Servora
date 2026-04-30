@@ -14,24 +14,32 @@ class OtClaimPdfController extends Controller
 {
     public function __invoke(Request $request, string $employee)
     {
-        $user     = $request->user();
-        $company  = Company::find($user->company_id);
-        $outletId = $user->activeOutletId();
+        $user    = $request->user();
+        $company = Company::find($user->company_id);
+
+        // Use same outlet scope as the Livewire component — cross-outlet roles
+        // see all company outlets; everyone else sees only assigned outlets.
+        $availableOutletIds = $user->canViewAllOutlets()
+            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
+            : $user->outlets()->pluck('outlets.id')->all();
 
         $from = $request->input('from');
         $to   = $request->input('to');
 
         if ($employee === 'all') {
+            // Get all active employees from outlets the user can access
             $employees = Employee::with('section')
-                ->where('outlet_id', $outletId)
+                ->whereIn('outlet_id', $availableOutletIds)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get();
 
             $grouped = [];
             foreach ($employees as $emp) {
+                // Filter claims by outlets the user can access
                 $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
                     ->where('employee_id', $emp->id)
+                    ->whereIn('outlet_id', $availableOutletIds)
                     ->where('status', 'approved');
 
                 if ($from) $query->where('claim_date', '>=', $from);
@@ -48,8 +56,8 @@ class OtClaimPdfController extends Controller
                     'totalHours'  => $claims->sum('total_ot_hours'),
                     'hoursByType' => $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours')),
                     'submitters'  => $submitters,
-                    // Approvers that could approve this specific employee's section at this outlet.
-                    'approvers'   => $this->approversFor($outletId, $emp->section_id),
+                    // Approvers that could approve this specific employee's section at their outlet.
+                    'approvers'   => $this->approversFor($emp->outlet_id, $emp->section_id),
                 ];
             }
 
@@ -65,6 +73,7 @@ class OtClaimPdfController extends Controller
 
         $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
             ->where('employee_id', $employee->id)
+            ->whereIn('outlet_id', $availableOutletIds)
             ->where('status', 'approved');
 
         if ($from) $query->where('claim_date', '>=', $from);
@@ -79,7 +88,7 @@ class OtClaimPdfController extends Controller
         $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
         // Approvers scoped to this employee's outlet + section.
-        $approvers = $this->approversFor($outletId, $employee->section_id);
+        $approvers = $this->approversFor($employee->outlet_id, $employee->section_id);
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
             'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'from', 'to'
