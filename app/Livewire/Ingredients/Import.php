@@ -1225,7 +1225,7 @@ PROMPT;
         foreach ($reader->getSheetIterator() as $sheet) {
             foreach ($sheet->getRowIterator() as $row) {
                 $cells = array_map(
-                    fn ($c) => trim((string) $c->getValue()),
+                    fn ($c) => $this->toUtf8(trim((string) $c->getValue())),
                     $row->getCells()
                 );
 
@@ -1263,7 +1263,7 @@ PROMPT;
         foreach ($reader->getSheetIterator() as $sheet) {
             foreach ($sheet->getRowIterator() as $row) {
                 $cells = array_map(
-                    fn ($c) => trim((string) $c->getValue()),
+                    fn ($c) => $this->toUtf8(trim((string) $c->getValue())),
                     $row->getCells()
                 );
 
@@ -1284,6 +1284,32 @@ PROMPT;
 
         $reader->close();
         return ['headers' => $headers ?? [], 'rows' => $rows];
+    }
+
+    /**
+     * Convert a string to UTF-8, handling various source encodings.
+     */
+    private function toUtf8(string $str): string
+    {
+        if ($str === '') return $str;
+
+        // Already valid UTF-8
+        if (mb_check_encoding($str, 'UTF-8')) {
+            return $str;
+        }
+
+        // Try common encodings
+        $encoding = mb_detect_encoding($str, ['UTF-8', 'ISO-8859-1', 'Windows-1252', 'ASCII'], true);
+
+        if ($encoding && $encoding !== 'UTF-8') {
+            $converted = mb_convert_encoding($str, 'UTF-8', $encoding);
+            if ($converted !== false) {
+                return $converted;
+            }
+        }
+
+        // Fallback: strip non-UTF-8 characters
+        return mb_convert_encoding($str, 'UTF-8', 'UTF-8');
     }
 
     private function parseBool(string $val): bool
