@@ -463,10 +463,10 @@ class OvertimeClaims extends Component
             ? round(array_sum($weekTotals) / max(1, count(array_filter($weekTotals))), 1)
             : 0;
 
-        // Top 5 employees by OT hours this month
+        // Top 5 employees by OT hours (based on date filter)
         $topEmployees = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
             ->where('status', 'approved')
-            ->whereBetween('claim_date', [$monthStart, $monthEnd])
+            ->whereBetween('claim_date', [$statsDateFrom, $statsDateTo])
             ->selectRaw('employee_id, SUM(total_ot_hours) as hours')
             ->groupBy('employee_id')
             ->orderByDesc('hours')
