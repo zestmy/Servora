@@ -20,6 +20,12 @@ class OtClaimSummaryPdfController extends Controller
             ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
             : $user->outlets()->pluck('outlets.id')->all();
 
+        // If outlet filter is specified, narrow down to that outlet only
+        $outletFilter = $request->input('outlet');
+        if ($outletFilter && in_array((int) $outletFilter, $availableOutletIds)) {
+            $availableOutletIds = [(int) $outletFilter];
+        }
+
         $month = (int) $request->input('month', now()->month);
         $year  = (int) $request->input('year',  now()->year);
 

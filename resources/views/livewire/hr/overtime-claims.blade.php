@@ -658,7 +658,7 @@
     @if ($showPdfModal)
         @teleport('body')
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showPdfModal', false)"
-             x-data="{ empId: '{{ $pdfEmployeeId }}', fromDate: '{{ $pdfFrom }}', toDate: '{{ $pdfTo }}' }">
+             x-data="{ empId: '{{ $pdfEmployeeId }}', fromDate: '{{ $pdfFrom }}', toDate: '{{ $pdfTo }}', outletId: '{{ $outletFilter }}' }">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                 <h3 class="text-base font-semibold text-gray-800 mb-4">Print Approved OT Claims</h3>
 
@@ -693,7 +693,7 @@
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
                         Cancel
                     </button>
-                    <a x-bind:href="'{{ url('/hr/overtime-claims/pdf') }}/' + (empId || 'all') + '?from=' + fromDate + '&to=' + toDate"
+                    <a x-bind:href="'{{ url('/hr/overtime-claims/pdf') }}/' + (empId || 'all') + '?from=' + fromDate + '&to=' + toDate + (outletId ? '&outlet=' + outletId : '')"
                        target="_blank"
                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition inline-flex items-center">
                         Download PDF
@@ -712,6 +712,7 @@
              x-data="{
                  month: '{{ $summaryMonth }}',
                  year:  '{{ $summaryYear }}',
+                 outletId: '{{ $outletFilter }}',
                  months: [
                      { v:'01', l:'January' },  { v:'02', l:'February' }, { v:'03', l:'March' },
                      { v:'04', l:'April' },    { v:'05', l:'May' },      { v:'06', l:'June' },
@@ -719,7 +720,7 @@
                      { v:'10', l:'October' },  { v:'11', l:'November' }, { v:'12', l:'December' },
                  ],
                  get summaryUrl() {
-                     return '{{ route('hr.ot-claims.summary-pdf') }}?month=' + this.month + '&year=' + this.year;
+                     return '{{ route('hr.ot-claims.summary-pdf') }}?month=' + this.month + '&year=' + this.year + (this.outletId ? '&outlet=' + this.outletId : '');
                  }
              }">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
