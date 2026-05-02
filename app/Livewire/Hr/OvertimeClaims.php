@@ -392,29 +392,28 @@ class OvertimeClaims extends Component
         // Company Admin / Business Manager / system roles can delete at any status.
         $canDeleteAny = $user->hasCapability('can_delete_records');
 
-        // Stats
-        $monthStart = now()->startOfMonth()->toDateString();
-        $monthEnd   = now()->endOfMonth()->toDateString();
-        $monthStats = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
-            ->whereBetween('claim_date', [$monthStart, $monthEnd]);
+        // Stats - use date range filters if set, otherwise current month
+        $statsDateFrom = $this->dateFrom ?: now()->startOfMonth()->toDateString();
+        $statsDateTo   = $this->dateTo ?: now()->endOfMonth()->toDateString();
 
-        $totalHoursMonth   = (clone $monthStats)->where('status', 'approved')->sum('total_ot_hours');
-        $pendingCount      = (clone $monthStats)->where('status', 'submitted')->count();
-        $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
-
-        // ── OT by Section (this month) ───────────────────────────────────────
+        // ── OT by Section (for stats cards) ──────────────────────────────────
+        // Query returns: section_name, total_hours, approved_hours, pending_hours
         $sectionStats = OvertimeClaim::whereIn('overtime_claims.outlet_id', $scopedOutletIds ?: [0])
-            ->whereBetween('overtime_claims.claim_date', [$monthStart, $monthEnd])
-            ->whereIn('overtime_claims.status', ['submitted', 'approved'])
+            ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
             ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
             ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
-            ->selectRaw("sections.id as section_id,
-                COALESCE(sections.name, 'Unassigned') as section_name,
+            ->selectRaw("COALESCE(sections.name, 'Unassigned') as section_name,
+                SUM(overtime_claims.total_ot_hours) as total_hours,
                 SUM(CASE WHEN overtime_claims.status = 'approved' THEN overtime_claims.total_ot_hours ELSE 0 END) as approved_hours,
-                SUM(CASE WHEN overtime_claims.status = 'submitted' THEN overtime_claims.total_ot_hours ELSE 0 END) as submitted_hours")
+                SUM(CASE WHEN overtime_claims.status = 'submitted' THEN overtime_claims.total_ot_hours ELSE 0 END) as pending_hours")
             ->groupBy('sections.id', 'sections.name')
-            ->orderByRaw("COALESCE(sections.name, 'ZZZZZ')")
+            ->orderBy('sections.name')
             ->get();
+
+        // Calculate totals for each card
+        $totalSubmittedHours = $sectionStats->sum('total_hours');
+        $totalApprovedHours  = $sectionStats->sum('approved_hours');
+        $totalPendingHours   = $sectionStats->sum('pending_hours');
 
         // ── OT Trend — last 12 weeks (approved claims only) ──────────────────
         $trendWeeks = [];
@@ -485,7 +484,8 @@ class OvertimeClaims extends Component
         return view('livewire.hr.overtime-claims', compact(
             'claims', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
             'isApprover', 'canApproveMap', 'canDeleteAny',
-            'totalHoursMonth', 'pendingCount', 'approvedCount', 'sectionStats',
+            'sectionStats', 'totalSubmittedHours', 'totalApprovedHours', 'totalPendingHours',
+            'statsDateFrom', 'statsDateTo',
             'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
             'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);

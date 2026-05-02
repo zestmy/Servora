@@ -42,45 +42,68 @@
         </div>
     </div>
 
-    {{-- Stats --}}
-    <div class="grid grid-cols-3 gap-4 mb-6">
+    {{-- Stats Cards by Section --}}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {{-- Card 1: Total OT Submitted --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Approved Hours (Month)</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1">{{ number_format($totalHoursMonth, 1) }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Pending Approval</p>
-            <p class="text-2xl font-bold text-amber-600 mt-1">{{ $pendingCount }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Approved (Month)</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ $approvedCount }}</p>
-        </div>
-    </div>
-
-    {{-- OT by Section --}}
-    @if($sectionStats->isNotEmpty())
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-        <h2 class="text-sm font-semibold text-gray-800 mb-4">OT Hours by Section (This Month)</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            @foreach($sectionStats as $stat)
-            <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                <p class="text-xs font-medium text-gray-600 truncate" title="{{ $stat->section_name }}">{{ $stat->section_name }}</p>
-                <div class="mt-2 space-y-1">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-green-600">Approved</span>
-                        <span class="text-sm font-bold text-green-600">{{ number_format($stat->approved_hours, 1) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-amber-600">Pending</span>
-                        <span class="text-sm font-bold text-amber-600">{{ number_format($stat->submitted_hours, 1) }}</span>
-                    </div>
-                </div>
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Total OT Submitted</p>
+                <p class="text-lg font-bold text-gray-800">{{ number_format($totalSubmittedHours, 1) }} hrs</p>
             </div>
-            @endforeach
+            @if($sectionStats->isNotEmpty())
+            <div class="space-y-2 border-t border-gray-100 pt-3">
+                @foreach($sectionStats as $stat)
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-600">{{ $stat->section_name }}</span>
+                    <span class="text-sm font-semibold text-gray-800">{{ number_format($stat->total_hours, 1) }}</span>
+                </div>
+                @endforeach
+            </div>
+            @else
+            <p class="text-xs text-gray-400 italic">No data</p>
+            @endif
+        </div>
+
+        {{-- Card 2: Approved OT --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Approved OT</p>
+                <p class="text-lg font-bold text-green-600">{{ number_format($totalApprovedHours, 1) }} hrs</p>
+            </div>
+            @if($sectionStats->isNotEmpty())
+            <div class="space-y-2 border-t border-gray-100 pt-3">
+                @foreach($sectionStats as $stat)
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-600">{{ $stat->section_name }}</span>
+                    <span class="text-sm font-semibold text-green-600">{{ number_format($stat->approved_hours, 1) }}</span>
+                </div>
+                @endforeach
+            </div>
+            @else
+            <p class="text-xs text-gray-400 italic">No data</p>
+            @endif
+        </div>
+
+        {{-- Card 3: Pending Approval --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Pending Approval</p>
+                <p class="text-lg font-bold text-amber-600">{{ number_format($totalPendingHours, 1) }} hrs</p>
+            </div>
+            @if($sectionStats->isNotEmpty())
+            <div class="space-y-2 border-t border-gray-100 pt-3">
+                @foreach($sectionStats as $stat)
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-600">{{ $stat->section_name }}</span>
+                    <span class="text-sm font-semibold text-amber-600">{{ number_format($stat->pending_hours, 1) }}</span>
+                </div>
+                @endforeach
+            </div>
+            @else
+            <p class="text-xs text-gray-400 italic">No data</p>
+            @endif
         </div>
     </div>
-    @endif
 
     {{-- ── Overtime Trend Chart ─────────────────────────────────────────────── --}}
     @once
