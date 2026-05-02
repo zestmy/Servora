@@ -28,7 +28,7 @@ class OtClaimPdfController extends Controller
 
         if ($employee === 'all') {
             // Get all active employees from outlets the user can access
-            $employees = Employee::with('section')
+            $employees = Employee::with(['section', 'outlet'])
                 ->whereIn('outlet_id', $availableOutletIds)
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -36,10 +36,9 @@ class OtClaimPdfController extends Controller
 
             $grouped = [];
             foreach ($employees as $emp) {
-                // Filter claims by outlets the user can access
+                // Filter claims by employee - use employee's outlet, not claim's outlet
                 $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
                     ->where('employee_id', $emp->id)
-                    ->whereIn('outlet_id', $availableOutletIds)
                     ->where('status', 'approved');
 
                 if ($from) $query->where('claim_date', '>=', $from);
@@ -68,12 +67,14 @@ class OtClaimPdfController extends Controller
             return $pdf->download('ot-claims-all.pdf');
         }
 
-        // Single employee
-        $employee = Employee::with('section')->findOrFail((int) $employee);
+        // Single employee - verify they belong to an accessible outlet
+        $employee = Employee::with(['section', 'outlet'])
+            ->whereIn('outlet_id', $availableOutletIds)
+            ->findOrFail((int) $employee);
 
+        // Get all approved claims for this employee (no outlet filter on claims)
         $query = OvertimeClaim::with(['employee', 'submitter', 'approver', 'outlet'])
             ->where('employee_id', $employee->id)
-            ->whereIn('outlet_id', $availableOutletIds)
             ->where('status', 'approved');
 
         if ($from) $query->where('claim_date', '>=', $from);

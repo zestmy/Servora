@@ -32,11 +32,14 @@ class OtClaimSummaryPdfController extends Controller
             'public_holiday' => 'Public Holiday',
         ];
 
-        // Fetch all approved claims for the period from accessible outlets
+        // Fetch all approved claims for the period - filter by EMPLOYEE's outlet, not claim's outlet
+        // This ensures claims appear in the correct outlet's report even if claim.outlet_id was set incorrectly
         $claims = OvertimeClaim::with('employee')
-            ->whereIn('outlet_id', $availableOutletIds)
-            ->where('status', 'approved')
-            ->whereBetween('claim_date', [$from, $to])
+            ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $availableOutletIds)
+            ->where('overtime_claims.status', 'approved')
+            ->whereBetween('overtime_claims.claim_date', [$from, $to])
+            ->select('overtime_claims.*')
             ->get();
 
         // Build per-employee summary, sorted by employee name

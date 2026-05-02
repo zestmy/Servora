@@ -332,8 +332,12 @@ class OvertimeClaims extends Component
             ? [(int) $this->outletFilter]
             : $availableOutletIds;
 
+        // Filter by EMPLOYEE's outlet, not claim's outlet (claim.outlet_id may be incorrect for old records)
         $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet'])
-            ->whereIn('outlet_id', $scopedOutletIds ?: [0]);
+            ->whereIn('employee_id', function ($sub) use ($scopedOutletIds) {
+                $sub->select('id')->from('employees')
+                    ->whereIn('outlet_id', $scopedOutletIds ?: [0]);
+            });
 
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
@@ -368,6 +372,7 @@ class OvertimeClaims extends Component
         // Per-claim approve eligibility. System roles can approve everything;
         // everyone else is matched against their approver scopes (in-memory,
         // no extra queries per claim).
+        // Use EMPLOYEE's outlet for approval matching, not claim's outlet
         $canApproveMap = [];
         foreach ($claims as $c) {
             if ($approverScopes === null) {
@@ -375,7 +380,7 @@ class OvertimeClaims extends Component
             } else {
                 $canApproveMap[$c->id] = OvertimeClaimApprover::scopesMatch(
                     $approverScopes,
-                    $c->outlet_id,
+                    $c->employee?->outlet_id,
                     $c->employee?->section_id
                 );
             }
@@ -399,9 +404,10 @@ class OvertimeClaims extends Component
 
         // ── OT by Section (for stats cards) ──────────────────────────────────
         // Query returns: section_name, total_hours, approved_hours, pending_hours
-        $sectionStats = OvertimeClaim::whereIn('overtime_claims.outlet_id', $scopedOutletIds ?: [0])
+        // Filter by EMPLOYEE's outlet, not claim's outlet
+        $sectionStats = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
             ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
-            ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
             ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
             ->selectRaw("COALESCE(sections.name, 'Unassigned') as section_name,
                 SUM(CASE WHEN overtime_claims.status IN ('submitted', 'approved') THEN overtime_claims.total_ot_hours ELSE 0 END) as total_hours,
@@ -429,13 +435,15 @@ class OvertimeClaims extends Component
         $trendFrom = $trendWeeks[0][0];
         $trendTo   = $trendWeeks[11][1];
 
-        $rawTrend = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
-            ->where('status', 'approved')
-            ->whereBetween('claim_date', [$trendFrom, $trendTo])
-            ->selectRaw("DATE(DATE_SUB(claim_date, INTERVAL (WEEKDAY(claim_date)) DAY)) as week_start,
-                         ot_type,
-                         SUM(total_ot_hours) as hours")
-            ->groupByRaw("week_start, ot_type")
+        // Filter by EMPLOYEE's outlet, not claim's outlet
+        $rawTrend = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
+            ->where('overtime_claims.status', 'approved')
+            ->whereBetween('overtime_claims.claim_date', [$trendFrom, $trendTo])
+            ->selectRaw("DATE(DATE_SUB(overtime_claims.claim_date, INTERVAL (WEEKDAY(overtime_claims.claim_date)) DAY)) as week_start,
+                         overtime_claims.ot_type,
+                         SUM(overtime_claims.total_ot_hours) as hours")
+            ->groupByRaw("week_start, overtime_claims.ot_type")
             ->get()
             ->groupBy('week_start');
 
@@ -465,15 +473,17 @@ class OvertimeClaims extends Component
             : 0;
 
         // Top 5 employees by OT hours (based on date filter)
-        $topEmployees = OvertimeClaim::whereIn('outlet_id', $scopedOutletIds ?: [0])
-            ->where('status', 'approved')
-            ->whereBetween('claim_date', [$statsDateFrom, $statsDateTo])
-            ->selectRaw('employee_id, SUM(total_ot_hours) as hours')
-            ->groupBy('employee_id')
+        // Filter by EMPLOYEE's outlet, not claim's outlet
+        $topEmployees = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
+            ->where('overtime_claims.status', 'approved')
+            ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
+            ->selectRaw('overtime_claims.employee_id, SUM(overtime_claims.total_ot_hours) as hours')
+            ->groupBy('overtime_claims.employee_id')
             ->orderByDesc('hours')
             ->limit(5)
-            ->with('employee:id,name')
-            ->get();
+            ->get()
+            ->load('employee:id,name');
 
         $trendChartData = [
             'labels'  => $trendLabels,
