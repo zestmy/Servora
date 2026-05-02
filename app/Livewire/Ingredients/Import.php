@@ -1238,12 +1238,12 @@ PROMPT;
                     continue;
                 }
 
-                if (array_filter($cells) === []) continue;
+                // Skip empty rows
+                if (count(array_filter($cells)) === 0) continue;
 
-                $rows[] = array_combine(
-                    $headers,
-                    array_pad($cells, count($headers), '')
-                );
+                // Ensure cells array matches headers count exactly
+                $paddedCells = array_slice(array_pad($cells, count($headers), ''), 0, count($headers));
+                $rows[] = array_combine($headers, $paddedCells);
             }
             break;
         }
@@ -1272,12 +1272,12 @@ PROMPT;
                     continue;
                 }
 
-                if (array_filter($cells) === []) continue;
+                // Skip empty rows
+                if (count(array_filter($cells)) === 0) continue;
 
-                $rows[] = array_combine(
-                    $headers,
-                    array_pad($cells, count($headers), '')
-                );
+                // Ensure cells array matches headers count exactly
+                $paddedCells = array_slice(array_pad($cells, count($headers), ''), 0, count($headers));
+                $rows[] = array_combine($headers, $paddedCells);
             }
             break;
         }
