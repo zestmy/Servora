@@ -42,18 +42,57 @@
         </div>
     </div>
 
-    {{-- Stats Section --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        {{-- Date Range Filter Row --}}
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-100">
+    {{-- Filters Section --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="flex flex-wrap gap-3 items-center">
+            {{-- Outlet filter --}}
+            @if ($multiOutlet)
+                <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Outlets</option>
+                    @foreach ($outlets as $outlet)
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+
+            <select wire:model.live="sectionFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">All Sections</option>
+                @foreach ($sections as $s)
+                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                @endforeach
+            </select>
+
+            <select wire:model.live="employeeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">All Employees</option>
+                @foreach ($allEmployees as $emp)
+                    <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->section) — {{ $emp->section->name }}@endif</option>
+                @endforeach
+            </select>
+
             <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700">Date Range:</span>
+                <span class="text-sm text-gray-500">From</span>
                 <input type="date" wire:model.live="dateFrom" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                <span class="text-gray-400">to</span>
+                <span class="text-sm text-gray-500">To</span>
                 <input type="date" wire:model.live="dateTo" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
+        </div>
+    </div>
+
+    {{-- Stats Section --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        {{-- Date Range Display --}}
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+            <h3 class="text-sm font-semibold text-gray-700">OT Summary</h3>
             <p class="text-sm text-gray-500">
-                Showing: <span class="font-medium text-gray-700">{{ \Carbon\Carbon::parse($statsDateFrom)->format('d M Y') }}</span>
+                Date Range: <span class="font-medium text-gray-700">{{ \Carbon\Carbon::parse($statsDateFrom)->format('d M Y') }}</span>
                 to <span class="font-medium text-gray-700">{{ \Carbon\Carbon::parse($statsDateTo)->format('d M Y') }}</span>
             </p>
         </div>
@@ -256,44 +295,6 @@
                 </div>
             </div>
         @endif
-    </div>
-
-    {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-        <div class="flex flex-wrap gap-3">
-
-            {{-- Outlet filter — only visible when user has access to multiple outlets --}}
-            @if ($multiOutlet)
-                <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">All Outlets</option>
-                    @foreach ($outlets as $outlet)
-                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                    @endforeach
-                </select>
-            @endif
-
-            <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">All Statuses</option>
-                <option value="draft">Draft</option>
-                <option value="submitted">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-            </select>
-            <select wire:model.live="sectionFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">All Sections</option>
-                @foreach ($sections as $s)
-                    <option value="{{ $s->id }}">{{ $s->name }}</option>
-                @endforeach
-            </select>
-            <select wire:model.live="employeeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">All Employees</option>
-                @foreach ($allEmployees as $emp)
-                    <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->section) — {{ $emp->section->name }}@endif</option>
-                @endforeach
-            </select>
-            <input type="date" wire:model.live="dateFrom" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="From" />
-            <input type="date" wire:model.live="dateTo" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="To" />
-        </div>
     </div>
 
     {{-- Bulk Actions Bar --}}
