@@ -138,7 +138,8 @@ class OvertimeClaims extends Component
         $this->validate();
 
         $user     = Auth::user();
-        $outletId = $user->activeOutletId();
+        $employee = Employee::find($this->employee_id);
+        $outletId = $employee?->outlet_id ?? $user->activeOutletId();
 
         $data = [
             'company_id'    => $user->company_id,
