@@ -58,6 +58,30 @@
         </div>
     </div>
 
+    {{-- OT by Section --}}
+    @if($sectionStats->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+        <h2 class="text-sm font-semibold text-gray-800 mb-4">OT Hours by Section (This Month)</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            @foreach($sectionStats as $stat)
+            <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                <p class="text-xs font-medium text-gray-600 truncate" title="{{ $stat->section_name }}">{{ $stat->section_name }}</p>
+                <div class="mt-2 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-green-600">Approved</span>
+                        <span class="text-sm font-bold text-green-600">{{ number_format($stat->approved_hours, 1) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-amber-600">Pending</span>
+                        <span class="text-sm font-bold text-amber-600">{{ number_format($stat->submitted_hours, 1) }}</span>
+                    </div>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- ── Overtime Trend Chart ─────────────────────────────────────────────── --}}
     @once
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>

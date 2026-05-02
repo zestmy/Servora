@@ -402,6 +402,19 @@ class OvertimeClaims extends Component
         $pendingCount      = (clone $monthStats)->where('status', 'submitted')->count();
         $approvedCount     = (clone $monthStats)->where('status', 'approved')->count();
 
+        // ── OT by Section (this month) ───────────────────────────────────────
+        $sectionStats = OvertimeClaim::whereIn('overtime_claims.outlet_id', $scopedOutletIds ?: [0])
+            ->whereBetween('claim_date', [$monthStart, $monthEnd])
+            ->whereIn('status', ['submitted', 'approved'])
+            ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->join('sections', 'employees.section_id', '=', 'sections.id')
+            ->selectRaw('sections.id as section_id, sections.name as section_name,
+                SUM(CASE WHEN overtime_claims.status = "approved" THEN total_ot_hours ELSE 0 END) as approved_hours,
+                SUM(CASE WHEN overtime_claims.status = "submitted" THEN total_ot_hours ELSE 0 END) as submitted_hours')
+            ->groupBy('sections.id', 'sections.name')
+            ->orderBy('sections.name')
+            ->get();
+
         // ── OT Trend — last 12 weeks (approved claims only) ──────────────────
         $trendWeeks = [];
         $thisWeekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY);
@@ -471,7 +484,7 @@ class OvertimeClaims extends Component
         return view('livewire.hr.overtime-claims', compact(
             'claims', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
             'isApprover', 'canApproveMap', 'canDeleteAny',
-            'totalHoursMonth', 'pendingCount', 'approvedCount',
+            'totalHoursMonth', 'pendingCount', 'approvedCount', 'sectionStats',
             'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
             'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
