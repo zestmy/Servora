@@ -404,15 +404,16 @@ class OvertimeClaims extends Component
 
         // ── OT by Section (this month) ───────────────────────────────────────
         $sectionStats = OvertimeClaim::whereIn('overtime_claims.outlet_id', $scopedOutletIds ?: [0])
-            ->whereBetween('claim_date', [$monthStart, $monthEnd])
-            ->whereIn('status', ['submitted', 'approved'])
+            ->whereBetween('overtime_claims.claim_date', [$monthStart, $monthEnd])
+            ->whereIn('overtime_claims.status', ['submitted', 'approved'])
             ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
-            ->join('sections', 'employees.section_id', '=', 'sections.id')
-            ->selectRaw('sections.id as section_id, sections.name as section_name,
-                SUM(CASE WHEN overtime_claims.status = "approved" THEN total_ot_hours ELSE 0 END) as approved_hours,
-                SUM(CASE WHEN overtime_claims.status = "submitted" THEN total_ot_hours ELSE 0 END) as submitted_hours')
-            ->groupBy('sections.id', 'sections.name')
-            ->orderBy('sections.name')
+            ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
+            ->selectRaw("COALESCE(sections.id, 0) as section_id,
+                COALESCE(sections.name, 'Unassigned') as section_name,
+                SUM(CASE WHEN overtime_claims.status = 'approved' THEN overtime_claims.total_ot_hours ELSE 0 END) as approved_hours,
+                SUM(CASE WHEN overtime_claims.status = 'submitted' THEN overtime_claims.total_ot_hours ELSE 0 END) as submitted_hours")
+            ->groupByRaw("COALESCE(sections.id, 0), COALESCE(sections.name, 'Unassigned')")
+            ->orderByRaw("COALESCE(sections.name, 'ZZZZZ')")
             ->get();
 
         // ── OT Trend — last 12 weeks (approved claims only) ──────────────────
