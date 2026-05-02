@@ -414,7 +414,7 @@
                     {{-- Date --}}
                     <div>
                         <x-input-label for="ot_date" value="Date *" />
-                        <x-text-input id="ot_date" wire:model="claim_date" type="date" class="mt-1 block w-full" />
+                        <x-text-input id="ot_date" wire:model="claim_date" type="date" class="mt-1 block w-full" max="{{ date('Y-m-d') }}" />
                         <x-input-error :messages="$errors->get('claim_date')" class="mt-1" />
                     </div>
 

@@ -70,7 +70,7 @@ class OvertimeClaims extends Component
     {
         return [
             'employee_id'    => 'required|exists:employees,id',
-            'claim_date'     => 'required|date',
+            'claim_date'     => 'required|date|before_or_equal:today',
             'ot_time_start'  => 'required|date_format:H:i',
             'ot_time_end'    => 'required|date_format:H:i',
             'total_ot_hours' => 'required|numeric|min:0.25|max:24',
@@ -83,6 +83,7 @@ class OvertimeClaims extends Component
     {
         return [
             'employee_id.required'   => 'Please select an employee.',
+            'claim_date.before_or_equal' => 'OT claim date cannot be in the future.',
             'ot_time_end.date_format' => 'Please enter a valid end time.',
             'total_ot_hours.min'     => 'Minimum OT is 0.25 hours (15 minutes).',
             'reason.required'        => 'Please provide a reason for the overtime.',
