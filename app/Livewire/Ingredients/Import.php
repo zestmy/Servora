@@ -81,9 +81,37 @@ class Import extends Component
     {
         $this->validate();
 
-        // Use path() for Livewire temp files; getRealPath() can fail on Windows/WSL
-        $path = $this->file->path() ?: $this->file->getRealPath();
-        $ext  = strtolower($this->file->getClientOriginalExtension());
+        // Try multiple methods to get the file path
+        $path = null;
+        $pathMethod = 'none';
+
+        // Method 1: Livewire's path() method
+        if (method_exists($this->file, 'path')) {
+            $path = $this->file->path();
+            $pathMethod = 'path()';
+        }
+
+        // Method 2: getRealPath() fallback
+        if (! $path || ! file_exists($path)) {
+            $path = $this->file->getRealPath();
+            $pathMethod = 'getRealPath()';
+        }
+
+        // Method 3: getPathname() fallback
+        if (! $path || ! file_exists($path)) {
+            $path = $this->file->getPathname();
+            $pathMethod = 'getPathname()';
+        }
+
+        $ext = strtolower($this->file->getClientOriginalExtension());
+
+        Log::info('Ingredient import file access', [
+            'path' => $path,
+            'pathMethod' => $pathMethod,
+            'exists' => $path ? file_exists($path) : false,
+            'ext' => $ext,
+            'originalName' => $this->file->getClientOriginalName(),
+        ]);
 
         if (! $path || ! file_exists($path)) {
             $this->addError('file', 'Could not access the uploaded file. Please try uploading again.');
