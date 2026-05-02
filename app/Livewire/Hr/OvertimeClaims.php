@@ -408,11 +408,11 @@ class OvertimeClaims extends Component
             ->whereIn('overtime_claims.status', ['submitted', 'approved'])
             ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
             ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
-            ->selectRaw("COALESCE(sections.id, 0) as section_id,
+            ->selectRaw("sections.id as section_id,
                 COALESCE(sections.name, 'Unassigned') as section_name,
                 SUM(CASE WHEN overtime_claims.status = 'approved' THEN overtime_claims.total_ot_hours ELSE 0 END) as approved_hours,
                 SUM(CASE WHEN overtime_claims.status = 'submitted' THEN overtime_claims.total_ot_hours ELSE 0 END) as submitted_hours")
-            ->groupByRaw("COALESCE(sections.id, 0), COALESCE(sections.name, 'Unassigned')")
+            ->groupBy('sections.id', 'sections.name')
             ->orderByRaw("COALESCE(sections.name, 'ZZZZZ')")
             ->get();
 
