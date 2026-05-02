@@ -274,8 +274,8 @@
                     <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->section) — {{ $emp->section->name }}@endif</option>
                 @endforeach
             </select>
-            <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="From" />
-            <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="To" />
+            <input type="date" wire:model.live="dateFrom" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="From" />
+            <input type="date" wire:model.live="dateTo" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="To" />
         </div>
     </div>
 
