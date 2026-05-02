@@ -126,6 +126,11 @@ class Import extends Component
 
         try {
             $parsed = ($ext === 'xlsx') ? $this->parseXlsx($path) : $this->parseCsv($path);
+            Log::info('Ingredient import parse result', [
+                'headers' => $parsed['headers'] ?? [],
+                'rowCount' => count($parsed['rows'] ?? []),
+                'firstRow' => $parsed['rows'][0] ?? null,
+            ]);
         } catch (\Throwable $e) {
             Log::error('Ingredient import parse failed', [
                 'path' => $path,
@@ -138,11 +143,13 @@ class Import extends Component
         }
 
         if (empty($parsed['headers'])) {
+            Log::warning('Ingredient import: empty headers');
             $this->addError('file', 'The file appears to be empty or has no header row.');
             return;
         }
 
         if (empty($parsed['rows'])) {
+            Log::warning('Ingredient import: no data rows');
             $this->addError('file', 'The file has headers but no data rows.');
             return;
         }
@@ -152,6 +159,11 @@ class Import extends Component
 
         // Try exact matching first
         $exactMapping = $this->tryExactMapping($this->fileHeaders);
+
+        Log::info('Ingredient import exact mapping', [
+            'mapping' => $exactMapping,
+            'headers' => $this->fileHeaders,
+        ]);
 
         // Check if exact mapping found both required fields
         $hasName    = ! empty($exactMapping['name']);
