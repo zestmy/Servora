@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use OpenSpout\Reader\CSV\Options as CsvOptions;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
@@ -80,8 +81,14 @@ class Import extends Component
     {
         $this->validate();
 
-        $path = $this->file->getRealPath();
+        // Use path() for Livewire temp files; getRealPath() can fail on Windows/WSL
+        $path = $this->file->path() ?: $this->file->getRealPath();
         $ext  = strtolower($this->file->getClientOriginalExtension());
+
+        if (! $path || ! file_exists($path)) {
+            $this->addError('file', 'Could not access the uploaded file. Please try uploading again.');
+            return;
+        }
 
         // PDF files use AI vision extraction — different flow
         if ($ext === 'pdf') {
@@ -92,6 +99,12 @@ class Import extends Component
         try {
             $parsed = ($ext === 'xlsx') ? $this->parseXlsx($path) : $this->parseCsv($path);
         } catch (\Throwable $e) {
+            Log::error('Ingredient import parse failed', [
+                'path' => $path,
+                'ext' => $ext,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             $this->addError('file', 'Could not parse file: ' . $e->getMessage());
             return;
         }
@@ -1138,7 +1151,32 @@ PROMPT;
 
     private function parseCsv(string $path): array
     {
-        $reader = new CsvReader();
+        // Try to detect delimiter by reading first line
+        $firstLine = '';
+        $handle = fopen($path, 'r');
+        if ($handle) {
+            // Skip BOM if present
+            $bom = fread($handle, 3);
+            if ($bom !== "\xEF\xBB\xBF") {
+                rewind($handle);
+            }
+            $firstLine = fgets($handle) ?: '';
+            fclose($handle);
+        }
+
+        // Detect delimiter: semicolon, tab, or comma (default)
+        $delimiter = ',';
+        if (substr_count($firstLine, ';') > substr_count($firstLine, ',')) {
+            $delimiter = ';';
+        } elseif (substr_count($firstLine, "\t") > substr_count($firstLine, ',')) {
+            $delimiter = "\t";
+        }
+
+        $options = new CsvOptions();
+        $options->FIELD_DELIMITER = $delimiter;
+        $options->FIELD_ENCLOSURE = '"';
+
+        $reader = new CsvReader($options);
         $reader->open($path);
 
         $rows    = [];
@@ -1152,6 +1190,10 @@ PROMPT;
                 );
 
                 if ($headers === null) {
+                    // Strip BOM from first header if present
+                    if (! empty($cells[0])) {
+                        $cells[0] = preg_replace('/^\xEF\xBB\xBF/', '', $cells[0]);
+                    }
                     $headers = $cells;
                     continue;
                 }
