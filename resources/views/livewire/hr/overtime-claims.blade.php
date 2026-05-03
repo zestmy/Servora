@@ -274,17 +274,19 @@
             <canvas x-ref="canvas"></canvas>
         </div>
 
-        {{-- Top employees this month --}}
+        {{-- Top employees by date range --}}
         @if ($topEmployees->isNotEmpty())
             <div class="mt-5 border-t border-gray-100 pt-4">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Top OT — {{ now()->format('F') }}</p>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                    Top OT — {{ \Carbon\Carbon::parse($statsDateFrom)->format('d M Y') }} to {{ \Carbon\Carbon::parse($statsDateTo)->format('d M Y') }}
+                </p>
                 @php $maxHours = $topEmployees->max('hours'); @endphp
                 <div class="space-y-2">
                     @foreach ($topEmployees as $rank => $row)
                         @php $pct = $maxHours > 0 ? ($row->hours / $maxHours * 100) : 0; @endphp
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-gray-400 w-4 text-right">{{ $rank + 1 }}</span>
-                            <span class="text-xs font-medium text-gray-700 w-32 truncate">{{ $row->employee?->name ?? '—' }}</span>
+                            <span class="text-xs font-medium text-gray-700 w-48">{{ $row->employee?->name ?? '—' }}</span>
                             <div class="flex-1 bg-gray-100 rounded-full h-2">
                                 <div class="h-2 rounded-full {{ $pct >= 80 ? 'bg-red-400' : ($pct >= 50 ? 'bg-amber-400' : 'bg-indigo-400') }}"
                                      style="width: {{ number_format($pct, 1) }}%"></div>
