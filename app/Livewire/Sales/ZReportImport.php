@@ -294,6 +294,27 @@ class ZReportImport extends Component
         $userId    = Auth::id();
         $netRatio  = $this->netRatio();
 
+        // ── Check for existing records on this date ───────────────────────────
+        $mealPeriodsToCreate = $hasSessions
+            ? collect($this->sessionEntries)->where('include', true)->pluck('meal_period')->filter()->unique()->toArray()
+            : ($this->includeAllDay ? ['all_day'] : []);
+
+        if (! empty($mealPeriodsToCreate)) {
+            $existingRecords = SalesRecord::where('outlet_id', $outletId)
+                ->whereDate('sale_date', $this->importDate)
+                ->whereIn('meal_period', $mealPeriodsToCreate)
+                ->get(['meal_period']);
+
+            if ($existingRecords->isNotEmpty()) {
+                $existingPeriods = $existingRecords->pluck('meal_period')
+                    ->map(fn ($p) => SalesRecord::mealPeriodOptions()[$p] ?? $p)
+                    ->join(', ');
+
+                $this->addError('importDate', "Sales records already exist for {$this->importDate} ({$existingPeriods}). Delete existing records first or choose a different date.");
+                return;
+            }
+        }
+
         // ── Session records (priority) ────────────────────────────────────────
         // When sessions are present, these replace the all-day record entirely.
         // Session amounts are Total Sales (inclusive of tax/charges).

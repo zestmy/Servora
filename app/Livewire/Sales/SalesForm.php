@@ -129,6 +129,22 @@ class SalesForm extends Component
         $totalRevenue = collect($this->lines)->sum(fn ($l) => floatval($l['revenue']));
         $outletId     = Outlet::where('company_id', Auth::user()->company_id)->value('id');
 
+        // Check for existing records on this date/meal_period (prevent duplicates)
+        $existingQuery = SalesRecord::where('outlet_id', $outletId)
+            ->whereDate('sale_date', $this->sale_date)
+            ->where('meal_period', $this->meal_period);
+
+        // Exclude current record when updating
+        if ($this->recordId) {
+            $existingQuery->where('id', '!=', $this->recordId);
+        }
+
+        if ($existingQuery->exists()) {
+            $periodLabel = SalesRecord::mealPeriodOptions()[$this->meal_period] ?? $this->meal_period;
+            $this->addError('sale_date', "A sales record already exists for {$this->sale_date} ({$periodLabel}). Delete the existing record first or choose a different date/meal period.");
+            return;
+        }
+
         $data = [
             'sale_date'        => $this->sale_date,
             'meal_period'      => $this->meal_period,
