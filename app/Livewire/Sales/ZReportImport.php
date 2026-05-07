@@ -269,6 +269,11 @@ class ZReportImport extends Component
 
     public function saveAll(): void
     {
+        \Log::info('ZReportImport::saveAll() called', [
+            'importDate' => $this->importDate,
+            'selectedOutletId' => $this->selectedOutletId,
+        ]);
+
         $hasSessions = $this->hasSessionEntries();
 
         $rules = [
