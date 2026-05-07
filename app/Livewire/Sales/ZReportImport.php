@@ -305,6 +305,14 @@ class ZReportImport extends Component
                 ->whereDate('sale_date', $this->importDate)
                 ->pluck('meal_period');
 
+            \Log::info('Z-Report duplicate check', [
+                'outletId' => $outletId,
+                'selectedOutletId' => $this->selectedOutletId,
+                'importDate' => $this->importDate,
+                'mealPeriodsToCreate' => $mealPeriodsToCreate,
+                'existingPeriods' => $existingPeriods->toArray(),
+            ]);
+
             $hasConflict = false;
             $conflictReason = '';
 
