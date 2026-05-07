@@ -215,18 +215,20 @@
                     {{-- ── SESSION ENTRIES ── --}}
                     @if (count($sessionEntries) > 0)
                         @php
-                            $summaryGross = floatval($summary['gross_amount'] ?? 0);
-                            $summaryNet   = floatval($summary['net_sales']    ?? 0);
-                            $netRatio     = ($summaryGross > 0 && $summaryNet > 0) ? $summaryNet / $summaryGross : 1.0;
+                            // Z-report: Gross - Discount = Nett + Tax + Charges + Rounding = Total
+                            // Session amounts are Total Sales (inclusive)
+                            $summaryTotal = floatval($summary['total_sales'] ?? 0);
+                            $summaryNet   = floatval($summary['net_sales']   ?? 0);
+                            $netRatio     = ($summaryTotal > 0 && $summaryNet > 0) ? $summaryNet / $summaryTotal : 1.0;
                         @endphp
                         <div class="border border-green-200 rounded-xl overflow-hidden">
                             <div class="px-4 py-3 bg-green-50 border-b border-green-100 flex items-center justify-between">
                                 <div>
                                     <h4 class="text-sm font-semibold text-green-800">Session Entries</h4>
                                     <p class="text-xs text-green-600 mt-0.5">
-                                        Gross amounts are inclusive of tax &amp; charges.
-                                        Net revenue is back-calculated using the day's net-to-gross ratio
-                                        @if ($summaryGross > 0)
+                                        Session amounts are Total Sales (incl. tax &amp; charges).
+                                        Nett revenue is back-calculated using the day's nett-to-total ratio
+                                        @if ($summaryTotal > 0)
                                             ({{ number_format($netRatio * 100, 1) }}%).
                                         @else
                                             .
@@ -241,8 +243,8 @@
                             <div class="divide-y divide-gray-100">
                                 @foreach ($sessionEntries as $idx => $entry)
                                     @php
-                                        $sessGross = floatval($entry['gross_amount'] ?? 0);
-                                        $sessNet   = round($sessGross * $netRatio, 2);
+                                        $sessTotal = floatval($entry['gross_amount'] ?? 0);
+                                        $sessNet   = round($sessTotal * $netRatio, 2);
                                         $sessPax   = max((int)($entry['pax'] ?? 1), 1);
                                         $sessAvg   = $sessNet > 0 ? round($sessNet / $sessPax, 2) : null;
                                     @endphp
@@ -271,10 +273,10 @@
                                                     <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.meal_period')" class="mt-0.5" />
                                                 </div>
 
-                                                {{-- Gross Amount --}}
+                                                {{-- Total Sales (inclusive) --}}
                                                 <div>
                                                     <label class="text-xs text-gray-500 block mb-0.5">
-                                                        Gross Amount (RM)
+                                                        Total Sales (RM)
                                                         <span class="text-gray-400">incl. tax &amp; charges</span>
                                                     </label>
                                                     <input type="number" step="0.01" min="0"
@@ -302,11 +304,11 @@
                                             </div>
                                         </div>
 
-                                        {{-- Net preview row --}}
-                                        @if ($sessGross > 0)
+                                        {{-- Nett preview row --}}
+                                        @if ($sessTotal > 0)
                                             <div class="mt-2 ml-7 flex items-center gap-4 text-xs">
                                                 <div class="flex items-center gap-1.5 text-gray-500">
-                                                    <span>Net saved to DB:</span>
+                                                    <span>Nett saved to DB:</span>
                                                     <span class="font-semibold text-green-700">RM {{ number_format($sessNet, 2) }}</span>
                                                 </div>
                                                 @if ($sessAvg)
@@ -326,18 +328,18 @@
 
                             {{-- Session totals footer --}}
                             @php
-                                $totalSessionGross = collect($sessionEntries)->where('include', true)->sum(fn($e) => floatval($e['gross_amount'] ?? 0));
-                                $totalSessionNet   = round($totalSessionGross * $netRatio, 2);
+                                $totalSessionTotal = collect($sessionEntries)->where('include', true)->sum(fn($e) => floatval($e['gross_amount'] ?? 0));
+                                $totalSessionNet   = round($totalSessionTotal * $netRatio, 2);
                             @endphp
                             <div class="px-4 py-3 bg-gray-50 border-t-2 border-gray-200 flex items-center justify-between text-sm">
                                 <span class="text-gray-600">Included sessions total</span>
                                 <div class="flex items-center gap-6 tabular-nums">
                                     <div class="text-right">
-                                        <span class="text-xs text-gray-400 block">Gross</span>
-                                        <span class="font-semibold text-gray-700">RM {{ number_format($totalSessionGross, 2) }}</span>
+                                        <span class="text-xs text-gray-400 block">Total Sales</span>
+                                        <span class="font-semibold text-gray-700">RM {{ number_format($totalSessionTotal, 2) }}</span>
                                     </div>
                                     <div class="text-right">
-                                        <span class="text-xs text-gray-400 block">Net (saved)</span>
+                                        <span class="text-xs text-gray-400 block">Nett (saved)</span>
                                         <span class="font-bold text-green-700">RM {{ number_format($totalSessionNet, 2) }}</span>
                                     </div>
                                 </div>

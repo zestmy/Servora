@@ -100,27 +100,30 @@ class ZReportImport extends Component
     }
 
     /**
-     * Net-to-gross ratio derived from the Z-report summary.
-     * Session gross amounts × this ratio = net revenue to store.
+     * Ratio to convert Total Sales (session amounts) to Nett Sales.
+     * Session total × this ratio = net revenue to store.
      * Falls back to 1.0 if summary data is incomplete.
+     *
+     * Z-report flow: Gross - Discount = Nett + Tax + Charges + Rounding = Total
+     * Session amounts are Total Sales (inclusive).
      */
     private function netRatio(): float
     {
-        $gross = (float) ($this->summary['gross_amount'] ?? 0);
-        $net   = (float) ($this->summary['net_sales']    ?? 0);
-        return ($gross > 0 && $net > 0) ? $net / $gross : 1.0;
+        $total = (float) ($this->summary['total_sales'] ?? 0);
+        $net   = (float) ($this->summary['net_sales']   ?? 0);
+        return ($total > 0 && $net > 0) ? $net / $total : 1.0;
     }
 
     /**
-     * Proportionally distribute a Z-report summary total to a single session
-     * based on that session's share of the day's gross revenue.
+     * Proportionally distribute a Z-report summary value to a single session
+     * based on that session's share of the day's Total Sales.
      */
-    private function proportional(float $sessionGross, string $summaryKey): ?float
+    private function proportional(float $sessionTotal, string $summaryKey): ?float
     {
-        $gross = (float) ($this->summary['gross_amount'] ?? 0);
-        $total = (float) ($this->summary[$summaryKey]   ?? 0);
-        if ($gross <= 0 || $total <= 0) return null;
-        return round($sessionGross * ($total / $gross), 4);
+        $total = (float) ($this->summary['total_sales'] ?? 0);
+        $value = (float) ($this->summary[$summaryKey]   ?? 0);
+        if ($total <= 0 || $value <= 0) return null;
+        return round($sessionTotal * ($value / $total), 4);
     }
 
     // ── Process uploaded image ────────────────────────────────────────────────
@@ -293,17 +296,20 @@ class ZReportImport extends Component
 
         // ── Session records (priority) ────────────────────────────────────────
         // When sessions are present, these replace the all-day record entirely.
+        // Session amounts are Total Sales (inclusive of tax/charges).
+        // Z-report flow: Gross - Discount = Nett + Tax + Charges + Rounding = Total
         if ($hasSessions) {
             $includedCount = 0;
             foreach ($this->sessionEntries as $entry) {
                 if (empty($entry['include'])) continue;
 
-                $gross = (float) $entry['gross_amount'];
-                if ($gross <= 0) continue;
+                // Session amount is Total Sales (inclusive)
+                $totalSales = (float) $entry['gross_amount'];
+                if ($totalSales <= 0) continue;
 
-                // Back-calculate net revenue by stripping tax and service charges
-                // proportionally, using the day's total net-to-gross ratio.
-                $net = round($gross * $netRatio, 4);
+                // Back-calculate Nett Sales (after discount, before tax/charges)
+                // using the day's net-to-total ratio.
+                $nettSales = round($totalSales * $netRatio, 4);
 
                 $record = SalesRecord::create([
                     'company_id'       => $companyId,
@@ -312,12 +318,12 @@ class ZReportImport extends Component
                     'meal_period'      => $entry['meal_period'],
                     'pax'              => (int) $entry['pax'],
                     'transactions'     => (int) $entry['transactions'],
-                    'total_revenue'    => $net,
-                    'gross_revenue'    => $gross,
-                    'discount_amount'  => $this->proportional($gross, 'discount_incl_tax'),
-                    'tax_amount'       => $this->proportional($gross, 'exclusive_tax'),
-                    'service_charges'  => $this->proportional($gross, 'exclusive_charges'),
-                    'rounding_amount'  => $this->proportional($gross, 'bill_rounding'),
+                    'total_revenue'    => $nettSales,           // Nett Sales (after discount, before tax)
+                    'gross_revenue'    => $totalSales,          // Total Sales (inclusive)
+                    'discount_amount'  => $this->proportional($totalSales, 'discount_incl_tax'),
+                    'tax_amount'       => $this->proportional($totalSales, 'exclusive_tax'),
+                    'service_charges'  => $this->proportional($totalSales, 'exclusive_charges'),
+                    'rounding_amount'  => $this->proportional($totalSales, 'bill_rounding'),
                     'total_cost'       => 0,
                     'created_by'       => $userId,
                 ]);
@@ -326,9 +332,9 @@ class ZReportImport extends Component
                     'ingredient_category_id' => null,
                     'item_name'              => $entry['label'] . ' Session',
                     'quantity'               => 1,
-                    'unit_price'             => $net,
+                    'unit_price'             => $nettSales,
                     'unit_cost'              => 0,
-                    'total_revenue'          => $net,
+                    'total_revenue'          => $nettSales,
                     'total_cost'             => 0,
                 ]);
 

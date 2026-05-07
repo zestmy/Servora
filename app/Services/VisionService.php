@@ -67,6 +67,9 @@ class VisionService
      *
      * Uses OpenRouter vision API with Claude to directly extract structured data.
      *
+     * Z-report flow: Gross - Discount = Nett + Tax + Charges + Rounding = Total
+     * Session amounts are Total Sales (inclusive of tax/charges).
+     *
      * @return array{
      *     outlet_name: ?string,
      *     date: ?string,
@@ -74,11 +77,12 @@ class VisionService
      *     sessions: array,
      *     summary: array{
      *         gross_amount: ?float,
-     *         net_sales: ?float,
      *         discount_incl_tax: ?float,
+     *         net_sales: ?float,
      *         exclusive_tax: ?float,
      *         exclusive_charges: ?float,
      *         bill_rounding: ?float,
+     *         total_sales: ?float,
      *         total_guests: ?int,
      *         total_transactions: ?int
      *     }
@@ -144,20 +148,25 @@ class VisionService
         }
 
         // Normalize the response structure
+        // Z-report flow: Gross - Discount = Nett + Tax + Charges + Rounding = Total
         return [
             'outlet_name' => $data['outlet_name'] ?? null,
             'date'        => $data['date'] ?? null,
             'departments' => $data['departments'] ?? [],
             'sessions'    => $this->normalizeSessions($data['sessions'] ?? []),
             'summary'     => [
-                // gross_amount = base sales BEFORE tax/charges (typically lower)
+                // gross_amount = Gross Sales (before discount - HIGHEST amount)
                 'gross_amount'       => $this->toFloat($data['summary']['gross_sales'] ?? $data['gross_sales'] ?? null),
-                // net_sales = final amount AFTER discount, INCLUDING tax/charges (typically higher)
-                'net_sales'          => $this->toFloat($data['summary']['net_sales'] ?? $data['net_sales'] ?? null),
+                // discount = Discount amount
                 'discount_incl_tax'  => $this->toFloat($data['summary']['discount'] ?? $data['discount'] ?? null),
+                // net_sales = Nett Sales (after discount, before tax/charges)
+                'net_sales'          => $this->toFloat($data['summary']['net_sales'] ?? $data['net_sales'] ?? null),
+                // tax, service charge, rounding
                 'exclusive_tax'      => $this->toFloat($data['summary']['tax'] ?? $data['tax'] ?? null),
                 'exclusive_charges'  => $this->toFloat($data['summary']['service_charge'] ?? $data['service_charge'] ?? null),
                 'bill_rounding'      => $this->toFloat($data['summary']['rounding'] ?? $data['rounding'] ?? null),
+                // total_sales = Total Sales (final inclusive - what session amounts show)
+                'total_sales'        => $this->toFloat($data['summary']['total_sales'] ?? $data['total_sales'] ?? null),
                 'total_guests'       => $this->toInt($data['summary']['total_guests'] ?? $data['total_guests'] ?? $data['total_pax'] ?? null),
                 'total_transactions' => $this->toInt($data['summary']['total_transactions'] ?? $data['total_bills'] ?? null),
             ],
@@ -186,30 +195,42 @@ Extract all data from this Z-report receipt and return as JSON with this exact s
   ],
   "summary": {
     "gross_sales": 0.00,
-    "net_sales": 0.00,
     "discount": 0.00,
+    "net_sales": 0.00,
     "tax": 0.00,
     "service_charge": 0.00,
     "rounding": 0.00,
+    "total_sales": 0.00,
     "total_guests": 0,
     "total_transactions": 0
   }
 }
 
-IMPORTANT - Understanding Z-report terminology:
-- "GROSS SALES" on receipt = base sales amount BEFORE adding tax, service charge, rounding (this is typically LOWER)
-- "TOTAL SALES (NETT)" or "NET SALES" or session totals = final amount AFTER discount, INCLUDING tax and charges (this is typically HIGHER)
-- Session report amounts (Breakfast, Lunch, Dinner totals) are NET amounts (inclusive of tax/charges)
+IMPORTANT - Z-report calculation flow:
+  GROSS SALES (before discount - highest amount)
+  - DISCOUNT
+  = NETT SALES (after discount, before tax/charges)
+  + TAX (SST/GST/VAT)
+  + SERVICE CHARGE
+  + BILL ROUNDING
+  = TOTAL SALES (final inclusive amount - what customers pay)
+
+Session report amounts (Breakfast, Lunch, Dinner, etc.) are TOTAL SALES amounts (inclusive of tax/charges).
 
 Rules:
 - Use numeric values (not strings) for all amounts
 - If a field cannot be determined, use null
-- gross_sales: Look for "GROSS SALES" label - this is the BASE amount before tax/charges are added
-- net_sales: Look for "TOTAL SALES (NETT)", "NET SALES", or sum of session amounts - this is the FINAL amount after discounts, inclusive of tax/charges
-- For outlet_name: Look for branch name, outlet name, store name, or location at the top of the receipt
-- For departments, extract from "DEPARTMENT SALES" or similar sections
-- For sessions, map labels to meal_period: Breakfast→breakfast, Lunch→lunch, Tea/Tea Time/High Tea→tea_time, Dinner→dinner, Supper→supper, All Day→all_day
-- Dates may appear as DD/MM/YYYY or YYYY-MM-DD - always convert to YYYY-MM-DD format
+- gross_sales: "GROSS SALES" - the HIGHEST base amount before any discount
+- discount: "DISCOUNT" or "TOTAL DISCOUNT" amount
+- net_sales: "NETT SALES" or "NET SALES" - after discount, before tax/charges
+- tax: "SST", "GST", "VAT", or "TAX" amount
+- service_charge: "SERVICE CHARGE" or "SVC" amount
+- rounding: "ROUNDING" or "BILL ROUNDING" amount (can be negative)
+- total_sales: "TOTAL SALES" - the final inclusive amount (net + tax + charges + rounding)
+- Session amounts match total_sales breakdown by meal period
+- For outlet_name: Look for branch name, outlet name, store name at the top
+- For sessions, map: Breakfast→breakfast, Lunch→lunch, Tea/Tea Time/High Tea→tea_time, Dinner→dinner, Supper→supper, All Day→all_day
+- Dates: Convert DD/MM/YYYY to YYYY-MM-DD format
 PROMPT;
     }
 
