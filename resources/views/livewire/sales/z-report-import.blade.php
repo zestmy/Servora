@@ -81,8 +81,27 @@
                 {{-- ── STEP: REVIEW ─────────────────────────────────────────── --}}
                 @if ($step === 'review')
 
-                    {{-- Date row --}}
-                    <div class="flex items-center gap-4">
+                    {{-- Outlet + Date row --}}
+                    <div class="flex items-start gap-4">
+                        @if (count($outlets) > 1)
+                            <div class="flex-1">
+                                <x-input-label for="imp_outlet" value="Outlet *" />
+                                <select id="imp_outlet" wire:model="selectedOutletId"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                    @foreach ($outlets as $outlet)
+                                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                                    @endforeach
+                                </select>
+                                @if ($detectedOutletName)
+                                    <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Detected: "{{ $detectedOutletName }}"
+                                    </p>
+                                @endif
+                            </div>
+                        @endif
                         <div class="flex-1">
                             <x-input-label for="imp_date" value="Z-Report Date *" />
                             <x-text-input id="imp_date" wire:model="importDate" type="date" class="mt-1 block w-full" />

@@ -25,6 +25,8 @@ class ZReportImport extends Component
 
     // Review — shared
     public string $importDate = '';
+    public ?string $detectedOutletName = null;
+    public ?int $selectedOutletId = null;
 
     // Full Z-report totals block — all fields surfaced from the receipt.
     // Keys: gross_amount, discount_incl_tax, net_sales, exclusive_tax, exclusive_charges,
@@ -78,6 +80,8 @@ class ZReportImport extends Component
         $this->importError         = '';
         $this->importProcessing    = false;
         $this->importDate          = now()->toDateString();
+        $this->detectedOutletName  = null;
+        $this->selectedOutletId    = session('active_outlet_id');
         $this->summary             = [];
         $this->includeAllDay       = true;
         $this->allDayPax           = 1;
@@ -144,6 +148,26 @@ class ZReportImport extends Component
 
             $this->summary    = $summary;
             $this->importDate = $data['date'] ?? now()->toDateString();
+
+            // Capture detected outlet name and try to match to existing outlets
+            $this->detectedOutletName = $data['outlet_name'] ?? null;
+            if ($this->detectedOutletName) {
+                $matchedOutlet = Outlet::where('company_id', Auth::user()->company_id)
+                    ->where(function ($q) {
+                        $q->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($this->detectedOutletName) . '%'])
+                          ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower(preg_replace('/\s+/', '', $this->detectedOutletName)) . '%']);
+                    })
+                    ->first();
+                if ($matchedOutlet) {
+                    $this->selectedOutletId = $matchedOutlet->id;
+                }
+            }
+
+            // Default to active outlet if no match found
+            if (! $this->selectedOutletId) {
+                $this->selectedOutletId = session('active_outlet_id')
+                    ?: Outlet::where('company_id', Auth::user()->company_id)->value('id');
+            }
 
             $this->allDayPax          = (int) ($summary['total_guests']       ?? 0) ?: 1;
             $this->allDayTransactions = (int) ($summary['total_transactions'] ?? 0) ?: 1;
@@ -261,7 +285,8 @@ class ZReportImport extends Component
 
         $this->validate($rules);
 
-        $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
+        $outletId  = $this->selectedOutletId
+            ?: Outlet::where('company_id', Auth::user()->company_id)->value('id');
         $companyId = Auth::user()->company_id;
         $userId    = Auth::id();
         $netRatio  = $this->netRatio();
@@ -364,7 +389,10 @@ class ZReportImport extends Component
     {
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
         $categories        = IngredientCategory::roots()->active()->ordered()->get();
+        $outlets           = Outlet::where('company_id', Auth::user()->company_id)
+                                ->ordered()
+                                ->get(['id', 'name']);
 
-        return view('livewire.sales.z-report-import', compact('mealPeriodOptions', 'categories'));
+        return view('livewire.sales.z-report-import', compact('mealPeriodOptions', 'categories', 'outlets'));
     }
 }
