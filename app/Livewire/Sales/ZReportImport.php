@@ -300,17 +300,38 @@ class ZReportImport extends Component
             : ($this->includeAllDay ? ['all_day'] : []);
 
         if (! empty($mealPeriodsToCreate)) {
-            $existingRecords = SalesRecord::where('outlet_id', $outletId)
+            // Get ALL existing records for this date/outlet
+            $existingPeriods = SalesRecord::where('outlet_id', $outletId)
                 ->whereDate('sale_date', $this->importDate)
-                ->whereIn('meal_period', $mealPeriodsToCreate)
-                ->get(['meal_period']);
+                ->pluck('meal_period');
 
-            if ($existingRecords->isNotEmpty()) {
-                $existingPeriods = $existingRecords->pluck('meal_period')
-                    ->map(fn ($p) => SalesRecord::mealPeriodOptions()[$p] ?? $p)
-                    ->join(', ');
+            $hasConflict = false;
+            $conflictReason = '';
 
-                $this->addError('importDate', "Sales records already exist for {$this->importDate} ({$existingPeriods}). Delete existing records first or choose a different date.");
+            if ($existingPeriods->isNotEmpty()) {
+                // If existing records include all_day, block any import
+                if ($existingPeriods->contains('all_day')) {
+                    $hasConflict = true;
+                    $conflictReason = 'An All Day record already exists';
+                }
+                // If trying to import all_day and any records exist, block
+                elseif (in_array('all_day', $mealPeriodsToCreate)) {
+                    $hasConflict = true;
+                    $conflictReason = 'Records already exist (' . $existingPeriods
+                        ->map(fn ($p) => SalesRecord::mealPeriodOptions()[$p] ?? $p)
+                        ->join(', ') . ')';
+                }
+                // If any specific meal periods overlap, block
+                elseif ($existingPeriods->intersect($mealPeriodsToCreate)->isNotEmpty()) {
+                    $hasConflict = true;
+                    $conflictReason = 'Records already exist for ' . $existingPeriods->intersect($mealPeriodsToCreate)
+                        ->map(fn ($p) => SalesRecord::mealPeriodOptions()[$p] ?? $p)
+                        ->join(', ');
+                }
+            }
+
+            if ($hasConflict) {
+                $this->addError('importDate', "{$conflictReason} for {$this->importDate}. Delete existing records first or choose a different date.");
                 return;
             }
         }

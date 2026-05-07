@@ -129,20 +129,44 @@ class SalesForm extends Component
         $totalRevenue = collect($this->lines)->sum(fn ($l) => floatval($l['revenue']));
         $outletId     = Outlet::where('company_id', Auth::user()->company_id)->value('id');
 
-        // Check for existing records on this date/meal_period (prevent duplicates)
+        // Check for existing records on this date (prevent duplicates)
         $existingQuery = SalesRecord::where('outlet_id', $outletId)
-            ->whereDate('sale_date', $this->sale_date)
-            ->where('meal_period', $this->meal_period);
+            ->whereDate('sale_date', $this->sale_date);
 
         // Exclude current record when updating
         if ($this->recordId) {
             $existingQuery->where('id', '!=', $this->recordId);
         }
 
-        if ($existingQuery->exists()) {
-            $periodLabel = SalesRecord::mealPeriodOptions()[$this->meal_period] ?? $this->meal_period;
-            $this->addError('sale_date', "A sales record already exists for {$this->sale_date} ({$periodLabel}). Delete the existing record first or choose a different date/meal period.");
-            return;
+        $existingPeriods = $existingQuery->pluck('meal_period');
+
+        if ($existingPeriods->isNotEmpty()) {
+            $hasConflict = false;
+            $conflictReason = '';
+
+            // If existing records include all_day, block any new record
+            if ($existingPeriods->contains('all_day')) {
+                $hasConflict = true;
+                $conflictReason = 'An All Day record already exists';
+            }
+            // If trying to create all_day and any records exist, block
+            elseif ($this->meal_period === 'all_day') {
+                $hasConflict = true;
+                $conflictReason = 'Records already exist (' . $existingPeriods
+                    ->map(fn ($p) => SalesRecord::mealPeriodOptions()[$p] ?? $p)
+                    ->join(', ') . ')';
+            }
+            // If same meal period exists, block
+            elseif ($existingPeriods->contains($this->meal_period)) {
+                $hasConflict = true;
+                $periodLabel = SalesRecord::mealPeriodOptions()[$this->meal_period] ?? $this->meal_period;
+                $conflictReason = "A {$periodLabel} record already exists";
+            }
+
+            if ($hasConflict) {
+                $this->addError('sale_date', "{$conflictReason} for {$this->sale_date}. Delete the existing record first or choose a different date/meal period.");
+                return;
+            }
         }
 
         $data = [
