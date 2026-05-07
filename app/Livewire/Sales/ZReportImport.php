@@ -269,11 +269,6 @@ class ZReportImport extends Component
 
     public function saveAll(): void
     {
-        \Log::info('ZReportImport::saveAll() called', [
-            'importDate' => $this->importDate,
-            'selectedOutletId' => $this->selectedOutletId,
-        ]);
-
         $hasSessions = $this->hasSessionEntries();
 
         $rules = [
@@ -309,14 +304,6 @@ class ZReportImport extends Component
             $existingPeriods = SalesRecord::where('outlet_id', $outletId)
                 ->whereDate('sale_date', $this->importDate)
                 ->pluck('meal_period');
-
-            \Log::info('Z-Report duplicate check', [
-                'outletId' => $outletId,
-                'selectedOutletId' => $this->selectedOutletId,
-                'importDate' => $this->importDate,
-                'mealPeriodsToCreate' => $mealPeriodsToCreate,
-                'existingPeriods' => $existingPeriods->toArray(),
-            ]);
 
             $hasConflict = false;
             $conflictReason = '';

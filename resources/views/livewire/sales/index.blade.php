@@ -2,6 +2,9 @@
     {{-- Z-Report Import Component --}}
     @livewire('sales.z-report-import')
 
+    {{-- Zeoniq Excel Import Component --}}
+    @livewire('sales.zeoniq-excel-import')
+
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
@@ -13,6 +16,12 @@
         <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
              class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
             {{ session('error') }}
+        </div>
+    @endif
+    @if (session()->has('warning'))
+        <div wire:key="flash-warn-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+             class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-lg">
+            {{ session('warning') }}
         </div>
     @endif
 
@@ -50,8 +59,17 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <span class="hidden sm:inline">Scan Zeoniq Z-Report</span>
-                <span class="sm:hidden">Zeoniq</span>
+                <span class="hidden sm:inline">Scan Zeoniq</span>
+                <span class="sm:hidden">Scan</span>
+            </button>
+            <button wire:click="$dispatch('open-zeoniq-excel-import')"
+                    title="Import Zeoniq Excel"
+                    class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="hidden sm:inline">Zeoniq Excel</span>
+                <span class="sm:hidden">Excel</span>
             </button>
             <a href="{{ route('sales.create') }}"
                class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
