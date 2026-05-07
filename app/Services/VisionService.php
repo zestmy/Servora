@@ -45,6 +45,206 @@ class VisionService
     }
 
     /**
+     * Extract and parse Z-report data from an image file.
+     *
+     * Combines OCR extraction with parsing to return structured data
+     * ready for the ZReportImport component.
+     *
+     * @return array{
+     *     date: ?string,
+     *     departments: array,
+     *     sessions: array,
+     *     summary: array{
+     *         gross_amount: ?float,
+     *         net_sales: ?float,
+     *         discount_incl_tax: ?float,
+     *         exclusive_tax: ?float,
+     *         exclusive_charges: ?float,
+     *         bill_rounding: ?float,
+     *         total_sales: ?float,
+     *         total_guests: ?int,
+     *         total_transactions: ?int
+     *     }
+     * }
+     */
+    public function extractZReportData(string $imagePath): array
+    {
+        // 1. OCR the image
+        $text = $this->extractText($imagePath);
+
+        if (empty(trim($text))) {
+            throw new \RuntimeException('No text could be extracted from the image. Please ensure the image is clear and readable.');
+        }
+
+        // 2. Parse the OCR text
+        $parsed = $this->parseZReportFull($text);
+
+        // 3. Transform to expected structure
+        return [
+            'date'        => $parsed['date'],
+            'departments' => $parsed['departments'],
+            'sessions'    => $parsed['sessions'],
+            'summary'     => [
+                'gross_amount'       => $parsed['gross_sales'],
+                'net_sales'          => $parsed['net_sales'],
+                'discount_incl_tax'  => $parsed['discount'],
+                'exclusive_tax'      => $parsed['tax'],
+                'exclusive_charges'  => $parsed['service_charge'],
+                'bill_rounding'      => $parsed['rounding'],
+                'total_sales'        => $parsed['total_sales'],
+                'total_guests'       => $parsed['total_guests'],
+                'total_transactions' => $parsed['total_bills'],
+            ],
+        ];
+    }
+
+    /**
+     * Parse Z-report OCR text into structured data with full summary extraction.
+     */
+    private function parseZReportFull(string $text): array
+    {
+        $result = [
+            'date'           => null,
+            'departments'    => [],
+            'sessions'       => [],
+            'net_sales'      => null,
+            'gross_sales'    => null,
+            'total_sales'    => null,
+            'total_bills'    => null,
+            'total_guests'   => null,
+            'discount'       => null,
+            'tax'            => null,
+            'service_charge' => null,
+            'rounding'       => null,
+        ];
+
+        $lines = preg_split('/\r\n|\r|\n/', $text);
+
+        // --- Date (DD/MM/YYYY or YYYY-MM-DD) ---
+        foreach ($lines as $line) {
+            if (preg_match('/DATE\s*:\s*(\d{2})\/(\d{2})\/(\d{4})/i', $line, $m)) {
+                $result['date'] = "{$m[3]}-{$m[2]}-{$m[1]}";
+                break;
+            }
+            if (preg_match('/DATE\s*:\s*(\d{4})-(\d{2})-(\d{2})/i', $line, $m)) {
+                $result['date'] = "{$m[1]}-{$m[2]}-{$m[3]}";
+                break;
+            }
+        }
+
+        // --- Department breakdown: "3  [PD001] Food  107.60" ---
+        foreach ($lines as $line) {
+            if (preg_match('/^\s*(\d+)?\s*\[PD\d+\]\s+(.+?)\s+([\d,]+\.?\d{0,2})\s*$/i', $line, $m)) {
+                $amount = floatval(str_replace(',', '', $m[3]));
+                if ($amount > 0) {
+                    $result['departments'][] = [
+                        'name'       => trim($m[2]),
+                        'amount'     => $amount,
+                        'bill_count' => !empty($m[1]) ? (int) $m[1] : null,
+                    ];
+                }
+            }
+        }
+
+        // --- Session report (inside SESSION REPORT block) ---
+        $inSession = false;
+        $sessionMap = [
+            'breakfast' => 'breakfast',
+            'lunch'     => 'lunch',
+            'dinner'    => 'dinner',
+            'supper'    => 'supper',
+            'tea time'  => 'tea_time',
+            'tea'       => 'tea_time',
+            'high tea'  => 'tea_time',
+            'brunch'    => 'lunch',
+            'all day'   => 'all_day',
+            'all-day'   => 'all_day',
+        ];
+
+        foreach ($lines as $line) {
+            if (preg_match('/SESSION\s+REPORT/i', $line)) {
+                $inSession = true;
+                continue;
+            }
+            if ($inSession) {
+                if (preg_match('/^(ITEM\s+ENTRY|TOTAL\s+DISCOUNT|TAKEAWAY|DINE|DELIVERY|={4,}|\[PD)/i', $line)) {
+                    $inSession = false;
+                    continue;
+                }
+                if (preg_match('/^\s*(\d+)\s+(.+?)(?:\s*\(\d{2}:\d{2}[^)]*\))?\s+([\d,]+\.\d{2})\s*$/', $line, $m)) {
+                    $label      = trim($m[2]);
+                    $labelLower = strtolower($label);
+                    $mealPeriod = null;
+                    foreach ($sessionMap as $keyword => $key) {
+                        if (str_contains($labelLower, $keyword)) {
+                            $mealPeriod = $key;
+                            break;
+                        }
+                    }
+                    $result['sessions'][] = [
+                        'label'        => $label,
+                        'meal_period'  => $mealPeriod,
+                        'amount'       => floatval(str_replace(',', '', $m[3])),
+                        'transactions' => (int) $m[1],
+                    ];
+                }
+            }
+        }
+
+        // --- Extract summary values ---
+        foreach ($lines as $line) {
+            $lineUpper = strtoupper($line);
+
+            // Net Sales
+            if ($result['net_sales'] === null && preg_match('/NET\s+SALES?\s+([\d,]+\.\d{2})/i', $line, $m)) {
+                $result['net_sales'] = floatval(str_replace(',', '', $m[1]));
+            }
+
+            // Gross Sales
+            if ($result['gross_sales'] === null && preg_match('/GROSS\s+(?:SALES?|AMOUNT)\s+([\d,]+\.\d{2})/i', $line, $m)) {
+                $result['gross_sales'] = floatval(str_replace(',', '', $m[1]));
+            }
+
+            // Total Sales
+            if ($result['total_sales'] === null && preg_match('/TOTAL\s+SALES?\s+([\d,]+\.\d{2})/i', $line, $m)) {
+                $result['total_sales'] = floatval(str_replace(',', '', $m[1]));
+            }
+
+            // Total Bills/Transactions
+            if ($result['total_bills'] === null && preg_match('/TOTAL\s+(?:TRANSACTIONS?|BILLS?)\s+(\d+)/i', $line, $m)) {
+                $result['total_bills'] = (int) $m[1];
+            }
+
+            // Total Guests/Pax/Covers
+            if ($result['total_guests'] === null && preg_match('/(?:TOTAL\s+)?(?:GUESTS?|PAX|COVERS?)\s+(\d+)/i', $line, $m)) {
+                $result['total_guests'] = (int) $m[1];
+            }
+
+            // Discount
+            if ($result['discount'] === null && preg_match('/(?:TOTAL\s+)?DISCOUNT\s+([\d,]+\.\d{2})/i', $line, $m)) {
+                $result['discount'] = floatval(str_replace(',', '', $m[1]));
+            }
+
+            // Tax (SST, GST, VAT)
+            if ($result['tax'] === null && preg_match('/(?:SST|GST|VAT|TAX)\s+([\d,]+\.\d{2})/i', $line, $m)) {
+                $result['tax'] = floatval(str_replace(',', '', $m[1]));
+            }
+
+            // Service Charge
+            if ($result['service_charge'] === null && preg_match('/SERVICE\s+(?:CHARGE|CHG)\s+([\d,]+\.\d{2})/i', $line, $m)) {
+                $result['service_charge'] = floatval(str_replace(',', '', $m[1]));
+            }
+
+            // Rounding
+            if ($result['rounding'] === null && preg_match('/ROUNDING\s+(-?[\d,]+\.\d{2})/i', $line, $m)) {
+                $result['rounding'] = floatval(str_replace(',', '', $m[1]));
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Parse Z-report OCR text into structured data.
      *
      * Extracts:
