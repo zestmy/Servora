@@ -390,7 +390,7 @@ class ZReportImport extends Component
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
         $categories        = IngredientCategory::roots()->active()->ordered()->get();
         $outlets           = Outlet::where('company_id', Auth::user()->company_id)
-                                ->ordered()
+                                ->orderBy('name')
                                 ->get(['id', 'name']);
 
         return view('livewire.sales.z-report-import', compact('mealPeriodOptions', 'categories', 'outlets'));
