@@ -176,7 +176,7 @@ class VisionService
     private function zReportSystemPrompt(): string
     {
         return <<<'PROMPT'
-You are a Z-report data extraction specialist for F&B/restaurant POS systems. Extract structured data from Z-report receipts with high accuracy. Return ONLY valid JSON with no commentary or markdown formatting.
+You are a Z-report data extraction specialist for Zeoniq POS systems used in F&B/restaurants. Extract structured data from Zeoniq Z-report receipts with high accuracy. Return ONLY valid JSON with no commentary or markdown formatting.
 PROMPT;
     }
 

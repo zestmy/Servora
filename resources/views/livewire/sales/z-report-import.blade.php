@@ -1,4 +1,4 @@
-{{-- Z-Report Import Modal --}}
+{{-- Zeoniq Z-Report Import Modal --}}
 <div>
     @if ($showModal)
     @teleport('body')
@@ -12,10 +12,10 @@
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                 <div>
-                    <h3 class="text-base font-semibold text-gray-800">Import Z-Report</h3>
+                    <h3 class="text-base font-semibold text-gray-800">Scan Zeoniq Z-Report</h3>
                     <p class="text-xs text-gray-400 mt-0.5">
                         @if ($step === 'upload')
-                            Upload your daily Z-report — AI will extract dept breakdown and session totals
+                            Upload your Zeoniq Z-report — AI will extract dept breakdown and session totals
                         @else
                             Review extracted data, edit if needed, then save all records
                         @endif
@@ -35,7 +35,7 @@
 
                     <div>
                         <label class="block">
-                            <span class="text-sm font-medium text-gray-700">Z-Report Image or PDF</span>
+                            <span class="text-sm font-medium text-gray-700">Zeoniq Z-Report Image or PDF</span>
                             <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-400 transition cursor-pointer">
                                 <div class="space-y-1 text-center">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
