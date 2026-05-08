@@ -27,7 +27,12 @@
 
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Sales</h2>
+        <div>
+            <h2 class="text-lg font-semibold text-gray-700">Sales</h2>
+            @if ($singleOutletName)
+                <p class="text-xs text-gray-500 mt-0.5">{{ $singleOutletName }}</p>
+            @endif
+        </div>
         <div class="flex flex-wrap items-center gap-2">
             <button wire:click="exportPdf" wire:loading.attr="disabled"
                     title="Export PDF"

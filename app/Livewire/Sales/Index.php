@@ -393,6 +393,7 @@ class Index extends Component
             ->orderBy('name')
             ->get();
         $showOutletFilter = $outlets->count() > 1;
+        $singleOutletName = $outlets->count() === 1 ? $outlets->first()->name : null;
 
         $query = SalesRecord::with(['lines.salesCategory', 'attachments'])->withCount('attachments');
 
@@ -522,7 +523,7 @@ class Index extends Component
         return view('livewire.sales.index', compact(
             'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount',
             'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'missingDatesData',
-            'events', 'commonReasons', 'targetData', 'outlets', 'showOutletFilter'
+            'events', 'commonReasons', 'targetData', 'outlets', 'showOutletFilter', 'singleOutletName'
         ))->layout('layouts.app', ['title' => 'Sales']);
     }
 
