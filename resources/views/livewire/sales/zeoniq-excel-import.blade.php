@@ -233,6 +233,7 @@
                                                                 <span class="font-medium">{{ $mealPeriodOptions[$session['meal_period']] ?? $session['meal_period'] }}</span>
                                                                 <div class="flex items-center gap-4">
                                                                     <span>{{ $session['transactions'] ?? 0 }} trans</span>
+                                                                    <span class="text-indigo-600">{{ $session['pax'] ?? $session['transactions'] ?? 0 }} pax</span>
                                                                     <span>Gross: RM {{ number_format($session['gross_revenue'] ?? 0, 2) }}</span>
                                                                     <span>Disc: RM {{ number_format($session['discount_amount'] ?? 0, 2) }}</span>
                                                                     <span>Net: RM {{ number_format($session['net_sales'] ?? 0, 2) }}</span>

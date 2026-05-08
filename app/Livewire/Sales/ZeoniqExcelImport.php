@@ -300,6 +300,7 @@ class ZeoniqExcelImport extends Component
         $serviceCharges = (float) ($data['service_charges'] ?? 0);
         $roundingAmount = (float) ($data['rounding_amount'] ?? 0);
         $transactions   = (int)   ($data['transactions']    ?? 1);
+        $pax            = (int)   ($data['pax']             ?? $transactions);
 
         // Use net_sales as total_revenue (consistent with existing pattern)
         $totalRevenue = $netSales > 0 ? $netSales : $totalSales;
@@ -309,7 +310,7 @@ class ZeoniqExcelImport extends Component
             'outlet_id'        => $outletId,
             'sale_date'        => $date,
             'meal_period'      => $mealPeriod,
-            'pax'              => max(1, $transactions),
+            'pax'              => max(1, $pax),
             'transactions'     => $transactions > 0 ? $transactions : null,
             'total_revenue'    => round($totalRevenue, 4),
             'gross_revenue'    => $grossRevenue > 0 ? round($grossRevenue, 4) : null,

@@ -11,6 +11,10 @@ class ZeoniqImportService
     /**
      * Parse a Zeoniq Session Sales Excel file.
      * Returns structured data with session breakdowns per date/outlet.
+     *
+     * Handles two formats:
+     * 1. Format A (Date > Outlet > Session): Business Date first, then Outlet, then Sessions
+     * 2. Format B (Session > Date): Session first, then Business Date with outlet in data rows
      */
     public function parseSessionSalesExcel(string $filePath): array
     {
@@ -18,6 +22,44 @@ class ZeoniqImportService
         $sheet = $spreadsheet->getActiveSheet();
         $data = $sheet->toArray();
 
+        // Detect format by checking first few rows
+        $format = $this->detectSessionSalesFormat($data);
+
+        if ($format === 'session_first') {
+            return $this->parseSessionFirstFormat($data);
+        }
+
+        return $this->parseDateFirstFormat($data);
+    }
+
+    /**
+     * Detect the session sales format (date_first or session_first).
+     */
+    private function detectSessionSalesFormat(array $data): string
+    {
+        foreach ($data as $row) {
+            $col0 = trim((string) ($row[0] ?? ''));
+            $col1 = trim((string) ($row[1] ?? ''));
+
+            // Format B: Session header appears in col0 before any Business Date in col0
+            if (preg_match('/^Session \(Order Start Time\):/i', $col0)) {
+                return 'session_first';
+            }
+
+            // Format A: Business Date appears in col0
+            if (preg_match('/^Business Date:/i', $col0)) {
+                return 'date_first';
+            }
+        }
+
+        return 'date_first';
+    }
+
+    /**
+     * Parse Format A: Date > Outlet > Session structure.
+     */
+    private function parseDateFirstFormat(array $data): array
+    {
         $results = [];
         $currentDate = null;
         $currentOutlet = null;
@@ -55,7 +97,7 @@ class ZeoniqImportService
                 continue;
             }
 
-            // Detect Subtotal row for a session (it follows hourly data)
+            // Detect Subtotal row for a session
             if ($col3 === 'Subtotal' && $currentSession) {
                 $transCount = $this->parseNumber($row[4] ?? 0);
                 $grossAmount = $this->parseNumber($row[5] ?? 0);
@@ -63,13 +105,13 @@ class ZeoniqImportService
                 $netSales = $this->parseNumber($row[7] ?? 0);
                 $tax = $this->parseNumber($row[8] ?? 0);
                 $charges = $this->parseNumber($row[9] ?? 0);
+                $guestCount = $this->parseNumber($row[10] ?? 0);
 
-                // Only record session subtotals (not daily subtotals)
-                // Session subtotals have the session context set
                 if (!isset($sessionData[$currentSession])) {
                     $sessionData[$currentSession] = [
                         'meal_period' => $currentSession,
                         'transactions' => $transCount,
+                        'pax' => $guestCount > 0 ? (int) $guestCount : (int) $transCount,
                         'gross_revenue' => $grossAmount,
                         'discount_amount' => $discount,
                         'net_sales' => $netSales,
@@ -78,7 +120,6 @@ class ZeoniqImportService
                         'total_sales' => $netSales + $tax + $charges,
                     ];
                 }
-                // After recording, clear current session to avoid capturing daily subtotals
                 $currentSession = null;
                 continue;
             }
@@ -90,6 +131,94 @@ class ZeoniqImportService
         }
 
         return $results;
+    }
+
+    /**
+     * Parse Format B: Session > Date structure (with Pax/Guest Count).
+     * In this format, data is grouped by Session first, then by Date.
+     * Outlet is found in the data rows (column 3).
+     */
+    private function parseSessionFirstFormat(array $data): array
+    {
+        // Collect all date+session combinations
+        $dateSessionData = [];
+        $currentSession = null;
+        $currentDate = null;
+        $currentOutlet = null;
+
+        foreach ($data as $rowIndex => $row) {
+            $col0 = trim((string) ($row[0] ?? ''));
+            $col1 = trim((string) ($row[1] ?? ''));
+            $col2 = trim((string) ($row[2] ?? ''));
+            $col3 = trim((string) ($row[3] ?? ''));
+
+            // Detect Session header in col0
+            if (preg_match('/^Session \(Order Start Time\):\s*(.+)/', $col0, $m)) {
+                $sessionInfo = trim($m[1]);
+                $currentSession = $this->mapZeoniqSessionToMealPeriod($sessionInfo);
+                $currentDate = null;
+                continue;
+            }
+
+            // Detect Business Date in col1
+            if (preg_match('/^Business Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/', $col1, $m)) {
+                $currentDate = $this->parseZeoniqDate($m[1]);
+                $currentOutlet = null;
+                continue;
+            }
+
+            // Detect outlet from hourly data rows (outlet code in col3 like "W001-KLCC")
+            if ($currentDate && $col3 && $col3 !== 'Subtotal' && preg_match('/^[A-Z]\d{3}/', $col3)) {
+                $currentOutlet = $col3;
+            }
+
+            // Detect Subtotal row - this ends a date's session data
+            if ($col3 === 'Subtotal' && $currentSession && $currentDate) {
+                $transCount = $this->parseNumber($row[4] ?? 0);
+                $grossAmount = $this->parseNumber($row[5] ?? 0);
+                $discount = $this->parseNumber($row[6] ?? 0);
+                $netSales = $this->parseNumber($row[7] ?? 0);
+                $tax = $this->parseNumber($row[8] ?? 0);
+                $charges = $this->parseNumber($row[9] ?? 0);
+                $guestCount = $this->parseNumber($row[10] ?? 0);
+
+                // Skip if this is a session-level subtotal (no date context yet set after session change)
+                // or a daily subtotal (second consecutive subtotal)
+                if ($transCount > 0 && $currentOutlet) {
+                    $key = $currentDate . '|' . $currentOutlet;
+
+                    if (!isset($dateSessionData[$key])) {
+                        $dateSessionData[$key] = [
+                            'date' => $currentDate,
+                            'outlet_code' => $currentOutlet,
+                            'sessions' => [],
+                        ];
+                    }
+
+                    // Only add if this session isn't already recorded for this date
+                    $existingMealPeriods = array_column($dateSessionData[$key]['sessions'], 'meal_period');
+                    if (!in_array($currentSession, $existingMealPeriods)) {
+                        $dateSessionData[$key]['sessions'][] = [
+                            'meal_period' => $currentSession,
+                            'transactions' => (int) $transCount,
+                            'pax' => $guestCount > 0 ? (int) $guestCount : (int) $transCount,
+                            'gross_revenue' => $grossAmount,
+                            'discount_amount' => $discount,
+                            'net_sales' => $netSales,
+                            'tax_amount' => $tax,
+                            'service_charges' => $charges,
+                            'total_sales' => $netSales + $tax + $charges,
+                        ];
+                    }
+                }
+
+                // Clear date after processing its subtotal
+                $currentDate = null;
+                continue;
+            }
+        }
+
+        return array_values($dateSessionData);
     }
 
     /**
