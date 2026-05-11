@@ -242,24 +242,41 @@ class ZeoniqImportService
         $results = [];
         $headerRow = null;
         $headerMap = [];
+        $dateColumnIndex = 0; // Track which column has the dates
+        $currentOutlet = null; // Track current outlet from "Outlet: XXX" rows
 
         foreach ($data as $rowIndex => $row) {
-            $col0 = trim((string) ($row[0] ?? ''));
-
-            // Find header row (contains "Business Date")
-            if ($headerRow === null && stripos($col0, 'Business Date') !== false) {
-                $headerRow = $rowIndex;
-                foreach ($row as $idx => $header) {
-                    $headerMap[strtolower(trim((string) $header))] = $idx;
+            // Find header row (contains "Business Date" as a standalone column header, not in filters/descriptions)
+            if ($headerRow === null) {
+                foreach ($row as $colIdx => $cell) {
+                    $cellValue = trim((string) $cell);
+                    // Match exact "Business Date" or very close variants, not filters
+                    if (strcasecmp($cellValue, 'Business Date') === 0 ||
+                        preg_match('/^Business\s+Date$/i', $cellValue)) {
+                        $headerRow = $rowIndex;
+                        $dateColumnIndex = $colIdx; // Remember which column has dates
+                        // Build header map
+                        foreach ($row as $idx => $header) {
+                            $headerMap[strtolower(trim((string) $header))] = $idx;
+                        }
+                        break;
+                    }
                 }
-                continue;
+                if ($headerRow !== null) continue;
             }
 
             // Skip if no headers found yet
             if ($headerRow === null) continue;
 
-            // Try to parse date from first column (accepts D/M/YYYY format or Excel serial number)
-            $dateValue = $row[0] ?? '';
+            // Check for "Outlet: XXX" rows
+            $col0 = trim((string) ($row[0] ?? ''));
+            if (preg_match('/^Outlet:\s*(.+)/', $col0, $m)) {
+                $currentOutlet = trim($m[1]);
+                continue;
+            }
+
+            // Try to parse date from the date column (accepts D/M/YYYY format or Excel serial number)
+            $dateValue = $row[$dateColumnIndex] ?? '';
             $isDate = false;
 
             // Check if it's a formatted date string
@@ -274,7 +291,8 @@ class ZeoniqImportService
             if ($isDate) {
                 $date = $this->parseZeoniqDate($dateValue);
 
-                $outlet = $this->getColumnValue($row, $headerMap, ['outlet']);
+                // Use current outlet from "Outlet: XXX" row, or try to find in header
+                $outlet = $currentOutlet ?? $this->getColumnValue($row, $headerMap, ['outlet']);
                 $grossSales = $this->parseNumber($this->getColumnValue($row, $headerMap, ['gross sales', 'gross amount']));
                 $discount = $this->parseNumber($this->getColumnValue($row, $headerMap, ['discount']));
                 $netAmountExcl = $this->parseNumber($this->getColumnValue($row, $headerMap, ['net amount excl', 'net amount excl.', 'net sales']));
