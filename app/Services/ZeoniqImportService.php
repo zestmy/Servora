@@ -368,7 +368,7 @@ class ZeoniqImportService
     }
 
     /**
-     * Parse Zeoniq date format (D/M/YYYY or Excel serial) to Y-m-d.
+     * Parse Zeoniq date format (M/D/YYYY or Excel serial) to Y-m-d.
      */
     private function parseZeoniqDate($dateValue): string
     {
@@ -382,11 +382,12 @@ class ZeoniqImportService
             }
         }
 
-        // Handle string dates in D/M/YYYY format
+        // Handle string dates in M/D/YYYY format (US format)
         $dateStr = (string) $dateValue;
         $parts = explode('/', $dateStr);
         if (count($parts) === 3) {
-            return sprintf('%04d-%02d-%02d', (int) $parts[2], (int) $parts[1], (int) $parts[0]);
+            // Format: M/D/YYYY → parts[0]=month, parts[1]=day, parts[2]=year
+            return sprintf('%04d-%02d-%02d', (int) $parts[2], (int) $parts[0], (int) $parts[1]);
         }
 
         return $dateStr;
