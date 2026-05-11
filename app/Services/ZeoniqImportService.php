@@ -255,10 +255,24 @@ class ZeoniqImportService
                         preg_match('/^Business\s+Date$/i', $cellValue)) {
                         $headerRow = $rowIndex;
                         $dateColumnIndex = $colIdx; // Remember which column has dates
-                        // Build header map
+
+                        // Build header map from current row
                         foreach ($row as $idx => $header) {
-                            $headerMap[strtolower(trim((string) $header))] = $idx;
+                            $h = strtolower(trim((string) $header));
+                            if ($h) {
+                                $headerMap[$h] = $idx;
+                            }
                         }
+
+                        // Also read next row for sub-headers (multi-row header structure)
+                        $nextRow = $data[$rowIndex + 1] ?? [];
+                        foreach ($nextRow as $idx => $header) {
+                            $h = strtolower(trim((string) $header));
+                            if ($h && !isset($headerMap[$h])) {
+                                $headerMap[$h] = $idx;
+                            }
+                        }
+
                         break;
                     }
                 }
