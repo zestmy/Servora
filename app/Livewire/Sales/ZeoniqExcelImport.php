@@ -16,7 +16,7 @@ class ZeoniqExcelImport extends Component
     use WithFileUploads;
 
     public bool   $showModal        = false;
-    public string $step             = 'upload'; // upload | review
+    public string $step             = 'upload'; // upload | mapping | review
     public        $importFile       = null;
     public string $importError      = '';
     public bool   $importProcessing = false;
@@ -34,6 +34,16 @@ class ZeoniqExcelImport extends Component
 
     // Which records to include (by index)
     public array $includeRecords = [];
+
+    // Department mapping
+    public array $departmentNames = [];           // Unique Zeoniq departments found
+    public array $departmentMapping = [];         // dept_name => sales_category_id
+    public array $aiSuggestions = [];            // AI-suggested matches with confidence
+    public bool  $aiSuggestionsLoaded = false;
+    public bool  $aiSuggestionsError = false;
+    public string $aiErrorMessage = '';
+    public array $unmatchedDepartments = [];     // Departments without valid mapping
+    public array $validationWarnings = [];       // Department total variance warnings
 
     // ── Open / Close ─────────────────────────────────────────────────────────
 
@@ -60,14 +70,22 @@ class ZeoniqExcelImport extends Component
 
     private function resetImport(): void
     {
-        $this->step             = 'upload';
-        $this->importFile       = null;
-        $this->importError      = '';
-        $this->importProcessing = false;
-        $this->reportType       = '';
-        $this->parsedRecords    = [];
-        $this->outletMapping    = [];
-        $this->includeRecords   = [];
+        $this->step                  = 'upload';
+        $this->importFile            = null;
+        $this->importError           = '';
+        $this->importProcessing      = false;
+        $this->reportType            = '';
+        $this->parsedRecords         = [];
+        $this->outletMapping         = [];
+        $this->includeRecords        = [];
+        $this->departmentNames       = [];
+        $this->departmentMapping     = [];
+        $this->aiSuggestions         = [];
+        $this->aiSuggestionsLoaded   = false;
+        $this->aiSuggestionsError    = false;
+        $this->aiErrorMessage        = '';
+        $this->unmatchedDepartments  = [];
+        $this->validationWarnings    = [];
     }
 
     // ── Process uploaded file ────────────────────────────────────────────────
@@ -104,13 +122,34 @@ class ZeoniqExcelImport extends Component
                 return;
             }
 
-            // Build outlet mapping
-            $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
+            // Extract department names
+            $this->departmentNames = $service->extractDepartmentNames($this->parsedRecords);
 
-            // Initialize include flags for all records
-            $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+            // Validate department totals
+            $this->validationWarnings = $service->validateDepartmentTotals($this->parsedRecords);
 
-            $this->step = 'review';
+            // Check if we have department data
+            if (!empty($this->departmentNames)) {
+                // Load existing mappings from database
+                $this->loadStoredMappings();
+
+                // Check if all departments are mapped
+                if ($this->hasUnmappedDepartments()) {
+                    // Need mapping review step
+                    $this->loadAiSuggestions();
+                    $this->step = 'mapping';
+                } else {
+                    // All departments mapped, proceed to review
+                    $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
+                    $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+                    $this->step = 'review';
+                }
+            } else {
+                // No departments detected, proceed as normal
+                $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
+                $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+                $this->step = 'review';
+            }
 
         } catch (\Exception $e) {
             $this->importError = 'Error processing file: ' . $e->getMessage();
@@ -145,6 +184,127 @@ class ZeoniqExcelImport extends Component
             $this->outletMapping[$code] = $matched?->id
                 ?? session('active_outlet_id')
                 ?? $userOutlets->first()?->id;
+        }
+    }
+
+    // ── Department mapping methods ──────────────────────────────────────────
+
+    private function loadStoredMappings(): void
+    {
+        $companyId = Auth::user()->company_id;
+        $stored = \App\Models\ZeoniqDepartmentMapping::where('company_id', $companyId)
+            ->whereIn('zeoniq_department_name', $this->departmentNames)
+            ->get()
+            ->keyBy('zeoniq_department_name');
+
+        $this->departmentMapping = [];
+        foreach ($this->departmentNames as $dept) {
+            $mapping = $stored->get($dept);
+            $this->departmentMapping[$dept] = $mapping?->sales_category_id;
+        }
+    }
+
+    private function hasUnmappedDepartments(): bool
+    {
+        foreach ($this->departmentMapping as $categoryId) {
+            if ($categoryId === null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function loadAiSuggestions(): void
+    {
+        try {
+            $matchingService = new \App\Services\ZeoniqDepartmentMatchingService();
+            $categories = SalesCategory::active()->ordered()->get();
+
+            $unmappedDepts = [];
+            foreach ($this->departmentNames as $dept) {
+                if (!$this->departmentMapping[$dept]) {
+                    $unmappedDepts[] = $dept;
+                }
+            }
+
+            if (!empty($unmappedDepts)) {
+                $this->aiSuggestions = $matchingService->suggestMatches(
+                    $unmappedDepts,
+                    $categories
+                );
+                $this->aiSuggestionsLoaded = true;
+            }
+        } catch (\Exception $e) {
+            $this->aiSuggestionsError = true;
+            $this->aiErrorMessage = 'AI suggestions unavailable: ' . $e->getMessage();
+            \Log::warning('Zeoniq AI matching failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function applyAiSuggestion(string $department): void
+    {
+        $suggestion = collect($this->aiSuggestions)
+            ->firstWhere('zeoniq_department', $department);
+
+        if ($suggestion && $suggestion['suggested_category_id']) {
+            $this->departmentMapping[$department] = $suggestion['suggested_category_id'];
+        }
+    }
+
+    public function applyAllAiSuggestions(): void
+    {
+        foreach ($this->aiSuggestions as $suggestion) {
+            if ($suggestion['confidence'] === 'high' && $suggestion['suggested_category_id']) {
+                $this->departmentMapping[$suggestion['zeoniq_department']]
+                    = $suggestion['suggested_category_id'];
+            }
+        }
+    }
+
+    public function proceedToReview(): void
+    {
+        // Validate all departments mapped
+        $this->unmatchedDepartments = [];
+        foreach ($this->departmentNames as $dept) {
+            if (!$this->departmentMapping[$dept]) {
+                $this->unmatchedDepartments[] = $dept;
+            }
+        }
+
+        if (!empty($this->unmatchedDepartments)) {
+            $this->addError('mapping', 'All departments must be mapped to a Sales Category. Missing: '
+                . implode(', ', $this->unmatchedDepartments));
+            return;
+        }
+
+        // Save mappings for future use
+        $this->saveMappings();
+
+        // Build outlet mapping and proceed
+        $service = new ZeoniqImportService();
+        $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
+        $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+        $this->step = 'review';
+    }
+
+    private function saveMappings(): void
+    {
+        $companyId = Auth::user()->company_id;
+        $userId = Auth::id();
+
+        foreach ($this->departmentMapping as $dept => $categoryId) {
+            if ($categoryId) {
+                \App\Models\ZeoniqDepartmentMapping::updateOrCreate(
+                    [
+                        'company_id' => $companyId,
+                        'zeoniq_department_name' => $dept,
+                    ],
+                    [
+                        'sales_category_id' => $categoryId,
+                        'created_by' => $userId,
+                    ]
+                );
+            }
         }
     }
 
@@ -322,17 +482,40 @@ class ZeoniqExcelImport extends Component
             'created_by'       => $userId,
         ]);
 
-        // Create a single line for the record
-        $record->lines()->create([
-            'sales_category_id'      => null,
-            'ingredient_category_id' => null,
-            'item_name'              => ucfirst(str_replace('_', ' ', $mealPeriod)) . ' Sales',
-            'quantity'               => 1,
-            'unit_price'             => round($totalRevenue, 4),
-            'unit_cost'              => 0,
-            'total_revenue'          => round($totalRevenue, 4),
-            'total_cost'             => 0,
-        ]);
+        // Create lines for departments if available
+        $departments = $data['departments'] ?? [];
+
+        if (!empty($departments)) {
+            // Create separate line for each department
+            foreach ($departments as $deptName => $deptRevenue) {
+                $categoryId = $this->departmentMapping[$deptName] ?? null;
+
+                if ($categoryId && $deptRevenue > 0) {
+                    $record->lines()->create([
+                        'sales_category_id'      => $categoryId,
+                        'ingredient_category_id' => null,
+                        'item_name'              => $deptName,
+                        'quantity'               => 1,
+                        'unit_price'             => round($deptRevenue, 4),
+                        'unit_cost'              => 0,
+                        'total_revenue'          => round($deptRevenue, 4),
+                        'total_cost'             => 0,
+                    ]);
+                }
+            }
+        } else {
+            // Fallback: Create single line (existing behavior)
+            $record->lines()->create([
+                'sales_category_id'      => null,
+                'ingredient_category_id' => null,
+                'item_name'              => ucfirst(str_replace('_', ' ', $mealPeriod)) . ' Sales',
+                'quantity'               => 1,
+                'unit_price'             => round($totalRevenue, 4),
+                'unit_cost'              => 0,
+                'total_revenue'          => round($totalRevenue, 4),
+                'total_cost'             => 0,
+            ]);
+        }
 
         return true;
     }
@@ -345,8 +528,10 @@ class ZeoniqExcelImport extends Component
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $salesCategories = SalesCategory::active()->ordered()->get();
+
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
 
-        return view('livewire.sales.zeoniq-excel-import', compact('outlets', 'mealPeriodOptions'));
+        return view('livewire.sales.zeoniq-excel-import', compact('outlets', 'salesCategories', 'mealPeriodOptions'));
     }
 }

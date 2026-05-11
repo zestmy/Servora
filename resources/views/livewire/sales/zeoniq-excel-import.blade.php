@@ -16,6 +16,8 @@
                     <p class="text-xs text-gray-400 mt-0.5">
                         @if ($step === 'upload')
                             Upload Session Sales Listing or Daily Summary from Zeoniq Cloud Dashboard
+                        @elseif ($step === 'mapping')
+                            Map department names to Sales Categories
                         @else
                             Review {{ count($parsedRecords) }} date(s) found — select records to import
                         @endif
@@ -75,6 +77,128 @@
                             <li>Duplicate dates are automatically skipped</li>
                             <li>Multi-outlet support with automatic outlet matching</li>
                         </ul>
+                    </div>
+
+                @endif
+
+                {{-- ── STEP: MAPPING ────────────────────────────────────────── --}}
+                @if ($step === 'mapping')
+
+                    <div class="space-y-4">
+
+                        {{-- Header Info --}}
+                        <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+                            <h4 class="text-sm font-semibold text-blue-800">Department Mapping Required</h4>
+                            <p class="text-xs text-blue-600 mt-1">
+                                {{ count($departmentNames) }} department(s) detected in the Excel file.
+                                Map each Zeoniq department to a Servora Sales Category.
+                            </p>
+                        </div>
+
+                        {{-- AI Suggestions Panel (if available) --}}
+                        @if ($aiSuggestionsLoaded && !empty($aiSuggestions))
+                        <div class="border border-green-200 rounded-xl overflow-hidden">
+                            <div class="px-4 py-3 bg-green-50 border-b border-green-200 flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-green-800 flex items-center gap-2">
+                                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                                        </svg>
+                                        AI Suggested Mappings
+                                    </h4>
+                                    <p class="text-xs text-green-600 mt-0.5">Claude analyzed your departments and suggested these matches</p>
+                                </div>
+                                <button wire:click="applyAllAiSuggestions"
+                                        class="text-xs px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
+                                    Apply High Confidence Matches
+                                </button>
+                            </div>
+                            <div class="p-4 space-y-2">
+                                @foreach ($aiSuggestions as $suggestion)
+                                <div class="flex items-center gap-3 p-2 rounded-lg
+                                    {{ $suggestion['confidence'] === 'high' ? 'bg-green-50' :
+                                       ($suggestion['confidence'] === 'medium' ? 'bg-yellow-50' : 'bg-gray-50') }}">
+                                    <span class="text-sm font-mono text-gray-700 min-w-[120px]">
+                                        {{ $suggestion['zeoniq_department'] }}
+                                    </span>
+                                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                    </svg>
+                                    <span class="text-sm text-gray-600 flex-1">
+                                        {{ $suggestion['category_name'] ?? 'No match' }}
+                                    </span>
+                                    <span class="text-xs px-2 py-1 rounded-full
+                                        {{ $suggestion['confidence'] === 'high' ? 'bg-green-100 text-green-700' :
+                                           ($suggestion['confidence'] === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600') }}">
+                                        {{ ucfirst($suggestion['confidence']) }}
+                                    </span>
+                                    @if ($suggestion['suggested_category_id'])
+                                    <button wire:click="applyAiSuggestion('{{ $suggestion['zeoniq_department'] }}')"
+                                            class="text-xs text-indigo-600 hover:text-indigo-800">
+                                        Apply
+                                    </button>
+                                    @endif
+                                </div>
+                                @if (!empty($suggestion['reasoning']))
+                                <p class="text-xs text-gray-500 ml-[132px]">{{ $suggestion['reasoning'] }}</p>
+                                @endif
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- AI Error Message --}}
+                        @if ($aiSuggestionsError)
+                        <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                            {{ $aiErrorMessage }} — You can still map departments manually below.
+                        </div>
+                        @endif
+
+                        {{-- Manual Mapping Table --}}
+                        <div class="border border-gray-200 rounded-xl overflow-hidden">
+                            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                <h4 class="text-sm font-semibold text-gray-700">Department → Sales Category Mapping</h4>
+                                <p class="text-xs text-gray-500 mt-0.5">Select the Sales Category for each department</p>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                @foreach ($departmentNames as $dept)
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-mono text-gray-700 bg-gray-100 px-3 py-2 rounded min-w-[150px]">
+                                        {{ $dept }}
+                                    </span>
+                                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                    </svg>
+                                    <select wire:model.live="departmentMapping.{{ $dept }}"
+                                            class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm
+                                            {{ !($departmentMapping[$dept] ?? null) ? 'border-red-300 bg-red-50' : '' }}">
+                                        <option value="">— Select Sales Category —</option>
+                                        @foreach ($salesCategories as $cat)
+                                            <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Validation Errors --}}
+                        @if ($errors->has('mapping'))
+                        <div class="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                            {{ $errors->first('mapping') }}
+                        </div>
+                        @endif
+
+                        {{-- Info Box --}}
+                        <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3 text-xs text-indigo-700">
+                            <p class="font-medium">About Department Mappings:</p>
+                            <ul class="list-disc list-inside space-y-0.5 mt-1 text-indigo-600">
+                                <li>Mappings are saved and reused for future imports</li>
+                                <li>Each department will create a separate line item in the sales record</li>
+                                <li>You can update mappings anytime from Settings (future feature)</li>
+                            </ul>
+                        </div>
+
                     </div>
 
                 @endif
@@ -313,6 +437,17 @@
                             Processing...
                         </span>
                     </button>
+                @elseif ($step === 'mapping')
+                    <div class="flex items-center gap-2">
+                        <button type="button" wire:click="$set('step', 'upload')"
+                                class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg transition">
+                            &larr; Re-upload
+                        </button>
+                        <button type="button" wire:click="proceedToReview"
+                                class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            Continue to Review &rarr;
+                        </button>
+                    </div>
                 @else
                     <div class="flex items-center gap-2">
                         <button type="button" wire:click="$set('step', 'upload')"

@@ -400,4 +400,160 @@ class ZeoniqImportService
         }
         return null;
     }
+
+    /**
+     * Detect department columns in the Excel data.
+     * Returns array of column_index => department_name.
+     */
+    public function detectDepartmentColumns(array $data): array
+    {
+        $departments = [];
+
+        // Known standard column headers to exclude from department detection
+        $standardColumns = [
+            'business date', 'date', 'session', 'outlet', 'subtotal', 'transactions',
+            'trans count', 'gross sales', 'gross amount', 'gross', 'discount', 'net sales',
+            'net amount', 'net', 'tax', 'tax amount', 'service charge', 'charges', 'rounding',
+            'bill rounding', 'total sales', 'total', 'pax', 'guest count', 'covers',
+            'order start time', 'order time', 'hour', 'time',
+        ];
+
+        // Scan for header row (look for row containing "Business Date" or similar)
+        foreach ($data as $rowIndex => $row) {
+            $firstCol = strtolower(trim((string) ($row[0] ?? '')));
+
+            // Check if this looks like a header row
+            $hasDateHeader = stripos($firstCol, 'business date') !== false || stripos($firstCol, 'date') !== false;
+
+            if ($hasDateHeader || $rowIndex < 20) {
+                // Scan this row for potential department columns
+                foreach ($row as $colIndex => $cell) {
+                    $cellValue = trim((string) $cell);
+                    $cellLower = strtolower($cellValue);
+
+                    // Skip empty cells
+                    if (empty($cellValue)) {
+                        continue;
+                    }
+
+                    // Skip standard columns
+                    if (in_array($cellLower, $standardColumns)) {
+                        continue;
+                    }
+
+                    // Skip purely numeric cells
+                    if (is_numeric($cellValue)) {
+                        continue;
+                    }
+
+                    // Potential department names are typically short (1-3 words)
+                    $wordCount = str_word_count($cellValue);
+                    if ($wordCount > 0 && $wordCount <= 3) {
+                        // Check if this looks like a department name
+                        // (starts with uppercase, alphanumeric with spaces/hyphens)
+                        if (preg_match('/^[A-Z][A-Za-z0-9\s\-&\/]+$/u', $cellValue)) {
+                            $departments[$colIndex] = $cellValue;
+                        }
+                    }
+                }
+
+                // If we found potential departments, return them
+                if (!empty($departments)) {
+                    return $departments;
+                }
+            }
+        }
+
+        return $departments;
+    }
+
+    /**
+     * Extract unique department names from parsed records.
+     */
+    public function extractDepartmentNames(array $parsedRecords): array
+    {
+        $departments = [];
+
+        foreach ($parsedRecords as $record) {
+            if (isset($record['departments']) && is_array($record['departments'])) {
+                foreach (array_keys($record['departments']) as $dept) {
+                    $departments[$dept] = true;
+                }
+            }
+
+            // For session sales records, check each session
+            if (isset($record['sessions']) && is_array($record['sessions'])) {
+                foreach ($record['sessions'] as $session) {
+                    if (isset($session['departments']) && is_array($session['departments'])) {
+                        foreach (array_keys($session['departments']) as $dept) {
+                            $departments[$dept] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_keys($departments);
+    }
+
+    /**
+     * Validate that department totals match the expected net sales.
+     * Returns array of warnings if variance exceeds 5%.
+     */
+    public function validateDepartmentTotals(array $parsedRecords): array
+    {
+        $warnings = [];
+
+        foreach ($parsedRecords as $recordIndex => $record) {
+            // For session sales
+            if (isset($record['sessions']) && is_array($record['sessions'])) {
+                foreach ($record['sessions'] as $sessionIndex => $session) {
+                    if (isset($session['departments']) && is_array($session['departments'])) {
+                        $deptSum = array_sum($session['departments']);
+                        $netSales = $session['net_sales'] ?? $session['total_sales'] ?? 0;
+
+                        if ($netSales > 0) {
+                            $variance = abs($deptSum - $netSales);
+                            $variancePct = ($variance / $netSales) * 100;
+
+                            if ($variancePct > 5) {
+                                $warnings[] = sprintf(
+                                    'Record %d, %s: Department total (RM %.2f) differs from Net Sales (RM %.2f) by %.1f%%',
+                                    $recordIndex + 1,
+                                    $session['meal_period'] ?? 'unknown',
+                                    $deptSum,
+                                    $netSales,
+                                    $variancePct
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            // For daily summary
+            if (isset($record['departments']) && is_array($record['departments'])) {
+                $deptSum = array_sum($record['departments']);
+                $netSales = $record['net_sales'] ?? $record['total_sales'] ?? 0;
+
+                if ($netSales > 0) {
+                    $variance = abs($deptSum - $netSales);
+                    $variancePct = ($variance / $netSales) * 100;
+
+                    if ($variancePct > 5) {
+                        $warnings[] = sprintf(
+                            'Record %d (%s): Department total (RM %.2f) differs from Net Sales (RM %.2f) by %.1f%%',
+                            $recordIndex + 1,
+                            $record['date'] ?? 'unknown',
+                            $deptSum,
+                            $netSales,
+                            $variancePct
+                        );
+                    }
+                }
+            }
+        }
+
+        return $warnings;
+    }
 }
