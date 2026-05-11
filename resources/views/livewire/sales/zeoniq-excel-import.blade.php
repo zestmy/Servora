@@ -351,20 +351,57 @@
                                             <tr class="bg-gray-50">
                                                 <td></td>
                                                 <td colspan="5" class="px-4 py-2">
-                                                    <div class="text-xs text-gray-500 space-y-1">
+                                                    <div class="text-xs text-gray-500 space-y-2">
                                                         @foreach ($record['sessions'] as $session)
-                                                            <div class="flex items-center justify-between">
-                                                                <span class="font-medium">{{ $mealPeriodOptions[$session['meal_period']] ?? $session['meal_period'] }}</span>
-                                                                <div class="flex items-center gap-4">
-                                                                    <span>{{ $session['transactions'] ?? 0 }} trans</span>
-                                                                    <span class="text-indigo-600">{{ $session['pax'] ?? $session['transactions'] ?? 0 }} pax</span>
-                                                                    <span>Gross: RM {{ number_format($session['gross_revenue'] ?? 0, 2) }}</span>
-                                                                    <span>Disc: RM {{ number_format($session['discount_amount'] ?? 0, 2) }}</span>
-                                                                    <span>Net: RM {{ number_format($session['net_sales'] ?? 0, 2) }}</span>
-                                                                    <span class="font-medium">Total: RM {{ number_format($session['total_sales'] ?? 0, 2) }}</span>
+                                                            <div class="space-y-1">
+                                                                <div class="flex items-center justify-between">
+                                                                    <span class="font-medium">{{ $mealPeriodOptions[$session['meal_period']] ?? $session['meal_period'] }}</span>
+                                                                    <div class="flex items-center gap-4">
+                                                                        <span>{{ $session['transactions'] ?? 0 }} trans</span>
+                                                                        <span class="text-indigo-600">{{ $session['pax'] ?? $session['transactions'] ?? 0 }} pax</span>
+                                                                        <span>Gross: RM {{ number_format($session['gross_revenue'] ?? 0, 2) }}</span>
+                                                                        <span>Disc: RM {{ number_format($session['discount_amount'] ?? 0, 2) }}</span>
+                                                                        <span>Net: RM {{ number_format($session['net_sales'] ?? 0, 2) }}</span>
+                                                                        <span class="font-medium">Total: RM {{ number_format($session['total_sales'] ?? 0, 2) }}</span>
+                                                                    </div>
                                                                 </div>
+
+                                                                {{-- Department Breakdown --}}
+                                                                @if (!empty($session['departments']))
+                                                                    <div class="pl-4 pt-1 flex flex-wrap gap-3">
+                                                                        <span class="text-gray-400">Departments:</span>
+                                                                        @foreach ($session['departments'] as $deptName => $deptRevenue)
+                                                                            <span class="px-2 py-0.5 bg-white border border-gray-200 rounded text-gray-600">
+                                                                                <span class="font-medium">{{ $deptName }}</span>
+                                                                                <span class="text-gray-400 mx-1">·</span>
+                                                                                <span class="text-green-600">RM {{ number_format($deptRevenue, 2) }}</span>
+                                                                            </span>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @endif
                                                             </div>
                                                         @endforeach
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endif
+
+                                        {{-- Daily Summary Department Breakdown --}}
+                                        @if ($reportType !== 'session_sales' && $isIncluded && !empty($record['departments']))
+                                            <tr class="bg-gray-50">
+                                                <td></td>
+                                                <td colspan="5" class="px-4 py-2">
+                                                    <div class="text-xs text-gray-500">
+                                                        <div class="flex flex-wrap gap-3">
+                                                            <span class="text-gray-400">Departments:</span>
+                                                            @foreach ($record['departments'] as $deptName => $deptRevenue)
+                                                                <span class="px-2 py-0.5 bg-white border border-gray-200 rounded text-gray-600">
+                                                                    <span class="font-medium">{{ $deptName }}</span>
+                                                                    <span class="text-gray-400 mx-1">·</span>
+                                                                    <span class="text-green-600">RM {{ number_format($deptRevenue, 2) }}</span>
+                                                                </span>
+                                                            @endforeach
+                                                        </div>
                                                     </div>
                                                 </td>
                                             </tr>

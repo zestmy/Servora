@@ -107,6 +107,9 @@ class ZeoniqImportService
                 $charges = $this->parseNumber($row[9] ?? 0);
                 $guestCount = $this->parseNumber($row[10] ?? 0);
 
+                // Extract department sales data
+                $departments = $this->extractDepartmentsFromRow($row);
+
                 if (!isset($sessionData[$currentSession])) {
                     $sessionData[$currentSession] = [
                         'meal_period' => $currentSession,
@@ -118,6 +121,7 @@ class ZeoniqImportService
                         'tax_amount' => $tax,
                         'service_charges' => $charges,
                         'total_sales' => $netSales + $tax + $charges,
+                        'departments' => $departments,
                     ];
                 }
                 $currentSession = null;
@@ -182,6 +186,9 @@ class ZeoniqImportService
                 $charges = $this->parseNumber($row[9] ?? 0);
                 $guestCount = $this->parseNumber($row[10] ?? 0);
 
+                // Extract department sales data
+                $departments = $this->extractDepartmentsFromRow($row);
+
                 // Skip if this is a session-level subtotal (no date context yet set after session change)
                 // or a daily subtotal (second consecutive subtotal)
                 if ($transCount > 0 && $currentOutlet) {
@@ -208,6 +215,7 @@ class ZeoniqImportService
                             'tax_amount' => $tax,
                             'service_charges' => $charges,
                             'total_sales' => $netSales + $tax + $charges,
+                            'departments' => $departments,
                         ];
                     }
                 }
@@ -269,6 +277,9 @@ class ZeoniqImportService
                     $totalSales = $netAmountExcl + $taxAmount + $serviceCharges + $billRounding;
                 }
 
+                // Extract department sales data
+                $departments = $this->extractDepartmentsFromRow($row);
+
                 $results[] = [
                     'date' => $date,
                     'outlet_code' => $outlet,
@@ -280,6 +291,7 @@ class ZeoniqImportService
                     'service_charges' => $serviceCharges,
                     'rounding_amount' => $billRounding,
                     'total_sales' => $totalSales,
+                    'departments' => $departments,
                 ];
             }
         }
@@ -399,6 +411,44 @@ class ZeoniqImportService
             }
         }
         return null;
+    }
+
+    /**
+     * Extract department sales data from a row.
+     * Based on the known column positions from DailySummary2026KLCCwithStatsSessionDept.xlsx:
+     * AC(28): Dessert Qty, AD(29): Dessert Total
+     * AE(30): Add On Qty, AF(31): Add On Total
+     * AG(32): Modifier Qty, AH(33): Modifier Total
+     * AI(34): Beverage Qty, AJ(35): Beverage Total
+     * AK(36): Food Qty, AL(37): Food Total
+     * AM(38): Merchandise Qty, AN(39): Merchandise Total
+     * AO(40): Open Food Qty, AP(41): Open Food Total
+     */
+    private function extractDepartmentsFromRow(array $row): array
+    {
+        $departments = [];
+
+        // Department definitions: [name, quantity_col_index, net_total_col_index]
+        $deptColumns = [
+            ['Dessert', 28, 29],
+            ['Add On', 30, 31],
+            ['Modifier', 32, 33],
+            ['Beverage', 34, 35],
+            ['Food', 36, 37],
+            ['Merchandise', 38, 39],
+            ['Open Food', 40, 41],
+        ];
+
+        foreach ($deptColumns as [$deptName, $qtyCol, $totalCol]) {
+            $netTotal = $this->parseNumber($row[$totalCol] ?? 0);
+
+            // Only include departments with revenue > 0
+            if ($netTotal > 0) {
+                $departments[$deptName] = $netTotal;
+            }
+        }
+
+        return $departments;
     }
 
     /**
