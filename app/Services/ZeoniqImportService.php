@@ -314,6 +314,8 @@ class ZeoniqImportService
                 $serviceCharges = $this->parseNumber($this->getColumnValue($row, $headerMap, ['exclusive charges', 'charges', 'service charges']));
                 $billRounding = $this->parseNumber($this->getColumnValue($row, $headerMap, ['bill rounding', 'rounding']));
                 $totalSales = $this->parseNumber($this->getColumnValue($row, $headerMap, ['total sales', 'net total']));
+                $transCount = $this->parseNumber($this->getColumnValue($row, $headerMap, ['trans. count', 'transaction count', 'trans count']));
+                $guestCount = $this->parseNumber($this->getColumnValue($row, $headerMap, ['guest count', 'pax']));
 
                 // If total_sales not found, calculate it
                 if ($totalSales == 0 && $netAmountExcl > 0) {
@@ -327,6 +329,8 @@ class ZeoniqImportService
                     'date' => $date,
                     'outlet_code' => $outlet,
                     'meal_period' => 'all_day',
+                    'transactions' => (int) $transCount,
+                    'pax' => (int) $guestCount,
                     'gross_revenue' => $grossSales,
                     'discount_amount' => $discount,
                     'net_sales' => $netAmountExcl,

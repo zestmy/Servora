@@ -282,6 +282,8 @@
                                         @if ($reportType === 'session_sales')
                                             <th class="px-4 py-2 text-left">Sessions</th>
                                         @else
+                                            <th class="px-4 py-2 text-right">Trans</th>
+                                            <th class="px-4 py-2 text-right">Pax</th>
                                             <th class="px-4 py-2 text-right">Gross</th>
                                             <th class="px-4 py-2 text-right">Discount</th>
                                         @endif
@@ -331,6 +333,12 @@
                                                     RM {{ number_format($totalSales, 2) }}
                                                 </td>
                                             @else
+                                                <td class="px-4 py-3 text-right tabular-nums text-gray-600">
+                                                    {{ number_format($record['transactions'] ?? 0) }}
+                                                </td>
+                                                <td class="px-4 py-3 text-right tabular-nums text-indigo-600 font-medium">
+                                                    {{ number_format($record['pax'] ?? 0) }}
+                                                </td>
                                                 <td class="px-4 py-3 text-right tabular-nums">
                                                     RM {{ number_format($record['gross_revenue'] ?? 0, 2) }}
                                                 </td>
