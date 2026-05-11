@@ -258,10 +258,21 @@ class ZeoniqImportService
             // Skip if no headers found yet
             if ($headerRow === null) continue;
 
-            // Try to parse date from first column
-            $dateStr = $col0;
-            if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $dateStr)) {
-                $date = $this->parseZeoniqDate($dateStr);
+            // Try to parse date from first column (accepts D/M/YYYY format or Excel serial number)
+            $dateValue = $row[0] ?? '';
+            $isDate = false;
+
+            // Check if it's a formatted date string
+            if (is_string($dateValue) && preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', trim($dateValue))) {
+                $isDate = true;
+            }
+            // Check if it's an Excel serial date (numeric value > 40000, which is roughly 2009+)
+            elseif (is_numeric($dateValue) && $dateValue > 40000 && $dateValue < 60000) {
+                $isDate = true;
+            }
+
+            if ($isDate) {
+                $date = $this->parseZeoniqDate($dateValue);
 
                 $outlet = $this->getColumnValue($row, $headerMap, ['outlet']);
                 $grossSales = $this->parseNumber($this->getColumnValue($row, $headerMap, ['gross sales', 'gross amount']));
@@ -339,14 +350,27 @@ class ZeoniqImportService
     }
 
     /**
-     * Parse Zeoniq date format (D/M/YYYY) to Y-m-d.
+     * Parse Zeoniq date format (D/M/YYYY or Excel serial) to Y-m-d.
      */
-    private function parseZeoniqDate(string $dateStr): string
+    private function parseZeoniqDate($dateValue): string
     {
+        // Handle Excel serial date numbers (e.g., 46023)
+        if (is_numeric($dateValue) && $dateValue > 40000) {
+            try {
+                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue);
+                return $date->format('Y-m-d');
+            } catch (\Exception $e) {
+                // Fall through to string parsing
+            }
+        }
+
+        // Handle string dates in D/M/YYYY format
+        $dateStr = (string) $dateValue;
         $parts = explode('/', $dateStr);
         if (count($parts) === 3) {
             return sprintf('%04d-%02d-%02d', (int) $parts[2], (int) $parts[1], (int) $parts[0]);
         }
+
         return $dateStr;
     }
 
