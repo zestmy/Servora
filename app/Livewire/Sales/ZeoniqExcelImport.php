@@ -38,6 +38,7 @@ class ZeoniqExcelImport extends Component
     // Department mapping
     public array $departmentNames = [];           // Unique Zeoniq departments found
     public array $departmentMapping = [];         // dept_name => sales_category_id
+    public array $departmentCategoryNames = [];  // dept_name => sales_category_name (for display)
     public array $aiSuggestions = [];            // AI-suggested matches with confidence
     public bool  $aiSuggestionsLoaded = false;
     public bool  $aiSuggestionsError = false;
@@ -70,22 +71,23 @@ class ZeoniqExcelImport extends Component
 
     private function resetImport(): void
     {
-        $this->step                  = 'upload';
-        $this->importFile            = null;
-        $this->importError           = '';
-        $this->importProcessing      = false;
-        $this->reportType            = '';
-        $this->parsedRecords         = [];
-        $this->outletMapping         = [];
-        $this->includeRecords        = [];
-        $this->departmentNames       = [];
-        $this->departmentMapping     = [];
-        $this->aiSuggestions         = [];
-        $this->aiSuggestionsLoaded   = false;
-        $this->aiSuggestionsError    = false;
-        $this->aiErrorMessage        = '';
-        $this->unmatchedDepartments  = [];
-        $this->validationWarnings    = [];
+        $this->step                    = 'upload';
+        $this->importFile              = null;
+        $this->importError             = '';
+        $this->importProcessing        = false;
+        $this->reportType              = '';
+        $this->parsedRecords           = [];
+        $this->outletMapping           = [];
+        $this->includeRecords          = [];
+        $this->departmentNames         = [];
+        $this->departmentMapping       = [];
+        $this->departmentCategoryNames = [];
+        $this->aiSuggestions           = [];
+        $this->aiSuggestionsLoaded     = false;
+        $this->aiSuggestionsError      = false;
+        $this->aiErrorMessage          = '';
+        $this->unmatchedDepartments    = [];
+        $this->validationWarnings      = [];
     }
 
     // ── Process uploaded file ────────────────────────────────────────────────
@@ -301,6 +303,14 @@ class ZeoniqExcelImport extends Component
 
         // Save mappings for future use
         $this->saveMappings();
+
+        // Build department category names mapping for display
+        $categoryIds = array_filter(array_values($this->departmentMapping));
+        $categoryNames = SalesCategory::whereIn('id', $categoryIds)->pluck('name', 'id')->toArray();
+        $this->departmentCategoryNames = [];
+        foreach ($this->departmentMapping as $deptName => $categoryId) {
+            $this->departmentCategoryNames[$deptName] = $categoryNames[$categoryId] ?? $deptName;
+        }
 
         // Build outlet mapping and proceed
         $service = new ZeoniqImportService();
