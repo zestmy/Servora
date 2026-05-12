@@ -233,6 +233,18 @@ class ZeoniqExcelImport extends Component
                     $categories
                 );
                 $this->aiSuggestionsLoaded = true;
+
+                // Auto-apply high and medium confidence suggestions to dropdowns
+                foreach ($this->aiSuggestions as $suggestion) {
+                    $dept = $suggestion['zeoniq_department'];
+                    $categoryId = $suggestion['suggested_category_id'];
+                    $confidence = $suggestion['confidence'] ?? 'low';
+
+                    // Auto-select high and medium confidence matches
+                    if ($categoryId && in_array($confidence, ['high', 'medium'])) {
+                        $this->departmentMapping[$dept] = $categoryId;
+                    }
+                }
             }
         } catch (\Exception $e) {
             $this->aiSuggestionsError = true;

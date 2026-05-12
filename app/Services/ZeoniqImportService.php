@@ -328,13 +328,25 @@ class ZeoniqImportService
 
                 // If session data exists, create separate records per meal period
                 if (!empty($sessions)) {
+                    // Distribute day-level pax proportionally across sessions based on quantity
+                    $totalSessionQty = array_sum(array_column($sessions, 'quantity'));
+                    $sessionCount = count($sessions);
+
                     foreach ($sessions as $session) {
+                        // Calculate proportional pax for this session
+                        $sessionPax = 0;
+                        if ($guestCount > 0) {
+                            $sessionPax = $totalSessionQty > 0
+                                ? (int) round($guestCount * ($session['quantity'] / $totalSessionQty))
+                                : (int) round($guestCount / $sessionCount);
+                        }
+
                         $results[] = [
                             'date' => $date,
                             'outlet_code' => $outlet,
                             'meal_period' => $session['meal_period'],
                             'transactions' => $session['quantity'], // Use session quantity as transactions
-                            'pax' => 0, // Pax not available per session, set to 0
+                            'pax' => $sessionPax, // Distributed from day-level guest count
                             'gross_revenue' => 0, // Not available per session
                             'discount_amount' => 0, // Not available per session
                             'net_sales' => $session['net_total'],

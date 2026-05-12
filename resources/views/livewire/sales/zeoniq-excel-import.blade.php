@@ -158,25 +158,43 @@
                         <div class="border border-gray-200 rounded-xl overflow-hidden">
                             <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
                                 <h4 class="text-sm font-semibold text-gray-700">Department → Sales Category Mapping</h4>
-                                <p class="text-xs text-gray-500 mt-0.5">Select the Sales Category for each department</p>
+                                <p class="text-xs text-gray-500 mt-0.5">Select the Sales Category for each department. AI suggestions are auto-applied.</p>
                             </div>
                             <div class="p-4 space-y-3">
                                 @foreach ($departmentNames as $dept)
-                                <div class="flex items-center gap-3">
-                                    <span class="text-sm font-mono text-gray-700 bg-gray-100 px-3 py-2 rounded min-w-[150px]">
-                                        {{ $dept }}
-                                    </span>
-                                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                    </svg>
-                                    <select wire:model.live="departmentMapping.{{ $dept }}"
-                                            class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm
-                                            {{ !($departmentMapping[$dept] ?? null) ? 'border-red-300 bg-red-50' : '' }}">
-                                        <option value="">— Select Sales Category —</option>
-                                        @foreach ($salesCategories as $cat)
-                                            <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                                        @endforeach
-                                    </select>
+                                @php
+                                    $aiSuggestion = collect($aiSuggestions)->firstWhere('zeoniq_department', $dept);
+                                    $confidence = $aiSuggestion['confidence'] ?? null;
+                                    $reasoning = $aiSuggestion['reasoning'] ?? null;
+                                @endphp
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-sm font-mono text-gray-700 bg-gray-100 px-3 py-2 rounded min-w-[150px]">
+                                            {{ $dept }}
+                                        </span>
+                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                        </svg>
+                                        <select wire:model.live="departmentMapping.{{ $dept }}"
+                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm
+                                                {{ !($departmentMapping[$dept] ?? null) ? 'border-red-300 bg-red-50' : '' }}">
+                                            <option value="">— Select Sales Category —</option>
+                                            @foreach ($salesCategories as $cat)
+                                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @if ($confidence)
+                                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap
+                                                {{ $confidence === 'high' ? 'bg-green-100 text-green-700' :
+                                                   ($confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600') }}"
+                                                title="{{ $reasoning }}">
+                                                AI: {{ ucfirst($confidence) }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    @if ($reasoning)
+                                        <p class="text-xs text-gray-500 ml-[162px] pl-6">{{ $reasoning }}</p>
+                                    @endif
                                 </div>
                                 @endforeach
                             </div>
