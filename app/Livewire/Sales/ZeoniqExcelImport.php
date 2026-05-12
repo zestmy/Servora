@@ -133,17 +133,13 @@ class ZeoniqExcelImport extends Component
                 // Load existing mappings from database
                 $this->loadStoredMappings();
 
-                // Check if all departments are mapped
+                // Always show mapping step when departments are found
+                // This allows users to review/change existing mappings
                 if ($this->hasUnmappedDepartments()) {
-                    // Need mapping review step
+                    // Load AI suggestions for unmapped departments
                     $this->loadAiSuggestions();
-                    $this->step = 'mapping';
-                } else {
-                    // All departments mapped, proceed to review
-                    $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
-                    $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
-                    $this->step = 'review';
                 }
+                $this->step = 'mapping';
             } else {
                 // No departments detected, proceed as normal
                 $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
@@ -271,6 +267,20 @@ class ZeoniqExcelImport extends Component
                     = $suggestion['suggested_category_id'];
             }
         }
+    }
+
+    public function clearAllMappings(): void
+    {
+        // Reset all mappings to null
+        foreach ($this->departmentNames as $dept) {
+            $this->departmentMapping[$dept] = null;
+        }
+
+        // Reload AI suggestions for all departments
+        $this->aiSuggestions = [];
+        $this->aiSuggestionsLoaded = false;
+        $this->aiSuggestionsError = false;
+        $this->loadAiSuggestions();
     }
 
     public function proceedToReview(): void

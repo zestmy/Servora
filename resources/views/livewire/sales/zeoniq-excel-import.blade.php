@@ -156,9 +156,16 @@
 
                         {{-- Manual Mapping Table --}}
                         <div class="border border-gray-200 rounded-xl overflow-hidden">
-                            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                                <h4 class="text-sm font-semibold text-gray-700">Department → Sales Category Mapping</h4>
-                                <p class="text-xs text-gray-500 mt-0.5">Select the Sales Category for each department. AI suggestions are auto-applied.</p>
+                            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-700">Department → Sales Category Mapping</h4>
+                                    <p class="text-xs text-gray-500 mt-0.5">Select the Sales Category for each department. AI suggestions are auto-applied.</p>
+                                </div>
+                                <button wire:click="clearAllMappings"
+                                        wire:loading.attr="disabled"
+                                        class="text-xs px-3 py-1 text-red-600 hover:text-red-800 border border-red-200 rounded-md hover:bg-red-50 transition">
+                                    Clear & Re-map All
+                                </button>
                             </div>
                             <div class="p-4 space-y-3">
                                 @foreach ($departmentNames as $dept)
