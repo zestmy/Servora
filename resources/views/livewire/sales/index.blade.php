@@ -340,10 +340,12 @@
                         <tr>
                             <td class="py-3 pr-4 font-medium text-gray-700">Revenue</td>
                             <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">RM {{ number_format($weeklyComparison['current']['revenue'], 2) }}</td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">RM {{ number_format($weeklyComparison['previous']['revenue'], 2) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['previous']['revenue_change']" />
                             </td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">RM {{ number_format($weeklyComparison['last_year']['revenue'], 2) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['last_year']['revenue_change']" />
                             </td>
                         </tr>
@@ -351,10 +353,12 @@
                         <tr>
                             <td class="py-3 pr-4 font-medium text-gray-700">Pax</td>
                             <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">{{ number_format($weeklyComparison['current']['pax']) }}</td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">{{ number_format($weeklyComparison['previous']['pax']) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['previous']['pax_change']" />
                             </td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">{{ number_format($weeklyComparison['last_year']['pax']) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['last_year']['pax_change']" />
                             </td>
                         </tr>
@@ -362,10 +366,12 @@
                         <tr>
                             <td class="py-3 pr-4 font-medium text-gray-700">Avg Check</td>
                             <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">RM {{ number_format($weeklyComparison['current']['avg_check'], 2) }}</td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">RM {{ number_format($weeklyComparison['previous']['avg_check'], 2) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['previous']['avg_check_change']" />
                             </td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">RM {{ number_format($weeklyComparison['last_year']['avg_check'], 2) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['last_year']['avg_check_change']" />
                             </td>
                         </tr>
@@ -373,10 +379,12 @@
                         <tr>
                             <td class="py-3 pr-4 font-medium text-gray-700">Transactions</td>
                             <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">{{ number_format($weeklyComparison['current']['transactions']) }}</td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">{{ number_format($weeklyComparison['previous']['transactions']) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['previous']['transactions_change']" />
                             </td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right tabular-nums">
+                                <div class="text-gray-700">{{ number_format($weeklyComparison['last_year']['transactions']) }}</div>
                                 <x-weekly-change :value="$weeklyComparison['last_year']['transactions_change']" />
                             </td>
                         </tr>
