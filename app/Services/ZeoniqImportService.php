@@ -528,20 +528,28 @@ class ZeoniqImportService
      * Extract session/meal period sales data from a row.
      * Based on the known column positions:
      * S(18): Lunch Qty, T(19): Lunch Net Total
-     * U(20): TeaTime Qty, V(21): TeaTime Net Total
-     * W(22): Dinner Qty, X(23): Dinner Net Total
-     * AA(26): Breakfast Qty, AB(27): Breakfast Net Total
+     * U(20): Dinner Qty, V(21): Dinner Net Total
+     * W(22): Supper Qty, X(23): Supper Net Total (may be empty)
+     * Y(24): Breakfast Qty, Z(25): Breakfast Net Total
+     * AA(26): TeaTime Qty, AB(27): TeaTime Net Total
      */
     private function extractSessionsFromRow(array $row): array
     {
         $sessions = [];
 
         // Session definitions: [meal_period, quantity_col_index, net_total_col_index]
+        // Based on actual Excel structure:
+        // S-T (18-19): Lunch
+        // U-V (20-21): Dinner
+        // W-X (22-23): Empty/Supper (may vary)
+        // Y-Z (24-25): Breakfast
+        // AA-AB (26-27): TeaTime
         $sessionColumns = [
-            ['breakfast', 26, 27],  // AA-AB
-            ['lunch', 18, 19],      // S-T
-            ['tea_time', 20, 21],   // U-V
-            ['dinner', 22, 23],     // W-X
+            ['lunch', 18, 19],      // S-T: Lunch
+            ['dinner', 20, 21],     // U-V: Dinner
+            ['supper', 22, 23],     // W-X: Supper (may be empty "-")
+            ['breakfast', 24, 25],  // Y-Z: Breakfast
+            ['tea_time', 26, 27],   // AA-AB: TeaTime
         ];
 
         foreach ($sessionColumns as [$mealPeriod, $qtyCol, $totalCol]) {
