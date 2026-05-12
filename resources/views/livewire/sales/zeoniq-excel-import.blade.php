@@ -218,7 +218,7 @@
                                 <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
                                     Daily Summary
                                 </span>
-                                <span class="text-xs text-gray-500">Records will be created as All Day</span>
+                                <span class="text-xs text-gray-500">Records will be created per meal period (or All Day if no session data)</span>
                             @endif
                         </div>
                         <div class="text-xs text-gray-500">
@@ -282,6 +282,7 @@
                                         @if ($reportType === 'session_sales')
                                             <th class="px-4 py-2 text-left">Sessions</th>
                                         @else
+                                            <th class="px-4 py-2 text-left">Meal Period</th>
                                             <th class="px-4 py-2 text-right">Trans</th>
                                             <th class="px-4 py-2 text-right">Pax</th>
                                             <th class="px-4 py-2 text-right">Gross</th>
@@ -333,6 +334,16 @@
                                                     RM {{ number_format($totalSales, 2) }}
                                                 </td>
                                             @else
+                                                <td class="px-4 py-3">
+                                                    <span class="text-xs px-2 py-1 rounded-full font-medium
+                                                        {{ $record['meal_period'] === 'breakfast' ? 'bg-yellow-100 text-yellow-700' : '' }}
+                                                        {{ $record['meal_period'] === 'lunch' ? 'bg-orange-100 text-orange-700' : '' }}
+                                                        {{ $record['meal_period'] === 'tea_time' ? 'bg-pink-100 text-pink-700' : '' }}
+                                                        {{ $record['meal_period'] === 'dinner' ? 'bg-purple-100 text-purple-700' : '' }}
+                                                        {{ $record['meal_period'] === 'all_day' ? 'bg-gray-100 text-gray-700' : '' }}">
+                                                        {{ $mealPeriodOptions[$record['meal_period']] ?? $record['meal_period'] }}
+                                                    </span>
+                                                </td>
                                                 <td class="px-4 py-3 text-right tabular-nums text-gray-600">
                                                     {{ number_format($record['transactions'] ?? 0) }}
                                                 </td>

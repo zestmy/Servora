@@ -322,24 +322,47 @@ class ZeoniqImportService
                     $totalSales = $netAmountExcl + $taxAmount + $serviceCharges + $billRounding;
                 }
 
-                // Extract department sales data
+                // Extract session and department sales data
+                $sessions = $this->extractSessionsFromRow($row);
                 $departments = $this->extractDepartmentsFromRow($row);
 
-                $results[] = [
-                    'date' => $date,
-                    'outlet_code' => $outlet,
-                    'meal_period' => 'all_day',
-                    'transactions' => (int) $transCount,
-                    'pax' => (int) $guestCount,
-                    'gross_revenue' => $grossSales,
-                    'discount_amount' => $discount,
-                    'net_sales' => $netAmountExcl,
-                    'tax_amount' => $taxAmount,
-                    'service_charges' => $serviceCharges,
-                    'rounding_amount' => $billRounding,
-                    'total_sales' => $totalSales,
-                    'departments' => $departments,
-                ];
+                // If session data exists, create separate records per meal period
+                if (!empty($sessions)) {
+                    foreach ($sessions as $session) {
+                        $results[] = [
+                            'date' => $date,
+                            'outlet_code' => $outlet,
+                            'meal_period' => $session['meal_period'],
+                            'transactions' => $session['quantity'], // Use session quantity as transactions
+                            'pax' => 0, // Pax not available per session, set to 0
+                            'gross_revenue' => 0, // Not available per session
+                            'discount_amount' => 0, // Not available per session
+                            'net_sales' => $session['net_total'],
+                            'tax_amount' => 0, // Not available per session
+                            'service_charges' => 0, // Not available per session
+                            'rounding_amount' => 0, // Not available per session
+                            'total_sales' => $session['net_total'],
+                            'departments' => $departments, // Department data is day-level, shared across sessions
+                        ];
+                    }
+                } else {
+                    // Fallback: Create one all_day record if no session data
+                    $results[] = [
+                        'date' => $date,
+                        'outlet_code' => $outlet,
+                        'meal_period' => 'all_day',
+                        'transactions' => (int) $transCount,
+                        'pax' => (int) $guestCount,
+                        'gross_revenue' => $grossSales,
+                        'discount_amount' => $discount,
+                        'net_sales' => $netAmountExcl,
+                        'tax_amount' => $taxAmount,
+                        'service_charges' => $serviceCharges,
+                        'rounding_amount' => $billRounding,
+                        'total_sales' => $totalSales,
+                        'departments' => $departments,
+                    ];
+                }
             }
         }
 
@@ -472,6 +495,43 @@ class ZeoniqImportService
             }
         }
         return null;
+    }
+
+    /**
+     * Extract session/meal period sales data from a row.
+     * Based on the known column positions:
+     * S(18): Lunch Qty, T(19): Lunch Net Total
+     * U(20): TeaTime Qty, V(21): TeaTime Net Total
+     * W(22): Dinner Qty, X(23): Dinner Net Total
+     * AA(26): Breakfast Qty, AB(27): Breakfast Net Total
+     */
+    private function extractSessionsFromRow(array $row): array
+    {
+        $sessions = [];
+
+        // Session definitions: [meal_period, quantity_col_index, net_total_col_index]
+        $sessionColumns = [
+            ['breakfast', 26, 27],  // AA-AB
+            ['lunch', 18, 19],      // S-T
+            ['tea_time', 20, 21],   // U-V
+            ['dinner', 22, 23],     // W-X
+        ];
+
+        foreach ($sessionColumns as [$mealPeriod, $qtyCol, $totalCol]) {
+            $qty = $this->parseNumber($row[$qtyCol] ?? 0);
+            $netTotal = $this->parseNumber($row[$totalCol] ?? 0);
+
+            // Only include sessions with revenue > 0
+            if ($netTotal > 0) {
+                $sessions[$mealPeriod] = [
+                    'meal_period' => $mealPeriod,
+                    'quantity' => (int) $qty,
+                    'net_total' => $netTotal,
+                ];
+            }
+        }
+
+        return $sessions;
     }
 
     /**
