@@ -244,6 +244,7 @@ class ZeoniqImportService
         $headerMap = [];
         $dateColumnIndex = 0; // Track which column has the dates
         $currentOutlet = null; // Track current outlet from "Outlet: XXX" rows
+        $sessionColumnMap = []; // Dynamically detected session columns
 
         foreach ($data as $rowIndex => $row) {
             // Find header row (contains "Business Date" as a standalone column header, not in filters/descriptions)
@@ -271,6 +272,19 @@ class ZeoniqImportService
                             if ($h && !isset($headerMap[$h])) {
                                 $headerMap[$h] = $idx;
                             }
+                        }
+
+                        // Detect session columns from the session header row
+                        // Session names are in the same row as "Business Date" or the row after
+                        // Check current row first, then the row after
+                        $sessionColumnMap = $this->detectSessionColumns($row);
+                        if (empty($sessionColumnMap)) {
+                            $sessionColumnMap = $this->detectSessionColumns($nextRow);
+                        }
+                        // Also check the row before (some formats have session names above)
+                        if (empty($sessionColumnMap) && $rowIndex > 0) {
+                            $prevRow = $data[$rowIndex - 1] ?? [];
+                            $sessionColumnMap = $this->detectSessionColumns($prevRow);
                         }
 
                         break;
@@ -323,7 +337,7 @@ class ZeoniqImportService
                 }
 
                 // Extract session and department sales data
-                $sessions = $this->extractSessionsFromRow($row);
+                $sessions = $this->extractSessionsFromRow($row, $sessionColumnMap);
                 $departments = $this->extractDepartmentsFromRow($row);
 
                 // If session data exists, create separate records per meal period
@@ -525,34 +539,60 @@ class ZeoniqImportService
     }
 
     /**
-     * Extract session/meal period sales data from a row.
-     * Based on the known column positions:
-     * S(18): Lunch Qty, T(19): Lunch Net Total
-     * U(20): Dinner Qty, V(21): Dinner Net Total
-     * W(22): Supper Qty, X(23): Supper Net Total (may be empty)
-     * Y(24): Breakfast Qty, Z(25): Breakfast Net Total
-     * AA(26): TeaTime Qty, AB(27): TeaTime Net Total
+     * Detect session columns from the session header row.
+     * Returns array of [meal_period => [qty_col, total_col], ...]
      */
-    private function extractSessionsFromRow(array $row): array
+    private function detectSessionColumns(array $sessionHeaderRow): array
+    {
+        $sessionMap = [];
+
+        // Session name patterns to look for
+        $sessionPatterns = [
+            'breakfast' => '/breakfast/i',
+            'lunch' => '/lunch/i',
+            'tea_time' => '/tea\s*time/i',
+            'dinner' => '/dinner/i',
+            'supper' => '/supper/i',
+        ];
+
+        foreach ($sessionHeaderRow as $colIdx => $cell) {
+            $cellValue = trim((string) $cell);
+            if (empty($cellValue) || $cellValue === '-') {
+                continue;
+            }
+
+            foreach ($sessionPatterns as $mealPeriod => $pattern) {
+                if (preg_match($pattern, $cellValue)) {
+                    // Session column found - quantity is at colIdx, net_total is at colIdx + 1
+                    $sessionMap[$mealPeriod] = [$colIdx, $colIdx + 1];
+                    break;
+                }
+            }
+        }
+
+        return $sessionMap;
+    }
+
+    /**
+     * Extract session/meal period sales data from a row.
+     * Uses dynamically detected column positions or falls back to defaults.
+     */
+    private function extractSessionsFromRow(array $row, array $sessionColumnMap = []): array
     {
         $sessions = [];
 
-        // Session definitions: [meal_period, quantity_col_index, net_total_col_index]
-        // Based on actual Excel structure:
-        // S-T (18-19): Lunch
-        // U-V (20-21): Dinner
-        // W-X (22-23): Empty/Supper (may vary)
-        // Y-Z (24-25): Breakfast
-        // AA-AB (26-27): TeaTime
-        $sessionColumns = [
-            ['lunch', 18, 19],      // S-T: Lunch
-            ['dinner', 20, 21],     // U-V: Dinner
-            ['supper', 22, 23],     // W-X: Supper (may be empty "-")
-            ['breakfast', 24, 25],  // Y-Z: Breakfast
-            ['tea_time', 26, 27],   // AA-AB: TeaTime
-        ];
+        // If no dynamic map provided, use default column positions
+        // (fallback for backward compatibility)
+        if (empty($sessionColumnMap)) {
+            $sessionColumnMap = [
+                'lunch' => [18, 19],
+                'tea_time' => [20, 21],
+                'dinner' => [22, 23],
+                'breakfast' => [26, 27],
+            ];
+        }
 
-        foreach ($sessionColumns as [$mealPeriod, $qtyCol, $totalCol]) {
+        foreach ($sessionColumnMap as $mealPeriod => [$qtyCol, $totalCol]) {
             $qty = $this->parseNumber($row[$qtyCol] ?? 0);
             $netTotal = $this->parseNumber($row[$totalCol] ?? 0);
 
