@@ -328,8 +328,9 @@ class ZeoniqImportService
 
                 // If session data exists, create separate records per meal period
                 if (!empty($sessions)) {
-                    // Distribute day-level pax proportionally across sessions based on quantity
+                    // Calculate totals for proportional distribution
                     $totalSessionQty = array_sum(array_column($sessions, 'quantity'));
+                    $totalSessionRevenue = array_sum(array_column($sessions, 'net_total'));
                     $sessionCount = count($sessions);
 
                     foreach ($sessions as $session) {
@@ -339,6 +340,20 @@ class ZeoniqImportService
                             $sessionPax = $totalSessionQty > 0
                                 ? (int) round($guestCount * ($session['quantity'] / $totalSessionQty))
                                 : (int) round($guestCount / $sessionCount);
+                        }
+
+                        // Distribute department amounts proportionally based on session's share of revenue
+                        $sessionDepartments = [];
+                        if (!empty($departments) && $totalSessionRevenue > 0) {
+                            $sessionProportion = $session['net_total'] / $totalSessionRevenue;
+                            foreach ($departments as $deptName => $deptTotal) {
+                                $sessionDepartments[$deptName] = round($deptTotal * $sessionProportion, 2);
+                            }
+                        } elseif (!empty($departments)) {
+                            // Equal distribution if no revenue data
+                            foreach ($departments as $deptName => $deptTotal) {
+                                $sessionDepartments[$deptName] = round($deptTotal / $sessionCount, 2);
+                            }
                         }
 
                         $results[] = [
@@ -354,7 +369,7 @@ class ZeoniqImportService
                             'service_charges' => 0, // Not available per session
                             'rounding_amount' => 0, // Not available per session
                             'total_sales' => $session['net_total'],
-                            'departments' => $departments, // Department data is day-level, shared across sessions
+                            'departments' => $sessionDepartments, // Proportionally distributed
                         ];
                     }
                 } else {
