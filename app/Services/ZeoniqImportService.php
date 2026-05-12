@@ -347,6 +347,22 @@ class ZeoniqImportService
                     $totalSessionRevenue = array_sum(array_column($sessions, 'net_total'));
                     $sessionCount = count($sessions);
 
+                    // Check if session sum matches the row's Net Total
+                    // If there's unassigned revenue, distribute it proportionally across sessions
+                    $rowNetTotal = $totalSales > 0 ? $totalSales : $netAmountExcl;
+                    $unassignedRevenue = $rowNetTotal - $totalSessionRevenue;
+
+                    if (abs($unassignedRevenue) > 0.01 && $totalSessionRevenue > 0) {
+                        // Distribute unassigned revenue proportionally based on each session's share
+                        foreach ($sessions as $mealPeriod => $sessionData) {
+                            $sessionProportion = $sessionData['net_total'] / $totalSessionRevenue;
+                            $adjustment = round($unassignedRevenue * $sessionProportion, 2);
+                            $sessions[$mealPeriod]['net_total'] += $adjustment;
+                        }
+                        // Recalculate total after adjustment
+                        $totalSessionRevenue = array_sum(array_column($sessions, 'net_total'));
+                    }
+
                     foreach ($sessions as $session) {
                         // Calculate proportional pax for this session
                         $sessionPax = 0;
