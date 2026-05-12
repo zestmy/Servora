@@ -492,24 +492,26 @@ class Index extends Component
         $commonReasons     = SalesClosure::commonReasons();
         $mealPeriodOptions = SalesRecord::mealPeriodOptions();
 
-        // Sales target — always current month regardless of filters
+        // Sales target — always current month, based on selected outlet filter
         $targetData = null;
         {
-            $user      = Auth::user();
-            $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+            $user = Auth::user();
+            // Use the selected outlet filter, fall back to active outlet or first available
+            $targetOutletId = $this->outletFilter
+                ?: $user->activeOutletId()
+                ?: Outlet::where('company_id', $user->company_id)->value('id');
             $targetPeriod = now()->format('Y-m');
 
             $target = SalesTarget::where('period', $targetPeriod)
-                ->where(fn ($q) => $q->where('outlet_id', $outletId)->orWhereNull('outlet_id'))
+                ->where(fn ($q) => $q->where('outlet_id', $targetOutletId)->orWhereNull('outlet_id'))
                 ->orderByRaw('outlet_id IS NULL ASC') // prefer outlet-specific
                 ->first();
 
             if ($target) {
-                // Current month actual revenue (unfiltered)
+                // Current month actual revenue for the selected outlet
                 $monthStart = now()->startOfMonth()->toDateString();
                 $monthEnd   = now()->endOfMonth()->toDateString();
-                $monthQ     = SalesRecord::query();
-                $this->scopeByOutlet($monthQ);
+                $monthQ     = SalesRecord::where('outlet_id', $targetOutletId);
                 $monthRevenue = (clone $monthQ)->whereBetween('sale_date', [$monthStart, $monthEnd])->sum('total_revenue');
                 $monthPax     = (clone $monthQ)->whereBetween('sale_date', [$monthStart, $monthEnd])->sum('pax');
 
