@@ -154,8 +154,8 @@
         </div>
     </div>
 
-    {{-- Category Breakdown + Events + Missing Dates --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+    {{-- Category Breakdown + Meal Period + Events + Missing Dates --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
         {{-- Sales by Category --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales by Category</h3>
@@ -175,6 +175,36 @@
                 </div>
             @else
                 <p class="text-sm text-gray-300">No category data</p>
+            @endif
+        </div>
+
+        {{-- Sales by Meal Period --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales by Meal Period</h3>
+            @if (!empty($mealPeriodRevenues))
+                <div class="space-y-2">
+                    @foreach ($mealPeriodRevenues as $mpRev)
+                        <div>
+                            <div class="flex items-center justify-between text-sm mb-1">
+                                <span class="text-gray-700 font-medium">{{ $mpRev['name'] }}</span>
+                                <span class="tabular-nums text-gray-600">RM {{ number_format($mpRev['revenue'], 2) }} <span class="text-xs text-gray-400">({{ $mpRev['pct'] }}%)</span></span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2 relative">
+                                <div class="h-2 rounded-full" style="width: {{ $mpRev['pct'] }}%; background-color: {{ $mpRev['color'] }};"></div>
+                                @if ($mpRev['pct'] >= 10)
+                                    <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">{{ $mpRev['pct'] }}%</span>
+                                @endif
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                                <span>{{ number_format($mpRev['pax']) }} pax</span>
+                                <span>·</span>
+                                <span>{{ $mpRev['count'] }} records</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-gray-300">No meal period data</p>
             @endif
         </div>
 

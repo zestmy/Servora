@@ -480,6 +480,39 @@ class Index extends Component
             }
         }
 
+        // Revenue by meal period
+        $mealPeriodRevenues = [];
+        $mealPeriodColors = [
+            'breakfast' => '#f59e0b', // amber
+            'lunch'     => '#f97316', // orange
+            'tea_time'  => '#14b8a6', // teal
+            'dinner'    => '#6366f1', // indigo
+            'supper'    => '#8b5cf6', // purple
+            'all_day'   => '#6b7280', // gray
+        ];
+        $mealPeriodLabels = SalesRecord::mealPeriodOptions();
+
+        $periodTotals = (clone $statsQ)
+            ->selectRaw('meal_period, SUM(total_revenue) as total, SUM(pax) as total_pax, COUNT(*) as count')
+            ->groupBy('meal_period')
+            ->get()
+            ->keyBy('meal_period');
+
+        foreach ($mealPeriodLabels as $period => $label) {
+            $data = $periodTotals[$period] ?? null;
+            if ($data && $data->total > 0) {
+                $mealPeriodRevenues[] = [
+                    'period'  => $period,
+                    'name'    => $label,
+                    'color'   => $mealPeriodColors[$period] ?? '#6b7280',
+                    'revenue' => (float) $data->total,
+                    'pax'     => (int) $data->total_pax,
+                    'count'   => (int) $data->count,
+                    'pct'     => $filteredRevenue > 0 ? round($data->total / $filteredRevenue * 100, 1) : 0,
+                ];
+            }
+        }
+
         // Missing dates with closure reasons
         $missingDatesData = $this->getMissingDatesWithClosures(
             (clone $statsQ)->select('sale_date')->distinct()->get()
@@ -536,7 +569,7 @@ class Index extends Component
 
         return view('livewire.sales.index', compact(
             'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount',
-            'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'missingDatesData',
+            'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'mealPeriodRevenues', 'missingDatesData',
             'events', 'commonReasons', 'targetData', 'outlets', 'showOutletFilter', 'singleOutletName'
         ))->layout('layouts.app', ['title' => 'Sales']);
     }
