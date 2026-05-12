@@ -508,15 +508,23 @@ class ZeoniqExcelImport extends Component
         $departments = $data['departments'] ?? [];
 
         if (!empty($departments)) {
+            // Load Sales Category names for mapping
+            $categoryNames = SalesCategory::whereIn('id', array_filter(array_values($this->departmentMapping)))
+                ->pluck('name', 'id')
+                ->toArray();
+
             // Create separate line for each department
             foreach ($departments as $deptName => $deptRevenue) {
                 $categoryId = $this->departmentMapping[$deptName] ?? null;
 
                 if ($categoryId && $deptRevenue > 0) {
+                    // Use Sales Category name instead of Excel department name
+                    $categoryName = $categoryNames[$categoryId] ?? $deptName;
+
                     $record->lines()->create([
                         'sales_category_id'      => $categoryId,
                         'ingredient_category_id' => null,
-                        'item_name'              => $deptName,
+                        'item_name'              => $categoryName,
                         'quantity'               => 1,
                         'unit_price'             => round($deptRevenue, 4),
                         'unit_cost'              => 0,
