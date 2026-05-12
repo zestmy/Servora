@@ -81,6 +81,18 @@ class Index extends Component
     {
         $this->canDelete = Auth::user()->isSystemRole() || Auth::user()->hasCapability('can_delete_records');
         $this->setQuickRange('today');
+
+        // Set default outlet filter to the active session outlet
+        $activeOutletId = session('active_outlet_id');
+        if ($activeOutletId) {
+            $this->outletFilter = (string) $activeOutletId;
+        } else {
+            // Fallback to first available outlet
+            $availableOutletIds = $this->availableOutletIds();
+            if (!empty($availableOutletIds)) {
+                $this->outletFilter = (string) $availableOutletIds[0];
+            }
+        }
     }
 
     public function updatedSelectAll(bool $value): void
