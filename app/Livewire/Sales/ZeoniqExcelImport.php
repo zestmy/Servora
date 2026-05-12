@@ -414,7 +414,7 @@ class ZeoniqExcelImport extends Component
             }
 
             if ($this->reportType === 'session_sales') {
-                // Handle session sales (multiple sessions per date)
+                // Handle session sales format (multiple sessions per date grouped under 'sessions' key)
                 $date = $record['date'];
 
                 foreach ($record['sessions'] as $session) {
@@ -436,13 +436,16 @@ class ZeoniqExcelImport extends Component
                     }
                 }
             } else {
-                // Handle daily summary (single all_day record per date)
+                // Handle daily summary format - each record has its own meal_period
+                // (parsed records are already split by session in parseDailySummaryExcel)
+                $mealPeriod = $record['meal_period'] ?? 'all_day';
+
                 $result = $this->createSalesRecord(
                     $companyId,
                     $outletId,
                     $userId,
                     $record['date'],
-                    'all_day',
+                    $mealPeriod,
                     $record
                 );
 
