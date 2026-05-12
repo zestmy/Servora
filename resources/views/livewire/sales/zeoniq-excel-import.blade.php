@@ -284,6 +284,24 @@
                         </div>
                     @endif
 
+                    {{-- Duplicate Detection Warning --}}
+                    @if ($this->duplicateCount > 0)
+                        <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-start gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <span class="font-semibold">{{ $this->duplicateCount }} duplicate record(s) detected!</span>
+                                <p class="text-xs mt-0.5 text-amber-600">
+                                    These records already exist in the database and have been automatically excluded.
+                                    @if ($this->allDuplicates)
+                                        <strong class="text-amber-800">All records in this file are duplicates.</strong>
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Records List --}}
                     <div class="border border-gray-200 rounded-xl overflow-hidden">
                         <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -321,14 +339,28 @@
                                     @foreach ($parsedRecords as $idx => $record)
                                         @php
                                             $isIncluded = $includeRecords[$idx] ?? false;
+                                            $isDuplicate = isset($duplicateRecords[$idx]) && $duplicateRecords[$idx] === 'all';
+                                            $hasPartialDuplicates = isset($duplicateRecords[$idx]) && is_array($duplicateRecords[$idx]);
                                         @endphp
-                                        <tr class="{{ $isIncluded ? '' : 'opacity-50 bg-gray-50' }}">
+                                        <tr class="{{ $isDuplicate ? 'bg-red-50 opacity-60' : ($isIncluded ? '' : 'opacity-50 bg-gray-50') }}">
                                             <td class="px-4 py-3">
                                                 <input type="checkbox" wire:model.live="includeRecords.{{ $idx }}"
-                                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                                       {{ $isDuplicate ? 'disabled' : '' }}
+                                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 {{ $isDuplicate ? 'cursor-not-allowed' : '' }}" />
                                             </td>
                                             <td class="px-4 py-3 font-medium text-gray-800">
-                                                {{ \Carbon\Carbon::parse($record['date'])->format('d M Y') }}
+                                                <div class="flex items-center gap-2">
+                                                    {{ \Carbon\Carbon::parse($record['date'])->format('d M Y') }}
+                                                    @if ($isDuplicate)
+                                                        <span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+                                                            DUPLICATE
+                                                        </span>
+                                                    @elseif ($hasPartialDuplicates)
+                                                        <span class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium" title="Some meal periods already exist">
+                                                            PARTIAL
+                                                        </span>
+                                                    @endif
+                                                </div>
                                             </td>
                                             <td class="px-4 py-3 text-gray-600">
                                                 <span class="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{{ $record['outlet_code'] }}</span>
@@ -485,15 +517,17 @@
                         </div>
                     </div>
 
-                    {{-- Duplicate Warning --}}
-                    <div class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-700 flex items-start gap-2">
+                    {{-- Info Notice --}}
+                    @if ($this->duplicateCount === 0)
+                    <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div>
-                            <span class="font-medium">Duplicate Protection:</span> Records for dates that already exist will be automatically skipped to prevent duplicates.
+                            <span class="font-medium">Duplicate Protection:</span> Records for dates/meal periods that already exist will be automatically detected and blocked.
                         </div>
                     </div>
+                    @endif
 
                 @endif
 
@@ -539,15 +573,20 @@
                         </button>
                         <button type="button" wire:click="saveAll"
                                 wire:loading.attr="disabled"
-                                class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2">
-                            <span wire:loading.remove wire:target="saveAll">Import {{ $this->totalRecordsToCreate }} Record(s)</span>
-                            <span wire:loading wire:target="saveAll" class="flex items-center gap-1.5">
-                                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
-                                </svg>
-                                Importing...
-                            </span>
+                                {{ $this->totalRecordsToCreate === 0 ? 'disabled' : '' }}
+                                class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            @if ($this->totalRecordsToCreate === 0)
+                                <span>No Records to Import</span>
+                            @else
+                                <span wire:loading.remove wire:target="saveAll">Import {{ $this->totalRecordsToCreate }} Record(s)</span>
+                                <span wire:loading wire:target="saveAll" class="flex items-center gap-1.5">
+                                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                                    </svg>
+                                    Importing...
+                                </span>
+                            @endif
                         </button>
                     </div>
                 @endif

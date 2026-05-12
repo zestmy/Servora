@@ -101,6 +101,7 @@
             'yesterday'  => 'Yesterday',
             'last_7'     => 'Last 7 Days',
             'this_week'  => 'This Week',
+            'last_week'  => 'Last Week',
             'this_month' => 'This Month',
             'last_month' => 'Last Month',
             'this_year'  => 'This Year',
@@ -292,6 +293,102 @@
                     <p class="text-sm text-gray-300">Select a date range to check</p>
                 @endif
             @endif
+        </div>
+    </div>
+
+    {{-- Weekly Comparison --}}
+    <div class="mb-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Weekly Comparison
+                </h3>
+                <select wire:model.live="comparisonWeek" class="text-xs border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">Current Week</option>
+                    @for ($i = 1; $i <= 8; $i++)
+                        @php $w = now()->subWeeks($i); @endphp
+                        <option value="{{ $w->isoWeekYear() }}-W{{ str_pad($w->isoWeek(), 2, '0', STR_PAD_LEFT) }}">
+                            W{{ $w->isoWeek() }} ({{ $w->startOfWeek()->format('M j') }})
+                        </option>
+                    @endfor
+                </select>
+            </div>
+            <div class="p-4 overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-xs text-gray-500 uppercase tracking-wider">
+                            <th class="text-left py-2 pr-4">Metric</th>
+                            <th class="text-right py-2 px-3">
+                                <div class="font-semibold">{{ $weeklyComparison['current']['label'] }}</div>
+                                <div class="font-normal normal-case text-gray-400">{{ $weeklyComparison['current']['year'] }}</div>
+                            </th>
+                            <th class="text-right py-2 px-3">
+                                <div class="font-semibold">vs {{ $weeklyComparison['previous']['label'] }}</div>
+                                <div class="font-normal normal-case text-gray-400">Week-over-Week</div>
+                            </th>
+                            <th class="text-right py-2 px-3">
+                                <div class="font-semibold">vs {{ $weeklyComparison['last_year']['label'] }} {{ $weeklyComparison['last_year']['year'] }}</div>
+                                <div class="font-normal normal-case text-gray-400">Year-over-Year</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {{-- Revenue --}}
+                        <tr>
+                            <td class="py-3 pr-4 font-medium text-gray-700">Revenue</td>
+                            <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">RM {{ number_format($weeklyComparison['current']['revenue'], 2) }}</td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['previous']['revenue_change']" />
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['last_year']['revenue_change']" />
+                            </td>
+                        </tr>
+                        {{-- Pax --}}
+                        <tr>
+                            <td class="py-3 pr-4 font-medium text-gray-700">Pax</td>
+                            <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">{{ number_format($weeklyComparison['current']['pax']) }}</td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['previous']['pax_change']" />
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['last_year']['pax_change']" />
+                            </td>
+                        </tr>
+                        {{-- Avg Check --}}
+                        <tr>
+                            <td class="py-3 pr-4 font-medium text-gray-700">Avg Check</td>
+                            <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">RM {{ number_format($weeklyComparison['current']['avg_check'], 2) }}</td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['previous']['avg_check_change']" />
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['last_year']['avg_check_change']" />
+                            </td>
+                        </tr>
+                        {{-- Transactions --}}
+                        <tr>
+                            <td class="py-3 pr-4 font-medium text-gray-700">Transactions</td>
+                            <td class="py-3 px-3 text-right font-semibold text-gray-900 tabular-nums">{{ number_format($weeklyComparison['current']['transactions']) }}</td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['previous']['transactions_change']" />
+                            </td>
+                            <td class="py-3 px-3 text-right">
+                                <x-weekly-change :value="$weeklyComparison['last_year']['transactions_change']" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                {{-- Date Range Info --}}
+                <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex justify-between">
+                    <span>{{ $weeklyComparison['current']['range'] }}</span>
+                    <span>{{ $weeklyComparison['current']['records'] }} records</span>
+                </div>
+            </div>
         </div>
     </div>
 

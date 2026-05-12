@@ -46,6 +46,7 @@ class ZeoniqExcelImport extends Component
     public string $aiErrorMessage = '';
     public array $unmatchedDepartments = [];     // Departments without valid mapping
     public array $validationWarnings = [];       // Department total variance warnings
+    public array $duplicateRecords = [];         // Records that already exist in database (by index)
 
     // ── Open / Close ─────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ class ZeoniqExcelImport extends Component
         $this->aiErrorMessage          = '';
         $this->unmatchedDepartments    = [];
         $this->validationWarnings      = [];
+        $this->duplicateRecords        = [];
     }
 
     // ── Process uploaded file ────────────────────────────────────────────────
@@ -148,6 +150,7 @@ class ZeoniqExcelImport extends Component
                 // No departments detected, proceed as normal
                 $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
                 $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+                $this->detectDuplicates();
                 $this->step = 'review';
             }
 
@@ -318,7 +321,92 @@ class ZeoniqExcelImport extends Component
         $service = new ZeoniqImportService();
         $this->buildOutletMapping($service->extractOutlets($this->parsedRecords));
         $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+
+        // Check for duplicates and auto-exclude them
+        $this->detectDuplicates();
+
         $this->step = 'review';
+    }
+
+    /**
+     * Detect records that already exist in the database.
+     * Auto-exclude duplicates from selection.
+     */
+    private function detectDuplicates(): void
+    {
+        $companyId = Auth::user()->company_id;
+        $this->duplicateRecords = [];
+
+        foreach ($this->parsedRecords as $idx => $record) {
+            $outletCode = $record['outlet_code'] ?? '';
+            $outletId   = $this->outletMapping[$outletCode]
+                ?? session('active_outlet_id')
+                ?? Outlet::where('company_id', $companyId)->value('id');
+
+            if (!$outletId) {
+                continue;
+            }
+
+            if ($this->reportType === 'session_sales') {
+                // Check each session within this record
+                $date = $record['date'];
+                $allSessionsDuplicate = true;
+                $duplicateSessions = [];
+
+                foreach ($record['sessions'] ?? [] as $sessionIdx => $session) {
+                    $mealPeriod = $session['meal_period'];
+                    if ($this->isRecordDuplicate($outletId, $date, $mealPeriod)) {
+                        $duplicateSessions[] = $session['meal_period'];
+                    } else {
+                        $allSessionsDuplicate = false;
+                    }
+                }
+
+                // If all sessions are duplicates, mark the entire record
+                if ($allSessionsDuplicate && !empty($record['sessions'])) {
+                    $this->duplicateRecords[$idx] = 'all';
+                    $this->includeRecords[$idx] = false;
+                } elseif (!empty($duplicateSessions)) {
+                    // Partial duplicates - still include but note which sessions
+                    $this->duplicateRecords[$idx] = $duplicateSessions;
+                }
+            } else {
+                // Daily summary format - single meal period per record
+                $mealPeriod = $record['meal_period'] ?? 'all_day';
+
+                if ($this->isRecordDuplicate($outletId, $record['date'], $mealPeriod)) {
+                    $this->duplicateRecords[$idx] = 'all';
+                    $this->includeRecords[$idx] = false;
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a specific record already exists in the database.
+     */
+    private function isRecordDuplicate(int $outletId, string $date, string $mealPeriod): bool
+    {
+        $existingPeriods = SalesRecord::where('outlet_id', $outletId)
+            ->whereDate('sale_date', $date)
+            ->pluck('meal_period');
+
+        if ($existingPeriods->isEmpty()) {
+            return false;
+        }
+
+        // If all_day exists, any import for this date is a duplicate
+        if ($existingPeriods->contains('all_day')) {
+            return true;
+        }
+
+        // If trying to import all_day and any records exist, it's a duplicate
+        if ($mealPeriod === 'all_day') {
+            return true;
+        }
+
+        // Check if same meal period exists
+        return $existingPeriods->contains($mealPeriod);
     }
 
     /**
@@ -373,6 +461,17 @@ class ZeoniqExcelImport extends Component
     public function getRecordCountProperty(): int
     {
         return count(array_filter($this->includeRecords));
+    }
+
+    public function getDuplicateCountProperty(): int
+    {
+        return count(array_filter($this->duplicateRecords, fn($v) => $v === 'all'));
+    }
+
+    public function getAllDuplicatesProperty(): bool
+    {
+        // Check if all records are duplicates (none are included)
+        return $this->duplicateCount > 0 && $this->recordCount === 0;
     }
 
     public function getTotalRecordsToCreateProperty(): int

@@ -31,6 +31,7 @@ class Index extends Component
     public string $mealPeriodFilter = '';
     public string $outletFilter     = '';
     public string $quickRange       = 'today';
+    public string $comparisonWeek   = '';  // For weekly comparison (e.g., '2026-W18')
 
     public array $selected   = [];
     public bool  $selectAll  = false;
@@ -66,6 +67,7 @@ class Index extends Component
             'last_7'     => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDays(6)->format('Y-m-d'), $today->format('Y-m-d')],
             'last_30'    => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDays(29)->format('Y-m-d'), $today->format('Y-m-d')],
             'this_week'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfWeek()->format('Y-m-d'), $today->format('Y-m-d')],
+            'last_week'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->subWeek()->startOfWeek()->format('Y-m-d'), $today->copy()->subWeek()->endOfWeek()->format('Y-m-d')],
             'this_month' => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfMonth()->format('Y-m-d'), $today->format('Y-m-d')],
             'last_month' => [$this->dateFrom, $this->dateTo] = [$today->copy()->subMonth()->startOfMonth()->format('Y-m-d'), $today->copy()->subMonth()->endOfMonth()->format('Y-m-d')],
             'last_year'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->subYear()->startOfYear()->format('Y-m-d'), $today->copy()->subYear()->endOfYear()->format('Y-m-d')],
@@ -567,11 +569,121 @@ class Index extends Component
             }
         }
 
+        // Weekly comparison data
+        $weeklyComparison = $this->getWeeklyComparison();
+
         return view('livewire.sales.index', compact(
             'records', 'filteredRevenue', 'filteredPax', 'filteredAvgCheck', 'filteredCount',
             'periodLabel', 'mealPeriodOptions', 'categoryRevenues', 'mealPeriodRevenues', 'missingDatesData',
-            'events', 'commonReasons', 'targetData', 'outlets', 'showOutletFilter', 'singleOutletName'
+            'events', 'commonReasons', 'targetData', 'outlets', 'showOutletFilter', 'singleOutletName',
+            'weeklyComparison'
         ))->layout('layouts.app', ['title' => 'Sales']);
+    }
+
+    // ── Weekly Comparison ───────────────────────────────────────────────
+
+    public function getWeeklyComparison(): array
+    {
+        // Determine base date (current week or selected week)
+        if ($this->comparisonWeek) {
+            $year = (int) substr($this->comparisonWeek, 0, 4);
+            $week = (int) substr($this->comparisonWeek, 6, 2);
+            $baseDate = Carbon::now()->setISODate($year, $week);
+        } else {
+            $baseDate = now();
+        }
+
+        // Current week (Mon-Sun)
+        $currentWeekStart = $baseDate->copy()->startOfWeek();
+        $currentWeekEnd = $baseDate->copy()->endOfWeek();
+        $currentWeekNum = $currentWeekStart->isoWeek();
+        $currentYear = $currentWeekStart->isoWeekYear();
+
+        // Previous week
+        $prevWeekStart = $currentWeekStart->copy()->subWeek();
+        $prevWeekEnd = $prevWeekStart->copy()->endOfWeek();
+
+        // Same week last year (use ISO week to get equivalent week)
+        $lastYearStart = Carbon::now()->setISODate($currentYear - 1, $currentWeekNum)->startOfWeek();
+        $lastYearEnd = $lastYearStart->copy()->endOfWeek();
+
+        // Query data for each period
+        $currentData = $this->getWeekData($currentWeekStart, $currentWeekEnd);
+        $prevData = $this->getWeekData($prevWeekStart, $prevWeekEnd);
+        $lastYearData = $this->getWeekData($lastYearStart, $lastYearEnd);
+
+        return [
+            'current' => [
+                'label' => "W{$currentWeekNum}",
+                'year' => $currentYear,
+                'range' => $currentWeekStart->format('M j') . ' - ' . $currentWeekEnd->format('M j, Y'),
+                ...$currentData
+            ],
+            'previous' => [
+                'label' => "W" . $prevWeekStart->isoWeek(),
+                'year' => $prevWeekStart->isoWeekYear(),
+                'range' => $prevWeekStart->format('M j') . ' - ' . $prevWeekEnd->format('M j'),
+                'revenue_change' => $this->calcChange($currentData['revenue'], $prevData['revenue']),
+                'pax_change' => $this->calcChange($currentData['pax'], $prevData['pax']),
+                'avg_check_change' => $this->calcChange($currentData['avg_check'], $prevData['avg_check']),
+                'transactions_change' => $this->calcChange($currentData['transactions'], $prevData['transactions']),
+                ...$prevData
+            ],
+            'last_year' => [
+                'label' => "W{$currentWeekNum}",
+                'year' => $currentYear - 1,
+                'range' => $lastYearStart->format('M j') . ' - ' . $lastYearEnd->format('M j, Y'),
+                'revenue_change' => $this->calcChange($currentData['revenue'], $lastYearData['revenue']),
+                'pax_change' => $this->calcChange($currentData['pax'], $lastYearData['pax']),
+                'avg_check_change' => $this->calcChange($currentData['avg_check'], $lastYearData['avg_check']),
+                'transactions_change' => $this->calcChange($currentData['transactions'], $lastYearData['transactions']),
+                ...$lastYearData
+            ],
+        ];
+    }
+
+    private function getWeekData(Carbon $start, Carbon $end): array
+    {
+        $query = SalesRecord::query();
+
+        if ($this->outletFilter) {
+            $query->where('outlet_id', $this->outletFilter);
+        } else {
+            $this->scopeByOutlet($query);
+        }
+
+        $query->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
+
+        $totals = (clone $query)
+            ->selectRaw('SUM(total_revenue) as revenue, SUM(pax) as pax, SUM(COALESCE(transactions, 1)) as transactions, COUNT(*) as records')
+            ->first();
+
+        $byMealPeriod = (clone $query)
+            ->selectRaw('meal_period, SUM(total_revenue) as revenue, SUM(pax) as pax')
+            ->groupBy('meal_period')
+            ->get()
+            ->keyBy('meal_period')
+            ->toArray();
+
+        $revenue = (float) ($totals->revenue ?? 0);
+        $pax = (int) ($totals->pax ?? 0);
+
+        return [
+            'revenue' => $revenue,
+            'pax' => $pax,
+            'avg_check' => $pax > 0 ? round($revenue / $pax, 2) : 0,
+            'transactions' => (int) ($totals->transactions ?? 0),
+            'records' => (int) ($totals->records ?? 0),
+            'by_meal_period' => $byMealPeriod,
+        ];
+    }
+
+    private function calcChange(float $current, float $previous): ?float
+    {
+        if ($previous == 0) {
+            return $current > 0 ? 100.0 : null;
+        }
+        return round((($current - $previous) / $previous) * 100, 1);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -584,6 +696,7 @@ class Index extends Component
             'last_7'     => 'Last 7 Days',
             'last_30'    => 'Last 30 Days',
             'this_week'  => 'This Week',
+            'last_week'  => 'Last Week',
             'this_month' => 'This Month',
             'last_month' => 'Last Month',
             'last_year'  => 'Last Year',
