@@ -39,6 +39,7 @@ class ZeoniqExcelImport extends Component
     public array $departmentNames = [];           // Unique Zeoniq departments found
     public array $departmentMapping = [];         // dept_name => sales_category_id
     public array $departmentCategoryNames = [];  // dept_name => sales_category_name (for display)
+    public array $mergedDepartments = [];        // categoryId => ['name' => name, 'revenue' => total] (merged for display)
     public array $aiSuggestions = [];            // AI-suggested matches with confidence
     public bool  $aiSuggestionsLoaded = false;
     public bool  $aiSuggestionsError = false;
@@ -82,6 +83,7 @@ class ZeoniqExcelImport extends Component
         $this->departmentNames         = [];
         $this->departmentMapping       = [];
         $this->departmentCategoryNames = [];
+        $this->mergedDepartments       = [];
         $this->aiSuggestions           = [];
         $this->aiSuggestionsLoaded     = false;
         $this->aiSuggestionsError      = false;
@@ -319,6 +321,32 @@ class ZeoniqExcelImport extends Component
         $this->step = 'review';
     }
 
+    /**
+     * Merge departments by their mapped Sales Category for display.
+     * Multiple Excel departments mapped to the same category are combined.
+     */
+    public function getMergedDepartments(array $departments): array
+    {
+        $merged = [];
+
+        foreach ($departments as $deptName => $deptRevenue) {
+            $categoryId = $this->departmentMapping[$deptName] ?? null;
+            $categoryName = $this->departmentCategoryNames[$deptName] ?? $deptName;
+
+            if ($categoryId && $deptRevenue > 0) {
+                if (!isset($merged[$categoryId])) {
+                    $merged[$categoryId] = [
+                        'name' => $categoryName,
+                        'revenue' => 0,
+                    ];
+                }
+                $merged[$categoryId]['revenue'] += $deptRevenue;
+            }
+        }
+
+        return $merged;
+    }
+
     private function saveMappings(): void
     {
         $companyId = Auth::user()->company_id;
@@ -523,25 +551,33 @@ class ZeoniqExcelImport extends Component
                 ->pluck('name', 'id')
                 ->toArray();
 
-            // Create separate line for each department
+            // Merge departments that map to the same Sales Category
+            $mergedByCategory = [];
             foreach ($departments as $deptName => $deptRevenue) {
                 $categoryId = $this->departmentMapping[$deptName] ?? null;
 
                 if ($categoryId && $deptRevenue > 0) {
-                    // Use Sales Category name instead of Excel department name
-                    $categoryName = $categoryNames[$categoryId] ?? $deptName;
-
-                    $record->lines()->create([
-                        'sales_category_id'      => $categoryId,
-                        'ingredient_category_id' => null,
-                        'item_name'              => $categoryName,
-                        'quantity'               => 1,
-                        'unit_price'             => round($deptRevenue, 4),
-                        'unit_cost'              => 0,
-                        'total_revenue'          => round($deptRevenue, 4),
-                        'total_cost'             => 0,
-                    ]);
+                    if (!isset($mergedByCategory[$categoryId])) {
+                        $mergedByCategory[$categoryId] = 0;
+                    }
+                    $mergedByCategory[$categoryId] += $deptRevenue;
                 }
+            }
+
+            // Create one line per Sales Category with merged revenue
+            foreach ($mergedByCategory as $categoryId => $totalRevenue) {
+                $categoryName = $categoryNames[$categoryId] ?? 'Unknown';
+
+                $record->lines()->create([
+                    'sales_category_id'      => $categoryId,
+                    'ingredient_category_id' => null,
+                    'item_name'              => $categoryName,
+                    'quantity'               => 1,
+                    'unit_price'             => round($totalRevenue, 4),
+                    'unit_cost'              => 0,
+                    'total_revenue'          => round($totalRevenue, 4),
+                    'total_cost'             => 0,
+                ]);
             }
         } else {
             // Fallback: Create single line (existing behavior)

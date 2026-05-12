@@ -410,15 +410,16 @@
                                                                     </div>
                                                                 </div>
 
-                                                                {{-- Department Breakdown (showing mapped Sales Category names) --}}
+                                                                {{-- Department Breakdown (merged by Sales Category) --}}
                                                                 @if (!empty($session['departments']))
+                                                                    @php $mergedDepts = $this->getMergedDepartments($session['departments']); @endphp
                                                                     <div class="pl-4 pt-1 flex flex-wrap gap-3">
                                                                         <span class="text-gray-400">Categories:</span>
-                                                                        @foreach ($session['departments'] as $deptName => $deptRevenue)
+                                                                        @foreach ($mergedDepts as $catData)
                                                                             <span class="px-2 py-0.5 bg-white border border-gray-200 rounded text-gray-600">
-                                                                                <span class="font-medium">{{ $departmentCategoryNames[$deptName] ?? $deptName }}</span>
+                                                                                <span class="font-medium">{{ $catData['name'] }}</span>
                                                                                 <span class="text-gray-400 mx-1">·</span>
-                                                                                <span class="text-green-600">RM {{ number_format($deptRevenue, 2) }}</span>
+                                                                                <span class="text-green-600">RM {{ number_format($catData['revenue'], 2) }}</span>
                                                                             </span>
                                                                         @endforeach
                                                                     </div>
@@ -430,19 +431,20 @@
                                             </tr>
                                         @endif
 
-                                        {{-- Daily Summary Department Breakdown (showing mapped Sales Category names) --}}
+                                        {{-- Daily Summary Department Breakdown (merged by Sales Category) --}}
                                         @if ($reportType !== 'session_sales' && $isIncluded && !empty($record['departments']))
+                                            @php $mergedDepts = $this->getMergedDepartments($record['departments']); @endphp
                                             <tr class="bg-gray-50">
                                                 <td></td>
                                                 <td colspan="5" class="px-4 py-2">
                                                     <div class="text-xs text-gray-500">
                                                         <div class="flex flex-wrap gap-3">
                                                             <span class="text-gray-400">Categories:</span>
-                                                            @foreach ($record['departments'] as $deptName => $deptRevenue)
+                                                            @foreach ($mergedDepts as $catData)
                                                                 <span class="px-2 py-0.5 bg-white border border-gray-200 rounded text-gray-600">
-                                                                    <span class="font-medium">{{ $departmentCategoryNames[$deptName] ?? $deptName }}</span>
+                                                                    <span class="font-medium">{{ $catData['name'] }}</span>
                                                                     <span class="text-gray-400 mx-1">·</span>
-                                                                    <span class="text-green-600">RM {{ number_format($deptRevenue, 2) }}</span>
+                                                                    <span class="text-green-600">RM {{ number_format($catData['revenue'], 2) }}</span>
                                                                 </span>
                                                             @endforeach
                                                         </div>
