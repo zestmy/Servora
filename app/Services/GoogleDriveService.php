@@ -27,8 +27,8 @@ class GoogleDriveService
         try {
             $this->client = new Client();
             $this->client->setAuthConfig($credentialsPath);
-            // DRIVE_FILE scope allows creating/modifying files in folders shared with service account
-            $this->client->addScope(Drive::DRIVE_FILE);
+            // Full DRIVE scope for read/write access to shared folders
+            $this->client->addScope(Drive::DRIVE);
             $this->client->setAccessType('offline');
 
             $this->service = new Drive($this->client);
@@ -214,9 +214,20 @@ class GoogleDriveService
      */
     public function clearCache(string $folderId): void
     {
-        // Clear all cache keys that start with drive_files_{$folderId}
+        // Clear all possible cache keys for this folder
         Cache::forget("drive_files_{$folderId}_");
         Cache::forget("drive_files_{$folderId}__100");
+        Cache::forget("drive_files_{$folderId}_" . md5('') . "_100");
+    }
+
+    /**
+     * Clear all drive cache (useful for debugging).
+     */
+    public function clearAllCache(): void
+    {
+        // Clear using cache tags if available, otherwise this is a no-op
+        // For file-based cache, we can't easily clear by prefix
+        Cache::flush();
     }
 
     /**
