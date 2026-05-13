@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\ReportLog;
 use App\Models\ReportSubscription;
+use App\Scopes\CompanyScope;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
@@ -140,7 +141,7 @@ class ReportGeneratorService
 
         // If no specific outlet, get data for each outlet separately
         if (!$outletId) {
-            $outlets = Outlet::withoutGlobalScopes()
+            $outlets = Outlet::withoutGlobalScope(CompanyScope::class)
                 ->where('company_id', $companyId)
                 ->where('is_active', true)
                 ->orderBy('name')

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Outlet;
 use App\Models\SalesRecord;
+use App\Scopes\CompanyScope;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ class AnalyticsDataService
      */
     public function getDailySalesData(int $companyId, ?int $outletId, Carbon $date): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereDate('sale_date', $date);
 
@@ -196,7 +197,7 @@ class AnalyticsDataService
      */
     public function getOutletComparison(int $companyId, Carbon $startDate, Carbon $endDate): array
     {
-        $outlets = Outlet::withoutGlobalScopes()
+        $outlets = Outlet::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->where('is_active', true)
             ->get();
@@ -222,7 +223,7 @@ class AnalyticsDataService
 
     protected function getSalesForDate(int $companyId, ?int $outletId, Carbon $date): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereDate('sale_date', $date);
 
@@ -245,7 +246,7 @@ class AnalyticsDataService
 
     protected function getSalesForPeriod(int $companyId, ?int $outletId, Carbon $start, Carbon $end): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
@@ -288,7 +289,7 @@ class AnalyticsDataService
 
     protected function getSalesByDay(int $companyId, ?int $outletId, Carbon $start, Carbon $end): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
@@ -319,7 +320,7 @@ class AnalyticsDataService
 
     protected function getSalesByWeek(int $companyId, ?int $outletId, Carbon $start, Carbon $end): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
@@ -348,7 +349,7 @@ class AnalyticsDataService
 
     protected function getSalesByMealPeriod(int $companyId, ?int $outletId, Carbon $date): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereDate('sale_date', $date);
 
@@ -379,7 +380,7 @@ class AnalyticsDataService
 
     protected function getSalesByMealPeriodForPeriod(int $companyId, ?int $outletId, Carbon $start, Carbon $end): array
     {
-        $query = SalesRecord::withoutGlobalScopes()
+        $query = SalesRecord::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
