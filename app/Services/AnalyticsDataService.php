@@ -394,7 +394,7 @@ class AnalyticsDataService
         return $query->selectRaw('
                 sales_record_lines.item_name,
                 SUM(sales_record_lines.quantity) as total_qty,
-                SUM(sales_record_lines.total_price) as total_revenue
+                SUM(sales_record_lines.total_revenue) as total_revenue
             ')
             ->groupBy('sales_record_lines.item_name')
             ->orderByDesc('total_revenue')
