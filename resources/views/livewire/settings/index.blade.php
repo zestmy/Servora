@@ -290,6 +290,21 @@
                     </div>
                 </a>
 
+                {{-- Scheduled Reports --}}
+                @can('reports.view')
+                    <a href="{{ route('settings.reports') }}"
+                       class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">Scheduled Reports</p>
+                            <p class="text-sm text-gray-500 mt-0.5">AI-powered analytics reports via email</p>
+                            <p class="text-xs text-indigo-500 font-medium mt-2">{{ \App\Models\ReportSubscription::count() }} {{ Str::plural('subscription', \App\Models\ReportSubscription::count()) }}</p>
+                        </div>
+                    </a>
+                @endcan
+
                 {{-- Document Folders --}}
                 @can('hr.documents.manage')
                     <a href="{{ route('settings.document-folders') }}"
