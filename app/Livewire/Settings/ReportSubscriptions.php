@@ -25,6 +25,7 @@ class ReportSubscriptions extends Component
     public ?int $delivery_day = null;
     public bool $is_active = true;
     public bool $include_ai_insights = true;
+    public string $recipient_emails_input = '';
 
     public bool $showTestModal = false;
     public string $testReportType = 'daily_sales';
@@ -46,7 +47,32 @@ class ReportSubscriptions extends Component
             'delivery_day' => 'nullable|integer|min:1|max:31',
             'is_active' => 'boolean',
             'include_ai_insights' => 'boolean',
+            'recipient_emails_input' => 'nullable|string|max:1000',
         ];
+    }
+
+    /**
+     * Parse recipient emails from input string.
+     */
+    protected function parseRecipientEmails(): array
+    {
+        if (empty($this->recipient_emails_input)) {
+            return [];
+        }
+
+        // Split by comma, semicolon, or newline
+        $emails = preg_split('/[,;\n]+/', $this->recipient_emails_input);
+
+        // Clean and validate each email
+        $validEmails = [];
+        foreach ($emails as $email) {
+            $email = trim($email);
+            if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $validEmails[] = strtolower($email);
+            }
+        }
+
+        return array_unique($validEmails);
     }
 
     public function mount(): void
@@ -73,6 +99,9 @@ class ReportSubscriptions extends Component
         $this->delivery_day = $subscription->delivery_day;
         $this->is_active = $subscription->is_active;
         $this->include_ai_insights = $subscription->include_ai_insights;
+        $this->recipient_emails_input = $subscription->recipient_emails
+            ? implode("\n", $subscription->recipient_emails)
+            : '';
 
         $this->showModal = true;
     }
@@ -80,6 +109,8 @@ class ReportSubscriptions extends Component
     public function save(): void
     {
         $this->validate();
+
+        $recipientEmails = $this->parseRecipientEmails();
 
         $data = [
             'report_type' => $this->report_type,
@@ -90,6 +121,7 @@ class ReportSubscriptions extends Component
             'delivery_day' => $this->frequency !== 'daily' ? $this->delivery_day : null,
             'is_active' => $this->is_active,
             'include_ai_insights' => $this->include_ai_insights,
+            'recipient_emails' => !empty($recipientEmails) ? $recipientEmails : null,
         ];
 
         if ($this->editingId) {
@@ -193,6 +225,7 @@ class ReportSubscriptions extends Component
         $this->delivery_day = null;
         $this->is_active = true;
         $this->include_ai_insights = true;
+        $this->recipient_emails_input = '';
         $this->resetValidation();
     }
 

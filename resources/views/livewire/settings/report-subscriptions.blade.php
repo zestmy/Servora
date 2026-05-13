@@ -261,6 +261,18 @@
                                 <span class="text-sm text-gray-600">Active</span>
                             </label>
                         </div>
+
+                        {{-- Recipient Emails --}}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Recipient Emails (Optional)</label>
+                            <textarea wire:model="recipient_emails_input"
+                                      rows="3"
+                                      placeholder="Enter email addresses, one per line or separated by commas..."
+                                      class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Leave empty to send to your email. Add multiple recipients separated by commas, semicolons, or new lines.
+                            </p>
+                        </div>
                     </div>
                     <div class="px-6 py-3 bg-gray-50 rounded-b-xl flex items-center justify-end gap-2">
                         <button wire:click="closeModal"

@@ -35,7 +35,7 @@ class ReportGeneratorService
     {
         $company = Company::find($subscription->company_id);
         $outlet = $subscription->outlet_id ? Outlet::find($subscription->outlet_id) : null;
-        $user = $subscription->user;
+        $recipientEmails = $subscription->getRecipientEmails();
 
         // Determine the report date/period based on report type
         $now = now();
@@ -73,7 +73,7 @@ class ReportGeneratorService
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
             'delivery_channel' => $subscription->delivery_channel,
-            'recipient_email' => $user->email,
+            'recipient_email' => implode(', ', $recipientEmails),
             'delivery_status' => 'pending',
         ]);
 
@@ -93,25 +93,35 @@ class ReportGeneratorService
                 'ai_insights' => $result['insights'],
             ]);
 
-            // Send the email
-            $sendResult = $this->sendEmail(
-                recipientEmail: $user->email,
-                reportType: $subscription->report_type,
-                reportData: $result['data'],
-                insights: $result['insights'],
-                charts: $result['charts'],
-                companyName: $company->name,
-                outletName: $outlet?->name ?? 'All Outlets',
-                periodLabel: $result['period_label'],
-                isMultiOutlet: $result['is_multi_outlet'] ?? false,
-                outletsData: $result['outlets_data'] ?? []
-            );
+            // Send the email to all recipients
+            $allSuccess = true;
+            $failedRecipients = [];
 
-            if ($sendResult['success']) {
+            foreach ($recipientEmails as $email) {
+                $sendResult = $this->sendEmail(
+                    recipientEmail: $email,
+                    reportType: $subscription->report_type,
+                    reportData: $result['data'],
+                    insights: $result['insights'],
+                    charts: $result['charts'],
+                    companyName: $company->name,
+                    outletName: $outlet?->name ?? 'All Outlets',
+                    periodLabel: $result['period_label'],
+                    isMultiOutlet: $result['is_multi_outlet'] ?? false,
+                    outletsData: $result['outlets_data'] ?? []
+                );
+
+                if (!$sendResult['success']) {
+                    $allSuccess = false;
+                    $failedRecipients[] = $email;
+                }
+            }
+
+            if ($allSuccess) {
                 $log->markAsSent();
                 $subscription->update(['last_sent_at' => now()]);
             } else {
-                $log->markAsFailed($sendResult['message']);
+                $log->markAsFailed('Failed to send to: ' . implode(', ', $failedRecipients));
             }
 
         } catch (\Exception $e) {

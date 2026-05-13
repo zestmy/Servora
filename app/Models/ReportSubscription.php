@@ -20,6 +20,7 @@ class ReportSubscription extends Model
         'delivery_day',
         'is_active',
         'include_ai_insights',
+        'recipient_emails',
         'last_sent_at',
     ];
 
@@ -28,7 +29,21 @@ class ReportSubscription extends Model
         'include_ai_insights' => 'boolean',
         'delivery_time'      => 'datetime:H:i',
         'last_sent_at'       => 'datetime',
+        'recipient_emails'   => 'array',
     ];
+
+    /**
+     * Get all recipient emails (includes owner if no custom recipients set).
+     */
+    public function getRecipientEmails(): array
+    {
+        if (!empty($this->recipient_emails)) {
+            return $this->recipient_emails;
+        }
+
+        // Default to the subscription owner's email
+        return $this->user ? [$this->user->email] : [];
+    }
 
     protected static function booted(): void
     {
