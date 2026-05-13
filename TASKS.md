@@ -2,6 +2,7 @@
 
 ## Active
 <!-- Current work in progress -->
+- HR Documents: Google Drive integration (pending migration run)
 
 ## Backlog
 <!-- Planned but not started -->

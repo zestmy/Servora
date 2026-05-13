@@ -48,14 +48,16 @@ class Users extends Component
 
     // Available modules (permission name => display label)
     public const MODULES = [
-        'ingredients.view' => 'Ingredients',
-        'recipes.view'     => 'Recipes',
-        'purchasing.view'  => 'Purchasing',
-        'sales.view'       => 'Sales',
-        'inventory.view'   => 'Inventory & Kitchen',
-        'hr.view'          => 'HR',
-        'reports.view'     => 'Reports',
-        'settings.view'    => 'Settings',
+        'ingredients.view'     => 'Ingredients',
+        'recipes.view'         => 'Recipes',
+        'purchasing.view'      => 'Purchasing',
+        'sales.view'           => 'Sales',
+        'inventory.view'       => 'Inventory & Kitchen',
+        'hr.view'              => 'HR',
+        'hr.documents.view'    => 'HR Documents (View)',
+        'hr.documents.manage'  => 'HR Documents (Manage)',
+        'reports.view'         => 'Reports',
+        'settings.view'        => 'Settings',
     ];
 
     public function updatedSearch(): void { $this->resetPage(); }

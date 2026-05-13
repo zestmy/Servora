@@ -54,6 +54,7 @@ class CompanyRegistrationService
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
                 'settings.view', 'users.manage', 'hr.view',
+                'hr.documents.view', 'hr.documents.manage',
             ]);
 
             // Create default outlet
