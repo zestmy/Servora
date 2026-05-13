@@ -39,4 +39,10 @@ return [
         'key' => env('GOOGLE_VISION_API_KEY'),
     ],
 
+    'google' => [
+        'drive' => [
+            'credentials_path' => env('GOOGLE_DRIVE_CREDENTIALS'),
+        ],
+    ],
+
 ];
