@@ -101,7 +101,9 @@ class ReportGeneratorService
                 charts: $result['charts'],
                 companyName: $company->name,
                 outletName: $outlet?->name ?? 'All Outlets',
-                periodLabel: $result['period_label']
+                periodLabel: $result['period_label'],
+                isMultiOutlet: $result['is_multi_outlet'] ?? false,
+                outletsData: $result['outlets_data'] ?? []
             );
 
             if ($sendResult['success']) {
@@ -131,6 +133,68 @@ class ReportGeneratorService
         ?int $outletId,
         Carbon $date,
         bool $includeAiInsights = true
+    ): array {
+        $periodLabel = '';
+        $isMultiOutlet = false;
+        $outletsData = [];
+
+        // If no specific outlet, get data for each outlet separately
+        if (!$outletId) {
+            $outlets = Outlet::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+
+            if ($outlets->count() > 1) {
+                $isMultiOutlet = true;
+
+                foreach ($outlets as $outlet) {
+                    $outletResult = $this->generateForOutlet($reportType, $companyId, $outlet->id, $date, $includeAiInsights);
+                    $outletsData[] = [
+                        'outlet_id' => $outlet->id,
+                        'outlet_name' => $outlet->name,
+                        'data' => $outletResult['data'],
+                        'insights' => $outletResult['insights'],
+                        'charts' => $outletResult['charts'],
+                    ];
+                }
+
+                $periodLabel = $this->getPeriodLabel($reportType, $date);
+
+                return [
+                    'data' => [], // Combined data not used for multi-outlet
+                    'insights' => null,
+                    'charts' => [],
+                    'period_label' => $periodLabel,
+                    'is_multi_outlet' => true,
+                    'outlets_data' => $outletsData,
+                ];
+            }
+
+            // Single outlet company - use that outlet
+            if ($outlets->count() === 1) {
+                $outletId = $outlets->first()->id;
+            }
+        }
+
+        // Single outlet report
+        $result = $this->generateForOutlet($reportType, $companyId, $outletId, $date, $includeAiInsights);
+        $result['is_multi_outlet'] = false;
+        $result['outlets_data'] = [];
+
+        return $result;
+    }
+
+    /**
+     * Generate report data for a specific outlet.
+     */
+    protected function generateForOutlet(
+        string $reportType,
+        int $companyId,
+        ?int $outletId,
+        Carbon $date,
+        bool $includeAiInsights
     ): array {
         $data = [];
         $insights = null;
@@ -222,6 +286,19 @@ class ReportGeneratorService
     }
 
     /**
+     * Get period label for report type.
+     */
+    protected function getPeriodLabel(string $reportType, Carbon $date): string
+    {
+        return match ($reportType) {
+            'daily_sales' => $date->format('l, j F Y'),
+            'weekly_performance' => $date->copy()->startOfWeek()->format('j M') . ' - ' . $date->copy()->startOfWeek()->endOfWeek()->format('j M Y'),
+            'monthly_summary' => $date->copy()->startOfMonth()->format('F Y'),
+            default => $date->format('j F Y'),
+        };
+    }
+
+    /**
      * Send the report email via EngineMailer.
      */
     protected function sendEmail(
@@ -232,7 +309,9 @@ class ReportGeneratorService
         array $charts,
         string $companyName,
         string $outletName,
-        string $periodLabel
+        string $periodLabel,
+        bool $isMultiOutlet = false,
+        array $outletsData = []
     ): array {
         $view = match ($reportType) {
             'daily_sales' => 'emails.reports.daily',
@@ -257,6 +336,8 @@ class ReportGeneratorService
             'outletName' => $outletName,
             'companyName' => $companyName,
             'periodLabel' => $periodLabel,
+            'isMultiOutlet' => $isMultiOutlet,
+            'outletsData' => $outletsData,
         ])->render();
 
         // Get sender email from settings
@@ -306,7 +387,9 @@ class ReportGeneratorService
                 charts: $result['charts'],
                 companyName: $company->name,
                 outletName: $outlet?->name ?? 'All Outlets',
-                periodLabel: $result['period_label']
+                periodLabel: $result['period_label'],
+                isMultiOutlet: $result['is_multi_outlet'] ?? false,
+                outletsData: $result['outlets_data'] ?? []
             );
 
             return $sendResult;
