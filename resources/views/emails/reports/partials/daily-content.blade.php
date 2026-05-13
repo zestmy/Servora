@@ -151,31 +151,34 @@
 </div>
 @endif
 
-{{-- Top Items --}}
-@if(!empty($reportData['top_items']))
+{{-- Sales by Category --}}
+@if(!empty($reportData['sales_by_category']))
 <div class="section">
-    <div class="section-title">Top Selling Items</div>
-    @if(!empty($charts['top_items']))
+    <div class="section-title">Sales by Category</div>
+    @if(!empty($charts['sales_by_category']))
     <div class="chart-container">
-        <img src="{{ $charts['top_items'] }}" alt="Top Items Chart" />
+        <img src="{{ $charts['sales_by_category'] }}" alt="Sales by Category Chart" />
     </div>
     @endif
     <table class="data-table">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Item</th>
+                <th>Category</th>
                 <th class="text-right">Qty</th>
                 <th class="text-right">Revenue</th>
+                <th class="text-right">%</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($reportData['top_items'] as $index => $item)
+            @foreach($reportData['sales_by_category'] as $category)
             <tr>
-                <td>{{ $index + 1 }}</td>
-                <td>{{ $item['name'] }}</td>
-                <td class="text-right">{{ number_format($item['quantity']) }}</td>
-                <td class="text-right">RM {{ number_format($item['revenue'], 2) }}</td>
+                <td>
+                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: {{ $category['color'] }}; margin-right: 6px;"></span>
+                    {{ $category['name'] }}
+                </td>
+                <td class="text-right">{{ number_format($category['quantity']) }}</td>
+                <td class="text-right">RM {{ number_format($category['revenue'], 2) }}</td>
+                <td class="text-right">{{ $category['percentage'] }}%</td>
             </tr>
             @endforeach
         </tbody>

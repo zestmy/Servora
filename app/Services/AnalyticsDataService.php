@@ -46,8 +46,8 @@ class AnalyticsDataService
         // By meal period
         $byMealPeriod = $this->getSalesByMealPeriod($companyId, $outletId, $date);
 
-        // Top items (from sales lines)
-        $topItems = $this->getTopItems($companyId, $outletId, $date, $date);
+        // Sales by category
+        $salesByCategory = $this->getSalesByCategory($companyId, $outletId, $date, $date);
 
         // Calculate metrics
         $avgPerPax = $today->pax > 0 ? round($today->revenue / $today->pax, 2) : 0;
@@ -72,7 +72,7 @@ class AnalyticsDataService
                 'last_year' => $this->buildComparison($today->revenue, $lastYear['revenue']),
             ],
             'by_meal_period' => $byMealPeriod,
-            'top_items' => $topItems,
+            'sales_by_category' => $salesByCategory,
         ];
     }
 
@@ -118,8 +118,8 @@ class AnalyticsDataService
         // By meal period for the week
         $byMealPeriod = $this->getSalesByMealPeriodForPeriod($companyId, $outletId, $weekStartDate, $weekEndDate);
 
-        // Top items
-        $topItems = $this->getTopItems($companyId, $outletId, $weekStartDate, $weekEndDate, 10);
+        // Sales by category
+        $salesByCategory = $this->getSalesByCategory($companyId, $outletId, $weekStartDate, $weekEndDate);
 
         // Best and worst days
         $bestDay = collect($dailyData)->sortByDesc('revenue')->first();
@@ -136,7 +136,7 @@ class AnalyticsDataService
                 'last_year' => $this->buildComparison($thisWeek['revenue'], $lastYear['revenue']),
             ],
             'by_meal_period' => $byMealPeriod,
-            'top_items' => $topItems,
+            'sales_by_category' => $salesByCategory,
             'best_day' => $bestDay,
             'worst_day' => $worstDay,
         ];
@@ -173,8 +173,8 @@ class AnalyticsDataService
         // By meal period
         $byMealPeriod = $this->getSalesByMealPeriodForPeriod($companyId, $outletId, $monthStartDate, $monthEndDate);
 
-        // Top items
-        $topItems = $this->getTopItems($companyId, $outletId, $monthStartDate, $monthEndDate, 15);
+        // Sales by category
+        $salesByCategory = $this->getSalesByCategory($companyId, $outletId, $monthStartDate, $monthEndDate);
 
         return [
             'period_start' => $monthStartDate->toDateString(),
@@ -188,7 +188,7 @@ class AnalyticsDataService
                 'last_year' => $this->buildComparison($thisMonth['revenue'], $lastYear['revenue']),
             ],
             'by_meal_period' => $byMealPeriod,
-            'top_items' => $topItems,
+            'sales_by_category' => $salesByCategory,
         ];
     }
 
@@ -409,10 +409,11 @@ class AnalyticsDataService
         })->all();
     }
 
-    protected function getTopItems(int $companyId, ?int $outletId, Carbon $start, Carbon $end, int $limit = 5): array
+    protected function getSalesByCategory(int $companyId, ?int $outletId, Carbon $start, Carbon $end): array
     {
         $query = DB::table('sales_record_lines')
             ->join('sales_records', 'sales_record_lines.sales_record_id', '=', 'sales_records.id')
+            ->leftJoin('sales_categories', 'sales_record_lines.sales_category_id', '=', 'sales_categories.id')
             ->where('sales_records.company_id', $companyId)
             ->whereBetween('sales_records.sale_date', [$start->toDateString(), $end->toDateString()])
             ->whereNull('sales_records.deleted_at');
@@ -421,20 +422,25 @@ class AnalyticsDataService
             $query->where('sales_records.outlet_id', $outletId);
         }
 
-        return $query->selectRaw('
-                sales_record_lines.item_name,
+        $results = $query->selectRaw('
+                COALESCE(sales_categories.name, "Uncategorized") as category_name,
+                COALESCE(sales_categories.color, "#6b7280") as category_color,
                 SUM(sales_record_lines.quantity) as total_qty,
                 SUM(sales_record_lines.total_revenue) as total_revenue
             ')
-            ->groupBy('sales_record_lines.item_name')
+            ->groupBy('sales_record_lines.sales_category_id', 'sales_categories.name', 'sales_categories.color')
             ->orderByDesc('total_revenue')
-            ->limit($limit)
-            ->get()
-            ->map(function ($row) {
+            ->get();
+
+        $totalRevenue = $results->sum('total_revenue');
+
+        return $results->map(function ($row) use ($totalRevenue) {
                 return [
-                    'name' => $row->item_name,
+                    'name' => $row->category_name,
+                    'color' => $row->category_color,
                     'quantity' => (int) $row->total_qty,
                     'revenue' => (float) $row->total_revenue,
+                    'percentage' => $totalRevenue > 0 ? round(($row->total_revenue / $totalRevenue) * 100, 1) : 0,
                 ];
             })
             ->all();

@@ -131,37 +131,39 @@ class ChartImageService
     }
 
     /**
-     * Generate a horizontal bar chart for top items.
+     * Generate a pie chart for sales by category.
      */
-    public function topItemsChart(array $topItems, int $width = 600, int $height = 350): string
+    public function salesByCategoryChart(array $categories, int $width = 500, int $height = 350): string
     {
-        // Reverse for better display (highest at top)
-        $items = array_reverse(array_slice($topItems, 0, 10));
-        $labels = array_map(fn($d) => mb_substr($d['name'], 0, 25), $items);
-        $values = array_map(fn($d) => $d['revenue'], $items);
+        $labels = array_map(fn($d) => mb_substr($d['name'], 0, 20), $categories);
+        $values = array_map(fn($d) => $d['revenue'], $categories);
+        $colors = array_map(fn($d) => $d['color'] ?? '#6366f1', $categories);
 
         $config = [
-            'type' => 'horizontalBar',
+            'type' => 'pie',
             'data' => [
                 'labels' => $labels,
                 'datasets' => [[
-                    'label' => 'Revenue (RM)',
                     'data' => $values,
-                    'backgroundColor' => '#10B981',
+                    'backgroundColor' => $colors,
                 ]],
             ],
             'options' => [
                 'plugins' => [
-                    'legend' => ['display' => false],
+                    'legend' => [
+                        'position' => 'right',
+                        'labels' => ['boxWidth' => 12, 'padding' => 8],
+                    ],
                     'title' => [
                         'display' => true,
-                        'text' => 'Top Selling Items',
+                        'text' => 'Sales by Category',
                         'font' => ['size' => 16],
                     ],
-                ],
-                'scales' => [
-                    'x' => [
-                        'beginAtZero' => true,
+                    'datalabels' => [
+                        'display' => true,
+                        'formatter' => 'function(value, ctx) { var sum = ctx.dataset.data.reduce((a, b) => a + b, 0); var pct = (value * 100 / sum).toFixed(1); return pct + "%"; }',
+                        'color' => '#fff',
+                        'font' => ['weight' => 'bold'],
                     ],
                 ],
             ],

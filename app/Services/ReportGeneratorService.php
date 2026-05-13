@@ -211,8 +211,8 @@ class ReportGeneratorService
                 if (!empty($data['by_meal_period'])) {
                     $charts['meal_period'] = $this->chartService->mealPeriodChart($data['by_meal_period']);
                 }
-                if (!empty($data['top_items'])) {
-                    $charts['top_items'] = $this->chartService->topItemsChart($data['top_items']);
+                if (!empty($data['sales_by_category'])) {
+                    $charts['sales_by_category'] = $this->chartService->salesByCategoryChart($data['sales_by_category']);
                 }
 
                 // Generate AI insights
@@ -236,8 +236,8 @@ class ReportGeneratorService
                 if (!empty($data['by_meal_period'])) {
                     $charts['meal_period'] = $this->chartService->mealPeriodPieChart($data['by_meal_period']);
                 }
-                if (!empty($data['top_items'])) {
-                    $charts['top_items'] = $this->chartService->topItemsChart($data['top_items']);
+                if (!empty($data['sales_by_category'])) {
+                    $charts['sales_by_category'] = $this->chartService->salesByCategoryChart($data['sales_by_category']);
                 }
 
                 // Generate AI insights
@@ -264,8 +264,8 @@ class ReportGeneratorService
                 if (!empty($data['by_meal_period'])) {
                     $charts['meal_period'] = $this->chartService->mealPeriodPieChart($data['by_meal_period']);
                 }
-                if (!empty($data['top_items'])) {
-                    $charts['top_items'] = $this->chartService->topItemsChart($data['top_items']);
+                if (!empty($data['sales_by_category'])) {
+                    $charts['sales_by_category'] = $this->chartService->salesByCategoryChart($data['sales_by_category']);
                 }
 
                 // Generate AI insights
