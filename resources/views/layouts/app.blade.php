@@ -295,7 +295,7 @@
                     @if ($group['label'])
                         {{-- Collapsible group --}}
                         @php $groupSlug = Str::slug($group['label']); @endphp
-                        <div class="mt-2">
+                        <div class="mt-2" x-show="sidebarExpanded" x-collapse>
                             <button @click="toggle('{{ $groupSlug }}')"
                                     class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
                                 <span>{{ $group['label'] }}</span>
@@ -340,9 +340,13 @@
                             @endphp
                             <a href="{{ route($item['route']) }}"
                                title="{{ $item['label'] }}"
-                               class="block rounded-lg text-sm font-medium transition-colors px-4 py-2
-                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                                {{ $item['label'] }}
+                               class="flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2
+                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
+                               :class="sidebarExpanded ? 'px-4' : 'px-2 justify-center'">
+                                @if (!empty($item['icon']))
+                                    <span class="flex-shrink-0">{{ $item['icon'] }}</span>
+                                @endif
+                                <span x-show="sidebarExpanded" class="whitespace-nowrap">{{ $item['label'] }}</span>
                             </a>
                         @endforeach
                     @endif
@@ -353,6 +357,7 @@
             {{-- Admin Section (System Admin only) --}}
             @if ($isSystemRole)
                 <div class="mt-2 pt-2 border-t border-gray-700"
+                     x-show="sidebarExpanded" x-collapse
                      x-data="{ open: {{ request()->routeIs('admin.*') ? 'true' : 'false' }} }"
                      x-init="let s = localStorage.getItem('nav_admin'); if (s !== null) open = s === '1'">
                     <button @click="open = !open; localStorage.setItem('nav_admin', open ? '1' : '0')"
@@ -377,10 +382,14 @@
 
         {{-- Kitchen mode switcher --}}
         @if (Auth::user()->isKitchenUser())
-            <div class="px-3 pb-2">
+            <div class="pb-2" :class="sidebarExpanded ? 'px-3' : 'px-2'">
                 <a href="{{ route('workspace.switch', 'kitchen') }}"
-                   class="block w-full text-center px-3 py-1.5 text-xs font-medium text-purple-300 border border-purple-700 rounded-lg hover:bg-purple-900/40 hover:text-white transition">
-                    Switch to Central Kitchen Mode
+                   title="Switch to Central Kitchen Mode"
+                   class="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-medium text-purple-300 border border-purple-700 rounded-lg hover:bg-purple-900/40 hover:text-white transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    <span x-show="sidebarExpanded" class="whitespace-nowrap">Switch to Central Kitchen Mode</span>
                 </a>
             </div>
         @endif
