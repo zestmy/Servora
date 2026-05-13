@@ -27,8 +27,8 @@ class GoogleDriveService
         try {
             $this->client = new Client();
             $this->client->setAuthConfig($credentialsPath);
-            // Full DRIVE scope for read/write access to shared folders
-            $this->client->addScope(Drive::DRIVE);
+            // Read-only scope - uploads disabled until Shared Drive is configured
+            $this->client->addScope(Drive::DRIVE_READONLY);
             $this->client->setAccessType('offline');
 
             $this->service = new Drive($this->client);

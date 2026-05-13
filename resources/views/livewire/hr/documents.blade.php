@@ -155,46 +155,6 @@
                             </div>
                         </div>
 
-                        {{-- Upload Zone (for managers when upload is allowed) --}}
-                        @if ($canUpload)
-                            <div class="px-4 py-3 border-b border-gray-100"
-                                 x-data="{
-                                     isDragging: false,
-                                     handleDrop(e) {
-                                         this.isDragging = false;
-                                         const files = e.dataTransfer.files;
-                                         if (files.length > 0) {
-                                             $wire.uploadMultiple('uploadFiles', files);
-                                         }
-                                     }
-                                 }"
-                                 @dragover.prevent="isDragging = true"
-                                 @dragleave.prevent="isDragging = false"
-                                 @drop.prevent="handleDrop($event)">
-                                <label :class="isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
-                                       class="flex items-center justify-center gap-3 p-4 border-2 border-dashed rounded-lg cursor-pointer transition">
-                                    <input type="file" wire:model="uploadFiles" multiple class="hidden">
-                                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                                        <svg class="h-5 w-5" :class="isDragging ? 'text-indigo-500' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                                        </svg>
-                                        <span x-show="!isDragging">Drag & drop files here or <span class="text-indigo-600 font-medium">browse</span></span>
-                                        <span x-show="isDragging" class="text-indigo-600 font-medium">Drop files to upload</span>
-                                    </div>
-                                </label>
-                                {{-- Upload Progress --}}
-                                <div wire:loading wire:target="uploadFiles" class="mt-2">
-                                    <div class="flex items-center gap-2 text-sm text-indigo-600">
-                                        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span>Uploading...</span>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-
                         {{-- File List --}}
                         <div class="p-4 min-h-[400px]" wire:loading.class="opacity-50">
                             @if (empty($files))
@@ -280,13 +240,6 @@
                                                     <a href="https://drive.google.com/uc?export=download&id={{ $file['id'] }}" target="_blank" class="p-1.5 text-gray-400 hover:text-green-600 rounded" title="Download">
                                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                                     </a>
-                                                    @if ($canManage)
-                                                        <button wire:click="deleteFile('{{ $file['id'] }}')"
-                                                                wire:confirm="Delete '{{ $file['name'] }}'? This cannot be undone."
-                                                                class="p-1.5 text-gray-400 hover:text-red-600 rounded" title="Delete">
-                                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                                        </button>
-                                                    @endif
                                                 </div>
                                             @endif
                                         </div>
