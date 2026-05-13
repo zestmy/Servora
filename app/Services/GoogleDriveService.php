@@ -27,7 +27,8 @@ class GoogleDriveService
         try {
             $this->client = new Client();
             $this->client->setAuthConfig($credentialsPath);
-            $this->client->addScope(Drive::DRIVE_READONLY);
+            // DRIVE_FILE scope allows creating/modifying files in folders shared with service account
+            $this->client->addScope(Drive::DRIVE_FILE);
             $this->client->setAccessType('offline');
 
             $this->service = new Drive($this->client);
@@ -213,7 +214,62 @@ class GoogleDriveService
      */
     public function clearCache(string $folderId): void
     {
+        // Clear all cache keys that start with drive_files_{$folderId}
         Cache::forget("drive_files_{$folderId}_");
+        Cache::forget("drive_files_{$folderId}__100");
+    }
+
+    /**
+     * Upload a file to Google Drive.
+     */
+    public function uploadFile(string $folderId, string $filePath, string $fileName, string $mimeType): ?array
+    {
+        if (!$this->service) {
+            return null;
+        }
+
+        try {
+            $fileMetadata = new DriveFile([
+                'name' => $fileName,
+                'parents' => [$folderId],
+            ]);
+
+            $content = file_get_contents($filePath);
+
+            $file = $this->service->files->create($fileMetadata, [
+                'data' => $content,
+                'mimeType' => $mimeType,
+                'uploadType' => 'multipart',
+                'fields' => 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,webContentLink,iconLink,parents',
+            ]);
+
+            // Clear folder cache so new file appears
+            $this->clearCache($folderId);
+
+            return $this->formatFile($file);
+        } catch (\Exception $e) {
+            Log::error('GoogleDriveService uploadFile failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Delete a file from Google Drive.
+     */
+    public function deleteFile(string $fileId): bool
+    {
+        if (!$this->service) {
+            return false;
+        }
+
+        try {
+            $this->service->files->delete($fileId);
+            Cache::forget("drive_file_{$fileId}");
+            return true;
+        } catch (\Exception $e) {
+            Log::error('GoogleDriveService deleteFile failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**

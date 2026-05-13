@@ -6,9 +6,11 @@ use App\Models\DocumentFolder;
 use App\Services\GoogleDriveService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Documents extends Component
 {
+    use WithFileUploads;
     public ?int $activeFolder = null;
     public ?string $currentFolderId = null;
     public string $searchQuery = '';
@@ -20,6 +22,10 @@ class Documents extends Component
     public ?array $previewFile = null;
     public int $previewIndex = 0;
     public array $previewableFiles = [];
+
+    // Upload
+    public $uploadFiles = [];
+    public bool $isUploading = false;
 
     protected GoogleDriveService $driveService;
 
@@ -151,6 +157,86 @@ class Documents extends Component
         $this->previewIndex = 0;
     }
 
+    public function updatedUploadFiles(): void
+    {
+        $this->uploadFiles();
+    }
+
+    public function uploadFiles(): void
+    {
+        if (empty($this->uploadFiles) || !$this->currentFolderId) {
+            return;
+        }
+
+        // Check permission
+        if (!Auth::user()->hasPermissionTo('hr.documents.manage')) {
+            session()->flash('error', 'You do not have permission to upload files.');
+            $this->uploadFiles = [];
+            return;
+        }
+
+        // Check if folder allows uploads
+        $folder = $this->getActiveDocumentFolder();
+        if (!$folder || !$folder->allow_upload) {
+            session()->flash('error', 'Uploads are not allowed in this folder.');
+            $this->uploadFiles = [];
+            return;
+        }
+
+        $this->isUploading = true;
+        $uploaded = 0;
+        $failed = 0;
+
+        foreach ($this->uploadFiles as $file) {
+            try {
+                $result = $this->driveService->uploadFile(
+                    $this->currentFolderId,
+                    $file->getRealPath(),
+                    $file->getClientOriginalName(),
+                    $file->getMimeType()
+                );
+
+                if ($result) {
+                    $uploaded++;
+                } else {
+                    $failed++;
+                }
+            } catch (\Exception $e) {
+                $failed++;
+            }
+        }
+
+        $this->uploadFiles = [];
+        $this->isUploading = false;
+
+        // Clear cache to refresh file list
+        $this->driveService->clearCache($this->currentFolderId);
+
+        if ($uploaded > 0) {
+            session()->flash('success', "{$uploaded} file(s) uploaded successfully." . ($failed > 0 ? " {$failed} failed." : ''));
+        } else {
+            session()->flash('error', 'Failed to upload files.');
+        }
+    }
+
+    public function deleteFile(string $fileId): void
+    {
+        if (!Auth::user()->hasPermissionTo('hr.documents.manage')) {
+            session()->flash('error', 'You do not have permission to delete files.');
+            return;
+        }
+
+        if ($this->driveService->deleteFile($fileId)) {
+            // Clear cache
+            if ($this->currentFolderId) {
+                $this->driveService->clearCache($this->currentFolderId);
+            }
+            session()->flash('success', 'File deleted.');
+        } else {
+            session()->flash('error', 'Failed to delete file.');
+        }
+    }
+
     public function getPreviewUrl(): string
     {
         if (!$this->previewFile) return '';
@@ -173,6 +259,7 @@ class Documents extends Component
         $currentFolder = $this->getActiveDocumentFolder();
         $canManage = Auth::user()->hasPermissionTo('hr.documents.manage');
         $isConfigured = $this->driveService->isConfigured();
+        $canUpload = $canManage && $currentFolder && $currentFolder->allow_upload;
 
         $files = [];
         if ($isConfigured && $this->currentFolderId) {
@@ -187,6 +274,7 @@ class Documents extends Component
             'folders',
             'currentFolder',
             'canManage',
+            'canUpload',
             'isConfigured',
             'files'
         ))->layout('layouts.app', ['title' => 'Documents']);
