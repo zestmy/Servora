@@ -21,6 +21,7 @@ class OvertimeClaims extends Component
     public string $employeeFilter   = '';
     public string $sectionFilter    = '';
     public string $outletFilter     = '';
+    public string $quickRange       = 'this_month';
     public string $sortField        = 'claim_date';
     public string $sortDirection    = 'desc';
     public int    $perPage          = 25;
@@ -90,14 +91,87 @@ class OvertimeClaims extends Component
         ];
     }
 
+    public function mount(): void
+    {
+        // Set default dates based on quick range
+        $this->applyQuickRange($this->quickRange);
+
+        // Set default outlet for multi-outlet users (no "All Outlets" option)
+        $user = Auth::user();
+        $availableOutletIds = $user->canViewAllOutlets()
+            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
+            : $user->outlets()->pluck('outlets.id')->all();
+
+        if (count($availableOutletIds) > 1 && empty($this->outletFilter)) {
+            $this->outletFilter = (string) $availableOutletIds[0];
+        }
+    }
+
     public function updatedOtTimeStart(): void { $this->calcHours(); }
     public function updatedOtTimeEnd(): void   { $this->calcHours(); }
 
     public function updatedStatusFilter(): void   { $this->resetPage(); $this->selected = []; }
-    public function updatedDateFrom(): void       { $this->resetPage(); $this->selected = []; }
-    public function updatedDateTo(): void         { $this->resetPage(); $this->selected = []; }
+    public function updatedDateFrom(): void       { $this->resetPage(); $this->selected = []; $this->quickRange = 'custom'; }
+    public function updatedDateTo(): void         { $this->resetPage(); $this->selected = []; $this->quickRange = 'custom'; }
     public function updatedEmployeeFilter(): void { $this->resetPage(); $this->selected = []; }
     public function updatedOutletFilter(): void   { $this->resetPage(); $this->selected = []; $this->employeeFilter = ''; }
+
+    public function setQuickRange(string $range): void
+    {
+        $this->quickRange = $range;
+        $this->applyQuickRange($range);
+        $this->resetPage();
+        $this->selected = [];
+    }
+
+    protected function applyQuickRange(string $range): void
+    {
+        $today = now();
+
+        switch ($range) {
+            case 'today':
+                $this->dateFrom = $today->toDateString();
+                $this->dateTo   = $today->toDateString();
+                break;
+            case 'yesterday':
+                $this->dateFrom = $today->copy()->subDay()->toDateString();
+                $this->dateTo   = $today->copy()->subDay()->toDateString();
+                break;
+            case 'last_7':
+                $this->dateFrom = $today->copy()->subDays(6)->toDateString();
+                $this->dateTo   = $today->toDateString();
+                break;
+            case 'this_week':
+                $this->dateFrom = $today->copy()->startOfWeek()->toDateString();
+                $this->dateTo   = $today->copy()->endOfWeek()->toDateString();
+                break;
+            case 'last_week':
+                $this->dateFrom = $today->copy()->subWeek()->startOfWeek()->toDateString();
+                $this->dateTo   = $today->copy()->subWeek()->endOfWeek()->toDateString();
+                break;
+            case 'this_month':
+                $this->dateFrom = $today->copy()->startOfMonth()->toDateString();
+                $this->dateTo   = $today->copy()->endOfMonth()->toDateString();
+                break;
+            case 'last_month':
+                $this->dateFrom = $today->copy()->subMonth()->startOfMonth()->toDateString();
+                $this->dateTo   = $today->copy()->subMonth()->endOfMonth()->toDateString();
+                break;
+            case 'this_year':
+                $this->dateFrom = $today->copy()->startOfYear()->toDateString();
+                $this->dateTo   = $today->copy()->endOfYear()->toDateString();
+                break;
+            case 'last_year':
+                $this->dateFrom = $today->copy()->subYear()->startOfYear()->toDateString();
+                $this->dateTo   = $today->copy()->subYear()->endOfYear()->toDateString();
+                break;
+            case 'all':
+                $this->dateFrom = '';
+                $this->dateTo   = '';
+                break;
+            // 'custom' - don't change dates
+        }
+    }
 
     public function sortBy(string $field): void
     {

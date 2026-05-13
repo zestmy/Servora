@@ -42,13 +42,36 @@
         </div>
     </div>
 
+    {{-- Quick Date Range --}}
+    <div class="flex items-center gap-1.5 mb-3 flex-wrap">
+        @foreach ([
+            'today'      => 'Today',
+            'yesterday'  => 'Yesterday',
+            'last_7'     => 'Last 7 Days',
+            'this_week'  => 'This Week',
+            'last_week'  => 'Last Week',
+            'this_month' => 'This Month',
+            'last_month' => 'Last Month',
+            'this_year'  => 'This Year',
+            'last_year'  => 'Last Year',
+            'all'        => 'All',
+        ] as $rangeKey => $rangeLabel)
+            <button wire:click="setQuickRange('{{ $rangeKey }}')"
+                    class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                           {{ $quickRange === $rangeKey
+                               ? 'bg-indigo-600 text-white border-indigo-600'
+                               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                {{ $rangeLabel }}
+            </button>
+        @endforeach
+    </div>
+
     {{-- Filters Section --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-wrap gap-3 items-center">
-            {{-- Outlet filter --}}
+            {{-- Outlet filter (no "All Outlets" - only specific outlets) --}}
             @if ($multiOutlet)
                 <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">All Outlets</option>
                     @foreach ($outlets as $outlet)
                         <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                     @endforeach
