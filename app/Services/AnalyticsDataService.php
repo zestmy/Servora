@@ -79,37 +79,39 @@ class AnalyticsDataService
      */
     public function getWeeklySalesData(int $companyId, ?int $outletId, Carbon $weekStart): array
     {
-        $weekEnd = $weekStart->copy()->endOfWeek();
+        // Ensure we're working with Monday-Sunday weeks for business reporting
+        $weekStartDate = $weekStart->copy()->startOfWeek(Carbon::MONDAY);
+        $weekEndDate = $weekStartDate->copy()->endOfWeek(Carbon::SUNDAY);
 
         // This week's data by day
-        $dailyData = $this->getSalesByDay($companyId, $outletId, $weekStart, $weekEnd);
+        $dailyData = $this->getSalesByDay($companyId, $outletId, $weekStartDate, $weekEndDate);
 
         // This week totals
-        $thisWeek = $this->getSalesForPeriod($companyId, $outletId, $weekStart, $weekEnd);
+        $thisWeek = $this->getSalesForPeriod($companyId, $outletId, $weekStartDate, $weekEndDate);
 
         // Last week
-        $lastWeekStart = $weekStart->copy()->subWeek();
-        $lastWeekEnd = $weekEnd->copy()->subWeek();
+        $lastWeekStart = $weekStartDate->copy()->subWeek();
+        $lastWeekEnd = $weekEndDate->copy()->subWeek();
         $lastWeek = $this->getSalesForPeriod($companyId, $outletId, $lastWeekStart, $lastWeekEnd);
 
         // Same week last year
-        $lastYearStart = $weekStart->copy()->subYear();
-        $lastYearEnd = $weekEnd->copy()->subYear();
+        $lastYearStart = $weekStartDate->copy()->subYear();
+        $lastYearEnd = $weekEndDate->copy()->subYear();
         $lastYear = $this->getSalesForPeriod($companyId, $outletId, $lastYearStart, $lastYearEnd);
 
         // By meal period for the week
-        $byMealPeriod = $this->getSalesByMealPeriodForPeriod($companyId, $outletId, $weekStart, $weekEnd);
+        $byMealPeriod = $this->getSalesByMealPeriodForPeriod($companyId, $outletId, $weekStartDate, $weekEndDate);
 
         // Top items
-        $topItems = $this->getTopItems($companyId, $outletId, $weekStart, $weekEnd, 10);
+        $topItems = $this->getTopItems($companyId, $outletId, $weekStartDate, $weekEndDate, 10);
 
         // Best and worst days
         $bestDay = collect($dailyData)->sortByDesc('revenue')->first();
         $worstDay = collect($dailyData)->where('revenue', '>', 0)->sortBy('revenue')->first();
 
         return [
-            'period_start' => $weekStart->toDateString(),
-            'period_end' => $weekEnd->toDateString(),
+            'period_start' => $weekStartDate->toDateString(),
+            'period_end' => $weekEndDate->toDateString(),
             'outlet_id' => $outletId,
             'this_week' => $thisWeek,
             'daily_breakdown' => $dailyData,
@@ -129,36 +131,38 @@ class AnalyticsDataService
      */
     public function getMonthlySalesData(int $companyId, ?int $outletId, Carbon $monthStart): array
     {
-        $monthEnd = $monthStart->copy()->endOfMonth();
+        // Ensure we're working with the full month
+        $monthStartDate = $monthStart->copy()->startOfMonth();
+        $monthEndDate = $monthStartDate->copy()->endOfMonth();
 
         // Daily data for the month
-        $dailyData = $this->getSalesByDay($companyId, $outletId, $monthStart, $monthEnd);
+        $dailyData = $this->getSalesByDay($companyId, $outletId, $monthStartDate, $monthEndDate);
 
         // Weekly breakdown
-        $weeklyData = $this->getSalesByWeek($companyId, $outletId, $monthStart, $monthEnd);
+        $weeklyData = $this->getSalesByWeek($companyId, $outletId, $monthStartDate, $monthEndDate);
 
         // This month totals
-        $thisMonth = $this->getSalesForPeriod($companyId, $outletId, $monthStart, $monthEnd);
+        $thisMonth = $this->getSalesForPeriod($companyId, $outletId, $monthStartDate, $monthEndDate);
 
         // Last month
-        $lastMonthStart = $monthStart->copy()->subMonth();
+        $lastMonthStart = $monthStartDate->copy()->subMonth();
         $lastMonthEnd = $lastMonthStart->copy()->endOfMonth();
         $lastMonth = $this->getSalesForPeriod($companyId, $outletId, $lastMonthStart, $lastMonthEnd);
 
         // Same month last year
-        $lastYearStart = $monthStart->copy()->subYear();
+        $lastYearStart = $monthStartDate->copy()->subYear();
         $lastYearEnd = $lastYearStart->copy()->endOfMonth();
         $lastYear = $this->getSalesForPeriod($companyId, $outletId, $lastYearStart, $lastYearEnd);
 
         // By meal period
-        $byMealPeriod = $this->getSalesByMealPeriodForPeriod($companyId, $outletId, $monthStart, $monthEnd);
+        $byMealPeriod = $this->getSalesByMealPeriodForPeriod($companyId, $outletId, $monthStartDate, $monthEndDate);
 
         // Top items
-        $topItems = $this->getTopItems($companyId, $outletId, $monthStart, $monthEnd, 15);
+        $topItems = $this->getTopItems($companyId, $outletId, $monthStartDate, $monthEndDate, 15);
 
         return [
-            'period_start' => $monthStart->toDateString(),
-            'period_end' => $monthEnd->toDateString(),
+            'period_start' => $monthStartDate->toDateString(),
+            'period_end' => $monthEndDate->toDateString(),
             'outlet_id' => $outletId,
             'this_month' => $thisMonth,
             'daily_breakdown' => $dailyData,
@@ -228,7 +232,7 @@ class AnalyticsDataService
     {
         $query = SalesRecord::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->whereBetween('sale_date', [$start, $end]);
+            ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
@@ -261,7 +265,7 @@ class AnalyticsDataService
     {
         $query = SalesRecord::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->whereBetween('sale_date', [$start, $end]);
+            ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
@@ -292,7 +296,7 @@ class AnalyticsDataService
     {
         $query = SalesRecord::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->whereBetween('sale_date', [$start, $end]);
+            ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
@@ -352,7 +356,7 @@ class AnalyticsDataService
     {
         $query = SalesRecord::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->whereBetween('sale_date', [$start, $end]);
+            ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()]);
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
@@ -384,7 +388,7 @@ class AnalyticsDataService
         $query = DB::table('sales_record_lines')
             ->join('sales_records', 'sales_record_lines.sales_record_id', '=', 'sales_records.id')
             ->where('sales_records.company_id', $companyId)
-            ->whereBetween('sales_records.sale_date', [$start, $end])
+            ->whereBetween('sales_records.sale_date', [$start->toDateString(), $end->toDateString()])
             ->whereNull('sales_records.deleted_at');
 
         if ($outletId) {
