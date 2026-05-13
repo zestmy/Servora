@@ -19,3 +19,7 @@ Schedule::command('onboarding:send-emails')->dailyAt('09:00');
 
 // Monitor ingredient price changes daily at 7 AM MYT
 Schedule::command('price:monitor')->dailyAt('07:00');
+
+// Send scheduled analytics reports every 15 minutes
+// (checks for reports due based on their delivery_time setting)
+Schedule::command('reports:send-scheduled')->everyFifteenMinutes();

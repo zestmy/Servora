@@ -327,6 +327,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/documents', \App\Livewire\Hr\Documents::class)->name('hr.documents')->middleware('can:hr.documents.view');
     Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.view');
     Route::get('/settings/document-folders', \App\Livewire\Settings\DocumentFolders::class)->name('settings.document-folders')->middleware('can:hr.documents.manage');
+    Route::get('/settings/reports', \App\Livewire\Settings\ReportSubscriptions::class)->name('settings.reports')->middleware('can:reports.view');
 
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(['can:reports.view', 'check.feature:analytics']);
 
