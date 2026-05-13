@@ -13,6 +13,12 @@ class ReportInsightsService
      */
     public function generateDailyInsights(array $salesData): array
     {
+        // Skip AI insights if no sales data
+        $today = $salesData['today'] ?? [];
+        if (empty($today['revenue']) || $today['revenue'] <= 0) {
+            return $this->noDataResponse('No sales recorded for this day');
+        }
+
         $prompt = $this->buildDailyPrompt($salesData);
         return $this->callAI($prompt, 'daily_sales');
     }
@@ -22,6 +28,12 @@ class ReportInsightsService
      */
     public function generateWeeklyInsights(array $salesData): array
     {
+        // Skip AI insights if no sales data
+        $thisWeek = $salesData['this_week'] ?? [];
+        if (empty($thisWeek['revenue']) || $thisWeek['revenue'] <= 0) {
+            return $this->noDataResponse('No sales recorded for this week');
+        }
+
         $prompt = $this->buildWeeklyPrompt($salesData);
         return $this->callAI($prompt, 'weekly_performance');
     }
@@ -31,8 +43,27 @@ class ReportInsightsService
      */
     public function generateMonthlyInsights(array $salesData): array
     {
+        // Skip AI insights if no sales data
+        $thisMonth = $salesData['this_month'] ?? [];
+        if (empty($thisMonth['revenue']) || $thisMonth['revenue'] <= 0) {
+            return $this->noDataResponse('No sales recorded for this month');
+        }
+
         $prompt = $this->buildMonthlyPrompt($salesData);
         return $this->callAI($prompt, 'monthly_summary');
+    }
+
+    /**
+     * Return a no-data response when there's no sales to analyze.
+     */
+    protected function noDataResponse(string $reason): array
+    {
+        return [
+            'success' => true,
+            'insights' => null,
+            'skipped' => true,
+            'reason' => $reason,
+        ];
     }
 
     protected function callAI(string $prompt, string $reportType): array
