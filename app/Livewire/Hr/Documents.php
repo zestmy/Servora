@@ -18,6 +18,8 @@ class Documents extends Component
     // Preview modal
     public bool $showPreview = false;
     public ?array $previewFile = null;
+    public int $previewIndex = 0;
+    public array $previewableFiles = [];
 
     protected GoogleDriveService $driveService;
 
@@ -97,17 +99,56 @@ class Documents extends Component
 
     public function openPreview(string $fileId): void
     {
-        $file = $this->driveService->getFile($fileId);
-        if ($file && !$file['isFolder']) {
-            $this->previewFile = $file;
+        // Get all files and filter to only previewable (non-folder) files
+        $allFiles = $this->currentFolderId
+            ? $this->driveService->listFiles($this->currentFolderId)
+            : [];
+
+        $this->previewableFiles = array_values(array_filter($allFiles, fn($f) => !$f['isFolder']));
+
+        // Find the index of the clicked file
+        $this->previewIndex = 0;
+        foreach ($this->previewableFiles as $index => $file) {
+            if ($file['id'] === $fileId) {
+                $this->previewIndex = $index;
+                break;
+            }
+        }
+
+        if (!empty($this->previewableFiles)) {
+            $this->previewFile = $this->previewableFiles[$this->previewIndex];
             $this->showPreview = true;
         }
+    }
+
+    public function prevFile(): void
+    {
+        if (empty($this->previewableFiles)) return;
+
+        $this->previewIndex = $this->previewIndex > 0
+            ? $this->previewIndex - 1
+            : count($this->previewableFiles) - 1;
+
+        $this->previewFile = $this->previewableFiles[$this->previewIndex];
+    }
+
+    public function nextFile(): void
+    {
+        if (empty($this->previewableFiles)) return;
+
+        $this->previewIndex = $this->previewIndex < count($this->previewableFiles) - 1
+            ? $this->previewIndex + 1
+            : 0;
+
+        $this->previewFile = $this->previewableFiles[$this->previewIndex];
     }
 
     public function closePreview(): void
     {
         $this->showPreview = false;
         $this->previewFile = null;
+        $this->previewableFiles = [];
+        $this->previewIndex = 0;
     }
 
     public function getPreviewUrl(): string

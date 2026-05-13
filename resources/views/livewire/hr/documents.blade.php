@@ -247,12 +247,14 @@
         </div>
     @endif
 
-    {{-- Preview Modal (Fullscreen) --}}
+    {{-- Preview Modal (Fullscreen with Navigation) --}}
     @if ($showPreview && $previewFile)
         <div x-data="{ open: @entangle('showPreview') }">
         <template x-teleport="body">
             <div x-show="open" x-cloak
                  @keydown.escape.window="$wire.closePreview()"
+                 @keydown.left.window="$wire.prevFile()"
+                 @keydown.right.window="$wire.nextFile()"
                  class="fixed inset-0 z-[100] flex items-center justify-center">
                 {{-- Backdrop --}}
                 <div class="fixed inset-0 bg-black/90" @click="$wire.closePreview()"></div>
@@ -267,17 +269,31 @@
                             </div>
                             <div class="min-w-0">
                                 <h3 class="text-sm font-semibold text-white truncate">{{ $previewFile['name'] }}</h3>
-                                @if ($previewFile['size'])
-                                    <p class="text-xs text-gray-400">{{ number_format($previewFile['size'] / 1024, 0) }} KB</p>
-                                @endif
+                                <p class="text-xs text-gray-400">
+                                    {{ $previewIndex + 1 }} of {{ count($previewableFiles) }}
+                                    @if ($previewFile['size'])
+                                        &bull; {{ number_format($previewFile['size'] / 1024, 0) }} KB
+                                    @endif
+                                </p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
+                            {{-- Navigation buttons (for header) --}}
+                            @if (count($previewableFiles) > 1)
+                                <div class="hidden sm:flex items-center gap-1 mr-2">
+                                    <button wire:click="prevFile" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700" title="Previous (Left Arrow)">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                    </button>
+                                    <button wire:click="nextFile" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700" title="Next (Right Arrow)">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
+                            @endif
                             <a href="https://drive.google.com/uc?export=download&id={{ $previewFile['id'] }}"
                                target="_blank"
                                class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition flex items-center gap-1">
                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                Download
+                                <span class="hidden sm:inline">Download</span>
                             </a>
                             <button @click="$wire.closePreview()" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700" title="Close (Esc)">
                                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -285,8 +301,18 @@
                         </div>
                     </div>
 
-                    {{-- Preview Content (Full Height) --}}
-                    <div class="flex-1 overflow-hidden bg-gray-900">
+                    {{-- Preview Content (Full Height) with Side Navigation --}}
+                    <div class="flex-1 overflow-hidden bg-gray-900 relative">
+                        {{-- Previous Button (Left Side) --}}
+                        @if (count($previewableFiles) > 1)
+                            <button wire:click="prevFile"
+                                    class="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition opacity-70 hover:opacity-100"
+                                    title="Previous (Left Arrow)">
+                                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                            </button>
+                        @endif
+
+                        {{-- File Content --}}
                         @if ($previewFile['isImage'])
                             <div class="h-full flex items-center justify-center p-4">
                                 <img src="https://drive.google.com/uc?id={{ $previewFile['id'] }}" alt="{{ $previewFile['name'] }}" class="max-w-full max-h-full object-contain">
@@ -322,6 +348,15 @@
                                     Download File
                                 </a>
                             </div>
+                        @endif
+
+                        {{-- Next Button (Right Side) --}}
+                        @if (count($previewableFiles) > 1)
+                            <button wire:click="nextFile"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition opacity-70 hover:opacity-100"
+                                    title="Next (Right Arrow)">
+                                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            </button>
                         @endif
                     </div>
                 </div>
