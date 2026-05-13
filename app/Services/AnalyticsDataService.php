@@ -8,7 +8,6 @@ use App\Scopes\CompanyScope;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class AnalyticsDataService
 {
@@ -85,25 +84,11 @@ class AnalyticsDataService
         $weekStartDate = $weekStart->copy()->startOfWeek(Carbon::MONDAY);
         $weekEndDate = $weekStartDate->copy()->endOfWeek(Carbon::SUNDAY);
 
-        Log::info('Weekly report date range', [
-            'input_date' => $weekStart->toDateString(),
-            'week_start' => $weekStartDate->toDateString(),
-            'week_end' => $weekEndDate->toDateString(),
-            'company_id' => $companyId,
-            'outlet_id' => $outletId,
-        ]);
-
         // This week's data by day
         $dailyData = $this->getSalesByDay($companyId, $outletId, $weekStartDate, $weekEndDate);
 
         // This week totals
         $thisWeek = $this->getSalesForPeriod($companyId, $outletId, $weekStartDate, $weekEndDate);
-
-        Log::info('Weekly report results', [
-            'this_week_revenue' => $thisWeek['revenue'],
-            'this_week_pax' => $thisWeek['pax'],
-            'daily_data_count' => count($dailyData),
-        ]);
 
         // Last week
         $lastWeekStart = $weekStartDate->copy()->subWeek();
@@ -253,16 +238,6 @@ class AnalyticsDataService
         if ($outletId) {
             $query->where('outlet_id', $outletId);
         }
-
-        // Debug: count records in this period
-        $recordCount = (clone $query)->count();
-        Log::info('getSalesForPeriod query', [
-            'start' => $start->toDateString(),
-            'end' => $end->toDateString(),
-            'company_id' => $companyId,
-            'outlet_id' => $outletId,
-            'record_count' => $recordCount,
-        ]);
 
         $result = $query->selectRaw('
             COALESCE(SUM(total_revenue), 0) as revenue,
