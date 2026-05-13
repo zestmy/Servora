@@ -2,13 +2,13 @@
 
 ## Active
 <!-- Current work in progress -->
-- HR Documents: Google Drive integration (pending migration run)
 
 ## Backlog
 <!-- Planned but not started -->
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-05-13 — Feature 19: HR Documents with Google Drive integration; document_folders table; hr.documents.view/manage permissions; embedded folder viewer
 - 2026-04-27 — Feature 18: Remove outlet switcher; ScopesToActiveOutlet uses availableOutletIds() whereIn scope; User::activeOutletId() no longer session-driven; outlet display removed from sidebar/profile
 - 2026-04-27 — Feature 17: Persistent login (remember=true by default, SESSION_LIFETIME=43200)
 - 2026-04-27 — Feature 16: HR Manager role with cross-outlet OT claim visibility; wildcard OT approver seeding; migration 000179
