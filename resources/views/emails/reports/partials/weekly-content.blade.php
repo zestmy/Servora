@@ -194,7 +194,6 @@
         <thead>
             <tr>
                 <th>Category</th>
-                <th class="text-right">Qty</th>
                 <th class="text-right">Revenue</th>
                 <th class="text-right">%</th>
             </tr>
@@ -206,7 +205,6 @@
                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: {{ $category['color'] }}; margin-right: 6px;"></span>
                     {{ $category['name'] }}
                 </td>
-                <td class="text-right">{{ number_format($category['quantity']) }}</td>
                 <td class="text-right">RM {{ number_format($category['revenue'], 2) }}</td>
                 <td class="text-right">{{ $category['percentage'] }}%</td>
             </tr>
