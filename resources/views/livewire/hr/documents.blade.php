@@ -247,26 +247,26 @@
         </div>
     @endif
 
-    {{-- Preview Modal --}}
+    {{-- Preview Modal (Fullscreen) --}}
     @if ($showPreview && $previewFile)
         <div x-data="{ open: @entangle('showPreview') }">
         <template x-teleport="body">
             <div x-show="open" x-cloak
                  @keydown.escape.window="$wire.closePreview()"
-                 class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                 class="fixed inset-0 z-[100] flex items-center justify-center">
                 {{-- Backdrop --}}
-                <div class="fixed inset-0 bg-black/70" @click="$wire.closePreview()"></div>
+                <div class="fixed inset-0 bg-black/90" @click="$wire.closePreview()"></div>
 
-                {{-- Modal --}}
-                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col" @click.stop>
+                {{-- Modal (Fullscreen) --}}
+                <div class="relative bg-white w-full h-full flex flex-col" @click.stop>
                     {{-- Header --}}
-                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <div class="flex items-center justify-between px-4 py-2 bg-gray-900 text-white flex-shrink-0">
                         <div class="flex items-center gap-3 min-w-0">
-                            <div class="flex-shrink-0 {{ $previewFile['icon'] === 'pdf' ? 'text-red-500' : ($previewFile['icon'] === 'doc' ? 'text-blue-500' : ($previewFile['icon'] === 'sheet' ? 'text-green-500' : 'text-gray-400')) }}">
+                            <div class="flex-shrink-0 {{ $previewFile['icon'] === 'pdf' ? 'text-red-400' : ($previewFile['icon'] === 'doc' ? 'text-blue-400' : ($previewFile['icon'] === 'sheet' ? 'text-green-400' : 'text-gray-400')) }}">
                                 @include('livewire.hr.partials.file-icon', ['icon' => $previewFile['icon']])
                             </div>
                             <div class="min-w-0">
-                                <h3 class="text-sm font-semibold text-gray-800 truncate">{{ $previewFile['name'] }}</h3>
+                                <h3 class="text-sm font-semibold text-white truncate">{{ $previewFile['name'] }}</h3>
                                 @if ($previewFile['size'])
                                     <p class="text-xs text-gray-400">{{ number_format($previewFile['size'] / 1024, 0) }} KB</p>
                                 @endif
@@ -279,46 +279,46 @@
                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                 Download
                             </a>
-                            <button @click="$wire.closePreview()" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <button @click="$wire.closePreview()" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700" title="Close (Esc)">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
                     </div>
 
-                    {{-- Preview Content --}}
-                    <div class="flex-1 overflow-hidden bg-gray-900 rounded-b-xl">
+                    {{-- Preview Content (Full Height) --}}
+                    <div class="flex-1 overflow-hidden bg-gray-900">
                         @if ($previewFile['isImage'])
-                            <div class="h-[70vh] flex items-center justify-center p-4">
+                            <div class="h-full flex items-center justify-center p-4">
                                 <img src="https://drive.google.com/uc?id={{ $previewFile['id'] }}" alt="{{ $previewFile['name'] }}" class="max-w-full max-h-full object-contain">
                             </div>
                         @elseif ($previewFile['isVideo'])
-                            <div class="h-[70vh] flex items-center justify-center">
+                            <div class="h-full flex items-center justify-center p-4">
                                 <video controls class="max-w-full max-h-full">
                                     <source src="https://drive.google.com/uc?id={{ $previewFile['id'] }}" type="{{ $previewFile['mimeType'] }}">
                                     Your browser does not support the video tag.
                                 </video>
                             </div>
                         @elseif ($previewFile['isAudio'])
-                            <div class="h-[200px] flex items-center justify-center p-8">
-                                <audio controls class="w-full max-w-md">
+                            <div class="h-full flex items-center justify-center p-8">
+                                <audio controls class="w-full max-w-lg">
                                     <source src="https://drive.google.com/uc?id={{ $previewFile['id'] }}" type="{{ $previewFile['mimeType'] }}">
                                     Your browser does not support the audio tag.
                                 </audio>
                             </div>
                         @elseif ($previewFile['isPreviewable'])
                             <iframe src="https://drive.google.com/file/d/{{ $previewFile['id'] }}/preview"
-                                    class="w-full h-[70vh] border-0"
+                                    class="w-full h-full border-0"
                                     allow="autoplay"
                                     loading="lazy"></iframe>
                         @else
-                            <div class="h-[300px] flex flex-col items-center justify-center text-gray-400 p-8">
-                                <svg class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                            <div class="h-full flex flex-col items-center justify-center text-gray-400 p-8">
+                                <svg class="h-20 w-20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
-                                <p class="text-sm mb-4">Preview not available for this file type</p>
+                                <p class="text-lg mb-4">Preview not available for this file type</p>
                                 <a href="https://drive.google.com/uc?export=download&id={{ $previewFile['id'] }}"
                                    target="_blank"
-                                   class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                                   class="px-6 py-3 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
                                     Download File
                                 </a>
                             </div>
