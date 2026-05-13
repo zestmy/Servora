@@ -228,9 +228,10 @@
                     [
                         'label' => 'Settings',
                         'items' => [
-                            ['route' => 'settings.index',     'label' => 'General',      'permission' => 'settings.view'],
-                            ['route' => 'billing.index',      'label' => 'Billing',      'permission' => null, 'capability' => 'can_manage_users'],
-                            ['route' => 'referral.dashboard', 'label' => 'Refer & Earn', 'permission' => null],
+                            ['route' => 'settings.index',            'label' => 'General',          'permission' => 'settings.view'],
+                            ['route' => 'settings.document-folders', 'label' => 'Document Folders', 'permission' => 'hr.documents.manage'],
+                            ['route' => 'billing.index',             'label' => 'Billing',          'permission' => null, 'capability' => 'can_manage_users'],
+                            ['route' => 'referral.dashboard',        'label' => 'Refer & Earn',     'permission' => null],
                         ],
                     ],
                 ];
