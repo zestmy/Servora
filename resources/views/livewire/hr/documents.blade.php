@@ -289,6 +289,19 @@
                                     </button>
                                 </div>
                             @endif
+                            {{-- Present button for presentations --}}
+                            @if ($previewFile['isPresentation'])
+                                <a href="https://docs.google.com/presentation/d/{{ $previewFile['id'] }}/present"
+                                   target="_blank"
+                                   class="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition flex items-center gap-1"
+                                   title="Open in presentation mode">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span class="hidden sm:inline">Present</span>
+                                </a>
+                            @endif
                             <a href="https://drive.google.com/uc?export=download&id={{ $previewFile['id'] }}"
                                target="_blank"
                                class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition flex items-center gap-1">
@@ -330,6 +343,34 @@
                                     <source src="https://drive.google.com/uc?id={{ $previewFile['id'] }}" type="{{ $previewFile['mimeType'] }}">
                                     Your browser does not support the audio tag.
                                 </audio>
+                            </div>
+                        @elseif ($previewFile['isGoogleSlides'])
+                            {{-- Google Slides: Use embed URL with slide controls --}}
+                            <iframe src="https://docs.google.com/presentation/d/{{ $previewFile['id'] }}/embed?start=false&loop=false&delayms=3000"
+                                    class="w-full h-full border-0"
+                                    frameborder="0"
+                                    allowfullscreen="true"
+                                    mozallowfullscreen="true"
+                                    webkitallowfullscreen="true"
+                                    loading="lazy"></iframe>
+                        @elseif ($previewFile['isPresentation'])
+                            {{-- Uploaded PPT/PPTX: Use Google Docs viewer --}}
+                            <div class="h-full flex flex-col">
+                                <div class="flex-1">
+                                    <iframe src="https://drive.google.com/file/d/{{ $previewFile['id'] }}/preview"
+                                            class="w-full h-full border-0"
+                                            allow="autoplay"
+                                            loading="lazy"></iframe>
+                                </div>
+                                <div class="bg-gray-800 px-4 py-2 text-center text-sm text-gray-300">
+                                    <span>Use arrow keys to navigate slides</span>
+                                    <span class="mx-2">|</span>
+                                    <a href="https://docs.google.com/presentation/d/{{ $previewFile['id'] }}/present"
+                                       target="_blank"
+                                       class="text-indigo-400 hover:text-indigo-300 underline">
+                                        Open in fullscreen presentation mode
+                                    </a>
+                                </div>
                             </div>
                         @elseif ($previewFile['isPreviewable'])
                             <iframe src="https://drive.google.com/file/d/{{ $previewFile['id'] }}/preview"

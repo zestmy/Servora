@@ -241,6 +241,8 @@ class GoogleDriveService
             'isAudio' => $this->isAudio($mimeType),
             'isPdf' => $mimeType === 'application/pdf',
             'isGoogleDoc' => $this->isGoogleFormat($mimeType),
+            'isPresentation' => $this->isPresentation($mimeType),
+            'isGoogleSlides' => $mimeType === 'application/vnd.google-apps.presentation',
             'isPreviewable' => $this->isPreviewable($mimeType),
             'extension' => $this->getExtension($file->getName()),
             'icon' => $this->getFileIcon($mimeType),
@@ -275,6 +277,15 @@ class GoogleDriveService
     protected function isAudio(string $mimeType): bool
     {
         return str_starts_with($mimeType, 'audio/');
+    }
+
+    protected function isPresentation(string $mimeType): bool
+    {
+        return in_array($mimeType, [
+            'application/vnd.google-apps.presentation',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ]);
     }
 
     protected function isGoogleFormat(string $mimeType): bool
