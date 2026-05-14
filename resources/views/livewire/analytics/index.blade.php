@@ -208,6 +208,53 @@
                                     </div>
                                 @endif
 
+                                {{-- Outlets Performance (Multi-outlet) --}}
+                                @if (!empty($insights['outlets_summary']))
+                                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                                        <div class="flex items-center gap-2 text-gray-700 font-semibold text-sm mb-4">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                            Performance by Outlet
+                                        </div>
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-sm">
+                                                <thead>
+                                                    <tr class="border-b border-gray-100">
+                                                        <th class="text-left py-2 pr-4 font-medium text-gray-500">Outlet</th>
+                                                        <th class="text-right py-2 px-4 font-medium text-gray-500">Revenue</th>
+                                                        <th class="text-center py-2 px-4 font-medium text-gray-500">Trend</th>
+                                                        <th class="text-left py-2 pl-4 font-medium text-gray-500">Note</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-50">
+                                                    @foreach ($insights['outlets_summary'] as $outlet)
+                                                        <tr class="hover:bg-gray-50">
+                                                            <td class="py-2.5 pr-4 font-medium text-gray-800">{{ $outlet['name'] ?? '-' }}</td>
+                                                            <td class="py-2.5 px-4 text-right text-gray-700">{{ $outlet['revenue'] ?? '-' }}</td>
+                                                            <td class="py-2.5 px-4 text-center">
+                                                                @php $trend = $outlet['trend'] ?? 'flat'; @endphp
+                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+                                                                    {{ $trend === 'up' ? 'bg-green-100 text-green-700' : ($trend === 'down' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600') }}">
+                                                                    @if ($trend === 'up')
+                                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                                                        Up
+                                                                    @elseif ($trend === 'down')
+                                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                                                        Down
+                                                                    @else
+                                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>
+                                                                        Flat
+                                                                    @endif
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-2.5 pl-4 text-gray-500 text-xs">{{ $outlet['note'] ?? '' }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                @endif
+
                                 {{-- Highlights & Concerns --}}
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     @if (!empty($insights['highlights']))

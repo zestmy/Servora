@@ -156,6 +156,17 @@ class AiAnalyticsService
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
 
+        $company = Auth::user()->company;
+        $outlet = $outletId ? \App\Models\Outlet::find($outletId) : null;
+
+        // Get all active outlets for multi-outlet analysis
+        $outlets = \App\Models\Outlet::where('company_id', $company->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $isMultiOutlet = !$outletId && $outlets->count() > 1;
+
         // P&L from existing service
         $costSummary = $this->costService->generate($period, $outletId);
 
@@ -182,6 +193,48 @@ class AiAnalyticsService
             ])
             ->toArray();
 
+        // Per-outlet breakdown when viewing all outlets
+        $outletsData = [];
+        if ($isMultiOutlet) {
+            foreach ($outlets as $o) {
+                $outletRevenue = SalesRecord::where('outlet_id', $o->id)
+                    ->whereBetween('sale_date', [$startOfMonth, $endOfMonth])
+                    ->sum('total_revenue');
+                $outletPax = SalesRecord::where('outlet_id', $o->id)
+                    ->whereBetween('sale_date', [$startOfMonth, $endOfMonth])
+                    ->sum('pax');
+                $outletTrans = SalesRecord::where('outlet_id', $o->id)
+                    ->whereBetween('sale_date', [$startOfMonth, $endOfMonth])
+                    ->count();
+
+                // Previous period for comparison
+                $prevStart = $date->copy()->subMonth()->startOfMonth();
+                $prevEnd = $date->copy()->subMonth()->endOfMonth();
+                $prevRevenue = SalesRecord::where('outlet_id', $o->id)
+                    ->whereBetween('sale_date', [$prevStart, $prevEnd])
+                    ->sum('total_revenue');
+
+                $change = $prevRevenue > 0
+                    ? round(($outletRevenue - $prevRevenue) / $prevRevenue * 100, 1)
+                    : 0;
+
+                $outletsData[] = [
+                    'outlet_id'   => $o->id,
+                    'outlet_name' => $o->name,
+                    'revenue'     => round((float) $outletRevenue, 2),
+                    'pax'         => (int) $outletPax,
+                    'transactions' => $outletTrans,
+                    'avg_per_pax' => $outletPax > 0 ? round($outletRevenue / $outletPax, 2) : 0,
+                    'prev_revenue' => round((float) $prevRevenue, 2),
+                    'change_percent' => $change,
+                    'trend'       => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'flat'),
+                ];
+            }
+
+            // Sort by revenue descending
+            usort($outletsData, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
+        }
+
         // Calendar events
         $events = CalendarEvent::forPeriod($period)
             ->when($outletId, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('outlet_id')->orWhere('outlet_id', $outletId)))
@@ -202,9 +255,6 @@ class AiAnalyticsService
             $wastageQuery->where('outlet_id', $outletId);
         }
         $totalWastage = round((float) $wastageQuery->sum('total_cost'), 2);
-
-        $company = Auth::user()->company;
-        $outlet = $outletId ? \App\Models\Outlet::find($outletId) : null;
 
         // Sales target for this period
         $target = SalesTarget::where('period', $period)
@@ -240,6 +290,8 @@ class AiAnalyticsService
         return [
             'company_name'       => $company->name ?? 'Unknown',
             'outlet_name'        => $outlet?->name ?? 'All Outlets',
+            'is_multi_outlet'    => $isMultiOutlet,
+            'outlets_data'       => $outletsData,
             'period'             => $period,
             'period_label'       => $date->format('F Y'),
             'cost_summary'       => $costSummary,
@@ -261,8 +313,14 @@ class AiAnalyticsService
 
     private function systemPrompt(array $context): string
     {
-        return "You are an expert Food & Beverage operations analyst for \"{$context['company_name']}\" — outlet: \"{$context['outlet_name']}\". "
-            . "You analyze operational data and provide actionable insights to help maximize revenue and profit. "
+        $isMultiOutlet = !empty($context['is_multi_outlet']);
+        $outletInstruction = $isMultiOutlet
+            ? "You are analyzing ALL outlets combined. Include per-outlet comparisons and identify best/worst performers. "
+            : "";
+
+        return "You are an expert Food & Beverage operations analyst for \"{$context['company_name']}\" — {$context['outlet_name']}. "
+            . $outletInstruction
+            . "Analyze operational data and provide actionable insights to help maximize revenue and profit. "
             . "Be specific with numbers, percentages, and comparisons. Identify patterns and correlations with calendar events. "
             . "Format your response as JSON with the following structure:\n"
             . "{\n"
@@ -271,12 +329,18 @@ class AiAnalyticsService
             . "  \"key_metrics\": [\n"
             . "    {\"label\": \"Metric name\", \"value\": \"RM X,XXX or X%\", \"trend\": \"up|down|flat\", \"note\": \"Brief context\"}\n"
             . "  ],\n"
+            . ($isMultiOutlet
+                ? "  \"outlets_summary\": [\n"
+                . "    {\"name\": \"Outlet name\", \"revenue\": \"RM X,XXX\", \"trend\": \"up|down|flat\", \"note\": \"Brief performance note\"}\n"
+                . "  ],\n"
+                : "")
             . "  \"highlights\": [\"Positive insight 1\", \"Positive insight 2\"],\n"
             . "  \"concerns\": [\"Area needing attention 1\", \"Area needing attention 2\"],\n"
             . "  \"recommendations\": [\n"
             . "    {\"title\": \"Action title\", \"description\": \"What to do and expected impact\", \"priority\": \"high|medium|low\"}\n"
             . "  ],\n"
-            . "  \"detailed_analysis\": \"Markdown-formatted detailed analysis with ## headers for sections\"\n"
+            . "  \"detailed_analysis\": \"Markdown-formatted detailed analysis with ## headers for sections"
+            . ($isMultiOutlet ? ". Include a section for each outlet's performance." : "") . "\"\n"
             . "}\n"
             . "Keep insights brief and actionable. Use Malaysian Ringgit (RM) for currency.";
     }
@@ -290,6 +354,28 @@ class AiAnalyticsService
         $prevTotals = $context['prev_summary']['totals'];
 
         $sections[] = "## Period: {$context['period_label']}\n";
+
+        // Per-outlet breakdown when viewing all outlets
+        if (!empty($context['is_multi_outlet']) && !empty($context['outlets_data'])) {
+            $sections[] = "## Performance by Outlet";
+            $sections[] = "| Outlet | Revenue | Pax | Avg/Pax | vs Prev Period |";
+            $sections[] = "|--------|---------|-----|---------|----------------|";
+            foreach ($context['outlets_data'] as $outlet) {
+                $trendIcon = $outlet['trend'] === 'up' ? '↑' : ($outlet['trend'] === 'down' ? '↓' : '→');
+                $changeStr = ($outlet['change_percent'] >= 0 ? '+' : '') . $outlet['change_percent'] . '%';
+                $sections[] = "| {$outlet['outlet_name']} | RM " . number_format($outlet['revenue'], 2)
+                    . " | " . number_format($outlet['pax'])
+                    . " | RM " . number_format($outlet['avg_per_pax'], 2)
+                    . " | {$trendIcon} {$changeStr} |";
+            }
+            $sections[] = "";
+
+            // Calculate totals for all outlets
+            $totalRevenue = array_sum(array_column($context['outlets_data'], 'revenue'));
+            $totalPax = array_sum(array_column($context['outlets_data'], 'pax'));
+            $sections[] = "**Combined Total:** RM " . number_format($totalRevenue, 2) . " | " . number_format($totalPax) . " pax";
+            $sections[] = "";
+        }
 
         // P&L overview
         $sections[] = "## Profit & Loss Summary";
