@@ -33,6 +33,11 @@ class Index extends Component
     public string $respondedAt = '';
     public ?int $viewingLogId = null;
 
+    // Multi-outlet results
+    public bool $isMultiOutlet = false;
+    public array $outletResults = [];
+    public int $activeOutletTab = 0;
+
     public string $error = '';
 
     // Saved reports tab
@@ -73,6 +78,9 @@ class Index extends Component
         $this->insights = null;
         $this->context = null;
         $this->viewingLogId = null;
+        $this->isMultiOutlet = false;
+        $this->outletResults = [];
+        $this->activeOutletTab = 0;
 
         try {
             $service = app(AiAnalyticsService::class);
@@ -90,17 +98,32 @@ class Index extends Component
                 $customQ
             );
 
-            $this->responseText = $result['response'];
-            $this->insights = $result['insights'] ?? null;
-            $this->context = $result['context'] ?? null;
-            $this->cached = $result['cached'];
-            $this->tokens = $result['tokens'];
-            $this->model = $result['model'];
-            $this->respondedAt = $result['created_at'];
-            $this->viewingLogId = $result['log_id'] ?? null;
+            // Check if multi-outlet response
+            if (!empty($result['is_multi_outlet'])) {
+                $this->isMultiOutlet = true;
+                $this->outletResults = $result['outlets'] ?? [];
+                $this->cached = $result['cached'];
+                $this->tokens = $result['tokens'];
+                $this->model = $result['model'];
+                $this->respondedAt = $result['created_at'];
+            } else {
+                $this->responseText = $result['response'];
+                $this->insights = $result['insights'] ?? null;
+                $this->context = $result['context'] ?? null;
+                $this->cached = $result['cached'];
+                $this->tokens = $result['tokens'];
+                $this->model = $result['model'];
+                $this->respondedAt = $result['created_at'];
+                $this->viewingLogId = $result['log_id'] ?? null;
+            }
         } catch (\Throwable $e) {
             $this->error = $e->getMessage();
         }
+    }
+
+    public function setActiveOutletTab(int $index): void
+    {
+        $this->activeOutletTab = $index;
     }
 
     public function loadReport(int $id): void
@@ -335,6 +358,9 @@ class Index extends Component
         $this->model = '';
         $this->respondedAt = '';
         $this->viewingLogId = null;
+        $this->isMultiOutlet = false;
+        $this->outletResults = [];
+        $this->activeOutletTab = 0;
         $this->error = '';
     }
 }

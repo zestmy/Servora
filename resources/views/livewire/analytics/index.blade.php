@@ -132,6 +132,192 @@
                             </div>
                             {{ $error }}
                         </div>
+                    @elseif ($isMultiOutlet && count($outletResults) > 0)
+                        {{-- Multi-Outlet Results --}}
+                        <div class="space-y-4">
+                            {{-- Report Header --}}
+                            <div class="bg-white rounded-xl shadow-sm border border-indigo-200 overflow-hidden">
+                                <div class="px-6 py-4 bg-indigo-50/50 flex items-center justify-between flex-wrap gap-2">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-semibold text-gray-800">Multi-Outlet Analysis</h3>
+                                            <p class="text-xs text-gray-400">{{ $respondedAt }}{{ $cached ? ' (cached)' : '' }} &middot; {{ count($outletResults) }} outlets analyzed</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-gray-400">Powered by Servora AI</div>
+                                </div>
+                            </div>
+
+                            {{-- Outlet Tabs --}}
+                            <div class="flex gap-1 bg-gray-100 rounded-lg p-1 overflow-x-auto">
+                                @foreach ($outletResults as $index => $outletResult)
+                                    <button wire:click="setActiveOutletTab({{ $index }})"
+                                            class="px-4 py-2 text-sm font-medium rounded-md transition whitespace-nowrap {{ $activeOutletTab === $index ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                                        {{ $outletResult['outlet_name'] }}
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            {{-- Active Outlet Content --}}
+                            @if (isset($outletResults[$activeOutletTab]))
+                                @php
+                                    $currentOutlet = $outletResults[$activeOutletTab];
+                                    $outletInsights = $currentOutlet['insights'] ?? null;
+                                    $outletResponse = $currentOutlet['response'] ?? '';
+                                @endphp
+
+                                <div class="space-y-4">
+                                    @if ($outletInsights)
+                                        {{-- Headline & Score --}}
+                                        @if (!empty($outletInsights['headline']))
+                                            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <div class="text-xs font-medium text-indigo-200 mb-1">{{ $currentOutlet['outlet_name'] }}</div>
+                                                        <p class="text-lg font-semibold">{{ $outletInsights['headline'] }}</p>
+                                                        @if (!empty($outletInsights['performance_score']))
+                                                            @php
+                                                                $scoreColors = [
+                                                                    'excellent' => 'bg-green-400',
+                                                                    'good' => 'bg-emerald-400',
+                                                                    'average' => 'bg-yellow-400',
+                                                                    'below_average' => 'bg-orange-400',
+                                                                    'poor' => 'bg-red-400',
+                                                                ];
+                                                                $scoreLabels = [
+                                                                    'excellent' => 'Excellent',
+                                                                    'good' => 'Good',
+                                                                    'average' => 'Average',
+                                                                    'below_average' => 'Below Average',
+                                                                    'poor' => 'Needs Attention',
+                                                                ];
+                                                            @endphp
+                                                            <span class="inline-flex items-center mt-2 px-2.5 py-1 rounded-full text-xs font-medium {{ $scoreColors[$outletInsights['performance_score']] ?? 'bg-gray-400' }} text-gray-900">
+                                                                {{ $scoreLabels[$outletInsights['performance_score']] ?? ucfirst(str_replace('_', ' ', $outletInsights['performance_score'])) }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        {{-- Key Metrics --}}
+                                        @if (!empty($outletInsights['key_metrics']))
+                                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                @foreach ($outletInsights['key_metrics'] as $metric)
+                                                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                                                        <div class="text-xl font-bold text-gray-800">{{ $metric['value'] ?? '-' }}</div>
+                                                        <div class="text-xs font-medium text-gray-500 mt-1">{{ $metric['label'] ?? '' }}</div>
+                                                        @if (!empty($metric['trend']))
+                                                            <div class="mt-1 text-xs {{ $metric['trend'] === 'up' ? 'text-green-600' : ($metric['trend'] === 'down' ? 'text-red-600' : 'text-gray-400') }}">
+                                                                {{ $metric['trend'] === 'up' ? '↑' : ($metric['trend'] === 'down' ? '↓' : '→') }}
+                                                                {{ $metric['note'] ?? '' }}
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+
+                                        {{-- Highlights & Concerns --}}
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            @if (!empty($outletInsights['highlights']))
+                                                <div class="bg-green-50 rounded-xl border border-green-100 p-4">
+                                                    <div class="flex items-center gap-2 text-green-700 font-semibold text-sm mb-3">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                        Highlights
+                                                    </div>
+                                                    <ul class="space-y-2">
+                                                        @foreach ($outletInsights['highlights'] as $highlight)
+                                                            <li class="text-sm text-green-800 flex items-start gap-2">
+                                                                <span class="text-green-500 mt-0.5">•</span>
+                                                                {{ $highlight }}
+                                                            </li>
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            @endif
+
+                                            @if (!empty($outletInsights['concerns']))
+                                                <div class="bg-red-50 rounded-xl border border-red-100 p-4">
+                                                    <div class="flex items-center gap-2 text-red-700 font-semibold text-sm mb-3">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                                        Areas of Attention
+                                                    </div>
+                                                    <ul class="space-y-2">
+                                                        @foreach ($outletInsights['concerns'] as $concern)
+                                                            <li class="text-sm text-red-800 flex items-start gap-2">
+                                                                <span class="text-red-500 mt-0.5">•</span>
+                                                                {{ $concern }}
+                                                            </li>
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        {{-- Recommendations --}}
+                                        @if (!empty($outletInsights['recommendations']))
+                                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                                                <div class="flex items-center gap-2 text-indigo-700 font-semibold text-sm mb-4">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                                    Recommendations
+                                                </div>
+                                                <div class="space-y-3">
+                                                    @foreach ($outletInsights['recommendations'] as $rec)
+                                                        @php
+                                                            $isArray = is_array($rec);
+                                                            $title = $isArray ? ($rec['title'] ?? '') : $rec;
+                                                            $description = $isArray ? ($rec['description'] ?? '') : '';
+                                                            $priority = $isArray ? ($rec['priority'] ?? 'medium') : 'medium';
+                                                            $priorityColors = [
+                                                                'high' => 'bg-red-100 text-red-700',
+                                                                'medium' => 'bg-yellow-100 text-yellow-700',
+                                                                'low' => 'bg-gray-100 text-gray-600',
+                                                            ];
+                                                        @endphp
+                                                        <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                                            <span class="px-2 py-0.5 text-xs font-medium rounded {{ $priorityColors[$priority] ?? 'bg-gray-100 text-gray-600' }}">
+                                                                {{ ucfirst($priority) }}
+                                                            </span>
+                                                            <div class="flex-1">
+                                                                <div class="text-sm font-medium text-gray-800">{{ $title }}</div>
+                                                                @if ($description)
+                                                                    <div class="text-xs text-gray-500 mt-0.5">{{ $description }}</div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        {{-- Detailed Analysis --}}
+                                        @if (!empty($outletInsights['detailed_analysis']))
+                                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                                <div class="flex items-center gap-2 text-gray-700 font-semibold text-sm mb-4">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                    Detailed Analysis
+                                                </div>
+                                                <div class="prose prose-sm max-w-none prose-headings:text-gray-800 prose-p:text-gray-600">
+                                                    {!! Str::markdown($outletInsights['detailed_analysis']) !!}
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @else
+                                        {{-- Fallback: Plain markdown --}}
+                                        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                                            <div class="px-6 py-5 prose prose-sm max-w-none prose-headings:text-gray-800">
+                                                {!! Str::markdown($outletResponse) !!}
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
                     @elseif ($responseText)
                         <div class="space-y-4">
                             {{-- Report Header --}}

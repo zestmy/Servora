@@ -38,6 +38,57 @@ class AiAnalyticsService
             $weekStart = $customQuestion;
         }
 
+        // If no outlet specified, analyze each outlet separately
+        if (!$outletId) {
+            $outlets = \App\Models\Outlet::where('company_id', Auth::user()->company_id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+
+            if ($outlets->count() > 1) {
+                return $this->analyzeMultipleOutlets($apiKey, $period, $outlets, $analysisType, $customQuestion, $weekStart);
+            } elseif ($outlets->count() === 1) {
+                $outletId = $outlets->first()->id;
+            }
+        }
+
+        // Single outlet analysis
+        return $this->analyzeSingleOutlet($apiKey, $period, $outletId, $analysisType, $customQuestion, $weekStart);
+    }
+
+    private function analyzeMultipleOutlets(string $apiKey, string $period, $outlets, string $analysisType, ?string $customQuestion, ?string $weekStart): array
+    {
+        $outletResults = [];
+        $totalTokens = ['input' => 0, 'output' => 0];
+        $model = null;
+        $allCached = true;
+
+        foreach ($outlets as $outlet) {
+            $result = $this->analyzeSingleOutlet($apiKey, $period, $outlet->id, $analysisType, $customQuestion, $weekStart);
+            $result['outlet_id'] = $outlet->id;
+            $result['outlet_name'] = $outlet->name;
+            $outletResults[] = $result;
+
+            $totalTokens['input'] += $result['tokens']['input'] ?? 0;
+            $totalTokens['output'] += $result['tokens']['output'] ?? 0;
+            $model = $result['model'];
+            if (!$result['cached']) {
+                $allCached = false;
+            }
+        }
+
+        return [
+            'is_multi_outlet' => true,
+            'outlets'         => $outletResults,
+            'cached'          => $allCached,
+            'tokens'          => $totalTokens,
+            'model'           => $model,
+            'created_at'      => now()->toDateTimeString(),
+        ];
+    }
+
+    private function analyzeSingleOutlet(string $apiKey, string $period, ?int $outletId, string $analysisType, ?string $customQuestion, ?string $weekStart): array
+    {
         $context = $this->buildContext($period, $outletId, $weekStart);
         $prompt = $this->buildPrompt($context, $analysisType, $customQuestion);
         $promptHash = hash('sha256', $prompt);
