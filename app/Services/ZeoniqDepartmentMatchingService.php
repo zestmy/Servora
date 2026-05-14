@@ -23,16 +23,14 @@ class ZeoniqDepartmentMatchingService
             return [];
         }
 
-        $provider = AppSetting::get('ai_provider', 'anthropic');
-        $apiKey = $this->resolveApiKey($provider);
+        $apiKey = AppSetting::get('openrouter_api_key');
+        if (empty($apiKey)) {
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
+        }
 
         try {
             $prompt = $this->buildPrompt($zeoniqDepartments, $salesCategories);
-
-            $result = $provider === 'openrouter'
-                ? $this->callOpenRouter($apiKey, $prompt)
-                : $this->callAnthropic($apiKey, $prompt);
-
+            $result = $this->callOpenRouter($apiKey, $prompt);
             return $this->parseResponse($result['response'], $salesCategories);
         } catch (\Exception $e) {
             Log::warning('Zeoniq department matching failed', [
@@ -41,23 +39,6 @@ class ZeoniqDepartmentMatchingService
             ]);
             throw $e;
         }
-    }
-
-    private function resolveApiKey(string $provider): string
-    {
-        if ($provider === 'openrouter') {
-            $key = AppSetting::get('openrouter_api_key');
-            if (empty($key)) {
-                throw new \RuntimeException('OpenRouter API key not configured. Contact your system administrator.');
-            }
-            return $key;
-        }
-
-        $key = AppSetting::get('anthropic_api_key');
-        if (empty($key)) {
-            throw new \RuntimeException('Anthropic API key not configured. Contact your system administrator.');
-        }
-        return $key;
     }
 
     private function buildPrompt(array $zeoniqDepartments, Collection $salesCategories): string
@@ -94,41 +75,6 @@ If no reasonable match exists for a department, set suggested_category_id to nul
 
 Return ONLY the JSON array, no additional text.
 PROMPT;
-    }
-
-    private function callAnthropic(string $apiKey, string $prompt): array
-    {
-        $model = 'claude-sonnet-4-20250514';
-
-        $response = Http::timeout(30)
-            ->withHeaders([
-                'x-api-key'         => $apiKey,
-                'anthropic-version' => '2023-06-01',
-                'content-type'      => 'application/json',
-            ])
-            ->post('https://api.anthropic.com/v1/messages', [
-                'model'      => $model,
-                'max_tokens' => 2048,
-                'system'     => 'You are an expert at matching point-of-sale department names to standardized sales categories for restaurant accounting systems. Analyze department names and suggest the most appropriate category match with confidence levels.',
-                'messages'   => [
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-            ]);
-
-        if ($response->failed()) {
-            Log::error('Anthropic API error (department matching)', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-            throw new \RuntimeException('AI department matching failed (HTTP ' . $response->status() . '). Please try again or map manually.');
-        }
-
-        $data = $response->json();
-
-        return [
-            'response' => $data['content'][0]['text'] ?? '',
-            'model'    => $model,
-        ];
     }
 
     private function callOpenRouter(string $apiKey, string $prompt): array

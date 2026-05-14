@@ -25,6 +25,8 @@ class Index extends Component
     public string $weekStart = '';
 
     public string $responseText = '';
+    public ?array $insights = null;
+    public ?array $context = null;
     public bool $cached = false;
     public ?array $tokens = null;
     public string $model = '';
@@ -68,6 +70,8 @@ class Index extends Component
     {
         $this->error = '';
         $this->responseText = '';
+        $this->insights = null;
+        $this->context = null;
         $this->viewingLogId = null;
 
         try {
@@ -87,6 +91,8 @@ class Index extends Component
             );
 
             $this->responseText = $result['response'];
+            $this->insights = $result['insights'] ?? null;
+            $this->context = $result['context'] ?? null;
             $this->cached = $result['cached'];
             $this->tokens = $result['tokens'];
             $this->model = $result['model'];
@@ -102,6 +108,8 @@ class Index extends Component
         $log = AiAnalysisLog::findOrFail($id);
 
         $this->responseText = $log->response_text;
+        $this->insights = $this->parseInsightsFromText($log->response_text);
+        $this->context = null; // Context not stored in log, will regenerate if needed
         $this->cached = true;
         $this->tokens = ['input' => $log->input_tokens, 'output' => $log->output_tokens];
         $this->model = $log->model_used;
@@ -112,6 +120,24 @@ class Index extends Component
         $this->analysisType = $log->analysis_type;
         $this->error = '';
         $this->activeTab = 'generate';
+    }
+
+    private function parseInsightsFromText(string $content): ?array
+    {
+        $content = trim($content);
+
+        if (preg_match('/```(?:json)?\s*([\s\S]*?)\s*```/', $content, $matches)) {
+            $content = $matches[1];
+        }
+
+        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
+            $parsed = json_decode($matches[0], true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $parsed;
+            }
+        }
+
+        return null;
     }
 
     public function deleteReport(int $id): void
@@ -158,10 +184,7 @@ class Index extends Component
     public function render()
     {
         $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
-        $aiProvider = AppSetting::get('ai_provider', 'anthropic');
-        $hasApiKey = $aiProvider === 'openrouter'
-            ? ! empty(AppSetting::get('openrouter_api_key'))
-            : ! empty(AppSetting::get('anthropic_api_key'));
+        $hasApiKey = !empty(AppSetting::get('openrouter_api_key'));
 
         $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
 
@@ -186,6 +209,8 @@ class Index extends Component
     private function resetResponse(): void
     {
         $this->responseText = '';
+        $this->insights = null;
+        $this->context = null;
         $this->cached = false;
         $this->tokens = null;
         $this->model = '';

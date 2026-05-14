@@ -24,8 +24,10 @@ class AiAnalyticsService
 
     public function analyze(string $period, ?int $outletId, string $analysisType = 'monthly_review', ?string $customQuestion = null): array
     {
-        $provider = AppSetting::get('ai_provider', 'anthropic');
-        $apiKey = $this->resolveApiKey($provider);
+        $apiKey = AppSetting::get('openrouter_api_key');
+        if (empty($apiKey)) {
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
+        }
 
         $context = $this->buildContext($period, $outletId);
         $prompt = $this->buildPrompt($context, $analysisType, $customQuestion);
@@ -39,17 +41,17 @@ class AiAnalyticsService
         if ($cached) {
             return [
                 'response'   => $cached->response_text,
+                'insights'   => $this->parseInsights($cached->response_text),
                 'cached'     => true,
                 'tokens'     => ['input' => $cached->input_tokens, 'output' => $cached->output_tokens],
                 'model'      => $cached->model_used,
                 'created_at' => $cached->created_at->toDateTimeString(),
                 'log_id'     => $cached->id,
+                'context'    => $context,
             ];
         }
 
-        $result = $provider === 'openrouter'
-            ? $this->callOpenRouter($apiKey, $context, $prompt)
-            : $this->callAnthropic($apiKey, $context, $prompt);
+        $result = $this->callOpenRouter($apiKey, $context, $prompt);
 
         // Store in log
         $log = AiAnalysisLog::create([
@@ -68,69 +70,13 @@ class AiAnalyticsService
 
         return [
             'response'   => $result['response'],
+            'insights'   => $this->parseInsights($result['response']),
             'cached'     => false,
             'tokens'     => $result['tokens'],
             'model'      => $result['model'],
             'log_id'     => $log->id,
             'created_at' => now()->toDateTimeString(),
-        ];
-    }
-
-    private function resolveApiKey(string $provider): string
-    {
-        if ($provider === 'openrouter') {
-            $key = AppSetting::get('openrouter_api_key');
-            if (empty($key)) {
-                throw new \RuntimeException('OpenRouter API key not configured. Contact your system administrator.');
-            }
-            return $key;
-        }
-
-        $key = AppSetting::get('anthropic_api_key');
-        if (empty($key)) {
-            throw new \RuntimeException('Anthropic API key not configured. Contact your system administrator.');
-        }
-        return $key;
-    }
-
-    private function callAnthropic(string $apiKey, array $context, string $prompt): array
-    {
-        $model = 'claude-sonnet-4-20250514';
-
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
-
-        $response = Http::timeout(90)
-            ->withHeaders([
-                'x-api-key'         => $apiKey,
-                'anthropic-version' => '2023-06-01',
-                'content-type'      => 'application/json',
-            ])
-            ->post('https://api.anthropic.com/v1/messages', [
-                'model'      => $model,
-                'max_tokens' => 4096,
-                'system'     => $this->systemPrompt($context),
-                'messages'   => [
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-            ]);
-
-        if ($response->failed()) {
-            Log::error('Anthropic API error', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \RuntimeException('AI analysis failed (HTTP ' . $response->status() . '). Please check your API key and try again.');
-        }
-
-        $data = $response->json();
-
-        set_time_limit((int) $previousTimeout ?: 60);
-
-        return [
-            'response' => $data['content'][0]['text'] ?? '',
-            'tokens'   => [
-                'input'  => $data['usage']['input_tokens'] ?? null,
-                'output' => $data['usage']['output_tokens'] ?? null,
-            ],
-            'model' => $model,
+            'context'    => $context,
         ];
     }
 
@@ -161,7 +107,7 @@ class AiAnalyticsService
             Log::error('OpenRouter API error', ['status' => $response->status(), 'body' => $response->body()]);
             $body = $response->json();
             $msg = $body['error']['message'] ?? ('HTTP ' . $response->status());
-            throw new \RuntimeException('AI analysis failed via OpenRouter: ' . $msg);
+            throw new \RuntimeException('AI analysis failed: ' . $msg);
         }
 
         $data = $response->json();
@@ -177,6 +123,31 @@ class AiAnalyticsService
             ],
             'model' => $actualModel,
         ];
+    }
+
+    /**
+     * Parse AI response to extract structured insights.
+     */
+    private function parseInsights(string $content): ?array
+    {
+        $content = trim($content);
+
+        // Try to extract JSON from markdown code blocks
+        if (preg_match('/```(?:json)?\s*([\s\S]*?)\s*```/', $content, $matches)) {
+            $content = $matches[1];
+        }
+
+        // Try to find JSON object
+        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
+            $json = $matches[0];
+            $parsed = json_decode($json, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $parsed;
+            }
+        }
+
+        // If JSON parsing fails, return null (will fall back to markdown rendering)
+        return null;
     }
 
     public function buildContext(string $period, ?int $outletId): array
@@ -293,8 +264,21 @@ class AiAnalyticsService
         return "You are an expert Food & Beverage operations analyst for \"{$context['company_name']}\" — outlet: \"{$context['outlet_name']}\". "
             . "You analyze operational data and provide actionable insights to help maximize revenue and profit. "
             . "Be specific with numbers, percentages, and comparisons. Identify patterns and correlations with calendar events. "
-            . "Format your response with clear markdown headers (##). Use tables where helpful. "
-            . "Keep language professional but concise. Focus on what's actionable.";
+            . "Format your response as JSON with the following structure:\n"
+            . "{\n"
+            . "  \"headline\": \"Brief one-line summary of overall performance (max 100 chars)\",\n"
+            . "  \"performance_score\": \"excellent|good|average|below_average|poor\",\n"
+            . "  \"key_metrics\": [\n"
+            . "    {\"label\": \"Metric name\", \"value\": \"RM X,XXX or X%\", \"trend\": \"up|down|flat\", \"note\": \"Brief context\"}\n"
+            . "  ],\n"
+            . "  \"highlights\": [\"Positive insight 1\", \"Positive insight 2\"],\n"
+            . "  \"concerns\": [\"Area needing attention 1\", \"Area needing attention 2\"],\n"
+            . "  \"recommendations\": [\n"
+            . "    {\"title\": \"Action title\", \"description\": \"What to do and expected impact\", \"priority\": \"high|medium|low\"}\n"
+            . "  ],\n"
+            . "  \"detailed_analysis\": \"Markdown-formatted detailed analysis with ## headers for sections\"\n"
+            . "}\n"
+            . "Keep insights brief and actionable. Use Malaysian Ringgit (RM) for currency.";
     }
 
     public function buildPrompt(array $context, string $analysisType, ?string $customQuestion): string
