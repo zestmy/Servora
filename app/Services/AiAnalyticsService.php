@@ -29,7 +29,13 @@ class AiAnalyticsService
             throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
         }
 
-        $context = $this->buildContext($period, $outletId);
+        // For weekly review, pass the week start date to buildContext
+        $weekStart = null;
+        if ($analysisType === 'weekly_review' && $customQuestion) {
+            $weekStart = $customQuestion;
+        }
+
+        $context = $this->buildContext($period, $outletId, $weekStart);
         $prompt = $this->buildPrompt($context, $analysisType, $customQuestion);
         $promptHash = hash('sha256', $prompt);
 
@@ -150,7 +156,7 @@ class AiAnalyticsService
         return null;
     }
 
-    public function buildContext(string $period, ?int $outletId): array
+    public function buildContext(string $period, ?int $outletId, ?string $weekStart = null): array
     {
         $date = Carbon::createFromFormat('!Y-m', $period);
         $startOfMonth = $date->copy()->startOfMonth();
@@ -170,8 +176,9 @@ class AiAnalyticsService
         // P&L from existing service
         $costSummary = $this->costService->generate($period, $outletId);
 
-        // Previous month for comparison
+        // Previous month for comparison - store label for clarity
         $prevPeriod = $date->copy()->subMonth()->format('Y-m');
+        $prevPeriodLabel = $date->copy()->subMonth()->format('F Y');
         $prevSummary = $this->costService->generate($prevPeriod, $outletId);
 
         // Daily sales breakdown
@@ -287,6 +294,85 @@ class AiAnalyticsService
             }
         }
 
+        // Week-specific data for weekly review
+        $weekData = null;
+        if ($weekStart) {
+            $weekStartDate = Carbon::parse($weekStart);
+            $weekEndDate = $weekStartDate->copy()->addDays(6);
+            $prevWeekStart = $weekStartDate->copy()->subWeek();
+            $prevWeekEnd = $prevWeekStart->copy()->addDays(6);
+
+            // Filter daily sales to just this week
+            $weekSales = array_filter($dailySales, function ($day) use ($weekStartDate, $weekEndDate) {
+                $d = Carbon::parse($day['date']);
+                return $d->gte($weekStartDate) && $d->lte($weekEndDate);
+            });
+            $weekSales = array_values($weekSales);
+
+            // Calculate week totals
+            $weekRevenue = array_sum(array_column($weekSales, 'revenue'));
+            $weekPax = array_sum(array_column($weekSales, 'pax'));
+
+            // Previous week data for comparison
+            $prevWeekQuery = SalesRecord::whereBetween('sale_date', [$prevWeekStart, $prevWeekEnd]);
+            if ($outletId) {
+                $prevWeekQuery->where('outlet_id', $outletId);
+            }
+            $prevWeekRevenue = round((float) $prevWeekQuery->sum('total_revenue'), 2);
+            $prevWeekPax = (int) $prevWeekQuery->sum('pax');
+
+            $weekChange = $prevWeekRevenue > 0
+                ? round(($weekRevenue - $prevWeekRevenue) / $prevWeekRevenue * 100, 1)
+                : 0;
+
+            // Per-outlet breakdown for this week (if multi-outlet)
+            $weekOutletsData = [];
+            if ($isMultiOutlet) {
+                foreach ($outlets as $o) {
+                    $oWeekRev = SalesRecord::where('outlet_id', $o->id)
+                        ->whereBetween('sale_date', [$weekStartDate, $weekEndDate])
+                        ->sum('total_revenue');
+                    $oWeekPax = SalesRecord::where('outlet_id', $o->id)
+                        ->whereBetween('sale_date', [$weekStartDate, $weekEndDate])
+                        ->sum('pax');
+                    $oPrevWeekRev = SalesRecord::where('outlet_id', $o->id)
+                        ->whereBetween('sale_date', [$prevWeekStart, $prevWeekEnd])
+                        ->sum('total_revenue');
+
+                    $oChange = $oPrevWeekRev > 0
+                        ? round(($oWeekRev - $oPrevWeekRev) / $oPrevWeekRev * 100, 1)
+                        : 0;
+
+                    $weekOutletsData[] = [
+                        'outlet_name' => $o->name,
+                        'revenue'     => round((float) $oWeekRev, 2),
+                        'pax'         => (int) $oWeekPax,
+                        'prev_revenue' => round((float) $oPrevWeekRev, 2),
+                        'change_percent' => $oChange,
+                        'trend'       => $oChange > 0 ? 'up' : ($oChange < 0 ? 'down' : 'flat'),
+                    ];
+                }
+                usort($weekOutletsData, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
+            }
+
+            $weekData = [
+                'week_start'       => $weekStartDate->format('Y-m-d'),
+                'week_end'         => $weekEndDate->format('Y-m-d'),
+                'week_label'       => $weekStartDate->format('M j') . ' - ' . $weekEndDate->format('M j, Y'),
+                'prev_week_start'  => $prevWeekStart->format('Y-m-d'),
+                'prev_week_end'    => $prevWeekEnd->format('Y-m-d'),
+                'prev_week_label'  => $prevWeekStart->format('M j') . ' - ' . $prevWeekEnd->format('M j, Y'),
+                'daily_sales'      => $weekSales,
+                'revenue'          => round($weekRevenue, 2),
+                'pax'              => $weekPax,
+                'avg_per_pax'      => $weekPax > 0 ? round($weekRevenue / $weekPax, 2) : 0,
+                'prev_revenue'     => $prevWeekRevenue,
+                'prev_pax'         => $prevWeekPax,
+                'change_percent'   => $weekChange,
+                'outlets_data'     => $weekOutletsData,
+            ];
+        }
+
         return [
             'company_name'       => $company->name ?? 'Unknown',
             'outlet_name'        => $outlet?->name ?? 'All Outlets',
@@ -294,9 +380,11 @@ class AiAnalyticsService
             'outlets_data'       => $outletsData,
             'period'             => $period,
             'period_label'       => $date->format('F Y'),
+            'prev_period_label'  => $prevPeriodLabel,
             'cost_summary'       => $costSummary,
             'prev_summary'       => $prevSummary,
             'daily_sales'        => $dailySales,
+            'week_data'          => $weekData,
             'events'             => $events,
             'total_wastage'      => $totalWastage,
             'wastage_detail'     => $costSummary['wastage_detail'] ?? ['groups' => [], 'total' => 0],
@@ -348,50 +436,103 @@ class AiAnalyticsService
     public function buildPrompt(array $context, string $analysisType, ?string $customQuestion): string
     {
         $sections = [];
+        $prevPeriodLabel = $context['prev_period_label'] ?? 'Previous Month';
 
         // Revenue summary
         $totals = $context['cost_summary']['totals'];
         $prevTotals = $context['prev_summary']['totals'];
 
-        $sections[] = "## Period: {$context['period_label']}\n";
+        // For weekly review, show week-specific data first
+        if ($analysisType === 'weekly_review' && !empty($context['week_data'])) {
+            $week = $context['week_data'];
+            $sections[] = "## Weekly Review: {$week['week_label']}";
+            $sections[] = "**Analyzing:** {$context['outlet_name']}\n";
 
-        // Per-outlet breakdown when viewing all outlets
-        if (!empty($context['is_multi_outlet']) && !empty($context['outlets_data'])) {
-            $sections[] = "## Performance by Outlet";
-            $sections[] = "| Outlet | Revenue | Pax | Avg/Pax | vs Prev Period |";
-            $sections[] = "|--------|---------|-----|---------|----------------|";
-            foreach ($context['outlets_data'] as $outlet) {
-                $trendIcon = $outlet['trend'] === 'up' ? '↑' : ($outlet['trend'] === 'down' ? '↓' : '→');
-                $changeStr = ($outlet['change_percent'] >= 0 ? '+' : '') . $outlet['change_percent'] . '%';
-                $sections[] = "| {$outlet['outlet_name']} | RM " . number_format($outlet['revenue'], 2)
-                    . " | " . number_format($outlet['pax'])
-                    . " | RM " . number_format($outlet['avg_per_pax'], 2)
-                    . " | {$trendIcon} {$changeStr} |";
-            }
+            // Week summary
+            $sections[] = "## This Week's Performance";
+            $weekTrend = $week['change_percent'] >= 0 ? '↑' : '↓';
+            $weekChangeStr = ($week['change_percent'] >= 0 ? '+' : '') . $week['change_percent'] . '%';
+            $sections[] = "| Metric | This Week | Previous Week ({$week['prev_week_label']}) | Change |";
+            $sections[] = "|--------|-----------|----------------------------------------|--------|";
+            $sections[] = "| Revenue | RM " . number_format($week['revenue'], 2) . " | RM " . number_format($week['prev_revenue'], 2) . " | {$weekTrend} {$weekChangeStr} |";
+            $sections[] = "| Pax | " . number_format($week['pax']) . " | " . number_format($week['prev_pax']) . " | |";
+            $sections[] = "| Avg/Pax | RM " . number_format($week['avg_per_pax'], 2) . " | | |";
             $sections[] = "";
 
-            // Calculate totals for all outlets
-            $totalRevenue = array_sum(array_column($context['outlets_data'], 'revenue'));
-            $totalPax = array_sum(array_column($context['outlets_data'], 'pax'));
-            $sections[] = "**Combined Total:** RM " . number_format($totalRevenue, 2) . " | " . number_format($totalPax) . " pax";
+            // Per-outlet breakdown for this week (if multi-outlet)
+            if (!empty($context['is_multi_outlet']) && !empty($week['outlets_data'])) {
+                $sections[] = "## Performance by Outlet (This Week)";
+                $sections[] = "| Outlet | Revenue | Pax | vs Previous Week |";
+                $sections[] = "|--------|---------|-----|------------------|";
+                foreach ($week['outlets_data'] as $outlet) {
+                    $trendIcon = $outlet['trend'] === 'up' ? '↑' : ($outlet['trend'] === 'down' ? '↓' : '→');
+                    $changeStr = ($outlet['change_percent'] >= 0 ? '+' : '') . $outlet['change_percent'] . '%';
+                    $sections[] = "| {$outlet['outlet_name']} | RM " . number_format($outlet['revenue'], 2)
+                        . " | " . number_format($outlet['pax'])
+                        . " | {$trendIcon} {$changeStr} |";
+                }
+                $sections[] = "";
+            }
+
+            // Daily breakdown for this week only
+            if (!empty($week['daily_sales'])) {
+                $sections[] = "## Daily Sales (This Week)";
+                $sections[] = "| Date | Day | Revenue | Pax | Avg/Pax |";
+                $sections[] = "|------|-----|---------|-----|---------|";
+                foreach ($week['daily_sales'] as $day) {
+                    $sections[] = "| {$day['date']} | {$day['day']} | RM " . number_format($day['revenue'], 2) . " | {$day['pax']} | RM " . number_format($day['avg'], 2) . " |";
+                }
+                $sections[] = "";
+            }
+
+            // Brief monthly context
+            $sections[] = "## Monthly Context ({$context['period_label']})";
+            $sections[] = "- Month-to-date Revenue: RM " . number_format($totals['revenue'], 2);
+            $sections[] = "- Month-to-date Cost %: {$totals['cost_pct']}%";
+            $sections[] = "";
+
+        } else {
+            // Monthly view - existing logic with explicit period labels
+            $sections[] = "## Period: {$context['period_label']}\n";
+
+            // Per-outlet breakdown when viewing all outlets
+            if (!empty($context['is_multi_outlet']) && !empty($context['outlets_data'])) {
+                $sections[] = "## Performance by Outlet (vs {$prevPeriodLabel})";
+                $sections[] = "| Outlet | Revenue | Pax | Avg/Pax | vs {$prevPeriodLabel} |";
+                $sections[] = "|--------|---------|-----|---------|" . str_repeat('-', strlen($prevPeriodLabel) + 4) . "|";
+                foreach ($context['outlets_data'] as $outlet) {
+                    $trendIcon = $outlet['trend'] === 'up' ? '↑' : ($outlet['trend'] === 'down' ? '↓' : '→');
+                    $changeStr = ($outlet['change_percent'] >= 0 ? '+' : '') . $outlet['change_percent'] . '%';
+                    $sections[] = "| {$outlet['outlet_name']} | RM " . number_format($outlet['revenue'], 2)
+                        . " | " . number_format($outlet['pax'])
+                        . " | RM " . number_format($outlet['avg_per_pax'], 2)
+                        . " | {$trendIcon} {$changeStr} |";
+                }
+                $sections[] = "";
+
+                // Calculate totals for all outlets
+                $totalRevenue = array_sum(array_column($context['outlets_data'], 'revenue'));
+                $totalPax = array_sum(array_column($context['outlets_data'], 'pax'));
+                $sections[] = "**Combined Total:** RM " . number_format($totalRevenue, 2) . " | " . number_format($totalPax) . " pax";
+                $sections[] = "";
+            }
+
+            // P&L overview with explicit period labels
+            $sections[] = "## Profit & Loss Summary";
+            $sections[] = "| Metric | {$context['period_label']} | {$prevPeriodLabel} | Change |";
+            $sections[] = "|--------|" . str_repeat('-', strlen($context['period_label']) + 2) . "|" . str_repeat('-', strlen($prevPeriodLabel) + 2) . "|--------|";
+
+            $revChange = $prevTotals['revenue'] > 0 ? round(($totals['revenue'] - $prevTotals['revenue']) / $prevTotals['revenue'] * 100, 1) : 0;
+            $sections[] = "| Revenue | RM " . number_format($totals['revenue'], 2) . " | RM " . number_format($prevTotals['revenue'], 2) . " | {$revChange}% |";
+
+            $cogsChange = $prevTotals['cogs'] > 0 ? round(($totals['cogs'] - $prevTotals['cogs']) / $prevTotals['cogs'] * 100, 1) : 0;
+            $sections[] = "| COGS | RM " . number_format($totals['cogs'], 2) . " | RM " . number_format($prevTotals['cogs'], 2) . " | {$cogsChange}% |";
+            $sections[] = "| Cost % | {$totals['cost_pct']}% | {$prevTotals['cost_pct']}% | " . round($totals['cost_pct'] - $prevTotals['cost_pct'], 1) . "pp |";
+            $sections[] = "| Purchases | RM " . number_format($totals['purchases'], 2) . " | RM " . number_format($prevTotals['purchases'], 2) . " | |";
+            $sections[] = "| Wastage | RM " . number_format($context['total_wastage'], 2) . " | | |";
+            $sections[] = "| Staff Meals | RM " . number_format($context['staff_meals_total'], 2) . " | | |";
             $sections[] = "";
         }
-
-        // P&L overview
-        $sections[] = "## Profit & Loss Summary";
-        $sections[] = "| Metric | This Month | Previous Month | Change |";
-        $sections[] = "|--------|-----------|---------------|--------|";
-
-        $revChange = $prevTotals['revenue'] > 0 ? round(($totals['revenue'] - $prevTotals['revenue']) / $prevTotals['revenue'] * 100, 1) : 0;
-        $sections[] = "| Revenue | RM " . number_format($totals['revenue'], 2) . " | RM " . number_format($prevTotals['revenue'], 2) . " | {$revChange}% |";
-
-        $cogsChange = $prevTotals['cogs'] > 0 ? round(($totals['cogs'] - $prevTotals['cogs']) / $prevTotals['cogs'] * 100, 1) : 0;
-        $sections[] = "| COGS | RM " . number_format($totals['cogs'], 2) . " | RM " . number_format($prevTotals['cogs'], 2) . " | {$cogsChange}% |";
-        $sections[] = "| Cost % | {$totals['cost_pct']}% | {$prevTotals['cost_pct']}% | " . round($totals['cost_pct'] - $prevTotals['cost_pct'], 1) . "pp |";
-        $sections[] = "| Purchases | RM " . number_format($totals['purchases'], 2) . " | RM " . number_format($prevTotals['purchases'], 2) . " | |";
-        $sections[] = "| Wastage | RM " . number_format($context['total_wastage'], 2) . " | | |";
-        $sections[] = "| Staff Meals | RM " . number_format($context['staff_meals_total'], 2) . " | | |";
-        $sections[] = "";
 
         // Category breakdown with full details
         if (!empty($context['cost_summary']['categories'])) {
@@ -575,15 +716,21 @@ class AiAnalyticsService
                 break;
 
             case 'weekly_review':
-                $weekDate = $customQuestion ?? now()->startOfWeek()->format('Y-m-d');
-                $weekEnd = Carbon::parse($weekDate)->addDays(6)->format('Y-m-d');
-                $sections[] = "Focus ONLY on the week of **{$weekDate} to {$weekEnd}** from the daily sales data above. Provide a concise weekly operations review:\n"
-                    . "1. **Weekly Summary** — total revenue, total pax, and average check for this specific week\n"
-                    . "2. **Day-by-Day Breakdown** — highlight the best and worst performing days and explain why\n"
-                    . "3. **Comparison** — compare this week's daily averages to the overall monthly averages shown above\n"
-                    . "4. **Cost & Wastage** — summarize cost position and any wastage items that occurred this week\n"
-                    . "5. **Event Impact** — did any calendar events fall within or near this week? How did they affect performance?\n"
-                    . "6. **Immediate Actions** — 2-3 quick wins or adjustments for the upcoming week based on what you see";
+                $weekLabel = $context['week_data']['week_label'] ?? 'Selected Week';
+                $prevWeekLabel = $context['week_data']['prev_week_label'] ?? 'Previous Week';
+                $isMultiOutlet = !empty($context['is_multi_outlet']);
+
+                $sections[] = "Provide a focused weekly operations review for **{$weekLabel}**. "
+                    . "All comparisons should be vs the previous week (**{$prevWeekLabel}**).\n\n"
+                    . "1. **Weekly Summary** — state the total revenue, pax, and average check for this week, with % change vs previous week ({$prevWeekLabel})\n"
+                    . ($isMultiOutlet
+                        ? "2. **Outlet Performance** — rank outlets by revenue, highlight best/worst performers vs previous week\n"
+                        : "")
+                    . (($isMultiOutlet ? "3" : "2") . ". **Day-by-Day Analysis** — identify the best and worst performing days, explain any patterns\n")
+                    . (($isMultiOutlet ? "4" : "3") . ". **Week-over-Week Trend** — is this week up or down vs previous week? What's driving the change?\n")
+                    . (($isMultiOutlet ? "5" : "4") . ". **Immediate Actions** — 2-3 specific quick wins for the upcoming week\n\n")
+                    . "IMPORTANT: When showing trends like 'Down X%', always specify the comparison period explicitly "
+                    . "(e.g., 'Down 15% vs {$prevWeekLabel}').";
                 break;
 
             case 'trend_analysis':

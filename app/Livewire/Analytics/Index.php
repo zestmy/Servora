@@ -163,7 +163,10 @@ class Index extends Component
         $outletName = $outlet?->name ?? 'All Outlets';
         $analysisType = $this->analysisType;
         $model = $this->model;
-        $htmlContent = Str::markdown($this->responseText);
+
+        // Build HTML content from structured insights or fall back to markdown
+        $insights = $this->insights ?? $this->parseInsightsFromText($this->responseText);
+        $htmlContent = $this->buildPdfContent($insights, $this->responseText);
 
         $pdf = Pdf::loadView('pdf.ai-analysis', compact(
             'company', 'outletName', 'periodLabel', 'analysisType', 'model', 'htmlContent'
@@ -173,6 +176,122 @@ class Index extends Component
         $filename = "ai-analysis-{$typeSlug}-{$this->period}.pdf";
 
         return response()->streamDownload(fn () => print($pdf->output()), $filename);
+    }
+
+    private function buildPdfContent(?array $insights, string $rawText): string
+    {
+        if (!$insights) {
+            // Fall back to plain markdown
+            return Str::markdown($rawText);
+        }
+
+        $html = '';
+
+        // Headline
+        if (!empty($insights['headline'])) {
+            $scoreLabel = '';
+            if (!empty($insights['performance_score'])) {
+                $labels = [
+                    'excellent' => '🟢 Excellent',
+                    'good' => '🟢 Good',
+                    'average' => '🟡 Average',
+                    'below_average' => '🟠 Below Average',
+                    'poor' => '🔴 Needs Attention',
+                ];
+                $scoreLabel = $labels[$insights['performance_score']] ?? ucfirst(str_replace('_', ' ', $insights['performance_score']));
+            }
+            $html .= "<h2 style=\"color: #4f46e5; margin-bottom: 5px;\">{$insights['headline']}</h2>";
+            if ($scoreLabel) {
+                $html .= "<p style=\"font-size: 12px; color: #666; margin-top: 0;\">Performance: {$scoreLabel}</p>";
+            }
+            $html .= "<hr style=\"border: none; border-top: 1px solid #ddd; margin: 15px 0;\">";
+        }
+
+        // Key Metrics
+        if (!empty($insights['key_metrics'])) {
+            $html .= "<h3>Key Metrics</h3>";
+            $html .= "<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 15px;\">";
+            $html .= "<tr style=\"background: #f5f5f5;\">";
+            foreach ($insights['key_metrics'] as $metric) {
+                $trend = $metric['trend'] ?? 'flat';
+                $trendIcon = $trend === 'up' ? '↑' : ($trend === 'down' ? '↓' : '→');
+                $trendColor = $trend === 'up' ? '#16a34a' : ($trend === 'down' ? '#dc2626' : '#666');
+                $html .= "<td style=\"padding: 10px; text-align: center; border: 1px solid #ddd;\">";
+                $html .= "<div style=\"font-size: 16px; font-weight: bold;\">{$metric['value']}</div>";
+                $html .= "<div style=\"font-size: 10px; color: #666;\">{$metric['label']}</div>";
+                if (!empty($metric['note'])) {
+                    $html .= "<div style=\"font-size: 9px; color: {$trendColor};\">{$trendIcon} {$metric['note']}</div>";
+                }
+                $html .= "</td>";
+            }
+            $html .= "</tr></table>";
+        }
+
+        // Outlets Summary (for multi-outlet)
+        if (!empty($insights['outlets_summary'])) {
+            $html .= "<h3>Performance by Outlet</h3>";
+            $html .= "<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 15px;\">";
+            $html .= "<tr style=\"background: #333; color: white;\"><th style=\"padding: 6px; text-align: left;\">Outlet</th><th style=\"padding: 6px; text-align: right;\">Revenue</th><th style=\"padding: 6px; text-align: center;\">Trend</th><th style=\"padding: 6px; text-align: left;\">Note</th></tr>";
+            foreach ($insights['outlets_summary'] as $outlet) {
+                $trend = $outlet['trend'] ?? 'flat';
+                $trendIcon = $trend === 'up' ? '↑' : ($trend === 'down' ? '↓' : '→');
+                $trendColor = $trend === 'up' ? '#16a34a' : ($trend === 'down' ? '#dc2626' : '#666');
+                $html .= "<tr style=\"border-bottom: 1px solid #ddd;\">";
+                $html .= "<td style=\"padding: 6px;\">{$outlet['name']}</td>";
+                $html .= "<td style=\"padding: 6px; text-align: right;\">{$outlet['revenue']}</td>";
+                $html .= "<td style=\"padding: 6px; text-align: center; color: {$trendColor};\">{$trendIcon}</td>";
+                $html .= "<td style=\"padding: 6px; font-size: 10px; color: #666;\">" . ($outlet['note'] ?? '') . "</td>";
+                $html .= "</tr>";
+            }
+            $html .= "</table>";
+        }
+
+        // Highlights
+        if (!empty($insights['highlights'])) {
+            $html .= "<h3 style=\"color: #16a34a;\">✓ Highlights</h3><ul>";
+            foreach ($insights['highlights'] as $highlight) {
+                $html .= "<li>{$highlight}</li>";
+            }
+            $html .= "</ul>";
+        }
+
+        // Concerns
+        if (!empty($insights['concerns'])) {
+            $html .= "<h3 style=\"color: #dc2626;\">⚠ Areas of Attention</h3><ul>";
+            foreach ($insights['concerns'] as $concern) {
+                $html .= "<li>{$concern}</li>";
+            }
+            $html .= "</ul>";
+        }
+
+        // Recommendations
+        if (!empty($insights['recommendations'])) {
+            $html .= "<h3 style=\"color: #4f46e5;\">💡 Recommendations</h3>";
+            foreach ($insights['recommendations'] as $rec) {
+                $isArray = is_array($rec);
+                $title = $isArray ? ($rec['title'] ?? '') : $rec;
+                $description = $isArray ? ($rec['description'] ?? '') : '';
+                $priority = $isArray ? ($rec['priority'] ?? 'medium') : 'medium';
+                $priorityColors = ['high' => '#dc2626', 'medium' => '#d97706', 'low' => '#6b7280'];
+                $color = $priorityColors[$priority] ?? '#6b7280';
+
+                $html .= "<div style=\"margin-bottom: 10px; padding: 8px; background: #f9fafb; border-left: 3px solid {$color};\">";
+                $html .= "<div style=\"font-weight: bold;\">[" . ucfirst($priority) . "] {$title}</div>";
+                if ($description) {
+                    $html .= "<div style=\"font-size: 11px; color: #666; margin-top: 3px;\">{$description}</div>";
+                }
+                $html .= "</div>";
+            }
+        }
+
+        // Detailed Analysis
+        if (!empty($insights['detailed_analysis'])) {
+            $html .= "<hr style=\"border: none; border-top: 1px solid #ddd; margin: 20px 0;\">";
+            $html .= "<h3>Detailed Analysis</h3>";
+            $html .= Str::markdown($insights['detailed_analysis']);
+        }
+
+        return $html;
     }
 
     public function switchTab(string $tab): void
