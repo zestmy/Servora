@@ -530,9 +530,15 @@ class AiAnalyticsService
     private function systemPrompt(array $context): string
     {
         $isMultiOutlet = !empty($context['is_multi_outlet']);
-        $outletInstruction = $isMultiOutlet
-            ? "You are analyzing ALL outlets combined. Include per-outlet comparisons and identify best/worst performers. "
-            : "";
+
+        if ($isMultiOutlet) {
+            $outletNames = collect($context['outlets_data'] ?? [])->pluck('outlet_name')->implode(', ');
+            $outletInstruction = "You are analyzing MULTIPLE outlets: {$outletNames}. "
+                . "CRITICAL: You MUST provide a SEPARATE detailed analysis section for EACH outlet. "
+                . "Do NOT merge outlets into one general review. Each outlet needs its own performance review. ";
+        } else {
+            $outletInstruction = "";
+        }
 
         return "You are an expert Food & Beverage operations analyst for \"{$context['company_name']}\" — {$context['outlet_name']}. "
             . $outletInstruction
@@ -547,7 +553,7 @@ class AiAnalyticsService
             . "  ],\n"
             . ($isMultiOutlet
                 ? "  \"outlets_summary\": [\n"
-                . "    {\"name\": \"Outlet name\", \"revenue\": \"RM X,XXX\", \"trend\": \"up|down|flat\", \"note\": \"Brief performance note\"}\n"
+                . "    {\"name\": \"Outlet name\", \"revenue\": \"RM X,XXX\", \"pax\": \"X,XXX\", \"avg_check\": \"RM XX\", \"trend\": \"up|down|flat\", \"change_pct\": \"+X%\", \"note\": \"Performance highlights and concerns for this outlet\"}\n"
                 . "  ],\n"
                 : "")
             . "  \"highlights\": [\"Positive insight 1\", \"Positive insight 2\"],\n"
@@ -555,8 +561,10 @@ class AiAnalyticsService
             . "  \"recommendations\": [\n"
             . "    {\"title\": \"Action title\", \"description\": \"What to do and expected impact\", \"priority\": \"high|medium|low\"}\n"
             . "  ],\n"
-            . "  \"detailed_analysis\": \"Markdown-formatted detailed analysis with ## headers for sections"
-            . ($isMultiOutlet ? ". Include a section for each outlet's performance." : "") . "\"\n"
+            . "  \"detailed_analysis\": \"Markdown-formatted detailed analysis"
+            . ($isMultiOutlet
+                ? ". MUST include a dedicated '## [Outlet Name] Analysis' section for EACH outlet with their individual revenue, pax, cost %, best/worst days, and specific recommendations. End with a '## Cross-Outlet Comparison' section."
+                : " with ## headers for sections") . "\"\n"
             . "}\n"
             . "Keep insights brief and actionable. Use Malaysian Ringgit (RM) for currency.";
     }
@@ -932,18 +940,35 @@ class AiAnalyticsService
 
         switch ($analysisType) {
             case 'monthly_review':
-                $sections[] = "Provide a comprehensive monthly operations review:\n"
-                    . "1. **Revenue Performance** — overall trend, best/worst days, day-of-week patterns\n"
-                    . "2. **Target Achievement** — if a sales target is set, how close are we? On track or behind? Projected end-of-month result\n"
-                    . "3. **Cost Analysis** — COGS % by category, areas of concern, month-over-month changes\n"
-                    . "4. **Labour Cost Analysis** — total labour cost as % of revenue, FOH vs BOH breakdown, is it within acceptable range (typically 25-35%)?\n"
-                    . "5. **Overtime Assessment** — total OT hours and cost, compare to previous month, is overtime trending up or down? Any concerns?\n"
-                    . "6. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
-                    . "7. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
-                    . "8. **Ingredient Price Impact** — highlight any significant ingredient price increases (≥5%) and their impact on margins\n"
-                    . "9. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
-                    . "10. **Historical Comparison** — compare this month to previous months' trend, is performance improving or declining?\n"
-                    . "11. **Key Recommendations** — 3-5 specific, actionable steps to improve next month, including any labour or cost optimizations";
+                $isMultiOutlet = !empty($context['is_multi_outlet']);
+                if ($isMultiOutlet) {
+                    $outletNames = collect($context['outlets_data'] ?? [])->pluck('outlet_name')->implode(', ');
+                    $sections[] = "Provide a comprehensive monthly operations review for EACH outlet separately.\n\n"
+                        . "**IMPORTANT: You are analyzing multiple outlets: {$outletNames}**\n"
+                        . "Your detailed_analysis MUST contain a separate section for EACH outlet.\n\n"
+                        . "For EACH outlet, analyze:\n"
+                        . "1. **Revenue Performance** — this outlet's revenue, pax, avg check, best/worst days\n"
+                        . "2. **Cost Analysis** — this outlet's COGS %, labour cost %, areas of concern\n"
+                        . "3. **Specific Recommendations** — 2-3 actions specific to this outlet\n\n"
+                        . "Then provide a **Cross-Outlet Comparison** section:\n"
+                        . "- Rank outlets by revenue and profitability\n"
+                        . "- Identify best practices from top performers\n"
+                        . "- Highlight which outlets need immediate attention\n"
+                        . "- Company-wide recommendations";
+                } else {
+                    $sections[] = "Provide a comprehensive monthly operations review:\n"
+                        . "1. **Revenue Performance** — overall trend, best/worst days, day-of-week patterns\n"
+                        . "2. **Target Achievement** — if a sales target is set, how close are we? On track or behind? Projected end-of-month result\n"
+                        . "3. **Cost Analysis** — COGS % by category, areas of concern, month-over-month changes\n"
+                        . "4. **Labour Cost Analysis** — total labour cost as % of revenue, FOH vs BOH breakdown, is it within acceptable range (typically 25-35%)?\n"
+                        . "5. **Overtime Assessment** — total OT hours and cost, compare to previous month, is overtime trending up or down? Any concerns?\n"
+                        . "6. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
+                        . "7. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
+                        . "8. **Ingredient Price Impact** — highlight any significant ingredient price increases (≥5%) and their impact on margins\n"
+                        . "9. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
+                        . "10. **Historical Comparison** — compare this month to previous months' trend, is performance improving or declining?\n"
+                        . "11. **Key Recommendations** — 3-5 specific, actionable steps to improve next month, including any labour or cost optimizations";
+                }
                 break;
 
             // weekly_review is handled above with early return
