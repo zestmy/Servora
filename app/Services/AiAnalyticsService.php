@@ -613,9 +613,38 @@ class AiAnalyticsService
             $sections[] = "## Monthly Context ({$context['period_label']})";
             $sections[] = "- Month-to-date Revenue: RM " . number_format($totals['revenue'], 2);
             $sections[] = "- Month-to-date Cost %: {$totals['cost_pct']}%";
+            if (!empty($context['labour_costs']) && $context['labour_costs']['total'] > 0) {
+                $sections[] = "- Labour Cost: RM " . number_format($context['labour_costs']['total'], 2) . " ({$context['labour_costs']['labour_pct']}% of revenue)";
+            }
+            if (!empty($context['overtime']) && $context['overtime']['total_hours'] > 0) {
+                $sections[] = "- OT Hours this month: " . number_format($context['overtime']['total_hours'], 1) . " hrs";
+            }
             $sections[] = "";
 
-        } else {
+            // Skip to analysis request for weekly review (don't include full monthly breakdown)
+            $sections[] = "## Analysis Request";
+
+            $weekLabel = $week['week_label'];
+            $prevWeekLabel = $week['prev_week_label'];
+            $isMultiOutlet = !empty($context['is_multi_outlet']);
+
+            $sections[] = "Provide a focused weekly operations review for **{$weekLabel}**. "
+                . "All comparisons should be vs the previous week (**{$prevWeekLabel}**).\n\n"
+                . "1. **Weekly Summary** — state the total revenue, pax, and average check for this week, with % change vs previous week ({$prevWeekLabel})\n"
+                . ($isMultiOutlet
+                    ? "2. **Outlet Performance** — rank outlets by revenue, highlight best/worst performers vs previous week\n"
+                    : "")
+                . (($isMultiOutlet ? "3" : "2") . ". **Day-by-Day Analysis** — identify the best and worst performing days, explain any patterns\n")
+                . (($isMultiOutlet ? "4" : "3") . ". **Week-over-Week Trend** — is this week up or down vs previous week? What's driving the change?\n")
+                . (($isMultiOutlet ? "5" : "4") . ". **Immediate Actions** — 2-3 specific quick wins for the upcoming week\n\n")
+                . "IMPORTANT: When showing trends like 'Down X%', always specify the comparison period explicitly "
+                . "(e.g., 'Down 15% vs {$prevWeekLabel}').";
+
+            return implode("\n", $sections);
+        }
+
+        // === MONTHLY VIEW CONTINUES BELOW ===
+        {
             // Monthly view - existing logic with explicit period labels
             $sections[] = "## Period: {$context['period_label']}\n";
 
@@ -913,23 +942,7 @@ class AiAnalyticsService
                     . "11. **Key Recommendations** — 3-5 specific, actionable steps to improve next month, including any labour or cost optimizations";
                 break;
 
-            case 'weekly_review':
-                $weekLabel = $context['week_data']['week_label'] ?? 'Selected Week';
-                $prevWeekLabel = $context['week_data']['prev_week_label'] ?? 'Previous Week';
-                $isMultiOutlet = !empty($context['is_multi_outlet']);
-
-                $sections[] = "Provide a focused weekly operations review for **{$weekLabel}**. "
-                    . "All comparisons should be vs the previous week (**{$prevWeekLabel}**).\n\n"
-                    . "1. **Weekly Summary** — state the total revenue, pax, and average check for this week, with % change vs previous week ({$prevWeekLabel})\n"
-                    . ($isMultiOutlet
-                        ? "2. **Outlet Performance** — rank outlets by revenue, highlight best/worst performers vs previous week\n"
-                        : "")
-                    . (($isMultiOutlet ? "3" : "2") . ". **Day-by-Day Analysis** — identify the best and worst performing days, explain any patterns\n")
-                    . (($isMultiOutlet ? "4" : "3") . ". **Week-over-Week Trend** — is this week up or down vs previous week? What's driving the change?\n")
-                    . (($isMultiOutlet ? "5" : "4") . ". **Immediate Actions** — 2-3 specific quick wins for the upcoming week\n\n")
-                    . "IMPORTANT: When showing trends like 'Down X%', always specify the comparison period explicitly "
-                    . "(e.g., 'Down 15% vs {$prevWeekLabel}').";
-                break;
+            // weekly_review is handled above with early return
 
             case 'trend_analysis':
                 $sections[] = "Focus on trend analysis:\n"
