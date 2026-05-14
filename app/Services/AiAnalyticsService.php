@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\AiAnalysisLog;
 use App\Models\AppSetting;
 use App\Models\CalendarEvent;
+use App\Models\IngredientPriceHistory;
+use App\Models\LabourCost;
+use App\Models\OvertimeClaim;
 use App\Models\SalesRecord;
 use App\Models\SalesTarget;
 use App\Models\WastageRecord;
@@ -373,6 +376,116 @@ class AiAnalyticsService
             ];
         }
 
+        // Labour costs for this month (FOH and BOH)
+        $labourCostsQuery = LabourCost::with('allowances')
+            ->whereMonth('month', $date->month)
+            ->whereYear('month', $date->year);
+        if ($outletId) {
+            $labourCostsQuery->where('outlet_id', $outletId);
+        }
+        $labourCosts = $labourCostsQuery->get();
+
+        $labourData = [
+            'foh' => ['basic_salary' => 0, 'service_point' => 0, 'overtime' => 0, 'epf' => 0, 'eis' => 0, 'socso' => 0, 'allowances' => 0, 'total' => 0],
+            'boh' => ['basic_salary' => 0, 'service_point' => 0, 'overtime' => 0, 'epf' => 0, 'eis' => 0, 'socso' => 0, 'allowances' => 0, 'total' => 0],
+        ];
+
+        foreach ($labourCosts as $lc) {
+            $dept = $lc->department_type;
+            if (isset($labourData[$dept])) {
+                $labourData[$dept]['basic_salary'] += (float) $lc->basic_salary;
+                $labourData[$dept]['service_point'] += (float) $lc->service_point;
+                $labourData[$dept]['overtime'] += (float) $lc->overtime;
+                $labourData[$dept]['epf'] += (float) $lc->epf;
+                $labourData[$dept]['eis'] += (float) $lc->eis;
+                $labourData[$dept]['socso'] += (float) $lc->socso;
+                $labourData[$dept]['allowances'] += $lc->total_allowances;
+                $labourData[$dept]['total'] += $lc->total_cost;
+            }
+        }
+
+        $totalLabourCost = $labourData['foh']['total'] + $labourData['boh']['total'];
+        $labourCostPct = $totals['revenue'] > 0 ? round($totalLabourCost / $totals['revenue'] * 100, 1) : 0;
+
+        // Previous month labour costs for comparison
+        $prevLabourQuery = LabourCost::whereMonth('month', $date->copy()->subMonth()->month)
+            ->whereYear('month', $date->copy()->subMonth()->year);
+        if ($outletId) {
+            $prevLabourQuery->where('outlet_id', $outletId);
+        }
+        $prevTotalLabour = round((float) $prevLabourQuery->get()->sum(fn ($lc) => $lc->total_cost), 2);
+        $labourChange = $prevTotalLabour > 0 ? round(($totalLabourCost - $prevTotalLabour) / $prevTotalLabour * 100, 1) : 0;
+
+        // Overtime claims for this month
+        $otClaimsQuery = OvertimeClaim::whereBetween('claim_date', [$startOfMonth, $endOfMonth]);
+        if ($outletId) {
+            $otClaimsQuery->where('outlet_id', $outletId);
+        }
+        $otClaims = $otClaimsQuery->get();
+
+        $overtimeData = [
+            'total_hours'     => round((float) $otClaims->sum('total_ot_hours'), 1),
+            'total_claims'    => $otClaims->count(),
+            'approved_claims' => $otClaims->where('status', 'approved')->count(),
+            'pending_claims'  => $otClaims->whereIn('status', ['draft', 'submitted'])->count(),
+            'by_type' => [
+                'normal_day'     => round((float) $otClaims->where('ot_type', 'normal_day')->sum('total_ot_hours'), 1),
+                'public_holiday' => round((float) $otClaims->where('ot_type', 'public_holiday')->sum('total_ot_hours'), 1),
+                'rest_day'       => round((float) $otClaims->where('ot_type', 'rest_day')->sum('total_ot_hours'), 1),
+            ],
+        ];
+
+        // Previous month OT for comparison
+        $prevOtQuery = OvertimeClaim::whereBetween('claim_date', [$date->copy()->subMonth()->startOfMonth(), $date->copy()->subMonth()->endOfMonth()]);
+        if ($outletId) {
+            $prevOtQuery->where('outlet_id', $outletId);
+        }
+        $prevOtHours = round((float) $prevOtQuery->sum('total_ot_hours'), 1);
+        $overtimeData['prev_hours'] = $prevOtHours;
+        $overtimeData['change_percent'] = $prevOtHours > 0
+            ? round(($overtimeData['total_hours'] - $prevOtHours) / $prevOtHours * 100, 1)
+            : 0;
+
+        // Ingredient price changes this month
+        $priceChanges = IngredientPriceHistory::with('ingredient')
+            ->whereBetween('effective_date', [$startOfMonth, $endOfMonth])
+            ->orderBy('effective_date', 'desc')
+            ->get();
+
+        $priceChangeData = [
+            'total_changes' => $priceChanges->count(),
+            'notable_changes' => [],
+        ];
+
+        // Get significant price changes (> 5% change)
+        $ingredientGroups = $priceChanges->groupBy('ingredient_id');
+        foreach ($ingredientGroups as $ingredientId => $changes) {
+            if ($changes->count() < 2) continue;
+
+            $latest = $changes->first();
+            $previous = IngredientPriceHistory::where('ingredient_id', $ingredientId)
+                ->where('effective_date', '<', $startOfMonth)
+                ->orderBy('effective_date', 'desc')
+                ->first();
+
+            if ($previous && $previous->cost > 0) {
+                $changePct = round(($latest->cost - $previous->cost) / $previous->cost * 100, 1);
+                if (abs($changePct) >= 5) {
+                    $priceChangeData['notable_changes'][] = [
+                        'ingredient' => $latest->ingredient->name ?? 'Unknown',
+                        'old_price'  => round((float) $previous->cost, 2),
+                        'new_price'  => round((float) $latest->cost, 2),
+                        'change_pct' => $changePct,
+                        'trend'      => $changePct > 0 ? 'up' : 'down',
+                    ];
+                }
+            }
+        }
+
+        // Sort by absolute change magnitude
+        usort($priceChangeData['notable_changes'], fn ($a, $b) => abs($b['change_pct']) <=> abs($a['change_pct']));
+        $priceChangeData['notable_changes'] = array_slice($priceChangeData['notable_changes'], 0, 10); // Top 10
+
         return [
             'company_name'       => $company->name ?? 'Unknown',
             'outlet_name'        => $outlet?->name ?? 'All Outlets',
@@ -396,6 +509,16 @@ class AiAnalyticsService
                 'notes'   => $target->notes,
             ] : null,
             'historical_sales'   => $historicalSales,
+            'labour_costs'       => [
+                'foh'           => $labourData['foh'],
+                'boh'           => $labourData['boh'],
+                'total'         => round($totalLabourCost, 2),
+                'labour_pct'    => $labourCostPct,
+                'prev_total'    => $prevTotalLabour,
+                'change_percent' => $labourChange,
+            ],
+            'overtime'           => $overtimeData,
+            'price_changes'      => $priceChangeData,
         ];
     }
 
@@ -590,6 +713,78 @@ class AiAnalyticsService
             $sections[] = "";
         }
 
+        // Labour Costs (FOH & BOH)
+        if (!empty($context['labour_costs']) && $context['labour_costs']['total'] > 0) {
+            $labour = $context['labour_costs'];
+            $sections[] = "## Labour Costs (vs {$prevPeriodLabel})";
+            $sections[] = "| Department | Basic Salary | Service Point | Overtime | EPF | SOCSO | EIS | Allowances | Total |";
+            $sections[] = "|------------|-------------|---------------|----------|-----|-------|-----|------------|-------|";
+
+            foreach (['foh' => 'Front of House', 'boh' => 'Back of House'] as $key => $label) {
+                $dept = $labour[$key];
+                if ($dept['total'] > 0) {
+                    $sections[] = "| {$label} | RM " . number_format($dept['basic_salary'], 2)
+                        . " | RM " . number_format($dept['service_point'], 2)
+                        . " | RM " . number_format($dept['overtime'], 2)
+                        . " | RM " . number_format($dept['epf'], 2)
+                        . " | RM " . number_format($dept['socso'], 2)
+                        . " | RM " . number_format($dept['eis'], 2)
+                        . " | RM " . number_format($dept['allowances'], 2)
+                        . " | RM " . number_format($dept['total'], 2) . " |";
+                }
+            }
+
+            $labourTrend = $labour['change_percent'] >= 0 ? '↑' : '↓';
+            $labourChangeStr = ($labour['change_percent'] >= 0 ? '+' : '') . $labour['change_percent'] . '%';
+            $sections[] = "";
+            $sections[] = "**Total Labour Cost:** RM " . number_format($labour['total'], 2)
+                . " ({$labour['labour_pct']}% of revenue) | {$labourTrend} {$labourChangeStr} vs {$prevPeriodLabel}";
+            $sections[] = "";
+        }
+
+        // Overtime Claims
+        if (!empty($context['overtime']) && $context['overtime']['total_claims'] > 0) {
+            $ot = $context['overtime'];
+            $sections[] = "## Overtime Claims (vs {$prevPeriodLabel})";
+            $sections[] = "| Metric | Value |";
+            $sections[] = "|--------|-------|";
+            $sections[] = "| Total OT Hours | " . number_format($ot['total_hours'], 1) . " hrs |";
+            $sections[] = "| Total Claims | {$ot['total_claims']} |";
+            $sections[] = "| Approved | {$ot['approved_claims']} |";
+            $sections[] = "| Pending | {$ot['pending_claims']} |";
+            $sections[] = "| Normal Day OT | " . number_format($ot['by_type']['normal_day'], 1) . " hrs |";
+            $sections[] = "| Public Holiday OT | " . number_format($ot['by_type']['public_holiday'], 1) . " hrs |";
+            $sections[] = "| Rest Day OT | " . number_format($ot['by_type']['rest_day'], 1) . " hrs |";
+
+            $otTrend = $ot['change_percent'] >= 0 ? '↑' : '↓';
+            $otChangeStr = ($ot['change_percent'] >= 0 ? '+' : '') . $ot['change_percent'] . '%';
+            $sections[] = "";
+            $sections[] = "**Prev Month:** {$ot['prev_hours']} hrs | **Change:** {$otTrend} {$otChangeStr} vs {$prevPeriodLabel}";
+            $sections[] = "";
+        }
+
+        // Ingredient Price Changes
+        if (!empty($context['price_changes']) && $context['price_changes']['total_changes'] > 0) {
+            $prices = $context['price_changes'];
+            $sections[] = "## Ingredient Price Changes This Month";
+            $sections[] = "Total price updates recorded: **{$prices['total_changes']}**";
+            $sections[] = "";
+
+            if (!empty($prices['notable_changes'])) {
+                $sections[] = "### Significant Price Changes (≥5%)";
+                $sections[] = "| Ingredient | Old Price | New Price | Change |";
+                $sections[] = "|------------|-----------|-----------|--------|";
+                foreach ($prices['notable_changes'] as $change) {
+                    $trendIcon = $change['trend'] === 'up' ? '↑' : '↓';
+                    $changeStr = ($change['change_pct'] >= 0 ? '+' : '') . $change['change_pct'] . '%';
+                    $sections[] = "| {$change['ingredient']} | RM " . number_format($change['old_price'], 2)
+                        . " | RM " . number_format($change['new_price'], 2)
+                        . " | {$trendIcon} {$changeStr} |";
+                }
+                $sections[] = "";
+            }
+        }
+
         // Inventory summary
         if (!empty($context['cost_summary']['categories'])) {
             $hasStock = false;
@@ -706,13 +901,15 @@ class AiAnalyticsService
                 $sections[] = "Provide a comprehensive monthly operations review:\n"
                     . "1. **Revenue Performance** — overall trend, best/worst days, day-of-week patterns\n"
                     . "2. **Target Achievement** — if a sales target is set, how close are we? On track or behind? Projected end-of-month result\n"
-                    . "3. **Cost Analysis** — cost % by category, areas of concern, month-over-month changes\n"
-                    . "4. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
-                    . "5. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
-                    . "6. **Purchase Efficiency** — purchase-to-revenue ratios by category, any signs of overpurchasing?\n"
-                    . "7. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
-                    . "8. **Historical Comparison** — compare this month to previous months' trend, is performance improving or declining?\n"
-                    . "9. **Key Recommendations** — 3-5 specific, actionable steps to improve next month";
+                    . "3. **Cost Analysis** — COGS % by category, areas of concern, month-over-month changes\n"
+                    . "4. **Labour Cost Analysis** — total labour cost as % of revenue, FOH vs BOH breakdown, is it within acceptable range (typically 25-35%)?\n"
+                    . "5. **Overtime Assessment** — total OT hours and cost, compare to previous month, is overtime trending up or down? Any concerns?\n"
+                    . "6. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
+                    . "7. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
+                    . "8. **Ingredient Price Impact** — highlight any significant ingredient price increases (≥5%) and their impact on margins\n"
+                    . "9. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
+                    . "10. **Historical Comparison** — compare this month to previous months' trend, is performance improving or declining?\n"
+                    . "11. **Key Recommendations** — 3-5 specific, actionable steps to improve next month, including any labour or cost optimizations";
                 break;
 
             case 'weekly_review':
