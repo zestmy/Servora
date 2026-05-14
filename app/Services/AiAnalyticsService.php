@@ -405,7 +405,8 @@ class AiAnalyticsService
         }
 
         $totalLabourCost = $labourData['foh']['total'] + $labourData['boh']['total'];
-        $labourCostPct = $totals['revenue'] > 0 ? round($totalLabourCost / $totals['revenue'] * 100, 1) : 0;
+        $totalRevenue = $costSummary['totals']['revenue'] ?? 0;
+        $labourCostPct = $totalRevenue > 0 ? round($totalLabourCost / $totalRevenue * 100, 1) : 0;
 
         // Previous month labour costs for comparison
         $prevLabourQuery = LabourCost::whereMonth('month', $date->copy()->subMonth()->month)
