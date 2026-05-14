@@ -60,7 +60,7 @@ class AiAnalyticsService
             ];
         }
 
-        $result = $this->callOpenRouter($apiKey, $context, $prompt);
+        $result = $this->callOpenRouter($apiKey, $context, $prompt, $analysisType);
 
         // Store in log
         $log = AiAnalysisLog::create([
@@ -89,14 +89,18 @@ class AiAnalyticsService
         ];
     }
 
-    private function callOpenRouter(string $apiKey, array $context, string $prompt): array
+    private function callOpenRouter(string $apiKey, array $context, string $prompt, string $analysisType = 'monthly_review'): array
     {
         $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        // Use fewer tokens for simpler analysis types
+        $maxTokens = in_array($analysisType, ['weekly_review', 'custom']) ? 2048 : 4096;
 
-        $response = Http::timeout(90)
+        $previousTimeout = ini_get('max_execution_time');
+        set_time_limit(180);
+
+        $response = Http::connectTimeout(30)
+            ->timeout(150)
             ->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type'  => 'application/json',
@@ -105,7 +109,7 @@ class AiAnalyticsService
             ])
             ->post('https://openrouter.ai/api/v1/chat/completions', [
                 'model'      => $model,
-                'max_tokens' => 4096,
+                'max_tokens' => $maxTokens,
                 'messages'   => [
                     ['role' => 'system', 'content' => $this->systemPrompt($context)],
                     ['role' => 'user',   'content' => $prompt],
