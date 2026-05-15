@@ -21,6 +21,7 @@ use Livewire\Component;
 class DutyRoster extends Component
 {
     public ?int $outletId = null;
+    public ?int $sectionId = null; // Kept for backward compatibility with cached browser state
     public string $weekStart = '';
     public string $weekEnd = '';
 
