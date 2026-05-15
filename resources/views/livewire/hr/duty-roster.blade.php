@@ -53,9 +53,9 @@
 
             {{-- Section Filter --}}
             <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Section</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Section <span class="text-red-500">*</span></label>
                 <select wire:model.live="sectionId" class="text-sm rounded-lg border-gray-300 shadow-sm min-w-[120px]">
-                    <option value="">All Sections</option>
+                    <option value="">Select section...</option>
                     @foreach ($sections as $section)
                         <option value="{{ $section->id }}">{{ $section->name }}</option>
                     @endforeach
@@ -447,14 +447,19 @@
         @else
             {{-- No Roster --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-                <div class="text-gray-500 mb-4">No roster exists for this week.</div>
-                @if ($canCreate)
-                    <button wire:click="createRoster"
-                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                        Create Roster for {{ $periodLabel }}
-                    </button>
+                @if (!$sectionId)
+                    <div class="text-gray-500 mb-2">Please select a section (FOH/BOH) to view or create a roster.</div>
+                    <p class="text-sm text-gray-400">Each section has its own separate roster.</p>
                 @else
-                    <p class="text-sm text-gray-400">You do not have permission to create rosters.</p>
+                    <div class="text-gray-500 mb-4">No roster exists for this week and section.</div>
+                    @if ($canCreate)
+                        <button wire:click="createRoster"
+                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            Create Roster for {{ $periodLabel }}
+                        </button>
+                    @else
+                        <p class="text-sm text-gray-400">You do not have permission to create rosters.</p>
+                    @endif
                 @endif
             </div>
         @endif

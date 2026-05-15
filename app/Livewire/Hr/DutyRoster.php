@@ -101,6 +101,11 @@ class DutyRoster extends Component
         $this->loadRoster();
     }
 
+    public function updatedSectionId(): void
+    {
+        $this->loadRoster();
+    }
+
     public function previousWeek(): void
     {
         $start = Carbon::parse($this->weekStart)->subWeek();
@@ -125,16 +130,26 @@ class DutyRoster extends Component
             return;
         }
 
-        $this->roster = Roster::where('outlet_id', $this->outletId)
-            ->where('week_start_date', $this->weekStart)
-            ->whereNull('section_id')
-            ->with(['entries.employee', 'entries.station', 'dayRemarks', 'amendments'])
+        $query = Roster::where('outlet_id', $this->outletId)
+            ->where('week_start_date', $this->weekStart);
+
+        // Load roster for specific section if selected, otherwise try to find any roster
+        if ($this->sectionId) {
+            $query->where('section_id', $this->sectionId);
+        }
+
+        $this->roster = $query->with(['entries.employee', 'entries.station', 'dayRemarks', 'amendments'])
             ->first();
     }
 
     public function createRoster(): void
     {
         if (!$this->outletId) {
+            return;
+        }
+
+        if (!$this->sectionId) {
+            session()->flash('error', 'Please select a section (FOH/BOH) before creating a roster.');
             return;
         }
 
@@ -147,31 +162,35 @@ class DutyRoster extends Component
             'company_id' => Auth::user()->company_id,
             'created_by' => Auth::id(),
             'outlet_id' => $this->outletId,
-            'section_id' => null,
+            'section_id' => $this->sectionId,
             'week_start_date' => $this->weekStart,
             'week_end_date' => $this->weekEnd,
             'status' => Roster::STATUS_DRAFT,
             'revision' => 1,
         ]);
 
-        // Pre-populate with active employees from the outlet/section
+        // Pre-populate with active employees from the selected section
         $this->prepopulateEmployees();
 
         $this->roster->load(['entries.employee', 'entries.station', 'dayRemarks']);
-        session()->flash('success', 'Roster created with employees pre-populated.');
+        $sectionName = Section::find($this->sectionId)?->name ?? 'Unknown';
+        session()->flash('success', "Roster created for {$sectionName} with employees pre-populated.");
     }
 
     /**
-     * Pre-populate roster with placeholder entries for all active employees.
+     * Pre-populate roster with placeholder entries for employees in selected section.
      */
     protected function prepopulateEmployees(): void
     {
-        // Order by section first, then by name
-        $employees = Employee::where('outlet_id', $this->outletId)
-            ->where('is_active', true)
-            ->orderBy('section_id')
-            ->orderBy('name')
-            ->get();
+        // Filter by selected section and order by name
+        $query = Employee::where('outlet_id', $this->outletId)
+            ->where('is_active', true);
+
+        if ($this->sectionId) {
+            $query->where('section_id', $this->sectionId);
+        }
+
+        $employees = $query->orderBy('name')->get();
         $weekDays = $this->getWeekDays();
 
         // Get default rest duration from settings
