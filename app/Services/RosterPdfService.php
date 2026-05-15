@@ -61,11 +61,12 @@ class RosterPdfService
 
     /**
      * Group roster entries by employee.
-     * Returns: [employee_id => ['employee' => Employee, 'entries' => [date => RosterEntry]]]
+     * Returns: [employee_id => ['employee' => Employee, 'entries' => [date => RosterEntry], 'sort_order' => int]]
      */
     protected static function groupEntriesByEmployee(Roster $roster): array
     {
         $grouped = [];
+        $employeeSortOrders = [];
 
         foreach ($roster->entries as $entry) {
             $empId = $entry->employee_id;
@@ -77,7 +78,15 @@ class RosterPdfService
                     'entries' => [],
                     'total_hours' => 0,
                     'total_ot' => 0,
+                    'sort_order' => $entry->sort_order ?? 0,
                 ];
+                $employeeSortOrders[$empId] = $entry->sort_order ?? 0;
+            }
+
+            // Keep track of minimum sort_order for this employee
+            if (($entry->sort_order ?? 0) < $employeeSortOrders[$empId]) {
+                $employeeSortOrders[$empId] = $entry->sort_order ?? 0;
+                $grouped[$empId]['sort_order'] = $entry->sort_order ?? 0;
             }
 
             $grouped[$empId]['entries'][$dateKey] = $entry;
@@ -85,8 +94,8 @@ class RosterPdfService
             $grouped[$empId]['total_ot'] += (float) $entry->planned_ot;
         }
 
-        // Sort by employee name
-        uasort($grouped, fn ($a, $b) => strcmp($a['employee']->name ?? '', $b['employee']->name ?? ''));
+        // Sort by sort_order (same as roster UI)
+        uasort($grouped, fn ($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0));
 
         return $grouped;
     }

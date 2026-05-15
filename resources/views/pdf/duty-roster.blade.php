@@ -34,9 +34,10 @@
         .roster-table td.left { text-align: left; }
         .roster-table tr:nth-child(even) { background: #f9f9f9; }
         .roster-table .emp-name { font-weight: bold; font-size: 9px; }
-        .roster-table .emp-station { font-size: 7px; color: #666; }
-        .roster-table .shift { font-size: 8px; }
-        .roster-table .off { color: #dc2626; font-weight: bold; }
+        .roster-table .emp-designation { font-size: 7px; color: #666; }
+        .roster-table .emp-station { font-size: 6px; color: #666; }
+        .roster-table .shift { font-size: 8px; padding: 2px 4px; border-radius: 3px; display: inline-block; }
+        .roster-table .off { font-weight: bold; }
         .roster-table .remark { font-size: 6px; color: #7c3aed; background: #f3e8ff; padding: 1px 3px; border-radius: 2px; display: inline-block; margin-top: 1px; }
         .roster-table .total { font-weight: bold; background: #f0f9ff; }
         .day-remark-row td { background: #fef3c7 !important; font-size: 7px; color: #92400e; padding: 3px 4px !important; }
@@ -44,6 +45,17 @@
         .summary-box .row { display: flex; justify-content: space-between; padding: 3px 0; }
         .summary-box .label { color: #666; }
         .summary-box .value { font-weight: bold; }
+        /* Shift color coding */
+        .shift-opening { background: #d1fae5; color: #065f46; }
+        .shift-middle { background: #e0f2fe; color: #0369a1; }
+        .shift-closing { background: #ede9fe; color: #5b21b6; }
+        /* Leave type colors */
+        .leave-off { background: #e5e7eb; color: #374151; }
+        .leave-al { background: #fef3c7; color: #92400e; }
+        .leave-rph { background: #fce7f3; color: #9d174d; }
+        .leave-mc { background: #fee2e2; color: #991b1b; }
+        .leave-rdo { background: #ffedd5; color: #9a3412; }
+        .leave-ch { background: #cffafe; color: #0e7490; }
     </style>
 
     {{-- Day Remarks Row --}}
@@ -103,23 +115,45 @@
                 <tr>
                     <td class="left">
                         <div class="emp-name">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
-                        @php
-                            $stations = collect($empData['entries'])->pluck('station.name')->filter()->unique()->implode(', ');
-                        @endphp
-                        @if ($stations)
-                            <div class="emp-station">{{ $stations }}</div>
+                        @if ($empData['employee']?->designation)
+                            <div class="emp-designation">{{ $empData['employee']->designation }}</div>
                         @endif
                     </td>
                     @foreach ($weekDays as $day)
                         <td>
                             @if (isset($empData['entries'][$day['date']]))
-                                @php $entry = $empData['entries'][$day['date']]; @endphp
+                                @php
+                                    $entry = $empData['entries'][$day['date']];
+                                    $shiftClass = '';
+                                    if ($entry->is_off_day) {
+                                        // Leave type colors
+                                        $shiftClass = match($entry->leave_type) {
+                                            'off' => 'shift leave-off',
+                                            'al' => 'shift leave-al',
+                                            'rph' => 'shift leave-rph',
+                                            'mc' => 'shift leave-mc',
+                                            'rdo' => 'shift leave-rdo',
+                                            'ch' => 'shift leave-ch',
+                                            default => 'shift leave-off',
+                                        };
+                                    } elseif ($entry->shift_start) {
+                                        // Shift time colors
+                                        $hour = (int) \Carbon\Carbon::parse($entry->shift_start)->format('G');
+                                        if ($hour < 10) {
+                                            $shiftClass = 'shift shift-opening';
+                                        } elseif ($hour < 14) {
+                                            $shiftClass = 'shift shift-middle';
+                                        } else {
+                                            $shiftClass = 'shift shift-closing';
+                                        }
+                                    }
+                                @endphp
                                 @if ($entry->is_off_day)
-                                    <span class="off">{{ $entry->shift_short }}</span>
+                                    <span class="{{ $shiftClass }}">{{ $entry->shift_short }}</span>
                                 @elseif ($entry->shift_start && $entry->shift_end)
-                                    <span class="shift">{{ $entry->shift_short }}</span>
+                                    <span class="{{ $shiftClass }}">{{ $entry->shift_short }}</span>
                                     @if ($entry->station)
-                                        <div class="emp-station">{{ Str::limit($entry->station->name, 6) }}</div>
+                                        <div class="emp-station">{{ Str::limit($entry->station->name, 8) }}</div>
                                     @endif
                                 @else
                                     -
@@ -229,12 +263,25 @@
 
     {{-- Legend --}}
     <div style="margin-top: 12px; font-size: 7px; color: #666;">
-        <strong>Legend:</strong>
+        <strong>Remarks:</strong>
         PH = Public Holiday &nbsp;|&nbsp;
         ST = Stocktake &nbsp;|&nbsp;
         EV = Event &nbsp;|&nbsp;
-        * = Custom Remark &nbsp;|&nbsp;
-        OFF = Day Off
+        * = Custom
+    </div>
+    <div style="margin-top: 6px; font-size: 7px;">
+        <strong>Shifts:</strong>
+        <span style="background: #d1fae5; color: #065f46; padding: 1px 4px; border-radius: 2px;">Opening (&lt;10AM)</span> &nbsp;
+        <span style="background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 2px;">Middle (10AM-2PM)</span> &nbsp;
+        <span style="background: #ede9fe; color: #5b21b6; padding: 1px 4px; border-radius: 2px;">Closing (2PM+)</span>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        <strong>Leave:</strong>
+        <span style="background: #e5e7eb; color: #374151; padding: 1px 4px; border-radius: 2px;">OFF</span> &nbsp;
+        <span style="background: #fef3c7; color: #92400e; padding: 1px 4px; border-radius: 2px;">AL</span> &nbsp;
+        <span style="background: #fce7f3; color: #9d174d; padding: 1px 4px; border-radius: 2px;">RPH</span> &nbsp;
+        <span style="background: #fee2e2; color: #991b1b; padding: 1px 4px; border-radius: 2px;">MC</span> &nbsp;
+        <span style="background: #ffedd5; color: #9a3412; padding: 1px 4px; border-radius: 2px;">RDO</span> &nbsp;
+        <span style="background: #cffafe; color: #0e7490; padding: 1px 4px; border-radius: 2px;">CH</span>
     </div>
 
     @if ($roster->notes)
