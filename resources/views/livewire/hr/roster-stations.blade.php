@@ -121,8 +121,8 @@
 
     {{-- Add/Edit Modal --}}
     @if ($showForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="closeForm">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeForm">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md my-8 overflow-hidden" @click.stop>
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">{{ $editingId ? 'Edit Station' : 'Add Station' }}</h3>
                     <button wire:click="closeForm" class="text-gray-400 hover:text-gray-600">

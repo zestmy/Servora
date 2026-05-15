@@ -173,6 +173,55 @@
                 @endif
             </div>
 
+            {{-- Color Legend --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+                <div class="flex flex-wrap items-center gap-6">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Shifts:</div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-emerald-100 border border-emerald-200"></span>
+                            <span class="text-xs text-gray-600">Opening (&lt;10AM)</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-sky-100 border border-sky-200"></span>
+                            <span class="text-xs text-gray-600">Middle (10AM-2PM)</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-violet-100 border border-violet-200"></span>
+                            <span class="text-xs text-gray-600">Closing (2PM+)</span>
+                        </span>
+                    </div>
+                    <div class="border-l border-gray-200 h-4"></div>
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Leave:</div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-gray-200 border border-gray-300"></span>
+                            <span class="text-xs text-gray-600">OFF</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-amber-100 border border-amber-200"></span>
+                            <span class="text-xs text-gray-600">AL</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-pink-100 border border-pink-200"></span>
+                            <span class="text-xs text-gray-600">RPH</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-red-100 border border-red-200"></span>
+                            <span class="text-xs text-gray-600">MC</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-orange-100 border border-orange-200"></span>
+                            <span class="text-xs text-gray-600">RDO</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-4 h-4 rounded bg-cyan-100 border border-cyan-200"></span>
+                            <span class="text-xs text-gray-600">CH</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             {{-- Roster Grid --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="overflow-x-auto">
