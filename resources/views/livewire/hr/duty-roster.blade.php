@@ -362,20 +362,32 @@
                                                                 $cellClass = 'bg-violet-100 text-violet-700 hover:bg-violet-200';
                                                             }
                                                         }
-                                                    @endphp
-                                                    @php
                                                         $canEditThis = ($roster->isDraft() && $canEdit) || ($roster->isApproved() && $canAmend);
+                                                        $canCopyToNext = $roster->isDraft() && $canEdit && !$loop->last;
                                                     @endphp
-                                                    <button wire:click="openEditEntry({{ $entry->id }})"
-                                                            class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
-                                                                {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
-                                                            {{ !$canEditThis ? 'disabled' : '' }}
-                                                            title="{{ $entry->station?->name ?? '' }}">
-                                                        <div>{{ $entry->shift_short }}</div>
-                                                        @if ($entry->station && !$entry->is_off_day)
-                                                            <div class="text-[10px] opacity-75 truncate">{{ Str::limit($entry->station->name, 8) }}</div>
+                                                    <div class="relative group/cell">
+                                                        <button wire:click="openEditEntry({{ $entry->id }})"
+                                                                class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
+                                                                    {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
+                                                                {{ !$canEditThis ? 'disabled' : '' }}
+                                                                title="{{ $entry->station?->name ?? '' }}">
+                                                            <div>{{ $entry->shift_short }}</div>
+                                                            @if ($entry->station && !$entry->is_off_day)
+                                                                <div class="text-[10px] opacity-75 truncate">{{ Str::limit($entry->station->name, 8) }}</div>
+                                                            @endif
+                                                        </button>
+                                                        @if ($canCopyToNext)
+                                                            <button wire:click="copyEntryToNextDay({{ $entry->id }})"
+                                                                    class="absolute -right-1 -top-1 opacity-0 group-hover/cell:opacity-100 transition-opacity
+                                                                           w-5 h-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-sm
+                                                                           flex items-center justify-center z-10"
+                                                                    title="Copy to next day">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                                                </svg>
+                                                            </button>
                                                         @endif
-                                                    </button>
+                                                    </div>
                                                 @else
                                                     @if ($roster->isDraft() && $canEdit)
                                                         <button wire:click="openAddEntry('{{ $day['date'] }}', {{ $empId }})"

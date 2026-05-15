@@ -464,6 +464,80 @@ class DutyRoster extends Component
         session()->flash('success', 'Entry removed.');
     }
 
+    /**
+     * Copy/duplicate an entry to the next day.
+     */
+    public function copyEntryToNextDay(int $entryId): void
+    {
+        if (!$this->roster || !$this->roster->isDraft()) {
+            session()->flash('error', 'Cannot copy entries in non-draft rosters.');
+            return;
+        }
+
+        if (!Auth::user()->can('roster.edit')) {
+            session()->flash('error', 'You do not have permission to edit rosters.');
+            return;
+        }
+
+        $entry = RosterEntry::findOrFail($entryId);
+        $nextDate = Carbon::parse($entry->day_date)->addDay();
+        $weekEnd = Carbon::parse($this->weekEnd);
+
+        // Check if next day is within the roster week
+        if ($nextDate->gt($weekEnd)) {
+            session()->flash('error', 'Cannot copy to next day — it falls outside this week\'s roster.');
+            return;
+        }
+
+        // Check if an entry already exists for this employee on the next day
+        $existingEntry = RosterEntry::where('roster_id', $this->roster->id)
+            ->where('employee_id', $entry->employee_id)
+            ->where('day_date', $nextDate->format('Y-m-d'))
+            ->first();
+
+        if ($existingEntry) {
+            // Update the existing entry with the copied data
+            $existingEntry->update([
+                'station_id' => $entry->station_id,
+                'shift_start' => $entry->shift_start,
+                'shift_end' => $entry->shift_end,
+                'rest_duration' => $entry->rest_duration,
+                'normal_hours' => $entry->normal_hours,
+                'is_off_day' => $entry->is_off_day,
+                'leave_type' => $entry->leave_type,
+                'planned_ot_manual' => $entry->planned_ot_manual,
+                'planned_ot' => $entry->planned_ot_manual ? $entry->planned_ot : 0,
+            ]);
+            session()->flash('success', 'Shift copied to ' . $nextDate->format('D, M j') . ' (existing entry updated).');
+        } else {
+            // Create a new entry
+            RosterEntry::create([
+                'roster_id' => $this->roster->id,
+                'employee_id' => $entry->employee_id,
+                'station_id' => $entry->station_id,
+                'day_date' => $nextDate->format('Y-m-d'),
+                'shift_start' => $entry->shift_start,
+                'shift_end' => $entry->shift_end,
+                'rest_duration' => $entry->rest_duration,
+                'normal_hours' => $entry->normal_hours,
+                'is_off_day' => $entry->is_off_day,
+                'leave_type' => $entry->leave_type,
+                'planned_ot_manual' => $entry->planned_ot_manual,
+                'planned_ot' => $entry->planned_ot_manual ? $entry->planned_ot : 0,
+                'sort_order' => $entry->sort_order,
+            ]);
+            session()->flash('success', 'Shift copied to ' . $nextDate->format('D, M j') . '.');
+        }
+
+        // Update last edited tracking
+        $this->roster->update([
+            'last_edited_by' => Auth::id(),
+            'last_edited_at' => now(),
+        ]);
+
+        $this->loadRoster();
+    }
+
     // Day Remark Methods
     public function openRemarkForm(string $date): void
     {
