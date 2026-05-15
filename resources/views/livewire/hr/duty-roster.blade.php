@@ -411,7 +411,7 @@
                             @endforelse
 
                             {{-- Add Employee Row (for draft) --}}
-                            @if ($roster->isDraft() && $employees->isNotEmpty())
+                            @if ($roster->isDraft() && $canEdit && $employees->isNotEmpty())
                                 <tr class="bg-gray-50">
                                     <td colspan="{{ count($weekDays) + 4 }}" class="px-4 py-3">
                                         <button wire:click="openAddEntry('{{ $weekDays[0]['date'] ?? '' }}')"
@@ -419,6 +419,77 @@
                                             + Add Employee Entry
                                         </button>
                                     </td>
+                                </tr>
+                            @endif
+
+                            {{-- Daily Summary Row --}}
+                            @if (!empty($sectionData['employees']))
+                                @php
+                                    $dailyStats = [];
+                                    foreach ($weekDays as $day) {
+                                        $dailyStats[$day['date']] = [
+                                            'ot' => 0,
+                                            'opening' => 0,
+                                            'middle' => 0,
+                                            'closing' => 0,
+                                            'off' => 0,
+                                            'leave' => 0,
+                                        ];
+                                    }
+                                    foreach ($sectionData['employees'] as $empData) {
+                                        foreach ($weekDays as $day) {
+                                            if (isset($empData['entries'][$day['date']])) {
+                                                $entry = $empData['entries'][$day['date']];
+                                                $dailyStats[$day['date']]['ot'] += (float) $entry->planned_ot;
+                                                if ($entry->is_off_day) {
+                                                    if ($entry->leave_type === 'off') {
+                                                        $dailyStats[$day['date']]['off']++;
+                                                    } else {
+                                                        $dailyStats[$day['date']]['leave']++;
+                                                    }
+                                                } elseif ($entry->shift_start) {
+                                                    $hour = (int) \Carbon\Carbon::parse($entry->shift_start)->format('G');
+                                                    if ($hour < 10) {
+                                                        $dailyStats[$day['date']]['opening']++;
+                                                    } elseif ($hour < 14) {
+                                                        $dailyStats[$day['date']]['middle']++;
+                                                    } else {
+                                                        $dailyStats[$day['date']]['closing']++;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                <tr class="bg-indigo-50 border-t-2 border-indigo-200">
+                                    <td class="px-4 py-2 text-xs font-semibold text-indigo-700">Daily Summary</td>
+                                    @foreach ($weekDays as $day)
+                                        <td class="px-2 py-2 text-center">
+                                            <div class="text-[10px] leading-tight space-y-0.5">
+                                                @if ($dailyStats[$day['date']]['ot'] > 0)
+                                                    <div class="text-orange-600 font-medium">OT: {{ number_format($dailyStats[$day['date']]['ot'], 1) }}h</div>
+                                                @endif
+                                                @if ($dailyStats[$day['date']]['opening'] > 0)
+                                                    <div class="text-emerald-600">Open: {{ $dailyStats[$day['date']]['opening'] }}</div>
+                                                @endif
+                                                @if ($dailyStats[$day['date']]['middle'] > 0)
+                                                    <div class="text-sky-600">Mid: {{ $dailyStats[$day['date']]['middle'] }}</div>
+                                                @endif
+                                                @if ($dailyStats[$day['date']]['closing'] > 0)
+                                                    <div class="text-violet-600">Close: {{ $dailyStats[$day['date']]['closing'] }}</div>
+                                                @endif
+                                                @if ($dailyStats[$day['date']]['off'] > 0)
+                                                    <div class="text-gray-500">Off: {{ $dailyStats[$day['date']]['off'] }}</div>
+                                                @endif
+                                                @if ($dailyStats[$day['date']]['leave'] > 0)
+                                                    <div class="text-amber-600">Leave: {{ $dailyStats[$day['date']]['leave'] }}</div>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    @endforeach
+                                    <td class="px-2 py-2"></td>
+                                    <td class="px-2 py-2"></td>
+                                    <td class="px-2 py-2"></td>
                                 </tr>
                             @endif
                         </tbody>
