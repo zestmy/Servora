@@ -246,22 +246,28 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
-                                    Employee / Station
+                                    Employee / Designation
                                 </th>
                                 @foreach ($weekDays as $day)
                                     <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                                         <div>{{ $day['dayName'] }}</div>
                                         <div class="text-gray-400">{{ $day['dayNum'] }}</div>
                                         @if (isset($dayRemarks[$day['date']]))
+                                            @php $remark = $dayRemarks[$day['date']]; @endphp
                                             <div class="mt-1">
-                                                <span class="inline-block px-1.5 py-0.5 text-[10px] rounded
-                                                    @if ($dayRemarks[$day['date']]->remark_type === 'public_holiday') bg-red-100 text-red-700
-                                                    @elseif ($dayRemarks[$day['date']]->remark_type === 'stocktake') bg-blue-100 text-blue-700
-                                                    @elseif ($dayRemarks[$day['date']]->remark_type === 'event') bg-purple-100 text-purple-700
-                                                    @else bg-gray-100 text-gray-700 @endif"
-                                                    title="{{ $dayRemarks[$day['date']]->remark_text }}">
-                                                    {{ Str::limit($dayRemarks[$day['date']]->remark_text, 6) }}
+                                                <span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded
+                                                    @if ($remark->remark_type === 'public_holiday') bg-red-100 text-red-700
+                                                    @elseif ($remark->remark_type === 'stocktake') bg-blue-100 text-blue-700
+                                                    @elseif ($remark->remark_type === 'event') bg-purple-100 text-purple-700
+                                                    @else bg-gray-100 text-gray-700 @endif">
+                                                    @if ($remark->remark_type === 'public_holiday') PH
+                                                    @elseif ($remark->remark_type === 'stocktake') ST
+                                                    @elseif ($remark->remark_type === 'event') EV
+                                                    @else * @endif
                                                 </span>
+                                                @if ($remark->remark_text)
+                                                    <div class="text-[9px] text-gray-600 mt-0.5 leading-tight">{{ $remark->remark_text }}</div>
+                                                @endif
                                             </div>
                                         @endif
                                         @if ($roster->isDraft())
@@ -373,11 +379,10 @@
                                                     <button wire:click="openEditEntry({{ $entry->id }})"
                                                             class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
                                                                 {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
-                                                            {{ !$canEditThis ? 'disabled' : '' }}
-                                                            title="{{ $entry->station?->name ?? '' }}">
+                                                            {{ !$canEditThis ? 'disabled' : '' }}>
                                                         <div>{{ $entry->shift_short }}</div>
                                                         @if ($entry->station && !$entry->is_off_day)
-                                                            <div class="text-[10px] opacity-75 truncate">{{ Str::limit($entry->station->name, 8) }}</div>
+                                                            <div class="text-[10px] opacity-85 leading-tight">{{ $entry->station->name }}</div>
                                                         @endif
                                                     </button>
                                                 @else
