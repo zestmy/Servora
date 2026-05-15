@@ -120,8 +120,9 @@
     @endif
 
     {{-- Add/Edit Modal --}}
+    @teleport('body')
     @if ($showForm)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50" wire:click="closeForm"></div>
                 <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -177,4 +178,5 @@
             </div>
         </div>
     @endif
+    @endteleport
 </div>

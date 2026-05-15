@@ -446,8 +446,9 @@
     @endif
 
     {{-- Entry Form Modal --}}
+    @teleport('body')
     @if ($showEntryForm)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50" wire:click="closeEntryForm"></div>
                 <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
@@ -605,10 +606,12 @@
             </div>
         </div>
     @endif
+    @endteleport
 
     {{-- Day Remark Modal --}}
+    @teleport('body')
     @if ($showRemarkForm)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50" wire:click="closeRemarkForm"></div>
                 <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -664,10 +667,12 @@
             </div>
         </div>
     @endif
+    @endteleport
 
     {{-- Reject Modal --}}
+    @teleport('body')
     @if ($showRejectModal)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50" wire:click="closeRejectModal"></div>
                 <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -702,10 +707,12 @@
             </div>
         </div>
     @endif
+    @endteleport
 
     {{-- Email Modal --}}
+    @teleport('body')
     @if ($showEmailModal)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50" wire:click="closeEmailModal"></div>
                 <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
@@ -774,4 +781,5 @@
             </div>
         </div>
     @endif
+    @endteleport
 </div>
