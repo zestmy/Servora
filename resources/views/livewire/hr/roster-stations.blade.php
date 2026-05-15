@@ -120,63 +120,55 @@
     @endif
 
     {{-- Add/Edit Modal --}}
-    @teleport('body')
     @if ($showForm)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" wire:click="closeForm"></div>
-                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                    <h3 class="font-semibold text-gray-700">{{ $editingId ? 'Edit Station' : 'Add Station' }}</h3>
-                    <button wire:click="closeForm" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+    <div class="fixed inset-0 z-[9999] overflow-y-auto" wire:key="station-modal">
+        <div class="fixed inset-0 bg-black/50 transition-opacity" wire:click="closeForm"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">{{ $editingId ? 'Edit Station' : 'Add Station' }}</h3>
+                    <button type="button" wire:click="closeForm" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <form wire:submit="save" class="p-6 space-y-4">
+                <form wire:submit.prevent="save" class="p-5 space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Station Name *</label>
+                        <label class="text-xs font-semibold text-gray-600">Station Name <span class="text-red-500">*</span></label>
                         <input type="text" wire:model="f_name"
-                               class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="e.g. Kitchen, Service, Bar" />
                         @error('f_name') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <label class="text-xs font-semibold text-gray-600">Description</label>
                         <input type="text" wire:model="f_description"
-                               class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="Optional description" />
                         @error('f_description') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                     </div>
-                    <div class="flex items-center gap-4">
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Sort Order</label>
                             <input type="number" wire:model="f_sort_order" min="0"
-                                   class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                   class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
                         </div>
-                        <div class="flex items-center pt-6">
-                            <label class="flex items-center cursor-pointer">
+                        <div class="flex items-end pb-1">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="f_is_active"
                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                <span class="ml-2 text-sm text-gray-700">Active</span>
+                                <span class="text-sm text-gray-700">Active</span>
                             </label>
                         </div>
                     </div>
-                    <div class="flex justify-end gap-3 pt-4 border-t">
-                        <button type="button" wire:click="closeForm"
-                                class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Cancel
-                        </button>
-                        <button type="submit"
-                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                        <button type="button" wire:click="closeForm" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
                             {{ $editingId ? 'Update' : 'Create' }}
                         </button>
                     </div>
                 </form>
-                </div>
             </div>
         </div>
+    </div>
     @endif
-    @endteleport
 </div>

@@ -446,12 +446,26 @@
     @endif
 
     {{-- Entry Form Modal --}}
-    @teleport('body')
-    @if ($showEntryForm)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
+    <template x-teleport="body">
+        <div x-show="$wire.showEntryForm"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-[9999] overflow-y-auto"
+             style="display: none;">
             <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" wire:click="closeEntryForm"></div>
-                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <div class="fixed inset-0 bg-black/50" @click="$wire.closeEntryForm()"></div>
+                <div x-show="$wire.showEntryForm"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">
                         {{ $editingEntryId ? 'Edit Shift' : 'Add Shift' }}
@@ -605,16 +619,29 @@
                 </div>
             </div>
         </div>
-    @endif
-    @endteleport
+    </template>
 
     {{-- Day Remark Modal --}}
-    @teleport('body')
-    @if ($showRemarkForm)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
+    <template x-teleport="body">
+        <div x-show="$wire.showRemarkForm"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-[9999] overflow-y-auto"
+             style="display: none;">
             <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" wire:click="closeRemarkForm"></div>
-                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div class="fixed inset-0 bg-black/50" @click="$wire.closeRemarkForm()"></div>
+                <div x-show="$wire.showRemarkForm"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">
                         Day Remark — {{ \Carbon\Carbon::parse($remark_date)->format('D, M j') }}
@@ -666,59 +693,85 @@
                 </div>
             </div>
         </div>
-    @endif
-    @endteleport
+    </template>
 
     {{-- Reject Modal --}}
-    @teleport('body')
-    @if ($showRejectModal)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
+    <template x-teleport="body">
+        <div x-show="$wire.showRejectModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-[9999] overflow-y-auto"
+             style="display: none;">
             <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" wire:click="closeRejectModal"></div>
-                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                    <h3 class="font-semibold text-gray-700">Reject Roster</h3>
-                    <button wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <form wire:submit="rejectRoster" class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Rejection Reason *</label>
-                        <textarea wire:model="rejection_reason" rows="3"
-                                  class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  placeholder="Please explain why this roster is being rejected..."></textarea>
-                        @error('rejection_reason') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="flex justify-end gap-3 pt-4 border-t">
-                        <button type="button" wire:click="closeRejectModal"
-                                class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Cancel
-                        </button>
-                        <button type="submit"
-                                class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
-                            Reject Roster
+                <div class="fixed inset-0 bg-black/50" @click="$wire.closeRejectModal()"></div>
+                <div x-show="$wire.showRejectModal"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+                        <h3 class="font-semibold text-gray-700">Reject Roster</h3>
+                        <button type="button" wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </button>
                     </div>
-                </form>
+                    <form wire:submit="rejectRoster" class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Rejection Reason *</label>
+                            <textarea wire:model="rejection_reason" rows="3"
+                                      class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                      placeholder="Please explain why this roster is being rejected..."></textarea>
+                            @error('rejection_reason') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="flex justify-end gap-3 pt-4 border-t">
+                            <button type="button" wire:click="closeRejectModal"
+                                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
+                                Reject Roster
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
-    @endif
-    @endteleport
+    </template>
 
     {{-- Email Modal --}}
-    @teleport('body')
-    @if ($showEmailModal)
-        <div class="fixed inset-0 z-[9999] overflow-y-auto" style="position: fixed !important;">
+    <template x-teleport="body">
+        <div x-show="$wire.showEmailModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-[9999] overflow-y-auto"
+             style="display: none;">
             <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" wire:click="closeEmailModal"></div>
-                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                    <h3 class="font-semibold text-gray-700">Email Duty Roster</h3>
-                    <button wire:click="closeEmailModal" class="text-gray-400 hover:text-gray-600">
+                <div class="fixed inset-0 bg-black/50" @click="$wire.closeEmailModal()"></div>
+                <div x-show="$wire.showEmailModal"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+                        <h3 class="font-semibold text-gray-700">Email Duty Roster</h3>
+                        <button type="button" wire:click="closeEmailModal" class="text-gray-400 hover:text-gray-600">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -780,6 +833,5 @@
                 </div>
             </div>
         </div>
-    @endif
-    @endteleport
+    </template>
 </div>
