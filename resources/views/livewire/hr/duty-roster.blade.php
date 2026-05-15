@@ -445,38 +445,24 @@
         </div>
     @endif
 
-    {{-- Entry Form Modal --}}
+    {{-- Entry Form Modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showEntryForm') }">
     <template x-teleport="body">
-        <div x-show="$wire.showEntryForm"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-[9999] overflow-y-auto"
-             style="display: none;">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" @click="$wire.closeEntryForm()"></div>
-                <div x-show="$wire.showEntryForm"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 scale-100"
-                     x-transition:leave-end="opacity-0 scale-95"
-                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+    <div x-show="open" x-cloak
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                     <h3 class="font-semibold text-gray-700">
                         {{ $editingEntryId ? 'Edit Shift' : 'Add Shift' }}
                         @if ($f_day_date)
                             <span class="text-gray-500 font-normal">— {{ \Carbon\Carbon::parse($f_day_date)->format('D, M j') }}</span>
                         @endif
                     </h3>
-                    <button wire:click="closeEntryForm" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
 
@@ -494,7 +480,7 @@
                             @error('amendment_reason') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                         </div>
                         <div class="flex justify-end gap-3 mt-4">
-                            <button type="button" wire:click="closeEntryForm"
+                            <button type="button" @click="open = false"
                                     class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
                                 Cancel
                             </button>
@@ -616,46 +602,33 @@
                         </div>
                     </form>
                 @endif
-                </div>
             </div>
         </div>
+    </div>
     </template>
+    </div>
 
-    {{-- Day Remark Modal --}}
+    {{-- Day Remark Modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showRemarkForm') }">
     <template x-teleport="body">
-        <div x-show="$wire.showRemarkForm"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-[9999] overflow-y-auto"
-             style="display: none;">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" @click="$wire.closeRemarkForm()"></div>
-                <div x-show="$wire.showRemarkForm"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 scale-100"
-                     x-transition:leave-end="opacity-0 scale-95"
-                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                    <h3 class="font-semibold text-gray-700">
+    <div x-show="open" x-cloak
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">
                         Day Remark — {{ \Carbon\Carbon::parse($remark_date)->format('D, M j') }}
                     </h3>
-                    <button wire:click="closeRemarkForm" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <form wire:submit="saveRemark" class="p-6 space-y-4">
+                <form wire:submit.prevent="saveRemark" class="p-5 space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                        <select wire:model="remark_type" class="w-full text-sm rounded-lg border-gray-300 shadow-sm">
+                        <label class="text-xs font-semibold text-gray-600">Type</label>
+                        <select wire:model="remark_type" class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm">
                             <option value="public_holiday">Public Holiday</option>
                             <option value="stocktake">Stocktake</option>
                             <option value="event">Event</option>
@@ -663,138 +636,98 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                        <label class="text-xs font-semibold text-gray-600">Description <span class="text-red-500">*</span></label>
                         <input type="text" wire:model="remark_text"
-                               class="w-full text-sm rounded-lg border-gray-300 shadow-sm"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm"
                                placeholder="e.g. Christmas Day, Monthly Stocktake" />
-                        @error('remark_text') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                        @error('remark_text') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
                     </div>
-                    <div class="flex justify-between pt-4 border-t">
+                    <div class="flex justify-between pt-3 border-t border-gray-100">
                         @if (isset($dayRemarks[$remark_date]))
                             <button type="button" wire:click="deleteRemark('{{ $remark_date }}')"
-                                    class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800">
+                                    class="px-4 py-2 text-sm text-red-600 hover:text-red-800">
                                 Delete
                             </button>
                         @else
                             <div></div>
                         @endif
-                        <div class="flex gap-3">
-                            <button type="button" wire:click="closeRemarkForm"
-                                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-                                Save
-                            </button>
+                        <div class="flex gap-2">
+                            <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                            <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Save</button>
                         </div>
                     </div>
                 </form>
-                </div>
             </div>
         </div>
+    </div>
     </template>
+    </div>
 
-    {{-- Reject Modal --}}
+    {{-- Reject Modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showRejectModal') }">
     <template x-teleport="body">
-        <div x-show="$wire.showRejectModal"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-[9999] overflow-y-auto"
-             style="display: none;">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" @click="$wire.closeRejectModal()"></div>
-                <div x-show="$wire.showRejectModal"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 scale-100"
-                     x-transition:leave-end="opacity-0 scale-95"
-                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                        <h3 class="font-semibold text-gray-700">Reject Roster</h3>
-                        <button type="button" wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                    <form wire:submit="rejectRoster" class="p-6 space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Rejection Reason *</label>
-                            <textarea wire:model="rejection_reason" rows="3"
-                                      class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                      placeholder="Please explain why this roster is being rejected..."></textarea>
-                            @error('rejection_reason') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
-                        </div>
-                        <div class="flex justify-end gap-3 pt-4 border-t">
-                            <button type="button" wire:click="closeRejectModal"
-                                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                    class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
-                                Reject Roster
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </template>
-
-    {{-- Email Modal --}}
-    <template x-teleport="body">
-        <div x-show="$wire.showEmailModal"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-[9999] overflow-y-auto"
-             style="display: none;">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" @click="$wire.closeEmailModal()"></div>
-                <div x-show="$wire.showEmailModal"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 scale-100"
-                     x-transition:leave-end="opacity-0 scale-95"
-                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-                    <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                        <h3 class="font-semibold text-gray-700">Email Duty Roster</h3>
-                        <button type="button" wire:click="closeEmailModal" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+    <div x-show="open" x-cloak
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">Reject Roster</h3>
+                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <div class="p-6 space-y-4">
+                <form wire:submit.prevent="rejectRoster" class="p-5 space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Rejection Reason <span class="text-red-500">*</span></label>
+                        <textarea wire:model="rejection_reason" rows="3"
+                                  class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  placeholder="Please explain why this roster is being rejected..."></textarea>
+                        @error('rejection_reason') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">Reject Roster</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    </template>
+    </div>
+
+    {{-- Email Modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showEmailModal') }">
+    <template x-teleport="body">
+    <div x-show="open" x-cloak
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">Email Duty Roster</h3>
+                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-5 space-y-3">
                     <p class="text-sm text-gray-600">Send the roster PDF to selected recipients:</p>
 
-                    <div>
-                        <label class="flex items-center cursor-pointer">
-                            <input type="checkbox" wire:model="email_to_employees"
-                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                            <span class="ml-2 text-sm text-gray-700">
-                                All assigned employees
-                                <span class="text-gray-400">({{ $roster?->entries->pluck('employee_id')->unique()->count() ?? 0 }} employees)</span>
-                            </span>
-                        </label>
-                    </div>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" wire:model="email_to_employees"
+                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span class="ml-2 text-sm text-gray-700">
+                            All assigned employees
+                            <span class="text-gray-400">({{ $roster?->entries->pluck('employee_id')->unique()->count() ?? 0 }} employees)</span>
+                        </span>
+                    </label>
 
                     @if ($emailRecipients->isNotEmpty())
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Custom Recipients</label>
-                            <div class="space-y-2 max-h-32 overflow-y-auto">
+                            <label class="text-xs font-semibold text-gray-600">Custom Recipients</label>
+                            <div class="mt-1 space-y-2 max-h-32 overflow-y-auto">
                                 @foreach ($emailRecipients as $recipient)
                                     <label class="flex items-center cursor-pointer">
                                         <input type="checkbox" wire:model="email_recipient_ids" value="{{ $recipient->id }}"
@@ -812,26 +745,21 @@
                     @endif
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Additional Emails</label>
+                        <label class="text-xs font-semibold text-gray-600">Additional Emails</label>
                         <input type="text" wire:model="email_additional"
-                               class="w-full text-sm rounded-lg border-gray-300 shadow-sm"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm"
                                placeholder="email1@example.com, email2@example.com" />
                         <p class="text-xs text-gray-500 mt-1">Separate multiple emails with commas</p>
                     </div>
 
-                    <div class="flex justify-end gap-3 pt-4 border-t">
-                        <button type="button" wire:click="closeEmailModal"
-                                class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Cancel
-                        </button>
-                        <button wire:click="sendEmail"
-                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-                            Send Email
-                        </button>
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button wire:click="sendEmail" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Send Email</button>
                     </div>
-                </div>
                 </div>
             </div>
         </div>
+    </div>
     </template>
+    </div>
 </div>

@@ -110,77 +110,58 @@
         </div>
     @endif
 
-    {{-- Add/Edit Modal --}}
+    {{-- Add/Edit Modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showForm') }">
     <template x-teleport="body">
-        <div x-show="$wire.showForm"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-[9999] overflow-y-auto"
-             style="display: none;">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="fixed inset-0 bg-black/50" @click="$wire.closeForm()"></div>
-                <div x-show="$wire.showForm"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 scale-100"
-                     x-transition:leave-end="opacity-0 scale-95"
-                     class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
-                        <h3 class="font-semibold text-gray-700">{{ $editingId ? 'Edit Recipient' : 'Add Recipient' }}</h3>
-                        <button type="button" wire:click="closeForm" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+    <div x-show="open" x-cloak
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">{{ $editingId ? 'Edit Recipient' : 'Add Recipient' }}</h3>
+                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <form wire:submit.prevent="save" class="p-5 space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Email Address <span class="text-red-500">*</span></label>
+                        <input type="email" wire:model="f_email"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="e.g. hr@company.com" />
+                        @error('f_email') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Name</label>
+                        <input type="text" wire:model="f_name"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="e.g. John Smith" />
+                        @error('f_name') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Role Label</label>
+                        <input type="text" wire:model="f_role_label"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="e.g. HR Manager, Area Manager" />
+                        @error('f_role_label') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+                    </div>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" wire:model="f_is_active"
+                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span class="text-sm text-gray-700">Active</span>
+                    </label>
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+                            {{ $editingId ? 'Update' : 'Add' }}
                         </button>
                     </div>
-                    <form wire:submit="save" class="p-6 space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
-                            <input type="email" wire:model="f_email"
-                                   class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                   placeholder="e.g. hr@company.com" />
-                            @error('f_email') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                            <input type="text" wire:model="f_name"
-                                   class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                   placeholder="e.g. John Smith" />
-                            @error('f_name') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Role Label</label>
-                            <input type="text" wire:model="f_role_label"
-                                   class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                   placeholder="e.g. HR Manager, Area Manager" />
-                            @error('f_role_label') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
-                        </div>
-                        <div class="flex items-center">
-                            <label class="flex items-center cursor-pointer">
-                                <input type="checkbox" wire:model="f_is_active"
-                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                <span class="ml-2 text-sm text-gray-700">Active</span>
-                            </label>
-                        </div>
-                        <div class="flex justify-end gap-3 pt-4 border-t">
-                            <button type="button" wire:click="closeForm"
-                                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-                                {{ $editingId ? 'Update' : 'Add' }}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
+    </div>
     </template>
+    </div>
 </div>
