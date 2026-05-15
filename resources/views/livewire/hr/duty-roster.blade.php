@@ -320,6 +320,9 @@
                                                 @endif
                                                 <div class="flex-1">
                                                     <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
+                                                    @if ($empData['employee']?->designation)
+                                                        <div class="text-xs text-gray-500">{{ $empData['employee']->designation }}</div>
+                                                    @endif
                                                 </div>
                                                 @if ($roster->isDraft() && $canEdit)
                                                     <button wire:click="removeEmployeeRow({{ $empId }})"
