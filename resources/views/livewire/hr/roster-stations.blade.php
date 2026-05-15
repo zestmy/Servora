@@ -123,15 +123,16 @@
     <div x-data="{}"
          x-show="$wire.showForm"
          x-cloak
-         class="fixed inset-0 z-50">
+         style="position: fixed; inset: 0; z-index: 9999;"
+         class="overflow-hidden">
 
         {{-- Backdrop --}}
-        <div class="fixed inset-0 bg-gray-900/50" @click="$wire.closeForm()"></div>
+        <div class="fixed inset-0 bg-gray-900/50" style="z-index: 9999;" @click="$wire.closeForm()"></div>
 
         {{-- Card --}}
-        <div class="fixed inset-0 overflow-y-auto">
+        <div class="fixed inset-0 overflow-y-auto" style="z-index: 10000;">
         <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md">
 
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
