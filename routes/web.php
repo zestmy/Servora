@@ -329,6 +329,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/roster-stations', \App\Livewire\Hr\RosterStations::class)->name('hr.roster-stations')->middleware('can:roster.settings');
     Route::get('/hr/roster-approvers', \App\Livewire\Hr\RosterApprovers::class)->name('hr.roster-approvers')->middleware('can:roster.settings');
     Route::get('/hr/roster-email-recipients', \App\Livewire\Hr\RosterEmailRecipients::class)->name('hr.roster-email-recipients')->middleware('can:roster.settings');
+    Route::get('/hr/roster-settings', \App\Livewire\Hr\RosterSettings::class)->name('hr.roster-settings')->middleware('can:roster.settings');
     Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.view');
     Route::get('/settings/document-folders', \App\Livewire\Settings\DocumentFolders::class)->name('settings.document-folders')->middleware('can:hr.documents.manage');
     Route::get('/settings/reports', \App\Livewire\Settings\ReportSubscriptions::class)->name('settings.reports')->middleware('can:reports.view');

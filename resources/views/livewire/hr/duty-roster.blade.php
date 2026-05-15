@@ -22,6 +22,11 @@
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Duty Roster</h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            @can('roster.settings')
+            <a href="{{ route('hr.roster-settings') }}"
+               class="px-3 py-2 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition">
+                Settings
+            </a>
             <a href="{{ route('hr.roster-stations') }}"
                class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                 Stations
@@ -34,6 +39,7 @@
                class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                 Email Recipients
             </a>
+            @endcan
         </div>
     </div>
 
