@@ -92,17 +92,17 @@
                         <td>
                             @if (isset($dayRemarks[$day['date']]))
                                 @php $remark = $dayRemarks[$day['date']]; @endphp
-                                <div>
-                                    @if ($remark->remark_type === 'public_holiday')
-                                        PH
-                                    @elseif ($remark->remark_type === 'stocktake')
-                                        ST
-                                    @elseif ($remark->remark_type === 'event')
-                                        EV
-                                    @else
-                                        *
-                                    @endif
-                                </div>
+                                @if ($remark->remark_type !== 'custom')
+                                    <div>
+                                        @if ($remark->remark_type === 'public_holiday')
+                                            PH
+                                        @elseif ($remark->remark_type === 'stocktake')
+                                            ST
+                                        @elseif ($remark->remark_type === 'event')
+                                            EV
+                                        @endif
+                                    </div>
+                                @endif
                                 @if ($remark->remark_text)
                                     <div class="remark-text">{{ $remark->remark_text }}</div>
                                 @endif
@@ -270,8 +270,7 @@
         <strong>Remarks:</strong>
         PH = Public Holiday &nbsp;|&nbsp;
         ST = Stocktake &nbsp;|&nbsp;
-        EV = Event &nbsp;|&nbsp;
-        * = Custom
+        EV = Event
     </div>
     <div style="margin-top: 6px; font-size: 7px;">
         <strong>Shifts:</strong>

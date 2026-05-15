@@ -255,16 +255,18 @@
                                         @if (isset($dayRemarks[$day['date']]))
                                             @php $remark = $dayRemarks[$day['date']]; @endphp
                                             <div class="mt-1">
-                                                <span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded
-                                                    @if ($remark->remark_type === 'public_holiday') bg-red-100 text-red-700
-                                                    @elseif ($remark->remark_type === 'stocktake') bg-blue-100 text-blue-700
-                                                    @elseif ($remark->remark_type === 'event') bg-purple-100 text-purple-700
-                                                    @else bg-gray-100 text-gray-700 @endif">
-                                                    @if ($remark->remark_type === 'public_holiday') PH
-                                                    @elseif ($remark->remark_type === 'stocktake') ST
-                                                    @elseif ($remark->remark_type === 'event') EV
-                                                    @else * @endif
-                                                </span>
+                                                @if ($remark->remark_type !== 'custom')
+                                                    <span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded
+                                                        @if ($remark->remark_type === 'public_holiday') bg-red-100 text-red-700
+                                                        @elseif ($remark->remark_type === 'stocktake') bg-blue-100 text-blue-700
+                                                        @elseif ($remark->remark_type === 'event') bg-purple-100 text-purple-700
+                                                        @else bg-gray-100 text-gray-700 @endif">
+                                                        @if ($remark->remark_type === 'public_holiday') PH
+                                                        @elseif ($remark->remark_type === 'stocktake') ST
+                                                        @elseif ($remark->remark_type === 'event') EV
+                                                        @endif
+                                                    </span>
+                                                @endif
                                                 @if ($remark->remark_text)
                                                     <div class="text-[9px] text-gray-600 mt-0.5 leading-tight">{{ $remark->remark_text }}</div>
                                                 @endif
