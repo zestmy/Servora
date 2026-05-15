@@ -16,6 +16,7 @@ class OvertimeClaim extends Model
         'claim_date', 'ot_time_start', 'ot_time_end', 'total_ot_hours',
         'ot_type', 'reason', 'status',
         'approved_by', 'approved_at', 'rejected_reason',
+        'source', 'roster_entry_id',
     ];
 
     protected $casts = [
@@ -52,6 +53,16 @@ class OvertimeClaim extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function rosterEntry(): BelongsTo
+    {
+        return $this->belongsTo(RosterEntry::class, 'roster_entry_id');
+    }
+
+    public function isFromRoster(): bool
+    {
+        return $this->source === 'roster';
     }
 
     public function otTypeLabel(): string
