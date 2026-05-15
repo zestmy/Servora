@@ -32,9 +32,10 @@ return new class extends Migration
         $companyAdmin = Role::where('name', 'Company Admin')->first();
         $hrManager = Role::where('name', 'HR Manager')->first();
         $outletManager = Role::where('name', 'Outlet Manager')->first();
+        $businessManager = Role::where('name', 'Business Manager')->first();
 
-        // Company Admin & HR Manager get all permissions
-        foreach ([$companyAdmin, $hrManager] as $role) {
+        // Company Admin, HR Manager & Business Manager get all permissions
+        foreach ([$companyAdmin, $hrManager, $businessManager] as $role) {
             if ($role) {
                 foreach ($permissions as $permName) {
                     if (! $role->hasPermissionTo($permName)) {
@@ -78,6 +79,26 @@ return new class extends Migration
             $userIds = DB::table('model_has_roles')
                 ->where('model_type', 'App\\Models\\User')
                 ->where('role_id', $hrManager->id)
+                ->pluck('model_id');
+
+            foreach ($permissions as $permName) {
+                $perm = Permission::where('name', $permName)->where('guard_name', 'web')->first();
+                if ($perm) {
+                    foreach ($userIds as $userId) {
+                        DB::table('model_has_permissions')->updateOrInsert(
+                            ['permission_id' => $perm->id, 'model_type' => 'App\\Models\\User', 'model_id' => $userId],
+                            []
+                        );
+                    }
+                }
+            }
+        }
+
+        // Backfill existing Business Manager users
+        if ($businessManager) {
+            $userIds = DB::table('model_has_roles')
+                ->where('model_type', 'App\\Models\\User')
+                ->where('role_id', $businessManager->id)
                 ->pluck('model_id');
 
             foreach ($permissions as $permName) {
