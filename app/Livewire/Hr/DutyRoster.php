@@ -156,8 +156,63 @@ class DutyRoster extends Component
             'revision' => 1,
         ]);
 
+        // Pre-populate with active employees from the outlet/section
+        $this->prepopulateEmployees();
+
         $this->roster->load(['entries.employee', 'entries.station', 'dayRemarks']);
-        session()->flash('success', 'Roster created for this week.');
+        session()->flash('success', 'Roster created with employees pre-populated.');
+    }
+
+    /**
+     * Pre-populate roster with placeholder entries for all active employees.
+     */
+    protected function prepopulateEmployees(): void
+    {
+        $query = Employee::where('outlet_id', $this->outletId)
+            ->where('is_active', true);
+
+        if ($this->sectionId) {
+            $query->where('section_id', $this->sectionId);
+        }
+
+        $employees = $query->orderBy('name')->get();
+        $weekDays = $this->getWeekDays();
+
+        // Get default rest duration from settings
+        $settings = RosterSetting::firstOrCreate(
+            ['outlet_id' => $this->outletId],
+            ['normal_hours' => 8.00, 'rest_duration' => 60]
+        );
+
+        foreach ($employees as $employee) {
+            // Create a placeholder entry for first day to show employee in roster
+            // This entry starts as "off day" so user can click to edit shifts
+            RosterEntry::create([
+                'roster_id' => $this->roster->id,
+                'employee_id' => $employee->id,
+                'day_date' => $weekDays[0]['date'],
+                'is_off_day' => true,
+                'rest_duration' => $settings->rest_duration,
+            ]);
+        }
+    }
+
+    /**
+     * Remove an employee and all their entries from the roster.
+     */
+    public function removeEmployeeRow(int $employeeId): void
+    {
+        if (!$this->roster || !$this->roster->isDraft()) {
+            session()->flash('error', 'Cannot remove employees from non-draft rosters.');
+            return;
+        }
+
+        RosterEntry::where('roster_id', $this->roster->id)
+            ->where('employee_id', $employeeId)
+            ->delete();
+
+        $this->loadRoster();
+        session()->flash('success', 'Employee removed from roster.');
     }
 
     // Entry Form Methods

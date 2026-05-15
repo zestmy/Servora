@@ -212,15 +212,29 @@
                         </thead>
                         <tbody class="divide-y divide-gray-50">
                             @forelse ($entriesGrouped as $empId => $empData)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="hover:bg-gray-50 group">
                                     <td class="px-4 py-3">
-                                        <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
-                                        @php
-                                            $stationNames = collect($empData['entries'])->pluck('station.name')->filter()->unique()->implode(', ');
-                                        @endphp
-                                        @if ($stationNames)
-                                            <div class="text-xs text-gray-500">{{ $stationNames }}</div>
-                                        @endif
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
+                                                @php
+                                                    $stationNames = collect($empData['entries'])->pluck('station.name')->filter()->unique()->implode(', ');
+                                                @endphp
+                                                @if ($stationNames)
+                                                    <div class="text-xs text-gray-500">{{ $stationNames }}</div>
+                                                @endif
+                                            </div>
+                                            @if ($roster->isDraft())
+                                                <button wire:click="removeEmployeeRow({{ $empId }})"
+                                                        wire:confirm="Remove {{ $empData['employee']?->name }} from this roster?"
+                                                        class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition"
+                                                        title="Remove from roster">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            @endif
+                                        </div>
                                     </td>
                                     @foreach ($weekDays as $day)
                                         <td class="px-2 py-3 text-center">
