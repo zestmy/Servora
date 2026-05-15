@@ -51,6 +51,17 @@
                 </select>
             </div>
 
+            {{-- Section Filter --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Section</label>
+                <select wire:model.live="sectionId" class="text-sm rounded-lg border-gray-300 shadow-sm min-w-[120px]">
+                    <option value="">All Sections</option>
+                    @foreach ($sections as $section)
+                        <option value="{{ $section->id }}">{{ $section->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             {{-- Week Navigation --}}
             <div class="flex-1"></div>
             <div class="flex items-center gap-2">
@@ -112,7 +123,7 @@
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        @if ($roster->isDraft())
+                        @if ($roster->isDraft() && $canEdit)
                             <button wire:click="submitRoster"
                                     class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                                 Submit for Approval
@@ -130,7 +141,7 @@
                             </button>
                         @endif
 
-                        @if ($roster->isSubmitted() || $roster->isRejected())
+                        @if (($roster->isSubmitted() || $roster->isRejected()) && $canEdit)
                             <button wire:click="revertToDraft"
                                     class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                                 Revert to Draft
@@ -153,14 +164,16 @@
                             Email
                         </button>
 
-                        <button wire:click="deleteRoster"
-                                wire:confirm="Are you sure you want to delete this roster? This action cannot be undone."
-                                class="px-3 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Delete
-                        </button>
+                        @if ($canDelete)
+                            <button wire:click="deleteRoster"
+                                    wire:confirm="Are you sure you want to delete this roster? This action cannot be undone."
+                                    class="px-3 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete
+                            </button>
+                        @endif
                     </div>
                 </div>
 
@@ -308,7 +321,7 @@
                                                 <div class="flex-1">
                                                     <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
                                                 </div>
-                                                @if ($roster->isDraft())
+                                                @if ($roster->isDraft() && $canEdit)
                                                     <button wire:click="removeEmployeeRow({{ $empId }})"
                                                             wire:confirm="Remove {{ $empData['employee']?->name }} from this roster?"
                                                             class="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition"
@@ -347,10 +360,13 @@
                                                             }
                                                         }
                                                     @endphp
+                                                    @php
+                                                        $canEditThis = ($roster->isDraft() && $canEdit) || ($roster->isApproved() && $canAmend);
+                                                    @endphp
                                                     <button wire:click="openEditEntry({{ $entry->id }})"
                                                             class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
-                                                                {{ ($roster->isApproved() && !$canAmend) ? 'cursor-not-allowed' : '' }}"
-                                                            {{ ($roster->isApproved() && !$canAmend) ? 'disabled' : '' }}
+                                                                {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
+                                                            {{ !$canEditThis ? 'disabled' : '' }}
                                                             title="{{ $entry->station?->name ?? '' }}">
                                                         <div>{{ $entry->shift_short }}</div>
                                                         @if ($entry->station && !$entry->is_off_day)
@@ -358,7 +374,7 @@
                                                         @endif
                                                     </button>
                                                 @else
-                                                    @if ($roster->isDraft())
+                                                    @if ($roster->isDraft() && $canEdit)
                                                         <button wire:click="openAddEntry('{{ $day['date'] }}', {{ $empId }})"
                                                                 class="w-full py-1 px-2 text-xs text-gray-400 hover:bg-gray-100 rounded">
                                                             +
@@ -429,10 +445,14 @@
             {{-- No Roster --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
                 <div class="text-gray-500 mb-4">No roster exists for this week.</div>
-                <button wire:click="createRoster"
-                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    Create Roster for {{ $periodLabel }}
-                </button>
+                @if ($canCreate)
+                    <button wire:click="createRoster"
+                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        Create Roster for {{ $periodLabel }}
+                    </button>
+                @else
+                    <p class="text-sm text-gray-400">You do not have permission to create rosters.</p>
+                @endif
             </div>
         @endif
     @else

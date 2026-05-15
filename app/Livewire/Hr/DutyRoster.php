@@ -12,6 +12,7 @@ use App\Models\RosterEmailRecipient;
 use App\Models\RosterEntry;
 use App\Models\RosterSetting;
 use App\Models\RosterStation;
+use App\Models\Section;
 use App\Services\RosterEmailService;
 use App\Services\RosterPdfService;
 use Carbon\Carbon;
@@ -21,7 +22,7 @@ use Livewire\Component;
 class DutyRoster extends Component
 {
     public ?int $outletId = null;
-    public ?int $sectionId = null; // Kept for backward compatibility with cached browser state
+    public ?int $sectionId = null; // Filter for viewing roster by section (FOH/BOH)
     public string $weekStart = '';
     public string $weekEnd = '';
 
@@ -137,6 +138,11 @@ class DutyRoster extends Component
             return;
         }
 
+        if (!Auth::user()->can('roster.create')) {
+            session()->flash('error', 'You do not have permission to create rosters.');
+            return;
+        }
+
         $this->roster = Roster::create([
             'company_id' => Auth::user()->company_id,
             'created_by' => Auth::id(),
@@ -218,6 +224,11 @@ class DutyRoster extends Component
             return;
         }
 
+        if (!Auth::user()->can('roster.edit')) {
+            session()->flash('error', 'You do not have permission to edit rosters.');
+            return;
+        }
+
         RosterEntry::where('roster_id', $this->roster->id)
             ->where('employee_id', $employeeId)
             ->delete();
@@ -230,6 +241,11 @@ class DutyRoster extends Component
     public function openAddEntry(string $date, ?int $employeeId = null): void
     {
         if (!$this->roster || !$this->roster->isDraft()) {
+            return;
+        }
+
+        if (!Auth::user()->can('roster.edit')) {
+            session()->flash('error', 'You do not have permission to edit rosters.');
             return;
         }
 
@@ -255,6 +271,11 @@ class DutyRoster extends Component
         if ($this->roster && $this->roster->isApproved()) {
             if (!Auth::user()->can('roster.amend')) {
                 session()->flash('error', 'You do not have permission to amend approved rosters.');
+                return;
+            }
+        } elseif ($this->roster && $this->roster->isDraft()) {
+            if (!Auth::user()->can('roster.edit')) {
+                session()->flash('error', 'You do not have permission to edit rosters.');
                 return;
             }
         } elseif ($this->roster && !$this->roster->isDraft()) {
@@ -492,6 +513,11 @@ class DutyRoster extends Component
             return;
         }
 
+        if (!Auth::user()->can('roster.edit')) {
+            session()->flash('error', 'You do not have permission to submit rosters.');
+            return;
+        }
+
         if ($this->roster->entries->isEmpty()) {
             session()->flash('error', 'Cannot submit an empty roster.');
             return;
@@ -571,6 +597,16 @@ class DutyRoster extends Component
     public function deleteRoster(): void
     {
         if (!$this->roster) {
+            return;
+        }
+
+        // Check delete permission: company admin, business admin, or roster.delete
+        $user = Auth::user();
+        $canDelete = $user->can('roster.delete')
+            || $user->hasRole(['Super Admin', 'System Admin', 'Company Admin', 'Business Admin']);
+
+        if (!$canDelete) {
+            session()->flash('error', 'You do not have permission to delete rosters.');
             return;
         }
 
@@ -739,6 +775,7 @@ class DutyRoster extends Component
 
     /**
      * Get entries grouped by section then by employee.
+     * Filters by selected sectionId if set.
      */
     protected function getEntriesBySection(): array
     {
@@ -747,18 +784,23 @@ class DutyRoster extends Component
         $bySection = [];
 
         foreach ($entriesGrouped as $empId => $empData) {
-            $sectionId = $empData['section']?->id ?? 0;
+            $empSectionId = $empData['section']?->id ?? 0;
             $sectionName = $empData['section']?->name ?? 'No Section';
 
-            if (!isset($bySection[$sectionId])) {
-                $bySection[$sectionId] = [
-                    'section_id' => $sectionId,
+            // Filter by selected section if set
+            if ($this->sectionId && $empSectionId !== $this->sectionId) {
+                continue;
+            }
+
+            if (!isset($bySection[$empSectionId])) {
+                $bySection[$empSectionId] = [
+                    'section_id' => $empSectionId,
                     'section_name' => $sectionName,
                     'employees' => [],
                 ];
             }
 
-            $bySection[$sectionId]['employees'][$empId] = $empData;
+            $bySection[$empSectionId]['employees'][$empId] = $empData;
         }
 
         // Sort sections by name (but keep "No Section" at the end)
@@ -774,6 +816,7 @@ class DutyRoster extends Component
     public function render()
     {
         $outlets = $this->accessibleOutlets();
+        $sections = Section::active()->ordered()->get();
         $weekDays = $this->getWeekDays();
         $entriesGrouped = $this->getEntriesGrouped();
         $entriesBySection = $this->getEntriesBySection();
@@ -799,15 +842,20 @@ class DutyRoster extends Component
 
         $periodLabel = Carbon::parse($this->weekStart)->format('M d') . ' - ' . Carbon::parse($this->weekEnd)->format('M d, Y');
 
+        $user = Auth::user();
+        $canCreate = $user->can('roster.create');
+        $canEdit = $user->can('roster.edit');
         $canApprove = $this->canApprove();
-        $canAmend = Auth::user()->can('roster.amend');
+        $canAmend = $user->can('roster.amend');
+        $canDelete = $user->can('roster.delete')
+            || $user->hasRole(['Super Admin', 'System Admin', 'Company Admin', 'Business Admin']);
 
         // Leave types for the form
         $leaveTypes = RosterEntry::LEAVE_TYPES;
 
         return view('livewire.hr.duty-roster', compact(
-            'outlets', 'weekDays', 'entriesGrouped', 'entriesBySection', 'employees', 'stations',
-            'dayRemarks', 'emailRecipients', 'periodLabel', 'canApprove', 'canAmend', 'leaveTypes'
+            'outlets', 'sections', 'weekDays', 'entriesGrouped', 'entriesBySection', 'employees', 'stations',
+            'dayRemarks', 'emailRecipients', 'periodLabel', 'canCreate', 'canEdit', 'canApprove', 'canAmend', 'canDelete', 'leaveTypes'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Duty Roster']);
     }
 }

@@ -115,9 +115,12 @@
                             @if (isset($empData['entries'][$day['date']]))
                                 @php $entry = $empData['entries'][$day['date']]; @endphp
                                 @if ($entry->is_off_day)
-                                    <span class="off">OFF</span>
+                                    <span class="off">{{ $entry->shift_short }}</span>
                                 @elseif ($entry->shift_start && $entry->shift_end)
                                     <span class="shift">{{ $entry->shift_short }}</span>
+                                    @if ($entry->station)
+                                        <div class="emp-station">{{ Str::limit($entry->station->name, 6) }}</div>
+                                    @endif
                                 @else
                                     -
                                 @endif
