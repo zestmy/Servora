@@ -35,12 +35,13 @@
         .roster-table tr:nth-child(even) { background: #f9f9f9; }
         .roster-table .emp-name { font-weight: bold; font-size: 9px; }
         .roster-table .emp-designation { font-size: 7px; color: #666; }
-        .roster-table .emp-station { font-size: 6px; color: #666; }
+        .roster-table .station-name { font-size: 7px; color: #374151; font-weight: 500; margin-top: 2px; }
         .roster-table .shift { font-size: 8px; padding: 2px 4px; border-radius: 3px; display: inline-block; }
         .roster-table .off { font-weight: bold; }
         .roster-table .remark { font-size: 6px; color: #7c3aed; background: #f3e8ff; padding: 1px 3px; border-radius: 2px; display: inline-block; margin-top: 1px; }
         .roster-table .total { font-weight: bold; background: #f0f9ff; }
-        .day-remark-row td { background: #fef3c7 !important; font-size: 7px; color: #92400e; padding: 3px 4px !important; }
+        .day-remark-row td { background: #fef3c7 !important; font-size: 8px; color: #92400e; padding: 4px !important; font-weight: 600; }
+        .day-remark-row .remark-text { font-size: 7px; font-weight: normal; display: block; margin-top: 2px; }
         .summary-box { margin-top: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; font-size: 9px; }
         .summary-box .row { display: flex; justify-content: space-between; padding: 3px 0; }
         .summary-box .label { color: #666; }
@@ -72,7 +73,7 @@
     <table class="roster-table">
         <thead>
             <tr>
-                <th class="left" style="width: 20%;">Employee / Station</th>
+                <th class="left" style="width: 20%;">Employee / Designation</th>
                 @foreach ($weekDays as $day)
                     <th style="width: 10%;">
                         {{ $day['dayName'] }}<br>{{ $day['dayNum'] }}
@@ -86,12 +87,12 @@
             {{-- Day Remarks Row --}}
             @if ($hasRemarks)
                 <tr class="day-remark-row">
-                    <td class="left" style="font-weight: bold;">Day Remarks</td>
+                    <td class="left">Day Remarks</td>
                     @foreach ($weekDays as $day)
                         <td>
                             @if (isset($dayRemarks[$day['date']]))
                                 @php $remark = $dayRemarks[$day['date']]; @endphp
-                                <span title="{{ $remark->remark_text }}">
+                                <div>
                                     @if ($remark->remark_type === 'public_holiday')
                                         PH
                                     @elseif ($remark->remark_type === 'stocktake')
@@ -101,7 +102,10 @@
                                     @else
                                         *
                                     @endif
-                                </span>
+                                </div>
+                                @if ($remark->remark_text)
+                                    <div class="remark-text">{{ $remark->remark_text }}</div>
+                                @endif
                             @endif
                         </td>
                     @endforeach
@@ -153,7 +157,7 @@
                                 @elseif ($entry->shift_start && $entry->shift_end)
                                     <span class="{{ $shiftClass }}">{{ $entry->shift_short }}</span>
                                     @if ($entry->station)
-                                        <div class="emp-station">{{ Str::limit($entry->station->name, 8) }}</div>
+                                        <div class="station-name">{{ $entry->station->name }}</div>
                                     @endif
                                 @else
                                     -
