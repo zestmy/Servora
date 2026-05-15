@@ -319,11 +319,9 @@
                                                 @if ($roster->isDraft())
                                                     <button wire:click="removeEmployeeRow({{ $empId }})"
                                                             wire:confirm="Remove {{ $empData['employee']?->name }} from this roster?"
-                                                            class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition"
+                                                            class="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition"
                                                             title="Remove from roster">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
+                                                        Remove
                                                     </button>
                                                 @endif
                                             </div>
@@ -449,8 +447,10 @@
 
     {{-- Entry Form Modal --}}
     @if ($showEntryForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeEntryForm">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8 overflow-hidden" @click.stop>
+        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="fixed inset-0 bg-black/50" wire:click="closeEntryForm"></div>
+                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">
                         {{ $editingEntryId ? 'Edit Shift' : 'Add Shift' }}
@@ -601,14 +601,17 @@
                         </div>
                     </form>
                 @endif
+                </div>
             </div>
         </div>
     @endif
 
     {{-- Day Remark Modal --}}
     @if ($showRemarkForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeRemarkForm">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md my-8 overflow-hidden" @click.stop>
+        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="fixed inset-0 bg-black/50" wire:click="closeRemarkForm"></div>
+                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">
                         Day Remark — {{ \Carbon\Carbon::parse($remark_date)->format('D, M j') }}
@@ -657,14 +660,17 @@
                         </div>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     @endif
 
     {{-- Reject Modal --}}
     @if ($showRejectModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeRejectModal">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md my-8 overflow-hidden" @click.stop>
+        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="fixed inset-0 bg-black/50" wire:click="closeRejectModal"></div>
+                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">Reject Roster</h3>
                     <button wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
@@ -692,14 +698,17 @@
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     @endif
 
     {{-- Email Modal --}}
     @if ($showEmailModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeEmailModal">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8 overflow-hidden" @click.stop>
+        <div class="fixed inset-0 z-[9999] overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="fixed inset-0 bg-black/50" wire:click="closeEmailModal"></div>
+                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">Email Duty Roster</h3>
                     <button wire:click="closeEmailModal" class="text-gray-400 hover:text-gray-600">
@@ -760,6 +769,7 @@
                             Send Email
                         </button>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
