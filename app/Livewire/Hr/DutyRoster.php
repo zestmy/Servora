@@ -898,9 +898,8 @@ class DutyRoster extends Component
             $grouped[$empId]['total_hours'] += (float) $entry->hours_worked;
             $grouped[$empId]['total_ot'] += (float) $entry->planned_ot;
 
-            // Calculate regular hours (capped at normal hours per day)
-            $entryRegular = min((float) $entry->hours_worked, (float) $normalHours);
-            $grouped[$empId]['regular_hours'] += $entryRegular;
+            // Calculate regular hours using entry's effective normal hours (entry override or outlet default)
+            $grouped[$empId]['regular_hours'] += $entry->regular_hours;
         }
 
         // Sort by sort_order
