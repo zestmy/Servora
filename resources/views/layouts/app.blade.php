@@ -212,7 +212,7 @@
                         'label' => 'HR',
                         'items' => [
                             ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view'],
-                            ['route' => 'hr.duty-roster',          'label' => 'Duty Roster',     'permission' => 'roster.view'],
+                            ['route' => 'hr.duty-roster',          'label' => 'Duty Roster'], // Viewable by all users
                             ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view'],
                             ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
                             ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.view'],
