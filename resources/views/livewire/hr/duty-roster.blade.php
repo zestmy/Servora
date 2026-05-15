@@ -363,31 +363,17 @@
                                                             }
                                                         }
                                                         $canEditThis = ($roster->isDraft() && $canEdit) || ($roster->isApproved() && $canAmend);
-                                                        $canCopyToNext = $roster->isDraft() && $canEdit && !$loop->last;
                                                     @endphp
-                                                    <div class="relative group/cell">
-                                                        <button wire:click="openEditEntry({{ $entry->id }})"
-                                                                class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
-                                                                    {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
-                                                                {{ !$canEditThis ? 'disabled' : '' }}
-                                                                title="{{ $entry->station?->name ?? '' }}">
-                                                            <div>{{ $entry->shift_short }}</div>
-                                                            @if ($entry->station && !$entry->is_off_day)
-                                                                <div class="text-[10px] opacity-75 truncate">{{ Str::limit($entry->station->name, 8) }}</div>
-                                                            @endif
-                                                        </button>
-                                                        @if ($canCopyToNext)
-                                                            <button wire:click="copyEntryToNextDay({{ $entry->id }})"
-                                                                    class="absolute -right-1 -top-1 opacity-0 group-hover/cell:opacity-100 transition-opacity
-                                                                           w-5 h-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-sm
-                                                                           flex items-center justify-center z-10"
-                                                                    title="Copy to next day">
-                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                                                </svg>
-                                                            </button>
+                                                    <button wire:click="openEditEntry({{ $entry->id }})"
+                                                            class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
+                                                                {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
+                                                            {{ !$canEditThis ? 'disabled' : '' }}
+                                                            title="{{ $entry->station?->name ?? '' }}">
+                                                        <div>{{ $entry->shift_short }}</div>
+                                                        @if ($entry->station && !$entry->is_off_day)
+                                                            <div class="text-[10px] opacity-75 truncate">{{ Str::limit($entry->station->name, 8) }}</div>
                                                         @endif
-                                                    </div>
+                                                    </button>
                                                 @else
                                                     @if ($roster->isDraft() && $canEdit)
                                                         <button wire:click="openAddEntry('{{ $day['date'] }}', {{ $empId }})"
@@ -696,6 +682,27 @@
                                    class="w-full text-sm rounded-lg border-gray-300 shadow-sm"
                                    placeholder="Optional notes" />
                         </div>
+
+                        {{-- Copy Actions (only for existing entries in draft mode) --}}
+                        @if ($editingEntryId && $roster?->isDraft() && $canEdit)
+                            <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                                <span class="text-xs text-gray-500">Copy shift:</span>
+                                <button type="button" wire:click="copyEntryToNextDay({{ $editingEntryId }})"
+                                        class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    </svg>
+                                    Next Day
+                                </button>
+                                <button type="button" wire:click="copyEntryToRestOfWeek({{ $editingEntryId }})"
+                                        class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                    </svg>
+                                    Rest of Week
+                                </button>
+                            </div>
+                        @endif
 
                         <div class="flex justify-between pt-4 border-t">
                             @if ($editingEntryId && $roster?->isDraft())
