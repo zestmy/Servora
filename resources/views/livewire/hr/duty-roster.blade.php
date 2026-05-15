@@ -307,12 +307,6 @@
                                                 @endif
                                                 <div class="flex-1">
                                                     <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
-                                                    @php
-                                                        $stationNames = collect($empData['entries'])->pluck('station.name')->filter()->unique()->implode(', ');
-                                                    @endphp
-                                                    @if ($stationNames)
-                                                        <div class="text-xs text-gray-500">{{ $stationNames }}</div>
-                                                    @endif
                                                 </div>
                                                 @if ($roster->isDraft())
                                                     <button wire:click="removeEmployeeRow({{ $empId }})"
