@@ -56,6 +56,12 @@ class Users extends Component
         'hr.view'              => 'HR',
         'hr.documents.view'    => 'HR Documents (View)',
         'hr.documents.manage'  => 'HR Documents (Manage)',
+        'roster.create'        => 'Duty Roster (Create)',
+        'roster.edit'          => 'Duty Roster (Edit/Submit)',
+        'roster.approve'       => 'Duty Roster (Approve)',
+        'roster.delete'        => 'Duty Roster (Delete)',
+        'roster.amend'         => 'Duty Roster (Amend Approved)',
+        'roster.settings'      => 'Duty Roster (Settings)',
         'reports.view'         => 'Reports',
         'settings.view'        => 'Settings',
     ];
