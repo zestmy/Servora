@@ -400,8 +400,8 @@
 
     {{-- Entry Form Modal --}}
     @if ($showEntryForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="closeEntryForm">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeEntryForm">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8 overflow-hidden" @click.stop>
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">
                         {{ $editingEntryId ? 'Edit Shift' : 'Add Shift' }}
@@ -558,8 +558,8 @@
 
     {{-- Day Remark Modal --}}
     @if ($showRemarkForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="closeRemarkForm">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeRemarkForm">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md my-8 overflow-hidden" @click.stop>
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">
                         Day Remark — {{ \Carbon\Carbon::parse($remark_date)->format('D, M j') }}
@@ -614,8 +614,8 @@
 
     {{-- Reject Modal --}}
     @if ($showRejectModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="closeRejectModal">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeRejectModal">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md my-8 overflow-hidden" @click.stop>
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">Reject Roster</h3>
                     <button wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
@@ -649,8 +649,8 @@
 
     {{-- Email Modal --}}
     @if ($showEmailModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="closeEmailModal">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" wire:click.self="closeEmailModal">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8 overflow-hidden" @click.stop>
                 <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
                     <h3 class="font-semibold text-gray-700">Email Duty Roster</h3>
                     <button wire:click="closeEmailModal" class="text-gray-400 hover:text-gray-600">
