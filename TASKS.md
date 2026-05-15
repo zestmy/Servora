@@ -8,6 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-05-15 — Feature 20: Duty Roster with planned OT; weekly grid Mon-Sun, configurable stations per outlet, BOH/FOH section filter, flexible shift hours, auto OT calculation + manual override, full approval workflow (draft→submitted→approved/rejected), PDF export, email distribution, amendment tracking with reasons, revision numbering, user tracking (created by/last edited by), OT Claim integration (auto-creates pending claims on approval); 12 migrations, 8 models, 4 Livewire components, 2 services, 5 views
 - 2026-05-13 — Feature 19: HR Documents with Google Drive API browser; file browser with grid/list view, folder navigation, inline preview, search; GoogleDriveService
 - 2026-04-27 — Feature 18: Remove outlet switcher; ScopesToActiveOutlet uses availableOutletIds() whereIn scope; User::activeOutletId() no longer session-driven; outlet display removed from sidebar/profile
 - 2026-04-27 — Feature 17: Persistent login (remember=true by default, SESSION_LIFETIME=43200)
