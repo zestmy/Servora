@@ -51,17 +51,6 @@
                 </select>
             </div>
 
-            {{-- Section (BOH/FOH) --}}
-            <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Section</label>
-                <select wire:model.live="sectionId" class="text-sm rounded-lg border-gray-300 shadow-sm min-w-[140px]">
-                    <option value="">All Sections</option>
-                    @foreach ($sections as $section)
-                        <option value="{{ $section->id }}">{{ $section->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
             {{-- Week Navigation --}}
             <div class="flex-1"></div>
             <div class="flex items-center gap-2">

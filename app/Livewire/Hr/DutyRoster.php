@@ -12,7 +12,6 @@ use App\Models\RosterEmailRecipient;
 use App\Models\RosterEntry;
 use App\Models\RosterSetting;
 use App\Models\RosterStation;
-use App\Models\Section;
 use App\Services\RosterEmailService;
 use App\Services\RosterPdfService;
 use Carbon\Carbon;
@@ -22,7 +21,6 @@ use Livewire\Component;
 class DutyRoster extends Component
 {
     public ?int $outletId = null;
-    public ?int $sectionId = null;
     public string $weekStart = '';
     public string $weekEnd = '';
 
@@ -96,12 +94,6 @@ class DutyRoster extends Component
 
     public function updatedOutletId(): void
     {
-        $this->sectionId = null;
-        $this->loadRoster();
-    }
-
-    public function updatedSectionId(): void
-    {
         $this->loadRoster();
     }
 
@@ -129,16 +121,11 @@ class DutyRoster extends Component
             return;
         }
 
-        $query = Roster::where('outlet_id', $this->outletId)
-            ->where('week_start_date', $this->weekStart);
-
-        if ($this->sectionId) {
-            $query->where('section_id', $this->sectionId);
-        } else {
-            $query->whereNull('section_id');
-        }
-
-        $this->roster = $query->with(['entries.employee', 'entries.station', 'dayRemarks', 'amendments'])->first();
+        $this->roster = Roster::where('outlet_id', $this->outletId)
+            ->where('week_start_date', $this->weekStart)
+            ->whereNull('section_id')
+            ->with(['entries.employee', 'entries.station', 'dayRemarks', 'amendments'])
+            ->first();
     }
 
     public function createRoster(): void
@@ -151,7 +138,7 @@ class DutyRoster extends Component
             'company_id' => Auth::user()->company_id,
             'created_by' => Auth::id(),
             'outlet_id' => $this->outletId,
-            'section_id' => $this->sectionId,
+            'section_id' => null,
             'week_start_date' => $this->weekStart,
             'week_end_date' => $this->weekEnd,
             'status' => Roster::STATUS_DRAFT,
@@ -170,15 +157,12 @@ class DutyRoster extends Component
      */
     protected function prepopulateEmployees(): void
     {
-        $query = Employee::where('outlet_id', $this->outletId)
-            ->where('is_active', true);
-
-        if ($this->sectionId) {
-            $query->where('section_id', $this->sectionId);
-        }
-
         // Order by section first, then by name
-        $employees = $query->orderBy('section_id')->orderBy('name')->get();
+        $employees = Employee::where('outlet_id', $this->outletId)
+            ->where('is_active', true)
+            ->orderBy('section_id')
+            ->orderBy('name')
+            ->get();
         $weekDays = $this->getWeekDays();
 
         // Get default rest duration from settings
@@ -768,7 +752,6 @@ class DutyRoster extends Component
     public function render()
     {
         $outlets = $this->accessibleOutlets();
-        $sections = Section::active()->ordered()->get();
         $weekDays = $this->getWeekDays();
         $entriesGrouped = $this->getEntriesGrouped();
         $entriesBySection = $this->getEntriesBySection();
@@ -779,11 +762,10 @@ class DutyRoster extends Component
         $emailRecipients = collect();
 
         if ($this->outletId) {
-            $query = Employee::where('outlet_id', $this->outletId)->where('is_active', true);
-            if ($this->sectionId) {
-                $query->where('section_id', $this->sectionId);
-            }
-            $employees = $query->orderBy('name')->get();
+            $employees = Employee::where('outlet_id', $this->outletId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
 
             $stations = RosterStation::where('outlet_id', $this->outletId)->active()->ordered()->get();
             $emailRecipients = RosterEmailRecipient::where('outlet_id', $this->outletId)->active()->get();
@@ -802,7 +784,7 @@ class DutyRoster extends Component
         $leaveTypes = RosterEntry::LEAVE_TYPES;
 
         return view('livewire.hr.duty-roster', compact(
-            'outlets', 'sections', 'weekDays', 'entriesGrouped', 'entriesBySection', 'employees', 'stations',
+            'outlets', 'weekDays', 'entriesGrouped', 'entriesBySection', 'employees', 'stations',
             'dayRemarks', 'emailRecipients', 'periodLabel', 'canApprove', 'canAmend', 'leaveTypes'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Duty Roster']);
     }
