@@ -242,11 +242,28 @@
                                     @foreach ($weekDays as $day)
                                         <td class="px-2 py-3 text-center">
                                             @if (isset($empData['entries'][$day['date']]))
-                                                @php $entry = $empData['entries'][$day['date']]; @endphp
+                                                @php
+                                                    $entry = $empData['entries'][$day['date']];
+                                                    // Determine shift type by start time
+                                                    $shiftClass = 'bg-gray-100 text-gray-600';
+                                                    if (!$entry->is_off_day && $entry->shift_start) {
+                                                        $hour = (int) \Carbon\Carbon::parse($entry->shift_start)->format('G');
+                                                        if ($hour < 10) {
+                                                            // Opening shift (before 10 AM) - Green
+                                                            $shiftClass = 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
+                                                        } elseif ($hour < 14) {
+                                                            // Middle shift (10 AM - 2 PM) - Blue
+                                                            $shiftClass = 'bg-sky-100 text-sky-700 hover:bg-sky-200';
+                                                        } else {
+                                                            // Closing shift (2 PM onwards) - Purple
+                                                            $shiftClass = 'bg-violet-100 text-violet-700 hover:bg-violet-200';
+                                                        }
+                                                    }
+                                                @endphp
                                                 <button wire:click="openEditEntry({{ $entry->id }})"
-                                                        class="w-full py-1 px-2 rounded text-xs
-                                                            @if ($entry->is_off_day) bg-red-50 text-red-600 font-medium
-                                                            @else bg-indigo-50 text-indigo-700 hover:bg-indigo-100 @endif
+                                                        class="w-full py-1.5 px-2 rounded text-xs font-medium
+                                                            @if ($entry->is_off_day) bg-red-100 text-red-600
+                                                            @else {{ $shiftClass }} @endif
                                                             {{ ($roster->isApproved() && !$canAmend) ? 'cursor-not-allowed' : '' }}"
                                                         {{ ($roster->isApproved() && !$canAmend) ? 'disabled' : '' }}>
                                                     {{ $entry->shift_short }}
