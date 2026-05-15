@@ -203,10 +203,13 @@
                                     </th>
                                 @endforeach
                                 <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-                                    Total
+                                    Regular
                                 </th>
                                 <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                                     OT
+                                </th>
+                                <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                                    Total
                                 </th>
                             </tr>
                         </thead>
@@ -261,15 +264,18 @@
                                         </td>
                                     @endforeach
                                     <td class="px-2 py-3 text-center font-medium text-gray-700">
-                                        {{ number_format($empData['total_hours'], 1) }}h
+                                        {{ number_format($empData['regular_hours'], 1) }}h
                                     </td>
                                     <td class="px-2 py-3 text-center font-medium {{ $empData['total_ot'] > 0 ? 'text-orange-600' : 'text-gray-400' }}">
                                         {{ number_format($empData['total_ot'], 1) }}h
                                     </td>
+                                    <td class="px-2 py-3 text-center font-medium text-indigo-600">
+                                        {{ number_format($empData['total_hours'], 1) }}h
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ count($weekDays) + 3 }}" class="px-4 py-8 text-center text-gray-500">
+                                    <td colspan="{{ count($weekDays) + 4 }}" class="px-4 py-8 text-center text-gray-500">
                                         No entries yet.
                                         @if ($roster->isDraft())
                                             Click a cell to add shifts.
@@ -281,7 +287,7 @@
                             {{-- Add Employee Row (for draft) --}}
                             @if ($roster->isDraft() && $employees->isNotEmpty())
                                 <tr class="bg-gray-50">
-                                    <td colspan="{{ count($weekDays) + 3 }}" class="px-4 py-3">
+                                    <td colspan="{{ count($weekDays) + 4 }}" class="px-4 py-3">
                                         <button wire:click="openAddEntry('{{ $weekDays[0]['date'] ?? '' }}')"
                                                 class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
                                             + Add Employee Entry

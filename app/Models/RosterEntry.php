@@ -108,7 +108,7 @@ class RosterEntry extends Model
     }
 
     /**
-     * Get formatted shift time range.
+     * Get formatted shift time range (12-hour format).
      */
     public function getShiftRangeAttribute(): string
     {
@@ -120,14 +120,14 @@ class RosterEntry extends Model
             return '-';
         }
 
-        $start = Carbon::parse($this->shift_start)->format('H:i');
-        $end = Carbon::parse($this->shift_end)->format('H:i');
+        $start = Carbon::parse($this->shift_start)->format('g:iA');
+        $end = Carbon::parse($this->shift_end)->format('g:iA');
 
         return "{$start}-{$end}";
     }
 
     /**
-     * Get short shift time format for grid display.
+     * Get short shift time format for grid display (12-hour format).
      */
     public function getShiftShortAttribute(): string
     {
@@ -139,9 +139,29 @@ class RosterEntry extends Model
             return '-';
         }
 
-        $start = Carbon::parse($this->shift_start)->format('G');
-        $end = Carbon::parse($this->shift_end)->format('G');
+        // Format: 9AM-5PM (compact 12-hour format)
+        $start = Carbon::parse($this->shift_start);
+        $end = Carbon::parse($this->shift_end);
 
-        return "{$start}-{$end}";
+        // Use shorter format without minutes if on the hour
+        $startFormat = $start->minute === 0 ? 'gA' : 'g:iA';
+        $endFormat = $end->minute === 0 ? 'gA' : 'g:iA';
+
+        return $start->format($startFormat) . '-' . $end->format($endFormat);
+    }
+
+    /**
+     * Get regular hours (capped at normal hours setting).
+     */
+    public function getRegularHoursAttribute(): float
+    {
+        if ($this->is_off_day || !$this->hours_worked) {
+            return 0;
+        }
+
+        $settings = RosterSetting::where('outlet_id', $this->roster?->outlet_id)->first();
+        $normalHours = $settings?->normal_hours ?? 8.00;
+
+        return min((float) $this->hours_worked, (float) $normalHours);
     }
 }

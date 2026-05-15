@@ -659,6 +659,10 @@ class DutyRoster extends Component
 
         $grouped = [];
 
+        // Get normal hours setting for this outlet
+        $settings = RosterSetting::where('outlet_id', $this->outletId)->first();
+        $normalHours = $settings?->normal_hours ?? 8.00;
+
         foreach ($this->roster->entries as $entry) {
             $empId = $entry->employee_id;
             $dateKey = $entry->day_date->format('Y-m-d');
@@ -668,6 +672,7 @@ class DutyRoster extends Component
                     'employee' => $entry->employee,
                     'entries' => [],
                     'total_hours' => 0,
+                    'regular_hours' => 0,
                     'total_ot' => 0,
                 ];
             }
@@ -675,6 +680,10 @@ class DutyRoster extends Component
             $grouped[$empId]['entries'][$dateKey] = $entry;
             $grouped[$empId]['total_hours'] += (float) $entry->hours_worked;
             $grouped[$empId]['total_ot'] += (float) $entry->planned_ot;
+
+            // Calculate regular hours (capped at normal hours per day)
+            $entryRegular = min((float) $entry->hours_worked, (float) $normalHours);
+            $grouped[$empId]['regular_hours'] += $entryRegular;
         }
 
         // Sort by employee name
