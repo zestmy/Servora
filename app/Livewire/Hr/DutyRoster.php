@@ -562,6 +562,22 @@ class DutyRoster extends Component
         session()->flash('success', 'Roster reverted to draft.');
     }
 
+    public function deleteRoster(): void
+    {
+        if (!$this->roster) {
+            return;
+        }
+
+        // Delete all related records first
+        $this->roster->entries()->delete();
+        $this->roster->dayRemarks()->delete();
+        $this->roster->amendments()->delete();
+        $this->roster->delete();
+
+        $this->roster = null;
+        session()->flash('success', 'Roster deleted successfully.');
+    }
+
     protected function canApprove(): bool
     {
         $user = Auth::user();
