@@ -119,45 +119,31 @@
         </div>
     @endif
 
-    {{-- Add/Edit Modal --}}
-    <div x-data="{}"
-         x-show="$wire.showForm"
-         x-cloak
-         style="position: fixed; inset: 0; z-index: 9999;"
-         class="overflow-hidden">
-
-        {{-- Backdrop --}}
-        <div class="fixed inset-0 bg-gray-900/50" style="z-index: 9999;" @click="$wire.closeForm()"></div>
-
-        {{-- Card --}}
-        <div class="fixed inset-0 overflow-y-auto" style="z-index: 10000;">
-        <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md">
-
-            {{-- Header --}}
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h3 class="text-base font-semibold text-gray-800">
-                    {{ $editingId ? 'Edit Station' : 'Add Station' }}
-                </h3>
-                <button @click="$wire.closeForm()" class="text-gray-400 hover:text-gray-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            {{-- Form --}}
-            <form wire:submit="save">
-                <div class="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
+    {{-- Add/Edit Modal (teleported to body to escape sidebar transform) --}}
+    <div x-data="{ open: @entangle('showForm') }">
+    <template x-teleport="body">
+    <div x-show="open" x-cloak
+         @keydown.escape.window="open = false"
+         class="fixed inset-0 z-[100] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">{{ $editingId ? 'Edit Station' : 'Add Station' }}</h3>
+                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <form wire:submit.prevent="save" class="p-5 space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Station Name <span class="text-red-500">*</span></label>
+                        <label class="text-xs font-semibold text-gray-600">Station Name <span class="text-red-500">*</span></label>
                         <input type="text" wire:model="f_name"
                                class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="e.g. Kitchen, Service, Bar" />
                         @error('f_name') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Description</label>
+                        <label class="text-xs font-semibold text-gray-600">Description</label>
                         <input type="text" wire:model="f_description"
                                class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="Optional description" />
@@ -165,11 +151,11 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Sort Order</label>
+                            <label class="text-xs font-semibold text-gray-600">Sort Order</label>
                             <input type="number" wire:model="f_sort_order" min="0"
                                    class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
                         </div>
-                        <div class="flex items-end pb-2">
+                        <div class="flex items-end pb-1">
                             <label class="inline-flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="f_is_active"
                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -177,20 +163,16 @@
                             </label>
                         </div>
                     </div>
-                </div>
-
-                {{-- Footer --}}
-                <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                    <button type="button" @click="$wire.closeForm()" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition">
-                        Cancel
-                    </button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
-                        {{ $editingId ? 'Update' : 'Create' }}
-                    </button>
-                </div>
-            </form>
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+                            {{ $editingId ? 'Update' : 'Create' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        </div>
-        </div>
+    </div>
+    </template>
     </div>
 </div>
