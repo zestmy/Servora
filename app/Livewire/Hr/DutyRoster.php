@@ -36,6 +36,7 @@ class DutyRoster extends Component
     public string $f_shift_start = '';
     public string $f_shift_end = '';
     public int $f_rest_duration = 60;
+    public string $f_normal_hours = ''; // Empty = use outlet default
     public bool $f_is_off_day = false;
     public string $f_leave_type = 'off';
     public string $f_planned_ot = '';
@@ -71,6 +72,7 @@ class DutyRoster extends Component
             'f_shift_start' => 'nullable|date_format:H:i',
             'f_shift_end' => 'nullable|date_format:H:i',
             'f_rest_duration' => 'integer|min:0|max:480',
+            'f_normal_hours' => 'nullable|numeric|min:0|max:24',
             'f_is_off_day' => 'boolean',
             'f_leave_type' => 'nullable|string|in:off,al,rph,mc,rdo,ch',
             'f_planned_ot' => 'nullable|numeric|min:0|max:24',
@@ -267,6 +269,7 @@ class DutyRoster extends Component
         $this->f_shift_start = $entry->shift_start ? Carbon::parse($entry->shift_start)->format('H:i') : '';
         $this->f_shift_end = $entry->shift_end ? Carbon::parse($entry->shift_end)->format('H:i') : '';
         $this->f_rest_duration = $entry->rest_duration;
+        $this->f_normal_hours = $entry->normal_hours !== null ? (string) $entry->normal_hours : '';
         $this->f_is_off_day = $entry->is_off_day;
         $this->f_leave_type = $entry->leave_type ?? 'off';
         $this->f_planned_ot = $entry->planned_ot_manual ? (string) $entry->planned_ot : '';
@@ -293,6 +296,7 @@ class DutyRoster extends Component
         $this->f_shift_start = '';
         $this->f_shift_end = '';
         $this->f_rest_duration = 60;
+        $this->f_normal_hours = '';
         $this->f_is_off_day = false;
         $this->f_leave_type = 'off';
         $this->f_planned_ot = '';
@@ -325,6 +329,7 @@ class DutyRoster extends Component
             'shift_start' => $this->f_is_off_day ? null : ($this->f_shift_start ?: null),
             'shift_end' => $this->f_is_off_day ? null : ($this->f_shift_end ?: null),
             'rest_duration' => $this->f_rest_duration,
+            'normal_hours' => $this->f_normal_hours !== '' ? (float) $this->f_normal_hours : null,
             'is_off_day' => $this->f_is_off_day,
             'leave_type' => $this->f_is_off_day ? $this->f_leave_type : null,
             'planned_ot_manual' => $this->f_planned_ot_manual,
@@ -382,7 +387,7 @@ class DutyRoster extends Component
 
     protected function detectChanges(array $old, array $new): array
     {
-        $fields = ['shift_start', 'shift_end', 'rest_duration', 'station_id', 'is_off_day', 'planned_ot'];
+        $fields = ['shift_start', 'shift_end', 'rest_duration', 'normal_hours', 'station_id', 'is_off_day', 'planned_ot'];
         $changes = [];
 
         foreach ($fields as $field) {

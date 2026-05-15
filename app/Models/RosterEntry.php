@@ -42,6 +42,7 @@ class RosterEntry extends Model
         'shift_start',
         'shift_end',
         'rest_duration',
+        'normal_hours',
         'hours_worked',
         'planned_ot',
         'planned_ot_manual',
@@ -55,6 +56,7 @@ class RosterEntry extends Model
         'day_date' => 'date',
         'hours_worked' => 'decimal:2',
         'planned_ot' => 'decimal:2',
+        'normal_hours' => 'decimal:2',
         'rest_duration' => 'integer',
         'planned_ot_manual' => 'boolean',
         'is_off_day' => 'boolean',
@@ -121,17 +123,22 @@ class RosterEntry extends Model
     }
 
     /**
-     * Calculate planned OT based on outlet settings.
+     * Calculate planned OT based on entry's normal_hours or outlet settings.
      */
     public function calculatePlannedOt(): float
     {
-        $settings = RosterSetting::firstOrCreate(
-            ['outlet_id' => $this->roster?->outlet_id ?? 1],
-            ['normal_hours' => 8.00, 'rest_duration' => 60]
-        );
-
         $hoursWorked = $this->hours_worked ?? $this->calculateHoursWorked();
-        $normalHours = (float) $settings->normal_hours;
+
+        // Use entry's custom normal_hours if set, otherwise fall back to outlet setting
+        if ($this->normal_hours !== null) {
+            $normalHours = (float) $this->normal_hours;
+        } else {
+            $settings = RosterSetting::firstOrCreate(
+                ['outlet_id' => $this->roster?->outlet_id ?? 1],
+                ['normal_hours' => 8.00, 'rest_duration' => 60]
+            );
+            $normalHours = (float) $settings->normal_hours;
+        }
 
         return max(0, round($hoursWorked - $normalHours, 2));
     }
@@ -197,9 +204,27 @@ class RosterEntry extends Model
             return 0;
         }
 
-        $settings = RosterSetting::where('outlet_id', $this->roster?->outlet_id)->first();
-        $normalHours = $settings?->normal_hours ?? 8.00;
+        // Use entry's custom normal_hours if set, otherwise fall back to outlet setting
+        if ($this->normal_hours !== null) {
+            $normalHours = (float) $this->normal_hours;
+        } else {
+            $settings = RosterSetting::where('outlet_id', $this->roster?->outlet_id)->first();
+            $normalHours = $settings?->normal_hours ?? 8.00;
+        }
 
         return min((float) $this->hours_worked, (float) $normalHours);
+    }
+
+    /**
+     * Get effective normal hours (entry override or outlet default).
+     */
+    public function getEffectiveNormalHoursAttribute(): float
+    {
+        if ($this->normal_hours !== null) {
+            return (float) $this->normal_hours;
+        }
+
+        $settings = RosterSetting::where('outlet_id', $this->roster?->outlet_id)->first();
+        return $settings?->normal_hours ?? 8.00;
     }
 }

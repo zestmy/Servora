@@ -356,8 +356,12 @@
                                                     <button wire:click="openEditEntry({{ $entry->id }})"
                                                             class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
                                                                 {{ ($roster->isApproved() && !$canAmend) ? 'cursor-not-allowed' : '' }}"
-                                                            {{ ($roster->isApproved() && !$canAmend) ? 'disabled' : '' }}>
-                                                        {{ $entry->shift_short }}
+                                                            {{ ($roster->isApproved() && !$canAmend) ? 'disabled' : '' }}
+                                                            title="{{ $entry->station?->name ?? '' }}">
+                                                        <div>{{ $entry->shift_short }}</div>
+                                                        @if ($entry->station && !$entry->is_off_day)
+                                                            <div class="text-[10px] opacity-75 truncate">{{ Str::limit($entry->station->name, 8) }}</div>
+                                                        @endif
                                                     </button>
                                                 @else
                                                     @if ($roster->isDraft())
@@ -551,6 +555,17 @@
                                 </div>
                             </div>
 
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Regular Hours
+                                    <span class="font-normal text-gray-400">(empty = outlet default)</span>
+                                </label>
+                                <input type="number" wire:model="f_normal_hours" step="0.5" min="0" max="24"
+                                       class="w-full text-sm rounded-lg border-gray-300 shadow-sm"
+                                       placeholder="e.g. 8 (leave empty for outlet default)" />
+                                @error('f_normal_hours') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                            </div>
+
                             <div class="p-3 bg-gray-50 rounded-lg">
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="text-sm text-gray-600">Planned OT</span>
@@ -565,7 +580,7 @@
                                            class="w-full text-sm rounded-lg border-gray-300 shadow-sm"
                                            placeholder="Hours" />
                                 @else
-                                    <div class="text-sm text-gray-500">OT will be auto-calculated based on normal hours setting.</div>
+                                    <div class="text-sm text-gray-500">OT will be auto-calculated based on regular hours.</div>
                                 @endif
                             </div>
                         @endif
