@@ -27,22 +27,22 @@
     </div>
 
     <style>
-        .roster-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 8px; }
-        .roster-table th { background: #333; color: #fff; padding: 6px 4px; text-align: center; font-size: 7px; text-transform: uppercase; }
+        .roster-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
+        .roster-table th { background: #333; color: #fff; padding: 8px 5px; text-align: center; font-size: 8px; text-transform: uppercase; }
         .roster-table th.left { text-align: left; }
-        .roster-table td { padding: 5px 4px; border-bottom: 1px solid #ddd; text-align: center; vertical-align: middle; }
+        .roster-table td { padding: 8px 5px; border-bottom: 1px solid #ddd; text-align: center; vertical-align: middle; }
         .roster-table td.left { text-align: left; }
         .roster-table tr:nth-child(even) { background: #f9f9f9; }
-        .roster-table .emp-name { font-weight: bold; font-size: 9px; }
-        .roster-table .emp-designation { font-size: 7px; color: #666; }
-        .roster-table .station-name { font-size: 7px; color: #374151; font-weight: 500; margin-top: 2px; }
-        .roster-table .shift { font-size: 8px; padding: 2px 4px; border-radius: 3px; display: inline-block; }
+        .roster-table .emp-name { font-weight: bold; font-size: 10px; }
+        .roster-table .emp-designation { font-size: 8px; color: #666; }
+        .roster-table .station-name { font-size: 8px; color: #374151; font-weight: 500; margin-top: 3px; }
+        .roster-table .shift { font-size: 10px; font-weight: 600; padding: 4px 6px; border-radius: 4px; display: inline-block; }
         .roster-table .off { font-weight: bold; }
-        .roster-table .remark { font-size: 6px; color: #7c3aed; background: #f3e8ff; padding: 1px 3px; border-radius: 2px; display: inline-block; margin-top: 1px; }
-        .roster-table .total { font-weight: bold; background: #f0f9ff; }
-        .day-remark-row td { background: #fef3c7 !important; font-size: 8px; color: #92400e; padding: 4px !important; font-weight: 600; }
-        .day-remark-row .remark-text { font-size: 7px; font-weight: normal; display: block; margin-top: 2px; }
-        .summary-box { margin-top: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; font-size: 9px; }
+        .roster-table .remark { font-size: 7px; color: #7c3aed; background: #f3e8ff; padding: 2px 4px; border-radius: 2px; display: inline-block; margin-top: 1px; }
+        .roster-table .total { font-weight: bold; background: #f0f9ff; font-size: 10px; }
+        .day-remark-row td { background: #fef3c7 !important; font-size: 9px; color: #92400e; padding: 6px !important; font-weight: 600; }
+        .day-remark-row .remark-text { font-size: 8px; font-weight: normal; display: block; margin-top: 2px; }
+        .summary-box { margin-top: 15px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; font-size: 10px; }
         .summary-box .row { display: flex; justify-content: space-between; padding: 3px 0; }
         .summary-box .label { color: #666; }
         .summary-box .value { font-weight: bold; }
