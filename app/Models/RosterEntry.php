@@ -8,6 +8,32 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RosterEntry extends Model
 {
+    // Leave type constants
+    public const LEAVE_OFF = 'off';      // Regular day off
+    public const LEAVE_AL = 'al';        // Annual Leave
+    public const LEAVE_RPH = 'rph';      // Replacement Public Holiday
+    public const LEAVE_MC = 'mc';        // Medical Leave
+    public const LEAVE_RDO = 'rdo';      // Replacement Day Off
+    public const LEAVE_CH = 'ch';        // Claim Hours
+
+    public const LEAVE_TYPES = [
+        self::LEAVE_OFF => 'Off Day',
+        self::LEAVE_AL => 'Annual Leave (AL)',
+        self::LEAVE_RPH => 'Replacement PH (RPH)',
+        self::LEAVE_MC => 'Medical Leave (MC)',
+        self::LEAVE_RDO => 'Replacement Day Off (RDO)',
+        self::LEAVE_CH => 'Claim Hours (CH)',
+    ];
+
+    public const LEAVE_SHORT = [
+        self::LEAVE_OFF => 'OFF',
+        self::LEAVE_AL => 'AL',
+        self::LEAVE_RPH => 'RPH',
+        self::LEAVE_MC => 'MC',
+        self::LEAVE_RDO => 'RDO',
+        self::LEAVE_CH => 'CH',
+    ];
+
     protected $fillable = [
         'roster_id',
         'employee_id',
@@ -20,6 +46,8 @@ class RosterEntry extends Model
         'planned_ot',
         'planned_ot_manual',
         'is_off_day',
+        'leave_type',
+        'sort_order',
         'notes',
     ];
 
@@ -30,6 +58,7 @@ class RosterEntry extends Model
         'rest_duration' => 'integer',
         'planned_ot_manual' => 'boolean',
         'is_off_day' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     protected static function booted(): void
@@ -132,7 +161,8 @@ class RosterEntry extends Model
     public function getShiftShortAttribute(): string
     {
         if ($this->is_off_day) {
-            return 'OFF';
+            // Return leave type short code
+            return self::LEAVE_SHORT[$this->leave_type] ?? 'OFF';
         }
 
         if (!$this->shift_start || !$this->shift_end) {
@@ -148,6 +178,14 @@ class RosterEntry extends Model
         $endFormat = $end->minute === 0 ? 'gA' : 'g:iA';
 
         return $start->format($startFormat) . '-' . $end->format($endFormat);
+    }
+
+    /**
+     * Get leave type label.
+     */
+    public function getLeaveTypeLabelAttribute(): string
+    {
+        return self::LEAVE_TYPES[$this->leave_type] ?? 'Off Day';
     }
 
     /**

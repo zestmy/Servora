@@ -38,6 +38,7 @@ class DutyRoster extends Component
     public string $f_shift_end = '';
     public int $f_rest_duration = 60;
     public bool $f_is_off_day = false;
+    public string $f_leave_type = 'off';
     public string $f_planned_ot = '';
     public bool $f_planned_ot_manual = false;
     public string $f_notes = '';
@@ -72,6 +73,7 @@ class DutyRoster extends Component
             'f_shift_end' => 'nullable|date_format:H:i',
             'f_rest_duration' => 'integer|min:0|max:480',
             'f_is_off_day' => 'boolean',
+            'f_leave_type' => 'nullable|string|in:off,al,rph,mc,rdo,ch',
             'f_planned_ot' => 'nullable|numeric|min:0|max:24',
             'f_planned_ot_manual' => 'boolean',
             'f_notes' => 'nullable|string|max:255',
@@ -175,7 +177,8 @@ class DutyRoster extends Component
             $query->where('section_id', $this->sectionId);
         }
 
-        $employees = $query->orderBy('name')->get();
+        // Order by section first, then by name
+        $employees = $query->orderBy('section_id')->orderBy('name')->get();
         $weekDays = $this->getWeekDays();
 
         // Get default rest duration from settings
@@ -184,6 +187,7 @@ class DutyRoster extends Component
             ['normal_hours' => 8.00, 'rest_duration' => 60]
         );
 
+        $sortOrder = 0;
         foreach ($employees as $employee) {
             // Create a placeholder entry for first day to show employee in roster
             // This entry starts as "off day" so user can click to edit shifts
@@ -192,9 +196,29 @@ class DutyRoster extends Component
                 'employee_id' => $employee->id,
                 'day_date' => $weekDays[0]['date'],
                 'is_off_day' => true,
+                'leave_type' => 'off',
                 'rest_duration' => $settings->rest_duration,
+                'sort_order' => $sortOrder++,
             ]);
         }
+    }
+
+    /**
+     * Reorder employees via drag-and-drop.
+     */
+    public function reorderEmployees(array $orderedIds): void
+    {
+        if (!$this->roster || !$this->roster->isDraft()) {
+            return;
+        }
+
+        foreach ($orderedIds as $index => $employeeId) {
+            RosterEntry::where('roster_id', $this->roster->id)
+                ->where('employee_id', $employeeId)
+                ->update(['sort_order' => $index]);
+        }
+
+        $this->loadRoster();
     }
 
     /**
@@ -259,6 +283,7 @@ class DutyRoster extends Component
         $this->f_shift_end = $entry->shift_end ? Carbon::parse($entry->shift_end)->format('H:i') : '';
         $this->f_rest_duration = $entry->rest_duration;
         $this->f_is_off_day = $entry->is_off_day;
+        $this->f_leave_type = $entry->leave_type ?? 'off';
         $this->f_planned_ot = $entry->planned_ot_manual ? (string) $entry->planned_ot : '';
         $this->f_planned_ot_manual = $entry->planned_ot_manual;
         $this->f_notes = $entry->notes ?? '';
@@ -284,6 +309,7 @@ class DutyRoster extends Component
         $this->f_shift_end = '';
         $this->f_rest_duration = 60;
         $this->f_is_off_day = false;
+        $this->f_leave_type = 'off';
         $this->f_planned_ot = '';
         $this->f_planned_ot_manual = false;
         $this->f_notes = '';
@@ -315,6 +341,7 @@ class DutyRoster extends Component
             'shift_end' => $this->f_is_off_day ? null : ($this->f_shift_end ?: null),
             'rest_duration' => $this->f_rest_duration,
             'is_off_day' => $this->f_is_off_day,
+            'leave_type' => $this->f_is_off_day ? $this->f_leave_type : null,
             'planned_ot_manual' => $this->f_planned_ot_manual,
             'planned_ot' => $this->f_planned_ot_manual ? (float) $this->f_planned_ot : 0,
             'notes' => $this->f_notes ?: null,
@@ -663,6 +690,9 @@ class DutyRoster extends Component
         $settings = RosterSetting::where('outlet_id', $this->outletId)->first();
         $normalHours = $settings?->normal_hours ?? 8.00;
 
+        // Get the minimum sort_order for each employee to determine their position
+        $employeeSortOrders = [];
+
         foreach ($this->roster->entries as $entry) {
             $empId = $entry->employee_id;
             $dateKey = $entry->day_date->format('Y-m-d');
@@ -670,11 +700,20 @@ class DutyRoster extends Component
             if (!isset($grouped[$empId])) {
                 $grouped[$empId] = [
                     'employee' => $entry->employee,
+                    'section' => $entry->employee?->section,
                     'entries' => [],
                     'total_hours' => 0,
                     'regular_hours' => 0,
                     'total_ot' => 0,
+                    'sort_order' => $entry->sort_order ?? 0,
                 ];
+                $employeeSortOrders[$empId] = $entry->sort_order ?? 0;
+            }
+
+            // Keep track of minimum sort_order for this employee
+            if (($entry->sort_order ?? 0) < $employeeSortOrders[$empId]) {
+                $employeeSortOrders[$empId] = $entry->sort_order ?? 0;
+                $grouped[$empId]['sort_order'] = $entry->sort_order ?? 0;
             }
 
             $grouped[$empId]['entries'][$dateKey] = $entry;
@@ -686,10 +725,44 @@ class DutyRoster extends Component
             $grouped[$empId]['regular_hours'] += $entryRegular;
         }
 
-        // Sort by employee name
-        uasort($grouped, fn ($a, $b) => strcmp($a['employee']->name ?? '', $b['employee']->name ?? ''));
+        // Sort by sort_order
+        uasort($grouped, fn ($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0));
 
         return $grouped;
+    }
+
+    /**
+     * Get entries grouped by section then by employee.
+     */
+    protected function getEntriesBySection(): array
+    {
+        $entriesGrouped = $this->getEntriesGrouped();
+
+        $bySection = [];
+
+        foreach ($entriesGrouped as $empId => $empData) {
+            $sectionId = $empData['section']?->id ?? 0;
+            $sectionName = $empData['section']?->name ?? 'No Section';
+
+            if (!isset($bySection[$sectionId])) {
+                $bySection[$sectionId] = [
+                    'section_id' => $sectionId,
+                    'section_name' => $sectionName,
+                    'employees' => [],
+                ];
+            }
+
+            $bySection[$sectionId]['employees'][$empId] = $empData;
+        }
+
+        // Sort sections by name (but keep "No Section" at the end)
+        uasort($bySection, function ($a, $b) {
+            if ($a['section_id'] === 0) return 1;
+            if ($b['section_id'] === 0) return -1;
+            return strcmp($a['section_name'], $b['section_name']);
+        });
+
+        return $bySection;
     }
 
     public function render()
@@ -698,6 +771,7 @@ class DutyRoster extends Component
         $sections = Section::active()->ordered()->get();
         $weekDays = $this->getWeekDays();
         $entriesGrouped = $this->getEntriesGrouped();
+        $entriesBySection = $this->getEntriesBySection();
 
         $employees = collect();
         $stations = collect();
@@ -724,9 +798,12 @@ class DutyRoster extends Component
         $canApprove = $this->canApprove();
         $canAmend = Auth::user()->can('roster.amend');
 
+        // Leave types for the form
+        $leaveTypes = RosterEntry::LEAVE_TYPES;
+
         return view('livewire.hr.duty-roster', compact(
-            'outlets', 'sections', 'weekDays', 'entriesGrouped', 'employees', 'stations',
-            'dayRemarks', 'emailRecipients', 'periodLabel', 'canApprove', 'canAmend'
+            'outlets', 'sections', 'weekDays', 'entriesGrouped', 'entriesBySection', 'employees', 'stations',
+            'dayRemarks', 'emailRecipients', 'periodLabel', 'canApprove', 'canAmend', 'leaveTypes'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Duty Roster']);
     }
 }

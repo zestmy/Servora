@@ -1,4 +1,8 @@
 <div>
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    @endonce
+
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -213,83 +217,126 @@
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @forelse ($entriesGrouped as $empId => $empData)
-                                <tr class="hover:bg-gray-50 group">
-                                    <td class="px-4 py-3">
-                                        <div class="flex items-center justify-between">
-                                            <div>
-                                                <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
-                                                @php
-                                                    $stationNames = collect($empData['entries'])->pluck('station.name')->filter()->unique()->implode(', ');
-                                                @endphp
-                                                @if ($stationNames)
-                                                    <div class="text-xs text-gray-500">{{ $stationNames }}</div>
-                                                @endif
-                                            </div>
-                                            @if ($roster->isDraft())
-                                                <button wire:click="removeEmployeeRow({{ $empId }})"
-                                                        wire:confirm="Remove {{ $empData['employee']?->name }} from this roster?"
-                                                        class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition"
-                                                        title="Remove from roster">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    @foreach ($weekDays as $day)
-                                        <td class="px-2 py-3 text-center">
-                                            @if (isset($empData['entries'][$day['date']]))
-                                                @php
-                                                    $entry = $empData['entries'][$day['date']];
-                                                    // Determine shift type by start time
-                                                    $shiftClass = 'bg-gray-100 text-gray-600';
-                                                    if (!$entry->is_off_day && $entry->shift_start) {
-                                                        $hour = (int) \Carbon\Carbon::parse($entry->shift_start)->format('G');
-                                                        if ($hour < 10) {
-                                                            // Opening shift (before 10 AM) - Green
-                                                            $shiftClass = 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
-                                                        } elseif ($hour < 14) {
-                                                            // Middle shift (10 AM - 2 PM) - Blue
-                                                            $shiftClass = 'bg-sky-100 text-sky-700 hover:bg-sky-200';
-                                                        } else {
-                                                            // Closing shift (2 PM onwards) - Purple
-                                                            $shiftClass = 'bg-violet-100 text-violet-700 hover:bg-violet-200';
-                                                        }
-                                                    }
-                                                @endphp
-                                                <button wire:click="openEditEntry({{ $entry->id }})"
-                                                        class="w-full py-1.5 px-2 rounded text-xs font-medium
-                                                            @if ($entry->is_off_day) bg-red-100 text-red-600
-                                                            @else {{ $shiftClass }} @endif
-                                                            {{ ($roster->isApproved() && !$canAmend) ? 'cursor-not-allowed' : '' }}"
-                                                        {{ ($roster->isApproved() && !$canAmend) ? 'disabled' : '' }}>
-                                                    {{ $entry->shift_short }}
-                                                </button>
-                                            @else
-                                                @if ($roster->isDraft())
-                                                    <button wire:click="openAddEntry('{{ $day['date'] }}', {{ $empId }})"
-                                                            class="w-full py-1 px-2 text-xs text-gray-400 hover:bg-gray-100 rounded">
-                                                        +
-                                                    </button>
-                                                @else
-                                                    <span class="text-gray-300">-</span>
-                                                @endif
-                                            @endif
-                                        </td>
-                                    @endforeach
-                                    <td class="px-2 py-3 text-center font-medium text-gray-700">
-                                        {{ number_format($empData['regular_hours'], 1) }}h
-                                    </td>
-                                    <td class="px-2 py-3 text-center font-medium {{ $empData['total_ot'] > 0 ? 'text-orange-600' : 'text-gray-400' }}">
-                                        {{ number_format($empData['total_ot'], 1) }}h
-                                    </td>
-                                    <td class="px-2 py-3 text-center font-medium text-indigo-600">
-                                        {{ number_format($empData['total_hours'], 1) }}h
+                        <tbody class="divide-y divide-gray-50"
+                               x-data="{
+                                   dragging: false,
+                                   init() {
+                                       if (typeof Sortable !== 'undefined' && this.$refs.sortableBody && @js($roster->isDraft())) {
+                                           new Sortable(this.$refs.sortableBody, {
+                                               animation: 150,
+                                               handle: '.drag-handle',
+                                               ghostClass: 'bg-indigo-50',
+                                               onEnd: (evt) => {
+                                                   const rows = [...evt.from.querySelectorAll('tr[data-employee-id]')];
+                                                   const orderedIds = rows.map(row => parseInt(row.dataset.employeeId));
+                                                   @this.call('reorderEmployees', orderedIds);
+                                               }
+                                           });
+                                       }
+                                   }
+                               }"
+                               x-ref="sortableBody">
+                            @forelse ($entriesBySection as $sectionData)
+                                {{-- Section Header --}}
+                                <tr class="bg-gray-100">
+                                    <td colspan="{{ count($weekDays) + 4 }}" class="px-4 py-2">
+                                        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                            {{ $sectionData['section_name'] }}
+                                        </span>
+                                        <span class="text-xs text-gray-400 ml-2">({{ count($sectionData['employees']) }})</span>
                                     </td>
                                 </tr>
+
+                                @foreach ($sectionData['employees'] as $empId => $empData)
+                                    <tr class="hover:bg-gray-50 group" data-employee-id="{{ $empId }}">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                @if ($roster->isDraft())
+                                                    <span class="drag-handle cursor-grab text-gray-300 hover:text-gray-500">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                                                        </svg>
+                                                    </span>
+                                                @endif
+                                                <div class="flex-1">
+                                                    <div class="font-medium text-gray-900">{{ $empData['employee']?->name ?? 'Unknown' }}</div>
+                                                    @php
+                                                        $stationNames = collect($empData['entries'])->pluck('station.name')->filter()->unique()->implode(', ');
+                                                    @endphp
+                                                    @if ($stationNames)
+                                                        <div class="text-xs text-gray-500">{{ $stationNames }}</div>
+                                                    @endif
+                                                </div>
+                                                @if ($roster->isDraft())
+                                                    <button wire:click="removeEmployeeRow({{ $empId }})"
+                                                            wire:confirm="Remove {{ $empData['employee']?->name }} from this roster?"
+                                                            class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition"
+                                                            title="Remove from roster">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        @foreach ($weekDays as $day)
+                                            <td class="px-2 py-3 text-center">
+                                                @if (isset($empData['entries'][$day['date']]))
+                                                    @php
+                                                        $entry = $empData['entries'][$day['date']];
+                                                        // Determine cell styling based on shift type or leave type
+                                                        $cellClass = 'bg-gray-100 text-gray-600';
+                                                        if ($entry->is_off_day) {
+                                                            // Different colors for different leave types
+                                                            $cellClass = match($entry->leave_type) {
+                                                                'off' => 'bg-gray-200 text-gray-600',
+                                                                'al' => 'bg-amber-100 text-amber-700',
+                                                                'rph' => 'bg-pink-100 text-pink-700',
+                                                                'mc' => 'bg-red-100 text-red-600',
+                                                                'rdo' => 'bg-orange-100 text-orange-700',
+                                                                'ch' => 'bg-cyan-100 text-cyan-700',
+                                                                default => 'bg-gray-200 text-gray-600',
+                                                            };
+                                                        } elseif ($entry->shift_start) {
+                                                            $hour = (int) \Carbon\Carbon::parse($entry->shift_start)->format('G');
+                                                            if ($hour < 10) {
+                                                                $cellClass = 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
+                                                            } elseif ($hour < 14) {
+                                                                $cellClass = 'bg-sky-100 text-sky-700 hover:bg-sky-200';
+                                                            } else {
+                                                                $cellClass = 'bg-violet-100 text-violet-700 hover:bg-violet-200';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <button wire:click="openEditEntry({{ $entry->id }})"
+                                                            class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
+                                                                {{ ($roster->isApproved() && !$canAmend) ? 'cursor-not-allowed' : '' }}"
+                                                            {{ ($roster->isApproved() && !$canAmend) ? 'disabled' : '' }}>
+                                                        {{ $entry->shift_short }}
+                                                    </button>
+                                                @else
+                                                    @if ($roster->isDraft())
+                                                        <button wire:click="openAddEntry('{{ $day['date'] }}', {{ $empId }})"
+                                                                class="w-full py-1 px-2 text-xs text-gray-400 hover:bg-gray-100 rounded">
+                                                            +
+                                                        </button>
+                                                    @else
+                                                        <span class="text-gray-300">-</span>
+                                                    @endif
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                        <td class="px-2 py-3 text-center font-medium text-gray-700">
+                                            {{ number_format($empData['regular_hours'], 1) }}h
+                                        </td>
+                                        <td class="px-2 py-3 text-center font-medium {{ $empData['total_ot'] > 0 ? 'text-orange-600' : 'text-gray-400' }}">
+                                            {{ number_format($empData['total_ot'], 1) }}h
+                                        </td>
+                                        <td class="px-2 py-3 text-center font-medium text-indigo-600">
+                                            {{ number_format($empData['total_hours'], 1) }}h
+                                        </td>
+                                    </tr>
+                                @endforeach
                             @empty
                                 <tr>
                                     <td colspan="{{ count($weekDays) + 4 }}" class="px-4 py-8 text-center text-gray-500">
@@ -421,10 +468,21 @@
                                 <label class="flex items-center cursor-pointer">
                                     <input type="checkbox" wire:model.live="f_is_off_day"
                                            class="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                                    <span class="ml-2 text-sm text-gray-700">Day Off</span>
+                                    <span class="ml-2 text-sm text-gray-700">Leave/Off</span>
                                 </label>
                             </div>
                         </div>
+
+                        @if ($f_is_off_day)
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
+                                <select wire:model="f_leave_type" class="w-full text-sm rounded-lg border-gray-300 shadow-sm">
+                                    @foreach ($leaveTypes as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
 
                         @if (!$f_is_off_day)
                             <div class="grid grid-cols-3 gap-4">
