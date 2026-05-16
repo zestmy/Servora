@@ -22,13 +22,28 @@ class Index extends Component
     public string $outletFilter = '';
     public string $costFilter = '';
 
+    // Bulk selection
+    public array $selectedIds = [];
+    public bool $selectAll = false;
+
     protected $queryString = ['tab'];
 
-    public function updatedSearch(): void         { $this->resetPage(); }
-    public function updatedCategoryFilter(): void { $this->resetPage(); }
-    public function updatedStatusFilter(): void   { $this->resetPage(); }
-    public function updatedOutletFilter(): void   { $this->resetPage(); }
-    public function updatedCostFilter(): void     { $this->resetPage(); }
+    public function updatedSearch(): void         { $this->resetPage(); $this->clearSelection(); }
+    public function updatedCategoryFilter(): void { $this->resetPage(); $this->clearSelection(); }
+    public function updatedStatusFilter(): void   { $this->resetPage(); $this->clearSelection(); }
+    public function updatedOutletFilter(): void   { $this->resetPage(); $this->clearSelection(); }
+    public function updatedCostFilter(): void     { $this->resetPage(); $this->clearSelection(); }
+    public function updatedTab(): void            { $this->resetPage(); $this->clearSelection(); }
+
+    public function updatedSelectAll(bool $value): void
+    {
+        // Handled by Alpine on the frontend
+    }
+
+    public function updatedSelectedIds(): void
+    {
+        // Auto-update selectAll state based on selection
+    }
 
     public function getLockedProperty(): bool
     {
@@ -51,6 +66,25 @@ class Index extends Component
         if (! $this->assertUnlocked()) return;
         Recipe::findOrFail($id)->delete();
         session()->flash('success', 'Recipe deleted.');
+    }
+
+    public function bulkDelete(): void
+    {
+        if (! $this->assertUnlocked()) return;
+        $count = count($this->selectedIds);
+        if ($count === 0) return;
+
+        Recipe::whereIn('id', $this->selectedIds)->delete();
+        $this->clearSelection();
+
+        $label = $this->tab === 'prep-items' ? 'prep item' : 'recipe';
+        session()->flash('success', "{$count} {$label}(s) deleted.");
+    }
+
+    private function clearSelection(): void
+    {
+        $this->selectedIds = [];
+        $this->selectAll = false;
     }
 
     public function toggleActive(int $id): void

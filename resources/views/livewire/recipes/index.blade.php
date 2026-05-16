@@ -9,6 +9,12 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div wire:key="flash-error-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -168,12 +174,56 @@
         </div>
     </div>
 
+    {{-- Bulk Delete Bar --}}
+    @if (count($selectedIds) > 0 && ! $this->locked)
+        <div class="mb-4 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+            <div class="text-sm text-indigo-700">
+                <span class="font-semibold">{{ count($selectedIds) }}</span>
+                {{ $isPrep ? 'prep item' : 'recipe' }}{{ count($selectedIds) > 1 ? 's' : '' }} selected
+            </div>
+            <div class="flex items-center gap-2">
+                <button wire:click="$set('selectedIds', [])"
+                        class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition">
+                    Clear
+                </button>
+                <button wire:click="bulkDelete"
+                        wire:confirm="Delete {{ count($selectedIds) }} selected {{ $isPrep ? 'prep item' : 'recipe' }}{{ count($selectedIds) > 1 ? 's' : '' }}? This cannot be undone."
+                        class="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                    Delete Selected
+                </button>
+            </div>
+        </div>
+    @endif
+
     {{-- Table — horizontally scrollable on mobile. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
+                    @if (! $this->locked)
+                        <th class="w-10 px-2 py-3 text-center">
+                            <input type="checkbox"
+                                   wire:model.live="selectAll"
+                                   @checked($selectAll)
+                                   x-data
+                                   x-on:change="
+                                       const checkboxes = document.querySelectorAll('input[name=\'recipe_ids[]\']');
+                                       checkboxes.forEach(cb => {
+                                           cb.checked = $event.target.checked;
+                                           if ($event.target.checked) {
+                                               if (!$wire.selectedIds.includes(parseInt(cb.value))) {
+                                                   $wire.selectedIds.push(parseInt(cb.value));
+                                               }
+                                           }
+                                       });
+                                       if (!$event.target.checked) {
+                                           $wire.selectedIds = [];
+                                       }
+                                   "
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        </th>
+                    @endif
                     <th class="w-6 px-1 py-3"></th>
                     <th class="px-4 py-3 text-left">{{ $tab === 'prep-items' ? 'Prep Item' : 'Recipe' }}</th>
                     <th class="px-4 py-3 text-left">Category</th>
@@ -214,7 +264,17 @@
                             default              => 'text-red-600 font-semibold',
                         };
                     @endphp
-                    <tr wire:key="recipe-row-{{ $recipe->id }}" data-id="{{ $recipe->id }}" class="hover:bg-gray-50 transition">
+                    <tr wire:key="recipe-row-{{ $recipe->id }}" data-id="{{ $recipe->id }}" class="hover:bg-gray-50 transition {{ in_array($recipe->id, $selectedIds) ? 'bg-indigo-50' : '' }}">
+                        @if (! $this->locked)
+                            <td class="px-2 py-3 text-center">
+                                <input type="checkbox"
+                                       name="recipe_ids[]"
+                                       value="{{ $recipe->id }}"
+                                       wire:model.live="selectedIds"
+                                       @checked(in_array($recipe->id, $selectedIds))
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            </td>
+                        @endif
                         <td class="{{ $this->locked ? 'px-1 py-3' : 'drag-handle px-1 py-3 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none' }}" title="{{ $this->locked ? '' : 'Drag to reorder' }}">
                             @unless ($this->locked)
                                 <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
@@ -340,11 +400,15 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="{{ $this->locked ? 10 : 11 }}" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">📋</div>
-                            <p class="font-medium">No recipes yet</p>
+                            <p class="font-medium">No {{ $isPrep ? 'prep items' : 'recipes' }} yet</p>
                             <p class="text-xs mt-1">
-                                <a href="{{ route('recipes.create') }}" class="text-indigo-500 underline">Create your first recipe</a>
+                                @if ($isPrep)
+                                    <a href="{{ route('inventory.prep-items.create') }}" class="text-indigo-500 underline">Create your first prep item</a>
+                                @else
+                                    <a href="{{ route('recipes.create') }}" class="text-indigo-500 underline">Create your first recipe</a>
+                                @endif
                             </p>
                         </td>
                     </tr>
