@@ -40,12 +40,16 @@ class UomService
                     ->first();
             }
 
-            // If conversion exists, use it: cost per recipe = purchase_price / conversion_factor
-            if ($baseToRecipe && (float) $baseToRecipe->factor > 0) {
-                return (float) $ingredient->purchase_price / (float) $baseToRecipe->factor;
+            // If conversion exists with meaningful factor, use it.
+            // Factor = 1 is only valid when base == recipe (handled above).
+            // If factor = 1 but base != recipe, it's likely an error - fall back to current_cost.
+            // Factor between 0 and 1 is valid (e.g., 1 g = 0.001 kg).
+            $factor = (float) ($baseToRecipe->factor ?? 0);
+            if ($baseToRecipe && $factor > 0 && $factor != 1.0) {
+                return (float) $ingredient->purchase_price / $factor;
             }
 
-            // Otherwise use current_cost (assumes pack_size is correct)
+            // Use current_cost which is calculated from pack_size: purchase_price / pack_size
             return (float) $ingredient->current_cost;
         }
 
