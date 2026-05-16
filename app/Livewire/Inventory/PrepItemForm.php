@@ -539,9 +539,11 @@ class PrepItemForm extends Component
                     // Prep items store their unit cost in current_cost (purchase_price is always 0).
                     $costPerUom = $uomService->convertCost($ingredient, $uom);
                 } else {
-                    // Regular ingredients: use purchase_price (pre-yield cost) as the base.
+                    // Regular ingredients: use pre-yield cost (purchase_price / pack_size).
+                    // This respects pack_size but excludes the yield adjustment.
                     $originalCost = $ingredient->current_cost;
-                    $ingredient->current_cost = $ingredient->purchase_price;
+                    $packSize = max((float) $ingredient->pack_size, 0.0001);
+                    $ingredient->current_cost = (float) $ingredient->purchase_price / $packSize;
                     $costPerUom = $uomService->convertCost($ingredient, $uom);
                     $ingredient->current_cost = $originalCost;
                 }
