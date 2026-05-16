@@ -42,14 +42,23 @@ class UomService
 
             // If conversion exists with meaningful factor, use it.
             // Factor = 1 is only valid when base == recipe (handled above).
-            // If factor = 1 but base != recipe, it's likely an error - fall back to current_cost.
+            // If factor = 1 but base != recipe, it's likely an error - fall back to standard/current_cost.
             // Factor between 0 and 1 is valid (e.g., 1 g = 0.001 kg).
             $factor = (float) ($baseToRecipe->factor ?? 0);
             if ($baseToRecipe && $factor > 0 && $factor != 1.0) {
                 return (float) $ingredient->purchase_price / $factor;
             }
 
-            // Use current_cost which is calculated from pack_size: purchase_price / pack_size
+            // Check for standard SI conversion (e.g., kg→g, L→ml).
+            // If both UOMs have base_unit_factor, they're in the same measurement system.
+            // Use purchase_price directly (not current_cost which may have pack_size applied).
+            $recipeUom = $targetUom; // target is already recipe_uom at this point
+            if ($baseUom->base_unit_factor && $recipeUom->base_unit_factor && $baseUom->base_unit_factor != 0) {
+                $stdFactor = (float) $recipeUom->base_unit_factor / (float) $baseUom->base_unit_factor;
+                return (float) $ingredient->purchase_price * $stdFactor;
+            }
+
+            // No standard conversion available - use current_cost (pack_size based)
             return (float) $ingredient->current_cost;
         }
 
