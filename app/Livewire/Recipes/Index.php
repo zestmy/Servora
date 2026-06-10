@@ -68,6 +68,72 @@ class Index extends Component
         session()->flash('success', 'Recipe deleted.');
     }
 
+    public function duplicate(int $id): void
+    {
+        if (! $this->assertUnlocked()) return;
+
+        $original = Recipe::with(['lines', 'images', 'steps', 'prices', 'outlets'])->findOrFail($id);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($original) {
+            $copy = $original->replicate(['cost_per_yield_unit']);
+            $copy->name = $original->name . ' (COPY)';
+            $copy->is_active = false;
+            $copy->save();
+
+            foreach ($original->lines as $line) {
+                $copy->lines()->create($line->only([
+                    'ingredient_id', 'quantity', 'uom_id', 'waste_percentage', 'sort_order', 'is_packaging',
+                ]));
+            }
+
+            foreach ($original->images as $image) {
+                $newPath = $this->copyStoredFile($image->file_path, 'recipe-images');
+                $copy->images()->create([
+                    'type'       => $image->type,
+                    'file_name'  => $image->file_name,
+                    'file_path'  => $newPath,
+                    'mime_type'  => $image->mime_type,
+                    'file_size'  => $image->file_size,
+                    'sort_order' => $image->sort_order,
+                ]);
+            }
+
+            foreach ($original->steps as $step) {
+                $copy->steps()->create([
+                    'sort_order'  => $step->sort_order,
+                    'title'       => $step->title,
+                    'instruction' => $step->instruction,
+                    'image_path'  => $this->copyStoredFile($step->image_path, 'recipe-steps'),
+                ]);
+            }
+
+            foreach ($original->prices as $price) {
+                $copy->prices()->create([
+                    'recipe_price_class_id' => $price->recipe_price_class_id,
+                    'selling_price'         => $price->selling_price,
+                ]);
+            }
+
+            $copy->outlets()->sync($original->outlets->pluck('id')->all());
+        });
+
+        session()->flash('success', 'Recipe duplicated. Edit the copy to make your changes.');
+    }
+
+    /** Copy a stored file to a new randomized path on the public disk; returns the new path or null. */
+    private function copyStoredFile(?string $path, string $dir): ?string
+    {
+        if (! $path) return null;
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if (! $disk->exists($path)) return $path;
+
+        $newPath = $dir . '/' . \Illuminate\Support\Str::random(40) . '.' . pathinfo($path, PATHINFO_EXTENSION);
+        $disk->copy($path, $newPath);
+
+        return $newPath;
+    }
+
     public function bulkDelete(): void
     {
         if (! $this->assertUnlocked()) return;
