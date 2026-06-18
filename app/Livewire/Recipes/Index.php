@@ -28,6 +28,34 @@ class Index extends Component
 
     protected $queryString = ['tab'];
 
+    /** Session key holding the last-chosen list filters so they survive navigation (e.g. saving the form). */
+    private const FILTERS_KEY = 'recipes.index.filters';
+
+    public function mount(): void
+    {
+        $saved = session(self::FILTERS_KEY);
+        if (is_array($saved)) {
+            $this->search         = $saved['search']         ?? $this->search;
+            $this->categoryFilter = $saved['categoryFilter'] ?? $this->categoryFilter;
+            $this->statusFilter   = $saved['statusFilter']   ?? $this->statusFilter;
+            $this->outletFilter   = $saved['outletFilter']   ?? $this->outletFilter;
+            $this->costFilter     = $saved['costFilter']     ?? $this->costFilter;
+            $this->tab            = $saved['tab']            ?? $this->tab;
+        }
+    }
+
+    private function persistFilters(): void
+    {
+        session()->put(self::FILTERS_KEY, [
+            'search'         => $this->search,
+            'categoryFilter' => $this->categoryFilter,
+            'statusFilter'   => $this->statusFilter,
+            'outletFilter'   => $this->outletFilter,
+            'costFilter'     => $this->costFilter,
+            'tab'            => $this->tab,
+        ]);
+    }
+
     public function updatedSearch(): void         { $this->resetPage(); $this->clearSelection(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); $this->clearSelection(); }
     public function updatedStatusFilter(): void   { $this->resetPage(); $this->clearSelection(); }
@@ -189,6 +217,8 @@ class Index extends Component
 
     public function render()
     {
+        $this->persistFilters();
+
         $isPrep = $this->tab === 'prep-items';
 
         $query = Recipe::with([
