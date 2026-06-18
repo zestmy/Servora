@@ -33,26 +33,35 @@ class Index extends Component
 
     public function mount(): void
     {
-        $saved = session(self::FILTERS_KEY);
+        // The tab is owned by the URL query string, never the session — otherwise
+        // opening Prep Items would be forced back to the last-used Recipes tab.
+        $this->tab = request()->query('tab') === 'prep-items' ? 'prep-items' : 'recipes';
+
+        // Filters are scoped per tab because Recipes and Prep Items use different
+        // category systems (recipe categories vs ingredient categories).
+        $saved = session($this->filtersKey());
         if (is_array($saved)) {
             $this->search         = $saved['search']         ?? $this->search;
             $this->categoryFilter = $saved['categoryFilter'] ?? $this->categoryFilter;
             $this->statusFilter   = $saved['statusFilter']   ?? $this->statusFilter;
             $this->outletFilter   = $saved['outletFilter']   ?? $this->outletFilter;
             $this->costFilter     = $saved['costFilter']     ?? $this->costFilter;
-            $this->tab            = $saved['tab']            ?? $this->tab;
         }
+    }
+
+    private function filtersKey(): string
+    {
+        return self::FILTERS_KEY . '.' . $this->tab;
     }
 
     private function persistFilters(): void
     {
-        session()->put(self::FILTERS_KEY, [
+        session()->put($this->filtersKey(), [
             'search'         => $this->search,
             'categoryFilter' => $this->categoryFilter,
             'statusFilter'   => $this->statusFilter,
             'outletFilter'   => $this->outletFilter,
             'costFilter'     => $this->costFilter,
-            'tab'            => $this->tab,
         ]);
     }
 
