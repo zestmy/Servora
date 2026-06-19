@@ -8,6 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-06-19 — Zeoniq Excel import: update upload guide to specify the exact report — Daily Summary Listing with Statistics + Session + Department sections
 - 2026-06-19 — Fix secondary recipe UOM costing wrong value in recipe & prep-item forms (base==recipe case mis-costed via purchase_price instead of recipe-UOM cost; prep items via secondary UOM costed 0); resolve secondary UOM by chaining off recipe-UOM cost in UomService::convertCost. LMS SOP (screen + single/all PDF) now shows secondary recipe UOM as the main figure with primary recipe UOM in brackets for reference (RecipeLine::sopUomDisplay)
 - 2026-06-19 — Propagate ingredient price changes to prep-item costs: IngredientObserver + PrepCostService recompute stored prep cost (recipes.cost_per_yield_unit + synced ingredient.current_cost) transitively whenever any cost field changes (manual edit, quick-edit, CSV import, GRN/PO receipt, doc review); `php artisan preps:recalculate-costs` backfills stale data
 - 2026-05-16 — Fix drag-and-drop reorder causing multiple inputs to change; include index in wire:key for proper Livewire morphing

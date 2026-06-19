@@ -15,7 +15,7 @@
                     <h3 class="text-base font-semibold text-gray-800">Import Zeoniq Excel</h3>
                     <p class="text-xs text-gray-400 mt-0.5">
                         @if ($step === 'upload')
-                            Upload Session Sales Listing or Daily Summary from Zeoniq Cloud Dashboard
+                            Upload the Zeoniq <strong>Daily Summary Listing</strong> report (Statistics + Session + Department)
                         @elseif ($step === 'mapping')
                             Map department names to Sales Categories
                         @else
@@ -69,14 +69,27 @@
                         @endif
                     </div>
 
-                    <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 space-y-1">
-                        <p class="font-medium">Supported Zeoniq Reports:</p>
-                        <ul class="list-disc list-inside space-y-0.5 text-blue-600">
-                            <li><strong>Session Sales Listing</strong> — imports with meal period breakdown (Breakfast, Lunch, Tea Time, Dinner)</li>
-                            <li><strong>Daily Sales Summary</strong> — imports as All Day records</li>
-                            <li>Duplicate dates are automatically skipped</li>
-                            <li>Multi-outlet support with automatic outlet matching</li>
-                        </ul>
+                    <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-700 space-y-2">
+                        <div>
+                            <p class="font-medium">Which Zeoniq report to upload:</p>
+                            <p class="text-blue-600 mt-0.5">
+                                In the Zeoniq Cloud Dashboard, generate the <strong>Daily Summary Listing</strong> report
+                                and include all of the following sections, then export to Excel/CSV:
+                            </p>
+                            <ul class="list-disc list-inside space-y-0.5 text-blue-600 mt-1">
+                                <li><strong>Statistics</strong></li>
+                                <li><strong>Session</strong> — enables the meal period breakdown (Breakfast, Lunch, Tea Time, Dinner)</li>
+                                <li><strong>Department</strong> — used to map sales into Servora Sales Categories</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p class="font-medium">Good to know:</p>
+                            <ul class="list-disc list-inside space-y-0.5 text-blue-600 mt-0.5">
+                                <li>If Session data is present, dates import with the meal period breakdown; otherwise they import as All Day records</li>
+                                <li>Duplicate dates are automatically skipped</li>
+                                <li>Multi-outlet support with automatic outlet matching</li>
+                            </ul>
+                        </div>
                     </div>
 
                 @endif
