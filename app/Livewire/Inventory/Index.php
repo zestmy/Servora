@@ -5,6 +5,7 @@ namespace App\Livewire\Inventory;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
+use App\Models\PurchaseCapture;
 use App\Models\Recipe;
 use App\Models\StaffMealRecord;
 use App\Models\StockTake;
@@ -22,6 +23,14 @@ class Index extends Component
     public string $dateFrom     = '';
     public string $dateTo       = '';
     public string $statusFilter = '';
+
+    public function mount(): void
+    {
+        $tab = request('tab');
+        if (in_array($tab, ['stock-takes', 'wastage', 'staff-meals', 'transfers', 'purchases'], true)) {
+            $this->tab = $tab;
+        }
+    }
 
     public function updatedTab(): void      { $this->resetPage(); $this->search = ''; $this->dateFrom = ''; $this->dateTo = ''; $this->statusFilter = ''; }
     public function updatedStatusFilter(): void { $this->resetPage(); }
@@ -56,6 +65,12 @@ class Index extends Component
         }
         $transfer->delete();
         session()->flash('success', 'Transfer deleted.');
+    }
+
+    public function deletePurchase(int $id): void
+    {
+        PurchaseCapture::findOrFail($id)->delete();
+        session()->flash('success', 'Purchase deleted.');
     }
 
     public function deletePrepItem(int $recipeId): void
@@ -152,6 +167,27 @@ class Index extends Component
             ? $transferQuery->orderByDesc('transfer_date')->orderByDesc('id')->paginate(15)
             : collect();
 
+        // ── Purchases ─────────────────────────────────────────────────────
+        $purchaseQuery = PurchaseCapture::with(['department', 'supplier']);
+        $this->scopeByOutlet($purchaseQuery);
+
+        if ($this->search && $this->tab === 'purchases') {
+            $purchaseQuery->where(function ($q) {
+                $q->where('reference_number', 'like', '%' . $this->search . '%')
+                  ->orWhere('supplier_name', 'like', '%' . $this->search . '%');
+            });
+        }
+        if ($this->dateFrom && $this->tab === 'purchases') {
+            $purchaseQuery->where('purchase_date', '>=', $this->dateFrom);
+        }
+        if ($this->dateTo && $this->tab === 'purchases') {
+            $purchaseQuery->where('purchase_date', '<=', $this->dateTo);
+        }
+
+        $purchases = $this->tab === 'purchases'
+            ? $purchaseQuery->orderByDesc('purchase_date')->orderByDesc('id')->paginate(15)
+            : collect();
+
         // ── Stats ─────────────────────────────────────────────────────────
         $wastageStatQ = WastageRecord::whereMonth('wastage_date', now()->month)
             ->whereYear('wastage_date', now()->year);
@@ -175,6 +211,11 @@ class Index extends Component
             ->whereYear('meal_date', now()->year);
         $this->scopeByOutlet($staffMealStatQ);
         $monthStaffMealCost = $staffMealStatQ->sum('total_cost');
+
+        $purchaseStatQ = PurchaseCapture::whereMonth('purchase_date', now()->month)
+            ->whereYear('purchase_date', now()->year);
+        $this->scopeByOutlet($purchaseStatQ);
+        $monthPurchaseAmount = $purchaseStatQ->sum('amount');
 
         // prepItemCount removed — prep items now under Recipes tab
 
@@ -259,9 +300,9 @@ class Index extends Component
         }
 
         return view('livewire.inventory.index', compact(
-            'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers',
+            'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers', 'purchases',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'inTransitCount', 'latestStockTake', 'categoryBreakdown'
+            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
     }
 }

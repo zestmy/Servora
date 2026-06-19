@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Department;
 use App\Models\OutletTransferLine;
+use App\Models\PurchaseCapture;
 use App\Models\PurchaseRecord;
 use App\Models\SalesCategory;
 use App\Models\SalesRecordLine;
@@ -236,8 +237,31 @@ class CostSummaryService
             $query->where('outlet_id', $outletId);
         }
 
-        return $query
+        $purchases = $query
             ->selectRaw('COALESCE(department_id, 0) as dept_id, SUM(total_amount) as total')
+            ->groupBy('dept_id')
+            ->pluck('total', 'dept_id');
+
+        // Blend in manually captured purchases (Stocks Management → Purchases).
+        // These are added on top of PO/GRN-based PurchaseRecords.
+        foreach ($this->getCapturedPurchasesByDepartment($from, $to, $outletId) as $deptId => $amount) {
+            $purchases[$deptId] = (float) ($purchases[$deptId] ?? 0) + (float) $amount;
+        }
+
+        return $purchases;
+    }
+
+    private function getCapturedPurchasesByDepartment(Carbon $from, Carbon $to, ?int $outletId): Collection
+    {
+        $query = PurchaseCapture::query()
+            ->whereBetween('purchase_date', [$from, $to]);
+
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        return $query
+            ->selectRaw('COALESCE(department_id, 0) as dept_id, SUM(amount) as total')
             ->groupBy('dept_id')
             ->pluck('total', 'dept_id');
     }

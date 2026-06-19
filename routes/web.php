@@ -18,6 +18,7 @@ use App\Livewire\Sales\Import as SalesImport;
 use App\Livewire\Sales\SalesForm;
 use App\Livewire\Inventory\Index as InventoryIndex;
 use App\Livewire\Inventory\StockTakeForm;
+use App\Livewire\Inventory\PurchaseCaptureForm;
 use App\Livewire\Inventory\WastageForm;
 use App\Livewire\Inventory\StaffMealForm;
 use App\Livewire\Inventory\PrepItemForm;
@@ -259,6 +260,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/prep-items/{id}', PrepItemForm::class)->name('inventory.prep-items.show')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/create', TransferForm::class)->name('inventory.transfers.create')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.view');
+    Route::get('/inventory/purchases/create', PurchaseCaptureForm::class)->name('inventory.purchases.create')->middleware('can:inventory.view');
+    Route::get('/inventory/purchases/{id}', PurchaseCaptureForm::class)->name('inventory.purchases.show')->middleware('can:inventory.view');
     Route::get('/reports', \App\Livewire\Reports\Hub::class)->name('reports.hub')->middleware('can:reports.view');
     Route::get('/reports/cost-summary', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');
     Route::get('/reports/price-history', ReportsPriceHistory::class)->name('reports.price-history')->middleware('can:reports.view');
