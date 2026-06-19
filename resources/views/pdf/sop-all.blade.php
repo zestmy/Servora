@@ -248,10 +248,11 @@
                                 <td colspan="4" class="ing-list-cell">
                                     <table class="ing-table">
                                         @foreach ($ingLines as $line)
+                                            @php $disp = $line->sopUomDisplay(); @endphp
                                             <tr>
                                                 <td class="ing-bullet">&bull;</td>
                                                 <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}@if ($line->ingredient?->is_prep)<span style="display:inline-block; margin-left:4px; padding:1px 5px; background:#fef3c7; color:#b45309; font-size:7pt; font-weight:bold; letter-spacing:0.5px; border-radius:3px;">PREP</span>@endif</td>
-                                                <td class="ing-qty">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }} {{ $line->uom?->abbreviation ?? '' }}</td>
+                                                <td class="ing-qty">{{ $disp['main_qty'] }} {{ $disp['main_uom'] }}@if ($disp['ref_qty'] !== null) <span style="color:#9ca3af;">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>@endif</td>
                                             </tr>
                                         @endforeach
                                     </table>

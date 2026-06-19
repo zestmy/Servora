@@ -22,7 +22,10 @@ class SopView extends Component
                 $q->whereDoesntHave('outlets')
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $user->outlet_id));
             }))
-            ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
+            ->with([
+                'steps', 'images', 'lines.uom', 'yieldUom',
+                'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
+            ])
             ->findOrFail($id);
     }
 

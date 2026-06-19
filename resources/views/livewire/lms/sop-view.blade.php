@@ -157,6 +157,7 @@
                             </thead>
                             <tbody class="divide-y divide-gray-50">
                                 @foreach ($sopIngredientLines as $idx => $line)
+                                    @php $disp = $line->sopUomDisplay(); @endphp
                                     <tr>
                                         <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                         <td class="px-4 py-2">
@@ -167,8 +168,13 @@
                                                 @endif
                                             </div>
                                         </td>
-                                        <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
-                                        <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-right tabular-nums">
+                                            {{ $disp['main_qty'] }}
+                                            @if ($disp['ref_qty'] !== null)
+                                                <span class="block text-xs text-gray-400 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-2 text-gray-600">{{ $disp['main_uom'] ?: '—' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

@@ -35,7 +35,10 @@ class SopPdfController extends Controller
                 $q->whereDoesntHave('outlets')
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
             }))
-            ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom'])
+            ->with([
+                'steps', 'images', 'lines.uom', 'yieldUom',
+                'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
+            ])
             ->findOrFail($id);
 
         $dineInImages   = $recipe->images->where('type', 'dine_in')->values();
@@ -86,7 +89,10 @@ class SopPdfController extends Controller
                 $q->whereDoesntHave('outlets')
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
             }))
-            ->with(['steps', 'images', 'lines.ingredient', 'lines.uom', 'yieldUom', 'ingredientCategory'])
+            ->with([
+                'steps', 'images', 'lines.uom', 'yieldUom', 'ingredientCategory',
+                'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
+            ])
             ->get()
             ->sortBy(fn ($r) => [
                 $r->is_prep ? 1 : 0,

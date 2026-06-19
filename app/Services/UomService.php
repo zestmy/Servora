@@ -17,6 +17,41 @@ class UomService
     {
         $baseUom = $ingredient->baseUom;
 
+        // Secondary recipe UOM: always cost off the RECIPE-UOM cost, never off purchase_price.
+        // The conversion is stored as from = secondary, to = recipe, factor = N (1 secondary = N recipe).
+        // This must run before the generic base/reverse-conversion branches below: when
+        // base == recipe the secondary→recipe row also matches "target → base", and that
+        // branch would otherwise (incorrectly) cost it as purchase_price × N — wrong whenever
+        // purchase_price differs from the recipe-UOM cost (pack_size ≠ 1, or post-yield current_cost).
+        if ($ingredient->recipe_uom_id
+            && $ingredient->secondary_recipe_uom_id
+            && (int) $targetUom->id === (int) $ingredient->secondary_recipe_uom_id
+            && (int) $ingredient->secondary_recipe_uom_id !== (int) $ingredient->recipe_uom_id
+        ) {
+            $recipeId    = (int) $ingredient->recipe_uom_id;
+            $secondaryId = (int) $ingredient->secondary_recipe_uom_id;
+
+            if ($ingredient->relationLoaded('uomConversions')) {
+                $secToRecipe = $ingredient->uomConversions->first(
+                    fn ($c) => (int) $c->from_uom_id === $secondaryId && (int) $c->to_uom_id === $recipeId
+                );
+            } else {
+                $secToRecipe = IngredientUomConversion::where('ingredient_id', $ingredient->id)
+                    ->where('from_uom_id', $secondaryId)
+                    ->where('to_uom_id', $recipeId)
+                    ->first();
+            }
+
+            if ($secToRecipe && (float) $secToRecipe->factor > 0) {
+                $recipeUom = ($baseUom && (int) $baseUom->id === $recipeId)
+                    ? $baseUom
+                    : $targetUom->newQuery()->find($recipeId);
+                if ($recipeUom) {
+                    return $this->convertCost($ingredient, $recipeUom) * (float) $secToRecipe->factor;
+                }
+            }
+        }
+
         // If target is the recipe UOM, check for base → recipe conversion first
         // (handles cases where pack_size=1 but a UOM conversion exists)
         if ($ingredient->recipe_uom_id && (int) $targetUom->id === (int) $ingredient->recipe_uom_id) {
