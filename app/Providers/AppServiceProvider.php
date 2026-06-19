@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Mail\EngineMailerTransport;
+use App\Models\Ingredient;
+use App\Observers\IngredientObserver;
 use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
@@ -24,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Keep prep-item costs in sync whenever an ingredient's cost changes.
+        Ingredient::observe(IngredientObserver::class);
+
         // Super Admin bypasses all permission checks
         Gate::before(function ($user, $ability) {
             return $user->hasRole('Super Admin') ? true : null;

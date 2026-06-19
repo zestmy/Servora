@@ -8,6 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-06-19 — Propagate ingredient price changes to prep-item costs: IngredientObserver + PrepCostService recompute stored prep cost (recipes.cost_per_yield_unit + synced ingredient.current_cost) transitively whenever any cost field changes (manual edit, quick-edit, CSV import, GRN/PO receipt, doc review); `php artisan preps:recalculate-costs` backfills stale data
 - 2026-05-16 — Fix drag-and-drop reorder causing multiple inputs to change; include index in wire:key for proper Livewire morphing
 - 2026-05-16 — Auto-convert standard SI units (kg→g, L→ml) without manual conversion factor
 - 2026-05-16 — Fix prep item form ignoring pack_size in cost calculation
