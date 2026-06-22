@@ -86,7 +86,7 @@
                             <p class="font-medium">Good to know:</p>
                             <ul class="list-disc list-inside space-y-0.5 text-blue-600 mt-0.5">
                                 <li>If Session data is present, dates import with the meal period breakdown; otherwise they import as All Day records</li>
-                                <li>Duplicate dates are automatically skipped</li>
+                                <li>Duplicate dates are skipped by default — or tick <strong>Replace existing</strong> on the review step to overwrite them</li>
                                 <li>Multi-outlet support with automatic outlet matching</li>
                             </ul>
                         </div>
@@ -299,18 +299,32 @@
 
                     {{-- Duplicate Detection Warning --}}
                     @if ($this->duplicateCount > 0)
-                        <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-start gap-2">
+                        <div class="px-4 py-3 rounded-lg border text-sm flex items-start gap-2
+                            {{ $replaceExisting ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-amber-50 border-amber-200 text-amber-700' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
-                            <div>
+                            <div class="flex-1">
                                 <span class="font-semibold">{{ $this->duplicateCount }} duplicate record(s) detected!</span>
-                                <p class="text-xs mt-0.5 text-amber-600">
-                                    These records already exist in the database and have been automatically excluded.
-                                    @if ($this->allDuplicates)
-                                        <strong class="text-amber-800">All records in this file are duplicates.</strong>
+                                <p class="text-xs mt-0.5">
+                                    @if ($replaceExisting)
+                                        These dates/meal periods already exist and <strong class="text-orange-800">will be overwritten</strong> with the data from this file (old figures and their category lines are permanently removed).
+                                    @else
+                                        These records already exist in the database and have been automatically excluded.
+                                        @if ($this->allDuplicates)
+                                            <strong class="text-amber-800">All records in this file are duplicates.</strong>
+                                        @endif
                                     @endif
                                 </p>
+
+                                {{-- Replace toggle --}}
+                                <label class="mt-2 inline-flex items-center gap-2 cursor-pointer select-none">
+                                    <input type="checkbox" wire:model.live="replaceExisting"
+                                           class="rounded border-gray-300 text-orange-600 shadow-sm focus:ring-orange-500" />
+                                    <span class="text-xs font-medium {{ $replaceExisting ? 'text-orange-800' : 'text-amber-800' }}">
+                                        Replace existing records (overwrite instead of skip)
+                                    </span>
+                                </label>
                             </div>
                         </div>
                     @endif

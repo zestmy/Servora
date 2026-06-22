@@ -47,6 +47,7 @@ class ZeoniqExcelImport extends Component
     public array $unmatchedDepartments = [];     // Departments without valid mapping
     public array $validationWarnings = [];       // Department total variance warnings
     public array $duplicateRecords = [];         // Records that already exist in database (by index)
+    public bool  $replaceExisting  = false;      // Overwrite matching records instead of skipping duplicates
 
     // ── Open / Close ─────────────────────────────────────────────────────────
 
@@ -92,6 +93,18 @@ class ZeoniqExcelImport extends Component
         $this->unmatchedDepartments    = [];
         $this->validationWarnings      = [];
         $this->duplicateRecords        = [];
+        $this->replaceExisting         = false;
+    }
+
+    /**
+     * Re-evaluate which records are included when the user toggles "Replace
+     * existing". In replace mode duplicates stay selected (they'll overwrite);
+     * otherwise they're auto-excluded.
+     */
+    public function updatedReplaceExisting(): void
+    {
+        $this->includeRecords = array_fill(0, count($this->parsedRecords), true);
+        $this->detectDuplicates();
     }
 
     // ── Process uploaded file ────────────────────────────────────────────────
@@ -365,7 +378,9 @@ class ZeoniqExcelImport extends Component
                 // If all sessions are duplicates, mark the entire record
                 if ($allSessionsDuplicate && !empty($record['sessions'])) {
                     $this->duplicateRecords[$idx] = 'all';
-                    $this->includeRecords[$idx] = false;
+                    if (!$this->replaceExisting) {
+                        $this->includeRecords[$idx] = false;
+                    }
                 } elseif (!empty($duplicateSessions)) {
                     // Partial duplicates - still include but note which sessions
                     $this->duplicateRecords[$idx] = $duplicateSessions;
@@ -376,7 +391,9 @@ class ZeoniqExcelImport extends Component
 
                 if ($this->isRecordDuplicate($outletId, $record['date'], $mealPeriod)) {
                     $this->duplicateRecords[$idx] = 'all';
-                    $this->includeRecords[$idx] = false;
+                    if (!$this->replaceExisting) {
+                        $this->includeRecords[$idx] = false;
+                    }
                 }
             }
         }
@@ -496,6 +513,7 @@ class ZeoniqExcelImport extends Component
         $companyId = Auth::user()->company_id;
         $userId    = Auth::id();
         $created   = 0;
+        $replaced  = 0;
         $skipped   = 0;
         $errors    = [];
 
@@ -528,6 +546,8 @@ class ZeoniqExcelImport extends Component
 
                     if ($result === true) {
                         $created++;
+                    } elseif ($result === 'replaced') {
+                        $replaced++;
                     } elseif ($result === 'duplicate') {
                         $skipped++;
                     } else {
@@ -550,6 +570,8 @@ class ZeoniqExcelImport extends Component
 
                 if ($result === true) {
                     $created++;
+                } elseif ($result === 'replaced') {
+                    $replaced++;
                 } elseif ($result === 'duplicate') {
                     $skipped++;
                 } else {
@@ -563,6 +585,9 @@ class ZeoniqExcelImport extends Component
         if ($created > 0) {
             $messages[] = "{$created} record(s) created";
         }
+        if ($replaced > 0) {
+            $messages[] = "{$replaced} replaced";
+        }
         if ($skipped > 0) {
             $messages[] = "{$skipped} skipped (duplicates)";
         }
@@ -570,7 +595,7 @@ class ZeoniqExcelImport extends Component
             $messages[] = count($errors) . " error(s)";
         }
 
-        if ($created > 0) {
+        if ($created > 0 || $replaced > 0) {
             session()->flash('success', 'Zeoniq import completed: ' . implode(', ', $messages) . '.');
         } elseif ($skipped > 0) {
             session()->flash('warning', 'No records created. ' . implode(', ', $messages) . '.');
@@ -596,18 +621,40 @@ class ZeoniqExcelImport extends Component
             ->whereDate('sale_date', $date)
             ->pluck('meal_period');
 
+        $didReplace = false;
+
         if ($existingPeriods->isNotEmpty()) {
-            // If all_day exists, skip any import for this date
-            if ($existingPeriods->contains('all_day')) {
-                return 'duplicate';
-            }
-            // If trying to import all_day and any records exist, skip
-            if ($mealPeriod === 'all_day') {
-                return 'duplicate';
-            }
-            // If same meal period exists, skip
-            if ($existingPeriods->contains($mealPeriod)) {
-                return 'duplicate';
+            // A conflict exists if: an all_day record already covers the date,
+            // we're importing all_day over existing records, or the same meal
+            // period is already present.
+            $conflicts = $existingPeriods->contains('all_day')
+                || $mealPeriod === 'all_day'
+                || $existingPeriods->contains($mealPeriod);
+
+            if ($conflicts) {
+                if (!$this->replaceExisting) {
+                    return 'duplicate';
+                }
+
+                // Replace mode: remove the conflicting record(s) so the
+                // corrected data takes their place. force-delete cascades the
+                // department lines (sales_record_lines has cascadeOnDelete and
+                // no soft-delete, so a soft delete would orphan the old lines).
+                // Scope deletion to the meal period being written (plus any
+                // stale all_day record) so per-session writes in the same run
+                // don't wipe each other.
+                $periodsToReplace = $mealPeriod === 'all_day'
+                    ? $existingPeriods->all()
+                    : array_values(array_unique(['all_day', $mealPeriod]));
+
+                SalesRecord::where('outlet_id', $outletId)
+                    ->whereDate('sale_date', $date)
+                    ->whereIn('meal_period', $periodsToReplace)
+                    ->get()
+                    ->each
+                    ->forceDelete();
+
+                $didReplace = true;
             }
         }
 
@@ -695,7 +742,7 @@ class ZeoniqExcelImport extends Component
             ]);
         }
 
-        return true;
+        return $didReplace ? 'replaced' : true;
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
