@@ -216,14 +216,15 @@ class VisionService
             throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
         }
 
-        $model = $hasImages
-            ? $this->model
-            : (AppSetting::get('openrouter_model') ?: $this->model);
+        // Always use the fast, vision-capable default model for step generation.
+        // The admin's configured openrouter_model may be a slow reasoning model
+        // (e.g. deepseek-r1) whose long "thinking" phase times the request out.
+        $model = $this->model;
 
         $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        set_time_limit(180);
 
-        $response = Http::timeout(90)
+        $response = Http::connectTimeout(15)->timeout(120)
             ->withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type'  => 'application/json',
