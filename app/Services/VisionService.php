@@ -63,6 +63,129 @@ class VisionService
     }
 
     /**
+     * Suggest preparation (SOP) steps for a recipe using OpenRouter.
+     * Analyses the recipe name, ingredient list, and optional dish images.
+     *
+     * @param  array<string>  $ingredientNames
+     * @param  array<string>  $imagePaths  Absolute paths to dish images (optional, max 3 used).
+     * @return array<int, array{title:string, instruction:string}>
+     */
+    public function suggestPreparationSteps(string $recipeName, array $ingredientNames, array $imagePaths = []): array
+    {
+        if (empty($this->apiKey)) {
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
+        }
+
+        $recipeName      = trim($recipeName);
+        $ingredientNames = array_values(array_filter(array_map('trim', $ingredientNames)));
+
+        if ($recipeName === '' && empty($ingredientNames)) {
+            throw new \RuntimeException('Add a recipe name and at least one ingredient before generating steps.');
+        }
+
+        // Build the user message: dish images first (max 3), then the text brief.
+        $content   = [];
+        $hasImages = false;
+        foreach (array_slice($imagePaths, 0, 3) as $path) {
+            if (! is_string($path) || ! file_exists($path)) {
+                continue;
+            }
+            try {
+                $mime   = mime_content_type($path) ?: 'image/jpeg';
+                $base64 = base64_encode(file_get_contents($path));
+                $content[] = ['type' => 'image_url', 'image_url' => ['url' => "data:{$mime};base64,{$base64}"]];
+                $hasImages = true;
+            } catch (\Throwable $e) {
+                // skip unreadable image
+            }
+        }
+
+        $ingredientList = empty($ingredientNames) ? '(none provided)' : implode(', ', $ingredientNames);
+        $content[] = ['type' => 'text', 'text' =>
+            "Recipe name: {$recipeName}\n" .
+            "Ingredients: {$ingredientList}\n\n" .
+            'Write clear, professional kitchen preparation steps (SOP) for this dish. ' .
+            'If dish photo(s) are provided, use them to infer plating and presentation. ' .
+            'Each step should be concise and actionable.',
+        ];
+
+        // A vision-capable model is required when images are attached; the admin's
+        // configured text model (openrouter_model) may not accept image input.
+        $model = $hasImages
+            ? $this->model
+            : (AppSetting::get('openrouter_model') ?: $this->model);
+
+        $previousTimeout = ini_get('max_execution_time');
+        set_time_limit(120);
+
+        $response = Http::timeout(90)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                'X-Title'       => config('app.name', 'Servora'),
+            ])
+            ->post($this->endpoint, [
+                'model'           => $model,
+                'max_tokens'      => 2048,
+                'messages'        => [
+                    ['role' => 'system', 'content' => $this->stepSuggestionSystemPrompt()],
+                    ['role' => 'user', 'content' => $content],
+                ],
+                'response_format' => ['type' => 'json_object'],
+            ]);
+
+        set_time_limit((int) $previousTimeout ?: 60);
+
+        if ($response->failed()) {
+            Log::error('OpenRouter step suggestion failed', ['status' => $response->status(), 'body' => $response->body()]);
+            $body = $response->json();
+            $msg  = $body['error']['message'] ?? ('HTTP ' . $response->status());
+            throw new \RuntimeException('AI step suggestion failed: ' . $msg);
+        }
+
+        $raw  = $response->json('choices.0.message.content', '');
+        $data = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE && preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $raw, $m)) {
+            $data = json_decode(trim($m[1]), true);
+        }
+        if (! is_array($data)) {
+            throw new \RuntimeException('Could not parse the AI response. Please try again.');
+        }
+
+        $rawSteps = $data['steps'] ?? (array_is_list($data) ? $data : []);
+        $steps    = [];
+        foreach ($rawSteps as $s) {
+            if (is_string($s)) {
+                $title       = '';
+                $instruction = trim($s);
+            } else {
+                $title       = trim((string) ($s['title'] ?? ''));
+                $instruction = trim((string) ($s['instruction'] ?? $s['text'] ?? $s['description'] ?? ''));
+            }
+            if ($instruction === '') {
+                continue;
+            }
+            $steps[] = ['title' => $title, 'instruction' => $instruction];
+        }
+
+        if (empty($steps)) {
+            throw new \RuntimeException('The AI did not return any usable steps. Please try again.');
+        }
+
+        return $steps;
+    }
+
+    private function stepSuggestionSystemPrompt(): string
+    {
+        return <<<'PROMPT'
+You are a professional executive chef writing standard operating procedure (SOP) preparation steps for restaurant kitchen training. Given a dish name, its ingredients, and optional photos, produce a concise, ordered list of preparation steps a line cook can follow. Each step has a short title and a clear instruction. Return ONLY valid JSON, no markdown, in this exact shape:
+{"steps":[{"title":"Mise en place","instruction":"..."},{"title":"Cook","instruction":"..."}]}
+Keep to between 4 and 8 steps. Do not invent ingredients that are not listed, except basic staples (salt, pepper, cooking oil, water).
+PROMPT;
+    }
+
+    /**
      * Extract and parse Z-report data from an image file.
      *
      * Uses OpenRouter vision API with Claude to directly extract structured data.

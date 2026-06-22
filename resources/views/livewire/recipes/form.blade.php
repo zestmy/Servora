@@ -861,11 +861,38 @@
                         <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
                         <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
                     </div>
-                    <button type="button" wire:click="addStep"
-                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
-                        + Add Step
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" wire:click="suggestPreparationSteps" wire:loading.attr="disabled" wire:target="suggestPreparationSteps"
+                                class="px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+                            <span wire:loading.remove wire:target="suggestPreparationSteps">✨ AI Suggest Steps</span>
+                            <span wire:loading wire:target="suggestPreparationSteps" class="flex items-center gap-1.5">
+                                <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                Analyzing…
+                            </span>
+                        </button>
+                        <button type="button" wire:click="addStep"
+                                class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                            + Add Step
+                        </button>
+                    </div>
                 </div>
+
+                @if (session('ai_steps_success'))
+                    <div class="mb-3 px-3 py-2 bg-green-50 border border-green-200 text-green-700 text-xs rounded-lg">
+                        {{ session('ai_steps_success') }}
+                    </div>
+                @endif
+                @if (session('ai_steps_error'))
+                    <div class="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+                        {{ session('ai_steps_error') }}
+                    </div>
+                @endif
+                <p class="mb-3 text-xs text-gray-400">
+                    ✨ AI analyses the recipe name, ingredients, and dish photos to draft steps. Review and edit before saving.
+                </p>
 
                 @if (count($steps))
                     <div class="space-y-3">

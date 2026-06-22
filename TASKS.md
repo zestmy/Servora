@@ -8,6 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-06-19 — Recipe form Training/SOP: add "✨ AI Suggest Steps" (OpenRouter) that drafts Preparation Steps from recipe name + ingredients + dish images. VisionService::suggestPreparationSteps (JSON output); uses vision model (claude-sonnet-4) when images attached, else the admin-configured openrouter_model. Suggestions appended as editable steps. Reuses existing Settings > API Keys (openrouter_api_key/model)
 - 2026-06-19 — Training Portal SOP export: add top-tier "All Food"/"All Beverage" group exports (root recipe category + all sub-categories) via ?category_group=<rootId>; surfaced in both the header "Export by Category" dropdown and the pills card. Also added the dropdown button next to "Export All SOPs" for discoverability
 - 2026-06-19 — Fix SOP PDF export ordering: replace flat name-based sort with the Recipes list's exact category-hierarchy ordering (root sort/name → sub sort/name → menu_sort_order → name) via the same recipe_categories/ingredient_categories joins; non-prep recipes first, then prep items. PDF now matches on-screen order
 - 2026-06-19 — Training Portal: export SOP PDFs by category. SopPdfController@all now accepts an optional ?category= filter; the "SOP Categories" pills are clickable export links (per-category PDF), alongside the existing Export All SOPs button

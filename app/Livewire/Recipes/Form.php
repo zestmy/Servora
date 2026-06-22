@@ -14,6 +14,7 @@ use App\Models\RecipePriceClass;
 use App\Models\RecipeStep;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
+use App\Services\VisionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -375,6 +376,75 @@ class Form extends Component
             'id' => null, 'title' => '', 'instruction' => '',
             'image_path' => null, 'image_url' => null, 'new_image' => null, 'remove_image' => false,
         ];
+    }
+
+    /**
+     * Use AI (OpenRouter) to suggest preparation steps from the recipe name,
+     * ingredient list, and any dish images. Suggestions are appended as new
+     * editable steps — existing steps are preserved.
+     */
+    public function suggestPreparationSteps(): void
+    {
+        $ingredientNames = collect($this->lines)
+            ->pluck('ingredient_name')
+            ->filter(fn ($n) => $n && $n !== '—')
+            ->values()
+            ->all();
+
+        if (trim($this->name) === '' && empty($ingredientNames)) {
+            session()->flash('ai_steps_error', 'Add a recipe name and at least one ingredient before generating steps.');
+            return;
+        }
+
+        // Collect dish images: saved product images first, then pending uploads (max 3).
+        $imagePaths = [];
+        if ($this->recipeId) {
+            $saved = RecipeImage::where('recipe_id', $this->recipeId)
+                ->orderByRaw("CASE WHEN type = 'dine_in' THEN 0 ELSE 1 END")
+                ->limit(3)
+                ->get();
+            foreach ($saved as $img) {
+                $path = Storage::disk('public')->path($img->file_path);
+                if (is_file($path)) {
+                    $imagePaths[] = $path;
+                }
+            }
+        }
+        foreach (array_merge($this->newDineInImages, $this->newTakeawayImages) as $upload) {
+            if (count($imagePaths) >= 3) {
+                break;
+            }
+            if (is_object($upload) && method_exists($upload, 'getRealPath')) {
+                $real = $upload->getRealPath();
+                if ($real && is_file($real)) {
+                    $imagePaths[] = $real;
+                }
+            }
+        }
+        $imagePaths = array_slice($imagePaths, 0, 3);
+
+        try {
+            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, $imagePaths);
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        // Drop blank placeholder steps, then append the AI suggestions (non-destructive).
+        $this->steps = array_values(array_filter($this->steps, fn ($s) => trim($s['instruction'] ?? '') !== ''));
+        foreach ($suggested as $s) {
+            $this->steps[] = [
+                'id'           => null,
+                'title'        => $s['title'] ?? '',
+                'instruction'  => $s['instruction'] ?? '',
+                'image_path'   => null,
+                'image_url'    => null,
+                'new_image'    => null,
+                'remove_image' => false,
+            ];
+        }
+
+        session()->flash('ai_steps_success', count($suggested) . ' AI-suggested step(s) added. Review and edit before saving.');
     }
 
     public function removeStep(int $idx): void
