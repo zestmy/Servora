@@ -72,6 +72,9 @@ class SopPdfController extends Controller
 
         $traineeOutletId = $isLmsTrainee ? $user->outlet_id : null;
 
+        // Optional category filter — when set, export only recipe SOPs in that category.
+        $category = trim((string) request('category')) ?: null;
+
         $categorySortMap = RecipeCategory::where('company_id', $user->company_id)
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -85,6 +88,7 @@ class SopPdfController extends Controller
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
+            ->when($category, fn ($q) => $q->where('category', $category))
             ->when($traineeOutletId, fn ($q) => $q->where(function ($q) use ($traineeOutletId) {
                 $q->whereDoesntHave('outlets')
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
@@ -131,7 +135,12 @@ class SopPdfController extends Controller
         $pdf = Pdf::loadView('pdf.sop-all', compact(
             'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'recipeStepImages', 'exportedBy', 'brandName'
         ))->setPaper('a4', 'portrait');
-        return $pdf->download("{$brandName}-Training-SOPs.pdf");
+
+        $fileLabel = $category
+            ? str_replace(['/', '\\'], '-', $category)
+            : 'Training-SOPs';
+
+        return $pdf->download("{$brandName}-{$fileLabel}.pdf");
     }
 
     /**
