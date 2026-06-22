@@ -8,6 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-06-19 — Fix SOP PDF export ordering: replace flat name-based sort with the Recipes list's exact category-hierarchy ordering (root sort/name → sub sort/name → menu_sort_order → name) via the same recipe_categories/ingredient_categories joins; non-prep recipes first, then prep items. PDF now matches on-screen order
 - 2026-06-19 — Training Portal: export SOP PDFs by category. SopPdfController@all now accepts an optional ?category= filter; the "SOP Categories" pills are clickable export links (per-category PDF), alongside the existing Export All SOPs button
 - 2026-06-19 — Fix broken production deploys: composer.lock was missing google/apiclient (added ~May 13 without regenerating lock) so `composer install` exited 4 and aborted deploy/update.sh before migrate/route:cache — every auto-deploy since had been failing silently (stale route cache + assets). Regenerated composer.lock; added 2GB swap on VPS so npm/vite build no longer OOM-kills on the 2GB box
 - 2026-06-19 — Stocks Management: add Purchase capture by department (clone of Stock Take Summary Amount). New purchase_captures table + PurchaseCapture model, PurchaseCaptureForm (Date, Department, Supplier dropdown with "Other" → manual name text, Amount, Reference, Notes), Purchases tab/list/stat in Inventory index, routes inventory.purchases.create/show. Captured purchases feed COGS report via CostSummaryService::getPurchasesByDepartment (added on top of PurchaseRecord). Migration included — run php artisan migrate --force

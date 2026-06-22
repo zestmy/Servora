@@ -75,41 +75,73 @@ class SopPdfController extends Controller
         // Optional category filter — when set, export only recipe SOPs in that category.
         $category = trim((string) request('category')) ?: null;
 
-        $categorySortMap = RecipeCategory::where('company_id', $user->company_id)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('sort_order', 'name');
+        $eager = [
+            'steps', 'images', 'lines.uom', 'yieldUom', 'ingredientCategory',
+            'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
+        ];
 
-        $prepCategorySortMap = IngredientCategory::where('company_id', $user->company_id)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('sort_order', 'id');
+        // Shared LMS visibility scope (company + active + LMS-enabled + trainee outlet).
+        $applyScope = function ($q) use ($user, $traineeOutletId) {
+            return $q->where('recipes.company_id', $user->company_id)
+                ->where('recipes.is_active', true)
+                ->where('recipes.exclude_from_lms', false)
+                ->when($traineeOutletId, fn ($q2) => $q2->where(function ($w) use ($traineeOutletId) {
+                    $w->whereDoesntHave('outlets')
+                      ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
+                }));
+        };
 
-        $recipes = Recipe::where('company_id', $user->company_id)
-            ->where('is_active', true)
-            ->where('exclude_from_lms', false)
-            ->when($category, fn ($q) => $q->where('category', $category))
-            ->when($traineeOutletId, fn ($q) => $q->where(function ($q) use ($traineeOutletId) {
-                $q->whereDoesntHave('outlets')
-                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
-            }))
-            ->with([
-                'steps', 'images', 'lines.uom', 'yieldUom', 'ingredientCategory',
-                'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
-            ])
-            ->get()
-            ->sortBy(fn ($r) => [
-                $r->is_prep ? 1 : 0,
-                $r->is_prep
-                    ? ($prepCategorySortMap[$r->ingredient_category_id] ?? PHP_INT_MAX)
-                    : ($categorySortMap[$r->category] ?? PHP_INT_MAX),
-                $r->is_prep
-                    ? strtolower($r->ingredientCategory?->name ?? '~')
-                    : strtolower($r->category ?? '~'),
-                $r->menu_sort_order ?? 0,
-                strtolower($r->name),
-            ])
-            ->values();
+        // Non-prep recipes — ordered EXACTLY like the Recipes list (category hierarchy:
+        // root sort/name → sub sort/name → menu_sort_order → name) so the exported PDF
+        // matches the on-screen ordering instead of a flat name sort.
+        $nonPrep = $applyScope(Recipe::query()->where('recipes.is_prep', false))
+            ->when($category, fn ($q) => $q->where('recipes.category', $category))
+            ->leftJoin('recipe_categories as rc', function ($join) {
+                $join->on('rc.name', '=', 'recipes.category')
+                     ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc.deleted_at')
+                     ->whereNotNull('rc.parent_id');
+            })
+            ->leftJoin('recipe_categories as rc_root', function ($join) {
+                $join->on('rc_root.name', '=', 'recipes.category')
+                     ->on('rc_root.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc_root.deleted_at')
+                     ->whereNull('rc_root.parent_id');
+            })
+            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
+            ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) IS NULL')
+            ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) ASC')
+            ->orderByRaw('COALESCE(rcp.name, rc_root.name, rc.name) ASC')
+            ->orderByRaw('COALESCE(rc.sort_order, rc_root.sort_order) ASC')
+            ->orderByRaw('COALESCE(rc.name, rc_root.name) ASC')
+            ->orderBy('recipes.menu_sort_order')
+            ->orderBy('recipes.name')
+            ->select('recipes.*')
+            ->with($eager)
+            ->get();
+
+        // Prep items follow, ordered by ingredient-category hierarchy. Skipped when a
+        // recipe-category filter is active (prep items have no menu category).
+        $prep = $category
+            ? collect()
+            : $applyScope(Recipe::query()->where('recipes.is_prep', true))
+                ->leftJoin('ingredient_categories as rc', function ($join) {
+                    $join->on('rc.id', '=', 'recipes.ingredient_category_id')
+                         ->whereNull('rc.deleted_at');
+                })
+                ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
+                ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
+                ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
+                ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
+                ->orderBy('rc.sort_order')
+                ->orderBy('rc.name')
+                ->orderBy('recipes.menu_sort_order')
+                ->orderBy('recipes.name')
+                ->select('recipes.*')
+                ->with($eager)
+                ->get();
+
+        $recipes = $nonPrep->concat($prep);
 
         $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
             ? 'Prep — ' . ($r->ingredientCategory?->name ?? 'Uncategorised')
