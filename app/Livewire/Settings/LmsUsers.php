@@ -78,6 +78,23 @@ class LmsUsers extends Component
             ->sort()
             ->values();
 
+        // Top-tier category groups (e.g. "All Food", "All Beverages") — root recipe
+        // categories that contain at least one LMS recipe (themselves or via a child).
+        $sopCategoryGroups = \App\Models\RecipeCategory::where('company_id', $companyId)
+            ->whereNull('parent_id')
+            ->where('is_active', true)
+            ->with(['children' => fn ($q) => $q->orderBy('sort_order')->orderBy('name')])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($root) => [
+                'id'            => $root->id,
+                'name'          => $root->name,
+                'categoryNames' => collect([$root->name])->merge($root->children->pluck('name')),
+            ])
+            ->filter(fn ($g) => $g['categoryNames']->intersect($sopCategories)->isNotEmpty())
+            ->values();
+
         $domain = config('app.domain');
         if ($domain && $company?->slug) {
             $lmsUrl = "https://{$company->slug}.{$domain}/lms/login";
@@ -92,7 +109,7 @@ class LmsUsers extends Component
 
         return view('livewire.settings.lms-users', compact(
             'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',
-            'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories',
+            'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories', 'sopCategoryGroups',
             'lmsUrl', 'lmsRegisterUrl', 'company'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Training Portal']);
     }

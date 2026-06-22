@@ -75,6 +75,20 @@ class SopPdfController extends Controller
         // Optional category filter — when set, export only recipe SOPs in that category.
         $category = trim((string) request('category')) ?: null;
 
+        // Optional top-tier group filter (e.g. "All Food") — a root recipe-category id;
+        // exports the root category plus all of its sub-categories.
+        $categoryGroupId = (int) request('category_group') ?: null;
+        $groupNames = null;
+        $groupLabel = null;
+        if ($categoryGroupId) {
+            $root = RecipeCategory::where('company_id', $user->company_id)->with('children')->find($categoryGroupId);
+            if ($root) {
+                $groupNames = collect([$root->name])->merge($root->children->pluck('name'))->all();
+                $groupLabel = $root->name;
+            }
+        }
+        $isFiltered = $category !== null || $groupNames !== null;
+
         $eager = [
             'steps', 'images', 'lines.uom', 'yieldUom', 'ingredientCategory',
             'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
@@ -96,6 +110,7 @@ class SopPdfController extends Controller
         // matches the on-screen ordering instead of a flat name sort.
         $nonPrep = $applyScope(Recipe::query()->where('recipes.is_prep', false))
             ->when($category, fn ($q) => $q->where('recipes.category', $category))
+            ->when($groupNames, fn ($q) => $q->whereIn('recipes.category', $groupNames))
             ->leftJoin('recipe_categories as rc', function ($join) {
                 $join->on('rc.name', '=', 'recipes.category')
                      ->on('rc.company_id', '=', 'recipes.company_id')
@@ -122,7 +137,7 @@ class SopPdfController extends Controller
 
         // Prep items follow, ordered by ingredient-category hierarchy. Skipped when a
         // recipe-category filter is active (prep items have no menu category).
-        $prep = $category
+        $prep = $isFiltered
             ? collect()
             : $applyScope(Recipe::query()->where('recipes.is_prep', true))
                 ->leftJoin('ingredient_categories as rc', function ($join) {
@@ -168,9 +183,11 @@ class SopPdfController extends Controller
             'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'recipeStepImages', 'exportedBy', 'brandName'
         ))->setPaper('a4', 'portrait');
 
-        $fileLabel = $category
-            ? str_replace(['/', '\\'], '-', $category)
-            : 'Training-SOPs';
+        $fileLabel = $groupLabel
+            ? 'All-' . str_replace(['/', '\\'], '-', $groupLabel)
+            : ($category
+                ? str_replace(['/', '\\'], '-', $category)
+                : 'Training-SOPs');
 
         return $pdf->download("{$brandName}-{$fileLabel}.pdf");
     }
