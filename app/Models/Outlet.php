@@ -52,4 +52,19 @@ class Outlet extends Model
     {
         return $this->belongsToMany(OutletGroup::class, 'outlet_outlet_group')->withTimestamps();
     }
+
+    /**
+     * Exclude outlets that serve as a central kitchen. Central kitchens handle
+     * production rather than retail sales, so they should not appear in sales
+     * analytics or emailed sales reports (AI Analytics, scheduled reports).
+     */
+    public function scopeExcludingCentralKitchens($query)
+    {
+        return $query->whereNotIn('id', function ($sub) {
+            $sub->select('outlet_id')
+                ->from('central_kitchens')
+                ->whereNotNull('outlet_id')
+                ->whereNull('deleted_at');
+        });
+    }
 }

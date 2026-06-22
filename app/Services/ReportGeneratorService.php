@@ -154,6 +154,7 @@ class ReportGeneratorService
             $outlets = Outlet::withoutGlobalScope(CompanyScope::class)
                 ->where('company_id', $companyId)
                 ->where('is_active', true)
+                ->excludingCentralKitchens()
                 ->orderBy('name')
                 ->get();
 

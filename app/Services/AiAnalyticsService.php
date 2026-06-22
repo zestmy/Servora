@@ -42,6 +42,7 @@ class AiAnalyticsService
         if (!$outletId) {
             $outlets = \App\Models\Outlet::where('company_id', Auth::user()->company_id)
                 ->where('is_active', true)
+                ->excludingCentralKitchens()
                 ->orderBy('name')
                 ->get();
 
@@ -227,9 +228,10 @@ class AiAnalyticsService
         $company = Auth::user()->company;
         $outlet = $outletId ? \App\Models\Outlet::find($outletId) : null;
 
-        // Get all active outlets for multi-outlet analysis
+        // Get all active outlets for multi-outlet analysis (central kitchens excluded)
         $outlets = \App\Models\Outlet::where('company_id', $company->id)
             ->where('is_active', true)
+            ->excludingCentralKitchens()
             ->orderBy('name')
             ->get();
 

@@ -325,7 +325,10 @@ class Index extends Component
 
     public function render()
     {
-        $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->excludingCentralKitchens()
+            ->orderBy('name')
+            ->get();
         $hasApiKey = !empty(AppSetting::get('openrouter_api_key'));
 
         $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');

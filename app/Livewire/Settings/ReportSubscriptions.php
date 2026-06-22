@@ -203,7 +203,10 @@ class ReportSubscriptions extends Component
             ->orderByDesc('created_at')
             ->paginate(15);
 
-        $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->excludingCentralKitchens()
+            ->orderBy('name')
+            ->get();
 
         $recentLogs = ReportLog::with(['outlet', 'subscription'])
             ->orderByDesc('created_at')
