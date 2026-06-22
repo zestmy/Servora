@@ -60,6 +60,7 @@ class ZeoniqImportService
      */
     private function parseDateFirstFormat(array $data): array
     {
+        $departmentColumnMap = $this->detectDepartmentColumnMap($data);
         $results = [];
         $currentDate = null;
         $currentOutlet = null;
@@ -108,7 +109,7 @@ class ZeoniqImportService
                 $guestCount = $this->parseNumber($row[10] ?? 0);
 
                 // Extract department sales data
-                $departments = $this->extractDepartmentsFromRow($row);
+                $departments = $this->extractDepartmentsFromRow($row, $departmentColumnMap);
 
                 if (!isset($sessionData[$currentSession])) {
                     $sessionData[$currentSession] = [
@@ -145,6 +146,7 @@ class ZeoniqImportService
     private function parseSessionFirstFormat(array $data): array
     {
         // Collect all date+session combinations
+        $departmentColumnMap = $this->detectDepartmentColumnMap($data);
         $dateSessionData = [];
         $currentSession = null;
         $currentDate = null;
@@ -187,7 +189,7 @@ class ZeoniqImportService
                 $guestCount = $this->parseNumber($row[10] ?? 0);
 
                 // Extract department sales data
-                $departments = $this->extractDepartmentsFromRow($row);
+                $departments = $this->extractDepartmentsFromRow($row, $departmentColumnMap);
 
                 // Skip if this is a session-level subtotal (no date context yet set after session change)
                 // or a daily subtotal (second consecutive subtotal)
@@ -238,6 +240,10 @@ class ZeoniqImportService
         $spreadsheet = IOFactory::load($filePath);
         $sheet = $spreadsheet->getActiveSheet();
         $data = $sheet->toArray();
+
+        // Detect department columns once from the header (robust to a varying
+        // number of session columns shifting the Department block sideways).
+        $departmentColumnMap = $this->detectDepartmentColumnMap($data);
 
         $results = [];
         $headerRow = null;
@@ -338,7 +344,7 @@ class ZeoniqImportService
 
                 // Extract session and department sales data
                 $sessions = $this->extractSessionsFromRow($row, $sessionColumnMap);
-                $departments = $this->extractDepartmentsFromRow($row);
+                $departments = $this->extractDepartmentsFromRow($row, $departmentColumnMap);
 
                 // If session data exists, create separate records per meal period
                 if (!empty($sessions)) {
@@ -636,22 +642,28 @@ class ZeoniqImportService
      * AM(38): Merchandise Qty, AN(39): Merchandise Total
      * AO(40): Open Food Qty, AP(41): Open Food Total
      */
-    private function extractDepartmentsFromRow(array $row): array
+    private function extractDepartmentsFromRow(array $row, array $deptColumnMap = []): array
     {
         $departments = [];
 
-        // Department definitions: [name, quantity_col_index, net_total_col_index]
-        $deptColumns = [
-            ['Dessert', 28, 29],
-            ['Add On', 30, 31],
-            ['Modifier', 32, 33],
-            ['Beverage', 34, 35],
-            ['Food', 36, 37],
-            ['Merchandise', 38, 39],
-            ['Open Food', 40, 41],
-        ];
+        // Preferred: a dynamically detected [name => net_total_col] map, which
+        // is robust to files with a different number of session columns (the
+        // Department block shifts left/right depending on how many sessions
+        // precede it). Only fall back to fixed column positions when detection
+        // failed, to preserve backward compatibility.
+        if (empty($deptColumnMap)) {
+            $deptColumnMap = [
+                'Dessert' => 29,
+                'Add On' => 31,
+                'Modifier' => 33,
+                'Beverage' => 35,
+                'Food' => 37,
+                'Merchandise' => 39,
+                'Open Food' => 41,
+            ];
+        }
 
-        foreach ($deptColumns as [$deptName, $qtyCol, $totalCol]) {
+        foreach ($deptColumnMap as $deptName => $totalCol) {
             $netTotal = $this->parseNumber($row[$totalCol] ?? 0);
 
             // Only include departments with revenue > 0
@@ -661,6 +673,48 @@ class ZeoniqImportService
         }
 
         return $departments;
+    }
+
+    /**
+     * Dynamically detect department columns from the report header.
+     *
+     * The header has a "Department" section label (row N) followed by the
+     * department names (row N+1), each name sitting above a Quantity / Net Total
+     * pair. The Net Total lives in the column immediately after each name.
+     * Returns [department_name => net_total_col_index]; empty if not found
+     * (callers then fall back to fixed positions).
+     */
+    private function detectDepartmentColumnMap(array $data): array
+    {
+        foreach ($data as $rowIndex => $row) {
+            foreach ($row as $colIdx => $cell) {
+                if (strcasecmp(trim((string) $cell), 'Department') !== 0) {
+                    continue;
+                }
+
+                // Department names sit in the row beneath the section label,
+                // from this column onward (earlier columns hold session names).
+                $namesRow = $data[$rowIndex + 1] ?? [];
+                $map = [];
+                foreach ($namesRow as $nameCol => $nameCell) {
+                    if ($nameCol < $colIdx) {
+                        continue;
+                    }
+                    $name = trim((string) $nameCell);
+                    if ($name === '') {
+                        continue;
+                    }
+                    // Quantity is at $nameCol, Net Total at the next column.
+                    $map[$name] = $nameCol + 1;
+                }
+
+                if (!empty($map)) {
+                    return $map;
+                }
+            }
+        }
+
+        return [];
     }
 
     /**
