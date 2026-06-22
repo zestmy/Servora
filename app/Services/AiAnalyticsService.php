@@ -142,7 +142,11 @@ class AiAnalyticsService
 
     private function callOpenRouter(string $apiKey, array $context, string $prompt, string $analysisType = 'monthly_review'): array
     {
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        // Always use the fast, capable default model for analytics. The admin's
+        // configured openrouter_model may be a slow reasoning model (e.g.
+        // deepseek-r1) whose long "thinking" phase, combined with this feature's
+        // large multi-table prompt, reliably times the request out (cURL 28).
+        $model = 'anthropic/claude-sonnet-4';
 
         // Use fewer tokens for simpler analysis types
         $maxTokens = in_array($analysisType, ['weekly_review', 'custom']) ? 2048 : 4096;
@@ -150,7 +154,7 @@ class AiAnalyticsService
         $previousTimeout = ini_get('max_execution_time');
         set_time_limit(180);
 
-        $response = Http::connectTimeout(30)
+        $response = Http::connectTimeout(15)
             ->timeout(150)
             ->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
