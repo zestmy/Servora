@@ -72,10 +72,6 @@ class VisionService
      */
     public function suggestPreparationSteps(string $recipeName, array $ingredientNames, array $imagePaths = []): array
     {
-        if (empty($this->apiKey)) {
-            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
-        }
-
         $recipeName      = trim($recipeName);
         $ingredientNames = array_values(array_filter(array_map('trim', $ingredientNames)));
 
@@ -83,9 +79,100 @@ class VisionService
             throw new \RuntimeException('Add a recipe name and at least one ingredient before generating steps.');
         }
 
-        // Build the user message: dish images first (max 3), then the text brief.
-        $content   = [];
-        $hasImages = false;
+        [$imageParts, $hasImages] = $this->buildImageParts($imagePaths);
+
+        $ingredientList = empty($ingredientNames) ? '(none provided)' : implode(', ', $ingredientNames);
+        $userText = "Recipe name: {$recipeName}\n" .
+            "Ingredients: {$ingredientList}\n\n" .
+            'Write clear, professional kitchen preparation steps (SOP) for this dish. ' .
+            'If dish photo(s) are provided, use them to infer plating and presentation. ' .
+            'Each step should be concise and actionable.';
+
+        $data = $this->chatJson([
+            ['role' => 'system', 'content' => $this->stepSuggestionSystemPrompt()],
+            ['role' => 'user', 'content' => array_merge($imageParts, [['type' => 'text', 'text' => $userText]])],
+        ], $hasImages);
+
+        $rawSteps = $data['steps'] ?? (array_is_list($data) ? $data : []);
+        $steps    = [];
+        foreach ($rawSteps as $s) {
+            $one = $this->normalizeStep($s);
+            if ($one['instruction'] !== '') {
+                $steps[] = $one;
+            }
+        }
+
+        if (empty($steps)) {
+            throw new \RuntimeException('The AI did not return any usable steps. Please try again.');
+        }
+
+        return $steps;
+    }
+
+    /**
+     * Regenerate a single preparation step in the context of the full step list.
+     *
+     * @param  array<string>  $ingredientNames
+     * @param  array<int, array{title?:string, instruction?:string}>  $existingSteps
+     * @param  int  $stepNumber  1-based index of the step to rewrite.
+     * @param  array<string>  $imagePaths
+     * @return array{title:string, instruction:string}
+     */
+    public function regeneratePreparationStep(string $recipeName, array $ingredientNames, array $existingSteps, int $stepNumber, array $imagePaths = []): array
+    {
+        $recipeName      = trim($recipeName);
+        $ingredientNames = array_values(array_filter(array_map('trim', $ingredientNames)));
+
+        [$imageParts, $hasImages] = $this->buildImageParts($imagePaths);
+
+        $ingredientList = empty($ingredientNames) ? '(none provided)' : implode(', ', $ingredientNames);
+
+        $stepsText = '';
+        foreach ($existingSteps as $i => $st) {
+            $n      = $i + 1;
+            $title  = trim((string) ($st['title'] ?? ''));
+            $instr  = trim((string) ($st['instruction'] ?? ''));
+            $marker = ($n === $stepNumber) ? '   <-- REWRITE THIS STEP' : '';
+            $stepsText .= "{$n}. " . ($title !== '' ? "[{$title}] " : '') . $instr . $marker . "\n";
+        }
+
+        $userText = "Recipe name: {$recipeName}\n" .
+            "Ingredients: {$ingredientList}\n\n" .
+            "Current preparation steps:\n{$stepsText}\n" .
+            "Rewrite ONLY step {$stepNumber} so it is clearer and more professional, consistent with the surrounding steps and without duplicating them. " .
+            'Return JSON for that one step only: {"title":"...","instruction":"..."}.';
+
+        $data = $this->chatJson([
+            ['role' => 'system', 'content' => $this->stepSuggestionSystemPrompt()],
+            ['role' => 'user', 'content' => array_merge($imageParts, [['type' => 'text', 'text' => $userText]])],
+        ], $hasImages);
+
+        // Accept {title,instruction}, {step:{...}}, or {steps:[{...}]}.
+        $one = $data;
+        if (isset($data['step']) && is_array($data['step'])) {
+            $one = $data['step'];
+        } elseif (isset($data['steps'][0]) && is_array($data['steps'][0])) {
+            $one = $data['steps'][0];
+        }
+
+        $step = $this->normalizeStep($one);
+        if ($step['instruction'] === '') {
+            throw new \RuntimeException('The AI did not return a usable step. Please try again.');
+        }
+
+        return $step;
+    }
+
+    /**
+     * Build OpenRouter image content parts (base64 data URIs) from file paths.
+     *
+     * @param  array<string>  $imagePaths
+     * @return array{0: array, 1: bool}  [content parts, whether any image was attached]
+     */
+    private function buildImageParts(array $imagePaths): array
+    {
+        $parts = [];
+        $has   = false;
         foreach (array_slice($imagePaths, 0, 3) as $path) {
             if (! is_string($path) || ! file_exists($path)) {
                 continue;
@@ -93,24 +180,42 @@ class VisionService
             try {
                 $mime   = mime_content_type($path) ?: 'image/jpeg';
                 $base64 = base64_encode(file_get_contents($path));
-                $content[] = ['type' => 'image_url', 'image_url' => ['url' => "data:{$mime};base64,{$base64}"]];
-                $hasImages = true;
+                $parts[] = ['type' => 'image_url', 'image_url' => ['url' => "data:{$mime};base64,{$base64}"]];
+                $has = true;
             } catch (\Throwable $e) {
                 // skip unreadable image
             }
         }
 
-        $ingredientList = empty($ingredientNames) ? '(none provided)' : implode(', ', $ingredientNames);
-        $content[] = ['type' => 'text', 'text' =>
-            "Recipe name: {$recipeName}\n" .
-            "Ingredients: {$ingredientList}\n\n" .
-            'Write clear, professional kitchen preparation steps (SOP) for this dish. ' .
-            'If dish photo(s) are provided, use them to infer plating and presentation. ' .
-            'Each step should be concise and actionable.',
-        ];
+        return [$parts, $has];
+    }
 
-        // A vision-capable model is required when images are attached; the admin's
-        // configured text model (openrouter_model) may not accept image input.
+    /** Normalise one AI step payload into [title, instruction]. */
+    private function normalizeStep(mixed $s): array
+    {
+        if (is_string($s)) {
+            return ['title' => '', 'instruction' => trim($s)];
+        }
+        if (! is_array($s)) {
+            return ['title' => '', 'instruction' => ''];
+        }
+
+        return [
+            'title'       => trim((string) ($s['title'] ?? '')),
+            'instruction' => trim((string) ($s['instruction'] ?? $s['text'] ?? $s['description'] ?? '')),
+        ];
+    }
+
+    /**
+     * POST a chat-completion expecting a JSON object response, and return the decoded array.
+     * Uses a vision-capable model when images are attached (the configured text model may not accept images).
+     */
+    private function chatJson(array $messages, bool $hasImages, int $maxTokens = 2048): array
+    {
+        if (empty($this->apiKey)) {
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
+        }
+
         $model = $hasImages
             ? $this->model
             : (AppSetting::get('openrouter_model') ?: $this->model);
@@ -127,21 +232,18 @@ class VisionService
             ])
             ->post($this->endpoint, [
                 'model'           => $model,
-                'max_tokens'      => 2048,
-                'messages'        => [
-                    ['role' => 'system', 'content' => $this->stepSuggestionSystemPrompt()],
-                    ['role' => 'user', 'content' => $content],
-                ],
+                'max_tokens'      => $maxTokens,
+                'messages'        => $messages,
                 'response_format' => ['type' => 'json_object'],
             ]);
 
         set_time_limit((int) $previousTimeout ?: 60);
 
         if ($response->failed()) {
-            Log::error('OpenRouter step suggestion failed', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::error('OpenRouter chat request failed', ['status' => $response->status(), 'body' => $response->body()]);
             $body = $response->json();
             $msg  = $body['error']['message'] ?? ('HTTP ' . $response->status());
-            throw new \RuntimeException('AI step suggestion failed: ' . $msg);
+            throw new \RuntimeException('AI request failed: ' . $msg);
         }
 
         $raw  = $response->json('choices.0.message.content', '');
@@ -153,27 +255,7 @@ class VisionService
             throw new \RuntimeException('Could not parse the AI response. Please try again.');
         }
 
-        $rawSteps = $data['steps'] ?? (array_is_list($data) ? $data : []);
-        $steps    = [];
-        foreach ($rawSteps as $s) {
-            if (is_string($s)) {
-                $title       = '';
-                $instruction = trim($s);
-            } else {
-                $title       = trim((string) ($s['title'] ?? ''));
-                $instruction = trim((string) ($s['instruction'] ?? $s['text'] ?? $s['description'] ?? ''));
-            }
-            if ($instruction === '') {
-                continue;
-            }
-            $steps[] = ['title' => $title, 'instruction' => $instruction];
-        }
-
-        if (empty($steps)) {
-            throw new \RuntimeException('The AI did not return any usable steps. Please try again.');
-        }
-
-        return $steps;
+        return $data;
     }
 
     private function stepSuggestionSystemPrompt(): string

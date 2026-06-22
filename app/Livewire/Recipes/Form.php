@@ -380,58 +380,33 @@ class Form extends Component
 
     /**
      * Use AI (OpenRouter) to suggest preparation steps from the recipe name,
-     * ingredient list, and any dish images. Suggestions are appended as new
-     * editable steps — existing steps are preserved.
+     * ingredient list, and any dish images.
+     *
+     * @param  string  $mode  'append' (keep existing steps) or 'replace' (overwrite all).
      */
-    public function suggestPreparationSteps(): void
+    public function suggestPreparationSteps(string $mode = 'append'): void
     {
-        $ingredientNames = collect($this->lines)
-            ->pluck('ingredient_name')
-            ->filter(fn ($n) => $n && $n !== '—')
-            ->values()
-            ->all();
+        $ingredientNames = $this->recipeIngredientNames();
 
         if (trim($this->name) === '' && empty($ingredientNames)) {
             session()->flash('ai_steps_error', 'Add a recipe name and at least one ingredient before generating steps.');
             return;
         }
 
-        // Collect dish images: saved product images first, then pending uploads (max 3).
-        $imagePaths = [];
-        if ($this->recipeId) {
-            $saved = RecipeImage::where('recipe_id', $this->recipeId)
-                ->orderByRaw("CASE WHEN type = 'dine_in' THEN 0 ELSE 1 END")
-                ->limit(3)
-                ->get();
-            foreach ($saved as $img) {
-                $path = Storage::disk('public')->path($img->file_path);
-                if (is_file($path)) {
-                    $imagePaths[] = $path;
-                }
-            }
-        }
-        foreach (array_merge($this->newDineInImages, $this->newTakeawayImages) as $upload) {
-            if (count($imagePaths) >= 3) {
-                break;
-            }
-            if (is_object($upload) && method_exists($upload, 'getRealPath')) {
-                $real = $upload->getRealPath();
-                if ($real && is_file($real)) {
-                    $imagePaths[] = $real;
-                }
-            }
-        }
-        $imagePaths = array_slice($imagePaths, 0, 3);
-
         try {
-            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, $imagePaths);
+            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, $this->collectDishImagePaths());
         } catch (\Throwable $e) {
             session()->flash('ai_steps_error', $e->getMessage());
             return;
         }
 
-        // Drop blank placeholder steps, then append the AI suggestions (non-destructive).
-        $this->steps = array_values(array_filter($this->steps, fn ($s) => trim($s['instruction'] ?? '') !== ''));
+        if ($mode === 'replace') {
+            $this->steps = [];
+        } else {
+            // Drop blank placeholder steps before appending (non-destructive).
+            $this->steps = array_values(array_filter($this->steps, fn ($s) => trim($s['instruction'] ?? '') !== ''));
+        }
+
         foreach ($suggested as $s) {
             $this->steps[] = [
                 'id'           => null,
@@ -444,7 +419,90 @@ class Form extends Component
             ];
         }
 
-        session()->flash('ai_steps_success', count($suggested) . ' AI-suggested step(s) added. Review and edit before saving.');
+        $verb = $mode === 'replace' ? 'replaced all steps' : 'added';
+        session()->flash('ai_steps_success', count($suggested) . " AI-suggested step(s) {$verb}. Review and edit before saving.");
+    }
+
+    /**
+     * Regenerate a single preparation step with AI, keeping it consistent with the others.
+     */
+    public function regenerateStep(int $idx): void
+    {
+        if (! isset($this->steps[$idx])) {
+            return;
+        }
+
+        $ingredientNames = $this->recipeIngredientNames();
+        if (trim($this->name) === '' && empty($ingredientNames)) {
+            session()->flash('ai_steps_error', 'Add a recipe name and at least one ingredient before regenerating.');
+            return;
+        }
+
+        $existing = array_map(fn ($s) => [
+            'title'       => $s['title'] ?? '',
+            'instruction' => $s['instruction'] ?? '',
+        ], $this->steps);
+
+        try {
+            $new = app(VisionService::class)->regeneratePreparationStep(
+                $this->name,
+                $ingredientNames,
+                $existing,
+                $idx + 1,
+                $this->collectDishImagePaths(),
+            );
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        $this->steps[$idx]['title']       = $new['title'] ?? $this->steps[$idx]['title'];
+        $this->steps[$idx]['instruction'] = $new['instruction'] ?? $this->steps[$idx]['instruction'];
+
+        session()->flash('ai_steps_success', 'Step ' . ($idx + 1) . ' regenerated.');
+    }
+
+    /** Ingredient names for the current recipe lines (for AI prompts). */
+    private function recipeIngredientNames(): array
+    {
+        return collect($this->lines)
+            ->pluck('ingredient_name')
+            ->filter(fn ($n) => $n && $n !== '—')
+            ->values()
+            ->all();
+    }
+
+    /** Absolute paths to dish images — saved product images first, then pending uploads (max 3). */
+    private function collectDishImagePaths(): array
+    {
+        $imagePaths = [];
+
+        if ($this->recipeId) {
+            $saved = RecipeImage::where('recipe_id', $this->recipeId)
+                ->orderByRaw("CASE WHEN type = 'dine_in' THEN 0 ELSE 1 END")
+                ->limit(3)
+                ->get();
+            foreach ($saved as $img) {
+                $path = Storage::disk('public')->path($img->file_path);
+                if (is_file($path)) {
+                    $imagePaths[] = $path;
+                }
+            }
+        }
+
+        foreach (array_merge($this->newDineInImages, $this->newTakeawayImages) as $upload) {
+            if (count($imagePaths) >= 3) {
+                break;
+            }
+            if (is_object($upload) && method_exists($upload, 'getRealPath')) {
+                $real = $upload->getRealPath();
+                if ($real && is_file($real)) {
+                    $imagePaths[] = $real;
+                }
+            }
+        }
+
+        return array_slice($imagePaths, 0, 3);
     }
 
     public function removeStep(int $idx): void
