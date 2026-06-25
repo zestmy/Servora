@@ -197,27 +197,30 @@
                         </div>
                     </div>
 
-                    {{-- Outlet --}}
+                    {{-- Outlets --}}
                     <div>
-                        <x-input-label for="outlet_id" value="Outlet (leave blank for all)" />
-                        @if (count($editingGroupIds) > 1)
-                            {{-- Multi-outlet group: assignment is fixed; edits apply to all listed outlets. --}}
-                            <div class="mt-1 flex flex-wrap gap-1">
-                                @if ($editingAllOutlets)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">All Outlets</span>
-                                @endif
-                                @foreach ($editingOutletNames as $name)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ $name }}</span>
-                                @endforeach
+                        <x-input-label value="Outlets" />
+                        <label class="flex items-center gap-2 mt-1.5">
+                            <input type="checkbox" wire:model.live="applyAllOutlets"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-sm text-gray-700">Apply to all outlets</span>
+                        </label>
+
+                        @if (! $applyAllOutlets)
+                            <p class="text-xs text-gray-400 mt-2">Select the outlets this event applies to:</p>
+                            <div class="mt-1 max-h-44 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                                @forelse ($outlets as $outlet)
+                                    <label class="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-gray-50">
+                                        <input type="checkbox" wire:model="selectedOutletIds" value="{{ $outlet->id }}"
+                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        <span class="text-sm text-gray-700">{{ $outlet->name }}</span>
+                                    </label>
+                                @empty
+                                    <p class="text-xs text-gray-400 px-1.5 py-1">No outlets found.</p>
+                                @endforelse
                             </div>
-                            <p class="text-xs text-gray-400 mt-1">Changes apply to this event across all {{ count($editingGroupIds) }} outlets above.</p>
-                        @else
-                            <select wire:model="outlet_id" id="outlet_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">All Outlets</option>
-                                @foreach ($outlets as $outlet)
-                                    <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-input-error :messages="$errors->get('selectedOutletIds')" class="mt-1" />
+                            <p class="text-xs text-gray-400 mt-1">A separate event is stored per outlet, shown as one tagged row in the list.</p>
                         @endif
                     </div>
 

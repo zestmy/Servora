@@ -27,13 +27,12 @@ class CalendarEvents extends Component
     public bool $showModal = false;
     public ?int $editingId = null;
     public array $editingGroupIds = [];     // all underlying event ids when editing a grouped row
-    public array $editingOutletNames = [];  // outlet tags shown read-only when editing a multi-outlet group
-    public bool $editingAllOutlets = false; // group includes an "All Outlets" (null) event
 
     public string $title = '';
     public string $event_date = '';
     public string $end_date = '';
-    public ?int $outlet_id = null;
+    public bool $applyAllOutlets = true;    // true = single company-wide event (outlet_id null)
+    public array $selectedOutletIds = [];   // specific outlets — one event is stored per outlet
     public string $category = 'other';
     public string $description = '';
     public string $impact = 'neutral';
@@ -60,14 +59,29 @@ class CalendarEvents extends Component
 
     protected function rules(): array
     {
-        return [
+        $rules = [
             'title'      => 'required|string|max:255',
             'event_date' => 'required|date',
             'end_date'   => 'nullable|date|after_or_equal:event_date',
-            'outlet_id'  => 'nullable|exists:outlets,id',
             'category'   => 'required|string|in:' . implode(',', array_keys(CalendarEvent::categoryOptions())),
             'description' => 'nullable|string|max:1000',
             'impact'     => 'required|string|in:' . implode(',', array_keys(CalendarEvent::impactOptions())),
+        ];
+
+        // When not applying to all outlets, at least one specific outlet is required.
+        if (! $this->applyAllOutlets) {
+            $rules['selectedOutletIds']   = 'required|array|min:1';
+            $rules['selectedOutletIds.*'] = 'integer';
+        }
+
+        return $rules;
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'selectedOutletIds.required' => 'Select at least one outlet, or choose “Apply to all outlets”.',
+            'selectedOutletIds.min'      => 'Select at least one outlet, or choose “Apply to all outlets”.',
         ];
     }
 
@@ -84,8 +98,8 @@ class CalendarEvents extends Component
     /**
      * Edit a grouped row. The ids are the underlying per-outlet events that
      * share the same title/date/category/impact. Shared fields are edited for
-     * all of them at once; per-outlet assignment is only editable when the
-     * group is a single event.
+     * all of them at once, and the outlet selection can be changed — save()
+     * reconciles by adding/removing per-outlet events as needed.
      */
     public function openEditGroup(array $ids): void
     {
@@ -104,19 +118,14 @@ class CalendarEvents extends Component
         $this->title           = $first->title;
         $this->event_date      = $first->event_date->format('Y-m-d');
         $this->end_date        = $first->end_date?->format('Y-m-d') ?? '';
-        $this->outlet_id       = count($this->editingGroupIds) === 1 ? $first->outlet_id : null;
         $this->category        = $first->category;
         $this->description     = $first->description ?? '';
         $this->impact          = $first->impact ?? 'neutral';
 
-        $this->editingAllOutlets  = $events->contains(fn ($e) => is_null($e->outlet_id));
-        $this->editingOutletNames = $events->filter(fn ($e) => $e->outlet_id)
-            ->map(fn ($e) => $e->outlet?->name)
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
+        $this->applyAllOutlets   = $events->contains(fn ($e) => is_null($e->outlet_id));
+        $this->selectedOutletIds = $this->applyAllOutlets
+            ? []
+            : $events->pluck('outlet_id')->filter()->map(fn ($v) => (string) $v)->unique()->values()->all();
 
         $this->showModal = true;
     }
@@ -125,38 +134,40 @@ class CalendarEvents extends Component
     {
         $this->validate();
 
-        $data = [
+        $companyId = Auth::user()->company_id;
+
+        $shared = [
             'title'       => $this->title,
             'event_date'  => $this->event_date,
             'end_date'    => $this->end_date ?: null,
-            'outlet_id'   => $this->outlet_id ?: null,
             'category'    => $this->category,
             'description' => $this->description ?: null,
             'impact'      => $this->impact,
         ];
 
+        // Resolve the target outlets: [null] for a single company-wide event,
+        // otherwise one event per selected outlet (validated to the company).
+        $targets = $this->resolveTargetOutletIds($companyId);
+        if ($targets === null) {
+            $this->addError('selectedOutletIds', 'Select at least one outlet, or choose “Apply to all outlets”.');
+            return;
+        }
+
         if ($this->editingId) {
-            if (count($this->editingGroupIds) > 1) {
-                // Multi-outlet group: update the shared fields for every event,
-                // but leave each event's own outlet assignment untouched.
-                CalendarEvent::whereIn('id', $this->editingGroupIds)->update([
-                    'title'       => $this->title,
-                    'event_date'  => $this->event_date,
-                    'end_date'    => $this->end_date ?: null,
-                    'category'    => $this->category,
-                    'description' => $this->description ?: null,
-                    'impact'      => $this->impact,
-                ]);
-                session()->flash('success', 'Event updated for ' . count($this->editingGroupIds) . ' outlets.');
-            } else {
-                CalendarEvent::findOrFail($this->editingId)->update($data);
-                session()->flash('success', 'Event updated.');
-            }
+            $this->reconcileGroup($targets, $shared, $companyId);
+            session()->flash('success', 'Event updated.');
             $this->closeModal();
         } else {
-            $data['company_id'] = Auth::user()->company_id;
-            $data['created_by'] = Auth::id();
-            $event = CalendarEvent::create($data);
+            $firstEvent = null;
+            foreach ($targets as $outletId) {
+                $event = CalendarEvent::create($shared + [
+                    'company_id' => $companyId,
+                    'outlet_id'  => $outletId,
+                    'created_by' => Auth::id(),
+                ]);
+                $firstEvent ??= $event;
+            }
+
             session()->flash('success', 'Event created.');
             $this->closeModal();
 
@@ -166,8 +177,72 @@ class CalendarEvents extends Component
             $this->search = '';
             $this->categoryFilter = 'all';
             $this->outletFilter = 'all';
-            $this->gotoCreatedEventPage($event);
+            if ($firstEvent) {
+                $this->gotoCreatedEventPage($firstEvent);
+            }
         }
+    }
+
+    /**
+     * Target outlet ids for the current selection: [null] when applying to all
+     * outlets, otherwise the chosen ids restricted to the company's outlets.
+     * Returns null when a specific selection ends up empty (invalid).
+     */
+    private function resolveTargetOutletIds(int $companyId): ?array
+    {
+        if ($this->applyAllOutlets) {
+            return [null];
+        }
+
+        $companyOutletIds = Outlet::where('company_id', $companyId)->pluck('id')->all();
+        $targets = array_values(array_unique(array_intersect(
+            array_map('intval', $this->selectedOutletIds),
+            $companyOutletIds
+        )));
+
+        return empty($targets) ? null : $targets;
+    }
+
+    /**
+     * Reconcile the events behind the edited group to match the target outlets:
+     * update events whose outlet is still wanted, create missing ones, and
+     * delete events whose outlet is no longer selected. Returns one surviving
+     * event (for paginator positioning).
+     */
+    private function reconcileGroup(array $targets, array $shared, int $companyId): ?CalendarEvent
+    {
+        $existing = CalendarEvent::whereIn('id', $this->editingGroupIds)->get();
+        $existingByOutlet = $existing->keyBy(fn ($e) => $e->outlet_id === null ? 'null' : (string) $e->outlet_id);
+
+        $keepKeys = [];
+        $firstEvent = null;
+
+        foreach ($targets as $outletId) {
+            $key = $outletId === null ? 'null' : (string) $outletId;
+            $keepKeys[] = $key;
+
+            if ($existingByOutlet->has($key)) {
+                $event = $existingByOutlet->get($key);
+                $event->update($shared);
+            } else {
+                $event = CalendarEvent::create($shared + [
+                    'company_id' => $companyId,
+                    'outlet_id'  => $outletId,
+                    'created_by' => Auth::id(),
+                ]);
+            }
+
+            $firstEvent ??= $event;
+        }
+
+        $toDelete = $existing->reject(
+            fn ($e) => in_array($e->outlet_id === null ? 'null' : (string) $e->outlet_id, $keepKeys, true)
+        );
+        if ($toDelete->isNotEmpty()) {
+            CalendarEvent::whereIn('id', $toDelete->pluck('id'))->delete();
+        }
+
+        return $firstEvent;
     }
 
     /**
@@ -687,12 +762,11 @@ class CalendarEvents extends Component
     {
         $this->editingId         = null;
         $this->editingGroupIds   = [];
-        $this->editingOutletNames = [];
-        $this->editingAllOutlets = false;
         $this->title       = '';
         $this->event_date  = '';
         $this->end_date    = '';
-        $this->outlet_id   = null;
+        $this->applyAllOutlets   = true;
+        $this->selectedOutletIds = [];
         $this->category    = 'other';
         $this->description = '';
         $this->impact      = 'neutral';
