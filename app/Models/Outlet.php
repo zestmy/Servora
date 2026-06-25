@@ -14,7 +14,7 @@ class Outlet extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'name', 'code', 'phone', 'address', 'is_active',
+        'company_id', 'name', 'code', 'phone', 'address', 'country', 'state', 'is_active',
     ];
 
     protected $casts = [

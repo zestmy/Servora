@@ -27,13 +27,14 @@
     {{-- Table — horizontally scrollable on mobile. --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[860px] divide-y divide-gray-100 text-sm">
+        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Code</th>
                     <th class="px-4 py-3 text-left">Phone</th>
                     <th class="px-4 py-3 text-left">Address</th>
+                    <th class="px-4 py-3 text-left">Location</th>
                     <th class="px-4 py-3 text-center">Users</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
@@ -46,6 +47,9 @@
                         <td class="px-4 py-3 text-gray-500 font-mono text-xs">{{ $outlet->code }}</td>
                         <td class="px-4 py-3 text-gray-500">{{ $outlet->phone ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{{ $outlet->address ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                            {{ trim(collect([$outlet->state, $outlet->country])->filter()->implode(', ')) ?: '—' }}
+                        </td>
                         <td class="px-4 py-3 text-center">
                             <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                 {{ $outlet->users_count }}
@@ -79,7 +83,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
                             <p class="font-medium">No branches yet</p>
                             <p class="text-sm mt-1">Create your first branch to get started.</p>
                         </td>
@@ -136,6 +140,20 @@
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
                         <x-input-error :messages="$errors->get('address')" class="mt-1" />
                     </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <x-input-label for="o_country" value="Country" />
+                            <x-text-input id="o_country" wire:model="country" type="text" class="mt-1 block w-full" placeholder="e.g. Malaysia" />
+                            <x-input-error :messages="$errors->get('country')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="o_state" value="State / Region" />
+                            <x-text-input id="o_state" wire:model="state" type="text" class="mt-1 block w-full" placeholder="e.g. Selangor" />
+                            <x-input-error :messages="$errors->get('state')" class="mt-1" />
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 -mt-1">Used to generate location-specific public holidays for AI analytics.</p>
 
                     @if ($editingId)
                         <div class="flex items-center gap-2">

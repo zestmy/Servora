@@ -16,6 +16,8 @@ class Outlets extends Component
     public string $code    = '';
     public string $phone   = '';
     public string $address = '';
+    public string $country = '';
+    public string $state   = '';
     public bool   $is_active = true;
 
     public function openCreate(): void
@@ -33,6 +35,8 @@ class Outlets extends Component
         $this->code      = $outlet->code ?? '';
         $this->phone     = $outlet->phone ?? '';
         $this->address   = $outlet->address ?? '';
+        $this->country   = $outlet->country ?? '';
+        $this->state     = $outlet->state ?? '';
         $this->is_active = $outlet->is_active;
         $this->showModal = true;
     }
@@ -52,6 +56,8 @@ class Outlets extends Component
             'code'    => ['required', 'string', 'max:20', Rule::unique('outlets', 'code')->where('company_id', $companyId)->ignore($this->editingId)],
             'phone'   => 'nullable|string|max:30',
             'address' => 'nullable|string|max:500',
+            'country' => 'nullable|string|max:100',
+            'state'   => 'nullable|string|max:100',
         ]);
 
         $data = [
@@ -60,6 +66,8 @@ class Outlets extends Component
             'code'       => strtoupper($this->code),
             'phone'      => $this->phone ?: null,
             'address'    => $this->address ?: null,
+            'country'    => $this->country ?: null,
+            'state'      => $this->state ?: null,
             'is_active'  => $this->is_active,
         ];
 
@@ -112,6 +120,8 @@ class Outlets extends Component
         $this->code      = '';
         $this->phone     = '';
         $this->address   = '';
+        $this->country   = '';
+        $this->state     = '';
         $this->is_active = true;
         $this->resetValidation();
     }

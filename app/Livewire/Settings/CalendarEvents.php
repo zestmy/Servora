@@ -38,6 +38,19 @@ class CalendarEvents extends Component
     public array $importErrors = [];
     public int $importCreated = 0;
 
+    // AI public-holiday generation
+    public bool $showHolidayModal = false;
+    public ?int $holidayOutletId = null; // null = all active outlets
+    public int $holidayYear = 0;
+    public array $holidayPreview = [];   // rows: outlet_id, outlet_name, date, name, impact, exists, selected
+    public array $holidayErrors = [];
+    public string $holidayNotice = '';
+
+    public function mount(): void
+    {
+        $this->holidayYear = (int) now()->year;
+    }
+
     protected function rules(): array
     {
         return [
@@ -362,6 +375,148 @@ class CalendarEvents extends Component
         $this->importFile = null;
         $this->importPreview = [];
         $this->importErrors = [];
+    }
+
+    // ── AI public-holiday generation ────────────────────────────────────────
+
+    public function openHolidays(): void
+    {
+        $this->holidayOutletId = null;
+        $this->holidayYear = (int) now()->year;
+        $this->holidayPreview = [];
+        $this->holidayErrors = [];
+        $this->holidayNotice = '';
+        $this->showHolidayModal = true;
+    }
+
+    /**
+     * Ask the LLM for public holidays for each target outlet's location and
+     * build a preview, skipping events that already exist for that outlet/date.
+     */
+    public function generateHolidays(\App\Services\PublicHolidayService $service): void
+    {
+        $this->holidayPreview = [];
+        $this->holidayErrors = [];
+        $this->holidayNotice = '';
+
+        $companyId = Auth::user()->company_id;
+
+        $outlets = Outlet::where('company_id', $companyId)
+            ->where('is_active', true)
+            ->when($this->holidayOutletId, fn ($q) => $q->where('id', $this->holidayOutletId))
+            ->orderBy('name')
+            ->get();
+
+        if ($outlets->isEmpty()) {
+            $this->holidayErrors[] = 'No active branches found.';
+            return;
+        }
+
+        $located = $outlets->filter(fn ($o) => filled($o->country));
+        $missing = $outlets->filter(fn ($o) => blank($o->country));
+
+        if ($located->isEmpty()) {
+            $this->holidayErrors[] = 'No branch has a Country set. Add Country (and State) to your branches in Settings > Branches first.';
+            return;
+        }
+
+        if ($missing->isNotEmpty()) {
+            $this->holidayNotice = 'Skipped — no country set: ' . $missing->pluck('name')->implode(', ') . '.';
+        }
+
+        // One AI call per distinct country+state, then fan the result out to
+        // every outlet in that location group.
+        $groups = $located->groupBy(fn ($o) => mb_strtolower(trim($o->country)) . '|' . mb_strtolower(trim((string) $o->state)));
+
+        set_time_limit(240);
+        $preview = [];
+
+        try {
+            foreach ($groups as $group) {
+                $sample = $group->first();
+                $holidays = $service->generate($sample->country, $sample->state ?: null, $this->holidayYear);
+
+                foreach ($group as $outlet) {
+                    foreach ($holidays as $h) {
+                        $exists = CalendarEvent::where('company_id', $companyId)
+                            ->where('category', 'holiday')
+                            ->where('outlet_id', $outlet->id)
+                            ->whereDate('event_date', $h['date'])
+                            ->where('title', $h['name'])
+                            ->exists();
+
+                        $preview[] = [
+                            'outlet_id'   => $outlet->id,
+                            'outlet_name' => $outlet->name,
+                            'date'        => $h['date'],
+                            'name'        => $h['name'],
+                            'impact'      => $h['impact'],
+                            'exists'      => $exists,
+                            'selected'    => ! $exists,
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->holidayErrors[] = $e->getMessage();
+            return;
+        }
+
+        if (empty($preview)) {
+            $this->holidayErrors[] = 'No holidays were returned. Please try again.';
+            return;
+        }
+
+        usort($preview, fn ($a, $b) => [$a['outlet_name'], $a['date']] <=> [$b['outlet_name'], $b['date']]);
+        $this->holidayPreview = $preview;
+    }
+
+    public function confirmHolidays(): void
+    {
+        $companyId = Auth::user()->company_id;
+        $userId = Auth::id();
+        $created = 0;
+
+        foreach ($this->holidayPreview as $entry) {
+            if (empty($entry['selected']) || ! empty($entry['exists'])) {
+                continue;
+            }
+
+            // Re-check to avoid a duplicate if it was created since the preview.
+            $dup = CalendarEvent::where('company_id', $companyId)
+                ->where('category', 'holiday')
+                ->where('outlet_id', $entry['outlet_id'])
+                ->whereDate('event_date', $entry['date'])
+                ->where('title', $entry['name'])
+                ->exists();
+            if ($dup) {
+                continue;
+            }
+
+            CalendarEvent::create([
+                'company_id'  => $companyId,
+                'outlet_id'   => $entry['outlet_id'],
+                'title'       => $entry['name'],
+                'event_date'  => $entry['date'],
+                'end_date'    => null,
+                'category'    => 'holiday',
+                'impact'      => in_array($entry['impact'], ['positive', 'negative', 'neutral'], true) ? $entry['impact'] : 'neutral',
+                'description' => 'Public holiday (AI-generated)',
+                'created_by'  => $userId,
+            ]);
+            $created++;
+        }
+
+        $this->closeHolidayModal();
+        session()->flash('success', "{$created} public holiday event(s) added.");
+    }
+
+    public function closeHolidayModal(): void
+    {
+        $this->showHolidayModal = false;
+        $this->holidayPreview = [];
+        $this->holidayErrors = [];
+        $this->holidayNotice = '';
     }
 
     public function closeModal(): void
