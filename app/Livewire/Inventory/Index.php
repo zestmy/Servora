@@ -23,6 +23,7 @@ class Index extends Component
     public string $dateFrom     = '';
     public string $dateTo       = '';
     public string $statusFilter = '';
+    public string $outletFilter = '';
 
     public function mount(): void
     {
@@ -34,6 +35,7 @@ class Index extends Component
 
     public function updatedTab(): void      { $this->resetPage(); $this->search = ''; $this->dateFrom = ''; $this->dateTo = ''; $this->statusFilter = ''; }
     public function updatedStatusFilter(): void { $this->resetPage(); }
+    public function updatedOutletFilter(): void { $this->resetPage(); }
     public function updatedSearch(): void   { $this->resetPage(); }
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void   { $this->resetPage(); }
@@ -86,7 +88,7 @@ class Index extends Component
     {
         // ── Stock Takes ───────────────────────────────────────────────────
         $stockQuery = StockTake::withCount('lines');
-        $this->scopeByOutlet($stockQuery);
+        $this->scopeByOutletFilter($stockQuery, $this->outletFilter);
 
         if ($this->search && $this->tab === 'stock-takes') {
             $stockQuery->where('reference_number', 'like', '%' . $this->search . '%');
@@ -104,7 +106,7 @@ class Index extends Component
 
         // ── Wastage Records ───────────────────────────────────────────────
         $wastageQuery = WastageRecord::withCount('lines');
-        $this->scopeByOutlet($wastageQuery);
+        $this->scopeByOutletFilter($wastageQuery, $this->outletFilter);
 
         if ($this->search && $this->tab === 'wastage') {
             $wastageQuery->where('reference_number', 'like', '%' . $this->search . '%');
@@ -122,7 +124,7 @@ class Index extends Component
 
         // ── Staff Meal Records ───────────────────────────────────────────
         $staffMealQuery = StaffMealRecord::withCount('lines');
-        $this->scopeByOutlet($staffMealQuery);
+        $this->scopeByOutletFilter($staffMealQuery, $this->outletFilter);
 
         if ($this->search && $this->tab === 'staff-meals') {
             $staffMealQuery->where('reference_number', 'like', '%' . $this->search . '%');
@@ -139,14 +141,19 @@ class Index extends Component
             : collect();
 
         // ── Transfers ────────────────────────────────────────────────────
-        $outletId = $this->activeOutletId();
+        // Transfers reference two outlets (from/to), so they can't use the
+        // outlet_id scope. Bound them to the user's accessible outlets, then
+        // narrow to the selected outlet when the filter is applied.
+        $selectedOutletId = $this->selectedOutletId($this->outletFilter);
+        $transferOutletIds = $selectedOutletId ? [$selectedOutletId] : $this->availableOutletIds();
+
         $transferQuery = OutletTransfer::withCount('lines')
             ->with(['fromOutlet', 'toOutlet']);
 
-        if ($outletId) {
-            $transferQuery->where(function ($q) use ($outletId) {
-                $q->where('from_outlet_id', $outletId)
-                  ->orWhere('to_outlet_id', $outletId);
+        if (! empty($transferOutletIds)) {
+            $transferQuery->where(function ($q) use ($transferOutletIds) {
+                $q->whereIn('from_outlet_id', $transferOutletIds)
+                  ->orWhereIn('to_outlet_id', $transferOutletIds);
             });
         }
 
@@ -169,7 +176,7 @@ class Index extends Component
 
         // ── Purchases ─────────────────────────────────────────────────────
         $purchaseQuery = PurchaseCapture::with(['department', 'supplier']);
-        $this->scopeByOutlet($purchaseQuery);
+        $this->scopeByOutletFilter($purchaseQuery, $this->outletFilter);
 
         if ($this->search && $this->tab === 'purchases') {
             $purchaseQuery->where(function ($q) {
@@ -191,44 +198,44 @@ class Index extends Component
         // ── Stats ─────────────────────────────────────────────────────────
         $wastageStatQ = WastageRecord::whereMonth('wastage_date', now()->month)
             ->whereYear('wastage_date', now()->year);
-        $this->scopeByOutlet($wastageStatQ);
+        $this->scopeByOutletFilter($wastageStatQ, $this->outletFilter);
         $monthWastageCost = $wastageStatQ->sum('total_cost');
 
         $stStatQ = StockTake::whereMonth('stock_take_date', now()->month)
             ->whereYear('stock_take_date', now()->year);
-        $this->scopeByOutlet($stStatQ);
+        $this->scopeByOutletFilter($stStatQ, $this->outletFilter);
         $monthStockTakes = $stStatQ->count();
 
         $draftQ = StockTake::where('status', 'draft');
-        $this->scopeByOutlet($draftQ);
+        $this->scopeByOutletFilter($draftQ, $this->outletFilter);
         $draftStockTakes = $draftQ->count();
 
         $totalWastQ = WastageRecord::query();
-        $this->scopeByOutlet($totalWastQ);
+        $this->scopeByOutletFilter($totalWastQ, $this->outletFilter);
         $totalWastageCost = $totalWastQ->sum('total_cost');
 
         $staffMealStatQ = StaffMealRecord::whereMonth('meal_date', now()->month)
             ->whereYear('meal_date', now()->year);
-        $this->scopeByOutlet($staffMealStatQ);
+        $this->scopeByOutletFilter($staffMealStatQ, $this->outletFilter);
         $monthStaffMealCost = $staffMealStatQ->sum('total_cost');
 
         $purchaseStatQ = PurchaseCapture::whereMonth('purchase_date', now()->month)
             ->whereYear('purchase_date', now()->year);
-        $this->scopeByOutlet($purchaseStatQ);
+        $this->scopeByOutletFilter($purchaseStatQ, $this->outletFilter);
         $monthPurchaseAmount = $purchaseStatQ->sum('amount');
 
         // prepItemCount removed — prep items now under Recipes tab
 
         $inTransitQ = OutletTransfer::where('status', 'in_transit');
-        if ($outletId) {
-            $inTransitQ->where(function ($q) use ($outletId) {
-                $q->where('from_outlet_id', $outletId)->orWhere('to_outlet_id', $outletId);
+        if (! empty($transferOutletIds)) {
+            $inTransitQ->where(function ($q) use ($transferOutletIds) {
+                $q->whereIn('from_outlet_id', $transferOutletIds)->orWhereIn('to_outlet_id', $transferOutletIds);
             });
         }
         $inTransitCount = $inTransitQ->count();
 
         $latestStQ = StockTake::where('status', 'completed');
-        $this->scopeByOutlet($latestStQ);
+        $this->scopeByOutletFilter($latestStQ, $this->outletFilter);
         $latestStockTake = $latestStQ->orderByDesc('stock_take_date')
             ->orderByDesc('id')
             ->first(['id', 'stock_take_date', 'total_stock_cost']);
@@ -299,10 +306,12 @@ class Index extends Component
             ];
         }
 
+        $filterOutlets = $this->filterableOutlets();
+
         return view('livewire.inventory.index', compact(
             'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers', 'purchases',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown'
+            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
     }
 }

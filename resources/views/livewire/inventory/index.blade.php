@@ -202,6 +202,15 @@
                        placeholder="{{ $tab === 'transfers' ? 'Search transfer number…' : 'Search reference number…' }}"
                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
+                @if ($filterOutlets->isNotEmpty())
+                    <select wire:model.live="outletFilter"
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">All Outlets</option>
+                        @foreach ($filterOutlets as $o)
+                            <option value="{{ $o->id }}">{{ $o->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
                 @if ($tab === 'transfers')
                     <select wire:model.live="statusFilter"
                             class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">

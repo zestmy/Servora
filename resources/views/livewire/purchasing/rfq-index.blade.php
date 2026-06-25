@@ -55,6 +55,20 @@
                 </select>
             </div>
 
+            {{-- Outlet (multi-outlet users only) --}}
+            @if ($filterOutlets->isNotEmpty())
+                <div class="w-40">
+                    <label class="text-xs font-medium text-gray-500 mb-1 block">Outlet</label>
+                    <select wire:model.live="outletFilter"
+                            class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2">
+                        <option value="">All Outlets</option>
+                        @foreach ($filterOutlets as $o)
+                            <option value="{{ $o->id }}">{{ $o->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
             {{-- Date From --}}
             <div class="w-40">
                 <label class="text-xs font-medium text-gray-500 mb-1 block">Needed From</label>

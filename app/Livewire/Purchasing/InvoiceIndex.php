@@ -17,12 +17,14 @@ class InvoiceIndex extends Component
     public string $search       = '';
     public string $typeFilter   = '';
     public string $statusFilter = '';
+    public string $outletFilter = '';
     public string $dateFrom     = '';
     public string $dateTo       = '';
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedTypeFilter(): void { $this->resetPage(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
+    public function updatedOutletFilter(): void { $this->resetPage(); }
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void { $this->resetPage(); }
 
@@ -62,6 +64,9 @@ class InvoiceIndex extends Component
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
         }
+        if ($outletId = $this->selectedOutletId($this->outletFilter)) {
+            $query->where('outlet_id', $outletId);
+        }
         if ($this->dateFrom) {
             $query->where('issued_date', '>=', $this->dateFrom);
         }
@@ -77,7 +82,9 @@ class InvoiceIndex extends Component
             ['label' => 'Paid', 'value' => ProcurementInvoice::where('status', 'paid')->count(), 'color' => 'green'],
         ];
 
-        return view('livewire.purchasing.invoice-index', compact('invoices', 'stats'))
+        $filterOutlets = $this->filterableOutlets();
+
+        return view('livewire.purchasing.invoice-index', compact('invoices', 'stats', 'filterOutlets'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Procurement Invoices']);
     }
 }

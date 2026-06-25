@@ -14,11 +14,13 @@ class RfqIndex extends Component
 
     public string $search       = '';
     public string $statusFilter = '';
+    public string $outletFilter = '';
     public string $dateFrom     = '';
     public string $dateTo       = '';
 
     public function updatedSearch(): void       { $this->resetPage(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
+    public function updatedOutletFilter(): void { $this->resetPage(); }
     public function updatedDateFrom(): void     { $this->resetPage(); }
     public function updatedDateTo(): void       { $this->resetPage(); }
 
@@ -40,6 +42,11 @@ class RfqIndex extends Component
             $query->where('status', $this->statusFilter);
         }
 
+        // Outlet filter
+        if ($outletId = $this->selectedOutletId($this->outletFilter)) {
+            $query->where('outlet_id', $outletId);
+        }
+
         // Date range
         if ($this->dateFrom) {
             $query->where('needed_by_date', '>=', $this->dateFrom);
@@ -52,6 +59,7 @@ class RfqIndex extends Component
 
         return view('livewire.purchasing.rfq-index', [
             'rfqs' => $rfqs,
+            'filterOutlets' => $this->filterableOutlets(),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'RFQ Management']);
     }
 }

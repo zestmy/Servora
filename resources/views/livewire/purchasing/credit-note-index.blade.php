@@ -54,6 +54,14 @@
                     <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
             </select>
+            @if ($filterOutlets->isNotEmpty())
+                <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm">
+                    <option value="">All Outlets</option>
+                    @foreach ($filterOutlets as $o)
+                        <option value="{{ $o->id }}">{{ $o->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <div class="flex items-center gap-1">
                 <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm" />
                 <span class="text-gray-400 text-xs">to</span>

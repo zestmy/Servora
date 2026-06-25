@@ -43,4 +43,56 @@ trait ScopesToActiveOutlet
     {
         return auth()->user()?->activeOutletId();
     }
+
+    /**
+     * Outlets the user can pick from in a per-page outlet filter.
+     * Returns an empty collection for single-outlet users (nothing to filter),
+     * so callers can hide the dropdown entirely.
+     */
+    protected function filterableOutlets()
+    {
+        $ids = $this->availableOutletIds();
+
+        if (count($ids) <= 1) {
+            return collect();
+        }
+
+        return Outlet::whereIn('id', $ids)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Resolve a user-supplied outlet-filter value to a single outlet id the
+     * user is actually allowed to see. Returns null when empty or out of reach,
+     * so a tampered value can never widen access.
+     */
+    protected function selectedOutletId($outletFilter): ?int
+    {
+        if (empty($outletFilter)) {
+            return null;
+        }
+
+        $id = (int) $outletFilter;
+
+        return in_array($id, $this->availableOutletIds(), true) ? $id : null;
+    }
+
+    /**
+     * Apply outlet scoping plus an optional single-outlet UI filter. The base
+     * scope always bounds the query to accessible outlets; the filter only
+     * narrows further to the one selected outlet.
+     */
+    protected function scopeByOutletFilter(Builder $query, $outletFilter, string $column = 'outlet_id'): Builder
+    {
+        $this->scopeByOutlet($query, $column);
+
+        $id = $this->selectedOutletId($outletFilter);
+        if ($id !== null) {
+            $query->where($column, $id);
+        }
+
+        return $query;
+    }
 }

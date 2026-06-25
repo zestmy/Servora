@@ -18,6 +18,7 @@ class CreditNoteIndex extends Component
     public string $typeFilter   = '';
     public string $statusFilter = '';
     public string $supplierFilter = '';
+    public string $outletFilter = '';
     public string $dateFrom     = '';
     public string $dateTo       = '';
 
@@ -25,6 +26,7 @@ class CreditNoteIndex extends Component
     public function updatedTypeFilter(): void { $this->resetPage(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
     public function updatedSupplierFilter(): void { $this->resetPage(); }
+    public function updatedOutletFilter(): void { $this->resetPage(); }
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void { $this->resetPage(); }
 
@@ -84,6 +86,9 @@ class CreditNoteIndex extends Component
         if ($this->supplierFilter) {
             $query->where('supplier_id', $this->supplierFilter);
         }
+        if ($outletId = $this->selectedOutletId($this->outletFilter)) {
+            $query->where('outlet_id', $outletId);
+        }
         if ($this->dateFrom) {
             $query->where('issued_date', '>=', $this->dateFrom);
         }
@@ -116,8 +121,9 @@ class CreditNoteIndex extends Component
         ];
 
         $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
+        $filterOutlets = $this->filterableOutlets();
 
-        return view('livewire.purchasing.credit-note-index', compact('creditNotes', 'stats', 'suppliers'))
+        return view('livewire.purchasing.credit-note-index', compact('creditNotes', 'stats', 'suppliers', 'filterOutlets'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Credit & Debit Notes']);
     }
 }
