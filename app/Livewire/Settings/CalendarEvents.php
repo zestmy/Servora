@@ -19,6 +19,7 @@ class CalendarEvents extends Component
 
     public string $search = '';
     public string $categoryFilter = 'all';
+    public string $outletFilter = 'all'; // 'all' | 'company' (outlet_id null) | "<outlet id>"
 
     public bool $showModal = false;
     public ?int $editingId = null;
@@ -66,6 +67,7 @@ class CalendarEvents extends Component
 
     public function updatedSearch(): void       { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
+    public function updatedOutletFilter(): void { $this->resetPage(); }
 
     public function openCreate(): void
     {
@@ -535,6 +537,12 @@ class CalendarEvents extends Component
 
         if ($this->categoryFilter !== 'all') {
             $query->where('category', $this->categoryFilter);
+        }
+
+        if ($this->outletFilter === 'company') {
+            $query->whereNull('outlet_id');
+        } elseif ($this->outletFilter !== 'all') {
+            $query->where('outlet_id', (int) $this->outletFilter);
         }
 
         $events = $query->orderByDesc('event_date')->paginate(15);

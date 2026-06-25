@@ -44,6 +44,14 @@
                 <option value="{{ $value }}">{{ $label }}</option>
             @endforeach
         </select>
+        <select wire:model.live="outletFilter"
+                class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <option value="all">All Outlets</option>
+            <option value="company">Company-wide (no outlet)</option>
+            @foreach ($outlets as $outlet)
+                <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+            @endforeach
+        </select>
     </div>
 
     {{-- Events Table --}}
