@@ -17,6 +17,8 @@ class CalendarEvents extends Component
 {
     use WithPagination, WithFileUploads;
 
+    private const PER_PAGE = 15;
+
     public string $search = '';
     public string $categoryFilter = 'all';
     public string $outletFilter = 'all'; // 'all' | 'company' (outlet_id null) | "<outlet id>"
@@ -108,14 +110,39 @@ class CalendarEvents extends Component
         if ($this->editingId) {
             CalendarEvent::findOrFail($this->editingId)->update($data);
             session()->flash('success', 'Event updated.');
+            $this->closeModal();
         } else {
             $data['company_id'] = Auth::user()->company_id;
             $data['created_by'] = Auth::id();
-            CalendarEvent::create($data);
+            $event = CalendarEvent::create($data);
             session()->flash('success', 'Event created.');
-        }
+            $this->closeModal();
 
-        $this->closeModal();
+            // Clear any active filters so the new event isn't hidden, then jump
+            // to the page that contains it — the list is ordered by event_date
+            // descending, so an event with an earlier date may not be on page 1.
+            $this->search = '';
+            $this->categoryFilter = 'all';
+            $this->outletFilter = 'all';
+            $this->gotoCreatedEventPage($event);
+        }
+    }
+
+    /**
+     * Move the paginator to the page holding the just-created event, matching
+     * the render() ordering (event_date desc, then id desc).
+     */
+    private function gotoCreatedEventPage(CalendarEvent $event): void
+    {
+        $before = CalendarEvent::where(function ($q) use ($event) {
+            $q->where('event_date', '>', $event->event_date)
+              ->orWhere(function ($q2) use ($event) {
+                  $q2->where('event_date', $event->event_date)
+                     ->where('id', '>', $event->id);
+              });
+        })->count();
+
+        $this->setPage(intdiv($before, self::PER_PAGE) + 1);
     }
 
     public function delete(int $id): void
@@ -545,7 +572,7 @@ class CalendarEvents extends Component
             $query->where('outlet_id', (int) $this->outletFilter);
         }
 
-        $events = $query->orderByDesc('event_date')->paginate(15);
+        $events = $query->orderByDesc('event_date')->orderByDesc('id')->paginate(self::PER_PAGE);
         $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
         $categoryOptions = CalendarEvent::categoryOptions();
         $impactOptions = CalendarEvent::impactOptions();
