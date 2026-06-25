@@ -12,7 +12,7 @@
             <button wire:click="openImport"
                     class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                Import CSV
+                Import
             </button>
             <button wire:click="openCreate"
                     class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
@@ -221,9 +221,18 @@
                 <div class="px-6 py-4 overflow-y-auto flex-1 space-y-4">
                     {{-- File Upload --}}
                     <div>
-                        <x-input-label value="CSV File" />
+                        <div class="flex items-center justify-between">
+                            <x-input-label value="Excel or CSV File" />
+                            <button type="button" wire:click="downloadTemplate"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12v6m0 0l-3-3m3 3l3-3M12 4v4" />
+                                </svg>
+                                Download Excel Template
+                            </button>
+                        </div>
                         <div class="mt-1">
-                            <input type="file" wire:model="importFile" accept=".csv,.txt"
+                            <input type="file" wire:model="importFile" accept=".csv,.txt,.xlsx,.xls"
                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
                         </div>
                         <x-input-error :messages="$errors->get('importFile')" class="mt-1" />
@@ -240,7 +249,8 @@
                     {{-- Format Guide --}}
                     @if (empty($importPreview))
                         <div class="bg-gray-50 rounded-lg p-4 text-xs text-gray-500 space-y-2">
-                            <p class="font-semibold text-gray-700">CSV Format</p>
+                            <p class="font-semibold text-gray-700">File Format</p>
+                            <p>Upload an Excel (.xlsx) or CSV file — download the template above for the exact columns.</p>
                             <p>Required columns: <span class="font-medium text-gray-700">title</span>, <span class="font-medium text-gray-700">event_date</span></p>
                             <p>Optional columns: <span class="font-medium text-gray-700">end_date</span>, <span class="font-medium text-gray-700">category</span>, <span class="font-medium text-gray-700">impact</span>, <span class="font-medium text-gray-700">description</span></p>
                             <div class="mt-2">

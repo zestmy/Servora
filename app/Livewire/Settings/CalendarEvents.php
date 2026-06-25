@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use OpenSpout\Common\Entity\Row as SpoutRow;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
+use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 
 class CalendarEvents extends Component
 {
@@ -115,10 +118,38 @@ class CalendarEvents extends Component
         $this->showImportModal = true;
     }
 
+    /**
+     * Stream an .xlsx template with the expected columns and a few sample rows,
+     * so users can fill it in Excel and upload it back via the importer.
+     */
+    public function downloadTemplate()
+    {
+        $headers = ['title', 'event_date', 'end_date', 'category', 'impact', 'description'];
+        $samples = [
+            ['Chinese New Year', '2026-01-29', '2026-01-31', 'holiday', 'positive', 'Public holiday'],
+            ['Ramadan Starts', '2026-02-18', '', 'external', 'negative', 'Fasting month begins'],
+            ['Lunch Promo', '2026-03-01', '2026-03-15', 'promotion', 'positive', '20% off lunch set'],
+        ];
+
+        $tmp = tempnam(sys_get_temp_dir(), 'cal_tpl');
+
+        $writer = new XlsxWriter();
+        $writer->openToFile($tmp);
+        $writer->addRow(SpoutRow::fromValues($headers));
+        foreach ($samples as $sample) {
+            $writer->addRow(SpoutRow::fromValues($sample));
+        }
+        $writer->close();
+
+        return response()->download($tmp, 'calendar_events_template.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
     public function updatedImportFile(): void
     {
         $this->validate([
-            'importFile' => 'required|file|mimes:csv,txt|max:2048',
+            'importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
         ]);
 
         $this->parseImportFile();
@@ -129,16 +160,19 @@ class CalendarEvents extends Component
         $this->importPreview = [];
         $this->importErrors = [];
 
+        $ext = strtolower($this->importFile->getClientOriginalExtension());
         $path = $this->importFile->getRealPath();
-        $handle = fopen($path, 'r');
-        if (! $handle) {
+
+        try {
+            [$header, $dataRows] = in_array($ext, ['xlsx', 'xls'])
+                ? $this->readSpreadsheetRows($path)
+                : $this->readCsvRows($path);
+        } catch (\Throwable $e) {
             $this->importErrors[] = 'Could not read the file.';
             return;
         }
 
-        $header = fgetcsv($handle);
         if (! $header) {
-            fclose($handle);
             $this->importErrors[] = 'File is empty.';
             return;
         }
@@ -149,7 +183,6 @@ class CalendarEvents extends Component
         $requiredCols = ['title', 'event_date'];
         $missing = array_diff($requiredCols, $header);
         if ($missing) {
-            fclose($handle);
             $this->importErrors[] = 'Missing required columns: ' . implode(', ', $missing) . '. Required: title, event_date. Optional: end_date, category, impact, description.';
             return;
         }
@@ -158,7 +191,7 @@ class CalendarEvents extends Component
         $validImpacts = array_keys(CalendarEvent::impactOptions());
         $row = 1;
 
-        while (($data = fgetcsv($handle)) !== false) {
+        foreach ($dataRows as $data) {
             $row++;
             if (count($data) < count($header)) {
                 $data = array_pad($data, count($header), '');
@@ -216,11 +249,79 @@ class CalendarEvents extends Component
             $this->importPreview[] = $entry;
         }
 
-        fclose($handle);
-
         if (empty($this->importPreview)) {
             $this->importErrors[] = 'No data rows found in the file.';
         }
+    }
+
+    /**
+     * Read a CSV file into [headerRow, dataRows] with raw (un-normalised) values.
+     */
+    private function readCsvRows(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        if (! $handle) {
+            throw new \RuntimeException('Unable to open file.');
+        }
+
+        $header = fgetcsv($handle) ?: null;
+        $rows = [];
+        if ($header) {
+            while (($data = fgetcsv($handle)) !== false) {
+                $rows[] = $data;
+            }
+        }
+        fclose($handle);
+
+        return [$header, $rows];
+    }
+
+    /**
+     * Read the first sheet of an .xlsx/.xls file into [headerRow, dataRows].
+     */
+    private function readSpreadsheetRows(string $path): array
+    {
+        $reader = new XlsxReader();
+        $reader->open($path);
+
+        $header = null;
+        $rows = [];
+
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $r) {
+                $cells = array_map(fn ($c) => $this->spoutCellToString($c->getValue()), $r->getCells());
+
+                if ($header === null) {
+                    $header = $cells;
+                    continue;
+                }
+
+                // Skip fully-empty rows
+                if (count(array_filter($cells, fn ($v) => $v !== '')) === 0) {
+                    continue;
+                }
+
+                $rows[] = $cells;
+            }
+            break; // first sheet only
+        }
+
+        $reader->close();
+
+        return [$header, $rows];
+    }
+
+    /**
+     * Normalise a spreadsheet cell value to a trimmed string. Date cells come
+     * back as DateTime objects, so format them to Y-m-d to match the template.
+     */
+    private function spoutCellToString($value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return trim((string) $value);
     }
 
     public function confirmImport(): void
