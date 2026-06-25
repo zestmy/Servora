@@ -93,58 +93,10 @@
                 </a>
 
                 {{-- Suppliers moved to Purchasing nav --}}
-
-                {{-- Ingredient Categories --}}
-                <a href="{{ route('settings.categories') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Ingredient Categories</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Organise ingredients by type</p>
-                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $categoryCount }} {{ Str::plural('category', $categoryCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Recipe Categories --}}
-                <a href="{{ route('settings.recipe-categories') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Recipe Categories</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Organise recipes by type</p>
-                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $recipeCategoryCount }} {{ Str::plural('category', $recipeCategoryCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Price Classes --}}
-                <a href="{{ route('settings.price-classes') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Price Classes</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Selling price tiers per outlet or channel</p>
-                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $priceClassCount }} {{ Str::plural('class', $priceClassCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Sales Categories --}}
-                <a href="{{ route('settings.sales-categories') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Sales Categories</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Food, Beverage, Merchandise & more</p>
-                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $salesCategoryCount }} {{ Str::plural('category', $salesCategoryCount) }}</p>
-                    </div>
-                </a>
+                {{-- Ingredient Categories moved to Inventory & Recipes nav --}}
+                {{-- Recipe Categories moved to Inventory & Recipes nav --}}
+                {{-- Price Classes moved to Inventory & Recipes nav --}}
+                {{-- Sales Categories moved to Sales nav --}}
 
                 {{-- PO Approvers --}}
                 <a href="{{ route('settings.po-approvers') }}"
@@ -171,19 +123,7 @@
                     </div>
                 </a>
 
-                {{-- Price Alerts --}}
-                <a href="{{ route('settings.price-alerts') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Price Alerts</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Monitor ingredient price changes</p>
-                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $priceAlertCount ?? 0 }} {{ Str::plural('alert', $priceAlertCount ?? 0) }}</p>
-                    </div>
-                </a>
-
+                {{-- Price Alerts moved to Procurement nav --}}
                 {{-- Supplier Product Mapping moved to Purchasing nav --}}
 
                 {{-- Tax Rates --}}
@@ -265,30 +205,8 @@
                     </div>
                 </a>
 
-                {{-- Par Levels --}}
-                <a href="{{ route('settings.par-levels') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Par Levels</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Set stock par levels per ingredient per outlet for auto-ordering</p>
-                    </div>
-                </a>
-
-                {{-- Calendar Events --}}
-                <a href="{{ route('settings.calendar-events') }}"
-                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Calendar Events</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Holidays, promotions & events for AI analytics</p>
-                        <p class="text-xs text-indigo-500 font-medium mt-2">{{ $calendarEventCount }} {{ Str::plural('event', $calendarEventCount) }}</p>
-                    </div>
-                </a>
+                {{-- Par Levels moved to Inventory & Recipes nav --}}
+                {{-- Calendar Events moved to Business Intelligence nav --}}
 
                 {{-- Scheduled Reports --}}
                 @can('reports.view')

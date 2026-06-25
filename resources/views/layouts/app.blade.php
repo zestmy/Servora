@@ -189,15 +189,20 @@
                             ['route' => 'settings.suppliers',       'label' => 'Suppliers',           'permission' => 'purchasing.view'],
                             ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.view'],
                             ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.view'],
+                            ['route' => 'settings.price-alerts',    'label' => 'Price Alerts',       'permission' => 'purchasing.view'],
                         ],
                     ],
                     [
                         'label' => 'Inventory & Recipes',
                         'items' => [
                             ['route' => 'ingredients.index',          'label' => 'Ingredients',      'permission' => 'ingredients.view'],
+                            ['route' => 'settings.categories',        'label' => 'Ingredient Categories', 'permission' => 'ingredients.view'],
                             ['route' => 'recipes.index',              'label' => 'Recipes',          'permission' => 'recipes.view'],
+                            ['route' => 'settings.recipe-categories', 'label' => 'Recipe Categories', 'permission' => 'recipes.view'],
                             ['route' => 'recipes.index',              'label' => 'Prep Items',       'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
+                            ['route' => 'settings.price-classes',     'label' => 'Price Classes',    'permission' => 'recipes.view'],
                             ['route' => 'inventory.index',            'label' => 'Stocks Management',     'permission' => 'inventory.view'],
+                            ['route' => 'settings.par-levels',        'label' => 'Par Levels',       'permission' => 'inventory.view'],
                             ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.view'],
                         ],
                     ],
@@ -205,6 +210,7 @@
                         'label' => 'Sales',
                         'items' => [
                             ['route' => 'sales.index',              'label' => 'Sales Records',  'permission' => 'sales.view'],
+                            ['route' => 'settings.sales-categories', 'label' => 'Sales Categories', 'permission' => 'sales.view'],
                             ['route' => 'settings.sales-targets',   'label' => 'Sales Targets',  'permission' => 'sales.view'],
                         ],
                     ],
@@ -224,6 +230,7 @@
                         'items' => [
                             ['route' => 'reports.hub',     'label' => 'Reports',     'permission' => 'reports.view'],
                             ['route' => 'analytics.index', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
+                            ['route' => 'settings.calendar-events', 'label' => 'Calendar Events', 'permission' => 'reports.view'],
                         ],
                     ],
                     [
