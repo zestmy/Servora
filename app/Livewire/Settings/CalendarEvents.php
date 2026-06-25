@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\CalendarEvent;
 use App\Models\Outlet;
 use Carbon\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -25,6 +26,9 @@ class CalendarEvents extends Component
 
     public bool $showModal = false;
     public ?int $editingId = null;
+    public array $editingGroupIds = [];     // all underlying event ids when editing a grouped row
+    public array $editingOutletNames = [];  // outlet tags shown read-only when editing a multi-outlet group
+    public bool $editingAllOutlets = false; // group includes an "All Outlets" (null) event
 
     public string $title = '';
     public string $event_date = '';
@@ -77,18 +81,42 @@ class CalendarEvents extends Component
         $this->showModal = true;
     }
 
-    public function openEdit(int $id): void
+    /**
+     * Edit a grouped row. The ids are the underlying per-outlet events that
+     * share the same title/date/category/impact. Shared fields are edited for
+     * all of them at once; per-outlet assignment is only editable when the
+     * group is a single event.
+     */
+    public function openEditGroup(array $ids): void
     {
-        $event = CalendarEvent::findOrFail($id);
+        $events = CalendarEvent::with('outlet')
+            ->whereIn('id', array_map('intval', $ids))
+            ->get();
 
-        $this->editingId   = $event->id;
-        $this->title       = $event->title;
-        $this->event_date  = $event->event_date->format('Y-m-d');
-        $this->end_date    = $event->end_date?->format('Y-m-d') ?? '';
-        $this->outlet_id   = $event->outlet_id;
-        $this->category    = $event->category;
-        $this->description = $event->description ?? '';
-        $this->impact      = $event->impact ?? 'neutral';
+        if ($events->isEmpty()) {
+            return;
+        }
+
+        $first = $events->first();
+
+        $this->editingGroupIds = $events->pluck('id')->all();
+        $this->editingId       = $first->id;
+        $this->title           = $first->title;
+        $this->event_date      = $first->event_date->format('Y-m-d');
+        $this->end_date        = $first->end_date?->format('Y-m-d') ?? '';
+        $this->outlet_id       = count($this->editingGroupIds) === 1 ? $first->outlet_id : null;
+        $this->category        = $first->category;
+        $this->description     = $first->description ?? '';
+        $this->impact          = $first->impact ?? 'neutral';
+
+        $this->editingAllOutlets  = $events->contains(fn ($e) => is_null($e->outlet_id));
+        $this->editingOutletNames = $events->filter(fn ($e) => $e->outlet_id)
+            ->map(fn ($e) => $e->outlet?->name)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         $this->showModal = true;
     }
@@ -108,8 +136,22 @@ class CalendarEvents extends Component
         ];
 
         if ($this->editingId) {
-            CalendarEvent::findOrFail($this->editingId)->update($data);
-            session()->flash('success', 'Event updated.');
+            if (count($this->editingGroupIds) > 1) {
+                // Multi-outlet group: update the shared fields for every event,
+                // but leave each event's own outlet assignment untouched.
+                CalendarEvent::whereIn('id', $this->editingGroupIds)->update([
+                    'title'       => $this->title,
+                    'event_date'  => $this->event_date,
+                    'end_date'    => $this->end_date ?: null,
+                    'category'    => $this->category,
+                    'description' => $this->description ?: null,
+                    'impact'      => $this->impact,
+                ]);
+                session()->flash('success', 'Event updated for ' . count($this->editingGroupIds) . ' outlets.');
+            } else {
+                CalendarEvent::findOrFail($this->editingId)->update($data);
+                session()->flash('success', 'Event updated.');
+            }
             $this->closeModal();
         } else {
             $data['company_id'] = Auth::user()->company_id;
@@ -129,26 +171,92 @@ class CalendarEvents extends Component
     }
 
     /**
-     * Move the paginator to the page holding the just-created event, matching
-     * the render() ordering (event_date desc, then id desc).
+     * Move the paginator to the page holding the just-created event's grouped
+     * row, so a freshly added event is always visible.
      */
     private function gotoCreatedEventPage(CalendarEvent $event): void
     {
-        $before = CalendarEvent::where(function ($q) use ($event) {
-            $q->where('event_date', '>', $event->event_date)
-              ->orWhere(function ($q2) use ($event) {
-                  $q2->where('event_date', $event->event_date)
-                     ->where('id', '>', $event->id);
-              });
-        })->count();
+        $rows = $this->buildEventRows();
+        $index = $rows->search(fn ($row) => in_array($event->id, $row['ids'], true));
 
-        $this->setPage(intdiv($before, self::PER_PAGE) + 1);
+        if ($index === false) {
+            $index = 0;
+        }
+
+        $this->setPage(intdiv($index, self::PER_PAGE) + 1);
+    }
+
+    /**
+     * Build the grouped event rows for the current filters. Events that share
+     * the same title, dates, category and impact are collapsed into a single
+     * row that carries the list of outlets they apply to — so a public holiday
+     * created for several outlets shows once with outlet tags instead of as
+     * one duplicate row per outlet.
+     */
+    private function buildEventRows(): \Illuminate\Support\Collection
+    {
+        $query = CalendarEvent::with('outlet');
+
+        if ($this->search) {
+            $query->where('title', 'like', '%' . $this->search . '%');
+        }
+        if ($this->categoryFilter !== 'all') {
+            $query->where('category', $this->categoryFilter);
+        }
+        if ($this->outletFilter === 'company') {
+            $query->whereNull('outlet_id');
+        } elseif ($this->outletFilter !== 'all') {
+            $query->where('outlet_id', (int) $this->outletFilter);
+        }
+
+        $events = $query->orderByDesc('event_date')->orderByDesc('id')->get();
+
+        return $events
+            ->groupBy(fn ($e) => implode('|', [
+                $e->title,
+                $e->event_date->format('Y-m-d'),
+                $e->end_date?->format('Y-m-d') ?? '',
+                $e->category,
+                $e->impact ?? 'neutral',
+            ]))
+            ->map(function ($group) {
+                $first = $group->first();
+                $outletNames = $group->filter(fn ($e) => $e->outlet_id)
+                    ->map(fn ($e) => $e->outlet?->name)
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values()
+                    ->all();
+
+                return [
+                    'ids'            => $group->pluck('id')->all(),
+                    'title'          => $first->title,
+                    'event_date'     => $first->event_date,
+                    'end_date'       => $first->end_date,
+                    'category'       => $first->category,
+                    'category_label' => $first->categoryLabel(),
+                    'impact'         => $first->impact ?? 'neutral',
+                    'description'    => $first->description,
+                    'all_outlets'    => $group->contains(fn ($e) => is_null($e->outlet_id)),
+                    'outlet_names'   => $outletNames,
+                    'count'          => $group->count(),
+                ];
+            })
+            ->values();
     }
 
     public function delete(int $id): void
     {
         CalendarEvent::findOrFail($id)->delete();
         session()->flash('success', 'Event deleted.');
+    }
+
+    /** Delete every event behind a grouped row (one per outlet). */
+    public function deleteGroup(array $ids): void
+    {
+        $count = CalendarEvent::whereIn('id', array_map('intval', $ids))->delete();
+        session()->flash('success', $count > 1 ? "{$count} events deleted." : 'Event deleted.');
     }
 
     public function openImport(): void
@@ -556,23 +664,17 @@ class CalendarEvents extends Component
 
     public function render()
     {
-        $query = CalendarEvent::with('outlet');
+        $rows = $this->buildEventRows();
 
-        if ($this->search) {
-            $query->where('title', 'like', '%' . $this->search . '%');
-        }
+        $page = $this->getPage();
+        $events = new LengthAwarePaginator(
+            $rows->forPage($page, self::PER_PAGE)->values(),
+            $rows->count(),
+            self::PER_PAGE,
+            $page,
+            ['path' => request()->url()],
+        );
 
-        if ($this->categoryFilter !== 'all') {
-            $query->where('category', $this->categoryFilter);
-        }
-
-        if ($this->outletFilter === 'company') {
-            $query->whereNull('outlet_id');
-        } elseif ($this->outletFilter !== 'all') {
-            $query->where('outlet_id', (int) $this->outletFilter);
-        }
-
-        $events = $query->orderByDesc('event_date')->orderByDesc('id')->paginate(self::PER_PAGE);
         $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
         $categoryOptions = CalendarEvent::categoryOptions();
         $impactOptions = CalendarEvent::impactOptions();
@@ -583,7 +685,10 @@ class CalendarEvents extends Component
 
     private function resetForm(): void
     {
-        $this->editingId   = null;
+        $this->editingId         = null;
+        $this->editingGroupIds   = [];
+        $this->editingOutletNames = [];
+        $this->editingAllOutlets = false;
         $this->title       = '';
         $this->event_date  = '';
         $this->end_date    = '';

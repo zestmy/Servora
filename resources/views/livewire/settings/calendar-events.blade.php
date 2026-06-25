@@ -68,23 +68,23 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                @forelse ($events as $event)
-                    <tr class="hover:bg-gray-50 transition">
+                @forelse ($events as $row)
+                    <tr class="hover:bg-gray-50 transition" wire:key="evt-{{ implode('-', $row['ids']) }}">
                         <td class="px-4 py-3 whitespace-nowrap">
-                            {{ $event->event_date->format('d M Y') }}
-                            @if ($event->end_date)
-                                <span class="text-gray-400">— {{ $event->end_date->format('d M Y') }}</span>
+                            {{ $row['event_date']->format('d M Y') }}
+                            @if ($row['end_date'])
+                                <span class="text-gray-400">— {{ $row['end_date']->format('d M Y') }}</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 font-medium text-gray-800">
-                            {{ $event->title }}
-                            @if ($event->description)
-                                <p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ $event->description }}</p>
+                            {{ $row['title'] }}
+                            @if ($row['description'])
+                                <p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ $row['description'] }}</p>
                             @endif
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                @switch($event->category)
+                                @switch($row['category'])
                                     @case('holiday') bg-red-50 text-red-700 @break
                                     @case('promotion') bg-green-50 text-green-700 @break
                                     @case('operational') bg-yellow-50 text-yellow-700 @break
@@ -93,28 +93,41 @@
                                     @default bg-gray-50 text-gray-700
                                 @endswitch
                             ">
-                                {{ $event->categoryLabel() }}
+                                {{ $row['category_label'] }}
                             </span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center gap-1 text-xs font-medium
-                                {{ $event->impact === 'positive' ? 'text-green-600' : ($event->impact === 'negative' ? 'text-red-600' : 'text-gray-500') }}">
-                                @if ($event->impact === 'positive')
+                                {{ $row['impact'] === 'positive' ? 'text-green-600' : ($row['impact'] === 'negative' ? 'text-red-600' : 'text-gray-500') }}">
+                                @if ($row['impact'] === 'positive')
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
-                                @elseif ($event->impact === 'negative')
+                                @elseif ($row['impact'] === 'negative')
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                                 @else
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
                                 @endif
-                                {{ ucfirst($event->impact ?? 'neutral') }}
+                                {{ ucfirst($row['impact']) }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-500">
-                            {{ $event->outlet?->name ?? 'All Outlets' }}
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-1 max-w-xs">
+                                @if ($row['all_outlets'])
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">All Outlets</span>
+                                @endif
+                                @forelse ($row['outlet_names'] as $name)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ $name }}</span>
+                                @empty
+                                    @unless ($row['all_outlets'])
+                                        <span class="text-gray-400 text-xs">—</span>
+                                    @endunless
+                                @endforelse
+                            </div>
                         </td>
-                        <td class="px-4 py-3 text-right space-x-2">
-                            <button wire:click="openEdit({{ $event->id }})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Edit</button>
-                            <button wire:click="delete({{ $event->id }})" wire:confirm="Delete this event?" class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                            <button wire:click="openEditGroup({{ \Illuminate\Support\Js::from($row['ids']) }})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Edit</button>
+                            <button wire:click="deleteGroup({{ \Illuminate\Support\Js::from($row['ids']) }})"
+                                    wire:confirm="Delete this event{{ $row['count'] > 1 ? ' for all ' . $row['count'] . ' outlets' : '' }}?"
+                                    class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                         </td>
                     </tr>
                 @empty
@@ -187,12 +200,25 @@
                     {{-- Outlet --}}
                     <div>
                         <x-input-label for="outlet_id" value="Outlet (leave blank for all)" />
-                        <select wire:model="outlet_id" id="outlet_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">All Outlets</option>
-                            @foreach ($outlets as $outlet)
-                                <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                            @endforeach
-                        </select>
+                        @if (count($editingGroupIds) > 1)
+                            {{-- Multi-outlet group: assignment is fixed; edits apply to all listed outlets. --}}
+                            <div class="mt-1 flex flex-wrap gap-1">
+                                @if ($editingAllOutlets)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">All Outlets</span>
+                                @endif
+                                @foreach ($editingOutletNames as $name)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ $name }}</span>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Changes apply to this event across all {{ count($editingGroupIds) }} outlets above.</p>
+                        @else
+                            <select wire:model="outlet_id" id="outlet_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">All Outlets</option>
+                                @foreach ($outlets as $outlet)
+                                    <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </div>
 
                     {{-- Description --}}
