@@ -23,6 +23,7 @@ class CalendarEvents extends Component
     public string $search = '';
     public string $categoryFilter = 'all';
     public string $outletFilter = 'all'; // 'all' | 'company' (outlet_id null) | "<outlet id>"
+    public string $yearFilter = '';      // '' = all years, otherwise a 4-digit year
 
     public bool $showModal = false;
     public ?int $editingId = null;
@@ -88,6 +89,7 @@ class CalendarEvents extends Component
     public function updatedSearch(): void       { $this->resetPage(); }
     public function updatedCategoryFilter(): void { $this->resetPage(); }
     public function updatedOutletFilter(): void { $this->resetPage(); }
+    public function updatedYearFilter(): void   { $this->resetPage(); }
 
     public function openCreate(): void
     {
@@ -177,6 +179,7 @@ class CalendarEvents extends Component
             $this->search = '';
             $this->categoryFilter = 'all';
             $this->outletFilter = 'all';
+            $this->yearFilter = '';
             if ($firstEvent) {
                 $this->gotoCreatedEventPage($firstEvent);
             }
@@ -282,6 +285,9 @@ class CalendarEvents extends Component
             $query->whereNull('outlet_id');
         } elseif ($this->outletFilter !== 'all') {
             $query->where('outlet_id', (int) $this->outletFilter);
+        }
+        if ($this->yearFilter !== '') {
+            $query->whereYear('event_date', $this->yearFilter);
         }
 
         $events = $query->orderByDesc('event_date')->orderByDesc('id')->get();
@@ -754,7 +760,14 @@ class CalendarEvents extends Component
         $categoryOptions = CalendarEvent::categoryOptions();
         $impactOptions = CalendarEvent::impactOptions();
 
-        return view('livewire.settings.calendar-events', compact('events', 'outlets', 'categoryOptions', 'impactOptions'))
+        // Distinct years present in the data (newest first) for the year filter.
+        $years = CalendarEvent::query()
+            ->selectRaw('DISTINCT YEAR(event_date) as y')
+            ->orderByDesc('y')
+            ->pluck('y')
+            ->all();
+
+        return view('livewire.settings.calendar-events', compact('events', 'outlets', 'categoryOptions', 'impactOptions', 'years'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Calendar Events']);
     }
 

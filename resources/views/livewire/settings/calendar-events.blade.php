@@ -52,6 +52,13 @@
                 <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
             @endforeach
         </select>
+        <select wire:model.live="yearFilter"
+                class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <option value="">All Years</option>
+            @foreach ($years as $year)
+                <option value="{{ $year }}">{{ $year }}</option>
+            @endforeach
+        </select>
     </div>
 
     {{-- Events Table --}}
