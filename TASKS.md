@@ -8,6 +8,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-06-26 — Add "Export Cost PDF by Category" dropdown to the recipe list (like LMS SOP export): placed between the New Recipe button and the filter bar; top-tier parent categories export parent + sub-categories ("All <name>"), single categories export just that one. UI-only — reuses recipes.cost-pdf-all (category filter already supported); tab-aware (prep items use recipes.prep-cost-pdf-all + ingredient categories)
 - 2026-06-26 — Preserve LMS SOP filter on "Back to all SOPs": LMS dashboard search + categoryFilter now bound to the URL query string; the SOP-view link carries them and the back link (+ dashboard on load) restores them, so the user returns to the same filtered list instead of the full list
 - 2026-06-26 — Add Export Cost PDF button to the recipe form: surfaces the existing per-recipe cost PDF (recipes.cost-pdf / RecipeCostPdfController@single, already used on the recipe Show page) as a button next to Save Recipe in the form header; shown only when editing a saved recipe, opens the saved recipe's costing PDF in a new tab (collapses to icon-only on mobile)
 - 2026-06-26 — Add year filter to Calendar Events list: year dropdown beside search/category/outlet; options are the distinct years present in the data (newest first, via DISTINCT YEAR(event_date)), buildEventRows applies whereYear. Creating an event clears the year filter so the new event stays visible
