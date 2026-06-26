@@ -216,12 +216,25 @@ class StockTakeForm extends Component
         $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
         $newStatus = ($action === 'complete') ? 'completed' : $this->status;
 
+        // On completion, drop any detailed line left at 0 so the final record
+        // only contains items that were actually counted. Drafts keep every
+        // line so counting can continue.
+        $lines = collect($this->lines);
+        if ($action === 'complete') {
+            $lines = $lines->filter(fn ($l) => floatval($l['actual_quantity']) > 0)->values();
+
+            if ($this->method === 'detailed' && $lines->isEmpty()) {
+                $this->addError('lines', 'Enter a counted quantity for at least one item before completing.');
+                return;
+            }
+        }
+
         if ($this->method === 'summary') {
             $totalStockCost    = floatval($this->summary_amount);
             $totalVarianceCost = 0;
         } else {
-            $totalVarianceCost = collect($this->lines)->sum(fn ($l) => floatval($l['variance_cost']));
-            $totalStockCost    = collect($this->lines)->sum(fn ($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
+            $totalVarianceCost = $lines->sum(fn ($l) => floatval($l['variance_cost']));
+            $totalStockCost    = $lines->sum(fn ($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
         }
 
         $data = [
@@ -248,7 +261,7 @@ class StockTakeForm extends Component
         // Sync lines (detailed method only)
         $record->lines()->delete();
         if ($this->method === 'detailed') {
-            foreach ($this->lines as $line) {
+            foreach ($lines as $line) {
                 $actualQty    = floatval($line['actual_quantity']);
                 $systemQty    = floatval($line['system_quantity']);
                 $varianceQty  = $actualQty - $systemQty;
