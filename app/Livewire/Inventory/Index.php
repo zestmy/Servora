@@ -40,9 +40,25 @@ class Index extends Component
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void   { $this->resetPage(); }
 
+    /** Users with the Delete Record capability (or system admins) may remove finalised records. */
+    private function canDeleteRecords(): bool
+    {
+        $user = auth()->user();
+        return $user->isSystemRole() || $user->hasCapability('can_delete_records');
+    }
+
     public function deleteStockTake(int $id): void
     {
-        StockTake::findOrFail($id)->delete();
+        $stockTake = StockTake::findOrFail($id);
+
+        // Drafts are freely deletable; completed stock takes require the
+        // Delete Record capability to reverse.
+        if ($stockTake->status !== 'draft' && ! $this->canDeleteRecords()) {
+            session()->flash('error', 'You do not have permission to delete a completed stock take.');
+            return;
+        }
+
+        $stockTake->delete();
         session()->flash('success', 'Stock take deleted.');
     }
 
@@ -61,8 +77,8 @@ class Index extends Component
     public function deleteTransfer(int $id): void
     {
         $transfer = OutletTransfer::findOrFail($id);
-        if ($transfer->status !== 'draft') {
-            session()->flash('error', 'Only draft transfers can be deleted.');
+        if ($transfer->status !== 'draft' && ! $this->canDeleteRecords()) {
+            session()->flash('error', 'Only draft transfers can be deleted without the Delete Record permission.');
             return;
         }
         $transfer->delete();
@@ -307,11 +323,12 @@ class Index extends Component
         }
 
         $filterOutlets = $this->filterableOutlets();
+        $canDeleteRecords = $this->canDeleteRecords();
 
         return view('livewire.inventory.index', compact(
             'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers', 'purchases',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets'
+            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets', 'canDeleteRecords'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
     }
 }
