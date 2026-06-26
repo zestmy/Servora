@@ -45,6 +45,9 @@
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Summary</a>
                     </div>
                 </div>
+
+                {{-- Export cost PDF by category --}}
+                @include('livewire.recipes._cost-pdf-category-dropdown')
                 @if ($this->locked)
                     <span class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg" title="The company admin has locked this list. Read-only mode.">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
@@ -89,6 +92,9 @@
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Prep Item Cost Summary</a>
                     </div>
                 </div>
+
+                {{-- Export cost PDF by category --}}
+                @include('livewire.recipes._cost-pdf-category-dropdown')
                 @if ($this->locked)
                     <span class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg" title="The company admin has locked this list. Read-only mode.">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
@@ -112,62 +118,6 @@
             @endif
         </div>
     </div>
-
-    {{-- Export Cost PDF by Category --}}
-    @if ($recipeCategories->count())
-        @php
-            $costPdfRoute = $isPrep ? 'recipes.prep-cost-pdf-all' : 'recipes.cost-pdf-all';
-            $hasGroups    = $recipeCategories->contains(fn ($c) => $c->children && $c->children->count());
-            $pdfIcon      = 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
-        @endphp
-        <div class="mb-4">
-            <div x-data="{ open: false }" class="relative inline-block">
-                <button type="button" @click="open = !open" @click.outside="open = false"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" />
-                    </svg>
-                    Export Cost PDF by Category
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-                <div x-show="open" x-transition style="display:none"
-                     class="absolute left-0 mt-1 w-64 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1">
-                    @if ($hasGroups)
-                        <p class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">Top-tier</p>
-                        @foreach ($recipeCategories as $cat)
-                            @if ($cat->children && $cat->children->count())
-                                <a href="{{ route($costPdfRoute, ['category' => $cat->id]) }}" target="_blank"
-                                   class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" /></svg>
-                                    All {{ $cat->name }}
-                                </a>
-                            @endif
-                        @endforeach
-                    @endif
-                    <p class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">Single category</p>
-                    @foreach ($recipeCategories as $cat)
-                        @if ($cat->children && $cat->children->count())
-                            @foreach ($cat->children as $sub)
-                                <a href="{{ route($costPdfRoute, ['category' => $sub->id]) }}" target="_blank"
-                                   class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" /></svg>
-                                    {{ $sub->name }}
-                                </a>
-                            @endforeach
-                        @else
-                            <a href="{{ route($costPdfRoute, ['category' => $cat->id]) }}" target="_blank"
-                               class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" /></svg>
-                                {{ $cat->name }}
-                            </a>
-                        @endif
-                    @endforeach
-                </div>
-            </div>
-        </div>
-    @endif
 
     {{-- Filter Bar --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
