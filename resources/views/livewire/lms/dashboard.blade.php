@@ -38,7 +38,7 @@
                 <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{{ $categoryName }}</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     @foreach ($catRecipes as $recipe)
-                        <a href="{{ route('lms.sop.show', $recipe->id) }}"
+                        <a href="{{ route('lms.sop.show', array_filter(['id' => $recipe->id, 'search' => $search, 'categoryFilter' => $categoryFilter], fn ($v) => $v !== '' && $v !== null)) }}"
                            class="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md hover:border-indigo-300 transition">
                             @php $thumb = $recipe->images->where('type', 'dine_in')->first(); @endphp
                             @if ($thumb)

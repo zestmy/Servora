@@ -10,11 +10,19 @@ class SopView extends Component
 {
     public int $recipeId;
     public Recipe $recipe;
+    public string $backSearch = '';
+    public string $backCategoryFilter = '';
 
     public function mount(int $id): void
     {
         $user = Auth::guard('lms')->user();
         $this->recipeId = $id;
+
+        // Remember the dashboard filter the user came from, so "Back to all
+        // SOPs" returns to the same filtered list.
+        $this->backSearch         = (string) request()->query('search', '');
+        $this->backCategoryFilter = (string) request()->query('categoryFilter', '');
+
         $this->recipe = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)

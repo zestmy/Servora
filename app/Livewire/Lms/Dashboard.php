@@ -13,6 +13,13 @@ class Dashboard extends Component
     public string $search = '';
     public string $categoryFilter = '';
 
+    // Keep the active filters in the URL so they survive opening an SOP and
+    // pressing "Back to all SOPs" (the back link carries these params).
+    protected $queryString = [
+        'search'         => ['except' => ''],
+        'categoryFilter' => ['except' => ''],
+    ];
+
     public function render()
     {
         $user = Auth::guard('lms')->user();
