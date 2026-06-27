@@ -17,25 +17,98 @@
             <h2 class="text-lg font-semibold text-gray-700">Par Levels</h2>
             <p class="text-xs text-gray-400">Set par levels per ingredient per outlet. Used for auto-calculating order quantities.</p>
         </div>
-        <button wire:click="saveAll"
-                class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-            Save All
-        </button>
+        <div class="flex items-center gap-2 text-xs">
+            <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-medium">
+                {{ $setCount }} / {{ $totalIngredients }} set
+            </span>
+        </div>
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <div class="flex flex-wrap items-center gap-4">
-            <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                @foreach ($outlets as $outlet)
-                    <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                @endforeach
-            </select>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Outlet</label>
+                <select wire:model.live="outletId" class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    @foreach ($outlets as $outlet)
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-            <div class="flex-1 max-w-sm">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
                 <input type="text" wire:model.live.debounce.300ms="search"
-                       placeholder="Search ingredients..."
+                       placeholder="Name or code..."
                        class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                <select wire:model.live="categoryFilter" class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All categories</option>
+                    @foreach ($categories as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                        @foreach ($cat->children as $child)
+                            <option value="{{ $child->id }}">&nbsp;&nbsp;— {{ $child->name }}</option>
+                        @endforeach
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+                <select wire:model.live="statusFilter" class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All ingredients</option>
+                    <option value="set">Par level set</option>
+                    <option value="unset">No par level</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    {{-- Bulk tools --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Set all matching the filters</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="bulkValue" placeholder="Qty"
+                           class="w-28 rounded-lg border-gray-300 text-sm text-right focus:ring-indigo-500 focus:border-indigo-500" />
+                    <button wire:click="applyToFiltered"
+                            wire:confirm="Apply this value to every ingredient matching the current filters?"
+                            class="px-3 py-2 bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition disabled:opacity-40"
+                            @disabled($bulkValue === '')>
+                        Apply
+                    </button>
+                </div>
+            </div>
+
+            <div class="h-9 w-px bg-gray-200 hidden sm:block"></div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Copy par levels from another outlet</label>
+                <div class="flex items-center gap-2">
+                    <select wire:model.live="copyFromOutletId" class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">Select outlet…</option>
+                        @foreach ($outlets as $outlet)
+                            @if ($outlet->id !== $outletId)
+                                <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <button wire:click="copyFromOutlet"
+                            wire:confirm="Copy par levels from the selected outlet? Existing values for matching ingredients will be overwritten."
+                            class="px-3 py-2 bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition disabled:opacity-40"
+                            @disabled(!$copyFromOutletId)>
+                        Copy
+                    </button>
+                </div>
+            </div>
+
+            <div class="ml-auto flex items-center gap-2 text-xs text-gray-400">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Changes save automatically as you type
             </div>
         </div>
     </div>
@@ -48,27 +121,35 @@
                     <tr>
                         <th class="px-4 py-3 text-left">Ingredient</th>
                         <th class="px-4 py-3 text-left w-24">Code</th>
+                        <th class="px-4 py-3 text-left w-48">Category</th>
                         <th class="px-4 py-3 text-left w-24">Base UOM</th>
-                        <th class="px-4 py-3 text-right w-40">Par Level</th>
+                        <th class="px-4 py-3 text-right w-44">Par Level</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @forelse ($ingredients as $ingredient)
-                        <tr class="hover:bg-gray-50 transition">
+                        <tr wire:key="par-row-{{ $ingredient->id }}" class="hover:bg-gray-50 transition">
                             <td class="px-4 py-2.5 font-medium text-gray-800">{{ $ingredient->name }}</td>
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $ingredient->code ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $ingredient->ingredientCategory?->name ?? '—' }}</td>
                             <td class="px-4 py-2.5 text-gray-500">{{ $ingredient->baseUom?->abbreviation ?? '—' }}</td>
-                            <td class="px-4 py-2.5">
-                                <input type="number" step="0.01" min="0"
-                                       wire:model.lazy="parLevels.{{ $ingredient->id }}"
-                                       placeholder="0"
-                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <td class="px-4 py-2.5"
+                                x-data="{ saved: false }"
+                                @par-saved.window="if ($event.detail.id == {{ $ingredient->id }}) { saved = true; setTimeout(() => saved = false, 1200) }">
+                                <div class="flex items-center justify-end gap-2">
+                                    <span x-show="saved" x-cloak x-transition.opacity class="text-green-600 text-xs font-medium whitespace-nowrap">Saved ✓</span>
+                                    <input type="number" step="0.01" min="0"
+                                           wire:model.blur="parLevels.{{ $ingredient->id }}"
+                                           x-on:keydown.enter.prevent="$el.blur(); const a = [...document.querySelectorAll('.par-input')]; const i = a.indexOf($el); if (a[i + 1]) a[i + 1].focus()"
+                                           placeholder="0"
+                                           class="par-input w-28 text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-12 text-center text-gray-400">
-                                No ingredients found.
+                            <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                                No ingredients found for the current filters.
                             </td>
                         </tr>
                     @endforelse
@@ -83,7 +164,7 @@
         @endif
     </div>
 
-    {{-- Footer save --}}
+    {{-- Footer save (optional explicit bulk save; edits already auto-save) --}}
     <div class="flex justify-end mt-4">
         <button wire:click="saveAll"
                 class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
