@@ -64,7 +64,8 @@ class InvoiceIndex extends Component
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
         }
-        if ($outletId = $this->selectedOutletId($this->outletFilter)) {
+        $outletId = $this->selectedOutletId($this->outletFilter);
+        if ($outletId) {
             $query->where('outlet_id', $outletId);
         }
         if ($this->dateFrom) {
@@ -76,10 +77,14 @@ class InvoiceIndex extends Component
 
         $invoices = $query->orderByDesc('issued_date')->orderByDesc('id')->paginate(15);
 
+        // Stats respect the outlet filter so the cards match the table below.
+        $statsScope = fn () => ProcurementInvoice::query()
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId));
+
         $stats = [
-            ['label' => 'Total Outstanding', 'value' => number_format(ProcurementInvoice::whereIn('status', ['issued', 'overdue'])->sum('total_amount'), 2), 'color' => 'yellow'],
-            ['label' => 'Issued', 'value' => ProcurementInvoice::where('status', 'issued')->count(), 'color' => 'blue'],
-            ['label' => 'Paid', 'value' => ProcurementInvoice::where('status', 'paid')->count(), 'color' => 'green'],
+            ['label' => 'Total Outstanding', 'value' => number_format($statsScope()->whereIn('status', ['issued', 'overdue'])->sum('total_amount'), 2), 'color' => 'yellow'],
+            ['label' => 'Issued', 'value' => $statsScope()->where('status', 'issued')->count(), 'color' => 'blue'],
+            ['label' => 'Paid', 'value' => $statsScope()->where('status', 'paid')->count(), 'color' => 'green'],
         ];
 
         $filterOutlets = $this->filterableOutlets();

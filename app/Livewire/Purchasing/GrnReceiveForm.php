@@ -193,10 +193,8 @@ class GrnReceiveForm extends Component
                     $poLine = $po->lines->firstWhere('ingredient_id', $line['ingredient_id']);
                     if ($poLine) {
                         $added = floatval($line['received_qty']);
-                        $newReceived = min(
-                            floatval($poLine->received_quantity) + $added,
-                            floatval($poLine->quantity)
-                        );
+                        // Don't cap at ordered qty — allow over-delivery (matches ReceiveForm)
+                        $newReceived = floatval($poLine->received_quantity) + $added;
                         $poLine->update(['received_quantity' => $newReceived]);
                     }
                 }

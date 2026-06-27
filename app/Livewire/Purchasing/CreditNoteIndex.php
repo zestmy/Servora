@@ -86,7 +86,8 @@ class CreditNoteIndex extends Component
         if ($this->supplierFilter) {
             $query->where('supplier_id', $this->supplierFilter);
         }
-        if ($outletId = $this->selectedOutletId($this->outletFilter)) {
+        $outletId = $this->selectedOutletId($this->outletFilter);
+        if ($outletId) {
             $query->where('outlet_id', $outletId);
         }
         if ($this->dateFrom) {
@@ -98,24 +99,28 @@ class CreditNoteIndex extends Component
 
         $creditNotes = $query->orderByDesc('issued_date')->orderByDesc('id')->paginate(15);
 
+        // Stats respect the outlet filter so the cards match the table below.
+        $statsScope = fn () => CreditNote::query()
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId));
+
         $stats = [
             [
                 'label' => 'Total Outstanding',
                 'value' => number_format(
-                    CreditNote::whereIn('status', ['draft', 'issued'])->sum('total_amount'), 2
+                    $statsScope()->whereIn('status', ['draft', 'issued'])->sum('total_amount'), 2
                 ),
                 'color' => 'yellow',
             ],
             [
                 'label' => 'Total Applied',
                 'value' => number_format(
-                    CreditNote::where('status', 'applied')->sum('total_amount'), 2
+                    $statsScope()->where('status', 'applied')->sum('total_amount'), 2
                 ),
                 'color' => 'green',
             ],
             [
                 'label' => 'Pending (Drafts)',
-                'value' => CreditNote::where('status', 'draft')->count(),
+                'value' => $statsScope()->where('status', 'draft')->count(),
                 'color' => 'gray',
             ],
         ];

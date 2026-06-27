@@ -27,7 +27,6 @@
                                 ['route' => 'supplier.products', 'label' => 'Products'],
                                 ['route' => 'supplier.orders', 'label' => 'Orders'],
                                 ['route' => 'supplier.invoices', 'label' => 'Invoices'],
-                                ['route' => 'supplier.quotations', 'label' => 'Quotations'],
                                 ['route' => 'supplier.credit-notes', 'label' => 'Credit Notes'],
                                 ['route' => 'supplier.profile', 'label' => 'Profile'],
                             ];

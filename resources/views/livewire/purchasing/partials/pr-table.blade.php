@@ -184,6 +184,14 @@
                                 </button>
                             @endif
 
+                            {{-- Rejected: revert to draft to fix and resubmit --}}
+                            @if ($pr->status === 'rejected')
+                                <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
+                                        title="Revert to Draft" class="text-gray-400 hover:text-amber-600 transition p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                                </button>
+                            @endif
+
                             {{-- Cancel (draft or submitted) --}}
                             @if (in_array($pr->status, ['draft', 'submitted']) && $pr->status !== 'draft')
                                 <button wire:click="cancelPr({{ $pr->id }})" wire:confirm="Cancel this purchase request?"

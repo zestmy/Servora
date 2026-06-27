@@ -48,7 +48,7 @@ class OrderForm extends Component
             'department_id'          => 'nullable|exists:departments,id',
             'lines'                  => 'required|array|min:1',
             'lines.*.ingredient_id'  => 'required|exists:ingredients,id',
-            'lines.*.quantity'       => 'required|numeric|min:0',
+            'lines.*.quantity'       => 'required|numeric|min:0.001',
             'lines.*.uom_id'         => 'required|exists:units_of_measure,id',
             'lines.*.unit_cost'      => 'required|numeric|min:0',
         ];

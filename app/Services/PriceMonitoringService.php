@@ -83,45 +83,6 @@ class PriceMonitoringService
     }
 
     /**
-     * Get price comparison data for an ingredient across all suppliers.
-     */
-    public static function compareSupplierPrices(int $ingredientId): Collection
-    {
-        $suppliers = SupplierIngredient::where('ingredient_id', $ingredientId)
-            ->with('supplier')
-            ->orderBy('last_cost')
-            ->get()
-            ->map(function ($si) use ($ingredientId) {
-                $priceHistory = IngredientPriceHistory::where('ingredient_id', $ingredientId)
-                    ->where('supplier_id', $si->supplier_id)
-                    ->orderByDesc('effective_date')
-                    ->limit(10)
-                    ->get();
-
-                $previousCost = $priceHistory->skip(1)->first()?->cost;
-                $changePct = ($previousCost && $previousCost > 0)
-                    ? round((($si->last_cost - $previousCost) / $previousCost) * 100, 2)
-                    : null;
-
-                return [
-                    'supplier_id'   => $si->supplier_id,
-                    'supplier_name' => $si->supplier?->name ?? '—',
-                    'last_cost'     => floatval($si->last_cost),
-                    'uom'           => $si->uom?->abbreviation ?? '',
-                    'is_preferred'  => $si->is_preferred,
-                    'pack_size'     => floatval($si->pack_size ?? 1),
-                    'change_pct'    => $changePct,
-                    'history'       => $priceHistory->map(fn ($h) => [
-                        'date' => $h->effective_date->format('d M Y'),
-                        'cost' => floatval($h->cost),
-                    ])->toArray(),
-                ];
-            });
-
-        return $suppliers;
-    }
-
-    /**
      * Check all active price alerts and trigger notifications.
      * Intended to run as a scheduled command.
      */
@@ -225,42 +186,5 @@ class PriceMonitoringService
         }
 
         return ['triggered' => $triggered, 'message' => $message, 'change_pct' => $changePct];
-    }
-
-    /**
-     * Get ingredients with significant recent price changes.
-     */
-    public static function getRecentPriceChanges(int $days = 30, float $minChangePct = 5.0): Collection
-    {
-        $since = now()->subDays($days);
-
-        return IngredientPriceHistory::with(['ingredient', 'supplier'])
-            ->where('effective_date', '>=', $since)
-            ->orderByDesc('effective_date')
-            ->get()
-            ->groupBy('ingredient_id')
-            ->filter(function ($history) use ($minChangePct) {
-                if ($history->count() < 2) return false;
-                $latest = floatval($history->first()->cost);
-                $earliest = floatval($history->last()->cost);
-                if ($earliest <= 0) return false;
-                $pct = abs(($latest - $earliest) / $earliest * 100);
-                return $pct >= $minChangePct;
-            })
-            ->map(function ($history) {
-                $latest = $history->first();
-                $earliest = $history->last();
-                $pct = round(($latest->cost - $earliest->cost) / $earliest->cost * 100, 2);
-                return [
-                    'ingredient_id'   => $latest->ingredient_id,
-                    'ingredient_name' => $latest->ingredient?->name,
-                    'supplier_name'   => $latest->supplier?->name,
-                    'old_price'       => floatval($earliest->cost),
-                    'new_price'       => floatval($latest->cost),
-                    'change_pct'      => $pct,
-                    'date'            => $latest->effective_date->format('d M Y'),
-                ];
-            })
-            ->values();
     }
 }

@@ -129,7 +129,7 @@
     <section class="bg-indigo-700 py-12 text-white text-center">
         <div class="max-w-3xl mx-auto px-4">
             <h2 class="text-2xl font-bold mb-3">Want to See Supplier Details & Order Directly?</h2>
-            <p class="text-indigo-200 mb-6">Sign up for Servora to unlock supplier names, send RFQs, compare quotes side-by-side, and place purchase orders — all from one platform.</p>
+            <p class="text-indigo-200 mb-6">Sign up for Servora to unlock supplier names, compare prices side-by-side, and place purchase orders — all from one platform.</p>
             <div class="flex flex-col sm:flex-row gap-3 justify-center">
                 <a href="{{ route('saas.register') }}" class="px-8 py-3 bg-white text-indigo-700 font-semibold rounded-xl hover:bg-gray-100 transition">
                     Start Free Trial

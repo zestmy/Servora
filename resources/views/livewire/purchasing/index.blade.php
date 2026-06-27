@@ -88,10 +88,10 @@
                     Transfers
                 </button>
             @endif
-            @if ($showRfqTab)
-                <a href="{{ route('purchasing.rfq.index') }}"
-                   class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.rfq.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    RFQ
+            @if ($showInvoiceTab)
+                <a href="{{ route('purchasing.invoices.index') }}"
+                   class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.invoices.*') ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                    Invoices
                 </a>
             @endif
             @if ($showCnTab)

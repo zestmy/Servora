@@ -12,7 +12,7 @@
                 <span class="text-amber-300">Servora's F&B Network</span>
             </h1>
             <p class="text-lg text-indigo-100 max-w-2xl mx-auto mb-10">
-                List your products once and get discovered by restaurants, cafes, hotels, and food businesses across Malaysia. Receive digital purchase orders, respond to quotation requests, and track payments — all in one platform.
+                List your products once and get discovered by restaurants, cafes, hotels, and food businesses across Malaysia. Receive digital purchase orders and track payments — all in one platform.
             </p>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <a href="{{ route('supplier.register') }}"
@@ -61,8 +61,8 @@
                     <div class="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                     </div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Respond to Quotations</h3>
-                    <p class="text-sm text-gray-500">Businesses send you RFQs directly. Respond with your best price — listed, discounted, or tender — and win the order.</p>
+                    <h3 class="font-semibold text-gray-900 mb-2">Build Relationships</h3>
+                    <p class="text-sm text-gray-500">Connect directly with F&B businesses who reorder from you regularly, and grow steady repeat business.</p>
                 </div>
             </div>
         </div>
@@ -90,7 +90,7 @@
                 <div class="relative bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
                     <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">3</div>
                     <h3 class="font-semibold text-gray-900 mb-2">Receive Orders</h3>
-                    <p class="text-sm text-gray-500">F&B businesses discover your products, send you POs or quotation requests, and you fulfil orders digitally.</p>
+                    <p class="text-sm text-gray-500">F&B businesses discover your products, send you purchase orders, and you fulfil orders digitally.</p>
                 </div>
             </div>
         </div>
@@ -125,7 +125,6 @@
                     ['Is it free to register?', 'Yes, completely free. There are no listing fees or subscription charges for suppliers. You only pay standard payment processing fees when receiving payments through the platform.'],
                     ['Who can see my products?', 'Any F&B business using Servora can discover your products when they search for ingredients or suppliers. Your company profile and product catalog are visible to all active Servora users.'],
                     ['How do I receive orders?', 'When a business creates a purchase order for your products, you receive an email notification and can view the full PO details in your supplier portal dashboard.'],
-                    ['Can I set different prices for different customers?', 'Yes. When responding to a Request for Quotation (RFQ), you can offer your listed price, a discounted price, or a special tender price per request. This gives you full pricing flexibility.'],
                     ['What products can I list?', 'Any food & beverage ingredients, packaging materials, cleaning supplies, kitchen equipment, or other products that F&B businesses need. The more products you list, the more discoverable you become.'],
                 ] as $i => $faq)
                     <div class="border border-gray-200 rounded-xl overflow-hidden">

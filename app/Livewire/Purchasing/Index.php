@@ -154,7 +154,10 @@ class Index extends Component
             session()->flash('error', 'You do not have access to this outlet.');
             return;
         }
-        if ($pr->status !== 'draft') return;
+        if ($pr->status !== 'draft') {
+            session()->flash('error', 'Only draft requests can be submitted.');
+            return;
+        }
 
         $requiresApproval = Auth::user()->company?->require_pr_approval ?? false;
 
@@ -174,7 +177,10 @@ class Index extends Component
     public function approvePr(int $id): void
     {
         $pr = PurchaseRequest::findOrFail($id);
-        if ($pr->status !== 'submitted') return;
+        if ($pr->status !== 'submitted') {
+            session()->flash('error', 'Only submitted requests can be approved.');
+            return;
+        }
 
         if (! Auth::user()->hasCapability('can_approve_pr')) {
             session()->flash('error', 'You do not have permission to approve purchase requests.');
@@ -197,7 +203,10 @@ class Index extends Component
     public function rejectPr(int $id, ?string $reason = null): void
     {
         $pr = PurchaseRequest::findOrFail($id);
-        if ($pr->status !== 'submitted') return;
+        if ($pr->status !== 'submitted') {
+            session()->flash('error', 'Only submitted requests can be rejected.');
+            return;
+        }
 
         if (! Auth::user()->hasCapability('can_approve_pr')) {
             session()->flash('error', 'You do not have permission to reject purchase requests.');
@@ -221,12 +230,16 @@ class Index extends Component
     public function revertPrToDraft(int $id): void
     {
         $pr = PurchaseRequest::findOrFail($id);
-        if ($pr->status !== 'approved') return;
+        if (! in_array($pr->status, ['approved', 'rejected'])) {
+            session()->flash('error', 'Only approved or rejected requests can be reverted to draft.');
+            return;
+        }
 
         $pr->update([
-            'status'      => 'draft',
-            'approved_by' => null,
-            'approved_at' => null,
+            'status'          => 'draft',
+            'approved_by'     => null,
+            'approved_at'     => null,
+            'rejected_reason' => null,
         ]);
         session()->flash('success', "PR {$pr->pr_number} reverted to draft for editing.");
     }
@@ -258,7 +271,10 @@ class Index extends Component
             session()->flash('error', 'You do not have access to this outlet.');
             return;
         }
-        if ($po->status !== 'draft') return;
+        if ($po->status !== 'draft') {
+            session()->flash('error', 'Only draft orders can be submitted.');
+            return;
+        }
 
         $requiresApproval = Auth::user()->company?->require_po_approval ?? true;
 
@@ -283,7 +299,10 @@ class Index extends Component
     {
         $po = PurchaseOrder::findOrFail($id);
 
-        if ($po->status !== 'submitted') return;
+        if ($po->status !== 'submitted') {
+            session()->flash('error', 'Only submitted orders can be approved.');
+            return;
+        }
 
         if (! Auth::user()->hasCapability('can_approve_po')) {
             session()->flash('error', 'You do not have permission to approve purchase orders.');
@@ -314,7 +333,10 @@ class Index extends Component
     {
         $po = PurchaseOrder::findOrFail($id);
 
-        if ($po->status !== 'submitted') return;
+        if ($po->status !== 'submitted') {
+            session()->flash('error', 'Only submitted orders can be rejected.');
+            return;
+        }
 
         if (! Auth::user()->hasCapability('can_approve_po')) {
             session()->flash('error', 'You do not have permission to reject purchase orders.');
@@ -644,7 +666,7 @@ class Index extends Component
         $showDoTab    = $isAdvancedUser;
         $showGrnTab   = $canReceiveGrn || $isAdvancedUser;
         $showStoTab   = $cpuMode;
-        $showRfqTab   = $isAdvancedUser;
+        $showInvoiceTab = $canManageInvoices || $isAdvancedUser;
         $showCnTab    = $canManageInvoices || $isAdvancedUser;
         $showSupplierTab = $isAdvancedUser;
 
@@ -705,7 +727,7 @@ class Index extends Component
             'showDoTab'          => $showDoTab,
             'showGrnTab'         => $showGrnTab,
             'showStoTab'         => $showStoTab,
-            'showRfqTab'         => $showRfqTab,
+            'showInvoiceTab'     => $showInvoiceTab,
             'showCnTab'          => $showCnTab,
             'showSupplierTab'    => $showSupplierTab,
         ]))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Purchasing']);

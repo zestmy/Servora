@@ -29,9 +29,22 @@ class PurchaseDocumentPdfController extends Controller
         };
     }
 
+    /**
+     * Ensure the current user may access the document's outlet.
+     * CompanyScope already blocks cross-company access; this enforces
+     * outlet-level access within the company.
+     */
+    private function authorizeOutlet(?int $outletId): void
+    {
+        if ($outletId !== null && ! Auth::user()->canAccessOutlet($outletId)) {
+            abort(403);
+        }
+    }
+
     private function purchaseRequest(int $id, ?Company $company)
     {
         $pr = PurchaseRequest::with(['outlet', 'department', 'lines.ingredient', 'lines.uom', 'lines.preferredSupplier', 'createdBy', 'approvedBy'])->findOrFail($id);
+        $this->authorizeOutlet($pr->outlet_id);
 
         $pdf = Pdf::loadView('pdf.purchase-request', compact('pr', 'company'))
             ->setPaper('a4', 'portrait');
@@ -42,6 +55,7 @@ class PurchaseDocumentPdfController extends Controller
     private function purchaseOrder(int $id, ?Company $company)
     {
         $po = PurchaseOrder::with(['outlet', 'supplier', 'department', 'lines.ingredient', 'lines.uom', 'createdBy', 'approvedBy'])->findOrFail($id);
+        $this->authorizeOutlet($po->outlet_id);
 
         $pdf = Pdf::loadView('pdf.purchase-order', compact('po', 'company'))
             ->setPaper('a4', 'portrait');
@@ -52,6 +66,7 @@ class PurchaseDocumentPdfController extends Controller
     private function deliveryOrder(int $id, ?Company $company)
     {
         $do = DeliveryOrder::with(['outlet', 'supplier', 'purchaseOrder.department', 'lines.ingredient', 'lines.uom', 'createdBy', 'receivedBy'])->findOrFail($id);
+        $this->authorizeOutlet($do->outlet_id);
         $showPrice = (bool) $company?->show_price_on_do_grn;
 
         $pdf = Pdf::loadView('pdf.delivery-order', compact('do', 'company', 'showPrice'))
@@ -63,6 +78,7 @@ class PurchaseDocumentPdfController extends Controller
     private function goodsReceivedNote(int $id, ?Company $company)
     {
         $grn = GoodsReceivedNote::with(['outlet', 'supplier', 'deliveryOrder', 'purchaseOrder.department', 'lines.ingredient', 'lines.uom', 'receivedBy'])->findOrFail($id);
+        $this->authorizeOutlet($grn->outlet_id);
         $showPrice = (bool) $company?->show_price_on_do_grn;
 
         $pdf = Pdf::loadView('pdf.goods-received-note', compact('grn', 'company', 'showPrice'))
@@ -74,6 +90,7 @@ class PurchaseDocumentPdfController extends Controller
     private function creditNote(int $id, ?Company $company)
     {
         $cn = \App\Models\CreditNote::with(['supplier', 'outlet', 'lines.ingredient', 'lines.uom', 'createdBy', 'procurementInvoice', 'goodsReceivedNote', 'purchaseOrder'])->findOrFail($id);
+        $this->authorizeOutlet($cn->outlet_id);
 
         $pdf = Pdf::loadView('pdf.credit-note', compact('cn', 'company'))
             ->setPaper('a4', 'portrait');
@@ -88,6 +105,7 @@ class PurchaseDocumentPdfController extends Controller
             'outlet', 'supplier', 'purchaseOrder', 'goodsReceivedNote',
             'lines.ingredient', 'lines.uom', 'taxRate', 'createdBy',
         ])->findOrFail($id);
+        $this->authorizeOutlet($invoice->outlet_id);
 
         $pdf = Pdf::loadView('pdf.procurement-invoice', compact('invoice', 'company'))
             ->setPaper('a4', 'portrait');
