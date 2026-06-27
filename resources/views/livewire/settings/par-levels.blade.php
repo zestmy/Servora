@@ -1,8 +1,13 @@
 <div>
     @if (session()->has('success'))
-        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
             {{ session('success') }}
+        </div>
+    @endif
+    @if (session()->has('error'))
+        <div wire:key="err-{{ microtime(true) }}" class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
         </div>
     @endif
 
@@ -17,11 +22,14 @@
             <h2 class="text-lg font-semibold text-gray-700">Par Levels</h2>
             <p class="text-xs text-gray-400">Set par levels per ingredient per outlet. Used for auto-calculating order quantities.</p>
         </div>
-        <div class="flex items-center gap-2 text-xs">
-            <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-medium">
-                {{ $setCount }} / {{ $totalIngredients }} set
-            </span>
-        </div>
+        <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-medium text-xs whitespace-nowrap">
+            {{ $setCount }} / {{ $totalIngredients }} set
+        </span>
+        <button wire:click="exportCsv"
+                class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export
+        </button>
     </div>
 
     {{-- Filters --}}
@@ -35,14 +43,11 @@
                     @endforeach
                 </select>
             </div>
-
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
-                <input type="text" wire:model.live.debounce.300ms="search"
-                       placeholder="Name or code..."
+                <input type="text" wire:model.live.debounce.300ms="search" placeholder="Name or code..."
                        class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
-
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
                 <select wire:model.live="categoryFilter" class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -55,7 +60,6 @@
                     @endforeach
                 </select>
             </div>
-
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
                 <select wire:model.live="statusFilter" class="w-full rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -74,7 +78,11 @@
                 <label class="block text-xs font-medium text-gray-500 mb-1">Set all matching the filters</label>
                 <div class="flex items-center gap-2">
                     <input type="number" step="0.01" min="0" wire:model.live.debounce.400ms="bulkValue" placeholder="Qty"
-                           class="w-28 rounded-lg border-gray-300 text-sm text-right focus:ring-indigo-500 focus:border-indigo-500" />
+                           class="w-24 rounded-lg border-gray-300 text-sm text-right focus:ring-indigo-500 focus:border-indigo-500" />
+                    <label class="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                        <input type="checkbox" wire:model="bulkAllOutlets" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        All outlets
+                    </label>
                     <button wire:click="applyToFiltered"
                             wire:confirm="Apply this value to every ingredient matching the current filters?"
                             class="px-3 py-2 bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition disabled:opacity-40"
@@ -84,10 +92,21 @@
                 </div>
             </div>
 
-            <div class="h-9 w-px bg-gray-200 hidden sm:block"></div>
+            <div class="h-9 w-px bg-gray-200 hidden lg:block"></div>
 
             <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Copy par levels from another outlet</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">From usage</label>
+                <button wire:click="fillBlanksWithSuggested"
+                        wire:confirm="Fill every blank par level (in the current filter) with a value suggested from the last 3 months of purchases?"
+                        class="px-3 py-2 border border-indigo-200 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-50 transition">
+                    Fill blanks with suggested
+                </button>
+            </div>
+
+            <div class="h-9 w-px bg-gray-200 hidden lg:block"></div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Copy from another outlet</label>
                 <div class="flex items-center gap-2">
                     <select wire:model.live="copyFromOutletId" class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="">Select outlet…</option>
@@ -106,9 +125,26 @@
                 </div>
             </div>
 
+            <div class="h-9 w-px bg-gray-200 hidden lg:block"></div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Import (CSV / Excel)</label>
+                <div class="flex items-center gap-2">
+                    <input type="file" wire:model="importFile" accept=".csv,.xlsx,.xls"
+                           class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200" />
+                    <button wire:click="importParLevels" wire:loading.attr="disabled"
+                            class="px-3 py-2 bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition disabled:opacity-40"
+                            @disabled(!$importFile)>
+                        <span wire:loading.remove wire:target="importParLevels">Import</span>
+                        <span wire:loading wire:target="importParLevels">Importing…</span>
+                    </button>
+                </div>
+                @error('importFile') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+            </div>
+
             <div class="ml-auto flex items-center gap-2 text-xs text-gray-400">
                 <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Changes save automatically as you type
+                Changes save automatically
             </div>
         </div>
     </div>
@@ -121,34 +157,58 @@
                     <tr>
                         <th class="px-4 py-3 text-left">Ingredient</th>
                         <th class="px-4 py-3 text-left w-24">Code</th>
-                        <th class="px-4 py-3 text-left w-48">Category</th>
-                        <th class="px-4 py-3 text-left w-24">Base UOM</th>
-                        <th class="px-4 py-3 text-right w-44">Par Level</th>
+                        <th class="px-4 py-3 text-left w-44">Category</th>
+                        <th class="px-4 py-3 text-left w-20">UOM</th>
+                        <th class="px-4 py-3 text-right w-28">On hand</th>
+                        <th class="px-4 py-3 text-right w-48">Par Level</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @forelse ($ingredients as $ingredient)
+                        @php
+                            $par = floatval($parLevels[$ingredient->id] ?? 0);
+                            $oh  = $onHand[$ingredient->id] ?? null;
+                            $belowPar = $par > 0 && $oh !== null && $oh < $par;
+                            $sug = $suggested[$ingredient->id] ?? 0;
+                        @endphp
                         <tr wire:key="par-row-{{ $ingredient->id }}" class="hover:bg-gray-50 transition">
                             <td class="px-4 py-2.5 font-medium text-gray-800">{{ $ingredient->name }}</td>
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $ingredient->code ?? '—' }}</td>
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $ingredient->ingredientCategory?->name ?? '—' }}</td>
                             <td class="px-4 py-2.5 text-gray-500">{{ $ingredient->baseUom?->abbreviation ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-right tabular-nums {{ $belowPar ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
+                                @if ($oh === null)
+                                    —
+                                @else
+                                    {{ rtrim(rtrim(number_format($oh, 2), '0'), '.') }}
+                                    @if ($belowPar)
+                                        <span title="Below par level" class="inline-block w-1.5 h-1.5 rounded-full bg-red-500 ml-0.5 align-middle"></span>
+                                    @endif
+                                @endif
+                            </td>
                             <td class="px-4 py-2.5"
                                 x-data="{ saved: false }"
                                 @par-saved.window="if ($event.detail.id == {{ $ingredient->id }}) { saved = true; setTimeout(() => saved = false, 1200) }">
                                 <div class="flex items-center justify-end gap-2">
                                     <span x-show="saved" x-cloak x-transition.opacity class="text-green-600 text-xs font-medium whitespace-nowrap">Saved ✓</span>
+                                    @if ($sug > 0)
+                                        <button type="button" wire:click="applySuggested({{ $ingredient->id }})"
+                                                title="Apply suggested ({{ rtrim(rtrim(number_format($sug, 2), '0'), '.') }} / mo from recent purchases)"
+                                                class="text-xs text-indigo-500 hover:text-indigo-700 whitespace-nowrap">
+                                            ≈ {{ rtrim(rtrim(number_format($sug, 2), '0'), '.') }} ↑
+                                        </button>
+                                    @endif
                                     <input type="number" step="0.01" min="0"
                                            wire:model.blur="parLevels.{{ $ingredient->id }}"
                                            x-on:keydown.enter.prevent="$el.blur(); const a = [...document.querySelectorAll('.par-input')]; const i = a.indexOf($el); if (a[i + 1]) a[i + 1].focus()"
                                            placeholder="0"
-                                           class="par-input w-28 text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="par-input w-24 text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                            <td colspan="6" class="px-4 py-12 text-center text-gray-400">
                                 No ingredients found for the current filters.
                             </td>
                         </tr>
@@ -164,7 +224,7 @@
         @endif
     </div>
 
-    {{-- Footer save (optional explicit bulk save; edits already auto-save) --}}
+    {{-- Footer save (edits already auto-save; this is an explicit fallback) --}}
     <div class="flex justify-end mt-4">
         <button wire:click="saveAll"
                 class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">

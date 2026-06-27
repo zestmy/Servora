@@ -6,13 +6,19 @@ use App\Models\Ingredient;
 use App\Models\IngredientCategory;
 use App\Models\IngredientParLevel;
 use App\Models\Outlet;
+use App\Services\CsvExportService;
+use App\Services\StockOnHandService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use OpenSpout\Reader\CSV\Options as CsvOptions;
+use OpenSpout\Reader\CSV\Reader as CsvReader;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
 class ParLevels extends Component
 {
-    use WithPagination;
+    use WithPagination, WithFileUploads;
 
     public ?int $outletId = null;
     public string $search = '';
@@ -22,7 +28,11 @@ class ParLevels extends Component
 
     // Bulk tools
     public string $bulkValue = '';
+    public bool $bulkAllOutlets = false;
     public $copyFromOutletId = null;
+
+    // CSV / XLSX import
+    public $importFile = null;
 
     public function mount(): void
     {
@@ -68,12 +78,65 @@ class ParLevels extends Component
         $value = floatval($this->bulkValue);
         $ids   = $this->filteredIngredientQuery()->pluck('id');
 
-        foreach ($ids as $id) {
-            $this->persistOne((int) $id, $value);
+        $outletIds = $this->bulkAllOutlets
+            ? Outlet::where('company_id', Auth::user()->company_id)->pluck('id')->all()
+            : [$this->outletId];
+
+        foreach ($outletIds as $oid) {
+            foreach ($ids as $id) {
+                $this->persistOne((int) $id, $value, (int) $oid);
+            }
         }
 
         $this->bulkValue = '';
-        session()->flash('success', $ids->count() . ' par level(s) updated for the current filter.');
+        $scope = $this->bulkAllOutlets ? count($outletIds) . ' outlet(s)' : 'this outlet';
+        session()->flash('success', $ids->count() . " par level(s) updated for {$scope}.");
+        $this->loadParLevels();
+    }
+
+    /** Fill only the currently-blank par levels (for the filtered set) with a usage-based suggestion. */
+    public function fillBlanksWithSuggested(): void
+    {
+        if (! $this->outletId) {
+            return;
+        }
+
+        $ids = $this->filteredIngredientQuery()->pluck('id')->map(fn ($i) => (int) $i)->all();
+        $suggested = StockOnHandService::monthlyPurchaseAverage($ids, $this->outletId, 3);
+
+        $existing = IngredientParLevel::where('outlet_id', $this->outletId)
+            ->where('par_level', '>', 0)
+            ->pluck('ingredient_id')
+            ->all();
+        $existing = array_flip($existing);
+
+        $filled = 0;
+        foreach ($ids as $id) {
+            if (isset($existing[$id])) continue;          // keep already-set values
+            $value = $suggested[$id] ?? 0;
+            if ($value > 0) {
+                $this->persistOne($id, $value);
+                $filled++;
+            }
+        }
+
+        session()->flash('success', "{$filled} blank par level(s) filled from recent usage.");
+    }
+
+    /** Apply the usage-based suggestion to a single ingredient. */
+    public function applySuggested(int $ingredientId): void
+    {
+        if (! $this->outletId) {
+            return;
+        }
+
+        $suggested = StockOnHandService::monthlyPurchaseAverage([$ingredientId], $this->outletId, 3);
+        $value = $suggested[$ingredientId] ?? 0;
+
+        if ($value > 0) {
+            $this->persistOne($ingredientId, $value);
+            $this->dispatch('par-saved', id: $ingredientId);
+        }
     }
 
     /** Copy all par levels from another outlet into the current one. */
@@ -100,6 +163,89 @@ class ParLevels extends Component
         session()->flash('success', $source->count() . ' par level(s) copied from the selected outlet.');
     }
 
+    /** Download every active ingredient with its current par level for this outlet (doubles as an import template). */
+    public function exportCsv()
+    {
+        $rows = Ingredient::with('baseUom')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($ing) => [
+                $ing->name,
+                $ing->code ?? '',
+                $ing->baseUom?->abbreviation ?? '',
+                $this->parLevels[$ing->id] ?? '',
+            ]);
+
+        $outletName = Outlet::find($this->outletId)?->name ?? 'outlet';
+        $slug = \Illuminate\Support\Str::slug($outletName);
+
+        return CsvExportService::download(
+            "par-levels-{$slug}-" . now()->format('Y-m-d') . '.csv',
+            ['Ingredient', 'Code', 'Base UOM', 'Par Level'],
+            $rows->toArray()
+        );
+    }
+
+    /** Import par levels from an uploaded CSV/XLSX, matching ingredients by code then name. */
+    public function importParLevels(): void
+    {
+        $this->validate(['importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120']);
+
+        if (! $this->outletId) {
+            session()->flash('error', 'Select an outlet before importing.');
+            return;
+        }
+
+        $path = $this->importFile->getRealPath();
+        $ext  = strtolower($this->importFile->getClientOriginalExtension());
+        $parsed = in_array($ext, ['xlsx', 'xls']) ? $this->parseSpreadsheet($path, true) : $this->parseSpreadsheet($path, false);
+
+        if (empty($parsed)) {
+            session()->flash('error', 'No rows found in the file.');
+            $this->reset('importFile');
+            return;
+        }
+
+        // Build lookup of active ingredients by code and by name.
+        $byCode = [];
+        $byName = [];
+        foreach (Ingredient::where('is_active', true)->get(['id', 'name', 'code']) as $ing) {
+            if ($ing->code) $byCode[mb_strtolower(trim($ing->code))] = $ing->id;
+            $byName[mb_strtolower(trim($ing->name))] = $ing->id;
+        }
+
+        $updated = 0;
+        $cleared = 0;
+        $unmatched = 0;
+
+        foreach ($parsed as $row) {
+            $code = mb_strtolower(trim((string) $this->cell($row, ['code', 'ingredient code'])));
+            $name = mb_strtolower(trim((string) $this->cell($row, ['ingredient', 'ingredient name', 'name'])));
+            $parRaw = $this->cell($row, ['par level', 'par', 'par_level']);
+
+            $ingredientId = ($code !== '' && isset($byCode[$code])) ? $byCode[$code]
+                : (($name !== '' && isset($byName[$name])) ? $byName[$name] : null);
+
+            if (! $ingredientId) {
+                $unmatched++;
+                continue;
+            }
+
+            if (trim((string) $parRaw) === '') {
+                continue; // blank cell = leave unchanged
+            }
+
+            $value = floatval($parRaw);
+            $this->persistOne((int) $ingredientId, $value);
+            $value > 0 ? $updated++ : $cleared++;
+        }
+
+        $this->reset('importFile');
+        $this->loadParLevels();
+        session()->flash('success', "Import complete: {$updated} set, {$cleared} cleared, {$unmatched} unmatched.");
+    }
+
     public function render()
     {
         $user = Auth::user();
@@ -116,6 +262,11 @@ class ParLevels extends Component
 
         $ingredients = $this->filteredIngredientQuery()->paginate(50);
 
+        // Context figures for the visible page only (keeps it cheap).
+        $pageIds   = $ingredients->getCollection()->pluck('id')->all();
+        $onHand    = StockOnHandService::currentForOutlet($pageIds, (int) $this->outletId);
+        $suggested = StockOnHandService::monthlyPurchaseAverage($pageIds, (int) $this->outletId, 3);
+
         // Summary: how many active ingredients have a par level set for this outlet.
         $totalIngredients = Ingredient::where('is_active', true)->count();
         $setCount = $this->outletId
@@ -123,7 +274,7 @@ class ParLevels extends Component
             : 0;
 
         return view('livewire.settings.par-levels', compact(
-            'outlets', 'categories', 'ingredients', 'totalIngredients', 'setCount'
+            'outlets', 'categories', 'ingredients', 'onHand', 'suggested', 'totalIngredients', 'setCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Par Levels']);
     }
 
@@ -164,9 +315,10 @@ class ParLevels extends Component
         return $query;
     }
 
-    private function persistOne(int $ingredientId, $value): void
+    private function persistOne(int $ingredientId, $value, ?int $outletId = null): void
     {
-        if (! $this->outletId) {
+        $outletId ??= $this->outletId;
+        if (! $outletId) {
             return;
         }
 
@@ -175,15 +327,19 @@ class ParLevels extends Component
 
         if ($parLevel > 0) {
             IngredientParLevel::updateOrCreate(
-                ['ingredient_id' => $ingredientId, 'outlet_id' => $this->outletId],
+                ['ingredient_id' => $ingredientId, 'outlet_id' => $outletId],
                 ['par_level' => $parLevel, 'company_id' => $companyId]
             );
-            $this->parLevels[$ingredientId] = (string) $parLevel;
+            if ($outletId === $this->outletId) {
+                $this->parLevels[$ingredientId] = (string) $parLevel;
+            }
         } else {
             IngredientParLevel::where('ingredient_id', $ingredientId)
-                ->where('outlet_id', $this->outletId)
+                ->where('outlet_id', $outletId)
                 ->delete();
-            unset($this->parLevels[$ingredientId]);
+            if ($outletId === $this->outletId) {
+                unset($this->parLevels[$ingredientId]);
+            }
         }
     }
 
@@ -198,5 +354,56 @@ class ParLevels extends Component
             ->pluck('par_level', 'ingredient_id')
             ->map(fn ($v) => (string) floatval($v))
             ->toArray();
+    }
+
+    /** Parse an uploaded CSV or XLSX into an array of header-keyed rows. */
+    private function parseSpreadsheet(string $path, bool $isXlsx): array
+    {
+        if ($isXlsx) {
+            $reader = new XlsxReader();
+        } else {
+            $options = new CsvOptions();
+            $options->FIELD_ENCLOSURE = '"';
+            $reader = new CsvReader($options);
+        }
+
+        $reader->open($path);
+
+        $rows    = [];
+        $headers = null;
+
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                $cells = array_map(fn ($c) => trim((string) $c->getValue()), $row->getCells());
+
+                if ($headers === null) {
+                    if (! empty($cells[0])) {
+                        $cells[0] = preg_replace('/^\xEF\xBB\xBF/', '', $cells[0]);
+                    }
+                    $headers = array_map(fn ($h) => mb_strtolower(trim((string) $h)), $cells);
+                    continue;
+                }
+
+                if (count(array_filter($cells, fn ($c) => $c !== '')) === 0) continue;
+
+                $padded = array_slice(array_pad($cells, count($headers), ''), 0, count($headers));
+                $rows[] = array_combine($headers, $padded);
+            }
+            break;
+        }
+
+        $reader->close();
+        return $rows;
+    }
+
+    /** Fetch a cell from a header-keyed row by any of the candidate header names. */
+    private function cell(array $row, array $candidates): string
+    {
+        foreach ($candidates as $key) {
+            if (array_key_exists($key, $row)) {
+                return (string) $row[$key];
+            }
+        }
+        return '';
     }
 }
