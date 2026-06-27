@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Detects likely-duplicate products on the Market List.
@@ -64,7 +65,8 @@ class DuplicateProductService
             return $empty;
         }
 
-        $clusters = $this->candidateClusters($ingredients);
+        $ignored = $this->loadIgnoredPairs($companyId);
+        $clusters = $this->candidateClusters($ingredients, $ignored);
         if (empty($clusters)) {
             return $empty;
         }
@@ -133,6 +135,63 @@ class DuplicateProductService
         return array_slice($matches, 0, $limit);
     }
 
+    // ── Ignored pairs (user-confirmed "not duplicates") ─────────────────────
+
+    /**
+     * Record that the given products are NOT duplicates of one another, so a
+     * future scan won't pair them again. Stores every unordered pair (low-high).
+     *
+     * @param  array<int>  $ingredientIds
+     */
+    public function ignorePairs(int $companyId, array $ingredientIds): void
+    {
+        if (! Schema::hasTable('ignored_duplicate_pairs')) {
+            return;
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $ingredientIds)));
+        $count = count($ids);
+        if ($count < 2) {
+            return;
+        }
+
+        $now = now();
+        $rows = [];
+        for ($i = 0; $i < $count; $i++) {
+            for ($j = $i + 1; $j < $count; $j++) {
+                $rows[] = [
+                    'company_id'      => $companyId,
+                    'ingredient_id_a' => min($ids[$i], $ids[$j]),
+                    'ingredient_id_b' => max($ids[$i], $ids[$j]),
+                    'created_at'      => $now,
+                    'updated_at'      => $now,
+                ];
+            }
+        }
+
+        DB::table('ignored_duplicate_pairs')->insertOrIgnore($rows);
+    }
+
+    /**
+     * @return array<string,bool>  keyed "low-high" for fast lookup
+     */
+    private function loadIgnoredPairs(int $companyId): array
+    {
+        if (! Schema::hasTable('ignored_duplicate_pairs')) {
+            return [];
+        }
+
+        $out = [];
+        DB::table('ignored_duplicate_pairs')
+            ->where('company_id', $companyId)
+            ->get(['ingredient_id_a', 'ingredient_id_b'])
+            ->each(function ($r) use (&$out) {
+                $out[$r->ingredient_id_a . '-' . $r->ingredient_id_b] = true;
+            });
+
+        return $out;
+    }
+
     // ── Candidate generation ────────────────────────────────────────────────
 
     /**
@@ -141,7 +200,7 @@ class DuplicateProductService
      *
      * @return array<int,array{ids:array<int>,local_score:int}>
      */
-    private function candidateClusters(Collection $ingredients): array
+    private function candidateClusters(Collection $ingredients, array $ignored = []): array
     {
         $norm = [];
         $tokens = [];
@@ -172,7 +231,7 @@ class DuplicateProductService
                     $a = $ids[$i];
                     $b = $ids[$j];
                     $key = $a < $b ? "$a-$b" : "$b-$a";
-                    if (isset($pairScore[$key])) {
+                    if (isset($pairScore[$key]) || isset($ignored[$key])) {
                         continue;
                     }
                     $s = $this->similarity($norm[$a], $norm[$b], $tokens[$a], $tokens[$b]);

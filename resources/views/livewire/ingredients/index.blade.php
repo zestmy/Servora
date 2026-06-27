@@ -1312,7 +1312,14 @@
                         @php
                             $prob = (int) $cluster['probability'];
                             $tone = $prob >= 80 ? 'red' : ($prob >= 65 ? 'amber' : 'gray');
-                            $others = count($cluster['products']) - 1;
+                            $keepId = (int) ($cluster['keep_id'] ?? 0);
+                            $excludedIds = array_map('intval', $cluster['excluded_ids'] ?? []);
+                            $mergeCount = 0;
+                            foreach ($cluster['products'] as $pp) {
+                                if ((int) $pp['id'] !== $keepId && ! in_array((int) $pp['id'], $excludedIds, true)) {
+                                    $mergeCount++;
+                                }
+                            }
                         @endphp
                         <div wire:key="dup-cluster-{{ $cluster['ids'][0] }}-{{ $ci }}" class="mb-4 rounded-xl border border-gray-200 overflow-hidden">
                             <div class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -1325,15 +1332,19 @@
 
                             <div class="px-4 divide-y divide-gray-50">
                                 @foreach ($cluster['products'] as $p)
-                                    <label class="flex items-center gap-3 py-2.5 cursor-pointer">
+                                    @php $isKeep = $keepId === (int) $p['id']; $isExcluded = in_array((int) $p['id'], $excludedIds, true); @endphp
+                                    <div class="flex items-center gap-3 py-2.5 {{ $isExcluded ? 'opacity-60' : '' }}">
                                         <input type="radio" wire:click="setDuplicateKeep({{ $ci }}, {{ $p['id'] }})"
-                                               @checked($cluster['keep_id'] == $p['id'])
-                                               class="text-indigo-600 focus:ring-indigo-500 flex-shrink-0" />
+                                               @checked($isKeep)
+                                               title="Keep this as the main product"
+                                               class="text-indigo-600 focus:ring-indigo-500 flex-shrink-0 cursor-pointer" />
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <span class="font-medium text-gray-800 text-sm">{{ $p['name'] }}</span>
-                                                @if ($cluster['keep_id'] == $p['id'])
+                                                <span class="font-medium text-sm {{ $isExcluded ? 'text-gray-500 line-through' : 'text-gray-800' }}">{{ $p['name'] }}</span>
+                                                @if ($isKeep)
                                                     <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">KEEP</span>
+                                                @elseif ($isExcluded)
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-600">SEPARATE</span>
                                                 @endif
                                                 @unless ($p['is_active'])
                                                     <span class="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500">inactive</span>
@@ -1346,20 +1357,39 @@
                                                 <span class="{{ $p['recipes_count'] > 0 ? 'text-indigo-500 font-medium' : '' }}">· {{ $p['recipes_count'] }} recipe{{ $p['recipes_count'] !== 1 ? 's' : '' }}</span>
                                             </div>
                                         </div>
-                                    </label>
+                                        @unless ($isKeep)
+                                            <button type="button" wire:click="toggleDuplicateExclude({{ $ci }}, {{ $p['id'] }})"
+                                                    class="text-xs px-2 py-1 rounded border transition whitespace-nowrap flex-shrink-0
+                                                        {{ $isExcluded
+                                                            ? 'border-gray-300 text-gray-600 bg-white hover:bg-gray-50'
+                                                            : 'border-amber-300 text-amber-700 hover:bg-amber-50' }}"
+                                                    title="{{ $isExcluded ? 'Include this product in the merge' : 'This is a different product — leave it as its own item' }}">
+                                                {{ $isExcluded ? 'Include' : 'Keep separate' }}
+                                            </button>
+                                        @endunless
+                                    </div>
                                 @endforeach
                             </div>
 
                             <div class="flex items-center justify-between gap-3 px-4 py-2.5 bg-gray-50 border-t border-gray-100">
-                                <p class="text-xs text-gray-400">Merges the other {{ $others }} into the <span class="font-semibold text-green-700">KEEP</span> product.</p>
+                                <button type="button" wire:click="dismissCluster({{ $ci }})"
+                                        wire:confirm="Mark this whole group as different products? They won't be flagged as duplicates again."
+                                        class="text-xs font-medium text-gray-500 hover:text-gray-700 transition">
+                                    Not duplicates
+                                </button>
                                 @if ($this->locked)
                                     <span class="text-xs text-amber-600">List locked — unlock to merge.</span>
                                 @else
-                                    <button wire:click="mergeCluster({{ $ci }})"
-                                            wire:confirm="Merge {{ $others }} product(s) into the kept product? Recipe lines, supplier links and price history will be repointed and the duplicate{{ $others !== 1 ? 's' : '' }} removed. This cannot be undone."
-                                            class="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition whitespace-nowrap">
-                                        Merge into KEEP
-                                    </button>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-400">{{ $mergeCount }} → KEEP</span>
+                                        <button type="button" wire:click="mergeCluster({{ $ci }})"
+                                                @disabled($mergeCount < 1)
+                                                wire:confirm="Merge {{ $mergeCount }} product(s) into the kept product? Recipe lines, supplier links and price history will be repointed and the duplicate{{ $mergeCount !== 1 ? 's' : '' }} removed. This cannot be undone."
+                                                class="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition whitespace-nowrap
+                                                    {{ $mergeCount < 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700' }}">
+                                            Merge into KEEP
+                                        </button>
+                                    </div>
                                 @endif
                             </div>
                         </div>

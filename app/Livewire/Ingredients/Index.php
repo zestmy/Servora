@@ -632,6 +632,7 @@ class Index extends Component
             $clusters = [];
             foreach ($result['clusters'] as $c) {
                 $c['keep_id'] = $c['suggested_keep_id'] ?? ($c['products'][0]['id'] ?? null);
+                $c['excluded_ids'] = []; // products the user marks as genuinely different
                 $clusters[] = $c;
             }
 
@@ -657,12 +658,63 @@ class Index extends Component
     /** Choose which product in a cluster to keep as canonical. */
     public function setDuplicateKeep(int $clusterIndex, int $ingredientId): void
     {
-        if (isset($this->duplicateClusters[$clusterIndex])) {
-            $this->duplicateClusters[$clusterIndex]['keep_id'] = $ingredientId;
+        if (! isset($this->duplicateClusters[$clusterIndex])) {
+            return;
         }
+
+        $this->duplicateClusters[$clusterIndex]['keep_id'] = $ingredientId;
+
+        // The product kept as canonical can't also be "kept separate".
+        $excluded = $this->duplicateClusters[$clusterIndex]['excluded_ids'] ?? [];
+        $this->duplicateClusters[$clusterIndex]['excluded_ids'] =
+            array_values(array_filter($excluded, fn ($id) => (int) $id !== $ingredientId));
     }
 
-    /** Merge a duplicate cluster into its chosen "keep" product. */
+    /**
+     * Mark a product as a genuinely different one that should be left alone
+     * (excluded from the merge). Toggles the flag.
+     */
+    public function toggleDuplicateExclude(int $clusterIndex, int $ingredientId): void
+    {
+        if (! isset($this->duplicateClusters[$clusterIndex])) {
+            return;
+        }
+
+        // The canonical "keep" product can't be marked separate.
+        if ((int) ($this->duplicateClusters[$clusterIndex]['keep_id'] ?? 0) === $ingredientId) {
+            return;
+        }
+
+        $excluded = array_map('intval', $this->duplicateClusters[$clusterIndex]['excluded_ids'] ?? []);
+        if (in_array($ingredientId, $excluded, true)) {
+            $excluded = array_values(array_filter($excluded, fn ($id) => $id !== $ingredientId));
+        } else {
+            $excluded[] = $ingredientId;
+        }
+        $this->duplicateClusters[$clusterIndex]['excluded_ids'] = $excluded;
+    }
+
+    /**
+     * Dismiss a whole group as "not duplicates". Remembers the pairing so a
+     * re-scan won't surface it again.
+     */
+    public function dismissCluster(int $clusterIndex): void
+    {
+        $cluster = $this->duplicateClusters[$clusterIndex] ?? null;
+        if (! $cluster) {
+            return;
+        }
+
+        $allIds = array_map('intval', array_column($cluster['products'], 'id'));
+        app(DuplicateProductService::class)->ignorePairs(Auth::user()->company_id, $allIds);
+
+        unset($this->duplicateClusters[$clusterIndex]);
+        $this->duplicateClusters = array_values($this->duplicateClusters);
+
+        session()->flash('success', 'Group dismissed — these products won’t be flagged as duplicates again.');
+    }
+
+    /** Merge a duplicate cluster into its chosen "keep" product, skipping any marked separate. */
     public function mergeCluster(int $clusterIndex): void
     {
         if (! $this->assertUnlocked()) {
@@ -676,14 +728,23 @@ class Index extends Component
 
         $keepId   = (int) ($cluster['keep_id'] ?? 0);
         $allIds   = array_map('intval', array_column($cluster['products'], 'id'));
-        $mergeIds = array_values(array_filter($allIds, fn ($id) => $id !== $keepId));
+        $excluded = array_map('intval', $cluster['excluded_ids'] ?? []);
+        $mergeIds = array_values(array_filter(
+            $allIds,
+            fn ($id) => $id !== $keepId && ! in_array($id, $excluded, true)
+        ));
 
         if (! $keepId || empty($mergeIds)) {
-            return;
+            return; // merge button is disabled in this state
         }
 
         try {
             $result = app(ProductMergeService::class)->merge($keepId, $mergeIds);
+
+            // The kept product and any "kept separate" products are confirmed NOT
+            // duplicates of each other — remember that so they don't re-pair.
+            $survivors = array_values(array_unique(array_merge([$keepId], $excluded)));
+            app(DuplicateProductService::class)->ignorePairs(Auth::user()->company_id, $survivors);
 
             unset($this->duplicateClusters[$clusterIndex]);
             $this->duplicateClusters = array_values($this->duplicateClusters);
