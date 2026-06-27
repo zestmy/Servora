@@ -32,6 +32,34 @@
         </button>
     </div>
 
+    {{-- Help tip --}}
+    <div x-data="{ open: localStorage.getItem('parTipDismissed') !== '1' }" class="mb-4">
+        <div x-show="open" x-collapse>
+            <div class="relative bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 pr-10 text-sm text-gray-600">
+                <button type="button" @click="open = false; localStorage.setItem('parTipDismissed', '1')"
+                        title="Dismiss" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <p class="font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    How to set up par levels
+                </p>
+                <ul class="space-y-1 list-disc list-inside marker:text-indigo-300">
+                    <li><span class="font-medium text-gray-700">Pick the outlet</span> first — par levels are saved per outlet.</li>
+                    <li><span class="font-medium text-gray-700">Type a quantity</span> in any row; it saves automatically. Press <kbd class="px-1 py-0.5 bg-white border border-gray-200 rounded text-xs">Enter</kbd> to jump to the next ingredient.</li>
+                    <li><span class="font-medium text-gray-700">Need a starting point?</span> Tap <span class="text-indigo-600">≈ N ↑</span> on a row to use a value suggested from the last 3 months of purchases, or use <span class="font-medium text-gray-700">Fill blanks with suggested</span>.</li>
+                    <li><span class="font-medium text-gray-700">Do many at once</span> with <span class="font-medium text-gray-700">Set all matching the filters</span> (optionally across all outlets), <span class="font-medium text-gray-700">Copy from another outlet</span>, or <span class="font-medium text-gray-700">Export → edit → Import</span> a spreadsheet.</li>
+                    <li>The <span class="font-medium text-gray-700">On hand</span> column shows current stock; a <span class="text-red-600 font-medium">red value</span> means it's below par.</li>
+                </ul>
+            </div>
+        </div>
+        <button type="button" x-show="!open" @click="open = true; localStorage.removeItem('parTipDismissed')"
+                class="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            How to set up par levels
+        </button>
+    </div>
+
     {{-- Filters --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
