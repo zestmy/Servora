@@ -44,6 +44,8 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700">Staff Meal Details</h3>
 
+                @include('livewire.inventory.partials.outlet-field')
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="sm_date" value="Date *" />

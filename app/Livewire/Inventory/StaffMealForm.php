@@ -7,11 +7,14 @@ use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\StaffMealRecord;
+use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class StaffMealForm extends Component
 {
+    use PicksRecordOutlet;
+
     public ?int $recordId      = null;
     public ?int $department_id = null;
 
@@ -26,6 +29,7 @@ class StaffMealForm extends Component
     protected function rules(): array
     {
         return [
+            'outlet_id'          => 'required|integer',
             'meal_date'          => 'required|date',
             'reference_number'   => 'nullable|string|max:100',
             'notes'              => 'nullable|string',
@@ -38,6 +42,7 @@ class StaffMealForm extends Component
     protected function messages(): array
     {
         return [
+            'outlet_id.required'   => 'Select an outlet for this record.',
             'lines.required'       => 'Add at least one item.',
             'lines.min'            => 'Add at least one item.',
             'lines.*.quantity.min' => 'Quantity must be greater than zero.',
@@ -48,11 +53,15 @@ class StaffMealForm extends Component
     {
         $this->meal_date = now()->toDateString();
 
-        if (! $id) return;
+        if (! $id) {
+            $this->initOutlet();
+            return;
+        }
 
         $record = StaffMealRecord::with(['lines.ingredient.baseUom', 'lines.recipe.yieldUom'])->findOrFail($id);
 
         $this->recordId         = $record->id;
+        $this->initOutlet($record->outlet_id);
         $this->department_id    = $record->department_id;
         $this->meal_date        = $record->meal_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
@@ -242,7 +251,6 @@ class StaffMealForm extends Component
         $this->validate();
 
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
-        $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
 
         $data = [
             'department_id'    => $this->department_id ?: null,
@@ -258,7 +266,7 @@ class StaffMealForm extends Component
             session()->flash('success', 'Staff meal record updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
-            $data['outlet_id']  = $outletId;
+            $data['outlet_id']  = $this->resolveOutletId();
             $data['created_by'] = Auth::id();
             $record = StaffMealRecord::create($data);
             session()->flash('success', 'Staff meal record created.');
@@ -333,8 +341,13 @@ class StaffMealForm extends Component
         $availableTemplates = FormTemplate::ofType('staff_meal')->active()->ordered()->get();
         $departments = \App\Models\Department::active()->ordered()->get();
 
+        $outletOptions      = $this->outletOptions();
+        $canChooseOutlet    = ! $this->recordId && $this->hasOutletChoice();
+        $selectedOutletName = Outlet::find($this->outlet_id)?->name;
+
         return view('livewire.inventory.staff-meal-form', compact(
-            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments'
+            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments',
+            'outletOptions', 'canChooseOutlet', 'selectedOutletName'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 

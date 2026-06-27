@@ -6,11 +6,14 @@ use App\Models\Department;
 use App\Models\Outlet;
 use App\Models\PurchaseCapture;
 use App\Models\Supplier;
+use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class PurchaseCaptureForm extends Component
 {
+    use PicksRecordOutlet;
+
     public ?int $recordId = null;
 
     public string $purchase_date    = '';
@@ -24,6 +27,7 @@ class PurchaseCaptureForm extends Component
     protected function rules(): array
     {
         return [
+            'outlet_id'        => 'required|integer',
             'purchase_date'    => 'required|date',
             'department_id'    => 'required|exists:departments,id',
             'supplier_id'      => 'nullable|string',
@@ -37,6 +41,7 @@ class PurchaseCaptureForm extends Component
     protected function messages(): array
     {
         return [
+            'outlet_id.required'     => 'Select an outlet for this purchase.',
             'department_id.required' => 'Department is required.',
             'amount.required'        => 'Enter the total purchase value.',
             'amount.min'             => 'Amount cannot be negative.',
@@ -48,11 +53,15 @@ class PurchaseCaptureForm extends Component
     {
         $this->purchase_date = now()->toDateString();
 
-        if (! $id) return;
+        if (! $id) {
+            $this->initOutlet();
+            return;
+        }
 
         $record = PurchaseCapture::findOrFail($id);
 
         $this->recordId         = $record->id;
+        $this->initOutlet($record->outlet_id);
         $this->purchase_date    = $record->purchase_date->toDateString();
         $this->department_id    = $record->department_id;
         $this->amount           = (string) floatval($record->amount);
@@ -96,7 +105,7 @@ class PurchaseCaptureForm extends Component
             session()->flash('success', 'Purchase updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
-            $data['outlet_id']  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
+            $data['outlet_id']  = $this->resolveOutletId();
             $data['created_by'] = Auth::id();
             PurchaseCapture::create($data);
             session()->flash('success', 'Purchase recorded.');
@@ -112,7 +121,12 @@ class PurchaseCaptureForm extends Component
 
         $pageTitle = $this->recordId ? 'Purchase' : 'Record Purchase';
 
-        return view('livewire.inventory.purchase-capture-form', compact('departments', 'suppliers'))
-            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
+        $outletOptions      = $this->outletOptions();
+        $canChooseOutlet    = ! $this->recordId && $this->hasOutletChoice();
+        $selectedOutletName = Outlet::find($this->outlet_id)?->name;
+
+        return view('livewire.inventory.purchase-capture-form', compact(
+            'departments', 'suppliers', 'outletOptions', 'canChooseOutlet', 'selectedOutletName'
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 }

@@ -6,11 +6,14 @@ use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\StockTake;
+use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class StockTakeForm extends Component
 {
+    use PicksRecordOutlet;
+
     public ?int $recordId      = null;
     public ?int $department_id = null;
 
@@ -34,6 +37,7 @@ class StockTakeForm extends Component
     protected function rules(): array
     {
         $rules = [
+            'outlet_id'        => 'required|integer',
             'stock_take_date'  => 'required|date',
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string',
@@ -54,6 +58,7 @@ class StockTakeForm extends Component
     protected function messages(): array
     {
         return [
+            'outlet_id.required'               => 'Select an outlet for this stock take.',
             'department_id.required'           => 'Department is required for summary method.',
             'summary_amount.required'          => 'Enter the total stock value.',
             'lines.required'                   => 'Add at least one ingredient.',
@@ -67,7 +72,10 @@ class StockTakeForm extends Component
     {
         $this->stock_take_date = now()->toDateString();
 
-        if (! $id) return;
+        if (! $id) {
+            $this->initOutlet();
+            return;
+        }
 
         $record = StockTake::with([
             'lines.ingredient.baseUom',
@@ -77,6 +85,7 @@ class StockTakeForm extends Component
         ])->findOrFail($id);
 
         $this->recordId         = $record->id;
+        $this->initOutlet($record->outlet_id);
         $this->department_id    = $record->department_id;
         $this->stock_take_date  = $record->stock_take_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
@@ -213,7 +222,6 @@ class StockTakeForm extends Component
     {
         $this->validate();
 
-        $outletId  = Outlet::where('company_id', Auth::user()->company_id)->value('id');
         $newStatus = ($action === 'complete') ? 'completed' : $this->status;
 
         // On completion, drop any detailed line left at 0 so the final record
@@ -253,7 +261,7 @@ class StockTakeForm extends Component
             $record->update($data);
         } else {
             $data['company_id'] = Auth::user()->company_id;
-            $data['outlet_id']  = $outletId;
+            $data['outlet_id']  = $this->resolveOutletId();
             $data['created_by'] = Auth::id();
             $record = StockTake::create($data);
         }
@@ -320,9 +328,14 @@ class StockTakeForm extends Component
         $availableTemplates = FormTemplate::ofType('stock_take')->active()->ordered()->get();
         $departments = \App\Models\Department::active()->ordered()->get();
 
+        $outletOptions      = $this->outletOptions();
+        $canChooseOutlet    = ! $this->recordId && $this->hasOutletChoice();
+        $selectedOutletName = Outlet::find($this->outlet_id)?->name;
+
         return view('livewire.inventory.stock-take-form', compact(
             'searchResults', 'totalVarianceCost', 'totalStockCost',
-            'positiveVariance', 'negativeVariance', 'isCompleted', 'availableTemplates', 'departments'
+            'positiveVariance', 'negativeVariance', 'isCompleted', 'availableTemplates', 'departments',
+            'outletOptions', 'canChooseOutlet', 'selectedOutletName'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 

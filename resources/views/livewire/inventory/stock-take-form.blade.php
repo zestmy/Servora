@@ -96,6 +96,8 @@
                     </div>
                 @endif
 
+                @include('livewire.inventory.partials.outlet-field')
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="st_date" value="Date *" />
