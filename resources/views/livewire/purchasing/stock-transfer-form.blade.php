@@ -115,7 +115,7 @@
                         <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                             <tr>
                                 <th class="px-4 py-3 text-left">#</th>
-                                <th class="px-4 py-3 text-left">Ingredient</th>
+                                <th class="px-4 py-3 text-left">Product</th>
                                 <th class="px-4 py-3 text-center w-28">Quantity</th>
                                 <th class="px-4 py-3 text-left w-24">UOM</th>
                                 @if ($is_chargeable)

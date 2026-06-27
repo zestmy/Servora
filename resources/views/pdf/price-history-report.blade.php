@@ -96,7 +96,7 @@
             <span class="v">{{ number_format($stats['totalRecords']) }}</span>
         </td>
         <td>
-            <span class="k">Ingredients</span>
+            <span class="k">Products</span>
             <span class="v">{{ number_format($stats['uniqueIngredients']) }}</span>
         </td>
         <td class="up">
@@ -134,7 +134,7 @@
     <thead>
         <tr>
             <th style="width: 5%;">#</th>
-            <th style="width: 28%;">Ingredient</th>
+            <th style="width: 28%;">Product</th>
             <th style="width: 14%;">Category</th>
             <th style="width: 7%;">UOM</th>
             <th class="center" style="width: 8%;">Records</th>

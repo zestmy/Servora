@@ -98,10 +98,10 @@
                 </div>
             </div>
 
-            {{-- Search + Add Ingredients --}}
+            {{-- Search + Add Products --}}
             @if ($isEditable)
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Add Ingredients</h3>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Add Products</h3>
                     <div class="relative">
                         <input type="text" wire:model.live.debounce.300ms="ingredientSearch"
                                placeholder="Search ingredients by name or code..."
@@ -147,7 +147,7 @@
                         <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                             <tr>
                                 <th class="px-4 py-3 text-left">#</th>
-                                <th class="px-4 py-3 text-left">Ingredient</th>
+                                <th class="px-4 py-3 text-left">Product</th>
                                 <th class="px-4 py-3 text-center w-20">Par Level</th>
                                 <th class="px-4 py-3 text-center w-28">Quantity</th>
                                 <th class="px-4 py-3 text-left w-24">UOM</th>

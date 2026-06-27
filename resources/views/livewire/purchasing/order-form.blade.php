@@ -262,7 +262,7 @@
                                 <th class="px-2 py-2 w-6"></th>
                             @endif
                             <th class="px-4 py-2 text-left w-8">#</th>
-                            <th class="px-4 py-2 text-left">Ingredient</th>
+                            <th class="px-4 py-2 text-left">Product</th>
                             <th class="px-4 py-2 text-right w-24">Par Level</th>
                             @if ($isEditable)
                             <th class="px-4 py-2 text-right w-24">Balance</th>

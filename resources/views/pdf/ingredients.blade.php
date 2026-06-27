@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Ingredients List</title>
+    <title>Market List</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         @@page { margin: 15mm 12mm; }
@@ -57,7 +57,7 @@
             <span class="brand">{{ $brandName }}</span>
         </div>
         <div class="header-right">
-            <div class="title">Ingredients List</div>
+            <div class="title">Market List</div>
             <div class="meta">{{ now()->format('d M Y, h:i A') }} · {{ $ingredients->count() }} items</div>
         </div>
     </div>

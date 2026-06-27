@@ -71,7 +71,7 @@
         <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                    <th class="px-4 py-3 text-left">Ingredient</th>
+                    <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-left">Supplier</th>
                     <th class="px-4 py-3 text-right">Old Price</th>
                     <th class="px-4 py-3 text-right">New Price</th>

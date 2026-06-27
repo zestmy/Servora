@@ -217,7 +217,7 @@
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                         <tr>
                             <th class="px-4 py-2 text-left">#</th>
-                            <th class="px-4 py-2 text-left">Ingredient</th>
+                            <th class="px-4 py-2 text-left">Product</th>
                             @if ($poId)
                                 <th class="px-4 py-2 text-right w-24">Ordered</th>
                                 <th class="px-4 py-2 text-right w-24">Prev. Rcvd</th>

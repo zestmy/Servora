@@ -948,7 +948,7 @@ PROMPT;
     {
         $user = Auth::user();
         if ($user?->company?->ingredients_locked && ! $user->canBypassLock()) {
-            session()->flash('error', 'Ingredients are locked. Ask a company admin to unlock in Settings → Company Details.');
+            session()->flash('error', 'Products are locked. Ask a company admin to unlock in Settings → Company Details.');
             return;
         }
         $companyId = $user->company_id;
@@ -1139,7 +1139,7 @@ PROMPT;
     public function render()
     {
         return view('livewire.ingredients.import')
-            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Import Ingredients']);
+            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Import Products']);
     }
 
     // ── Parsers ─────────────────────────────────────────────────────────────

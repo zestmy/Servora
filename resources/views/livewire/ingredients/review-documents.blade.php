@@ -10,7 +10,7 @@
         <div>
             <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Documents</p>
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Documents</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Scanned supplier documents waiting for review. Open one to match the line items against your ingredient list and import.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Scanned supplier documents waiting for review. Open one to match the line items against your Market List and import.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @can('reports.view')

@@ -122,7 +122,7 @@
             <h3 class="text-sm font-semibold text-gray-600 mb-3">Operations Snapshot</h3>
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-600">Active Ingredients</span>
+                    <span class="text-sm text-gray-600">Active Products</span>
                     <span class="text-sm font-bold text-gray-800">{{ number_format($totalIngredients) }}</span>
                 </div>
                 <div class="flex items-center justify-between">

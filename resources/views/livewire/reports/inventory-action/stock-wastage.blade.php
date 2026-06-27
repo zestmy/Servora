@@ -19,7 +19,7 @@
                     <th class="px-4 py-3 text-left">Date</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
                     <th class="px-4 py-3 text-left">Reference</th>
-                    <th class="px-4 py-3 text-left">Ingredient</th>
+                    <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-right">Quantity</th>
                     <th class="px-4 py-3 text-left">UOM</th>
                     <th class="px-4 py-3 text-left">Reason</th>

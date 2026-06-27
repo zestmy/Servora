@@ -33,7 +33,7 @@ class SupplierProductMapping extends Component
                 'mapped_by'   => Auth::id(),
             ]
         );
-        session()->flash('success', 'Product mapped to ingredient.');
+        session()->flash('success', 'Supplier product mapped.');
     }
 
     public function removeMapping(int $id): void

@@ -172,7 +172,7 @@
             <div class="grid grid-cols-2 gap-3 mb-6">
                 @php
                     $featureCards = [
-                        ['icon' => '🥕', 'title' => 'Ingredients', 'desc' => 'Manage your raw materials and track costs'],
+                        ['icon' => '🥕', 'title' => 'Products', 'desc' => 'Manage your raw materials and track costs'],
                         ['icon' => '📋', 'title' => 'Recipes', 'desc' => 'Build recipes with automatic costing'],
                         ['icon' => '🛒', 'title' => 'Purchasing', 'desc' => 'Create POs and track deliveries'],
                         ['icon' => '💰', 'title' => 'Sales', 'desc' => 'Record daily sales and track revenue'],

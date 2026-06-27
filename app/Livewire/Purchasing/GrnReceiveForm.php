@@ -247,7 +247,7 @@ class GrnReceiveForm extends Component
             if ($debitNote) {
                 session()->flash('success', "GRN received. Debit note {$debitNote->credit_note_number} created for variances.");
             } else {
-                session()->flash('success', 'GRN received. Purchase record created and ingredient costs updated.');
+                session()->flash('success', 'GRN received. Purchase record created and product costs updated.');
             }
         } else {
             session()->flash('success', 'GRN received. Purchase record created and ingredient costs updated.');

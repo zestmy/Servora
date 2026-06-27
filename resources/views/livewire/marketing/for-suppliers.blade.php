@@ -106,7 +106,7 @@
                 </div>
                 <div>
                     <p class="text-4xl font-bold">{{ number_format($stats['ingredients']) }}+</p>
-                    <p class="text-indigo-200 mt-1">Ingredients Listed</p>
+                    <p class="text-indigo-200 mt-1">Products Listed</p>
                 </div>
                 <div>
                     <p class="text-4xl font-bold">{{ number_format($stats['orders']) }}+</p>

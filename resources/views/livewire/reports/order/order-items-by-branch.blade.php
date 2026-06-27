@@ -23,7 +23,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-3 text-left font-medium text-gray-500">Outlet</th>
-                        <th class="px-4 py-3 text-left font-medium text-gray-500">Ingredient</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-500">Product</th>
                         <th class="px-4 py-3 text-right font-medium text-gray-500">Total Quantity</th>
                         <th class="px-4 py-3 text-right font-medium text-gray-500">Total Cost</th>
                     </tr>

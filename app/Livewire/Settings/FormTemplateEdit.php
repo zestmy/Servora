@@ -164,9 +164,9 @@ class FormTemplateEdit extends Component
         }
 
         if ($added > 0) {
-            session()->flash('success', "{$added} ingredient(s) added from {$category->name}.");
+            session()->flash('success', "{$added} product(s) added from {$category->name}.");
         } else {
-            session()->flash('info', "No new ingredients to add from {$category->name}.");
+            session()->flash('info', "No new products to add from {$category->name}.");
         }
     }
 
@@ -195,9 +195,9 @@ class FormTemplateEdit extends Component
         }
 
         if ($added > 0) {
-            session()->flash('success', "{$added} ingredient(s) added from {$supplier->name}.");
+            session()->flash('success', "{$added} product(s) added from {$supplier->name}.");
         } else {
-            session()->flash('info', "No new ingredients to add from {$supplier->name}.");
+            session()->flash('info', "No new products to add from {$supplier->name}.");
         }
     }
 

@@ -111,7 +111,7 @@
                     <x-text-input id="plan_recipes" wire:model="max_recipes" type="number" min="1" class="mt-1 block w-full" placeholder="Unlimited" />
                 </div>
                 <div>
-                    <x-input-label for="plan_ingredients" value="Max Ingredients" />
+                    <x-input-label for="plan_ingredients" value="Max Products" />
                     <x-text-input id="plan_ingredients" wire:model="max_ingredients" type="number" min="1" class="mt-1 block w-full" placeholder="Unlimited" />
                 </div>
                 <div>

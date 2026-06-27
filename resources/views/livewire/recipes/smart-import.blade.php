@@ -978,7 +978,7 @@
                                         <option value="{{ $uom['id'] }}">{{ $uom['name'] }} ({{ $uom['abbreviation'] }})</option>
                                     @endforeach
                                 </select>
-                                <p class="mt-1 text-[10px] text-gray-400">Base stocking unit. You can edit other fields (category, price, pack size…) later in Ingredients.</p>
+                                <p class="mt-1 text-[10px] text-gray-400">Base stocking unit. You can edit other fields (category, price, pack size…) later in the Market List.</p>
                             </div>
                         </div>
 

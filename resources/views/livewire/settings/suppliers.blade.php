@@ -51,7 +51,7 @@
                     <th class="px-4 py-3 text-left">Contact</th>
                     <th class="px-4 py-3 text-left">Phone / Email</th>
                     <th class="px-4 py-3 text-left">Payment Terms</th>
-                    <th class="px-4 py-3 text-center">Ingredients</th>
+                    <th class="px-4 py-3 text-center">Products</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>

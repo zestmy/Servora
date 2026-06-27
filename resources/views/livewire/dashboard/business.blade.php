@@ -24,7 +24,7 @@
 {{-- Quick Stats --}}
 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
     <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Ingredients</div>
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Products</div>
         <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($totalIngredients) }}</div>
     </div>
     <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">

@@ -72,7 +72,7 @@
                         <span class="font-medium">{{ $plan->max_recipes ?? 'Unlimited' }}</span>
                     </div>
                     <div class="flex justify-between text-gray-600">
-                        <span>Ingredients</span>
+                        <span>Products</span>
                         <span class="font-medium">{{ $plan->max_ingredients ?? 'Unlimited' }}</span>
                     </div>
                     <div class="flex justify-between text-gray-600">

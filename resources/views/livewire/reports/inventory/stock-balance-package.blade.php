@@ -43,7 +43,7 @@
         <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
-                    <th class="px-4 py-3 text-left">Ingredient</th>
+                    <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-left">Code</th>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-right">Pack Size</th>

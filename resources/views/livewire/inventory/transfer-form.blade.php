@@ -228,7 +228,7 @@
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                         <tr>
                             <th class="px-4 py-2 text-left w-8">#</th>
-                            <th class="px-4 py-2 text-left">Ingredient</th>
+                            <th class="px-4 py-2 text-left">Product</th>
                             <th class="px-4 py-2 text-right w-28">Qty</th>
                             <th class="px-4 py-2 text-left w-16">UOM</th>
                             <th class="px-4 py-2 text-right w-32">Unit Cost (RM)</th>

@@ -86,7 +86,7 @@
                             </button>
                         </div>
                         <p class="mt-1 text-xs text-gray-400">
-                            {{ $method === 'summary' ? 'Enter total inventory value per department — quick closing stock entry.' : 'Count each ingredient individually for a full stock take.' }}
+                            {{ $method === 'summary' ? 'Enter total inventory value per department — quick closing stock entry.' : 'Count each product individually for a full stock take.' }}
                         </p>
                     </div>
                 @elseif ($method === 'summary')
@@ -166,7 +166,7 @@
                         </div>
                     @else
                         <div class="flex justify-between">
-                            <dt class="text-gray-500">Ingredients</dt>
+                            <dt class="text-gray-500">Products</dt>
                             <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
                         </div>
                         @if (! $hideSystemQty)
@@ -222,7 +222,7 @@
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <h3 class="text-sm font-semibold text-gray-700">Ingredients</h3>
+                <h3 class="text-sm font-semibold text-gray-700">Products</h3>
                 <div class="flex items-center gap-4 mt-0.5">
                     <p class="text-xs text-gray-400">{{ count($lines) }} ingredient{{ count($lines) !== 1 ? 's' : '' }} · grouped by category</p>
                     <label class="inline-flex items-center gap-1.5 cursor-pointer">
@@ -321,7 +321,7 @@
                                 <th class="px-2 py-2 w-6"></th>
                             @endif
                             <th class="px-4 py-2 text-left w-8">#</th>
-                            <th class="px-4 py-2 text-left">Ingredient</th>
+                            <th class="px-4 py-2 text-left">Product</th>
                             @if (! $hideSystemQty)
                                 <th class="px-4 py-2 text-right w-28">System Qty</th>
                             @endif

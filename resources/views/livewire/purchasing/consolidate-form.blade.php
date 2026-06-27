@@ -69,7 +69,7 @@
                             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                                 <tr>
                                     <th class="px-4 py-2 w-10 text-center">Inc.</th>
-                                    <th class="px-4 py-2 text-left">Ingredient</th>
+                                    <th class="px-4 py-2 text-left">Product</th>
                                     <th class="px-4 py-2 text-right w-28">Quantity</th>
                                     <th class="px-4 py-2 text-left w-20">UOM</th>
                                     <th class="px-4 py-2 text-left w-48">Supplier</th>

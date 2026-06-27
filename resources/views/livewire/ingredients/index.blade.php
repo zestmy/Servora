@@ -9,7 +9,7 @@
 
     {{-- Page Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Ingredients</h2>
+        <h2 class="text-lg font-semibold text-gray-700">Market List</h2>
         <div class="flex flex-wrap items-center gap-2">
             @if (! $this->locked && ! $quickEdit)
                 <button wire:click="enterQuickEdit"
@@ -38,6 +38,14 @@
                 </svg>
                 PDF
             </a>
+            <button wire:click="openDuplicatesScan"
+                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition flex items-center gap-1.5"
+                    title="Use AI to find duplicate products that can break recipe costing">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                <span class="hidden sm:inline">Find Duplicates</span>
+            </button>
             @if ($this->locked)
                 <span class="inline-flex items-center gap-1.5 px-2.5 md:px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg" title="The company admin has locked this list. Read-only mode.">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
@@ -71,7 +79,7 @@
                 <button wire:click="openCreate"
                         class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                     <span class="sm:hidden">+ Add</span>
-                    <span class="hidden sm:inline">+ Add Ingredient</span>
+                    <span class="hidden sm:inline">+ Add Product</span>
                 </button>
             @endif
         </div>
@@ -122,7 +130,7 @@
             </div>
             <div>
                 <select wire:model.live="factorFilter"
-                        title="Filter ingredients missing a UOM conversion factor"
+                        title="Filter products missing a UOM conversion factor"
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">All Factors</option>
                     <option value="missing">Missing Factor</option>
@@ -153,7 +161,7 @@
     @if (count($selectedIds) > 0 && ! $this->locked)
         <div class="mb-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
             <span class="text-sm font-medium text-indigo-700">
-                {{ count($selectedIds) }} ingredient{{ count($selectedIds) > 1 ? 's' : '' }} selected
+                {{ count($selectedIds) }} product{{ count($selectedIds) > 1 ? 's' : '' }} selected
             </span>
             <div class="flex items-center gap-2">
                 <button wire:click="$set('selectedIds', [])"
@@ -161,7 +169,7 @@
                     Clear
                 </button>
                 <button wire:click="bulkDelete"
-                        wire:confirm="Delete {{ count($selectedIds) }} selected ingredient(s)? This cannot be undone."
+                        wire:confirm="Delete {{ count($selectedIds) }} selected product(s)? This cannot be undone."
                         class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
                     Delete Selected
                 </button>
@@ -307,7 +315,7 @@
         </div>
 
         <div class="flex items-center justify-between mb-4">
-            <span class="text-sm text-gray-500">{{ count($editableRows) }} ingredients</span>
+            <span class="text-sm text-gray-500">{{ count($editableRows) }} products</span>
             <div class="flex items-center gap-2">
                 <button wire:click="exitQuickEdit"
                         class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
@@ -497,8 +505,8 @@
                     <tr>
                         <td colspan="13" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🥕</div>
-                            <p class="font-medium">No ingredients found</p>
-                            <p class="text-xs mt-1">Try adjusting your filters or add your first ingredient.</p>
+                            <p class="font-medium">No products found</p>
+                            <p class="text-xs mt-1">Try adjusting your filters or add your first product.</p>
                         </td>
                     </tr>
                 @endforelse
@@ -532,7 +540,7 @@
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h3 class="text-base font-semibold text-gray-800">
-                    @if ($editingId) Edit: {{ $name }} @else New Ingredient @endif
+                    @if ($editingId) Edit: {{ $name }} @else New Product @endif
                 </h3>
                 <button @click="$wire.closeModal()" class="text-gray-400 hover:text-gray-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -548,8 +556,39 @@
                     {{-- Row 1: Name --}}
                     <div>
                         <x-input-label for="name" value="Name *" />
-                        <x-text-input id="name" wire:model="name" type="text" class="mt-1 block w-full" placeholder="e.g. Tiger Prawn" />
+                        <x-text-input id="name" wire:model.live.debounce.600ms="name" type="text" class="mt-1 block w-full" placeholder="e.g. Tiger Prawn" />
                         <x-input-error :messages="$errors->get('name')" class="mt-1" />
+
+                        {{-- Live duplicate warning --}}
+                        @if (! empty($nameDuplicateWarnings))
+                            <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                <div class="flex items-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-2.99l-6.93-12a2 2 0 00-3.48 0l-6.93 12A2 2 0 005.07 19z" />
+                                    </svg>
+                                    <div class="flex-1">
+                                        <p class="font-semibold">Possible duplicate — a similar product already exists:</p>
+                                        <ul class="mt-1 space-y-0.5">
+                                            @foreach ($nameDuplicateWarnings as $w)
+                                                <li class="flex items-center justify-between gap-2">
+                                                    <span>
+                                                        <span class="font-medium">{{ $w['name'] }}</span>
+                                                        @unless ($w['is_active'])
+                                                            <span class="text-amber-500">(inactive)</span>
+                                                        @endunless
+                                                        @if ($w['recipes_count'] > 0)
+                                                            <span class="text-amber-600">· used in {{ $w['recipes_count'] }} recipe{{ $w['recipes_count'] !== 1 ? 's' : '' }}</span>
+                                                        @endif
+                                                    </span>
+                                                    <span class="text-amber-500 tabular-nums">{{ $w['score'] }}%</span>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                        <p class="mt-1 text-amber-600">Re-using the existing product keeps recipe costs accurate. Only add a new one if it's genuinely different.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- Row 2: Code | Category --}}
@@ -627,7 +666,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-indigo-800">Secondary Recipe UOM <span class="text-xs font-normal text-indigo-500">(optional)</span></p>
-                                <p class="text-xs text-indigo-500 mt-0.5">For ingredients measured in a different unit in recipes — e.g. Calamansi bought in kg, stocked in g, but recipes use <strong>nos</strong></p>
+                                <p class="text-xs text-indigo-500 mt-0.5">For products measured in a different unit in recipes — e.g. Calamansi bought in kg, stocked in g, but recipes use <strong>nos</strong></p>
                             </div>
                             @if ($secondary_recipe_uom_id)
                                 <button type="button" wire:click="$set('secondary_recipe_uom_id', null); $set('secondary_uom_factor', '')"
@@ -727,7 +766,7 @@
                                     <option value="{{ $sup->id }}">{{ $sup->name }}</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Uses this ingredient's price, UOM &amp; pack size</p>
+                            <p class="mt-0.5 text-xs text-gray-400">Uses this product's price, UOM &amp; pack size</p>
                         </div>
                     </div>
 
@@ -1032,7 +1071,7 @@
                     </button>
                     <button type="submit"
                             class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                        Save Ingredient
+                        Save Product
                     </button>
                 </div>
             </form>
@@ -1052,7 +1091,7 @@
         <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg z-10">
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h3 class="text-base font-semibold text-gray-800">Bulk Update Ingredients</h3>
+                <h3 class="text-base font-semibold text-gray-800">Bulk Update Products</h3>
                 <button @click="$wire.closeImport()" class="text-gray-400 hover:text-gray-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1064,7 +1103,7 @@
                 <div class="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm text-blue-700">
                     <p class="font-medium mb-1">How to bulk update:</p>
                     <ol class="list-decimal list-inside space-y-0.5 text-xs">
-                        <li>Click <strong>Export</strong> to download the current ingredients CSV</li>
+                        <li>Click <strong>Export</strong> to download the current products CSV</li>
                         <li>Open in Excel and edit Name, Code, Purchase Price, Yield %, Is Active, or Remark columns</li>
                         <li>Save as CSV and upload below</li>
                     </ol>
@@ -1194,7 +1233,7 @@
                                         </svg>
                                     </button>
                                     <button wire:click="deleteCategory({{ $cat->id }})"
-                                            wire:confirm="Delete &quot;{{ $cat->name }}&quot;? Ingredients in this category will become uncategorized."
+                                            wire:confirm="Delete &quot;{{ $cat->name }}&quot;? Products in this category will become uncategorized."
                                             class="p-1 text-gray-400 hover:text-red-600 transition" title="Delete">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1207,6 +1246,136 @@
                 </div>
             @endif
 
+        </div>
+        </div>
+        </div>
+    </div>
+    @endteleport
+
+    {{-- ════════════════ Duplicate Products (AI) Modal ════════════════ --}}
+    @teleport('body')
+    <div x-data="{}" x-show="$wire.showDuplicatesModal" x-cloak class="fixed inset-0 z-50">
+
+        {{-- Backdrop --}}
+        <div class="fixed inset-0 bg-gray-900/50" @click="$wire.closeDuplicatesModal()"></div>
+
+        <div class="fixed inset-0 overflow-y-auto">
+        <div class="flex min-h-full items-start justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-3xl z-10 my-8">
+
+            {{-- Header --}}
+            <div class="flex items-start justify-between gap-3 px-6 py-4 border-b border-gray-100">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        Find Duplicate Products
+                    </h3>
+                    <p class="text-xs text-gray-400 mt-0.5">Duplicate products split price updates across copies, so recipe costs drift. Merge them to keep costing accurate.</p>
+                </div>
+                <button @click="$wire.closeDuplicatesModal()" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-5 max-h-[72vh] overflow-y-auto">
+                @if ($showDuplicatesModal && ! $duplicateScanDone)
+                    {{-- Loading + scan trigger (mounts fresh when the modal opens) --}}
+                    <div wire:init="scanDuplicates" wire:key="dup-loading" class="py-12 text-center">
+                        <svg class="animate-spin h-7 w-7 text-purple-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <p class="mt-3 text-sm text-gray-600">Scanning your products…</p>
+                        <p class="text-xs text-gray-400 mt-1">Comparing names and checking with AI. This can take a few seconds.</p>
+                    </div>
+                @elseif ($duplicateScanDone)
+                    @if ($duplicateScanNote)
+                        <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">{{ $duplicateScanNote }}</div>
+                    @endif
+
+                    <div class="mb-4 flex items-center justify-between gap-3 text-xs text-gray-500">
+                        <span>Scanned <strong class="text-gray-700">{{ number_format($duplicateScanned) }}</strong> products · found
+                            <strong class="text-gray-700">{{ count($duplicateClusters) }}</strong> possible duplicate group{{ count($duplicateClusters) !== 1 ? 's' : '' }}</span>
+                        @if ($duplicateAiUsed)
+                            <span class="inline-flex items-center gap-1 text-purple-600 flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M13 3l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                                AI-scored
+                            </span>
+                        @endif
+                    </div>
+
+                    @forelse ($duplicateClusters as $ci => $cluster)
+                        @php
+                            $prob = (int) $cluster['probability'];
+                            $tone = $prob >= 80 ? 'red' : ($prob >= 65 ? 'amber' : 'gray');
+                            $others = count($cluster['products']) - 1;
+                        @endphp
+                        <div wire:key="dup-cluster-{{ $cluster['ids'][0] }}-{{ $ci }}" class="mb-4 rounded-xl border border-gray-200 overflow-hidden">
+                            <div class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+                                    {{ $tone === 'red' ? 'bg-red-100 text-red-700' : ($tone === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600') }}">
+                                    {{ $prob }}% likely duplicate
+                                </span>
+                                <span class="text-xs text-gray-500 italic truncate">{{ $cluster['reason'] }}</span>
+                            </div>
+
+                            <div class="px-4 divide-y divide-gray-50">
+                                @foreach ($cluster['products'] as $p)
+                                    <label class="flex items-center gap-3 py-2.5 cursor-pointer">
+                                        <input type="radio" wire:click="setDuplicateKeep({{ $ci }}, {{ $p['id'] }})"
+                                               @checked($cluster['keep_id'] == $p['id'])
+                                               class="text-indigo-600 focus:ring-indigo-500 flex-shrink-0" />
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="font-medium text-gray-800 text-sm">{{ $p['name'] }}</span>
+                                                @if ($cluster['keep_id'] == $p['id'])
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">KEEP</span>
+                                                @endif
+                                                @unless ($p['is_active'])
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500">inactive</span>
+                                                @endunless
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                                @if ($p['code'])<span>{{ $p['code'] }}</span>@endif
+                                                @if ($p['category'])<span>· {{ $p['category'] }}</span>@endif
+                                                @if ($p['price'] !== null)<span>· {{ number_format($p['price'], 2) }}{{ $p['uom'] ? ' / '.$p['uom'] : '' }}</span>@endif
+                                                <span class="{{ $p['recipes_count'] > 0 ? 'text-indigo-500 font-medium' : '' }}">· {{ $p['recipes_count'] }} recipe{{ $p['recipes_count'] !== 1 ? 's' : '' }}</span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                @endforeach
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3 px-4 py-2.5 bg-gray-50 border-t border-gray-100">
+                                <p class="text-xs text-gray-400">Merges the other {{ $others }} into the <span class="font-semibold text-green-700">KEEP</span> product.</p>
+                                @if ($this->locked)
+                                    <span class="text-xs text-amber-600">List locked — unlock to merge.</span>
+                                @else
+                                    <button wire:click="mergeCluster({{ $ci }})"
+                                            wire:confirm="Merge {{ $others }} product(s) into the kept product? Recipe lines, supplier links and price history will be repointed and the duplicate{{ $others !== 1 ? 's' : '' }} removed. This cannot be undone."
+                                            class="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition whitespace-nowrap">
+                                        Merge into KEEP
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <div class="py-12 text-center">
+                            <div class="text-3xl mb-2">✅</div>
+                            <p class="font-medium text-gray-600">No likely duplicates found</p>
+                            <p class="text-xs text-gray-400 mt-1">Your product list looks clean.</p>
+                        </div>
+                    @endforelse
+                @endif
+            </div>
+
+            <div class="flex items-center justify-end gap-2 px-6 py-3 border-t border-gray-100">
+                <button @click="$wire.closeDuplicatesModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Close</button>
+            </div>
         </div>
         </div>
         </div>

@@ -146,7 +146,7 @@
                     {{-- Ingredient results --}}
                     @if ($ingredientResults->isNotEmpty())
                         <div class="px-4 py-1.5 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            Ingredients
+                            Products
                         </div>
                         @foreach ($ingredientResults as $ingredient)
                             <button type="button" wire:click="addIngredient({{ $ingredient->id }})"

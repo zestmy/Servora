@@ -43,7 +43,7 @@
                     <th class="px-4 py-3 text-center">Outlets</th>
                     <th class="px-4 py-3 text-center">Users</th>
                     <th class="px-4 py-3 text-center">Recipes</th>
-                    <th class="px-4 py-3 text-center">Ingredients</th>
+                    <th class="px-4 py-3 text-center">Products</th>
                     <th class="px-4 py-3 text-left">Last Active</th>
                     <th class="px-4 py-3 text-center">Health</th>
                 </tr>

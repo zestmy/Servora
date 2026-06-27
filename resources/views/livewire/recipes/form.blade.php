@@ -324,7 +324,7 @@
                             </button>
                         @else
                             <div class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 opacity-60 cursor-not-allowed text-left"
-                                 title="This ingredient is inactive. Activate it in the Ingredients list to use it here.">
+                                 title="This ingredient is inactive. Activate it in the Market List to use it here.">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="font-medium text-gray-500 text-sm">{{ $ingredient->name }}</span>
                                     <span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-semibold rounded">INACTIVE</span>
@@ -509,7 +509,7 @@
                                 </button>
                             @else
                                 <div class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 opacity-60 cursor-not-allowed text-left"
-                                     title="This item is inactive. Activate it in the Ingredients list to use it here.">
+                                     title="This item is inactive. Activate it in the Market List to use it here.">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-medium text-gray-500 text-sm">{{ $ingredient->name }}</span>
                                         <span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-semibold rounded">INACTIVE</span>

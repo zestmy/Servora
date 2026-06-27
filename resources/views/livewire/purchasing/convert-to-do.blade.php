@@ -86,7 +86,7 @@
                     <table class="min-w-full text-sm">
                         <thead class="text-gray-500 text-xs uppercase border-b">
                             <tr>
-                                <th class="text-left py-2 px-2">Ingredient</th>
+                                <th class="text-left py-2 px-2">Product</th>
                                 <th class="text-center py-2 px-2 w-20">PO Qty</th>
                                 <th class="text-center py-2 px-2 w-24">DO Qty</th>
                                 <th class="text-center py-2 px-2 w-20">UOM</th>

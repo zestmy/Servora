@@ -35,7 +35,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span x-text="open ? 'Hide Guide' : 'How Ingredient Categories Work'"></span>
+            <span x-text="open ? 'Hide Guide' : 'How Product Categories Work'"></span>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -43,8 +43,8 @@
 
         <div x-show="open" x-cloak class="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm text-blue-900 space-y-3">
             <div>
-                <h4 class="font-bold text-blue-800 mb-1">Ingredient Categories</h4>
-                <p>Categories group your ingredients for organisation, filtering, and reporting. Costs flow to the P&amp;L via <strong>Departments</strong> mapped to <strong>Sales Categories</strong>.</p>
+                <h4 class="font-bold text-blue-800 mb-1">Product Categories</h4>
+                <p>Categories group your products for organisation, filtering, and reporting. Costs flow to the P&amp;L via <strong>Departments</strong> mapped to <strong>Sales Categories</strong>.</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

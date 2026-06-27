@@ -195,8 +195,8 @@
                     [
                         'label' => 'Inventory & Recipes',
                         'items' => [
-                            ['route' => 'ingredients.index',          'label' => 'Ingredients',      'permission' => 'ingredients.view'],
-                            ['route' => 'settings.categories',        'label' => 'Ingredient Categories', 'permission' => 'ingredients.view'],
+                            ['route' => 'ingredients.index',          'label' => 'Market List',      'permission' => 'ingredients.view'],
+                            ['route' => 'settings.categories',        'label' => 'Product Categories', 'permission' => 'ingredients.view'],
                             ['route' => 'recipes.index',              'label' => 'Recipes',          'permission' => 'recipes.view'],
                             ['route' => 'settings.recipe-categories', 'label' => 'Recipe Categories', 'permission' => 'recipes.view'],
                             ['route' => 'recipes.index',              'label' => 'Prep Items',       'permission' => 'recipes.view', 'query' => 'tab=prep-items'],

@@ -183,7 +183,7 @@
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
-                        <th class="px-4 py-3 text-left">Ingredient</th>
+                        <th class="px-4 py-3 text-left">Product</th>
                         <th class="px-4 py-3 text-left w-24">Code</th>
                         <th class="px-4 py-3 text-left w-44">Category</th>
                         <th class="px-4 py-3 text-left w-20">UOM</th>

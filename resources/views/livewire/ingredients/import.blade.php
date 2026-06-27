@@ -15,9 +15,9 @@
         </a>
         <div class="flex-1">
             <p class="text-xs text-gray-400">
-                <a href="{{ route('ingredients.index') }}" class="hover:underline">Ingredients</a> / Import
+                <a href="{{ route('ingredients.index') }}" class="hover:underline">Market List</a> / Import
             </p>
-            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Bulk Import Ingredients</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Bulk Import Products</h2>
         </div>
     </div>
 
@@ -39,7 +39,7 @@
         <div class="mb-6 px-4 py-4 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-xl space-y-2">
             <p class="font-semibold">How to import</p>
             <ol class="list-decimal list-inside space-y-1 text-blue-700">
-                <li>Download the sample template below and fill in your ingredient data.</li>
+                <li>Download the sample template below and fill in your product data.</li>
                 <li>Upload any CSV, Excel (.xlsx), or PDF file — AI will automatically extract and map your data.</li>
                 <li>AI will also detect prep items (sauces, stocks, marinades, etc.) and create them as placeholders.</li>
                 <li>Review the column mapping, adjust if needed, then preview and confirm.</li>
@@ -70,7 +70,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50 text-gray-600">
-                        <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Ingredient name</td><td class="px-3 py-2 font-mono">Chicken Breast</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Product name</td><td class="px-3 py-2 font-mono">Chicken Breast</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">code</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Internal code / SKU</td><td class="px-3 py-2 font-mono">CHK-001</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Main category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">base_uom</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Purchasing unit (abbreviation or name)</td><td class="px-3 py-2 font-mono">kg</td></tr>
@@ -266,7 +266,7 @@
                 <span class="font-semibold text-gray-800">{{ $totalRows }}</span>
             </div>
             <div class="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 text-sm">
-                <span class="text-green-600">Ingredients:</span>
+                <span class="text-green-600">Products:</span>
                 <span class="font-semibold text-green-700">{{ $ingredientCount }}</span>
             </div>
             @if ($prepCount > 0)
@@ -299,7 +299,7 @@
         {{-- Prep items info --}}
         @if ($prepCount > 0)
             <div class="mb-4 px-4 py-3 bg-orange-50 border border-orange-200 text-orange-800 text-sm rounded-xl">
-                <strong>{{ $prepCount }} prep item{{ $prepCount > 1 ? 's' : '' }} detected</strong> — these will be created as placeholders. You can update them later in Inventory > Prep Items to link actual ingredients for live costing. Click the type badge on any row to toggle between Ingredient and Prep.
+                <strong>{{ $prepCount }} prep item{{ $prepCount > 1 ? 's' : '' }} detected</strong> — these will be created as placeholders. You can update them later in Inventory > Prep Items to link actual products for live costing. Click the type badge on any row to toggle between Product and Prep.
             </div>
         @endif
 
@@ -342,8 +342,8 @@
                                                     {{ $row['is_prep']
                                                         ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                                                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
-                                                title="Click to toggle between Ingredient and Prep Item">
-                                            {{ $row['is_prep'] ? 'PREP' : 'INGREDIENT' }}
+                                                title="Click to toggle between Product and Prep Item">
+                                            {{ $row['is_prep'] ? 'PREP' : 'PRODUCT' }}
                                         </button>
                                     @else
                                         <span class="text-gray-300 text-[10px]">—</span>
@@ -453,7 +453,7 @@
                                     @elseif ($hasOnlyUomIssue)
                                         <span class="text-amber-600">&#9998; Select UOM to include</span>
                                     @elseif ($row['is_prep'])
-                                        <span class="text-orange-500">Placeholder — link ingredients later</span>
+                                        <span class="text-orange-500">Placeholder — link products later</span>
                                     @else
                                         <span class="text-green-500">&#10003; OK</span>
                                     @endif
@@ -474,7 +474,7 @@
 
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
-                        wire:confirm="Import {{ $validRows }} item(s) ({{ $ingredientCount }} ingredient{{ $ingredientCount !== 1 ? 's' : '' }}{{ $prepCount > 0 ? ', ' . $prepCount . ' prep placeholder' . ($prepCount !== 1 ? 's' : '') : '' }})? Rows with errors will be skipped."
+                        wire:confirm="Import {{ $validRows }} item(s) ({{ $ingredientCount }} product{{ $ingredientCount !== 1 ? 's' : '' }}{{ $prepCount > 0 ? ', ' . $prepCount . ' prep placeholder' . ($prepCount !== 1 ? 's' : '') : '' }})? Rows with errors will be skipped."
                         class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
                     <span wire:loading.remove wire:target="import">Import {{ $validRows }} Item{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing…</span>
@@ -513,14 +513,14 @@
             @if ($prepCreatedCount > 0)
                 <p class="text-sm text-orange-600 mb-4">
                     {{ $prepCreatedCount }} prep item{{ $prepCreatedCount > 1 ? 's were' : ' was' }} created as placeholder{{ $prepCreatedCount > 1 ? 's' : '' }}.
-                    Go to <strong>Inventory > Prep Items</strong> to link actual ingredients for live costing.
+                    Go to <strong>Inventory > Prep Items</strong> to link actual products for live costing.
                 </p>
             @endif
 
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('ingredients.index') }}"
                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    View Ingredients
+                    View Market List
                 </a>
                 @if ($prepCreatedCount > 0)
                     <a href="{{ route('inventory.index') }}"

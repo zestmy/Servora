@@ -37,7 +37,7 @@
                     <div><p class="text-2xl font-bold text-green-600">{{ $linkedCount }}</p><p class="text-xs text-gray-500">Links added / updated</p></div>
                 @endif
                 @if ($createdCount > 0)
-                    <div><p class="text-2xl font-bold text-indigo-600">{{ $createdCount }}</p><p class="text-xs text-gray-500">New ingredients</p></div>
+                    <div><p class="text-2xl font-bold text-indigo-600">{{ $createdCount }}</p><p class="text-xs text-gray-500">New products</p></div>
                 @endif
                 @if ($priceChangedCount > 0)
                     <div><p class="text-2xl font-bold text-amber-600">{{ $priceChangedCount }}</p><p class="text-xs text-gray-500">Price changes logged</p></div>
@@ -132,7 +132,7 @@
                     <tr>
                         <th class="px-4 py-2 text-left w-8">#</th>
                         <th class="px-4 py-2 text-left">Item (from document)</th>
-                        <th class="px-4 py-2 text-left">Matched Ingredient</th>
+                        <th class="px-4 py-2 text-left">Matched Product</th>
                         <th class="px-4 py-2 text-left w-20">SKU</th>
                         <th class="px-4 py-2 text-right w-32">Price</th>
                         <th class="px-4 py-2 text-left w-24">UOM</th>
@@ -190,7 +190,7 @@
                                         <div class="text-[10px] text-gray-400 leading-tight">
                                             was {{ number_format($item['old_price'], 2) }}
                                             @if (($item['old_price_source'] ?? null) === 'ingredient')
-                                                <span class="text-gray-400" title="Compared against the ingredient's saved purchase price — this supplier has no prior price yet.">(ingredient)</span>
+                                                <span class="text-gray-400" title="Compared against the product's saved purchase price — this supplier has no prior price yet.">(product)</span>
                                             @endif
                                         </div>
                                     @else
@@ -321,7 +321,7 @@
                            @keydown.arrow-down.prevent="move(1)"
                            @keydown.arrow-up.prevent="move(-1)"
                            @keydown.enter.prevent="results.length && pick(results[highlightIdx] || results[0])"
-                           placeholder="Search ingredient…"
+                           placeholder="Search product…"
                            class="w-full text-xs border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" />
                 </div>
                 <ul x-show="results.length > 0" class="max-h-64 overflow-y-auto py-1">
@@ -334,7 +334,7 @@
                     </template>
                 </ul>
                 <div x-show="results.length === 0" x-cloak class="px-3 py-3 text-[11px] text-gray-400 italic text-center">
-                    No ingredient matches — leave as "Create" to add a new one.
+                    No product matches — leave as "Create" to add a new one.
                 </div>
             </div>
         </template>

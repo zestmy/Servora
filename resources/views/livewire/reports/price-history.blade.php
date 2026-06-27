@@ -3,7 +3,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
             <h2 class="text-lg font-semibold text-gray-700">Price History</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Track ingredient purchase price changes over time</p>
+            <p class="text-xs text-gray-400 mt-0.5">Track product purchase price changes over time</p>
         </div>
         <div class="flex items-center gap-3">
             <button wire:click="exportPdf" wire:loading.attr="disabled"
@@ -41,7 +41,7 @@
             {{-- Search --}}
             <div class="flex-1">
                 <input type="text" wire:model.live.debounce.300ms="search"
-                       placeholder="Search ingredient..."
+                       placeholder="Search product..."
                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
 
@@ -101,7 +101,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Price Records</p>
             <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ number_format($stats['totalRecords']) }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">{{ $stats['uniqueIngredients'] }} ingredients</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ $stats['uniqueIngredients'] }} products</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Avg Change</p>
@@ -113,12 +113,12 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Increases</p>
             <p class="text-2xl font-bold text-red-600 mt-1 tabular-nums">{{ $stats['increases'] }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">ingredients went up</p>
+            <p class="text-xs text-gray-400 mt-0.5">products went up</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Decreases</p>
             <p class="text-2xl font-bold text-green-600 mt-1 tabular-nums">{{ $stats['decreases'] }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">ingredients went down</p>
+            <p class="text-xs text-gray-400 mt-0.5">products went down</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Biggest Mover</p>
@@ -253,7 +253,7 @@
         <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
-                    <th class="px-4 py-3 text-left">Ingredient</th>
+                    <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-center">Records</th>
                     <th class="px-4 py-3 text-right">First Price</th>

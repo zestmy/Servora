@@ -240,7 +240,7 @@ class ReceiveForm extends Component
             }
         });
 
-        session()->flash('success', 'Delivery received. Purchase record created and ingredient costs updated.');
+        session()->flash('success', 'Delivery received. Purchase record created and product costs updated.');
         $this->redirectRoute('purchasing.index');
     }
 

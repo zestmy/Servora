@@ -7,6 +7,8 @@ use App\Models\IngredientCategory;
 use App\Models\IngredientUomConversion;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
+use App\Services\DuplicateProductService;
+use App\Services\ProductMergeService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -78,6 +80,19 @@ class Index extends Component
     public string $catColor = '#6366f1';
     public string $catSortOrder = '0';
     public bool $catIsActive = true;
+
+    // Duplicate detection (AI)
+    public bool   $showDuplicatesModal = false;
+    public bool   $scanningDuplicates  = false;
+    public bool   $duplicateScanDone    = false;
+    public bool   $duplicateAiUsed      = false;
+    public int    $duplicateScanned     = 0;
+    public ?string $duplicateScanNote   = null;
+    /** @var array<int,array> each: ids, products, probability, reason, suggested_keep_id, keep_id */
+    public array  $duplicateClusters    = [];
+
+    // Live duplicate warning in the Add/Edit modal
+    public array  $nameDuplicateWarnings = [];
 
     protected function rules(): array
     {
@@ -220,6 +235,7 @@ class Index extends Component
         $this->ingredientOutletIds = array_map('strval', $assignedOutletIds);
         $this->allOutletsVisible = empty($assignedOutletIds);
 
+        $this->nameDuplicateWarnings = [];
         $this->showModal = true;
     }
 
@@ -234,7 +250,7 @@ class Index extends Component
     private function assertUnlocked(): bool
     {
         if ($this->locked) {
-            session()->flash('error', 'Ingredients are locked. Ask a company admin to unlock in Settings → Company Details.');
+            session()->flash('error', 'Products are locked. Ask a company admin to unlock in Settings → Company Details.');
             return false;
         }
         return true;
@@ -272,12 +288,12 @@ class Index extends Component
             $ingredient->update($data);
             $this->saveConversions($ingredient);
             $this->saveSupplierLinks($ingredient);
-            session()->flash('success', 'Ingredient updated.');
+            session()->flash('success', 'Product updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
             $ingredient = Ingredient::create($data);
             $this->saveSupplierLinks($ingredient);
-            session()->flash('success', 'Ingredient created.');
+            session()->flash('success', 'Product created.');
         }
 
         // Sync outlet visibility
@@ -294,7 +310,7 @@ class Index extends Component
     {
         if (! $this->assertUnlocked()) return;
         Ingredient::findOrFail($id)->delete();
-        session()->flash('success', 'Ingredient deleted.');
+        session()->flash('success', 'Product deleted.');
     }
 
     public function bulkDelete(): void
@@ -305,7 +321,7 @@ class Index extends Component
 
         Ingredient::whereIn('id', $this->selectedIds)->delete();
         $this->clearSelection();
-        session()->flash('success', "{$count} ingredient(s) deleted.");
+        session()->flash('success', "{$count} product(s) deleted.");
     }
 
     public function toggleActive(int $id): void
@@ -423,7 +439,7 @@ class Index extends Component
 
             $ingredient = Ingredient::find((int) $id);
             if (! $ingredient) {
-                $errors[] = "Row {$row}: Ingredient ID {$id} not found.";
+                $errors[] = "Row {$row}: Product ID {$id} not found.";
                 $skipped++;
                 continue;
             }
@@ -485,7 +501,7 @@ class Index extends Component
         ];
 
         if ($updated > 0) {
-            session()->flash('success', "{$updated} ingredient(s) updated successfully.");
+            session()->flash('success', "{$updated} product(s) updated successfully.");
         }
     }
 
@@ -541,7 +557,7 @@ class Index extends Component
         $cat = IngredientCategory::withCount('ingredients')->findOrFail($id);
 
         if ($cat->ingredients_count > 0) {
-            session()->flash('error', "Cannot delete \"{$cat->name}\" — {$cat->ingredients_count} ingredient(s) assigned.");
+            session()->flash('error', "Cannot delete \"{$cat->name}\" — {$cat->ingredients_count} product(s) assigned.");
             return;
         }
 
@@ -568,6 +584,119 @@ class Index extends Component
     {
         $this->showModal = false;
         $this->resetForm();
+    }
+
+    // ── Duplicate detection (AI) ────────────────────────────────────────
+
+    /** Live warning while typing a product name in the Add/Edit modal. */
+    public function updatedName(): void
+    {
+        $name = trim($this->name);
+        if (strlen($name) < 3) {
+            $this->nameDuplicateWarnings = [];
+            return;
+        }
+
+        $this->nameDuplicateWarnings = app(DuplicateProductService::class)
+            ->findSimilar($name, Auth::user()->company_id, $this->editingId, 5);
+    }
+
+    public function openDuplicatesScan(): void
+    {
+        $this->reset([
+            'duplicateClusters', 'duplicateScanNote', 'duplicateScanned',
+            'duplicateAiUsed', 'duplicateScanDone', 'scanningDuplicates',
+        ]);
+        $this->showDuplicatesModal = true;
+    }
+
+    public function closeDuplicatesModal(): void
+    {
+        $this->showDuplicatesModal = false;
+    }
+
+    /**
+     * Run the scan. Triggered from the modal once it has rendered (so the loading
+     * state shows first). Idempotent — safe if the front-end fires it more than once.
+     */
+    public function scanDuplicates(): void
+    {
+        if ($this->duplicateScanDone || $this->scanningDuplicates) {
+            return;
+        }
+        $this->scanningDuplicates = true;
+
+        try {
+            $result = app(DuplicateProductService::class)->detect(Auth::user()->company_id);
+
+            $clusters = [];
+            foreach ($result['clusters'] as $c) {
+                $c['keep_id'] = $c['suggested_keep_id'] ?? ($c['products'][0]['id'] ?? null);
+                $clusters[] = $c;
+            }
+
+            $this->duplicateClusters = $clusters;
+            $this->duplicateScanned  = $result['scanned'];
+            $this->duplicateAiUsed   = $result['ai'];
+            $this->duplicateScanNote = $result['note'];
+
+            if ($result['truncated']) {
+                $note = $this->duplicateScanNote ? $this->duplicateScanNote . ' ' : '';
+                $this->duplicateScanNote = $note . 'Showing the strongest matches only; re-scan after resolving these to find more.';
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Duplicate scan failed', ['error' => $e->getMessage()]);
+            $this->duplicateClusters = [];
+            $this->duplicateScanNote = 'Scan failed: ' . $e->getMessage();
+        }
+
+        $this->scanningDuplicates = false;
+        $this->duplicateScanDone  = true;
+    }
+
+    /** Choose which product in a cluster to keep as canonical. */
+    public function setDuplicateKeep(int $clusterIndex, int $ingredientId): void
+    {
+        if (isset($this->duplicateClusters[$clusterIndex])) {
+            $this->duplicateClusters[$clusterIndex]['keep_id'] = $ingredientId;
+        }
+    }
+
+    /** Merge a duplicate cluster into its chosen "keep" product. */
+    public function mergeCluster(int $clusterIndex): void
+    {
+        if (! $this->assertUnlocked()) {
+            return;
+        }
+
+        $cluster = $this->duplicateClusters[$clusterIndex] ?? null;
+        if (! $cluster) {
+            return;
+        }
+
+        $keepId   = (int) ($cluster['keep_id'] ?? 0);
+        $allIds   = array_map('intval', array_column($cluster['products'], 'id'));
+        $mergeIds = array_values(array_filter($allIds, fn ($id) => $id !== $keepId));
+
+        if (! $keepId || empty($mergeIds)) {
+            return;
+        }
+
+        try {
+            $result = app(ProductMergeService::class)->merge($keepId, $mergeIds);
+
+            unset($this->duplicateClusters[$clusterIndex]);
+            $this->duplicateClusters = array_values($this->duplicateClusters);
+
+            $count = count($result['merged_ids']);
+            session()->flash('success', $count . ' duplicate product' . ($count !== 1 ? 's' : '')
+                . ' merged into the kept product. Recipes and price history now point to it.');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Product merge failed', [
+                'error' => $e->getMessage(), 'keep' => $keepId, 'merge' => $mergeIds,
+            ]);
+            session()->flash('error', 'Merge failed: ' . $e->getMessage());
+        }
     }
 
     public function render()
@@ -697,7 +826,7 @@ class Index extends Component
         return view('livewire.ingredients.index', compact(
             'ingredients', 'uoms', 'suppliers', 'categories', 'outlets', 'taxRates',
             'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
-        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Ingredients']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Market List']);
     }
 
     // ── Quick Edit ──────────────────────────────────────────────────────
@@ -781,7 +910,7 @@ class Index extends Component
     {
         $user = Auth::user();
         if ($user?->company?->ingredients_locked && ! $user->canBypassLock()) {
-            session()->flash('error', 'Ingredients are locked.');
+            session()->flash('error', 'Products are locked.');
             return;
         }
 
@@ -851,7 +980,7 @@ class Index extends Component
             $saved++;
         }
 
-        session()->flash('success', $saved . ' ingredient' . ($saved !== 1 ? 's' : '') . ' updated.');
+        session()->flash('success', $saved . ' product' . ($saved !== 1 ? 's' : '') . ' updated.');
         $this->quickEdit = false;
         $this->editableRows = [];
     }
@@ -877,6 +1006,7 @@ class Index extends Component
         $this->supplierLinks          = [];
         $this->allOutletsVisible      = true;
         $this->ingredientOutletIds    = [];
+        $this->nameDuplicateWarnings  = [];
         $this->resetValidation();
     }
 

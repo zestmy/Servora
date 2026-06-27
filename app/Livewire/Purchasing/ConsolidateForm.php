@@ -150,7 +150,7 @@ class ConsolidateForm extends Component
         }
 
         if (empty($createdPoIds)) {
-            session()->flash('error', 'No POs created — check that selected PRs have ingredients with preferred suppliers assigned.');
+            session()->flash('error', 'No POs created — check that selected PRs have products with preferred suppliers assigned.');
             return;
         }
 

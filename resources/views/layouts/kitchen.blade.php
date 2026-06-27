@@ -62,7 +62,7 @@
                         ['route' => 'kitchen.index', 'label' => 'Inventory', 'query' => 'tab=inventory'],
                     ]],
                     ['label' => 'Procurement', 'items' => [
-                        ['route' => 'ingredients.index', 'label' => 'Ingredients'],
+                        ['route' => 'ingredients.index', 'label' => 'Market List'],
                         ['route' => 'purchasing.index', 'label' => 'Purchasing'],
                     ]],
                     ['label' => 'Operations', 'items' => [
