@@ -573,6 +573,9 @@ class Index extends Component
     public function render()
     {
         $query = Ingredient::with(['baseUom', 'recipeUom', 'secondaryRecipeUom', 'uomConversions', 'suppliers', 'ingredientCategory.parent', 'taxRate'])
+            ->withCount(['recipeLines as recipes_count' => function ($q) {
+                $q->select(\Illuminate\Support\Facades\DB::raw('count(distinct recipe_id)'));
+            }])
             ->where('is_prep', false); // Prep items are managed via Prep Items, not here
 
         if ($this->search) {

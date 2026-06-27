@@ -343,6 +343,7 @@
                     <th class="px-4 py-3 text-right">Recipe Cost</th>
                     <th class="px-4 py-3 text-center">Tax</th>
                     <th class="px-4 py-3 text-center">Status</th>
+                    <th class="px-4 py-3 text-center">Recipes</th>
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
@@ -454,6 +455,16 @@
                                 </span>
                             @endif
                         </td>
+                        <td class="px-4 py-3 text-center">
+                            @if ($ingredient->recipes_count > 0)
+                                <span title="Used in {{ $ingredient->recipes_count }} recipe(s) — deleting will affect them"
+                                      class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                    {{ $ingredient->recipes_count }}
+                                </span>
+                            @else
+                                <span class="text-xs text-gray-300">0</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 <button wire:click="openEdit({{ $ingredient->id }})" title="{{ $this->locked ? 'View' : 'Edit' }}"
@@ -471,7 +482,7 @@
                                     </svg>
                                 </button>
                                 <button wire:click="delete({{ $ingredient->id }})"
-                                        wire:confirm="Delete '{{ $ingredient->name }}'? This cannot be undone."
+                                        wire:confirm="{{ $ingredient->recipes_count > 0 ? "'".$ingredient->name."' is used in ".$ingredient->recipes_count." recipe(s); deleting it will affect them. " : '' }}Delete '{{ $ingredient->name }}'? This cannot be undone."
                                         title="Delete"
                                         class="text-red-400 hover:text-red-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -484,7 +495,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="13" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">🥕</div>
                             <p class="font-medium">No ingredients found</p>
                             <p class="text-xs mt-1">Try adjusting your filters or add your first ingredient.</p>
