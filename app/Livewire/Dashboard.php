@@ -18,11 +18,31 @@ use App\Models\User;
 use App\Models\WastageRecord;
 use App\Services\CostSummaryService;
 use App\Traits\ScopesToActiveOutlet;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class Dashboard extends Component
 {
     use ScopesToActiveOutlet;
+
+    /** Optional single-outlet filter for multi-outlet users. Empty = all accessible outlets. */
+    #[Url]
+    public string $outletFilter = '';
+
+    /**
+     * Outlet id to feed the cost-summary service: the selected outlet when one
+     * is picked, otherwise company-wide (null) for users who can see all
+     * outlets, else their active outlet so restricted users never over-show.
+     */
+    private function costSummaryOutletId(): ?int
+    {
+        $selected = $this->selectedOutletId($this->outletFilter);
+        if ($selected !== null) {
+            return $selected;
+        }
+
+        return auth()->user()->canViewAllOutlets() ? null : $this->activeOutletId();
+    }
 
     public function approvePo(int $id): void
     {
@@ -66,6 +86,8 @@ class Dashboard extends Component
 
         $data['roleName'] = $roleName;
         $data['dashboardType'] = $data['dashboardType'] ?? 'default';
+        $data['filterOutlets'] = $this->filterableOutlets();
+        $data['outletFilter'] = $this->outletFilter;
 
         return view('livewire.dashboard', $data)
             ->layout('layouts.app', ['title' => 'Dashboard']);
@@ -96,33 +118,33 @@ class Dashboard extends Component
     private function businessManagerDashboard($user): array
     {
         $now = now();
-        $outletId = $this->activeOutletId();
+        $outletId = $this->costSummaryOutletId();
 
         $totalIngredients = Ingredient::where('is_active', true)->count();
         $activeRecipes    = Recipe::where('is_active', true)->where('is_prep', false)->count();
 
         $poQ = PurchaseOrder::whereIn('status', ['draft', 'submitted']);
-        $this->scopeByOutlet($poQ);
+        $this->scopeByOutletFilter($poQ, $this->outletFilter);
         $pendingPOs = $poQ->count();
 
         $todayQ = SalesRecord::whereDate('sale_date', today());
-        $this->scopeByOutlet($todayQ);
+        $this->scopeByOutletFilter($todayQ, $this->outletFilter);
         $todayRevenue = $todayQ->sum('total_revenue');
 
         $monthRevQ = SalesRecord::whereMonth('sale_date', $now->month)->whereYear('sale_date', $now->year);
-        $this->scopeByOutlet($monthRevQ);
+        $this->scopeByOutletFilter($monthRevQ, $this->outletFilter);
         $monthRevenue = $monthRevQ->sum('total_revenue');
 
         $monthPurQ = PurchaseRecord::whereMonth('purchase_date', $now->month)->whereYear('purchase_date', $now->year);
-        $this->scopeByOutlet($monthPurQ);
+        $this->scopeByOutletFilter($monthPurQ, $this->outletFilter);
         $monthPurchases = $monthPurQ->sum('total_amount');
 
         $wastageQ = WastageRecord::whereMonth('wastage_date', $now->month)->whereYear('wastage_date', $now->year);
-        $this->scopeByOutlet($wastageQ);
+        $this->scopeByOutletFilter($wastageQ, $this->outletFilter);
         $monthWastage = $wastageQ->sum('total_cost');
 
         $staffMealQ = StaffMealRecord::whereMonth('meal_date', $now->month)->whereYear('meal_date', $now->year);
-        $this->scopeByOutlet($staffMealQ);
+        $this->scopeByOutletFilter($staffMealQ, $this->outletFilter);
         $monthStaffMeals = $staffMealQ->sum('total_cost');
 
         $service = new CostSummaryService();
@@ -153,39 +175,46 @@ class Dashboard extends Component
     private function appointedDashboard($user, array $approverOutletIds): array
     {
         $now = now();
+        $sel = $this->selectedOutletId($this->outletFilter);
 
         // PO approval counts scoped to assigned outlets + departments
+        // (further narrowed to the selected outlet when the filter is applied)
         $awaitingQ = PurchaseOrder::where('status', 'submitted');
         PoApprover::scopeApprovablePos($awaitingQ, $user->id);
+        $awaitingQ->when($sel, fn ($q) => $q->where('outlet_id', $sel));
         $awaitingApproval = $awaitingQ->count();
 
         $approvedPOs      = PurchaseOrder::where('status', 'approved')
-            ->whereIn('outlet_id', $approverOutletIds)->count();
+            ->whereIn('outlet_id', $approverOutletIds)
+            ->when($sel, fn ($q) => $q->where('outlet_id', $sel))->count();
         $sentPOs          = PurchaseOrder::where('status', 'sent')
-            ->whereIn('outlet_id', $approverOutletIds)->count();
+            ->whereIn('outlet_id', $approverOutletIds)
+            ->when($sel, fn ($q) => $q->where('outlet_id', $sel))->count();
         $pendingGrns      = GoodsReceivedNote::where('status', 'pending')
-            ->whereIn('outlet_id', $approverOutletIds)->count();
+            ->whereIn('outlet_id', $approverOutletIds)
+            ->when($sel, fn ($q) => $q->where('outlet_id', $sel))->count();
 
         // Operational stats
         $totalIngredients = Ingredient::where('is_active', true)->count();
         $activeRecipes    = Recipe::where('is_active', true)->where('is_prep', false)->count();
 
         $todayQ = SalesRecord::whereDate('sale_date', today());
-        $this->scopeByOutlet($todayQ);
+        $this->scopeByOutletFilter($todayQ, $this->outletFilter);
         $todayRevenue = $todayQ->sum('total_revenue');
 
         $monthRevQ = SalesRecord::whereMonth('sale_date', $now->month)->whereYear('sale_date', $now->year);
-        $this->scopeByOutlet($monthRevQ);
+        $this->scopeByOutletFilter($monthRevQ, $this->outletFilter);
         $monthRevenue = $monthRevQ->sum('total_revenue');
 
         $monthPurQ = PurchaseRecord::whereMonth('purchase_date', $now->month)->whereYear('purchase_date', $now->year);
-        $this->scopeByOutlet($monthPurQ);
+        $this->scopeByOutletFilter($monthPurQ, $this->outletFilter);
         $monthPurchases = $monthPurQ->sum('total_amount');
 
         // Recent submitted POs for quick approval — scoped to assigned outlets + departments
         $recentPosQ = PurchaseOrder::with(['supplier', 'outlet'])
             ->where('status', 'submitted');
         PoApprover::scopeApprovablePos($recentPosQ, $user->id);
+        $recentPosQ->when($sel, fn ($q) => $q->where('outlet_id', $sel));
         $recentSubmittedPOs = $recentPosQ->orderByDesc('created_at')->limit(5)->get();
 
         $trendMonths = $this->buildTrend($now, 6);
@@ -199,7 +228,7 @@ class Dashboard extends Component
         }
 
         $wastageQ = WastageRecord::whereMonth('wastage_date', $now->month)->whereYear('wastage_date', $now->year);
-        $this->scopeByOutlet($wastageQ);
+        $this->scopeByOutletFilter($wastageQ, $this->outletFilter);
         $monthWastage = $wastageQ->sum('total_cost');
 
         // Outlet names the user approves for
@@ -231,20 +260,20 @@ class Dashboard extends Component
         $now = now();
 
         $todayQ = SalesRecord::whereDate('sale_date', today());
-        $this->scopeByOutlet($todayQ);
+        $this->scopeByOutletFilter($todayQ, $this->outletFilter);
         $todayRevenue = $todayQ->sum('total_revenue');
         $todayPax = (clone $todayQ)->sum('pax');
 
         $monthRevQ = SalesRecord::whereMonth('sale_date', $now->month)->whereYear('sale_date', $now->year);
-        $this->scopeByOutlet($monthRevQ);
+        $this->scopeByOutletFilter($monthRevQ, $this->outletFilter);
         $monthRevenue = $monthRevQ->sum('total_revenue');
 
         $poQ = PurchaseOrder::whereIn('status', ['draft', 'submitted']);
-        $this->scopeByOutlet($poQ);
+        $this->scopeByOutletFilter($poQ, $this->outletFilter);
         $pendingPOs = $poQ->count();
 
         $grnQ = GoodsReceivedNote::where('status', 'pending');
-        $this->scopeByOutlet($grnQ);
+        $this->scopeByOutletFilter($grnQ, $this->outletFilter);
         $pendingGrns = $grnQ->count();
 
         $totalIngredients = Ingredient::where('is_active', true)->count();
@@ -278,12 +307,12 @@ class Dashboard extends Component
         $totalIngredients = Ingredient::where('is_active', true)->count();
 
         $grnQ = GoodsReceivedNote::where('status', 'pending');
-        $this->scopeByOutlet($grnQ);
+        $this->scopeByOutletFilter($grnQ, $this->outletFilter);
         $pendingGrns = $grnQ->count();
 
         // Recent stock take
         $stQ = StockTake::where('status', 'completed')->orderByDesc('stock_take_date');
-        $this->scopeByOutlet($stQ);
+        $this->scopeByOutletFilter($stQ, $this->outletFilter);
         $lastStockTake = $stQ->first();
 
         // Over-cost recipes
@@ -326,15 +355,29 @@ class Dashboard extends Component
     {
         $now = now();
 
-        $submittedPOs    = PurchaseOrder::where('status', 'submitted')->count();
-        $approvedPOs     = PurchaseOrder::where('status', 'approved')->count();
-        $pendingDOs      = DeliveryOrder::where('status', 'pending')->count();
-        $pendingGRNs     = GoodsReceivedNote::where('status', 'pending')->count();
+        $submittedPoQ = PurchaseOrder::where('status', 'submitted');
+        $this->scopeByOutletFilter($submittedPoQ, $this->outletFilter);
+        $submittedPOs = $submittedPoQ->count();
+
+        $approvedPoQ = PurchaseOrder::where('status', 'approved');
+        $this->scopeByOutletFilter($approvedPoQ, $this->outletFilter);
+        $approvedPOs = $approvedPoQ->count();
+
+        $pendingDoQ = DeliveryOrder::where('status', 'pending');
+        $this->scopeByOutletFilter($pendingDoQ, $this->outletFilter);
+        $pendingDOs = $pendingDoQ->count();
+
+        $pendingGrnQ = GoodsReceivedNote::where('status', 'pending');
+        $this->scopeByOutletFilter($pendingGrnQ, $this->outletFilter);
+        $pendingGRNs = $pendingGrnQ->count();
 
         $monthPurQ = PurchaseRecord::whereMonth('purchase_date', $now->month)->whereYear('purchase_date', $now->year);
+        $this->scopeByOutletFilter($monthPurQ, $this->outletFilter);
         $monthSpend = $monthPurQ->sum('total_amount');
 
-        $todayDOs = DeliveryOrder::whereDate('delivery_date', today())->count();
+        $todayDoQ = DeliveryOrder::whereDate('delivery_date', today());
+        $this->scopeByOutletFilter($todayDoQ, $this->outletFilter);
+        $todayDOs = $todayDoQ->count();
 
         $alerts = [];
         if ($submittedPOs > 0) {
@@ -363,33 +406,33 @@ class Dashboard extends Component
     private function financeDashboard($user): array
     {
         $now = now();
-        $outletId = $this->activeOutletId();
+        $outletId = $this->costSummaryOutletId();
 
         $todayQ = SalesRecord::whereDate('sale_date', today());
-        $this->scopeByOutlet($todayQ);
+        $this->scopeByOutletFilter($todayQ, $this->outletFilter);
         $todayRevenue = $todayQ->sum('total_revenue');
 
         $monthRevQ = SalesRecord::whereMonth('sale_date', $now->month)->whereYear('sale_date', $now->year);
-        $this->scopeByOutlet($monthRevQ);
+        $this->scopeByOutletFilter($monthRevQ, $this->outletFilter);
         $monthRevenue = $monthRevQ->sum('total_revenue');
 
         $monthPurQ = PurchaseRecord::whereMonth('purchase_date', $now->month)->whereYear('purchase_date', $now->year);
-        $this->scopeByOutlet($monthPurQ);
+        $this->scopeByOutletFilter($monthPurQ, $this->outletFilter);
         $monthPurchases = $monthPurQ->sum('total_amount');
 
         $monthCostQ = SalesRecord::whereMonth('sale_date', $now->month)->whereYear('sale_date', $now->year);
-        $this->scopeByOutlet($monthCostQ);
+        $this->scopeByOutletFilter($monthCostQ, $this->outletFilter);
         $monthCost = $monthCostQ->sum('total_cost');
 
         $grossProfit = $monthRevenue - $monthCost;
         $grossMargin = $monthRevenue > 0 ? round(($grossProfit / $monthRevenue) * 100, 1) : 0;
 
         $wastageQ = WastageRecord::whereMonth('wastage_date', $now->month)->whereYear('wastage_date', $now->year);
-        $this->scopeByOutlet($wastageQ);
+        $this->scopeByOutletFilter($wastageQ, $this->outletFilter);
         $monthWastage = $wastageQ->sum('total_cost');
 
         $staffMealQ = StaffMealRecord::whereMonth('meal_date', $now->month)->whereYear('meal_date', $now->year);
-        $this->scopeByOutlet($staffMealQ);
+        $this->scopeByOutletFilter($staffMealQ, $this->outletFilter);
         $monthStaffMeals = $staffMealQ->sum('total_cost');
 
         $service = new CostSummaryService();
@@ -422,11 +465,11 @@ class Dashboard extends Component
         for ($i = $months - 1; $i >= 0; $i--) {
             $month = $now->copy()->startOfMonth()->subMonths($i);
             $revQ = SalesRecord::whereMonth('sale_date', $month->month)->whereYear('sale_date', $month->year);
-            $this->scopeByOutlet($revQ);
+            $this->scopeByOutletFilter($revQ, $this->outletFilter);
             $mRev = $revQ->sum('total_revenue');
 
             $purQ = PurchaseRecord::whereMonth('purchase_date', $month->month)->whereYear('purchase_date', $month->year);
-            $this->scopeByOutlet($purQ);
+            $this->scopeByOutletFilter($purQ, $this->outletFilter);
             $mPur = $purQ->sum('total_amount');
 
             $trendMonths[] = [
@@ -463,7 +506,7 @@ class Dashboard extends Component
         $stCheckQ = StockTake::where('status', 'completed')
             ->whereMonth('stock_take_date', $now->month)
             ->whereYear('stock_take_date', $now->year);
-        $this->scopeByOutlet($stCheckQ);
+        $this->scopeByOutletFilter($stCheckQ, $this->outletFilter);
         if (!$stCheckQ->exists() && $now->day >= 25) {
             $alerts[] = ['type' => 'alert', 'message' => 'Monthly stock take not yet completed'];
         }

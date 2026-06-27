@@ -10,10 +10,24 @@
         </div>
     @endif
 
-    {{-- Role indicator --}}
-    <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Dashboard</h2>
-        <p class="text-xs text-gray-400 mt-0.5">{{ $roleName }}</p>
+    {{-- Role indicator + outlet filter --}}
+    <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+            <h2 class="text-lg font-semibold text-gray-700">Dashboard</h2>
+            <p class="text-xs text-gray-400 mt-0.5">{{ $roleName }}</p>
+        </div>
+        @if ($dashboardType !== 'system' && $filterOutlets->isNotEmpty())
+            <div class="flex items-center gap-2">
+                <label for="dashboardOutletFilter" class="text-xs font-medium text-gray-500 whitespace-nowrap">Outlet</label>
+                <select id="dashboardOutletFilter" wire:model.live="outletFilter"
+                        class="rounded-lg border-gray-300 text-sm py-1.5 pl-3 pr-8 focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">All Outlets</option>
+                    @foreach ($filterOutlets as $o)
+                        <option value="{{ $o->id }}">{{ $o->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
     </div>
 
     @if ($dashboardType === 'system')
