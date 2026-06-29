@@ -450,35 +450,37 @@ class Index extends Component
             $statsQ->where('meal_period', $this->mealPeriodFilter);
         }
 
-        $filteredRevenue  = (clone $statsQ)->sum('total_revenue');
-        $filteredPax      = (clone $statsQ)->sum('pax');
-        $filteredCount    = (clone $statsQ)->count();
+        $stats = (clone $statsQ)
+            ->selectRaw('SUM(total_revenue) as rev, SUM(pax) as pax, COUNT(*) as cnt')
+            ->first();
+        $filteredRevenue  = (float) ($stats->rev ?? 0);
+        $filteredPax      = (int) ($stats->pax ?? 0);
+        $filteredCount    = (int) ($stats->cnt ?? 0);
         $filteredAvgCheck = ($filteredPax > 0 && $filteredRevenue > 0)
             ? round($filteredRevenue / $filteredPax, 2)
             : null;
 
-        // Revenue by sales category
+        // Revenue by sales category — aggregate via subquery instead of
+        // materialising all record IDs into PHP and sending them back as a
+        // large WHERE IN (...) list.
         $categories = SalesCategory::active()->ordered()->get();
-        $recordIds  = (clone $statsQ)->pluck('id');
         $categoryRevenues = [];
 
-        if ($recordIds->isNotEmpty()) {
-            $catTotals = SalesRecordLine::whereIn('sales_record_id', $recordIds)
-                ->whereNotNull('sales_category_id')
-                ->selectRaw('sales_category_id, SUM(total_revenue) as total')
-                ->groupBy('sales_category_id')
-                ->pluck('total', 'sales_category_id');
+        $catTotals = SalesRecordLine::whereIn('sales_record_id', (clone $statsQ)->select('id'))
+            ->whereNotNull('sales_category_id')
+            ->selectRaw('sales_category_id, SUM(total_revenue) as total')
+            ->groupBy('sales_category_id')
+            ->pluck('total', 'sales_category_id');
 
-            foreach ($categories as $cat) {
-                $rev = (float) ($catTotals[$cat->id] ?? 0);
-                if ($rev > 0) {
-                    $categoryRevenues[] = [
-                        'name'    => $cat->name,
-                        'color'   => $cat->color ?? '#6b7280',
-                        'revenue' => $rev,
-                        'pct'     => $filteredRevenue > 0 ? round($rev / $filteredRevenue * 100, 1) : 0,
-                    ];
-                }
+        foreach ($categories as $cat) {
+            $rev = (float) ($catTotals[$cat->id] ?? 0);
+            if ($rev > 0) {
+                $categoryRevenues[] = [
+                    'name'    => $cat->name,
+                    'color'   => $cat->color ?? '#6b7280',
+                    'revenue' => $rev,
+                    'pct'     => $filteredRevenue > 0 ? round($rev / $filteredRevenue * 100, 1) : 0,
+                ];
             }
         }
 
