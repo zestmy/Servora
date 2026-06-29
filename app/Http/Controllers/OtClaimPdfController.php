@@ -5,8 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\OvertimeClaim;
-use App\Models\OvertimeClaimApprover;
-use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -61,8 +59,8 @@ class OtClaimPdfController extends Controller
                     'totalHours'  => $claims->sum('total_ot_hours'),
                     'hoursByType' => $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours')),
                     'submitters'  => $submitters,
-                    // Approvers that could approve this specific employee's section at their outlet.
-                    'approvers'   => $this->approversFor($emp->outlet_id, $emp->section_id),
+                    // Actual approver(s) who approved these claims, not everyone with privilege.
+                    'approvers'   => $claims->pluck('approver')->filter()->unique('id'),
                 ];
             }
 
@@ -94,8 +92,8 @@ class OtClaimPdfController extends Controller
         // Unique submitters
         $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
-        // Approvers scoped to this employee's outlet + section.
-        $approvers = $this->approversFor($employee->outlet_id, $employee->section_id);
+        // Actual approver(s) who approved these claims, not everyone with privilege.
+        $approvers = $claims->pluck('approver')->filter()->unique('id');
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
             'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'from', 'to'
@@ -104,30 +102,5 @@ class OtClaimPdfController extends Controller
         $name = str_replace(' ', '-', strtolower($employee->name));
 
         return $pdf->download("ot-claims-{$name}.pdf");
-    }
-
-    /**
-     * Users who are approvers for the given (outlet, section) pair — matching
-     * the same null-as-"any" semantics the app uses for approval checks.
-     * Filtering by section prevents e.g. a BOH-only approver from being
-     * listed on an FOH claim's PDF.
-     */
-    private function approversFor(?int $outletId, ?int $sectionId)
-    {
-        return OvertimeClaimApprover::with('user')
-            ->where(function ($q) use ($outletId) {
-                $q->whereNull('outlet_id')->orWhere('outlet_id', $outletId);
-            })
-            ->where(function ($q) use ($sectionId) {
-                if ($sectionId === null) {
-                    $q->whereNull('section_id');
-                } else {
-                    $q->whereNull('section_id')->orWhere('section_id', $sectionId);
-                }
-            })
-            ->get()
-            ->pluck('user')
-            ->filter()
-            ->unique('id');
     }
 }
