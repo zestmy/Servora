@@ -492,6 +492,10 @@ class OvertimeClaims extends Component
         $sectionStats = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
             ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
+            // Mirror the list's row filters so the cards match the visible claims.
+            // Status is intentionally excluded — the cards ARE the status breakdown.
+            ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
+            ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
             ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
             ->selectRaw("COALESCE(sections.name, 'Unassigned') as section_name,
                 SUM(CASE WHEN overtime_claims.status IN ('submitted', 'approved') THEN overtime_claims.total_ot_hours ELSE 0 END) as total_hours,
