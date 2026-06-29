@@ -315,10 +315,13 @@ class Dashboard extends Component
         $this->scopeByOutletFilter($stQ, $this->outletFilter);
         $lastStockTake = $stQ->first();
 
-        // Over-cost recipes
+        // Over-cost recipes. Eager-load the cost relations so the cost accessor's
+        // relationLoaded() fast-paths fire — otherwise each line lazy-loads its
+        // ingredient/uom/conversions, an N+1 cascade of thousands of queries.
         $overCostRecipes = Recipe::where('is_active', true)
             ->where('is_prep', false)
             ->where('selling_price', '>', 0)
+            ->with(['lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.uom'])
             ->get()
             ->filter(function ($r) {
                 $totalCost = $r->lines->sum(fn ($l) => $l->cost_per_recipe_uom * $l->quantity);
@@ -488,6 +491,7 @@ class Dashboard extends Component
         $overCostRecipes = Recipe::where('is_active', true)
             ->where('is_prep', false)
             ->where('selling_price', '>', 0)
+            ->with(['lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.uom'])
             ->get()
             ->filter(function ($r) {
                 $totalCost = $r->lines->sum(fn ($l) => $l->cost_per_recipe_uom * $l->quantity);

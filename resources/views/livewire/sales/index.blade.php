@@ -569,7 +569,7 @@
                             ->filter(fn ($l) => $l->sales_category_id !== null)
                             ->groupBy('sales_category_id');
                     @endphp
-                    <tr class="hover:bg-gray-50 transition {{ in_array($record->id, $selected) ? 'bg-indigo-50' : '' }}">
+                    <tr wire:key="sale-{{ $record->id }}" class="hover:bg-gray-50 transition {{ in_array($record->id, $selected) ? 'bg-indigo-50' : '' }}">
                         @if ($canDelete)
                             <td class="px-3 py-3">
                                 <input type="checkbox" name="row-select"
