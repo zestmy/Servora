@@ -398,6 +398,14 @@
                             @endif
                             <td class="px-4 py-3 text-gray-700 font-medium whitespace-nowrap">
                                 {{ $claim->claim_date->format('d M Y') }}
+                                <span class="text-gray-400 font-normal">({{ $claim->claim_date->format('D') }})</span>
+                                @foreach (\App\Models\CalendarEvent::onDate($calendarEvents, $claim->claim_date, $claim->employee?->outlet_id) as $ev)
+                                    <span class="block mt-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded
+                                        {{ $ev->category === 'holiday' ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600' }}"
+                                          title="{{ $ev->categoryLabel() }}{{ $ev->description ? ' — ' . $ev->description : '' }}">
+                                        {{ $ev->title }}
+                                    </span>
+                                @endforeach
                             </td>
                             <td class="px-4 py-3 text-gray-700">
                                 {{ $claim->employee?->name ?? '—' }}

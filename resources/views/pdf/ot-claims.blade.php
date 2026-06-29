@@ -6,6 +6,6 @@
     @include('pdf.partials.ot-claim-styles')
     @include('pdf.partials.ot-claim-page', compact(
         'company', 'employee', 'claims', 'totalHours', 'hoursByType',
-        'submitters', 'approvers', 'from', 'to'
+        'submitters', 'approvers', 'calendarEvents', 'from', 'to'
     ))
 @endsection

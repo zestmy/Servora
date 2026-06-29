@@ -1,7 +1,7 @@
 {{-- Single-employee OT claim page.
      Required variables:
        $company, $employee, $claims, $totalHours, $hoursByType,
-       $submitters, $approvers, $from, $to --}}
+       $submitters, $approvers, $calendarEvents, $from, $to --}}
 
 {{-- Header --}}
 <div class="ot-header">
@@ -104,21 +104,27 @@
     <thead>
         <tr>
             <th style="width: 6%;">#</th>
-            <th style="width: 14%;">Date</th>
-            <th style="width: 12%;">Day</th>
-            <th class="center" style="width: 9%;">Start</th>
-            <th class="center" style="width: 9%;">End</th>
+            <th style="width: 18%;">Date</th>
+            <th style="width: 16%;">Event / Holiday</th>
+            <th class="center" style="width: 8%;">Start</th>
+            <th class="center" style="width: 8%;">End</th>
             <th class="center" style="width: 9%;">Hours</th>
-            <th style="width: 14%;">OT Type</th>
-            <th style="width: 27%;">Reason</th>
+            <th style="width: 13%;">OT Type</th>
+            <th style="width: 22%;">Reason</th>
         </tr>
     </thead>
     <tbody>
         @foreach ($claims as $i => $claim)
             <tr>
                 <td>{{ $i + 1 }}</td>
-                <td style="font-weight: 500;">{{ $claim->claim_date->format('d M Y') }}</td>
-                <td>{{ $claim->claim_date->format('l') }}</td>
+                <td style="font-weight: 500;">{{ $claim->claim_date->format('d M Y') }} <span style="color: #888; font-weight: 400;">({{ $claim->claim_date->format('D') }})</span></td>
+                <td style="font-size: 8pt;">
+                    @forelse (\App\Models\CalendarEvent::onDate($calendarEvents, $claim->claim_date, $employee->outlet_id) as $ev)
+                        <span style="color: {{ $ev->category === 'holiday' ? '#b91c1c' : '#3730a3' }};">{{ $ev->title }}</span>@if (! $loop->last)<br>@endif
+                    @empty
+                        <span style="color: #bbb;">—</span>
+                    @endforelse
+                </td>
                 <td class="center">{{ substr($claim->ot_time_start, 0, 5) }}</td>
                 <td class="center">{{ substr($claim->ot_time_end, 0, 5) }}</td>
                 <td class="center" style="font-weight: bold;">{{ number_format($claim->total_ot_hours, 2) }}</td>

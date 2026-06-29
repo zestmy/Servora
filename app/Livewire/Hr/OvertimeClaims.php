@@ -460,6 +460,16 @@ class OvertimeClaims extends Component
             }
         }
 
+        // Calendar events (public holidays, etc.) covering the visible claim
+        // dates — shown next to each date for context. A null-outlet event
+        // applies to every outlet; onDate() narrows per claim's employee outlet.
+        $visibleClaims  = $claims->getCollection();
+        $calendarEvents = \App\Models\CalendarEvent::coveringRange(
+            $scopedOutletIds,
+            $visibleClaims->min('claim_date')?->toDateString(),
+            $visibleClaims->max('claim_date')?->toDateString(),
+        );
+
         // Employee list for dropdown — scoped to selected outlet if filtered
         $allEmployees = Employee::with('section')
             ->whereIn('outlet_id', $scopedOutletIds ?: [0])
@@ -567,7 +577,7 @@ class OvertimeClaims extends Component
         ];
 
         return view('livewire.hr.overtime-claims', compact(
-            'claims', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
+            'claims', 'calendarEvents', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
             'isApprover', 'canApproveMap', 'canDeleteAny',
             'sectionStats', 'totalSubmittedHours', 'totalApprovedHours', 'totalPendingHours',
             'statsDateFrom', 'statsDateTo',

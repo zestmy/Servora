@@ -18,6 +18,7 @@
             'hoursByType' => $group['hoursByType'],
             'submitters'  => $group['submitters'],
             'approvers'   => $group['approvers'],
+            'calendarEvents' => $calendarEvents,
             'from'        => $from,
             'to'          => $to,
         ])

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\OvertimeClaim;
@@ -64,8 +65,16 @@ class OtClaimPdfController extends Controller
                 ];
             }
 
+            // Calendar events (public holidays, etc.) covering the claim dates.
+            $allClaims      = collect($grouped)->pluck('claims')->flatten();
+            $calendarEvents = CalendarEvent::coveringRange(
+                $availableOutletIds,
+                $from ?: $allClaims->min('claim_date')?->toDateString(),
+                $to   ?: $allClaims->max('claim_date')?->toDateString(),
+            );
+
             $pdf = Pdf::loadView('pdf.ot-claims-all', compact(
-                'company', 'grouped', 'from', 'to'
+                'company', 'grouped', 'calendarEvents', 'from', 'to'
             ))->setPaper('a4', 'portrait');
 
             return $pdf->download('ot-claims-all.pdf');
@@ -95,8 +104,15 @@ class OtClaimPdfController extends Controller
         // Actual approver(s) who approved these claims, not everyone with privilege.
         $approvers = $claims->pluck('approver')->filter()->unique('id');
 
+        // Calendar events (public holidays, etc.) covering the claim dates.
+        $calendarEvents = CalendarEvent::coveringRange(
+            $availableOutletIds,
+            $from ?: $claims->min('claim_date')?->toDateString(),
+            $to   ?: $claims->max('claim_date')?->toDateString(),
+        );
+
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
-            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'from', 'to'
+            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'calendarEvents', 'from', 'to'
         ))->setPaper('a4', 'portrait');
 
         $name = str_replace(' ', '-', strtolower($employee->name));
