@@ -61,32 +61,42 @@ class OvertimeClaimApprover extends Model
     }
 
     /**
-     * Looser "is this user an approver anywhere at this outlet?" check,
+     * Looser "is this user an approver for any of these outlets?" check,
      * used for UI gating (show the Approver columns, bulk-approve bar, etc.)
      * Ignores section entirely — per-claim section matching is handled by
      * isApproverFor() when the actual approve action runs.
+     *
+     * Matches wildcard rows (outlet_id NULL) plus any row scoped to one of
+     * $outletIds. A cross-outlet user (can_view_all_outlets) passes every
+     * company outlet here, so their outlet-specific approver assignments are
+     * honoured instead of only wildcard ones.
      */
-    public static function isApproverAtOutlet(int $userId, ?int $outletId): bool
+    public static function isApproverInOutlets(int $userId, array $outletIds): bool
     {
         return static::where('user_id', $userId)
-            ->where(function ($q) use ($outletId) {
-                $q->whereNull('outlet_id')
-                  ->orWhere('outlet_id', $outletId);
+            ->where(function ($q) use ($outletIds) {
+                $q->whereNull('outlet_id');
+                if (! empty($outletIds)) {
+                    $q->orWhereIn('outlet_id', $outletIds);
+                }
             })
             ->exists();
     }
 
     /**
-     * Fetch all approver rows for a user that could match claims at an
-     * outlet. Callers then iterate claims and use matchesApprover() for an
-     * efficient per-row check without one query per claim.
+     * Fetch all approver rows for a user that could match claims in any of
+     * the given outlets (wildcard rows + rows scoped to those outlets).
+     * Callers iterate claims and use scopesMatch() for an efficient per-row
+     * check without one query per claim.
      */
-    public static function scopesForOutlet(int $userId, ?int $outletId)
+    public static function scopesForOutlets(int $userId, array $outletIds)
     {
         return static::where('user_id', $userId)
-            ->where(function ($q) use ($outletId) {
-                $q->whereNull('outlet_id')
-                  ->orWhere('outlet_id', $outletId);
+            ->where(function ($q) use ($outletIds) {
+                $q->whereNull('outlet_id');
+                if (! empty($outletIds)) {
+                    $q->orWhereIn('outlet_id', $outletIds);
+                }
             })
             ->get(['outlet_id', 'section_id']);
     }

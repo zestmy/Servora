@@ -254,7 +254,7 @@ class OvertimeClaims extends Component
         $claim = OvertimeClaim::with('employee')->findOrFail($id);
         if ($claim->status !== 'submitted') return;
 
-        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->outlet_id, $claim->employee?->section_id) && ! Auth::user()->isSystemRole()) {
+        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->employee?->outlet_id, $claim->employee?->section_id) && ! Auth::user()->isSystemRole()) {
             session()->flash('error', 'You are not authorized to approve this claim.');
             return;
         }
@@ -281,7 +281,7 @@ class OvertimeClaims extends Component
         $claim = OvertimeClaim::with('employee')->findOrFail($this->rejectingId);
         if ($claim->status !== 'submitted') return;
 
-        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->outlet_id, $claim->employee?->section_id) && ! Auth::user()->isSystemRole()) {
+        if (! OvertimeClaimApprover::isApproverFor(Auth::id(), $claim->employee?->outlet_id, $claim->employee?->section_id) && ! Auth::user()->isSystemRole()) {
             session()->flash('error', 'You are not authorized to reject this claim.');
             return;
         }
@@ -327,7 +327,7 @@ class OvertimeClaims extends Component
 
         $count = 0;
         foreach ($claims as $claim) {
-            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
+            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->employee?->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
                 $claim->update([
                     'status'      => 'approved',
                     'approved_by' => $user->id,
@@ -360,7 +360,7 @@ class OvertimeClaims extends Component
 
         $count = 0;
         foreach ($claims as $claim) {
-            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
+            if (OvertimeClaimApprover::isApproverFor($user->id, $claim->employee?->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
                 $claim->update([
                     'status'          => 'rejected',
                     'approved_by'     => $user->id,
@@ -387,15 +387,15 @@ class OvertimeClaims extends Component
             ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
             : $user->outlets()->pluck('outlets.id')->all();
 
-        // For approver checks: wildcard approvers have outlet_id = null in the matrix.
-        // Pass null when cross-outlet so the null-match branch fires.
-        $approverOutletScope = $user->canViewAllOutlets() ? null : ($availableOutletIds[0] ?? null);
-
+        // Approver checks match against every outlet the user can see, so an
+        // outlet-specific approver assignment is honoured even for cross-outlet
+        // users (a manager with can_view_all_outlets registered for one outlet
+        // would otherwise match only wildcard rows and lose their button).
         $isApprover = $user->isSystemRole()
-            || OvertimeClaimApprover::isApproverAtOutlet($user->id, $approverOutletScope);
+            || OvertimeClaimApprover::isApproverInOutlets($user->id, $availableOutletIds);
         $approverScopes = $user->isSystemRole()
             ? null  // sentinel: everything allowed
-            : OvertimeClaimApprover::scopesForOutlet($user->id, $approverOutletScope);
+            : OvertimeClaimApprover::scopesForOutlets($user->id, $availableOutletIds);
 
         // Outlet list for filter dropdown (only shown when user has multiple outlets)
         $outlets = \App\Models\Outlet::whereIn('id', $availableOutletIds)->orderBy('name')->get();
