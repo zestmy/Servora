@@ -96,7 +96,7 @@
             <select wire:model.live="employeeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 <option value="">All Employees</option>
                 @foreach ($allEmployees as $emp)
-                    <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->section) — {{ $emp->section->name }}@endif</option>
+                    <option value="{{ $emp->id }}">{{ $emp->name }}@if ($emp->section) — {{ $emp->section->name }}@endif@unless ($emp->is_active) (inactive)@endunless</option>
                 @endforeach
             </select>
 

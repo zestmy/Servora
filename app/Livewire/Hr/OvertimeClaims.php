@@ -470,9 +470,18 @@ class OvertimeClaims extends Component
             $visibleClaims->max('claim_date')?->toDateString(),
         );
 
-        // Employee list for dropdown — scoped to selected outlet if filtered
+        // Employee list for dropdowns — scoped to selected outlet if filtered.
+        // Include active employees plus any inactive employee who still has OT
+        // claims, so a former employee's historical claims stay filterable while
+        // inactive staff who never had OT don't clutter the list.
         $allEmployees = Employee::with('section')
             ->whereIn('outlet_id', $scopedOutletIds ?: [0])
+            ->where(function ($q) {
+                $q->where('is_active', true)
+                  ->orWhereIn('id', function ($sub) {
+                      $sub->select('employee_id')->from('overtime_claims')->whereNull('deleted_at');
+                  });
+            })
             ->orderBy('name')
             ->get();
         $employees = $allEmployees->where('is_active', true);
