@@ -553,9 +553,6 @@
             <form wire:submit="save">
                 <div class="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
 
-                    {{-- Recent activity (edit only) --}}
-                    <x-audit-timeline :type="\App\Models\Ingredient::class" :id="$editingId" title="Product Activity" />
-
                     {{-- Row 1: Name --}}
                     <div>
                         <x-input-label for="name" value="Name *" />
@@ -1063,6 +1060,9 @@
                                 </p>
                         @endif
                     </div>
+
+                    {{-- Recent activity (edit only) --}}
+                    <x-audit-timeline :type="\App\Models\Ingredient::class" :id="$editingId" title="Product Activity" />
 
                 </div>
 

@@ -9,16 +9,22 @@
     $entries = $id ? \App\Services\AuditLogService::recentFor($type, $id, $limit) : collect();
 @endphp
 
-@if ($entries->isNotEmpty())
+{{-- Shown on edit only ($id present); a create form ($id null) renders nothing. --}}
+@if ($id)
     <div {{ $attributes->merge(['class' => 'bg-white rounded-xl shadow-sm border border-gray-100 p-4']) }}>
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ $title }}</h3>
             @can('audit.view')
-                <a href="{{ route('audit-logs.index', ['q' => (string) $id, 'typeFilter' => $type, 'quickRange' => 'all']) }}"
-                   class="text-[11px] text-indigo-500 hover:text-indigo-600">View all</a>
+                @if ($entries->isNotEmpty())
+                    <a href="{{ route('audit-logs.index', ['q' => (string) $id, 'typeFilter' => $type, 'quickRange' => 'all']) }}"
+                       class="text-[11px] text-indigo-500 hover:text-indigo-600">View all</a>
+                @endif
             @endcan
         </div>
 
+        @if ($entries->isEmpty())
+            <p class="text-sm text-gray-400 italic">No changes recorded yet.</p>
+        @else
         <ul class="space-y-0">
             @foreach ($entries as $i => $log)
                 <li class="relative flex items-start gap-3 pb-4 last:pb-0">
@@ -46,5 +52,6 @@
                 </li>
             @endforeach
         </ul>
+        @endif
     </div>
 @endif
