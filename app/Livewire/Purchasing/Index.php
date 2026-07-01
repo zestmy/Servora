@@ -255,11 +255,31 @@ class Index extends Component
 
     public function deletePr(int $id): void
     {
+        $user = Auth::user();
         $pr = PurchaseRequest::findOrFail($id);
-        if ($pr->status === 'draft') {
-            $pr->delete();
-            session()->flash('success', 'Purchase request deleted.');
+
+        if ($pr->outlet_id && ! $user->canAccessOutlet($pr->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
         }
+
+        // Only terminal states with no downstream purchase order may be deleted.
+        // Drafts stay deletable by their requester; removing a cancelled or
+        // rejected request is a destructive cleanup gated by delete capability.
+        if (! in_array($pr->status, ['draft', 'cancelled', 'rejected'])) {
+            session()->flash('error', 'Only draft, cancelled or rejected requests can be deleted.');
+            return;
+        }
+
+        if ($pr->status !== 'draft'
+            && ! $user->isSystemRole()
+            && ! $user->hasCapability('can_delete_records')) {
+            session()->flash('error', 'You do not have permission to delete records.');
+            return;
+        }
+
+        $pr->delete();
+        session()->flash('success', 'Purchase request deleted.');
     }
 
     // ── PO Actions ──────────────────────────────────────────────────────────
@@ -718,6 +738,7 @@ class Index extends Component
             'showPrice'          => $showPrice,
             'isSystemAdmin'      => $isSystemAdmin,
             'canRollbackPo'      => $canRollbackPo,
+            'canDeleteRecords'   => $canRollbackPo,
             'cpuMode'            => $cpuMode,
             'isCpuUser'          => $isCpuUser,
             'isPrApprover'       => $isPrApprover,
