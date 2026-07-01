@@ -159,6 +159,7 @@
                     </button>
                 </div>
                 <form wire:submit.prevent="save" class="p-5 space-y-3">
+                    <x-audit-timeline :type="\App\Models\Employee::class" :id="$editingId" title="Employee Activity" />
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs font-semibold text-gray-600">Outlet <span class="text-red-500">*</span></label>

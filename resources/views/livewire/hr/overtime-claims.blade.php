@@ -515,6 +515,8 @@
                     {{ $editingId ? 'Edit OT Claim' : 'New OT Claim' }}
                 </h3>
 
+                <x-audit-timeline :type="\App\Models\OvertimeClaim::class" :id="$editingId" title="Claim Activity" class="mb-4" />
+
                 <div class="space-y-4">
                     {{-- Employee --}}
                     <div>

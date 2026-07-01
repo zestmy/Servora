@@ -71,4 +71,56 @@ class AuditLog extends Model
     {
         return $this->user?->name ?? $this->user_name ?? 'System';
     }
+
+    /**
+     * A short, human-readable phrase for this entry (without the actor), e.g.
+     * "Created", "Selling price increased", "Status changed to approved".
+     * Used by the activity-timeline snippet on edit forms.
+     */
+    public function summary(): string
+    {
+        switch ($this->event) {
+            case 'created':       return 'Created';
+            case 'restored':      return 'Restored';
+            case 'deleted':
+            case 'force_deleted': return 'Deleted';
+            case 'merged':        return 'Merged';
+            case 'updated':       return $this->describeUpdate();
+            default:              return ucwords(str_replace('_', ' ', $this->event));
+        }
+    }
+
+    private function describeUpdate(): string
+    {
+        $old = $this->old_values ?? [];
+        $new = $this->new_values ?? [];
+        $keys = array_values(array_unique(array_merge(array_keys($old), array_keys($new))));
+
+        if (count($keys) !== 1) {
+            $labels = array_map(fn ($k) => \Illuminate\Support\Str::headline($k), array_slice($keys, 0, 2));
+            $suffix = count($keys) > 2 ? ' +' . (count($keys) - 2) . ' more' : '';
+
+            return trim('Updated ' . implode(', ', $labels) . $suffix);
+        }
+
+        $key   = $keys[0];
+        $label = \Illuminate\Support\Str::headline($key);
+        $from  = $old[$key] ?? null;
+        $to    = $new[$key] ?? null;
+
+        if ($key === 'status' && $to !== null) {
+            return "Status changed to " . ucwords(str_replace('_', ' ', (string) $to));
+        }
+
+        if (is_numeric($from) && is_numeric($to)) {
+            if ((float) $to > (float) $from) return "{$label} increased";
+            if ((float) $to < (float) $from) return "{$label} decreased";
+        }
+
+        if (is_bool($to) || in_array($to, [0, 1, '0', '1'], true)) {
+            return $to ? "{$label} enabled" : "{$label} disabled";
+        }
+
+        return "{$label} updated";
+    }
 }

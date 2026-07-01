@@ -139,6 +139,27 @@ class AuditLogService
         return $q->orderByDesc('created_at')->orderByDesc('id');
     }
 
+    /**
+     * The most recent audit entries for one record, in chronological order
+     * (oldest first) for the activity-timeline snippet on edit forms. Returns
+     * an empty collection when there is no id (i.e. a create form).
+     */
+    public static function recentFor(string $type, $id, int $limit = 6)
+    {
+        if (! $id) {
+            return collect();
+        }
+
+        return AuditLog::with('user')
+            ->where('auditable_type', $type)
+            ->where('auditable_id', $id)
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->limit($limit)
+            ->get()
+            ->reverse()
+            ->values();
+    }
+
     /** Friendly label for a morph class (falls back to a humanised basename). */
     public static function label(string $type): string
     {
