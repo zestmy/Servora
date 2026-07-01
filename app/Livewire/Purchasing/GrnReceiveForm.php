@@ -159,6 +159,22 @@ class GrnReceiveForm extends Component
                 }
             }
 
+            // Activity trail: log received quantities per line.
+            $grnIngIds = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $this->lines));
+            $grnUomIds = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $this->lines));
+            $grnNames  = Ingredient::whereIn('id', $grnIngIds)->pluck('name', 'id');
+            $grnUoms   = \App\Models\UnitOfMeasure::whereIn('id', $grnUomIds)->pluck('abbreviation', 'id');
+            foreach ($this->lines as $line) {
+                $received = floatval($line['received_qty']);
+                if ($received <= 0) continue;
+                $ingId = (int) $line['ingredient_id'];
+                \App\Services\AuditLogService::log($grn, 'line_received', [
+                    'item'     => $grnNames[$ingId] ?? ('#' . $ingId),
+                    'quantity' => round($received, 4),
+                    'unit'     => $grnUoms[(int) ($line['uom_id'] ?? 0)] ?? null,
+                ]);
+            }
+
             // 2. Update GRN status
             $grn->update([
                 'status'        => 'received',

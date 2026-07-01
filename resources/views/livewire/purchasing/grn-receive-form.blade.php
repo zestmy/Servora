@@ -21,6 +21,9 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Left: Form --}}
         <div class="lg:col-span-2 space-y-4">
+            {{-- Recent activity --}}
+            <x-audit-timeline :type="\App\Models\GoodsReceivedNote::class" :id="$grnId" title="GRN Activity" />
+
             {{-- Reference Info --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">

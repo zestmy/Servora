@@ -584,6 +584,16 @@ class Form extends Component
             $recipe->outlets()->sync(array_map('intval', $this->outletIds));
         }
 
+        // Capture existing lines for the activity trail before we replace them.
+        $auditBefore = [];
+        foreach ($recipe->lines()->with(['ingredient', 'uom'])->get() as $l) {
+            $auditBefore[(int) $l->ingredient_id] = [
+                'item'     => $l->ingredient?->name ?? ('#' . $l->ingredient_id),
+                'quantity' => (float) $l->quantity,
+                'unit'     => $l->uom?->abbreviation ?? $l->uom?->code,
+            ];
+        }
+
         // Sync lines (ingredients + packaging together; keep is_packaging flag)
         $recipe->lines()->delete();
         foreach ($this->lines as $idx => $line) {
@@ -605,6 +615,27 @@ class Form extends Component
                 'sort_order'       => $idx,
                 'is_packaging'     => true,
             ]);
+        }
+
+        // Log ingredient add / remove / quantity changes (edits only — a new
+        // recipe's ingredients are implied by its "Created" entry).
+        if ($this->recipeId) {
+            $auditRows = array_merge($this->lines, $this->packagingLines);
+            $ingIds = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $auditRows));
+            $uomIds = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $auditRows));
+            $names  = \App\Models\Ingredient::whereIn('id', $ingIds)->pluck('name', 'id');
+            $uoms   = \App\Models\UnitOfMeasure::whereIn('id', $uomIds)->pluck('abbreviation', 'id');
+            $auditAfter = [];
+            foreach ($auditRows as $l) {
+                $ingId = (int) ($l['ingredient_id'] ?? 0);
+                if (! $ingId) continue;
+                $auditAfter[$ingId] = [
+                    'item'     => $names[$ingId] ?? ('#' . $ingId),
+                    'quantity' => (float) ($l['quantity'] ?? 0),
+                    'unit'     => $uoms[(int) ($l['uom_id'] ?? 0)] ?? null,
+                ];
+            }
+            \App\Services\AuditLogService::logLineChanges($recipe, $auditBefore, $auditAfter);
         }
 
         // Sync steps (upsert so images aren't lost)

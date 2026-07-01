@@ -86,8 +86,38 @@ class AuditLog extends Model
             case 'force_deleted': return 'Deleted';
             case 'merged':        return 'Merged';
             case 'updated':       return $this->describeUpdate();
+            case 'line_added':    return ($this->new_values['item'] ?? 'Item') . ' added';
+            case 'line_removed':  return ($this->old_values['item'] ?? 'Item') . ' removed';
+            case 'line_updated':  return $this->describeLineUpdate();
+            case 'line_received': return $this->describeLineReceived();
             default:              return ucwords(str_replace('_', ' ', $this->event));
         }
+    }
+
+    private function describeLineUpdate(): string
+    {
+        $item = $this->new_values['item'] ?? $this->old_values['item'] ?? 'Item';
+        $from = $this->old_values['quantity'] ?? null;
+        $to   = $this->new_values['quantity'] ?? null;
+
+        if (is_numeric($from) && is_numeric($to) && (float) $from !== (float) $to) {
+            return (float) $to > (float) $from
+                ? "Quantity of {$item} increased"
+                : "Quantity of {$item} decreased";
+        }
+
+        return "{$item} updated";
+    }
+
+    private function describeLineReceived(): string
+    {
+        $item = $this->new_values['item'] ?? 'Item';
+        $qty  = $this->new_values['quantity'] ?? null;
+        $unit = $this->new_values['unit'] ?? '';
+
+        return $qty !== null
+            ? trim("Received {$qty} {$unit} of {$item}")
+            : "{$item} received";
     }
 
     private function describeUpdate(): string

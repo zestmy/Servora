@@ -470,6 +470,16 @@ class OrderForm extends Component
             }
         }
 
+        // Capture existing lines for the activity trail before replacing them.
+        $auditBefore = [];
+        foreach ($po->lines()->with(['ingredient', 'uom'])->get() as $l) {
+            $auditBefore[(int) $l->ingredient_id] = [
+                'item'     => $l->ingredient?->name ?? ('#' . $l->ingredient_id),
+                'quantity' => (float) $l->quantity,
+                'unit'     => $l->uom?->abbreviation ?? $l->uom?->code,
+            ];
+        }
+
         $po->lines()->delete();
         foreach ($this->lines as $line) {
             $qty  = floatval($line['quantity']);
@@ -486,6 +496,25 @@ class OrderForm extends Component
                 'tax_amount'             => floatval($line['tax_amount'] ?? 0),
                 'received_quantity'      => 0,
             ]);
+        }
+
+        // Log item add / remove / quantity changes on edits.
+        if ($this->orderId) {
+            $ingIds = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $this->lines));
+            $uomIds = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $this->lines));
+            $names  = \App\Models\Ingredient::whereIn('id', $ingIds)->pluck('name', 'id');
+            $uoms   = UnitOfMeasure::whereIn('id', $uomIds)->pluck('abbreviation', 'id');
+            $auditAfter = [];
+            foreach ($this->lines as $l) {
+                $ingId = (int) ($l['ingredient_id'] ?? 0);
+                if (! $ingId) continue;
+                $auditAfter[$ingId] = [
+                    'item'     => $names[$ingId] ?? ('#' . $ingId),
+                    'quantity' => (float) ($l['quantity'] ?? 0),
+                    'unit'     => $uoms[(int) ($l['uom_id'] ?? 0)] ?? null,
+                ];
+            }
+            \App\Services\AuditLogService::logLineChanges($po, $auditBefore, $auditAfter);
         }
 
         if ($action === 'submit') {

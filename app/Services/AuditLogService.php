@@ -67,6 +67,51 @@ class AuditLogService
     }
 
     /**
+     * Diff two keyed sets of line items and log added / removed / quantity-
+     * changed events against the parent record, so line-level history shows up
+     * in the parent's activity timeline. Each set is keyed by a stable identity
+     * (e.g. ingredient_id); each value is ['item' => string, 'quantity' => ?float,
+     * 'unit' => ?string]. Call from a save() path with the DB state captured
+     * before the delete-and-recreate and the incoming state after.
+     */
+    public static function logLineChanges(Model $parent, array $before, array $after): void
+    {
+        foreach ($after as $key => $line) {
+            if (! array_key_exists($key, $before)) {
+                self::log($parent, 'line_added', self::linePayload($line));
+                continue;
+            }
+
+            $old = $before[$key];
+            $qtyChanged  = self::num($old['quantity'] ?? null) !== self::num($line['quantity'] ?? null);
+            $unitChanged = ($old['unit'] ?? null) !== ($line['unit'] ?? null);
+            if ($qtyChanged || $unitChanged) {
+                self::log($parent, 'line_updated', self::linePayload($line), self::linePayload($old));
+            }
+        }
+
+        foreach ($before as $key => $line) {
+            if (! array_key_exists($key, $after)) {
+                self::log($parent, 'line_removed', null, self::linePayload($line));
+            }
+        }
+    }
+
+    private static function linePayload(array $line): array
+    {
+        return array_filter([
+            'item'     => $line['item'] ?? null,
+            'quantity' => isset($line['quantity']) ? self::num($line['quantity']) : null,
+            'unit'     => $line['unit'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
+    }
+
+    private static function num($value): ?float
+    {
+        return is_numeric($value) ? round((float) $value, 4) : null;
+    }
+
+    /**
      * Record a deletion with a before-snapshot. Use at bulk-delete call sites
      * that mutate via the query builder (Model::whereIn(...)->delete()) and so
      * bypass the model-event observer — fetch the rows and call this per row
