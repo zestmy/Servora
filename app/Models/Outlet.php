@@ -15,6 +15,7 @@ class Outlet extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'phone', 'address', 'country', 'state', 'is_active',
+        'default_kitchen_id', 'default_cpu_id',
     ];
 
     protected $casts = [
@@ -24,6 +25,18 @@ class Outlet extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** Central kitchen that fulfils this outlet's prep items. */
+    public function defaultKitchen(): BelongsTo
+    {
+        return $this->belongsTo(CentralKitchen::class, 'default_kitchen_id');
+    }
+
+    /** Central purchasing unit that consolidates this outlet's requests. */
+    public function defaultCpu(): BelongsTo
+    {
+        return $this->belongsTo(CentralPurchasingUnit::class, 'default_cpu_id');
     }
 
     /** Users assigned to this outlet (via pivot). */

@@ -9,6 +9,7 @@ use App\Models\Outlet;
 use App\Models\PurchaseRequest;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
+use App\Services\ProcurementRoutingService;
 use App\Services\PurchaseRequestService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -117,11 +118,14 @@ class PurchaseRequestForm extends Component
             ->with('supplier')
             ->first();
 
-        // Auto-detect prep items → source from kitchen
+        // Auto-detect prep items → source from the central kitchen serving this outlet
         $isPrep = $ingredient->is_prep;
         $kitchenId = null;
         if ($isPrep) {
-            $kitchenId = \App\Models\CentralKitchen::where('is_active', true)->value('id');
+            $kitchenId = ProcurementRoutingService::resolveKitchenId(
+                Auth::user()->activeOutletId(),
+                Auth::user()
+            );
         }
 
         $taxRate = $ingredient->effectiveTaxRate(Auth::user()->company);
@@ -144,29 +148,6 @@ class PurchaseRequestForm extends Component
         $this->ingredientSearch = '';
     }
 
-    public string $customItemName = '';
-
-    public function addCustomItem(): void
-    {
-        if (strlen(trim($this->customItemName)) < 2) return;
-
-        $defaultUom = \App\Models\UnitOfMeasure::first();
-
-        $this->lines[] = [
-            'ingredient_id'        => null,
-            'ingredient_name'      => strtoupper(trim($this->customItemName)),
-            'custom_name'          => strtoupper(trim($this->customItemName)),
-            'quantity'             => 1,
-            'uom_id'              => $defaultUom?->id,
-            'preferred_supplier_id' => null,
-            'supplier_name'        => '',
-            'par_level'            => 0,
-            'notes'                => '',
-        ];
-
-        $this->customItemName = '';
-    }
-
     public function removeLine(int $index): void
     {
         unset($this->lines[$index]);
@@ -177,17 +158,34 @@ class PurchaseRequestForm extends Component
     {
         $this->validate();
 
+        // A prep item must resolve to a central kitchen before it can be submitted,
+        // otherwise it would be silently dropped during production-order creation.
+        // Drafts may still be saved so the requester can fix the branch assignment.
+        if ($action === 'submit') {
+            $missingKitchen = false;
+            foreach ($this->lines as $i => $line) {
+                if (($line['source'] ?? 'supplier') === 'kitchen' && empty($line['kitchen_id'])) {
+                    $this->addError("lines.$i.kitchen_id",
+                        'No central kitchen serves this branch for prep items. Assign one in Settings ▸ Branches.');
+                    $missingKitchen = true;
+                }
+            }
+            if ($missingKitchen) {
+                return;
+            }
+        }
+
         $user = Auth::user();
         $company = $user->company;
         $outletId = $user->activeOutletId() ?: $user->outlets()->first()?->id;
 
-        // Determine the CPU (first active one for this company)
-        $cpu = $company->cpus()->where('is_active', true)->first();
+        // Determine the CPU that consolidates this outlet's requests
+        $cpuId = ProcurementRoutingService::resolveCpuId($outletId, $user);
 
         $data = [
             'company_id'     => $user->company_id,
             'outlet_id'      => $outletId,
-            'cpu_id'         => $cpu?->id,
+            'cpu_id'         => $cpuId,
             'pr_number'      => $this->prNumber,
             'requested_date' => $this->requested_date,
             'needed_by_date' => $this->needed_by_date ?: null,

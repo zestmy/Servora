@@ -123,20 +123,6 @@
                             </div>
                         @endif
                     </div>
-
-                    {{-- Custom item --}}
-                    <div class="mt-3 pt-3 border-t border-gray-100">
-                        <p class="text-xs text-gray-400 mb-2">Can't find it? Add a custom item not in the ingredient list:</p>
-                        <div class="flex gap-2">
-                            <input type="text" wire:model="customItemName" wire:keydown.enter="addCustomItem"
-                                   placeholder="Enter item name..."
-                                   class="flex-1 rounded-lg border-gray-300 text-sm" />
-                            <button wire:click="addCustomItem" type="button"
-                                    class="px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition whitespace-nowrap">
-                                + Custom Item
-                            </button>
-                        </div>
-                    </div>
                 </div>
             @endif
 
@@ -168,6 +154,9 @@
                                             <span class="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-medium">Custom</span>
                                         @elseif (($line['source'] ?? 'supplier') === 'kitchen')
                                             <span class="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-medium">Kitchen</span>
+                                            @if (empty($line['kitchen_id']))
+                                                <span class="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] rounded font-medium" title="Assign a central kitchen for this branch in Settings ▸ Branches">No kitchen</span>
+                                            @endif
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-center text-gray-400">

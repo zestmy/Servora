@@ -155,6 +155,42 @@
                     </div>
                     <p class="text-xs text-gray-400 -mt-1">Used to generate location-specific public holidays for AI analytics.</p>
 
+                    @if ($kitchens->isNotEmpty() || ($cpuMode && $cpus->isNotEmpty()))
+                        <div class="pt-4 border-t border-gray-100 space-y-4">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Procurement Routing</p>
+
+                            @if ($kitchens->isNotEmpty())
+                                <div>
+                                    <x-input-label for="o_kitchen" value="Central Kitchen" />
+                                    <select id="o_kitchen" wire:model="default_kitchen_id"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        <option value="">— None —</option>
+                                        @foreach ($kitchens as $k)
+                                            <option value="{{ $k->id }}">{{ $k->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="text-xs text-gray-400 mt-1">Kitchen that produces this branch's prep items.</p>
+                                    <x-input-error :messages="$errors->get('default_kitchen_id')" class="mt-1" />
+                                </div>
+                            @endif
+
+                            @if ($cpuMode && $cpus->isNotEmpty())
+                                <div>
+                                    <x-input-label for="o_cpu" value="Central Purchasing Unit" />
+                                    <select id="o_cpu" wire:model="default_cpu_id"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        <option value="">— None —</option>
+                                        @foreach ($cpus as $c)
+                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="text-xs text-gray-400 mt-1">Purchasing unit that consolidates this branch's requests.</p>
+                                    <x-input-error :messages="$errors->get('default_cpu_id')" class="mt-1" />
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
                     @if ($editingId)
                         <div class="flex items-center gap-2">
                             <input type="checkbox" wire:model="is_active" id="o_active"

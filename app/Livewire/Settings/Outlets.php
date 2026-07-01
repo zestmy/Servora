@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Settings;
 
+use App\Models\CentralKitchen;
+use App\Models\CentralPurchasingUnit;
 use App\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -19,6 +21,8 @@ class Outlets extends Component
     public string $country = '';
     public string $state   = '';
     public bool   $is_active = true;
+    public ?int   $default_kitchen_id = null;
+    public ?int   $default_cpu_id     = null;
 
     public function openCreate(): void
     {
@@ -38,6 +42,8 @@ class Outlets extends Component
         $this->country   = $outlet->country ?? '';
         $this->state     = $outlet->state ?? '';
         $this->is_active = $outlet->is_active;
+        $this->default_kitchen_id = $outlet->default_kitchen_id;
+        $this->default_cpu_id     = $outlet->default_cpu_id;
         $this->showModal = true;
     }
 
@@ -58,6 +64,8 @@ class Outlets extends Component
             'address' => 'nullable|string|max:500',
             'country' => 'nullable|string|max:100',
             'state'   => 'nullable|string|max:100',
+            'default_kitchen_id' => ['nullable', Rule::exists('central_kitchens', 'id')->where('company_id', $companyId)->whereNull('deleted_at')],
+            'default_cpu_id'     => ['nullable', Rule::exists('central_purchasing_units', 'id')->where('company_id', $companyId)->whereNull('deleted_at')],
         ]);
 
         $data = [
@@ -69,6 +77,8 @@ class Outlets extends Component
             'country'    => $this->country ?: null,
             'state'      => $this->state ?: null,
             'is_active'  => $this->is_active,
+            'default_kitchen_id' => $this->default_kitchen_id ?: null,
+            'default_cpu_id'     => $this->default_cpu_id ?: null,
         ];
 
         if ($this->editingId) {
@@ -106,10 +116,16 @@ class Outlets extends Component
     {
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->withCount('users')
+            ->with(['defaultKitchen:id,name', 'defaultCpu:id,name'])
             ->orderBy('name')
             ->get();
 
-        return view('livewire.settings.outlets', compact('outlets'))
+        // Facility options for routing assignment (CompanyScope keeps these tenant-safe).
+        $kitchens = CentralKitchen::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $cpus     = CentralPurchasingUnit::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $cpuMode  = Auth::user()->company?->ordering_mode === 'cpu';
+
+        return view('livewire.settings.outlets', compact('outlets', 'kitchens', 'cpus', 'cpuMode'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Branches']);
     }
 
@@ -123,6 +139,8 @@ class Outlets extends Component
         $this->country   = '';
         $this->state     = '';
         $this->is_active = true;
+        $this->default_kitchen_id = null;
+        $this->default_cpu_id     = null;
         $this->resetValidation();
     }
 }

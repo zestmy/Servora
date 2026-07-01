@@ -4,6 +4,7 @@ namespace App\Livewire\Purchasing;
 
 use App\Models\CentralPurchasingUnit;
 use App\Models\PurchaseRequest;
+use App\Services\ProcurementRoutingService;
 use App\Services\PurchaseRequestService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -25,8 +26,8 @@ class ConsolidateForm extends Component
 
     public function mount(): void
     {
-        $cpu = Auth::user()->company?->cpus()->where('is_active', true)->first();
-        $this->cpuId = $cpu?->id;
+        $user = Auth::user();
+        $this->cpuId = ProcurementRoutingService::resolveCpuId($user?->activeOutletId(), $user);
     }
 
     public function togglePr(int $id): void
