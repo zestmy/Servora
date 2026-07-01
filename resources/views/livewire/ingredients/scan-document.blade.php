@@ -7,8 +7,8 @@
             </svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400">Price Watcher / Scan Documents</p>
-            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Scan Documents</h2>
+            <p class="text-xs text-gray-400">Price Watcher / Scan Invoices</p>
+            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Scan Invoices</h2>
             <p class="text-xs text-gray-500 mt-0.5">Upload a supplier invoice / quotation / price list (PDF or photo). The AI reads the supplier name, date, and every line item — you'll review and match them in the next step.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -33,12 +33,12 @@
             <x-input-label value="Supplier (optional)" />
             <select wire:model="supplierId"
                     class="mt-1 block w-full sm:max-w-md rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">— Auto-detect from document —</option>
+                <option value="">— Auto-detect from invoice —</option>
                 @foreach ($suppliers as $s)
                     <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
             </select>
-            <p class="text-[11px] text-gray-400 mt-1">Leave blank to let the AI detect the supplier from the document. You can still confirm or override on the Review page.</p>
+            <p class="text-[11px] text-gray-400 mt-1">Leave blank to let the AI detect the supplier from the invoice. You can still confirm or override on the Review page.</p>
         </div>
 
         {{-- File picker + camera --}}
@@ -83,7 +83,7 @@
                     wire:loading.attr="disabled"
                     @disabled(! $file)
                     class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <span wire:loading.remove wire:target="processUpload">Scan Document →</span>
+                <span wire:loading.remove wire:target="processUpload">Scan Invoice →</span>
                 <span wire:loading wire:target="processUpload">Reading with AI…</span>
             </button>
         </div>
@@ -126,7 +126,7 @@
                                 </div>
                             @endif
                             @if ($lastScan->document_date_detected)
-                                <div>Document date: <strong>{{ $lastScan->document_date_detected->format('d M Y') }}</strong></div>
+                                <div>Invoice date: <strong>{{ $lastScan->document_date_detected->format('d M Y') }}</strong></div>
                             @endif
                         </div>
                     @elseif ($lastScan->status === 'failed')

@@ -573,6 +573,6 @@ class ReviewDocument extends Component
 
         return view('livewire.ingredients.review-document', compact(
             'suppliers', 'uoms', 'ingredients'
-        ))->layout('layouts.app', ['title' => 'Review Document']);
+        ))->layout('layouts.app', ['title' => 'Review Invoice']);
     }
 }

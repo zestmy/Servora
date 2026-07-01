@@ -44,6 +44,6 @@ class ReviewDocuments extends Component
         ];
 
         return view('livewire.ingredients.review-documents', compact('docs', 'counts'))
-            ->layout('layouts.app', ['title' => 'Review Documents']);
+            ->layout('layouts.app', ['title' => 'Review Invoices']);
     }
 }

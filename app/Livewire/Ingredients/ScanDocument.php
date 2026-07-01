@@ -253,6 +253,6 @@ PROMPT;
 
         return view('livewire.ingredients.scan-document', compact(
             'suppliers', 'lastScan', 'pendingReviewCount'
-        ))->layout('layouts.app', ['title' => 'Scan Documents']);
+        ))->layout('layouts.app', ['title' => 'Scan Invoices']);
     }
 }

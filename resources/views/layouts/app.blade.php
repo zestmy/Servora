@@ -127,7 +127,7 @@
         {{-- Top CTAs --}}
         <div class="flex-shrink-0 space-y-1.5" :class="sidebarExpanded ? 'px-3 pt-3' : 'px-2 pt-3'">
 
-            {{-- Scan Documents — Price Watcher entry point --}}
+            {{-- Scan Invoices — Price Watcher entry point --}}
             @if (Auth::user()->hasPermissionTo('ingredients.view'))
                 <a href="{{ route('ingredients.scan-document') }}"
                    title="Scan a supplier invoice, quotation, or price list"
@@ -137,7 +137,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2M4 7h16M4 7l1 10a2 2 0 002 2h10a2 2 0 002-2l1-10M9 11h6" />
                     </svg>
-                    <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Scan Documents</span>
+                    <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Scan Invoices</span>
                 </a>
             @endif
 

@@ -18,8 +18,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Documents / Review</p>
-            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Document</h2>
+            <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Invoices / Review</p>
+            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Invoice</h2>
         </div>
     </div>
 
@@ -30,7 +30,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
             </div>
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Document imported</h3>
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Invoice imported</h3>
             <p class="text-sm text-gray-500 mb-4">Supplier: <strong>{{ $supplierName }}</strong> · Effective <strong>{{ $effectiveDate }}</strong></p>
             <div class="flex flex-wrap items-center justify-center gap-6 text-sm mb-6">
                 @if ($linkedCount > 0)
@@ -131,7 +131,7 @@
                 <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
                     <tr>
                         <th class="px-4 py-2 text-left w-8">#</th>
-                        <th class="px-4 py-2 text-left">Item (from document)</th>
+                        <th class="px-4 py-2 text-left">Item (from invoice)</th>
                         <th class="px-4 py-2 text-left">Matched Product</th>
                         <th class="px-4 py-2 text-left w-20">SKU</th>
                         <th class="px-4 py-2 text-right w-32">Price</th>

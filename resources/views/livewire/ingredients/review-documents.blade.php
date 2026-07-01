@@ -8,9 +8,9 @@
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Documents</p>
-            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Documents</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Scanned supplier documents waiting for review. Open one to match the line items against your Market List and import.</p>
+            <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Invoices</p>
+            <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Invoices</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Scanned supplier invoices waiting for review. Open one to match the line items against your Market List and import.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @can('reports.view')
@@ -21,7 +21,7 @@
             @endcan
             <a href="{{ route('ingredients.scan-document') }}"
                class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                + Scan Document
+                + Scan Invoice
             </a>
         </div>
     </div>
@@ -71,7 +71,7 @@
                                 </span>
                             @endif
                             @if ($doc->document_date_detected)
-                                <span>Doc date: {{ $doc->document_date_detected->format('d M Y') }}</span>
+                                <span>Invoice date: {{ $doc->document_date_detected->format('d M Y') }}</span>
                             @endif
                             @if ($doc->status === 'extracted')
                                 <span>{{ count($doc->extracted_items ?? []) }} items</span>
@@ -91,14 +91,14 @@
                                class="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
                                 Review
                             </a>
-                            <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned document?"
+                            <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned invoice?"
                                     class="text-gray-400 hover:text-red-600 text-xs">Discard</button>
                         @elseif ($doc->status === 'failed')
                             <a href="{{ route('ingredients.scan-document') }}"
                                class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                                 Rescan
                             </a>
-                            <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned document?"
+                            <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned invoice?"
                                     class="text-gray-400 hover:text-red-600 text-xs">Discard</button>
                         @elseif ($doc->status === 'imported')
                             <span class="text-xs text-green-600">Imported {{ $doc->imported_at?->diffForHumans() }}</span>
@@ -106,7 +106,7 @@
                     </div>
                 </div>
             @empty
-                <div class="p-8 text-center text-gray-400 text-sm">No documents in this list.</div>
+                <div class="p-8 text-center text-gray-400 text-sm">No invoices in this list.</div>
             @endforelse
         </div>
 

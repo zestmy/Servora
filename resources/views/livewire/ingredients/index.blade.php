@@ -66,7 +66,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 14l4-4 4 4 6-6" />
                     </svg>
-                    <span class="hidden sm:inline">Scan Documents</span>
+                    <span class="hidden sm:inline">Scan Invoices</span>
                 </a>
                 <a href="{{ route('ingredients.import') }}"
                    title="Import"
