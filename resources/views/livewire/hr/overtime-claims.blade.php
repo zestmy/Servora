@@ -121,7 +121,7 @@
         </div>
 
         {{-- Stats Cards --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {{-- Card 1: Total OT Submitted --}}
             <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
                 <div class="flex items-center justify-between mb-3">
@@ -174,6 +174,26 @@
                     <div class="flex items-center justify-between">
                         <span class="text-xs text-gray-600">{{ $stat->section_name }}</span>
                         <span class="text-sm font-semibold text-amber-600">{{ number_format($stat->pending_hours, 1) }}</span>
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                <p class="text-xs text-gray-400 italic">No data</p>
+                @endif
+            </div>
+
+            {{-- Card 4: Rejected OT --}}
+            <div class="bg-red-50 rounded-lg border border-red-200 p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-red-600 uppercase tracking-wider font-medium">Rejected OT</p>
+                    <p class="text-lg font-bold text-red-600">{{ number_format($totalRejectedHours, 1) }} hrs</p>
+                </div>
+                @if($sectionStats->isNotEmpty())
+                <div class="space-y-2 border-t border-red-200 pt-3">
+                    @foreach($sectionStats as $stat)
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-600">{{ $stat->section_name }}</span>
+                        <span class="text-sm font-semibold text-red-600">{{ number_format($stat->rejected_hours, 1) }}</span>
                     </div>
                     @endforeach
                 </div>

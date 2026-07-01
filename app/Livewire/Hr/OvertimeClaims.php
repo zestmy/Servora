@@ -509,7 +509,8 @@ class OvertimeClaims extends Component
             ->selectRaw("COALESCE(sections.name, 'Unassigned') as section_name,
                 SUM(CASE WHEN overtime_claims.status IN ('submitted', 'approved') THEN overtime_claims.total_ot_hours ELSE 0 END) as total_hours,
                 SUM(CASE WHEN overtime_claims.status = 'approved' THEN overtime_claims.total_ot_hours ELSE 0 END) as approved_hours,
-                SUM(CASE WHEN overtime_claims.status = 'submitted' THEN overtime_claims.total_ot_hours ELSE 0 END) as pending_hours")
+                SUM(CASE WHEN overtime_claims.status = 'submitted' THEN overtime_claims.total_ot_hours ELSE 0 END) as pending_hours,
+                SUM(CASE WHEN overtime_claims.status = 'rejected' THEN overtime_claims.total_ot_hours ELSE 0 END) as rejected_hours")
             ->groupBy('sections.id', 'sections.name')
             ->orderBy('sections.name')
             ->get();
@@ -518,6 +519,7 @@ class OvertimeClaims extends Component
         $totalSubmittedHours = $sectionStats->sum('total_hours');
         $totalApprovedHours  = $sectionStats->sum('approved_hours');
         $totalPendingHours   = $sectionStats->sum('pending_hours');
+        $totalRejectedHours  = $sectionStats->sum('rejected_hours');
 
         // ── OT Trend — last 12 weeks (approved claims only) ──────────────────
         $trendWeeks = [];
@@ -592,7 +594,7 @@ class OvertimeClaims extends Component
         return view('livewire.hr.overtime-claims', compact(
             'claims', 'calendarEvents', 'employees', 'allEmployees', 'sections', 'outlets', 'multiOutlet',
             'isApprover', 'canApproveMap', 'canDeleteAny',
-            'sectionStats', 'totalSubmittedHours', 'totalApprovedHours', 'totalPendingHours',
+            'sectionStats', 'totalSubmittedHours', 'totalApprovedHours', 'totalPendingHours', 'totalRejectedHours',
             'statsDateFrom', 'statsDateTo',
             'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
             'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
