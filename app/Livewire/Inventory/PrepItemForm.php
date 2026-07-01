@@ -290,7 +290,10 @@ class PrepItemForm extends Component
         $yieldQty = max(floatval($this->yield_quantity), 0.0001);
         $costPerYieldUnit = $totalCost / $yieldQty;
 
-        DB::transaction(function () use ($totalCost, $costPerYieldUnit, $yieldQty) {
+        // Whether this is an edit (recipeId gets set on create below).
+        $isEdit = (bool) $this->recipeId;
+
+        DB::transaction(function () use ($totalCost, $costPerYieldUnit, $yieldQty, $isEdit) {
             $recipeData = [
                 'name'                   => $this->name,
                 'code'                   => $this->code ?: null,
@@ -323,6 +326,13 @@ class PrepItemForm extends Component
                 $recipe->outlets()->sync(array_map('intval', $this->outletIds));
             }
 
+            // Capture existing lines for the activity trail before replacing them.
+            $auditBefore = $isEdit
+                ? $recipe->lines()->get()->map(fn ($l) => [
+                    'ingredient_id' => $l->ingredient_id, 'uom_id' => $l->uom_id, 'quantity' => (float) $l->quantity,
+                ])->all()
+                : [];
+
             // Sync recipe lines
             $recipe->lines()->delete();
             foreach ($this->lines as $idx => $line) {
@@ -333,6 +343,11 @@ class PrepItemForm extends Component
                     'waste_percentage' => $line['waste_percentage'],
                     'sort_order'       => $idx,
                 ]);
+            }
+
+            // Log ingredient add / remove / quantity changes on edits.
+            if ($isEdit) {
+                \App\Services\AuditLogService::logItemLineChanges($recipe, $auditBefore, $this->lines);
             }
 
             // Sync training steps (upsert, preserve images)

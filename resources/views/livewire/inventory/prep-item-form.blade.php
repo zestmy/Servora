@@ -55,6 +55,9 @@
         {{-- Left column: All form content --}}
         <div class="flex-1 min-w-0 space-y-4">
 
+            {{-- Recent activity (edit only) --}}
+            <x-audit-timeline :type="\App\Models\Recipe::class" :id="$recipeId" title="Prep Item Activity" />
+
             {{-- Details card --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 <div class="flex items-center gap-2">

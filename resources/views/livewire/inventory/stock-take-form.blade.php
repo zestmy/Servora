@@ -64,6 +64,8 @@
         </div>
     @endif
 
+    <x-audit-timeline :type="\App\Models\StockTake::class" :id="$recordId" title="Stock Take Activity" class="mb-4" />
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {{-- Details card --}}

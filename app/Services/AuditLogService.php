@@ -97,6 +97,74 @@ class AuditLogService
         }
     }
 
+    /**
+     * Higher-level line diff for forms whose rows carry an ingredient_id or a
+     * recipe_id (wastage, transfers, staff meals, prep items, …). Pass the DB
+     * rows captured before the delete-and-recreate as $beforeRows and the
+     * incoming rows as $afterRows; each row is an array with any of
+     * ingredient_id / recipe_id / uom_id / quantity. Names and UOM labels are
+     * resolved in one query each, then handed to logLineChanges().
+     */
+    public static function logItemLineChanges(Model $parent, array $beforeRows, array $afterRows): void
+    {
+        $ingIds = $recIds = $uomIds = [];
+        foreach (array_merge($beforeRows, $afterRows) as $r) {
+            if (! empty($r['ingredient_id'])) $ingIds[] = (int) $r['ingredient_id'];
+            if (! empty($r['recipe_id']))     $recIds[] = (int) $r['recipe_id'];
+            if (! empty($r['uom_id']))        $uomIds[] = (int) $r['uom_id'];
+        }
+
+        $labels = self::itemLabels($ingIds, $recIds);
+        $uoms   = self::uomLabels($uomIds);
+
+        $build = function (array $rows) use ($labels, $uoms) {
+            $map = [];
+            foreach ($rows as $r) {
+                $ing = (int) ($r['ingredient_id'] ?? 0);
+                $rec = (int) ($r['recipe_id'] ?? 0);
+                $key = $ing ? 'ing:' . $ing : ($rec ? 'rec:' . $rec : null);
+                if ($key === null) continue;
+
+                $map[$key] = [
+                    'item'     => $labels[$key] ?? $key,
+                    'quantity' => isset($r['quantity']) ? (float) $r['quantity'] : null,
+                    'unit'     => $uoms[(int) ($r['uom_id'] ?? 0)] ?? null,
+                ];
+            }
+
+            return $map;
+        };
+
+        self::logLineChanges($parent, $build($beforeRows), $build($afterRows));
+    }
+
+    /** Resolve ing:{id}/rec:{id} keys → display names in one query each. */
+    public static function itemLabels(array $ingredientIds, array $recipeIds = []): array
+    {
+        $labels = [];
+
+        if ($ids = array_filter(array_unique(array_map('intval', $ingredientIds)))) {
+            foreach (\App\Models\Ingredient::whereIn('id', $ids)->pluck('name', 'id') as $id => $name) {
+                $labels['ing:' . $id] = $name;
+            }
+        }
+        if ($ids = array_filter(array_unique(array_map('intval', $recipeIds)))) {
+            foreach (\App\Models\Recipe::whereIn('id', $ids)->pluck('name', 'id') as $id => $name) {
+                $labels['rec:' . $id] = $name;
+            }
+        }
+
+        return $labels;
+    }
+
+    /** Resolve UOM ids → abbreviations. */
+    public static function uomLabels(array $uomIds): array
+    {
+        $ids = array_filter(array_unique(array_map('intval', $uomIds)));
+
+        return $ids ? \App\Models\UnitOfMeasure::whereIn('id', $ids)->pluck('abbreviation', 'id')->all() : [];
+    }
+
     private static function linePayload(array $line): array
     {
         return array_filter([

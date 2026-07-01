@@ -288,6 +288,24 @@ class StockTakeForm extends Component
             }
         }
 
+        // On completion, record each counted variance once — the accountability
+        // signal for a stock take (skipped on draft saves to avoid re-logging).
+        if ($action === 'complete' && $this->method === 'detailed') {
+            $ingIds = $lines->pluck('ingredient_id')->map('intval')->all();
+            $names  = \App\Services\AuditLogService::itemLabels($ingIds);
+            $uoms   = \App\Services\AuditLogService::uomLabels($lines->pluck('uom_id')->map('intval')->all());
+            foreach ($lines as $line) {
+                $variance = round(floatval($line['actual_quantity']) - floatval($line['system_quantity']), 4);
+                if (abs($variance) < 0.0001) continue;
+                $ingId = (int) $line['ingredient_id'];
+                \App\Services\AuditLogService::log($record, 'line_variance', [
+                    'item'     => $names['ing:' . $ingId] ?? ('#' . $ingId),
+                    'variance' => $variance,
+                    'unit'     => $uoms[(int) ($line['uom_id'] ?? 0)] ?? null,
+                ]);
+            }
+        }
+
         if ($action === 'complete') {
             session()->flash('success', 'Stock take completed.');
             $this->redirectRoute('inventory.index');

@@ -137,6 +137,9 @@ class TransferForm extends Component
 
         $this->validate();
 
+        // Whether this is an edit (transferId gets set on create below).
+        $isEdit = (bool) $this->transferId;
+
         // Verify user has access to from_outlet_id
         $user = Auth::user();
         if (! $user->canAccessOutlet((int) $this->from_outlet_id)) {
@@ -167,6 +170,13 @@ class TransferForm extends Component
             session()->flash('success', 'Transfer created.');
         }
 
+        // Capture existing lines for the activity trail before replacing them.
+        $auditBefore = $isEdit
+            ? $transfer->lines()->get()->map(fn ($l) => [
+                'ingredient_id' => $l->ingredient_id, 'uom_id' => $l->uom_id, 'quantity' => (float) $l->quantity,
+            ])->all()
+            : [];
+
         $transfer->lines()->delete();
         foreach ($this->lines as $line) {
             $qty      = floatval($line['quantity']);
@@ -178,6 +188,11 @@ class TransferForm extends Component
                 'quantity'      => $qty,
                 'unit_cost'     => $unitCost,
             ]);
+        }
+
+        // Log item add / remove / quantity changes on edits.
+        if ($isEdit) {
+            \App\Services\AuditLogService::logItemLineChanges($transfer, $auditBefore, $this->lines);
         }
 
         $this->redirectRoute('inventory.index', ['tab' => 'transfers']);

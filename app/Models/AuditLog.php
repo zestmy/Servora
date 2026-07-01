@@ -90,6 +90,7 @@ class AuditLog extends Model
             case 'line_removed':  return ($this->old_values['item'] ?? 'Item') . ' removed';
             case 'line_updated':  return $this->describeLineUpdate();
             case 'line_received': return $this->describeLineReceived();
+            case 'line_variance': return $this->describeLineVariance();
             default:              return ucwords(str_replace('_', ' ', $this->event));
         }
     }
@@ -118,6 +119,21 @@ class AuditLog extends Model
         return $qty !== null
             ? trim("Received {$qty} {$unit} of {$item}")
             : "{$item} received";
+    }
+
+    private function describeLineVariance(): string
+    {
+        $item = $this->new_values['item'] ?? 'Item';
+        $v    = $this->new_values['variance'] ?? null;
+        $unit = $this->new_values['unit'] ?? '';
+
+        if ($v === null) {
+            return "{$item} counted";
+        }
+
+        $sign = (float) $v > 0 ? '+' : '';
+
+        return trim("Variance on {$item}: {$sign}{$v} {$unit}");
     }
 
     private function describeUpdate(): string

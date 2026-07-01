@@ -275,6 +275,14 @@ class StaffMealForm extends Component
         // Remove items with zero quantity
         $this->lines = array_values(array_filter($this->lines, fn ($l) => floatval($l['quantity']) > 0));
 
+        // Capture existing lines for the activity trail before replacing them.
+        $auditBefore = $this->recordId
+            ? $record->lines()->get()->map(fn ($l) => [
+                'ingredient_id' => $l->ingredient_id, 'recipe_id' => $l->recipe_id,
+                'uom_id' => $l->uom_id, 'quantity' => (float) $l->quantity,
+            ])->all()
+            : [];
+
         $record->lines()->delete();
         foreach ($this->lines as $line) {
             $qty      = floatval($line['quantity']);
@@ -289,6 +297,11 @@ class StaffMealForm extends Component
                 'total_cost'    => round($qty * $unitCost, 4),
                 'reason'        => $line['reason'] ?: null,
             ]);
+        }
+
+        // Log item add / remove / quantity changes on edits.
+        if ($this->recordId) {
+            \App\Services\AuditLogService::logItemLineChanges($record, $auditBefore, $this->lines);
         }
 
         $this->redirectRoute('inventory.index');
