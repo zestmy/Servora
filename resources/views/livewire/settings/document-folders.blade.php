@@ -12,9 +12,14 @@
     @endif
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-            <p class="text-xs text-gray-400">Settings / Document Folders</p>
-            <h2 class="text-lg font-semibold text-gray-700 mt-1">Document Folders</h2>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <div>
+                <p class="text-xs text-gray-400">Settings / Document Folders</p>
+                <h2 class="text-lg font-semibold text-gray-700 mt-1">Document Folders</h2>
+            </div>
         </div>
         <button wire:click="openCreate" class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
             <span class="sm:hidden">+ Add</span>

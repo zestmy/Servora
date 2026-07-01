@@ -9,9 +9,14 @@
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
-        <div>
-            <h2 class="text-lg font-semibold text-gray-700">Scheduled Reports</h2>
-            <p class="text-sm text-gray-400 mt-0.5">Configure automated analytics reports delivered to your email</p>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <div>
+                <h2 class="text-lg font-semibold text-gray-700">Scheduled Reports</h2>
+                <p class="text-sm text-gray-400 mt-0.5">Configure automated analytics reports delivered to your email</p>
+            </div>
         </div>
         <div class="flex items-center gap-2">
             <button wire:click="openTestModal"

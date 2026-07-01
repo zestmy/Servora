@@ -14,9 +14,14 @@
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
-        <div>
-            <h2 class="text-lg font-semibold text-gray-700">Branches</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Manage your outlet locations</p>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <div>
+                <h2 class="text-lg font-semibold text-gray-700">Branches</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Manage your outlet locations</p>
+            </div>
         </div>
         <button wire:click="openCreate"
                 class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
