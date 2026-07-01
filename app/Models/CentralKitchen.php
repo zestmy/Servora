@@ -28,6 +28,9 @@ class CentralKitchen extends Model
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function outlet(): BelongsTo { return $this->belongsTo(Outlet::class); }
 
+    /** Outlets this kitchen fulfils prep items for (reverse of outlets.default_kitchen_id). */
+    public function servedOutlets(): HasMany { return $this->hasMany(Outlet::class, 'default_kitchen_id'); }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'kitchen_users', 'kitchen_id', 'user_id')

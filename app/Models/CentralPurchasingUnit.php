@@ -45,6 +45,12 @@ class CentralPurchasingUnit extends Model
         return $this->hasMany(PurchaseRequest::class, 'cpu_id');
     }
 
+    /** Outlets this CPU consolidates purchasing for (reverse of outlets.default_cpu_id). */
+    public function servedOutlets(): HasMany
+    {
+        return $this->hasMany(Outlet::class, 'default_cpu_id');
+    }
+
     public function purchaseOrders(): HasMany
     {
         return $this->hasMany(PurchaseOrder::class, 'cpu_id');

@@ -25,18 +25,21 @@ class KitchenManagement extends Component
     public bool   $is_active      = true;
 
     public array $assignedUserIds = [];
+    public array $servedOutletIds = [];
 
     protected function rules(): array
     {
         return [
-            'name'           => 'required|string|max:255',
-            'code'           => 'nullable|string|max:20',
-            'outlet_id'      => 'nullable|exists:outlets,id',
-            'address'        => 'nullable|string',
-            'contact_person' => 'nullable|string|max:100',
-            'email'          => 'nullable|email|max:255',
-            'phone'          => 'nullable|string|max:30',
-            'is_active'      => 'boolean',
+            'name'             => 'required|string|max:255',
+            'code'             => 'nullable|string|max:20',
+            'outlet_id'        => 'nullable|exists:outlets,id',
+            'address'          => 'nullable|string',
+            'contact_person'   => 'nullable|string|max:100',
+            'email'            => 'nullable|email|max:255',
+            'phone'            => 'nullable|string|max:30',
+            'is_active'        => 'boolean',
+            'servedOutletIds'  => 'array',
+            'servedOutletIds.*' => 'exists:outlets,id',
         ];
     }
 
@@ -59,6 +62,8 @@ class KitchenManagement extends Component
         $this->phone          = $kitchen->phone ?? '';
         $this->is_active      = $kitchen->is_active;
         $this->assignedUserIds = $kitchen->users->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+        $this->servedOutletIds = Outlet::where('default_kitchen_id', $kitchen->id)
+            ->pluck('id')->map(fn ($id) => (string) $id)->toArray();
         $this->showForm = true;
     }
 
@@ -66,9 +71,11 @@ class KitchenManagement extends Component
     {
         $this->validate();
 
-        $companyId = Auth::user()->company_id;
+        $companyId  = Auth::user()->company_id;
+        $wasEditing = (bool) $this->editId;
+        $reassigned = [];
 
-        DB::transaction(function () use ($companyId) {
+        DB::transaction(function () use ($companyId, &$reassigned) {
             $data = [
                 'company_id'     => $companyId,
                 'name'           => $this->name,
@@ -95,7 +102,7 @@ class KitchenManagement extends Component
             }
             $kitchen->users()->sync($syncData);
 
-            // Also assign kitchen users to the linked outlet (so they can use purchasing, inventory, etc.)
+            // Also assign kitchen users to the base outlet (so they can use purchasing, inventory, etc.)
             if ($kitchen->outlet_id) {
                 foreach ($this->assignedUserIds as $userId) {
                     DB::table('outlet_user')->updateOrInsert(
@@ -104,12 +111,53 @@ class KitchenManagement extends Component
                     );
                 }
             }
+
+            // Sync the outlets this kitchen serves (reverse of outlets.default_kitchen_id)
+            $reassigned = $this->syncServedOutlets($kitchen, $companyId);
         });
 
         $this->showForm = false;
         $this->resetForm();
 
-        session()->flash('success', $this->editId ? 'Kitchen updated.' : 'Kitchen created.');
+        $message = $wasEditing ? 'Kitchen updated.' : 'Kitchen created.';
+        if (! empty($reassigned)) {
+            $message .= ' Reassigned from another kitchen: ' . implode(', ', $reassigned) . '.';
+        }
+        session()->flash('success', $message);
+    }
+
+    /**
+     * Point the selected outlets' default_kitchen_id at this kitchen, and clear it
+     * from any outlet that was previously served here but is no longer selected.
+     * Returns the names of outlets moved away from a different kitchen.
+     */
+    private function syncServedOutlets(CentralKitchen $kitchen, int $companyId): array
+    {
+        $selected = array_map('intval', $this->servedOutletIds);
+
+        $current = Outlet::where('company_id', $companyId)
+            ->where('default_kitchen_id', $kitchen->id)
+            ->pluck('id')->all();
+
+        $toAssign = array_values(array_diff($selected, $current));
+        $toClear  = array_values(array_diff($current, $selected));
+
+        $reassigned = empty($toAssign) ? [] : Outlet::where('company_id', $companyId)
+            ->whereIn('id', $toAssign)
+            ->whereNotNull('default_kitchen_id')
+            ->where('default_kitchen_id', '!=', $kitchen->id)
+            ->pluck('name')->all();
+
+        if (! empty($selected)) {
+            Outlet::where('company_id', $companyId)->whereIn('id', $selected)
+                ->update(['default_kitchen_id' => $kitchen->id]);
+        }
+        if (! empty($toClear)) {
+            Outlet::where('company_id', $companyId)->whereIn('id', $toClear)
+                ->update(['default_kitchen_id' => null]);
+        }
+
+        return $reassigned;
     }
 
     public function delete(int $id): void
@@ -138,11 +186,12 @@ class KitchenManagement extends Component
         $this->phone = '';
         $this->is_active = true;
         $this->assignedUserIds = [];
+        $this->servedOutletIds = [];
     }
 
     public function render()
     {
-        $kitchens = CentralKitchen::with(['users', 'outlet'])
+        $kitchens = CentralKitchen::with(['users', 'outlet', 'servedOutlets:id,name,default_kitchen_id'])
             ->orderBy('name')
             ->get();
 

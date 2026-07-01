@@ -69,6 +69,14 @@
                                     @endforeach
                                 </div>
                             @endif
+                            @if ($kitchen->servedOutlets->count() > 0)
+                                <div class="flex flex-wrap items-center gap-1 mt-2">
+                                    <span class="text-[11px] text-gray-400 mr-0.5">Serves:</span>
+                                    @foreach ($kitchen->servedOutlets as $so)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-indigo-50 text-indigo-600">{{ $so->name }}</span>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                         <div class="flex gap-2 ml-4">
                             <button wire:click="openEdit({{ $kitchen->id }})"
@@ -111,14 +119,31 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Linked Outlet *</label>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Base Outlet</label>
                     <select wire:model="outlet_id" class="w-full rounded-lg border-gray-300 text-sm">
                         <option value="">— Select outlet —</option>
                         @foreach ($outlets as $outlet)
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">Kitchen staff assigned above will be added to this outlet, enabling them to order ingredients, do stock takes, record wastage, and use all outlet features.</p>
+                    <p class="text-xs text-gray-400 mt-1">Where this kitchen operates. Assigned kitchen staff are added to this outlet so they can order ingredients, do stock takes, record wastage, and use all outlet features.</p>
+                </div>
+
+                {{-- Outlets served (routing) --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Outlets Served</label>
+                    <p class="text-xs text-gray-400 mb-2">Branches this kitchen fulfils prep items for — their prep requests route here automatically. Each branch is served by one kitchen; selecting a branch served elsewhere moves it here.</p>
+                    <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                        @forelse ($outlets as $outlet)
+                            <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" wire:model="servedOutletIds" value="{{ $outlet->id }}"
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">{{ $outlet->name }}</span>
+                            </label>
+                        @empty
+                            <p class="text-xs text-gray-400 px-2 py-1">No active branches.</p>
+                        @endforelse
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">

@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\CentralPurchasingUnit;
+use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,18 +24,21 @@ class CpuManagement extends Component
     public bool   $is_active      = true;
 
     public array $assignedUserIds = [];
+    public array $servedOutletIds = [];
 
     protected function rules(): array
     {
         return [
-            'name'           => 'required|string|max:255',
-            'code'           => 'nullable|string|max:20',
-            'address'        => 'nullable|string',
-            'contact_person' => 'nullable|string|max:100',
-            'email'          => 'nullable|email|max:255',
-            'phone'          => 'nullable|string|max:30',
-            'delivery_mode'  => 'required|in:via_cpu,direct_to_outlet',
-            'is_active'      => 'boolean',
+            'name'              => 'required|string|max:255',
+            'code'              => 'nullable|string|max:20',
+            'address'           => 'nullable|string',
+            'contact_person'    => 'nullable|string|max:100',
+            'email'             => 'nullable|email|max:255',
+            'phone'             => 'nullable|string|max:30',
+            'delivery_mode'     => 'required|in:via_cpu,direct_to_outlet',
+            'is_active'         => 'boolean',
+            'servedOutletIds'   => 'array',
+            'servedOutletIds.*' => 'exists:outlets,id',
         ];
     }
 
@@ -57,6 +61,8 @@ class CpuManagement extends Component
         $this->delivery_mode  = $cpu->delivery_mode;
         $this->is_active      = $cpu->is_active;
         $this->assignedUserIds = $cpu->users->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+        $this->servedOutletIds = Outlet::where('default_cpu_id', $cpu->id)
+            ->pluck('id')->map(fn ($id) => (string) $id)->toArray();
         $this->showForm = true;
     }
 
@@ -64,9 +70,11 @@ class CpuManagement extends Component
     {
         $this->validate();
 
-        $companyId = Auth::user()->company_id;
+        $companyId  = Auth::user()->company_id;
+        $wasEditing = (bool) $this->editId;
+        $reassigned = [];
 
-        DB::transaction(function () use ($companyId) {
+        DB::transaction(function () use ($companyId, &$reassigned) {
             $data = [
                 'company_id'     => $companyId,
                 'name'           => $this->name,
@@ -92,12 +100,53 @@ class CpuManagement extends Component
                 $syncData[(int) $userId] = ['role' => 'staff'];
             }
             $cpu->users()->sync($syncData);
+
+            // Sync the outlets this CPU consolidates for (reverse of outlets.default_cpu_id)
+            $reassigned = $this->syncServedOutlets($cpu, $companyId);
         });
 
         $this->showForm = false;
         $this->resetForm();
 
-        session()->flash('success', $this->editId ? 'CPU updated.' : 'CPU created.');
+        $message = $wasEditing ? 'CPU updated.' : 'CPU created.';
+        if (! empty($reassigned)) {
+            $message .= ' Reassigned from another CPU: ' . implode(', ', $reassigned) . '.';
+        }
+        session()->flash('success', $message);
+    }
+
+    /**
+     * Point the selected outlets' default_cpu_id at this CPU, and clear it from any
+     * outlet previously served here but no longer selected. Returns the names of
+     * outlets moved away from a different CPU.
+     */
+    private function syncServedOutlets(CentralPurchasingUnit $cpu, int $companyId): array
+    {
+        $selected = array_map('intval', $this->servedOutletIds);
+
+        $current = Outlet::where('company_id', $companyId)
+            ->where('default_cpu_id', $cpu->id)
+            ->pluck('id')->all();
+
+        $toAssign = array_values(array_diff($selected, $current));
+        $toClear  = array_values(array_diff($current, $selected));
+
+        $reassigned = empty($toAssign) ? [] : Outlet::where('company_id', $companyId)
+            ->whereIn('id', $toAssign)
+            ->whereNotNull('default_cpu_id')
+            ->where('default_cpu_id', '!=', $cpu->id)
+            ->pluck('name')->all();
+
+        if (! empty($selected)) {
+            Outlet::where('company_id', $companyId)->whereIn('id', $selected)
+                ->update(['default_cpu_id' => $cpu->id]);
+        }
+        if (! empty($toClear)) {
+            Outlet::where('company_id', $companyId)->whereIn('id', $toClear)
+                ->update(['default_cpu_id' => null]);
+        }
+
+        return $reassigned;
     }
 
     public function delete(int $id): void
@@ -126,11 +175,12 @@ class CpuManagement extends Component
         $this->delivery_mode = 'via_cpu';
         $this->is_active = true;
         $this->assignedUserIds = [];
+        $this->servedOutletIds = [];
     }
 
     public function render()
     {
-        $cpus = CentralPurchasingUnit::with('users')
+        $cpus = CentralPurchasingUnit::with(['users', 'servedOutlets:id,name,default_cpu_id'])
             ->orderBy('name')
             ->get();
 
@@ -138,9 +188,15 @@ class CpuManagement extends Component
             ->orderBy('name')
             ->get();
 
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return view('livewire.settings.cpu-management', [
             'cpus'         => $cpus,
             'companyUsers' => $companyUsers,
+            'outlets'      => $outlets,
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Central Purchasing Units']);
     }
 }
