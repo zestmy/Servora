@@ -757,6 +757,15 @@ class Index extends Component
             return [];
         }
 
+        // Scope to the selected outlet (fall back to active/first) so the card
+        // doesn't show every outlet's copy of the same holiday. A null-outlet
+        // event applies company-wide. Mirrors the outlet scoping used by the
+        // rest of the page (records, stats, sales target).
+        $user     = Auth::user();
+        $outletId = $this->outletFilter
+            ?: $user->activeOutletId()
+            ?: Outlet::where('company_id', $user->company_id)->value('id');
+
         return CalendarEvent::where(function ($q) {
                 $q->whereBetween('event_date', [$this->dateFrom, $this->dateTo])
                   ->orWhere(function ($q2) {
@@ -765,8 +774,12 @@ class Index extends Component
                          ->where('end_date', '>=', $this->dateFrom);
                   });
             })
+            ->where(fn ($q) => $q->where('outlet_id', $outletId)->orWhereNull('outlet_id'))
             ->orderBy('event_date')
             ->get()
+            // Collapse exact duplicates (same date + title) that exist within a
+            // single outlet, plus any null-outlet + outlet-specific overlap.
+            ->unique(fn ($e) => $e->event_date->format('Y-m-d') . '|' . $e->title)
             ->map(fn ($e) => [
                 'title'    => $e->title,
                 'date'     => $e->event_date->format('d M Y'),
@@ -774,6 +787,7 @@ class Index extends Component
                 'category' => $e->categoryLabel(),
                 'impact'   => $e->impact,
             ])
+            ->values()
             ->toArray();
     }
 }
