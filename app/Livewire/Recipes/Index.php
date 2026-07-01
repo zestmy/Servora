@@ -177,6 +177,9 @@ class Index extends Component
         $count = count($this->selectedIds);
         if ($count === 0) return;
 
+        foreach (Recipe::whereIn('id', $this->selectedIds)->get() as $recipe) {
+            \App\Services\AuditLogService::logDeletion($recipe);
+        }
         Recipe::whereIn('id', $this->selectedIds)->delete();
         $this->clearSelection();
 

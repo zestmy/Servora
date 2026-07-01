@@ -231,6 +231,7 @@
                             ['route' => 'reports.hub',     'label' => 'Reports',     'permission' => 'reports.view'],
                             ['route' => 'analytics.index', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
                             ['route' => 'settings.calendar-events', 'label' => 'Calendar Events', 'permission' => 'reports.view'],
+                            ['route' => 'audit-logs.index', 'label' => 'Audit Logs', 'permission' => 'audit.view'],
                         ],
                     ],
                     [

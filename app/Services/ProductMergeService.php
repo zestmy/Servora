@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Ingredient;
+use App\Services\AuditLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -124,6 +125,9 @@ class ProductMergeService
                 }
             }
 
+            foreach (Ingredient::whereIn('id', $mergeIds)->get() as $merged) {
+                AuditLogService::log($merged, 'merged', ['merged_into' => (int) $keep->id]);
+            }
             Ingredient::whereIn('id', $mergeIds)->delete();
             $moved['products_merged'] = count($mergeIds);
         });

@@ -130,6 +130,10 @@ class Index extends Component
             return;
         }
 
+        $toDelete = SalesRecord::whereIn('id', $this->selected)->get();
+        foreach ($toDelete as $record) {
+            \App\Services\AuditLogService::logDeletion($record);
+        }
         $count = SalesRecord::whereIn('id', $this->selected)->delete();
         $this->selected  = [];
         $this->selectAll = false;

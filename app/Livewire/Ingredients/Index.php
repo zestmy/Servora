@@ -319,6 +319,9 @@ class Index extends Component
         $count = count($this->selectedIds);
         if ($count === 0) return;
 
+        foreach (Ingredient::whereIn('id', $this->selectedIds)->get() as $ingredient) {
+            \App\Services\AuditLogService::logDeletion($ingredient);
+        }
         Ingredient::whereIn('id', $this->selectedIds)->delete();
         $this->clearSelection();
         session()->flash('success', "{$count} product(s) deleted.");

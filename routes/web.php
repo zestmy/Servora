@@ -332,6 +332,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(['can:reports.view', 'check.feature:analytics']);
 
+    // Audit Logs (admins + managers)
+    Route::get('/audit-logs', \App\Livewire\Audit\Index::class)->name('audit-logs.index')->middleware('can:audit.view');
+    Route::get('/audit-logs/export/csv', [\App\Http\Controllers\AuditLogExportController::class, 'csv'])->name('audit-logs.export.csv')->middleware('can:audit.view');
+    Route::get('/audit-logs/export/pdf', [\App\Http\Controllers\AuditLogExportController::class, 'pdf'])->name('audit-logs.export.pdf')->middleware('can:audit.view');
+
     // Billing routes (Business Manager, Company Admin, Super Admin)
     Route::get('/billing', BillingIndex::class)->name('billing.index');
     Route::get('/billing/checkout/{planSlug}', BillingCheckout::class)->name('billing.checkout');

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Mail\EngineMailerTransport;
 use App\Models\Ingredient;
+use App\Observers\AuditObserver;
 use App\Observers\IngredientObserver;
 use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
     {
         // Keep prep-item costs in sync whenever an ingredient's cost changes.
         Ingredient::observe(IngredientObserver::class);
+
+        // Audit trail: observe every configured business model. class_exists()
+        // guards against a stray/renamed entry ever fataling the whole app.
+        foreach ((array) config('audit.models', []) as $auditable) {
+            if (is_string($auditable) && class_exists($auditable)) {
+                $auditable::observe(AuditObserver::class);
+            }
+        }
 
         // Super Admin bypasses all permission checks
         Gate::before(function ($user, $ability) {
