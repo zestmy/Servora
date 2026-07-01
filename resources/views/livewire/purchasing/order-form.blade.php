@@ -53,9 +53,6 @@
 
         {{-- Details card (2/3) --}}
         <div class="lg:col-span-2 space-y-4">
-            {{-- Recent activity (edit only) --}}
-            <x-audit-timeline :type="\App\Models\PurchaseOrder::class" :id="$orderId" title="Order Activity" />
-
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700">Order Details</h3>
 
@@ -438,4 +435,7 @@
         </div>
 
     </div>
+
+    {{-- Recent activity (edit only) — bottom of form --}}
+    <x-audit-timeline :type="\App\Models\PurchaseOrder::class" :id="$orderId" title="Order Activity" class="mt-4" />
 </div>

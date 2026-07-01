@@ -515,8 +515,6 @@
                     {{ $editingId ? 'Edit OT Claim' : 'New OT Claim' }}
                 </h3>
 
-                <x-audit-timeline :type="\App\Models\OvertimeClaim::class" :id="$editingId" title="Claim Activity" class="mb-4" />
-
                 <div class="space-y-4">
                     {{-- Employee --}}
                     <div>
@@ -581,6 +579,9 @@
                                   placeholder="Describe the reason for overtime..."></textarea>
                         <x-input-error :messages="$errors->get('reason')" class="mt-1" />
                     </div>
+
+                    {{-- Recent activity (edit only) — bottom of form --}}
+                    <x-audit-timeline :type="\App\Models\OvertimeClaim::class" :id="$editingId" title="Claim Activity" />
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">

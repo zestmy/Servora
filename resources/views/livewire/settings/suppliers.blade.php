@@ -156,9 +156,6 @@
             <form wire:submit="save">
                 <div class="px-6 py-5 space-y-4">
 
-                    {{-- Recent activity (edit only) --}}
-                    <x-audit-timeline :type="\App\Models\Supplier::class" :id="$editingId" title="Supplier Activity" />
-
                     {{-- Name --}}
                     <div>
                         <x-input-label for="s_name" value="Supplier Name *" />
@@ -227,6 +224,9 @@
                             <span class="text-sm text-gray-700 font-medium">Active</span>
                         </label>
                     </div>
+
+                    {{-- Recent activity (edit only) — bottom of form --}}
+                    <x-audit-timeline :type="\App\Models\Supplier::class" :id="$editingId" title="Supplier Activity" />
 
                 </div>
 

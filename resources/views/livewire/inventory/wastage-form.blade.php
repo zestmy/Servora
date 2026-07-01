@@ -40,8 +40,6 @@
         </div>
     @endif
 
-    <x-audit-timeline :type="\App\Models\WastageRecord::class" :id="$recordId" title="Wastage Activity" class="mb-4" />
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {{-- Details card --}}
@@ -312,4 +310,7 @@
         </div>
 
     </div>
+
+    {{-- Recent activity (edit only) — bottom of form --}}
+    <x-audit-timeline :type="\App\Models\WastageRecord::class" :id="$recordId" title="Wastage Activity" class="mt-4" />
 </div>

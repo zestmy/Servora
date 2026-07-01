@@ -159,7 +159,6 @@
                     </button>
                 </div>
                 <form wire:submit.prevent="save" class="p-5 space-y-3">
-                    <x-audit-timeline :type="\App\Models\Employee::class" :id="$editingId" title="Employee Activity" />
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs font-semibold text-gray-600">Outlet <span class="text-red-500">*</span></label>
@@ -213,6 +212,10 @@
                         <input type="checkbox" wire:model="f_is_active" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                         <span class="text-sm text-gray-700">Active</span>
                     </label>
+
+                    {{-- Recent activity (edit only) — bottom of form --}}
+                    <x-audit-timeline :type="\App\Models\Employee::class" :id="$editingId" title="Employee Activity" />
+
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
                         <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Save</button>
