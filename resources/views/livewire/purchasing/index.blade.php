@@ -118,7 +118,7 @@
                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
 
-            @if ($seesAllOutlets)
+            @if ($multiOutlet)
                 <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">All Outlets</option>
                     @foreach ($outlets as $outlet)

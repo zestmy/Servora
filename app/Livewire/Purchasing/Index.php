@@ -4,7 +4,6 @@ namespace App\Livewire\Purchasing;
 
 use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
-use App\Models\Outlet;
 use App\Models\PoApprover;
 use App\Models\PrApprover;
 use App\Models\PurchaseOrder;
@@ -24,7 +23,7 @@ class Index extends Component
 {
     use WithPagination, ScopesToActiveOutlet;
 
-    public string $tab = 'po';
+    public string $tab = 'pr';
 
     public string $search = '';
     public string $statusFilter = '';
@@ -690,11 +689,10 @@ class Index extends Component
         $showCnTab    = $canManageInvoices || $isAdvancedUser;
         $showSupplierTab = $isAdvancedUser;
 
-        // Smart default tab based on role + mode
+        // Smart default tab based on role + mode. Requests is the default;
+        // non-CPU basic users can't see the PR tab, so they land on Orders.
         if (! request()->query('tab')) {
-            if ($cpuMode && ! $isAdvancedUser) {
-                $this->tab = 'pr';
-            } elseif (! $cpuMode && ! $isAdvancedUser) {
+            if (! $showPrTab) {
                 $this->tab = 'po';
             }
         }
@@ -708,9 +706,11 @@ class Index extends Component
         };
 
         $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
-        $outlets = $seesAll
-            ? Outlet::where('company_id', $user->company_id)->where('is_active', true)->orderBy('name')->get()
-            : collect();
+
+        // Outlet filter + column show for anyone who can see more than one
+        // outlet — cross-outlet roles AND users assigned to multiple outlets.
+        $outlets = $this->filterableOutlets();
+        $multiOutlet = $outlets->isNotEmpty();
 
         // Stats
         $requirePoApproval = $user->company?->require_po_approval ?? true;
@@ -731,6 +731,7 @@ class Index extends Component
             'approverOutletIds'      => $approverOutletIds,
             'approverAssignments'    => $approverAssignments,
             'seesAllOutlets'     => $seesAll,
+            'multiOutlet'        => $multiOutlet,
             'canCreatePo'        => $canCreatePo,
             'canCreatePr'        => $canCreatePr,
             'stats'              => $stats,
@@ -775,7 +776,7 @@ class Index extends Component
                 $query->where('outlet_id', $this->outletFilter);
             }
         } else {
-            $this->scopeByOutlet($query);
+            $this->scopeByOutletFilter($query, $this->outletFilter);
         }
 
         if ($this->search) {
@@ -805,7 +806,7 @@ class Index extends Component
                 $query->where('outlet_id', $this->outletFilter);
             }
         } else {
-            $this->scopeByOutlet($query);
+            $this->scopeByOutletFilter($query, $this->outletFilter);
         }
 
         if ($this->search) {
@@ -835,7 +836,7 @@ class Index extends Component
                 $query->where('outlet_id', $this->outletFilter);
             }
         } else {
-            $this->scopeByOutlet($query);
+            $this->scopeByOutletFilter($query, $this->outletFilter);
         }
 
         if ($this->search) {
@@ -861,7 +862,7 @@ class Index extends Component
         $query = StockTransferOrder::with(['cpu', 'toOutlet'])->withCount('lines');
 
         if (! $seesAll) {
-            $this->scopeByOutlet($query, 'to_outlet_id');
+            $this->scopeByOutletFilter($query, $this->outletFilter, 'to_outlet_id');
         } elseif ($this->outletFilter) {
             $query->where('to_outlet_id', $this->outletFilter);
         }
@@ -893,7 +894,7 @@ class Index extends Component
                 $query->where('outlet_id', $this->outletFilter);
             }
         } else {
-            $this->scopeByOutlet($query);
+            $this->scopeByOutletFilter($query, $this->outletFilter);
         }
 
         if ($this->search) {

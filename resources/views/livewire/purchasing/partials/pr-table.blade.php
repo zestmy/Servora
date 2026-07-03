@@ -21,7 +21,7 @@
                     <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $pr->pr_number }}</a>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ ucfirst($pr->status) }}</span>
                 </div>
-                @if ($seesAllOutlets)
+                @if ($multiOutlet)
                     <div class="text-xs text-gray-500 truncate">{{ $pr->outlet?->name ?? '—' }}</div>
                 @endif
                 <div class="flex items-center justify-between text-xs text-gray-500">
@@ -76,7 +76,7 @@
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
             <tr>
                 <th class="px-4 py-3 text-left">PR Number</th>
-                @if ($seesAllOutlets)<th class="px-4 py-3 text-left">Outlet</th>@endif
+                @if ($multiOutlet)<th class="px-4 py-3 text-left">Outlet</th>@endif
                 <th class="px-4 py-3 text-center">Request Date</th>
                 <th class="px-4 py-3 text-center">Needed By</th>
                 <th class="px-4 py-3 text-center">Items</th>
@@ -103,7 +103,7 @@
                     <td class="px-4 py-3">
                         <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-xs font-medium text-indigo-600 hover:underline">{{ $pr->pr_number }}</a>
                     </td>
-                    @if ($seesAllOutlets)
+                    @if ($multiOutlet)
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $pr->outlet?->name ?? '—' }}</td>
                     @endif
                     <td class="px-4 py-3 text-center text-gray-500">{{ $pr->requested_date->format('d M Y') }}</td>
@@ -221,7 +221,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">No purchase requests found.</td>
+                    <td colspan="{{ $multiOutlet ? 8 : 7 }}" class="px-4 py-8 text-center text-gray-400">No purchase requests found.</td>
                 </tr>
             @endforelse
         </tbody>

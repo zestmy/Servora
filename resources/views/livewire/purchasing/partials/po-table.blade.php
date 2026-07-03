@@ -32,7 +32,7 @@
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ $mStatus }}</span>
                 </div>
                 <div class="text-sm text-gray-700 truncate">{{ $po->supplier?->name ?? '—' }}</div>
-                @if ($seesAllOutlets)
+                @if ($multiOutlet)
                     <div class="text-xs text-gray-500 truncate">{{ $po->outlet?->name ?? '—' }}</div>
                 @endif
                 <div class="flex items-center justify-between text-xs text-gray-500">
@@ -83,7 +83,7 @@
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
             <tr>
                 <th class="px-4 py-3 text-left">PO Number</th>
-                @if ($seesAllOutlets)<th class="px-4 py-3 text-left">Outlet</th>@endif
+                @if ($multiOutlet)<th class="px-4 py-3 text-left">Outlet</th>@endif
                 <th class="px-4 py-3 text-left">Supplier</th>
                 <th class="px-4 py-3 text-center">Order Date</th>
                 <th class="px-4 py-3 text-center">Expected</th>
@@ -123,7 +123,7 @@
                     <td class="px-4 py-3">
                         <a href="{{ route('purchasing.orders.edit', $po->id) }}" class="font-mono text-xs font-medium text-indigo-600 hover:underline">{{ $po->po_number }}</a>
                     </td>
-                    @if ($seesAllOutlets)
+                    @if ($multiOutlet)
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $po->outlet?->name ?? '—' }}</td>
                     @endif
                     <td class="px-4 py-3 text-gray-700">{{ $po->supplier?->name ?? '—' }}</td>
@@ -245,7 +245,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $seesAllOutlets ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
+                    <td colspan="{{ $multiOutlet ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
                         <p class="font-medium">No purchase orders found</p>
                     </td>
                 </tr>
