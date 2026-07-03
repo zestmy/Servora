@@ -7,8 +7,10 @@
        approved-only document; shown as a footer note when > 0.
        $rejectedClaims — Rejected claims in range, excluded; listed in a
        footer block with rejector + reason when non-empty. --}}
-@php($pendingHours = $pendingHours ?? 0)
-@php($rejectedClaims = $rejectedClaims ?? collect())
+@php
+    $pendingHours   = $pendingHours ?? 0;
+    $rejectedClaims = $rejectedClaims ?? collect();
+@endphp
 
 {{-- Header --}}
 <div class="ot-header">

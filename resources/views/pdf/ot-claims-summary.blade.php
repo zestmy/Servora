@@ -167,7 +167,9 @@
 @endif
 
 {{-- Excluded from this approved-only report: pending + rejected claims. --}}
-@php($rejectedClaims = $rejectedClaims ?? collect())
+@php
+    $rejectedClaims = $rejectedClaims ?? collect();
+@endphp
 @if (($pendingHours ?? 0) > 0 || $rejectedClaims->isNotEmpty())
     <div style="margin-top: 14px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 4px; padding: 9px 11px;">
         <div style="font-size: 9pt; font-weight: bold; color: #92400e; margin-bottom: 5px;">
