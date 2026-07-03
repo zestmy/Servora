@@ -21,6 +21,8 @@
             'calendarEvents' => $calendarEvents,
             'from'        => $from,
             'to'          => $to,
+            'pendingHours' => $group['pendingHours'] ?? 0,
+            'rejectedClaims' => $group['rejectedClaims'] ?? collect(),
         ])
     @empty
         <div style="text-align: center; padding: 40px 0; color: #999; font-size: 12px;">

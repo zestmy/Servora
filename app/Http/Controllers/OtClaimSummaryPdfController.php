@@ -75,6 +75,27 @@ class OtClaimSummaryPdfController extends Controller
 
         $grandTotalHours = (float) $claims->sum('total_ot_hours');
 
+        // Hours still pending approval in this period/scope — excluded from this
+        // approved-only report, noted in the footer so the total isn't confusing.
+        $pendingHours = (float) OvertimeClaim::query()
+            ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $availableOutletIds)
+            ->where('overtime_claims.status', 'submitted')
+            ->whereBetween('overtime_claims.claim_date', [$from, $to])
+            ->sum('overtime_claims.total_ot_hours');
+
+        // Rejected claims in this period/scope — listed below the report with
+        // the rejector and their reason for the record.
+        $rejectedClaims = OvertimeClaim::with(['employee', 'approver'])
+            ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $availableOutletIds)
+            ->where('overtime_claims.status', 'rejected')
+            ->whereBetween('overtime_claims.claim_date', [$from, $to])
+            ->select('overtime_claims.*')
+            ->orderBy('employees.name')
+            ->orderBy('overtime_claims.claim_date')
+            ->get();
+
         // OT-type column totals for footer
         $typeTotals = [];
         foreach ($otTypeLabels as $key => $label) {
@@ -86,7 +107,7 @@ class OtClaimSummaryPdfController extends Controller
 
         $pdf = Pdf::loadView('pdf.ot-claims-summary', compact(
             'company', 'rows', 'otTypeLabels', 'typeTotals',
-            'grandTotalHours', 'periodLabel', 'from', 'to', 'exportedBy'
+            'grandTotalHours', 'periodLabel', 'from', 'to', 'exportedBy', 'pendingHours', 'rejectedClaims'
         ))->setPaper('a4', 'portrait');
 
         return $pdf->download("ot-claims-summary-{$year}-{$month}.pdf");

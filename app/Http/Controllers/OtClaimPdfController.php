@@ -54,6 +54,24 @@ class OtClaimPdfController extends Controller
 
                 $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
+                // Hours still pending approval in this range — excluded from the
+                // approved-only PDF but noted in the page footer.
+                $pendingHours = (float) OvertimeClaim::where('employee_id', $emp->id)
+                    ->where('status', 'submitted')
+                    ->when($from, fn ($q) => $q->where('claim_date', '>=', $from))
+                    ->when($to, fn ($q) => $q->where('claim_date', '<=', $to))
+                    ->sum('total_ot_hours');
+
+                // Rejected claims in this range — listed in the footer with the
+                // rejector and their reason.
+                $rejectedClaims = OvertimeClaim::with('approver')
+                    ->where('employee_id', $emp->id)
+                    ->where('status', 'rejected')
+                    ->when($from, fn ($q) => $q->where('claim_date', '>=', $from))
+                    ->when($to, fn ($q) => $q->where('claim_date', '<=', $to))
+                    ->orderBy('claim_date')
+                    ->get();
+
                 $grouped[] = [
                     'employee'    => $emp,
                     'claims'      => $claims,
@@ -62,6 +80,8 @@ class OtClaimPdfController extends Controller
                     'submitters'  => $submitters,
                     // Actual approver(s) who approved these claims, not everyone with privilege.
                     'approvers'   => $claims->pluck('approver')->filter()->unique('id'),
+                    'pendingHours' => $pendingHours,
+                    'rejectedClaims' => $rejectedClaims,
                 ];
             }
 
@@ -98,6 +118,25 @@ class OtClaimPdfController extends Controller
         $totalHours  = $claims->sum('total_ot_hours');
         $hoursByType = $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours'));
 
+        // Hours still pending approval in this range — excluded from the PDF
+        // (which is approved-only), but surfaced as a footer note so the total
+        // never looks short without explanation.
+        $pendingHours = (float) OvertimeClaim::where('employee_id', $employee->id)
+            ->where('status', 'submitted')
+            ->when($from, fn ($q) => $q->where('claim_date', '>=', $from))
+            ->when($to, fn ($q) => $q->where('claim_date', '<=', $to))
+            ->sum('total_ot_hours');
+
+        // Rejected claims in this range — also excluded, listed in the footer
+        // with the rejector and their reason for the record.
+        $rejectedClaims = OvertimeClaim::with('approver')
+            ->where('employee_id', $employee->id)
+            ->where('status', 'rejected')
+            ->when($from, fn ($q) => $q->where('claim_date', '>=', $from))
+            ->when($to, fn ($q) => $q->where('claim_date', '<=', $to))
+            ->orderBy('claim_date')
+            ->get();
+
         // Unique submitters
         $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
@@ -112,7 +151,7 @@ class OtClaimPdfController extends Controller
         );
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
-            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'calendarEvents', 'from', 'to'
+            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'calendarEvents', 'from', 'to', 'pendingHours', 'rejectedClaims'
         ))->setPaper('a4', 'portrait');
 
         $name = str_replace(' ', '-', strtolower($employee->name));

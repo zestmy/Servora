@@ -1,7 +1,14 @@
 {{-- Single-employee OT claim page.
      Required variables:
        $company, $employee, $claims, $totalHours, $hoursByType,
-       $submitters, $approvers, $calendarEvents, $from, $to --}}
+       $submitters, $approvers, $calendarEvents, $from, $to
+     Optional:
+       $pendingHours   — OT hours awaiting approval, excluded from this
+       approved-only document; shown as a footer note when > 0.
+       $rejectedClaims — Rejected claims in range, excluded; listed in a
+       footer block with rejector + reason when non-empty. --}}
+@php($pendingHours = $pendingHours ?? 0)
+@php($rejectedClaims = $rejectedClaims ?? collect())
 
 {{-- Header --}}
 <div class="ot-header">
@@ -148,6 +155,45 @@
         </tr>
     </tfoot>
 </table>
+
+{{-- Excluded from this approved form: pending + rejected claims, for the record. --}}
+@if ($pendingHours > 0 || $rejectedClaims->isNotEmpty())
+    <div style="margin-top: 12px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 4px; padding: 8px 10px;">
+        <div style="font-size: 8.5pt; font-weight: bold; color: #92400e; margin-bottom: 4px;">
+            Not included above (approved claims only)
+        </div>
+        @if ($pendingHours > 0)
+            <div style="font-size: 8pt; color: #b45309; margin-bottom: {{ $rejectedClaims->isNotEmpty() ? '6px' : '0' }};">
+                {{ number_format($pendingHours, 2) }} hrs pending approval.
+            </div>
+        @endif
+        @if ($rejectedClaims->isNotEmpty())
+            <div style="font-size: 8pt; color: #b45309; margin-bottom: 4px;">
+                {{ number_format($rejectedClaims->sum('total_ot_hours'), 2) }} hrs rejected:
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8pt;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding: 2px 4px; color: #92400e; border-bottom: 1px solid #fcd34d;">Date</th>
+                        <th style="text-align: right; padding: 2px 4px; color: #92400e; border-bottom: 1px solid #fcd34d; width: 12%;">Hours</th>
+                        <th style="text-align: left; padding: 2px 4px; color: #92400e; border-bottom: 1px solid #fcd34d; width: 24%;">Rejected By</th>
+                        <th style="text-align: left; padding: 2px 4px; color: #92400e; border-bottom: 1px solid #fcd34d;">Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($rejectedClaims as $rc)
+                        <tr>
+                            <td style="padding: 2px 4px; color: #7c2d12;">{{ $rc->claim_date->format('d M Y') }} <span style="color: #a8a29e;">({{ $rc->claim_date->format('D') }})</span></td>
+                            <td style="padding: 2px 4px; color: #7c2d12; text-align: right;">{{ number_format($rc->total_ot_hours, 2) }}</td>
+                            <td style="padding: 2px 4px; color: #7c2d12;">{{ $rc->approver?->name ?? '—' }}</td>
+                            <td style="padding: 2px 4px; color: #7c2d12;">{{ $rc->rejected_reason ?: '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+@endif
 
 {{-- Approvals (digital — see note below). Employee name removed from
      here since the Employee Details card at the top already shows it. --}}

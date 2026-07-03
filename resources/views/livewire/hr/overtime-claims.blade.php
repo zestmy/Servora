@@ -12,6 +12,20 @@
         </div>
     @endif
 
+    {{-- Pending-hours notice: PDF/print exports are approved-only, so any hours
+         awaiting approval in the current view won't appear in a downloaded PDF. --}}
+    @if ($totalPendingHours > 0)
+        <div class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg flex items-start gap-2">
+            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>
+                <strong>{{ number_format($totalPendingHours, 1) }} hrs</strong> of OT in this view are still pending approval and will <strong>not</strong> appear in PDF/print exports (which include approved claims only). Approve the claims first, then download.
+            </span>
+        </div>
+    @endif
+
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
