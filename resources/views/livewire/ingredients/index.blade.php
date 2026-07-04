@@ -891,9 +891,8 @@
                         </label>
                     </div>
 
-                    {{-- UOM Conversions (edit mode only) --}}
-                    @if ($editingId)
-                        <div class="border-t border-gray-100 pt-4">
+                    {{-- UOM Conversions --}}
+                    <div class="border-t border-gray-100 pt-4">
                             <div class="flex items-center justify-between mb-3">
                                 <div>
                                     <h4 class="text-sm font-semibold text-gray-700">UOM Conversions</h4>
@@ -974,7 +973,6 @@
                                 </p>
                             @endif
                         </div>
-                    @endif
 
                     {{-- Additional Suppliers --}}
                     <div class="border-t border-gray-100 pt-4">

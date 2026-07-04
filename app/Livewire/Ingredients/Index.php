@@ -292,6 +292,7 @@ class Index extends Component
         } else {
             $data['company_id'] = Auth::user()->company_id;
             $ingredient = Ingredient::create($data);
+            $this->saveConversions($ingredient);
             $this->saveSupplierLinks($ingredient);
             session()->flash('success', 'Product created.');
         }
