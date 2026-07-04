@@ -253,7 +253,8 @@ class Index extends Component
 
     private function categoryStatsCacheKey(): string
     {
-        return 'recipes.category-stats.' . Auth::user()->company_id;
+        // v2: cards gained avgPct — versioned so stale cached shapes aren't served.
+        return 'recipes.category-stats.v2.' . Auth::user()->company_id;
     }
 
     private function forgetCategoryStats(): void
@@ -304,9 +305,13 @@ class Index extends Component
                 $groups[$root]['sort']    = $groups[$root]['sort'] ?? ($byName[$root]->sort_order ?? 9999);
                 $groups[$root]['costs'][] = $cost;
                 if ($sub !== null) {
-                    $groups[$root]['subs'][$sub][] = $cost;
+                    $groups[$root]['subs'][$sub]['costs'][] = $cost;
                 }
                 if ($pct !== null) {
+                    $groups[$root]['pcts'][] = $pct;
+                    if ($sub !== null) {
+                        $groups[$root]['subs'][$sub]['pcts'][] = $pct;
+                    }
                     if (! isset($groups[$root]['highest']) || $pct > $groups[$root]['highest']['pct']) {
                         $groups[$root]['highest'] = ['name' => $recipe->name, 'pct' => $pct];
                     }
@@ -316,15 +321,23 @@ class Index extends Component
                 }
             }
 
+            $avg = fn (array $nums) => count($nums) ? round(array_sum($nums) / count($nums), 2) : null;
+
             $cards = [];
             foreach ($groups as $rootName => $g) {
                 $cards[] = [
                     'name'    => $rootName,
                     'sort'    => $g['sort'],
                     'count'   => count($g['costs']),
-                    'avgCost' => round(array_sum($g['costs']) / max(count($g['costs']), 1), 2),
+                    'avgCost' => $avg($g['costs']),
+                    'avgPct'  => $avg($g['pcts'] ?? []),
                     'subs'    => collect($g['subs'] ?? [])
-                        ->map(fn ($costs, $name) => ['name' => $name, 'count' => count($costs), 'avgCost' => round(array_sum($costs) / count($costs), 2)])
+                        ->map(fn ($sub, $name) => [
+                            'name'    => $name,
+                            'count'   => count($sub['costs']),
+                            'avgCost' => $avg($sub['costs']),
+                            'avgPct'  => $avg($sub['pcts'] ?? []),
+                        ])
                         ->values()->all(),
                     'highest' => $g['highest'] ?? null,
                     'lowest'  => $g['lowest'] ?? null,

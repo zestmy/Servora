@@ -128,9 +128,21 @@
                         <p class="text-xs text-gray-400 uppercase tracking-wider font-medium truncate" title="{{ $stat['name'] }}">{{ $stat['name'] }}</p>
                         <span class="text-[10px] text-gray-400 flex-shrink-0">{{ $stat['count'] }} {{ Str::plural('recipe', $stat['count']) }}</span>
                     </div>
+                    @php
+                        $pctColor = fn ($pct) => match(true) {
+                            $pct === null => 'text-gray-400',
+                            $pct <= 25   => 'text-green-600',
+                            $pct <= 35   => 'text-yellow-600',
+                            $pct <= 45   => 'text-orange-500',
+                            default      => 'text-red-600',
+                        };
+                    @endphp
                     <p class="text-lg font-bold text-gray-800">
                         RM {{ number_format($stat['avgCost'], 2) }}
                         <span class="text-xs font-normal text-gray-400">avg cost</span>
+                        @if ($stat['avgPct'] !== null)
+                            <span class="text-sm font-semibold {{ $pctColor($stat['avgPct']) }}">· {{ number_format($stat['avgPct'], 1) }}%</span>
+                        @endif
                     </p>
 
                     @if (count($stat['subs']))
@@ -138,7 +150,12 @@
                             @foreach ($stat['subs'] as $sub)
                                 <div class="flex items-center justify-between text-xs">
                                     <span class="text-gray-500 truncate" title="{{ $sub['name'] }}">{{ $sub['name'] }}</span>
-                                    <span class="text-gray-700 font-medium tabular-nums flex-shrink-0 ml-2">{{ number_format($sub['avgCost'], 2) }}</span>
+                                    <span class="flex-shrink-0 ml-2 tabular-nums">
+                                        <span class="text-gray-700 font-medium">{{ number_format($sub['avgCost'], 2) }}</span>
+                                        @if (($sub['avgPct'] ?? null) !== null)
+                                            <span class="font-semibold {{ $pctColor($sub['avgPct']) }}">· {{ number_format($sub['avgPct'], 1) }}%</span>
+                                        @endif
+                                    </span>
                                 </div>
                             @endforeach
                         </div>
