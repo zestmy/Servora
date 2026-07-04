@@ -18,6 +18,20 @@ warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 [[ $EUID -eq 0 ]] || { echo -e "${RED}Run as root${NC}"; exit 1; }
 cd "$APP_DIR"
 
+# ── Serialize deploys ────────────────────────────────────────────────────────
+# The GitHub Actions webhook and manual SSH deploys both run this script; two
+# at once collide on .git/index.lock and can leave a deploy half-applied.
+# Wait up to 10 minutes for any in-flight deploy, then proceed. The caller can
+# pre-acquire the lock (see .github/workflows/deploy.yml) and set
+# SERVORA_DEPLOY_LOCK_HELD=1 so we don't deadlock re-acquiring it.
+if [[ -z "${SERVORA_DEPLOY_LOCK_HELD:-}" ]]; then
+    exec 9>/var/lock/servora-deploy.lock
+    if ! flock -w 600 9; then
+        echo -e "${RED}Another deploy has been running for 10+ minutes — aborting.${NC}"
+        exit 1
+    fi
+fi
+
 # Ensure maintenance mode is always lifted, even on failure
 cleanup() {
     info "Disabling maintenance mode..."

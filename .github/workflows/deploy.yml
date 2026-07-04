@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+# Queue deploys instead of running them concurrently; a second push while one
+# is deploying waits for it to finish (server-side flock is the backstop).
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: SSH Deploy
@@ -20,6 +26,13 @@ jobs:
           script: |
             set -e
             cd /var/www/servora
+            # Take the deploy lock before touching git so a concurrent manual
+            # deploy can't collide on .git/index.lock. update.sh skips its own
+            # lock acquisition when SERVORA_DEPLOY_LOCK_HELD is set (the fd is
+            # inherited, so the lock stays held for the whole run).
+            exec 9>/var/lock/servora-deploy.lock
+            flock -w 600 9
+            # Fetch first so the update.sh that runs is the newly pushed one.
             git fetch https://github.com/zestmy/Servora.git main
             git reset --hard FETCH_HEAD
-            bash deploy/update.sh
+            SERVORA_DEPLOY_LOCK_HELD=1 bash deploy/update.sh
