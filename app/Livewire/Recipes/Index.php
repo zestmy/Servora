@@ -253,8 +253,9 @@ class Index extends Component
 
     private function categoryStatsCacheKey(): string
     {
-        // v2: cards gained avgPct — versioned so stale cached shapes aren't served.
-        return 'recipes.category-stats.v2.' . Auth::user()->company_id;
+        // v3: case-insensitive category matching — versioned so stale cached
+        // shapes aren't served.
+        return 'recipes.category-stats.v3.' . Auth::user()->company_id;
     }
 
     private function forgetCategoryStats(): void
@@ -284,17 +285,20 @@ class Index extends Component
 
             // Map category name → its category row, preferring sub-categories
             // (recipes.category stores a name that may exist at both levels).
+            // Keys are lowercased: recipes.category is matched case-insensitively
+            // everywhere else (MySQL collation), so "RETAIL" must hit "Retail".
             $cats = RecipeCategory::with('parent')->get();
             $byName = [];
             foreach ($cats as $cat) {
-                if (! isset($byName[$cat->name]) || $cat->parent_id !== null) {
-                    $byName[$cat->name] = $cat;
+                $key = mb_strtolower($cat->name);
+                if (! isset($byName[$key]) || $cat->parent_id !== null) {
+                    $byName[$key] = $cat;
                 }
             }
 
             $groups = [];
             foreach ($recipes as $recipe) {
-                $cat  = $recipe->category ? ($byName[$recipe->category] ?? null) : null;
+                $cat  = $recipe->category ? ($byName[mb_strtolower($recipe->category)] ?? null) : null;
                 $root = $cat?->parent?->name ?? $cat?->name ?? 'Uncategorised';
                 $sub  = ($cat && $cat->parent_id !== null) ? $cat->name : null;
 
@@ -302,7 +306,7 @@ class Index extends Component
                 $selling = $recipe->effective_selling_price;
                 $pct     = $selling > 0 ? ($cost / $selling) * 100 : null;
 
-                $groups[$root]['sort']    = $groups[$root]['sort'] ?? ($byName[$root]->sort_order ?? 9999);
+                $groups[$root]['sort']    = $groups[$root]['sort'] ?? ($byName[mb_strtolower($root)]->sort_order ?? 9999);
                 $groups[$root]['costs'][] = $cost;
                 if ($sub !== null) {
                     $groups[$root]['subs'][$sub]['costs'][] = $cost;
