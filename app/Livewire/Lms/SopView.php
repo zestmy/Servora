@@ -39,7 +39,9 @@ class SopView extends Component
 
     public function render()
     {
-        $dineInImages   = $this->recipe->images->where('type', 'dine_in')->values();
+        // Prep items store their photos as type 'presentation'; show them in
+        // the same slot as recipe dine-in photos (a recipe never has both).
+        $dineInImages   = $this->recipe->images->whereIn('type', ['dine_in', 'presentation'])->values();
         $takeawayImages = $this->recipe->images->where('type', 'takeaway')->values();
 
         return view('livewire.lms.sop-view', compact('dineInImages', 'takeawayImages'))

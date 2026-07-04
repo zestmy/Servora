@@ -41,7 +41,9 @@ class SopPdfController extends Controller
             ])
             ->findOrFail($id);
 
-        $dineInImages   = $recipe->images->where('type', 'dine_in')->values();
+        // Prep-item photos (type 'presentation') fill the dine-in slot —
+        // a recipe never carries both types.
+        $dineInImages   = $recipe->images->whereIn('type', ['dine_in', 'presentation'])->values();
         $takeawayImages = $recipe->images->where('type', 'takeaway')->values();
 
         // Convert images to base64 for DomPDF
@@ -169,7 +171,7 @@ class SopPdfController extends Controller
         $recipeStepImages = [];
         foreach ($recipes as $recipe) {
             $recipeImages[$recipe->id] = [
-                'dine_in'  => $this->imagesToBase64($recipe->images->where('type', 'dine_in')->values()),
+                'dine_in'  => $this->imagesToBase64($recipe->images->whereIn('type', ['dine_in', 'presentation'])->values()),
                 'takeaway' => $this->imagesToBase64($recipe->images->where('type', 'takeaway')->values()),
             ];
             $recipeQrs[$recipe->id] = $recipe->video_url ? $this->generateVideoQr($recipe->id, $company->id) : null;

@@ -40,7 +40,7 @@
                     @foreach ($catRecipes as $recipe)
                         <a href="{{ route('lms.sop.show', array_filter(['id' => $recipe->id, 'search' => $search, 'categoryFilter' => $categoryFilter], fn ($v) => $v !== '' && $v !== null)) }}"
                            class="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md hover:border-indigo-300 transition">
-                            @php $thumb = $recipe->images->where('type', 'dine_in')->first(); @endphp
+                            @php $thumb = $recipe->images->whereIn('type', ['dine_in', 'presentation'])->first(); @endphp
                             @if ($thumb)
                                 <div class="h-40 bg-gray-100 overflow-hidden">
                                     <img src="{{ $thumb->url() }}" alt="{{ $recipe->name }}"
