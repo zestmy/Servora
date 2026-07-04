@@ -21,6 +21,9 @@ class Index extends Component
     public string $statusFilter = 'all';
     public string $outletFilter = '';
     public string $costFilter = '';
+    public int $perPage = 15;
+
+    public const PER_PAGE_OPTIONS = [15, 25, 50, 100];
 
     // Bulk selection
     public array $selectedIds = [];
@@ -46,6 +49,7 @@ class Index extends Component
             $this->statusFilter   = $saved['statusFilter']   ?? $this->statusFilter;
             $this->outletFilter   = $saved['outletFilter']   ?? $this->outletFilter;
             $this->costFilter     = $saved['costFilter']     ?? $this->costFilter;
+            $this->perPage        = in_array($saved['perPage'] ?? null, self::PER_PAGE_OPTIONS, true) ? $saved['perPage'] : $this->perPage;
         }
     }
 
@@ -62,6 +66,7 @@ class Index extends Component
             'statusFilter'   => $this->statusFilter,
             'outletFilter'   => $this->outletFilter,
             'costFilter'     => $this->costFilter,
+            'perPage'        => $this->perPage,
         ]);
     }
 
@@ -71,6 +76,13 @@ class Index extends Component
     public function updatedOutletFilter(): void   { $this->resetPage(); $this->clearSelection(); }
     public function updatedCostFilter(): void     { $this->resetPage(); $this->clearSelection(); }
     public function updatedTab(): void            { $this->resetPage(); $this->clearSelection(); }
+
+    public function updatedPerPage($value): void
+    {
+        $this->perPage = in_array((int) $value, self::PER_PAGE_OPTIONS, true) ? (int) $value : 15;
+        $this->resetPage();
+        $this->clearSelection();
+    }
 
     public function updatedSelectAll(bool $value): void
     {
@@ -198,6 +210,42 @@ class Index extends Component
         if (! $this->assertUnlocked()) return;
         $r = Recipe::findOrFail($id);
         $r->update(['is_active' => ! $r->is_active]);
+    }
+
+    /**
+     * Quick-edit a selling price from the list. $priceClassId 0 targets the
+     * legacy recipes.selling_price column (companies without price classes).
+     * An empty/zero value clears the class price so the class shows "—" again.
+     */
+    public function updatePrice(int $recipeId, int $priceClassId, $value): void
+    {
+        if (! $this->assertUnlocked()) return;
+
+        $value = trim((string) $value);
+        if ($value !== '' && (! is_numeric($value) || floatval($value) < 0 || floatval($value) > 999999)) {
+            session()->flash('error', 'Please enter a valid price.');
+            return;
+        }
+        $price = $value === '' ? 0.0 : round(floatval($value), 2);
+
+        $recipe = Recipe::findOrFail($recipeId);
+
+        if ($priceClassId === 0) {
+            $recipe->update(['selling_price' => $price]);
+            return;
+        }
+
+        // Class must belong to this company (global scope enforces it).
+        $class = \App\Models\RecipePriceClass::findOrFail($priceClassId);
+
+        if ($price <= 0) {
+            $recipe->prices()->where('recipe_price_class_id', $class->id)->delete();
+        } else {
+            $recipe->prices()->updateOrCreate(
+                ['recipe_price_class_id' => $class->id],
+                ['selling_price' => $price],
+            );
+        }
     }
 
     /**
@@ -356,7 +404,7 @@ class Index extends Component
             });
 
             $page    = $this->getPage();
-            $perPage = 15;
+            $perPage = $this->perPage;
             $recipes = new LengthAwarePaginator(
                 $filtered->forPage($page, $perPage)->values(),
                 $filtered->count(),
@@ -365,7 +413,7 @@ class Index extends Component
                 ['path' => request()->url()],
             );
         } else {
-            $recipes = $query->paginate(15);
+            $recipes = $query->paginate($this->perPage);
         }
 
         if ($isPrep) {
@@ -396,7 +444,13 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'isPrep'))
+        // First two price classes (as ordered in Settings) become quick-edit
+        // columns on the recipes tab. Empty for prep items (no selling price).
+        $priceClasses = $isPrep
+            ? collect()
+            : \App\Models\RecipePriceClass::ordered()->take(2)->get();
+
+        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'isPrep', 'priceClasses'))
             ->layout('layouts.app', ['title' => $isPrep ? 'Prep Items' : 'Recipes']);
     }
 }

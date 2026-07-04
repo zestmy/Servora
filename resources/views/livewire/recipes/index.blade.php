@@ -177,6 +177,14 @@
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
+            <div>
+                <select wire:model.live="perPage"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    @foreach (\App\Livewire\Recipes\Index::PER_PAGE_OPTIONS as $n)
+                        <option value="{{ $n }}">{{ $n }} / page</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
     </div>
 
@@ -237,7 +245,11 @@
                     <th class="px-4 py-3 text-right">Yield</th>
                     <th class="px-4 py-3 text-right">Total Cost</th>
                     @if ($tab !== 'prep-items')
-                        <th class="px-4 py-3 text-right">Selling Price</th>
+                        @forelse ($priceClasses as $pc)
+                            <th class="px-4 py-3 text-right">{{ $pc->name }}</th>
+                        @empty
+                            <th class="px-4 py-3 text-right">Selling Price</th>
+                        @endforelse
                         <th class="px-4 py-3 text-right">Food Cost %</th>
                     @else
                         <th class="px-4 py-3 text-right">Cost / Unit</th>
@@ -341,13 +353,21 @@
                             {{ number_format($totalCost, 2) }}
                         </td>
                         @if ($tab !== 'prep-items')
-                            <td class="px-4 py-3 text-right tabular-nums text-gray-700">
-                                @if ($selling > 0)
-                                    {{ number_format($selling, 2) }}
-                                @else
-                                    <span class="text-gray-300">—</span>
-                                @endif
-                            </td>
+                            @forelse ($priceClasses as $pc)
+                                @include('livewire.recipes.partials.price-cell', [
+                                    'recipe'       => $recipe,
+                                    'priceClassId' => $pc->id,
+                                    'value'        => $recipe->prices->firstWhere('recipe_price_class_id', $pc->id)?->selling_price,
+                                    'locked'       => $this->locked,
+                                ])
+                            @empty
+                                @include('livewire.recipes.partials.price-cell', [
+                                    'recipe'       => $recipe,
+                                    'priceClassId' => 0,
+                                    'value'        => $recipe->selling_price,
+                                    'locked'       => $this->locked,
+                                ])
+                            @endforelse
                             <td class="px-4 py-3 text-right tabular-nums">
                                 @if ($foodCostPct !== null)
                                     <span class="{{ $fcColor }}">{{ number_format($foodCostPct, 1) }}%</span>
@@ -416,7 +436,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $this->locked ? 10 : 11 }}" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="{{ ($this->locked ? 10 : 11) + max($priceClasses->count() - 1, 0) }}" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">📋</div>
                             <p class="font-medium">No {{ $isPrep ? 'prep items' : 'recipes' }} yet</p>
                             <p class="text-xs mt-1">
