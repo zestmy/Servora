@@ -53,6 +53,10 @@ class PrepItemForm extends Component
     public string $video_url = '';
     public array  $steps     = [];
 
+    // Presentation photos (final product reference, like recipe Product Images)
+    public array $newPresentationImages      = [];
+    public array $existingPresentationImages = [];
+
     protected function rules(): array
     {
         return [
@@ -68,6 +72,7 @@ class PrepItemForm extends Component
             'lines.*.uom_id'           => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage' => 'required|numeric|min:0|max:100',
             'video_url'                    => 'nullable|url|max:500',
+            'newPresentationImages.*'      => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120',
             'steps.*.title'                => 'nullable|string|max:255',
             'steps.*.instruction'          => 'required|string',
             'steps.*.new_image'            => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
@@ -94,7 +99,7 @@ class PrepItemForm extends Component
         if (! $id) return;
 
         // $id is the Recipe ID for the prep item
-        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'ingredient', 'outlets', 'steps'])->findOrFail($id);
+        $recipe = Recipe::with(['lines.ingredient', 'lines.uom', 'ingredient', 'outlets', 'steps', 'images'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->ingredientId           = $recipe->ingredient?->id;
@@ -147,6 +152,13 @@ class PrepItemForm extends Component
                 }
             }
         }
+
+        // Presentation photos
+        $this->existingPresentationImages = $recipe->images->where('type', 'presentation')->values()->map(fn ($img) => [
+            'id'        => $img->id,
+            'url'       => $img->url(),
+            'file_name' => $img->file_name,
+        ])->toArray();
 
         // Training / SOP
         $this->video_url = $recipe->video_url ?? '';
@@ -219,6 +231,30 @@ class PrepItemForm extends Component
         if (isset($this->steps[$idx])) {
             $this->steps[$idx]['new_image'] = null;
         }
+    }
+
+    // ── Presentation photos ───────────────────────────────────────────────
+
+    public function removeExistingPresentationImage(int $id): void
+    {
+        if (! $this->recipeId) return;
+
+        // Scope to this prep item's images so a forged id can't touch others.
+        $image = \App\Models\RecipeImage::where('recipe_id', $this->recipeId)->find($id);
+        if ($image) {
+            Storage::disk('public')->delete($image->file_path);
+            $image->delete();
+
+            $this->existingPresentationImages = array_values(
+                array_filter($this->existingPresentationImages, fn ($img) => $img['id'] !== $id)
+            );
+        }
+    }
+
+    public function removeNewPresentationImage(int $idx): void
+    {
+        unset($this->newPresentationImages[$idx]);
+        $this->newPresentationImages = array_values($this->newPresentationImages);
     }
 
     // ── Ingredient search ─────────────────────────────────────────────────
@@ -394,6 +430,20 @@ class PrepItemForm extends Component
                 }
                 $s->delete();
             });
+
+            // Save new presentation photos
+            $existingPresentationCount = count($this->existingPresentationImages);
+            foreach ($this->newPresentationImages as $idx => $file) {
+                $path = $file->store('recipe-images', 'public');
+                $recipe->images()->create([
+                    'type'       => 'presentation',
+                    'file_name'  => $file->getClientOriginalName(),
+                    'file_path'  => $path,
+                    'mime_type'  => $file->getMimeType(),
+                    'file_size'  => $file->getSize(),
+                    'sort_order' => $existingPresentationCount + $idx,
+                ]);
+            }
 
             // Sync the corresponding Ingredient record (prep item)
             $ingredientData = [
