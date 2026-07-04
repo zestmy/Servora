@@ -217,15 +217,16 @@ class SalesForm extends Component
             ]);
         }
 
-        // Save new attachments
+        // Save new attachments — images are compressed; PDFs stored as-is.
         foreach ($this->newAttachments as $file) {
-            $path = $file->store('sales-attachments', 'public');
+            $path = \App\Services\ImageStorageService::storeCompressed($file, 'sales-attachments');
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
 
             $record->attachments()->create([
                 'file_name' => $file->getClientOriginalName(),
                 'file_path' => $path,
-                'mime_type' => $file->getMimeType(),
-                'file_size' => $file->getSize(),
+                'mime_type' => $disk->mimeType($path) ?: $file->getMimeType(),
+                'file_size' => $disk->size($path),
             ]);
         }
 

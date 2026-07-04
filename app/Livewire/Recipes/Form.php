@@ -679,7 +679,7 @@ class Form extends Component
                 if ($imagePath) {
                     \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
                 }
-                $imagePath = $step['new_image']->store('recipe-steps', 'public');
+                $imagePath = \App\Services\ImageStorageService::storeCompressed($step['new_image'], 'recipe-steps');
             }
 
             $data = [
@@ -709,16 +709,17 @@ class Form extends Component
             $s->delete();
         });
 
-        // Save new images (dine-in)
+        // Save new images (dine-in) — compressed for viewing speed + storage
         $existingDineInCount = count($this->existingDineInImages);
         foreach ($this->newDineInImages as $idx => $file) {
-            $path = $file->store('recipe-images', 'public');
+            $path = \App\Services\ImageStorageService::storeCompressed($file, 'recipe-images');
+            $disk = Storage::disk('public');
             $recipe->images()->create([
                 'type'       => 'dine_in',
                 'file_name'  => $file->getClientOriginalName(),
                 'file_path'  => $path,
-                'mime_type'  => $file->getMimeType(),
-                'file_size'  => $file->getSize(),
+                'mime_type'  => $disk->mimeType($path) ?: $file->getMimeType(),
+                'file_size'  => $disk->size($path),
                 'sort_order' => $existingDineInCount + $idx,
             ]);
         }
@@ -726,13 +727,14 @@ class Form extends Component
         // Save new images (takeaway)
         $existingTakeawayCount = count($this->existingTakeawayImages);
         foreach ($this->newTakeawayImages as $idx => $file) {
-            $path = $file->store('recipe-images', 'public');
+            $path = \App\Services\ImageStorageService::storeCompressed($file, 'recipe-images');
+            $disk = Storage::disk('public');
             $recipe->images()->create([
                 'type'       => 'takeaway',
                 'file_name'  => $file->getClientOriginalName(),
                 'file_path'  => $path,
-                'mime_type'  => $file->getMimeType(),
-                'file_size'  => $file->getSize(),
+                'mime_type'  => $disk->mimeType($path) ?: $file->getMimeType(),
+                'file_size'  => $disk->size($path),
                 'sort_order' => $existingTakeawayCount + $idx,
             ]);
         }

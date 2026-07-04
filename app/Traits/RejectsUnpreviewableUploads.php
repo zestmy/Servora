@@ -15,8 +15,9 @@ trait RejectsUnpreviewableUploads
 
     /**
      * Filter a multi-upload array, keeping only previewable files.
-     * Rejected files produce a validation error under "$errorKey.{i}" so
-     * wildcard error displays ($errors->get("$errorKey.*")) pick them up.
+     * HEIC/HEIF uploads (iPhone photos) are transparently converted to JPEG
+     * first. Rejected files produce a validation error under "$errorKey.{i}"
+     * so wildcard error displays ($errors->get("$errorKey.*")) pick them up.
      */
     protected function keepPreviewableUploads(array $files, string $errorKey, ?array $allowed = null): array
     {
@@ -25,6 +26,8 @@ trait RejectsUnpreviewableUploads
 
         foreach ($files as $i => $file) {
             if (! is_object($file)) continue;
+
+            $file = $this->convertIfHeic($file);
 
             if (in_array(strtolower($file->getClientOriginalExtension()), $allowed, true)) {
                 $kept[] = $file;
@@ -36,12 +39,14 @@ trait RejectsUnpreviewableUploads
         return $kept;
     }
 
-    /** Single-file variant; returns the file or null when rejected. */
+    /** Single-file variant; returns the (possibly converted) file or null when rejected. */
     protected function keepPreviewableUpload($file, string $errorKey, ?array $allowed = null)
     {
         if (! is_object($file)) return null;
 
         $allowed ??= $this->previewableImageExtensions;
+
+        $file = $this->convertIfHeic($file);
 
         if (in_array(strtolower($file->getClientOriginalExtension()), $allowed, true)) {
             return $file;
@@ -50,6 +55,19 @@ trait RejectsUnpreviewableUploads
         $this->addError($errorKey, $this->unpreviewableMessage($file, $allowed));
 
         return null;
+    }
+
+    /** Convert an iPhone HEIC/HEIF temp upload to JPEG; no-op for other files. */
+    private function convertIfHeic($file)
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        if (in_array($ext, \App\Services\ImageStorageService::CONVERTIBLE, true)
+            && $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            return \App\Services\ImageStorageService::convertTempUploadToJpeg($file);
+        }
+
+        return $file;
     }
 
     private function unpreviewableMessage($file, array $allowed): string

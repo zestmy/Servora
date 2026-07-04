@@ -428,7 +428,15 @@ class Index extends Component
             });
         }
 
-        if ($this->categoryFilter) {
+        if ($this->categoryFilter === 'uncategorized') {
+            // Same definition as the stat cards' "Uncategorised" group: the
+            // category string matches no recipe category (or is empty).
+            if ($isPrep) {
+                $query->whereNull('recipes.ingredient_category_id');
+            } else {
+                $query->whereNull('rc.id')->whereNull('rc_root.id');
+            }
+        } elseif ($this->categoryFilter) {
             if ($isPrep) {
                 // Prep items use ingredient_category_id (FK). Include children.
                 $selectedCat = \App\Models\IngredientCategory::with('children')->find((int) $this->categoryFilter);

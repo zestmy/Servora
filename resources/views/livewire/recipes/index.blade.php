@@ -206,6 +206,7 @@
                             <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                         @endif
                     @endforeach
+                    <option value="uncategorized">Uncategorised</option>
                 </select>
             </div>
             @if ($outlets->count() > 1)

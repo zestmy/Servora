@@ -419,7 +419,7 @@ class PrepItemForm extends Component
                     if ($imagePath) {
                         Storage::disk('public')->delete($imagePath);
                     }
-                    $imagePath = $step['new_image']->store('recipe-steps', 'public');
+                    $imagePath = \App\Services\ImageStorageService::storeCompressed($step['new_image'], 'recipe-steps');
                 }
 
                 $stepData = [
@@ -448,16 +448,17 @@ class PrepItemForm extends Component
                 $s->delete();
             });
 
-            // Save new presentation photos
+            // Save new presentation photos — compressed for viewing speed + storage
             $existingPresentationCount = count($this->existingPresentationImages);
             foreach ($this->newPresentationImages as $idx => $file) {
-                $path = $file->store('recipe-images', 'public');
+                $path = \App\Services\ImageStorageService::storeCompressed($file, 'recipe-images');
+                $disk = Storage::disk('public');
                 $recipe->images()->create([
                     'type'       => 'presentation',
                     'file_name'  => $file->getClientOriginalName(),
                     'file_path'  => $path,
-                    'mime_type'  => $file->getMimeType(),
-                    'file_size'  => $file->getSize(),
+                    'mime_type'  => $disk->mimeType($path) ?: $file->getMimeType(),
+                    'file_size'  => $disk->size($path),
                     'sort_order' => $existingPresentationCount + $idx,
                 ]);
             }
