@@ -5,6 +5,12 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
@@ -25,11 +31,13 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 PDF
             </a>
-            @if ($invoice->status === 'issued')
-                <button wire:click="markPaid" wire:confirm="Mark this invoice as paid?"
+            @if (in_array($invoice->status, ['issued', 'partial', 'overdue']))
+                <button wire:click="openPaymentModal"
                         class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                    Mark Paid
+                    Record Payment
                 </button>
+            @endif
+            @if ($invoice->status === 'issued')
                 <button wire:click="cancelInvoice" wire:confirm="Cancel this invoice?"
                         class="px-3 py-1.5 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition">
                     Cancel
@@ -186,9 +194,18 @@
                     <span>Credit Applied</span>
                     <span class="tabular-nums">-{{ number_format($invoice->credit_applied, 2) }}</span>
                 </div>
-                <div class="flex justify-between font-semibold">
+            @endif
+            @php($paidTotal = $invoice->payments->sum('amount'))
+            @if ($paidTotal > 0)
+                <div class="flex justify-between text-green-600">
+                    <span>Paid</span>
+                    <span class="tabular-nums">-{{ number_format($paidTotal, 2) }}</span>
+                </div>
+            @endif
+            @if (! in_array($invoice->status, ['draft', 'cancelled']))
+                <div class="flex justify-between font-semibold {{ $invoice->outstanding() > 0 ? 'text-amber-700' : 'text-green-700' }}">
                     <span>Balance Due</span>
-                    <span class="tabular-nums">{{ number_format($invoice->balance_due, 2) }}</span>
+                    <span class="tabular-nums">{{ number_format($invoice->outstanding(), 2) }}</span>
                 </div>
             @endif
         </div>
@@ -200,4 +217,120 @@
             </div>
         @endif
     </div>
+
+    {{-- Payment History --}}
+    @if (! in_array($invoice->status, ['draft', 'cancelled']) || $invoice->payments->isNotEmpty())
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-4">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-700">Payments</h3>
+                @if (in_array($invoice->status, ['issued', 'partial', 'overdue']))
+                    <button wire:click="openPaymentModal"
+                            class="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        Record Payment
+                    </button>
+                @endif
+            </div>
+            @if ($invoice->payments->isEmpty())
+                <p class="px-4 py-6 text-sm text-gray-400 text-center">No payments recorded yet.</p>
+            @else
+                <table class="min-w-full divide-y divide-gray-100 text-sm">
+                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="px-4 py-2.5 text-left">Date</th>
+                            <th class="px-4 py-2.5 text-right">Amount (RM)</th>
+                            <th class="px-4 py-2.5 text-left">Method</th>
+                            <th class="px-4 py-2.5 text-left">Reference</th>
+                            <th class="px-4 py-2.5 text-left">Recorded By</th>
+                            <th class="px-4 py-2.5 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($invoice->payments->sortByDesc('payment_date')->values() as $payment)
+                            <tr wire:key="pay-{{ $payment->id }}">
+                                <td class="px-4 py-2.5 text-gray-600">{{ $payment->payment_date->format('d M Y') }}</td>
+                                <td class="px-4 py-2.5 text-right tabular-nums font-medium text-gray-800">{{ number_format($payment->amount, 2) }}</td>
+                                <td class="px-4 py-2.5 text-gray-600">{{ $payment->methodLabel() }}</td>
+                                <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $payment->reference ?: '—' }}</td>
+                                <td class="px-4 py-2.5 text-gray-500 text-xs">
+                                    {{ $payment->recordedBy?->name ?? '—' }}
+                                    @if ($payment->notes)
+                                        <span class="block text-gray-400">{{ $payment->notes }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2.5 text-center">
+                                    <button wire:click="deletePayment({{ $payment->id }})"
+                                            wire:confirm="Remove this payment? The invoice balance will be restored."
+                                            class="text-xs text-red-500 hover:text-red-700 transition">
+                                        Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </div>
+    @endif
+
+    {{-- Record Payment Modal --}}
+    @if ($showPaymentModal)
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showPaymentModal', false)">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                <h3 class="text-base font-semibold text-gray-800 mb-1">Record Payment</h3>
+                <p class="text-xs text-gray-400 mb-4">
+                    {{ $invoice->invoice_number }} — outstanding RM {{ number_format($invoice->outstanding(), 2) }}
+                </p>
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="pay_date" value="Payment Date *" />
+                            <input id="pay_date" type="date" wire:model="pay_date" max="{{ now()->toDateString() }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @error('pay_date') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <x-input-label for="pay_amount" value="Amount (RM) *" />
+                            <input id="pay_amount" type="number" step="0.01" min="0.01" wire:model="pay_amount"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @error('pay_amount') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <div>
+                        <x-input-label for="pay_method" value="Payment Method *" />
+                        <select id="pay_method" wire:model="pay_method"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @foreach (\App\Models\ProcurementInvoicePayment::METHODS as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('pay_method') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <x-input-label for="pay_reference" value="Reference" />
+                        <input id="pay_reference" type="text" wire:model="pay_reference" placeholder="e.g. bank transaction no., cheque no."
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                        <x-input-label for="pay_notes" value="Notes" />
+                        <textarea id="pay_notes" wire:model="pay_notes" rows="2"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button wire:click="$set('showPaymentModal', false)"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
+                        Cancel
+                    </button>
+                    <button wire:click="recordPayment"
+                            class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                        Save Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endteleport
+    @endif
 </div>

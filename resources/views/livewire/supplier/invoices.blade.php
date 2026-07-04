@@ -8,6 +8,7 @@
         <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm">
             <option value="">All Status</option>
             <option value="issued">Issued</option>
+            <option value="partial">Partially Paid</option>
             <option value="paid">Paid</option>
             <option value="overdue">Overdue</option>
         </select>
@@ -37,8 +38,8 @@
                         <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($inv->total_amount, 2) }}</td>
                         <td class="px-4 py-3 text-center">
                             <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                                {{ match($inv->status) { 'issued' => 'bg-blue-100 text-blue-700', 'paid' => 'bg-green-100 text-green-700', 'overdue' => 'bg-red-100 text-red-600', default => 'bg-gray-100 text-gray-600' } }}">
-                                {{ ucfirst($inv->status) }}
+                                {{ match($inv->status) { 'issued' => 'bg-blue-100 text-blue-700', 'partial' => 'bg-amber-100 text-amber-700', 'paid' => 'bg-green-100 text-green-700', 'overdue' => 'bg-red-100 text-red-600', default => 'bg-gray-100 text-gray-600' } }}">
+                                {{ $inv->status === 'partial' ? 'Partially Paid' : ucfirst($inv->status) }}
                             </span>
                         </td>
                     </tr>

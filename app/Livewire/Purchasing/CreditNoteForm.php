@@ -296,7 +296,7 @@ class CreditNoteForm extends Component
         $invoices = collect();
         if ($this->supplier_id) {
             $invoices = ProcurementInvoice::where('supplier_id', $this->supplier_id)
-                ->whereIn('status', ['issued', 'overdue', 'paid'])
+                ->whereIn('status', ['issued', 'partial', 'overdue', 'paid'])
                 ->orderByDesc('issued_date')
                 ->get(['id', 'invoice_number', 'total_amount']);
         }

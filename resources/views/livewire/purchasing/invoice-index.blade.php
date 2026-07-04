@@ -47,6 +47,7 @@
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
                 <option value="issued">Issued</option>
+                <option value="partial">Partially Paid</option>
                 <option value="paid">Paid</option>
                 <option value="overdue">Overdue</option>
                 <option value="cancelled">Cancelled</option>
@@ -77,17 +78,19 @@
                     $mBadge = match($inv->status) {
                         'draft'     => 'bg-gray-100 text-gray-600',
                         'issued'    => 'bg-blue-100 text-blue-700',
+                        'partial'   => 'bg-amber-100 text-amber-700',
                         'paid'      => 'bg-green-100 text-green-700',
                         'overdue'   => 'bg-red-100 text-red-600',
                         'cancelled' => 'bg-gray-100 text-gray-500',
                         default     => 'bg-gray-100 text-gray-500',
                     };
                     $mDueRed = $inv->due_date && $inv->due_date->isPast() && $inv->status !== 'paid';
+                    $mStatusLabel = $inv->status === 'partial' ? 'Partially Paid' : ucfirst($inv->status);
                 @endphp
                 <div class="p-3 space-y-2">
                     <div class="flex items-start justify-between gap-2">
                         <a href="{{ route('purchasing.invoices.show', $inv->id) }}" wire:navigate class="font-mono text-sm font-medium text-indigo-600">{{ $inv->invoice_number }}</a>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ ucfirst($inv->status) }}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ $mStatusLabel }}</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 rounded text-[10px] {{ $inv->type === 'supplier' ? 'bg-purple-50 text-purple-600' : 'bg-amber-50 text-amber-600' }}">
@@ -104,18 +107,25 @@
                                 <span class="{{ $mDueRed ? 'text-red-500 font-medium' : 'text-gray-500' }}">Due {{ $inv->due_date->format('d M') }}</span>
                             @endif
                         </div>
-                        <span class="tabular-nums font-semibold text-gray-900">RM {{ number_format($inv->total_amount, 2) }}</span>
+                        <span class="tabular-nums font-semibold text-gray-900">
+                            RM {{ number_format($inv->total_amount, 2) }}
+                            @if ($inv->status === 'partial')
+                                <span class="block text-[10px] font-medium text-amber-600 text-right">Bal: {{ number_format($inv->balance_due, 2) }}</span>
+                            @endif
+                        </span>
                     </div>
-                    @if ($inv->status === 'issued')
+                    @if (in_array($inv->status, ['issued', 'partial', 'overdue']))
                         <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
-                            <button wire:click="markPaid({{ $inv->id }})" wire:confirm="Mark as paid?"
+                            <button wire:click="markPaid({{ $inv->id }})" wire:confirm="Record full payment and mark as paid?"
                                     class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">
                                 Mark Paid
                             </button>
-                            <button wire:click="cancelInvoice({{ $inv->id }})" wire:confirm="Cancel this invoice?"
-                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100">
-                                Cancel
-                            </button>
+                            @if ($inv->status === 'issued')
+                                <button wire:click="cancelInvoice({{ $inv->id }})" wire:confirm="Cancel this invoice?"
+                                        class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100">
+                                    Cancel
+                                </button>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -145,11 +155,13 @@
                         $badge = match($inv->status) {
                             'draft'     => 'bg-gray-100 text-gray-600',
                             'issued'    => 'bg-blue-100 text-blue-700',
+                            'partial'   => 'bg-amber-100 text-amber-700',
                             'paid'      => 'bg-green-100 text-green-700',
                             'overdue'   => 'bg-red-100 text-red-600',
                             'cancelled' => 'bg-gray-100 text-gray-500',
                             default     => 'bg-gray-100 text-gray-500',
                         };
+                        $statusLabel = $inv->status === 'partial' ? 'Partially Paid' : ucfirst($inv->status);
                     @endphp
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-mono text-xs font-medium">
@@ -174,19 +186,26 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center text-gray-600">{{ $inv->lines_count }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($inv->total_amount, 2) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">
+                            {{ number_format($inv->total_amount, 2) }}
+                            @if ($inv->status === 'partial')
+                                <span class="block text-[10px] font-medium text-amber-600">Bal: {{ number_format($inv->balance_due, 2) }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badge }}">
-                                {{ ucfirst($inv->status) }}
+                                {{ $statusLabel }}
                             </span>
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-1">
-                                @if ($inv->status === 'issued')
-                                    <button wire:click="markPaid({{ $inv->id }})" wire:confirm="Mark as paid?"
+                                @if (in_array($inv->status, ['issued', 'partial', 'overdue']))
+                                    <button wire:click="markPaid({{ $inv->id }})" wire:confirm="Record full payment and mark as paid?"
                                             title="Mark Paid" class="text-green-500 hover:text-green-700 transition p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                     </button>
+                                @endif
+                                @if ($inv->status === 'issued')
                                     <button wire:click="cancelInvoice({{ $inv->id }})" wire:confirm="Cancel this invoice?"
                                             title="Cancel" class="text-red-400 hover:text-red-600 transition p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

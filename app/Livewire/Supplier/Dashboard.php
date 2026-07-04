@@ -28,8 +28,9 @@ class Dashboard extends Component
         $outstandingInvoices = ProcurementInvoice::withoutGlobalScopes()
             ->where('supplier_id', $supplierId)
             ->where('type', 'supplier')
-            ->whereIn('status', ['issued', 'overdue'])
-            ->sum('total_amount');
+            ->whereIn('status', ['issued', 'partial', 'overdue'])
+            ->selectRaw('SUM(COALESCE(balance_due, total_amount - credit_applied)) as v')
+            ->value('v') ?? 0;
 
         $recentOrders = PurchaseOrder::withoutGlobalScopes()
             ->where('supplier_id', $supplierId)

@@ -6,6 +6,7 @@ use App\Models\AiInvoiceScan;
 use App\Models\GoodsReceivedNote;
 use App\Models\ProcurementInvoice;
 use App\Models\ProcurementInvoiceLine;
+use App\Models\ProcurementInvoicePayment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -46,6 +47,7 @@ class ProcurementInvoiceService
                 'tax_amount'              => $taxResult['tax_amount'],
                 'delivery_charges'        => $deliveryCharges,
                 'total_amount'            => $totalAmount,
+                'balance_due'             => $totalAmount,
                 'notes'                   => "Auto-generated from GRN {$grn->grn_number}",
                 'created_by'              => Auth::id() ?? $grn->created_by,
             ]);
@@ -68,11 +70,101 @@ class ProcurementInvoiceService
     }
 
     /**
-     * Mark invoice as paid.
+     * Record a payment against an invoice and update its status/balance.
+     * Overpayment is rejected — amount must not exceed the outstanding balance.
+     */
+    public static function recordPayment(ProcurementInvoice $invoice, array $data): ProcurementInvoicePayment
+    {
+        return DB::transaction(function () use ($invoice, $data) {
+            $invoice = ProcurementInvoice::lockForUpdate()->findOrFail($invoice->id);
+
+            $outstanding = $invoice->outstanding();
+            $amount = round(floatval($data['amount']), 4);
+
+            if ($amount <= 0) {
+                throw new \InvalidArgumentException('Payment amount must be greater than zero.');
+            }
+            if ($amount > $outstanding + 0.005) {
+                throw new \InvalidArgumentException(
+                    'Payment of ' . number_format($amount, 2) . ' exceeds the outstanding balance of ' . number_format($outstanding, 2) . '.'
+                );
+            }
+
+            $payment = ProcurementInvoicePayment::create([
+                'company_id'             => $invoice->company_id,
+                'procurement_invoice_id' => $invoice->id,
+                'payment_date'           => $data['payment_date'],
+                'amount'                 => $amount,
+                'method'                 => $data['method'] ?? 'bank_transfer',
+                'reference'              => $data['reference'] ?? null,
+                'notes'                  => $data['notes'] ?? null,
+                'recorded_by'            => Auth::id(),
+            ]);
+
+            self::recalculate($invoice);
+
+            return $payment;
+        });
+    }
+
+    /**
+     * Remove a mistaken payment and roll the invoice status/balance back.
+     */
+    public static function removePayment(ProcurementInvoicePayment $payment): void
+    {
+        DB::transaction(function () use ($payment) {
+            $invoice = ProcurementInvoice::lockForUpdate()->findOrFail($payment->procurement_invoice_id);
+            $payment->delete();
+            self::recalculate($invoice);
+        });
+    }
+
+    /**
+     * Mark invoice as fully paid by recording a payment for the whole
+     * outstanding balance (keeps the payment trail intact).
      */
     public static function markPaid(ProcurementInvoice $invoice): void
     {
-        $invoice->update(['status' => 'paid']);
+        $outstanding = $invoice->outstanding();
+
+        if ($outstanding <= 0) {
+            // Nothing owed (e.g. fully credited) — just settle the status.
+            DB::transaction(fn () => self::recalculate(ProcurementInvoice::lockForUpdate()->findOrFail($invoice->id)));
+            return;
+        }
+
+        self::recordPayment($invoice, [
+            'payment_date' => now()->toDateString(),
+            'amount'       => $outstanding,
+            'method'       => 'other',
+            'notes'        => 'Marked as paid (full outstanding balance)',
+        ]);
+    }
+
+    /**
+     * Recompute balance_due and settle the status from payments + credit.
+     * Draft and cancelled invoices keep their status; only the balance moves.
+     */
+    public static function recalculate(ProcurementInvoice $invoice): void
+    {
+        $paid = (float) $invoice->payments()->sum('amount');
+        $balance = max(0, round(floatval($invoice->total_amount) - floatval($invoice->credit_applied) - $paid, 4));
+
+        $update = ['balance_due' => $balance];
+
+        if (! in_array($invoice->status, ['draft', 'cancelled'])) {
+            if ($balance <= 0.005) {
+                $update['status'] = 'paid';
+                $update['balance_due'] = 0;
+            } elseif ($paid > 0) {
+                $update['status'] = 'partial';
+            } elseif (in_array($invoice->status, ['paid', 'partial'])) {
+                // Payments were removed — fall back to issued/overdue.
+                $update['status'] = ($invoice->due_date && $invoice->due_date->isPast()) ? 'overdue' : 'issued';
+            }
+        }
+
+        $invoice->update($update);
     }
 
     /**
@@ -106,6 +198,7 @@ class ProcurementInvoiceService
                 'tax_amount'              => round($headerData['tax_amount'] ?? 0, 4),
                 'delivery_charges'        => round($headerData['delivery_charges'] ?? 0, 4),
                 'total_amount'            => round($headerData['total_amount'], 4),
+                'balance_due'             => round($headerData['total_amount'], 4),
                 'original_file_path'      => $scan->original_file_path,
                 'ai_invoice_scan_id'      => $scan->id,
                 'notes'                   => $headerData['notes'] ?? null,

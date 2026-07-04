@@ -100,13 +100,13 @@ class CreditNoteService
         $invoice = $cn->procurementInvoice;
 
         if ($invoice) {
-            $newCreditApplied = floatval($invoice->credit_applied) + floatval($cn->total_amount);
-            $balanceDue = max(0, floatval($invoice->total_amount) - $newCreditApplied);
-
             $invoice->update([
-                'credit_applied' => round($newCreditApplied, 4),
-                'balance_due'    => round($balanceDue, 4),
+                'credit_applied' => round(floatval($invoice->credit_applied) + floatval($cn->total_amount), 4),
             ]);
+
+            // Recompute balance + status considering recorded payments too, so
+            // a credit that clears the remainder settles the invoice as paid.
+            ProcurementInvoiceService::recalculate($invoice->fresh());
         }
 
         $cn->update(['status' => 'applied']);

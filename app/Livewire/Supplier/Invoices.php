@@ -32,8 +32,9 @@ class Invoices extends Component
 
         $totalOutstanding = ProcurementInvoice::withoutGlobalScopes()
             ->where('supplier_id', $supplierId)
-            ->whereIn('status', ['issued', 'overdue'])
-            ->sum('total_amount');
+            ->whereIn('status', ['issued', 'partial', 'overdue'])
+            ->selectRaw('SUM(COALESCE(balance_due, total_amount - credit_applied)) as v')
+            ->value('v') ?? 0;
 
         return view('livewire.supplier.invoices', compact('invoices', 'totalOutstanding'))
             ->layout('layouts.supplier', ['title' => 'Invoices']);

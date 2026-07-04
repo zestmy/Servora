@@ -53,6 +53,28 @@ class ProcurementInvoice extends Model
         return $this->hasMany(ProcurementInvoiceLine::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ProcurementInvoicePayment::class);
+    }
+
+    /** Sum of recorded payments. */
+    public function amountPaid(): float
+    {
+        if (isset($this->payments_sum_amount)) {
+            return (float) $this->payments_sum_amount;
+        }
+        return (float) ($this->relationLoaded('payments')
+            ? $this->payments->sum('amount')
+            : $this->payments()->sum('amount'));
+    }
+
+    /** What is still owed: total minus credit notes minus payments. */
+    public function outstanding(): float
+    {
+        return max(0, round(floatval($this->total_amount) - floatval($this->credit_applied) - $this->amountPaid(), 4));
+    }
+
     public static function generateNumber(): string
     {
         $prefix = 'PINV-' . Carbon::now()->format('Ymd') . '-';

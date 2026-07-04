@@ -82,8 +82,9 @@ class InvoiceIndex extends Component
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId));
 
         $stats = [
-            ['label' => 'Total Outstanding', 'value' => number_format($statsScope()->whereIn('status', ['issued', 'overdue'])->sum('total_amount'), 2), 'color' => 'yellow'],
-            ['label' => 'Issued', 'value' => $statsScope()->where('status', 'issued')->count(), 'color' => 'blue'],
+            // Real amount still owed: total minus credit notes and recorded payments.
+            ['label' => 'Total Outstanding', 'value' => number_format($statsScope()->whereIn('status', ['issued', 'partial', 'overdue'])->selectRaw('SUM(COALESCE(balance_due, total_amount - credit_applied)) as v')->value('v') ?? 0, 2), 'color' => 'yellow'],
+            ['label' => 'Unpaid', 'value' => $statsScope()->whereIn('status', ['issued', 'partial', 'overdue'])->count(), 'color' => 'blue'],
             ['label' => 'Paid', 'value' => $statsScope()->where('status', 'paid')->count(), 'color' => 'green'],
         ];
 
