@@ -247,10 +247,11 @@
                     @if ($tab !== 'prep-items')
                         @forelse ($priceClasses as $pc)
                             <th class="px-4 py-3 text-right">{{ $pc->name }}</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap">FC %</th>
                         @empty
                             <th class="px-4 py-3 text-right">Selling Price</th>
+                            <th class="px-4 py-3 text-right">Food Cost %</th>
                         @endforelse
-                        <th class="px-4 py-3 text-right">Food Cost %</th>
                     @else
                         <th class="px-4 py-3 text-right">Cost / Unit</th>
                     @endif
@@ -354,12 +355,30 @@
                         </td>
                         @if ($tab !== 'prep-items')
                             @forelse ($priceClasses as $pc)
+                                @php
+                                    $pcPrice = floatval($recipe->prices->firstWhere('recipe_price_class_id', $pc->id)?->selling_price ?? 0);
+                                    $pcPct   = $pcPrice > 0 ? ($totalCost / $pcPrice) * 100 : null;
+                                    $pcColor = match(true) {
+                                        $pcPct === null => 'text-gray-400',
+                                        $pcPct <= 25   => 'text-green-600 font-semibold',
+                                        $pcPct <= 35   => 'text-yellow-600 font-semibold',
+                                        $pcPct <= 45   => 'text-orange-500 font-semibold',
+                                        default        => 'text-red-600 font-semibold',
+                                    };
+                                @endphp
                                 @include('livewire.recipes.partials.price-cell', [
                                     'recipe'       => $recipe,
                                     'priceClassId' => $pc->id,
-                                    'value'        => $recipe->prices->firstWhere('recipe_price_class_id', $pc->id)?->selling_price,
+                                    'value'        => $pcPrice,
                                     'locked'       => $this->locked,
                                 ])
+                                <td class="px-4 py-3 text-right tabular-nums" wire:key="fc-{{ $recipe->id }}-{{ $pc->id }}">
+                                    @if ($pcPct !== null)
+                                        <span class="{{ $pcColor }}">{{ number_format($pcPct, 1) }}%</span>
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
                             @empty
                                 @include('livewire.recipes.partials.price-cell', [
                                     'recipe'       => $recipe,
@@ -367,14 +386,14 @@
                                     'value'        => $recipe->selling_price,
                                     'locked'       => $this->locked,
                                 ])
+                                <td class="px-4 py-3 text-right tabular-nums">
+                                    @if ($foodCostPct !== null)
+                                        <span class="{{ $fcColor }}">{{ number_format($foodCostPct, 1) }}%</span>
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
                             @endforelse
-                            <td class="px-4 py-3 text-right tabular-nums">
-                                @if ($foodCostPct !== null)
-                                    <span class="{{ $fcColor }}">{{ number_format($foodCostPct, 1) }}%</span>
-                                @else
-                                    <span class="text-gray-300">—</span>
-                                @endif
-                            </td>
                         @else
                             <td class="px-4 py-3 text-right tabular-nums text-gray-700">
                                 @php
@@ -436,7 +455,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ ($this->locked ? 10 : 11) + max($priceClasses->count() - 1, 0) }}" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="{{ ($this->locked ? 10 : 11) + max($priceClasses->count() * 2 - 2, 0) }}" class="px-4 py-12 text-center text-gray-400">
                             <div class="text-3xl mb-2">📋</div>
                             <p class="font-medium">No {{ $isPrep ? 'prep items' : 'recipes' }} yet</p>
                             <p class="text-xs mt-1">
