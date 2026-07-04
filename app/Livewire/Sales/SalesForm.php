@@ -14,6 +14,8 @@ use Livewire\WithFileUploads;
 class SalesForm extends Component
 {
     use WithFileUploads;
+    use \App\Traits\RejectsUnpreviewableUploads;
+
     public ?int    $recordId         = null;
     public string  $sale_date        = '';
     public string  $meal_period      = 'all_day';
@@ -246,6 +248,16 @@ class SalesForm extends Component
     {
         unset($this->newAttachments[$index]);
         $this->newAttachments = array_values($this->newAttachments);
+    }
+
+    public function updatedNewAttachments(): void
+    {
+        // Attachments allow PDFs as well as images.
+        $this->newAttachments = $this->keepPreviewableUploads(
+            $this->newAttachments,
+            'newAttachments',
+            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'],
+        );
     }
 
     public function render()

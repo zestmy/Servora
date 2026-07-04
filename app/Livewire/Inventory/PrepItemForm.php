@@ -21,6 +21,7 @@ use Livewire\WithFileUploads;
 class PrepItemForm extends Component
 {
     use WithFileUploads;
+    use \App\Traits\RejectsUnpreviewableUploads;
 
     // Linked IDs (null = new)
     public ?int $recipeId     = null;
@@ -234,6 +235,22 @@ class PrepItemForm extends Component
     }
 
     // ── Presentation photos ───────────────────────────────────────────────
+
+    public function updatedNewPresentationImages(): void
+    {
+        $this->newPresentationImages = $this->keepPreviewableUploads($this->newPresentationImages, 'newPresentationImages');
+    }
+
+    public function updatedSteps($value, string $key): void
+    {
+        // Guard step photo uploads ("3.new_image") the same way.
+        if (str_ends_with($key, '.new_image')) {
+            $idx = (int) $key;
+            if (isset($this->steps[$idx])) {
+                $this->steps[$idx]['new_image'] = $this->keepPreviewableUpload($this->steps[$idx]['new_image'], "steps.{$idx}.new_image");
+            }
+        }
+    }
 
     public function removeExistingPresentationImage(int $id): void
     {

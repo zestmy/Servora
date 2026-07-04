@@ -23,6 +23,8 @@ use Livewire\WithFileUploads;
 class Form extends Component
 {
     use WithFileUploads;
+    use \App\Traits\RejectsUnpreviewableUploads;
+
     public ?int $recipeId = null;
 
     // Header fields
@@ -324,6 +326,27 @@ class Form extends Component
         }
         if (count($ordered) === count($this->packagingLines)) {
             $this->packagingLines = $ordered;
+        }
+    }
+
+    public function updatedNewDineInImages(): void
+    {
+        $this->newDineInImages = $this->keepPreviewableUploads($this->newDineInImages, 'newDineInImages');
+    }
+
+    public function updatedNewTakeawayImages(): void
+    {
+        $this->newTakeawayImages = $this->keepPreviewableUploads($this->newTakeawayImages, 'newTakeawayImages');
+    }
+
+    public function updatedSteps($value, string $key): void
+    {
+        // Guard step photo uploads ("3.new_image") the same way.
+        if (str_ends_with($key, '.new_image')) {
+            $idx = (int) $key;
+            if (isset($this->steps[$idx])) {
+                $this->steps[$idx]['new_image'] = $this->keepPreviewableUpload($this->steps[$idx]['new_image'], "steps.{$idx}.new_image");
+            }
         }
     }
 
