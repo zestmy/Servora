@@ -232,6 +232,7 @@ class Index extends Component
 
         if ($priceClassId === 0) {
             $recipe->update(['selling_price' => $price]);
+            $this->forgetCategoryStats();
             return;
         }
 
@@ -246,6 +247,94 @@ class Index extends Component
                 ['selling_price' => $price],
             );
         }
+
+        $this->forgetCategoryStats();
+    }
+
+    private function categoryStatsCacheKey(): string
+    {
+        return 'recipes.category-stats.' . Auth::user()->company_id;
+    }
+
+    private function forgetCategoryStats(): void
+    {
+        \Illuminate\Support\Facades\Cache::forget($this->categoryStatsCacheKey());
+    }
+
+    /**
+     * Per-category cost stat cards: one card per root category (Food,
+     * Beverage, …) with the average recipe cost, a per-sub-category average
+     * breakdown, and the highest/lowest food-cost-% recipe in the group.
+     * Computing recipe costs loads every line relation, so the result is
+     * cached briefly; quick price edits bust the cache.
+     */
+    private function buildCategoryStats(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember($this->categoryStatsCacheKey(), 300, function () {
+            $recipes = Recipe::with([
+                'lines.ingredient.baseUom',
+                'lines.ingredient.uomConversions',
+                'lines.uom',
+                'prices.priceClass',
+            ])
+                ->where('is_prep', false)
+                ->where('is_active', true)
+                ->get();
+
+            // Map category name → its category row, preferring sub-categories
+            // (recipes.category stores a name that may exist at both levels).
+            $cats = RecipeCategory::with('parent')->get();
+            $byName = [];
+            foreach ($cats as $cat) {
+                if (! isset($byName[$cat->name]) || $cat->parent_id !== null) {
+                    $byName[$cat->name] = $cat;
+                }
+            }
+
+            $groups = [];
+            foreach ($recipes as $recipe) {
+                $cat  = $recipe->category ? ($byName[$recipe->category] ?? null) : null;
+                $root = $cat?->parent?->name ?? $cat?->name ?? 'Uncategorised';
+                $sub  = ($cat && $cat->parent_id !== null) ? $cat->name : null;
+
+                $cost    = $recipe->total_cost;
+                $selling = $recipe->effective_selling_price;
+                $pct     = $selling > 0 ? ($cost / $selling) * 100 : null;
+
+                $groups[$root]['sort']    = $groups[$root]['sort'] ?? ($byName[$root]->sort_order ?? 9999);
+                $groups[$root]['costs'][] = $cost;
+                if ($sub !== null) {
+                    $groups[$root]['subs'][$sub][] = $cost;
+                }
+                if ($pct !== null) {
+                    if (! isset($groups[$root]['highest']) || $pct > $groups[$root]['highest']['pct']) {
+                        $groups[$root]['highest'] = ['name' => $recipe->name, 'pct' => $pct];
+                    }
+                    if (! isset($groups[$root]['lowest']) || $pct < $groups[$root]['lowest']['pct']) {
+                        $groups[$root]['lowest'] = ['name' => $recipe->name, 'pct' => $pct];
+                    }
+                }
+            }
+
+            $cards = [];
+            foreach ($groups as $rootName => $g) {
+                $cards[] = [
+                    'name'    => $rootName,
+                    'sort'    => $g['sort'],
+                    'count'   => count($g['costs']),
+                    'avgCost' => round(array_sum($g['costs']) / max(count($g['costs']), 1), 2),
+                    'subs'    => collect($g['subs'] ?? [])
+                        ->map(fn ($costs, $name) => ['name' => $name, 'count' => count($costs), 'avgCost' => round(array_sum($costs) / count($costs), 2)])
+                        ->values()->all(),
+                    'highest' => $g['highest'] ?? null,
+                    'lowest'  => $g['lowest'] ?? null,
+                ];
+            }
+
+            usort($cards, fn ($a, $b) => [$a['sort'], $a['name']] <=> [$b['sort'], $b['name']]);
+
+            return $cards;
+        });
     }
 
     /**
@@ -450,7 +539,9 @@ class Index extends Component
             ? collect()
             : \App\Models\RecipePriceClass::ordered()->take(2)->get();
 
-        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'isPrep', 'priceClasses'))
+        $categoryStats = $isPrep ? [] : $this->buildCategoryStats();
+
+        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'isPrep', 'priceClasses', 'categoryStats'))
             ->layout('layouts.app', ['title' => $isPrep ? 'Prep Items' : 'Recipes']);
     }
 }

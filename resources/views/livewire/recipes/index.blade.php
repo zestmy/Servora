@@ -119,6 +119,52 @@
         </div>
     </div>
 
+    {{-- Category cost stat cards (recipes tab only; active recipes) --}}
+    @if (! $isPrep && count($categoryStats))
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-4">
+            @foreach ($categoryStats as $stat)
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4" wire:key="cat-stat-{{ $stat['name'] }}">
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs text-gray-400 uppercase tracking-wider font-medium truncate" title="{{ $stat['name'] }}">{{ $stat['name'] }}</p>
+                        <span class="text-[10px] text-gray-400 flex-shrink-0">{{ $stat['count'] }} {{ Str::plural('recipe', $stat['count']) }}</span>
+                    </div>
+                    <p class="text-lg font-bold text-gray-800">
+                        RM {{ number_format($stat['avgCost'], 2) }}
+                        <span class="text-xs font-normal text-gray-400">avg cost</span>
+                    </p>
+
+                    @if (count($stat['subs']))
+                        <div class="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                            @foreach ($stat['subs'] as $sub)
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="text-gray-500 truncate" title="{{ $sub['name'] }}">{{ $sub['name'] }}</span>
+                                    <span class="text-gray-700 font-medium tabular-nums flex-shrink-0 ml-2">{{ number_format($sub['avgCost'], 2) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if ($stat['highest'] || $stat['lowest'])
+                        <div class="mt-2 pt-2 border-t border-gray-100 space-y-1 text-[11px]">
+                            @if ($stat['highest'])
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-gray-400 truncate" title="{{ $stat['highest']['name'] }}">▲ {{ $stat['highest']['name'] }}</span>
+                                    <span class="font-semibold flex-shrink-0 {{ $stat['highest']['pct'] > 45 ? 'text-red-600' : 'text-orange-500' }}">{{ number_format($stat['highest']['pct'], 1) }}%</span>
+                                </div>
+                            @endif
+                            @if ($stat['lowest'])
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-gray-400 truncate" title="{{ $stat['lowest']['name'] }}">▼ {{ $stat['lowest']['name'] }}</span>
+                                    <span class="font-semibold text-green-600 flex-shrink-0">{{ number_format($stat['lowest']['pct'], 1) }}%</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     {{-- Filter Bar --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-col sm:flex-row gap-3">
