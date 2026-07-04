@@ -21,7 +21,9 @@ return new class extends Migration
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['company_id', 'procurement_invoice_id']);
+            // Explicit short name — the auto-generated one exceeds MySQL's
+            // 64-character identifier limit.
+            $table->index(['company_id', 'procurement_invoice_id'], 'pip_company_invoice_idx');
         });
 
         // New status for invoices with some, but not all, of the balance paid.
