@@ -106,6 +106,11 @@ class Index extends Component
 
         $logs = AuditLogService::query($this->filters(), $user)->paginate($this->perPage);
 
+        // Human-readable names for this page: record labels for the Record
+        // column, FK value labels for the before/after detail tables.
+        $recordLabels = AuditLogService::recordLabels($logs->items());
+        $fkLabels     = AuditLogService::foreignLabels($logs->items());
+
         // Distinct event values present for this company, for the event filter.
         $events = AuditLog::query()
             ->select('event')->distinct()->orderBy('event')->pluck('event')->all();
@@ -115,6 +120,8 @@ class Index extends Component
 
         return view('livewire.audit.index', [
             'logs'          => $logs,
+            'recordLabels'  => $recordLabels,
+            'fkLabels'      => $fkLabels,
             'events'        => $events,
             'users'         => $users,
             'moduleOptions' => AuditLogService::moduleLabels(),

@@ -142,15 +142,19 @@ class AuditLog extends Model
         $new = $this->new_values ?? [];
         $keys = array_values(array_unique(array_merge(array_keys($old), array_keys($new))));
 
+        // "supplier_id" reads as "Supplier", not "Supplier Id" — the value shown
+        // alongside is a name, not a raw id.
+        $headline = fn ($k) => \Illuminate\Support\Str::headline(preg_replace('/_id$/', '', $k));
+
         if (count($keys) !== 1) {
-            $labels = array_map(fn ($k) => \Illuminate\Support\Str::headline($k), array_slice($keys, 0, 2));
+            $labels = array_map($headline, array_slice($keys, 0, 2));
             $suffix = count($keys) > 2 ? ' +' . (count($keys) - 2) . ' more' : '';
 
             return trim('Updated ' . implode(', ', $labels) . $suffix);
         }
 
         $key   = $keys[0];
-        $label = \Illuminate\Support\Str::headline($key);
+        $label = $headline($key);
         $from  = $old[$key] ?? null;
         $to    = $new[$key] ?? null;
 

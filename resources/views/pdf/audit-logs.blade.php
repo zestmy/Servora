@@ -34,17 +34,18 @@
             <th style="width: 11%;">User</th>
             <th style="width: 8%;">Action</th>
             <th style="width: 11%;">Module</th>
-            <th style="width: 6%;">Record</th>
+            <th style="width: 14%;">Record</th>
             <th style="width: 10%;">Branch</th>
             <th>Changes</th>
         </tr>
     </thead>
     <tbody>
         @php
-            $scalar = function ($v) {
+            $scalar = function ($v, $k = '') use ($fkLabels) {
                 if (is_null($v)) return '';
                 if (is_bool($v)) return $v ? 'true' : 'false';
                 if (is_array($v)) return json_encode($v);
+                if (is_numeric($v) && isset($fkLabels[$k][(int) $v])) return $fkLabels[$k][(int) $v] . ' (#' . $v . ')';
                 return (string) $v;
             };
         @endphp
@@ -55,17 +56,18 @@
                 $keys = array_values(array_unique(array_merge(array_keys($old), array_keys($new))));
                 $summary = [];
                 foreach ($keys as $k) {
-                    $b = array_key_exists($k, $old) ? $scalar($old[$k]) : '';
-                    $a = array_key_exists($k, $new) ? $scalar($new[$k]) : '';
+                    $b = array_key_exists($k, $old) ? $scalar($old[$k], $k) : '';
+                    $a = array_key_exists($k, $new) ? $scalar($new[$k], $k) : '';
                     $summary[] = $k . ': ' . $b . ' → ' . $a;
                 }
+                $recLabel = $recordLabels[$log->auditable_type . ':' . $log->auditable_id] ?? null;
             @endphp
             <tr>
                 <td>{{ $log->created_at?->format('d M Y H:i') }}</td>
                 <td>{{ $log->actorName() }}</td>
                 <td>{{ ucwords(str_replace('_', ' ', $log->event)) }}</td>
                 <td>{{ \App\Services\AuditLogService::label($log->auditable_type) }}</td>
-                <td>#{{ $log->auditable_id }}</td>
+                <td>{{ $recLabel ? $recLabel . ' (#' . $log->auditable_id . ')' : '#' . $log->auditable_id }}</td>
                 <td>{{ $log->outlet?->name ?? '—' }}</td>
                 <td class="changes">{{ implode('; ', $summary) }}</td>
             </tr>

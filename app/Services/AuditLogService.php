@@ -7,6 +7,8 @@ use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -204,7 +206,7 @@ class AuditLogService
      */
     public static function query(array $filters, User $user): Builder
     {
-        $q = AuditLog::query()->with('user');
+        $q = AuditLog::query()->with(['user', 'outlet']);
 
         if (! $user->canViewAllOutlets()) {
             $ids = self::accessibleOutletIds($user);
@@ -291,6 +293,177 @@ class AuditLogService
         }
 
         return $map;
+    }
+
+    /**
+     * Attributes checked, in priority order, to derive a human-readable label
+     * for an audited record (name for master data, document number for
+     * transactional records).
+     */
+    public const LABEL_CANDIDATES = [
+        'name', 'po_number', 'pr_number', 'grn_number', 'do_number', 'sto_number',
+        'transfer_number', 'request_number', 'order_number', 'credit_note_number',
+        'invoice_number', 'reference_number', 'title', 'code',
+    ];
+
+    /**
+     * Foreign-key attribute → [related model, label column]. Used to translate
+     * raw ids in before/after snapshots into names in the viewer and exports.
+     */
+    private const FK_LABELS = [
+        'outlet_id'               => [\App\Models\Outlet::class, 'name'],
+        'from_outlet_id'          => [\App\Models\Outlet::class, 'name'],
+        'to_outlet_id'            => [\App\Models\Outlet::class, 'name'],
+        'delivery_outlet_id'      => [\App\Models\Outlet::class, 'name'],
+        'supplier_id'             => [\App\Models\Supplier::class, 'name'],
+        'ingredient_id'           => [\App\Models\Ingredient::class, 'name'],
+        'recipe_id'               => [\App\Models\Recipe::class, 'name'],
+        'prep_recipe_id'          => [\App\Models\Recipe::class, 'name'],
+        'ingredient_category_id'  => [\App\Models\IngredientCategory::class, 'name'],
+        'sales_category_id'       => [\App\Models\SalesCategory::class, 'name'],
+        'department_id'           => [\App\Models\Department::class, 'name'],
+        'section_id'              => [\App\Models\Section::class, 'name'],
+        'employee_id'             => [\App\Models\Employee::class, 'name'],
+        'tax_rate_id'             => [\App\Models\TaxRate::class, 'name'],
+        'uom_id'                  => [\App\Models\UnitOfMeasure::class, 'name'],
+        'base_uom_id'             => [\App\Models\UnitOfMeasure::class, 'name'],
+        'recipe_uom_id'           => [\App\Models\UnitOfMeasure::class, 'name'],
+        'secondary_recipe_uom_id' => [\App\Models\UnitOfMeasure::class, 'name'],
+        'yield_uom_id'            => [\App\Models\UnitOfMeasure::class, 'name'],
+        'kitchen_id'              => [\App\Models\CentralKitchen::class, 'name'],
+        'default_kitchen_id'      => [\App\Models\CentralKitchen::class, 'name'],
+        'cpu_id'                  => [\App\Models\CentralPurchasingUnit::class, 'name'],
+        'default_cpu_id'          => [\App\Models\CentralPurchasingUnit::class, 'name'],
+        'user_id'                 => [\App\Models\User::class, 'name'],
+        'created_by'              => [\App\Models\User::class, 'name'],
+        'approved_by'             => [\App\Models\User::class, 'name'],
+        'received_by'             => [\App\Models\User::class, 'name'],
+        'submitted_by'            => [\App\Models\User::class, 'name'],
+        'purchase_order_id'       => [\App\Models\PurchaseOrder::class, 'po_number'],
+        'parent_po_id'            => [\App\Models\PurchaseOrder::class, 'po_number'],
+        'purchase_request_id'     => [\App\Models\PurchaseRequest::class, 'pr_number'],
+        'delivery_order_id'       => [\App\Models\DeliveryOrder::class, 'do_number'],
+        'goods_received_note_id'  => [\App\Models\GoodsReceivedNote::class, 'grn_number'],
+        'procurement_invoice_id'  => [\App\Models\ProcurementInvoice::class, 'invoice_number'],
+        'stock_transfer_order_id' => [\App\Models\StockTransferOrder::class, 'sto_number'],
+    ];
+
+    /**
+     * Resolve display names for a page of audit rows, keyed "type:id".
+     *
+     * Live (and soft-deleted) records are looked up in one query per model
+     * type; hard-deleted records fall back to the name captured in the log's
+     * own snapshots, so "who deleted what" stays readable forever. Rows whose
+     * record has no name-like attribute are simply absent from the map.
+     */
+    public static function recordLabels(iterable $logs): array
+    {
+        $byType = [];
+        foreach ($logs as $log) {
+            if ($log->auditable_id) {
+                $byType[$log->auditable_type][(int) $log->auditable_id] = true;
+            }
+        }
+
+        $labels = [];
+        foreach ($byType as $type => $ids) {
+            $class = Relation::getMorphedModel($type) ?? $type;
+            if (! class_exists($class)) {
+                continue;
+            }
+
+            try {
+                foreach (self::lookupQuery($class)->whereIn('id', array_keys($ids))->get() as $row) {
+                    if ($label = self::labelFromAttributes($row->getAttributes())) {
+                        $labels[$type . ':' . $row->getKey()] = $label;
+                    }
+                }
+            } catch (\Throwable) {
+                // A resolution failure must never break the viewer; #id remains.
+            }
+        }
+
+        foreach ($logs as $log) {
+            $key = $log->auditable_type . ':' . $log->auditable_id;
+            if (! isset($labels[$key])
+                && ($label = self::labelFromAttributes(array_merge((array) $log->old_values, (array) $log->new_values)))) {
+                $labels[$key] = $label;
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Resolve foreign-key values appearing in a page of before/after snapshots
+     * to display names: ['supplier_id' => [5 => 'ABC Foods'], …]. One query per
+     * related model, shared across attributes pointing at the same model.
+     */
+    public static function foreignLabels(iterable $logs): array
+    {
+        $wanted = []; // class => [id => true]
+        foreach ($logs as $log) {
+            foreach (array_merge((array) $log->old_values, (array) $log->new_values) as $k => $v) {
+                if (isset(self::FK_LABELS[$k]) && is_numeric($v)) {
+                    $wanted[self::FK_LABELS[$k][0]][(int) $v] = true;
+                }
+            }
+        }
+
+        $byClass = [];
+        foreach ($wanted as $class => $ids) {
+            $column = null;
+            foreach (self::FK_LABELS as [$c, $col]) {
+                if ($c === $class) { $column = $col; break; }
+            }
+
+            try {
+                $byClass[$class] = self::lookupQuery($class)
+                    ->whereIn('id', array_keys($ids))
+                    ->pluck($column, 'id')
+                    ->all();
+            } catch (\Throwable) {
+                // Ignore; those values render as raw ids.
+            }
+        }
+
+        $out = [];
+        foreach (self::FK_LABELS as $key => [$class, $col]) {
+            if (! empty($byClass[$class])) {
+                $out[$key] = $byClass[$class];
+            }
+        }
+
+        return $out;
+    }
+
+    /** Whether snapshot attribute $key is a known foreign key we can name. */
+    public static function isForeignKey(string $key): bool
+    {
+        return isset(self::FK_LABELS[$key]);
+    }
+
+    /** Base lookup query for label resolution, including soft-deleted rows. */
+    private static function lookupQuery(string $class): Builder
+    {
+        $q = $class::query();
+
+        return in_array(SoftDeletes::class, class_uses_recursive($class), true)
+            ? $q->withTrashed()
+            : $q;
+    }
+
+    /** First non-empty name-like attribute, or null. */
+    private static function labelFromAttributes(array $attributes): ?string
+    {
+        foreach (self::LABEL_CANDIDATES as $attr) {
+            $v = $attributes[$attr] ?? null;
+            if (is_string($v) && trim($v) !== '') {
+                return trim($v);
+            }
+        }
+
+        return null;
     }
 
     /** Attributes that must never be written for this model. */

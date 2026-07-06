@@ -125,7 +125,14 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-gray-700">{{ \App\Services\AuditLogService::label($log->auditable_type) }}</td>
-                            <td class="px-4 py-3 text-gray-500">#{{ $log->auditable_id }}</td>
+                            <td class="px-4 py-3">
+                                @if ($recLabel = $recordLabels[$log->auditable_type . ':' . $log->auditable_id] ?? null)
+                                    <span class="text-gray-700">{{ $recLabel }}</span>
+                                    <span class="text-[11px] text-gray-400 whitespace-nowrap">#{{ $log->auditable_id }}</span>
+                                @else
+                                    <span class="text-gray-500">#{{ $log->auditable_id }}</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-gray-500">{{ $log->outlet?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-right">
                                 @if (!empty($keys))
@@ -155,15 +162,22 @@
                                                     @php
                                                         $before = array_key_exists($k, $old) ? $old[$k] : null;
                                                         $after  = array_key_exists($k, $new) ? $new[$k] : null;
-                                                        $fmt = function ($v) {
+                                                        $fmt = function ($v) use ($fkLabels, $k) {
                                                             if (is_null($v)) return '—';
                                                             if (is_bool($v)) return $v ? 'true' : 'false';
                                                             if (is_array($v)) return json_encode($v);
+                                                            if (is_numeric($v) && isset($fkLabels[$k][(int) $v])) {
+                                                                return $fkLabels[$k][(int) $v] . " (#{$v})";
+                                                            }
                                                             return (string) $v;
                                                         };
+                                                        // "Supplier Id" reads poorly once the value is a name — show "Supplier".
+                                                        $fieldLabel = \App\Services\AuditLogService::isForeignKey($k)
+                                                            ? ucwords(str_replace('_', ' ', preg_replace('/_id$/', '', $k)))
+                                                            : ucwords(str_replace('_', ' ', $k));
                                                     @endphp
                                                     <tr>
-                                                        <td class="px-3 py-1.5 font-medium text-gray-600">{{ ucwords(str_replace('_', ' ', $k)) }}</td>
+                                                        <td class="px-3 py-1.5 font-medium text-gray-600">{{ $fieldLabel }}</td>
                                                         <td class="px-3 py-1.5 text-red-600 break-all">{{ $fmt($before) }}</td>
                                                         <td class="px-3 py-1.5 text-green-700 break-all">{{ $fmt($after) }}</td>
                                                     </tr>

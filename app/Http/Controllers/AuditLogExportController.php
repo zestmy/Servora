@@ -27,7 +27,7 @@ class AuditLogExportController extends Controller
         ];
     }
 
-    private function summarise(array $old = null, array $new = null): string
+    private function summarise(array $old = null, array $new = null, array $fkLabels = []): string
     {
         $old = $old ?? [];
         $new = $new ?? [];
@@ -35,19 +35,22 @@ class AuditLogExportController extends Controller
 
         $parts = [];
         foreach ($keys as $k) {
-            $b = array_key_exists($k, $old) ? $this->scalar($old[$k]) : '';
-            $a = array_key_exists($k, $new) ? $this->scalar($new[$k]) : '';
+            $b = array_key_exists($k, $old) ? $this->scalar($old[$k], $k, $fkLabels) : '';
+            $a = array_key_exists($k, $new) ? $this->scalar($new[$k], $k, $fkLabels) : '';
             $parts[] = trim("{$k}: {$b} → {$a}");
         }
 
         return implode('; ', $parts);
     }
 
-    private function scalar($v): string
+    private function scalar($v, string $key = '', array $fkLabels = []): string
     {
         if (is_null($v)) return '';
         if (is_bool($v)) return $v ? 'true' : 'false';
         if (is_array($v)) return json_encode($v);
+        if (is_numeric($v) && isset($fkLabels[$key][(int) $v])) {
+            return $fkLabels[$key][(int) $v] . " (#{$v})";
+        }
 
         return (string) $v;
     }
@@ -56,9 +59,12 @@ class AuditLogExportController extends Controller
     {
         $user = $request->user();
         $logs = AuditLogService::query($this->filters($request), $user)
-            ->with('outlet')->limit(50000)->get();
+            ->limit(50000)->get();
 
-        $headers = ['Timestamp', 'User', 'Guard', 'Action', 'Module', 'Record #', 'Branch', 'Changes', 'IP Address'];
+        $recordLabels = AuditLogService::recordLabels($logs);
+        $fkLabels     = AuditLogService::foreignLabels($logs);
+
+        $headers = ['Timestamp', 'User', 'Guard', 'Action', 'Module', 'Record', 'Record #', 'Branch', 'Changes', 'IP Address'];
 
         $rows = $logs->map(fn ($log) => [
             $log->created_at?->format('Y-m-d H:i:s'),
@@ -66,9 +72,10 @@ class AuditLogExportController extends Controller
             $log->guard ?? 'web',
             ucwords(str_replace('_', ' ', $log->event)),
             AuditLogService::label($log->auditable_type),
+            $recordLabels[$log->auditable_type . ':' . $log->auditable_id] ?? '',
             $log->auditable_id,
             $log->outlet?->name ?? '',
-            $this->summarise($log->old_values, $log->new_values),
+            $this->summarise($log->old_values, $log->new_values, $fkLabels),
             $log->ip_address ?? '',
         ]);
 
@@ -79,15 +86,17 @@ class AuditLogExportController extends Controller
     {
         $user = $request->user();
         $logs = AuditLogService::query($this->filters($request), $user)
-            ->with('outlet')->limit(5000)->get();
+            ->limit(5000)->get();
 
         $company = $user->company;
 
         $pdf = Pdf::loadView('pdf.audit-logs', [
-            'logs'        => $logs,
-            'company'     => $company,
-            'generatedBy' => $user->name,
-            'generatedAt' => now(),
+            'logs'         => $logs,
+            'recordLabels' => AuditLogService::recordLabels($logs),
+            'fkLabels'     => AuditLogService::foreignLabels($logs),
+            'company'      => $company,
+            'generatedBy'  => $user->name,
+            'generatedAt'  => now(),
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download('audit-logs-' . now()->format('Ymd-His') . '.pdf');
