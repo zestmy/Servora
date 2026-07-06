@@ -164,6 +164,76 @@ class VisionService
     }
 
     /**
+     * Fine-tune existing preparation steps: fix spelling and grammar and polish
+     * the wording into simple, precise SOP-training language, without changing
+     * the meaning, order, or number of steps.
+     *
+     * @param  array<string>  $ingredientNames
+     * @param  array<int, array{title?:string, instruction?:string}>  $existingSteps
+     * @return array<int, array{title:string, instruction:string}>  Same length and order as $existingSteps.
+     */
+    public function fineTunePreparationSteps(string $recipeName, array $ingredientNames, array $existingSteps): array
+    {
+        $existingSteps = array_values($existingSteps);
+        if (empty($existingSteps)) {
+            throw new \RuntimeException('There are no steps to fine-tune.');
+        }
+
+        $ingredientList = empty($ingredientNames) ? '(none provided)' : implode(', ', array_filter(array_map('trim', $ingredientNames)));
+
+        $stepsText = '';
+        foreach ($existingSteps as $i => $st) {
+            $n     = $i + 1;
+            $title = trim((string) ($st['title'] ?? ''));
+            $instr = trim((string) ($st['instruction'] ?? ''));
+            $stepsText .= "{$n}. " . ($title !== '' ? "[{$title}] " : '') . $instr . "\n";
+        }
+
+        $userText = "Recipe name: {$recipeName}\n" .
+            "Ingredients: {$ingredientList}\n\n" .
+            "Current preparation steps:\n{$stepsText}\n" .
+            'Proofread and fine-tune ALL the steps above. Fix spelling, grammar, and punctuation, and make each ' .
+            'instruction simple and precise for SOP training — but keep every step\'s meaning, order, quantities, ' .
+            'times, and temperatures exactly as written. Return the full corrected list.';
+
+        $data = $this->chatJson([
+            ['role' => 'system', 'content' => $this->stepFineTuneSystemPrompt()],
+            ['role' => 'user', 'content' => $userText],
+        ], false, 4096);
+
+        $rawSteps = $data['steps'] ?? (array_is_list($data) ? $data : []);
+        $steps    = [];
+        foreach ($rawSteps as $s) {
+            $one = $this->normalizeStep($s);
+            if ($one['instruction'] !== '') {
+                $steps[] = $one;
+            }
+        }
+
+        // The polish must map 1:1 onto the existing steps — a different count
+        // means the AI merged/split steps and we can't safely apply it.
+        if (count($steps) !== count($existingSteps)) {
+            throw new \RuntimeException('The AI response did not match the current steps. Please try again.');
+        }
+
+        return $steps;
+    }
+
+    private function stepFineTuneSystemPrompt(): string
+    {
+        return <<<'PROMPT'
+You are a professional executive chef and kitchen-training editor. You will receive a recipe's existing SOP preparation steps written by kitchen staff. Fix spelling, grammar, and punctuation, and fine-tune the wording so each step is simple and precise for staff training: short sentences, imperative voice, one clear action at a time.
+STRICT RULES:
+- Return the SAME number of steps in the SAME order. Never merge, split, add, or remove steps.
+- Preserve each step's meaning exactly — keep all ingredients, quantities, times, temperatures, and equipment as written. Do not invent details.
+- Keep each step's existing title, correcting its spelling only. If a title is blank, add a short 2-4 word title.
+- If a step is already correct and clear, return it unchanged.
+Return ONLY valid JSON, no markdown, in this exact shape:
+{"steps":[{"title":"...","instruction":"..."},{"title":"...","instruction":"..."}]}
+PROMPT;
+    }
+
+    /**
      * Build OpenRouter image content parts (base64 data URIs) from file paths.
      *
      * @param  array<string>  $imagePaths

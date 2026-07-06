@@ -901,6 +901,26 @@
                                 </button>
                             </div>
                         </div>
+                        @if (count($steps))
+                            <button type="button" wire:click="fineTuneSteps"
+                                    wire:loading.attr="disabled" wire:target="fineTuneSteps"
+                                    title="AI checks spelling and grammar and polishes the wording of all steps for SOP training — without changing their meaning or order"
+                                    class="px-3 py-1.5 text-xs font-medium text-teal-600 bg-teal-50 rounded-lg hover:bg-teal-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                <span wire:loading.remove wire:target="fineTuneSteps" class="flex items-center gap-1.5">
+                                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    Fine Tune &amp; Check Spelling
+                                </span>
+                                <span wire:loading wire:target="fineTuneSteps" class="flex items-center gap-1.5">
+                                    <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                    Fine-tuning…
+                                </span>
+                            </button>
+                        @endif
                         <button type="button" wire:click="addStep"
                                 class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
                             + Add Step

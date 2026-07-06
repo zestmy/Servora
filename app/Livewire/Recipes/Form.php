@@ -485,6 +485,61 @@ class Form extends Component
         session()->flash('ai_steps_success', 'Step ' . ($idx + 1) . ' regenerated.');
     }
 
+    /**
+     * Fine-tune all existing steps with AI: fix spelling/grammar and polish the
+     * wording into simple, precise SOP-training language. Titles, order, and
+     * step count are preserved; images and ids are untouched.
+     */
+    public function fineTuneSteps(): void
+    {
+        // Only steps with an instruction are sent; remember their positions so
+        // the polished versions map back onto the right rows.
+        $indexes = [];
+        foreach ($this->steps as $i => $s) {
+            if (trim($s['instruction'] ?? '') !== '') {
+                $indexes[] = $i;
+            }
+        }
+
+        if (empty($indexes)) {
+            session()->flash('ai_steps_error', 'Add at least one step with an instruction before fine-tuning.');
+            return;
+        }
+
+        $payload = array_map(fn ($i) => [
+            'title'       => $this->steps[$i]['title'] ?? '',
+            'instruction' => $this->steps[$i]['instruction'] ?? '',
+        ], $indexes);
+
+        try {
+            $polished = app(VisionService::class)->fineTunePreparationSteps(
+                $this->name,
+                $this->recipeIngredientNames(),
+                $payload,
+            );
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        $changed = 0;
+        foreach ($indexes as $k => $i) {
+            $newTitle = $polished[$k]['title'] ?? ($this->steps[$i]['title'] ?? '');
+            $newInstr = $polished[$k]['instruction'] ?? $this->steps[$i]['instruction'];
+
+            if ($newTitle !== ($this->steps[$i]['title'] ?? '') || $newInstr !== $this->steps[$i]['instruction']) {
+                $changed++;
+            }
+
+            $this->steps[$i]['title']       = $newTitle;
+            $this->steps[$i]['instruction'] = $newInstr;
+        }
+
+        session()->flash('ai_steps_success', $changed === 0
+            ? 'All steps already read well — no changes needed.'
+            : "{$changed} step(s) fine-tuned for spelling and clarity. Review and save.");
+    }
+
     /** Ingredient names for the current recipe lines (for AI prompts). */
     private function recipeIngredientNames(): array
     {
