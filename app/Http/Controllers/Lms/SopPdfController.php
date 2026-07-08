@@ -60,7 +60,7 @@ class SopPdfController extends Controller
             'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'stepImagesBase64', 'exportedBy', 'brandName', 'videoQr'
         ))->setPaper('a4', 'portrait');
 
-        return $pdf->download("SOP-{$recipe->code}-{$recipe->name}.pdf");
+        return $pdf->download($this->safeFilename("SOP-{$recipe->code}-{$recipe->name}.pdf"));
     }
 
     public function all()
@@ -186,12 +186,18 @@ class SopPdfController extends Controller
         ))->setPaper('a4', 'portrait');
 
         $fileLabel = $groupLabel
-            ? 'All-' . str_replace(['/', '\\'], '-', $groupLabel)
-            : ($category
-                ? str_replace(['/', '\\'], '-', $category)
-                : 'Training-SOPs');
+            ? "All-{$groupLabel}"
+            : ($category ?: 'Training-SOPs');
 
-        return $pdf->download("{$brandName}-{$fileLabel}.pdf");
+        return $pdf->download($this->safeFilename("{$brandName}-{$fileLabel}.pdf"));
+    }
+
+    /**
+     * Strip characters Symfony rejects in Content-Disposition filenames.
+     */
+    private function safeFilename(string $name): string
+    {
+        return str_replace(['/', '\\'], '-', $name);
     }
 
     /**

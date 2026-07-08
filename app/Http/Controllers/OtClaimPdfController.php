@@ -154,7 +154,7 @@ class OtClaimPdfController extends Controller
             'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'calendarEvents', 'from', 'to', 'pendingHours', 'rejectedClaims'
         ))->setPaper('a4', 'portrait');
 
-        $name = str_replace(' ', '-', strtolower($employee->name));
+        $name = str_replace([' ', '/', '\\'], '-', strtolower($employee->name));
 
         return $pdf->download("ot-claims-{$name}.pdf");
     }
