@@ -531,12 +531,26 @@ class Index extends Component
         }
 
         if ($isPrep) {
-            // Cost-category picker for prep items.
-            $recipeCategories = \App\Models\IngredientCategory::with(['children' => function ($q) {
-                    $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+            // Cost-category picker for prep items. Only categories that actually
+            // have prep items are listed (filter + PDF export dropdowns) — empty
+            // ingredient categories from Settings are just noise here.
+            $usedCatIds = Recipe::where('is_prep', true)
+                ->whereNotNull('ingredient_category_id')
+                ->distinct()
+                ->pluck('ingredient_category_id');
+
+            $recipeCategories = \App\Models\IngredientCategory::with(['children' => function ($q) use ($usedCatIds) {
+                    $q->where('is_active', true)
+                      ->whereIn('id', $usedCatIds)
+                      ->orderBy('sort_order')
+                      ->orderBy('name');
                 }])
                 ->roots()
                 ->where('is_active', true)
+                ->where(function ($q) use ($usedCatIds) {
+                    $q->whereIn('id', $usedCatIds)
+                      ->orWhereHas('children', fn ($c) => $c->whereIn('id', $usedCatIds));
+                })
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get();
