@@ -84,6 +84,22 @@ class LmsUsers extends Component
             ->where('exclude_from_lms', false)
             ->exists();
 
+        // Ingredient categories holding at least one LMS-visible prep item —
+        // each gets its own prep-SOP export link.
+        $prepSopCategories = \App\Models\IngredientCategory::whereHas('recipes', fn ($q) => $q
+                ->where('is_active', true)
+                ->where('is_prep', true)
+                ->where('exclude_from_lms', false))
+            ->with('parent')
+            ->get()
+            ->sortBy(fn ($c) => [
+                $c->parent->sort_order ?? $c->sort_order,
+                $c->parent->name ?? $c->name,
+                $c->sort_order,
+                $c->name,
+            ])
+            ->values();
+
         // Top-tier category groups (e.g. "All Food", "All Beverages") — root recipe
         // categories that contain at least one LMS recipe (themselves or via a child).
         $sopCategoryGroups = \App\Models\RecipeCategory::where('company_id', $companyId)
@@ -115,7 +131,7 @@ class LmsUsers extends Component
 
         return view('livewire.settings.lms-users', compact(
             'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',
-            'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories', 'sopCategoryGroups', 'hasPrepSops',
+            'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories', 'sopCategoryGroups', 'hasPrepSops', 'prepSopCategories',
             'lmsUrl', 'lmsRegisterUrl', 'company'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Training Portal']);
     }

@@ -77,6 +77,22 @@ class SopPdfController extends Controller
         // Optional prep-only export — only prep-item SOPs, skipping menu recipes.
         $prepOnly = request()->boolean('prep');
 
+        // Optional prep sub-category filter — an ingredient-category id; exports only
+        // prep-item SOPs in that category plus its sub-categories. Implies prep-only.
+        $prepCategoryId = (int) request('prep_category') ?: null;
+        $prepCategoryIds = null;
+        $prepCategoryLabel = null;
+        if ($prepCategoryId) {
+            $prepCat = IngredientCategory::where('company_id', $user->company_id)
+                ->with('children')
+                ->find($prepCategoryId);
+            if ($prepCat) {
+                $prepCategoryIds = collect([$prepCat->id])->merge($prepCat->children->pluck('id'))->all();
+                $prepCategoryLabel = $prepCat->name;
+            }
+            $prepOnly = true;
+        }
+
         // Optional category filter — when set, export only recipe SOPs in that category.
         $category = trim((string) request('category')) ?: null;
 
@@ -145,6 +161,7 @@ class SopPdfController extends Controller
         $prep = ($isFiltered && ! $prepOnly)
             ? collect()
             : $applyScope(Recipe::query()->where('recipes.is_prep', true))
+                ->when($prepCategoryIds, fn ($q) => $q->whereIn('recipes.ingredient_category_id', $prepCategoryIds))
                 ->leftJoin('ingredient_categories as rc', function ($join) {
                     $join->on('rc.id', '=', 'recipes.ingredient_category_id')
                          ->whereNull('rc.deleted_at');
@@ -189,7 +206,7 @@ class SopPdfController extends Controller
         ))->setPaper('a4', 'portrait');
 
         $fileLabel = $prepOnly
-            ? 'Prep-Items'
+            ? ($prepCategoryLabel ? "Prep-{$prepCategoryLabel}" : 'Prep-Items')
             : ($groupLabel
                 ? "All-{$groupLabel}"
                 : ($category ?: 'Training-SOPs'));
