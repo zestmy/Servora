@@ -74,6 +74,9 @@ class SopPdfController extends Controller
 
         $traineeOutletId = $isLmsTrainee ? $user->outlet_id : null;
 
+        // Optional prep-only export — only prep-item SOPs, skipping menu recipes.
+        $prepOnly = request()->boolean('prep');
+
         // Optional category filter — when set, export only recipe SOPs in that category.
         $category = trim((string) request('category')) ?: null;
 
@@ -110,7 +113,7 @@ class SopPdfController extends Controller
         // Non-prep recipes — ordered EXACTLY like the Recipes list (category hierarchy:
         // root sort/name → sub sort/name → menu_sort_order → name) so the exported PDF
         // matches the on-screen ordering instead of a flat name sort.
-        $nonPrep = $applyScope(Recipe::query()->where('recipes.is_prep', false))
+        $nonPrep = $prepOnly ? collect() : $applyScope(Recipe::query()->where('recipes.is_prep', false))
             ->when($category, fn ($q) => $q->where('recipes.category', $category))
             ->when($groupNames, fn ($q) => $q->whereIn('recipes.category', $groupNames))
             ->leftJoin('recipe_categories as rc', function ($join) {
@@ -139,7 +142,7 @@ class SopPdfController extends Controller
 
         // Prep items follow, ordered by ingredient-category hierarchy. Skipped when a
         // recipe-category filter is active (prep items have no menu category).
-        $prep = $isFiltered
+        $prep = ($isFiltered && ! $prepOnly)
             ? collect()
             : $applyScope(Recipe::query()->where('recipes.is_prep', true))
                 ->leftJoin('ingredient_categories as rc', function ($join) {
@@ -185,9 +188,11 @@ class SopPdfController extends Controller
             'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'recipeStepImages', 'exportedBy', 'brandName'
         ))->setPaper('a4', 'portrait');
 
-        $fileLabel = $groupLabel
-            ? "All-{$groupLabel}"
-            : ($category ?: 'Training-SOPs');
+        $fileLabel = $prepOnly
+            ? 'Prep-Items'
+            : ($groupLabel
+                ? "All-{$groupLabel}"
+                : ($category ?: 'Training-SOPs'));
 
         return $pdf->download($this->safeFilename("{$brandName}-{$fileLabel}.pdf"));
     }
