@@ -202,4 +202,20 @@
         <strong>WARNING:</strong> This document is the property of {{ $company->brand_name ?? $company->name }} and temporary possession and access is granted only to authorised personnel. No part of this document shall be reproduced, copied, duplicated or extracted using any form without prior written permission from the property owner.
     </div>
 
+    {{-- ═══ Latest update activity ══════════════════════════════ --}}
+    @if (($recentActivity ?? collect())->isNotEmpty())
+        <div class="activity-section">
+            <div class="activity-title">Latest 5 Update Activity</div>
+            <table class="activity">
+                @foreach ($recentActivity as $log)
+                    <tr>
+                        <td class="act-date">{{ $log->created_at?->format('d M Y') }}</td>
+                        <td>{{ $log->summary() }}</td>
+                        <td class="act-actor">{{ $log->actorName() }}</td>
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
+
 @endsection

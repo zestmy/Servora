@@ -109,6 +109,14 @@
         .warning-notice { margin-top: 14px; padding: 10px 14px; border-top: 1px solid #cbd5e1; font-size: 8.5pt; color: #64748b; line-height: 1.6; font-style: italic; }
         .warning-notice strong { color: #0f172a; font-style: normal; letter-spacing: 0.5px; }
 
+        /* Update activity */
+        .activity-section { margin-top: 12px; padding-top: 7px; border-top: 1px solid #cbd5e1; }
+        .activity-title { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #475569; margin-bottom: 4px; }
+        table.activity { width: 100%; border-collapse: collapse; }
+        table.activity td { padding: 2px 0; font-size: 7.5pt; color: #64748b; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        table.activity td.act-date { width: 80px; white-space: nowrap; color: #94a3b8; }
+        table.activity td.act-actor { width: 140px; text-align: right; color: #475569; }
+
         /* Footer */
         .pdf-footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #cbd5e1; font-size: 8pt; color: #94a3b8; }
         .pdf-footer .left { float: left; }
@@ -358,6 +366,23 @@
         <div class="warning-notice">
             <strong>WARNING:</strong> This document is the property of {{ $company->brand_name ?? $company->name }} and temporary possession and access is granted only to authorised personnel. No part of this document shall be reproduced, copied, duplicated or extracted using any form without prior written permission from the property owner.
         </div>
+
+        {{-- Latest update activity --}}
+        @php $activity = ($recipeActivity ?? collect())->get($recipe->id, collect()); @endphp
+        @if ($activity->isNotEmpty())
+            <div class="activity-section">
+                <div class="activity-title">Latest 5 Update Activity</div>
+                <table class="activity">
+                    @foreach ($activity as $log)
+                        <tr>
+                            <td class="act-date">{{ $log->created_at?->format('d M Y') }}</td>
+                            <td>{{ $log->summary() }}</td>
+                            <td class="act-actor">{{ $log->actorName() }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
+        @endif
 
     @endforeach
 @endforeach

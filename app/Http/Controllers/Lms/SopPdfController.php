@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Lms;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\IngredientCategory;
 use App\Models\Recipe;
@@ -56,8 +57,10 @@ class SopPdfController extends Controller
         $brandName  = $company->brand_name ?? $company->name ?? 'Company';
         $videoQr    = $recipe->video_url ? $this->generateVideoQr($recipe->id, $company->id) : null;
 
+        $recentActivity = $this->recentActivityByRecipe([$recipe->id])->get($recipe->id, collect());
+
         $pdf = Pdf::loadView('pdf.sop-single', compact(
-            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'stepImagesBase64', 'exportedBy', 'brandName', 'videoQr'
+            'recipe', 'company', 'dineInBase64', 'takeawayBase64', 'logoBase64', 'stepImagesBase64', 'exportedBy', 'brandName', 'videoQr', 'recentActivity'
         ))->setPaper('a4', 'portrait');
 
         return $pdf->download($this->safeFilename("SOP-{$recipe->code}-{$recipe->name}.pdf"));
@@ -201,8 +204,10 @@ class SopPdfController extends Controller
         $exportedBy = $user->name;
         $brandName  = $company->brand_name ?? $company->name ?? 'SOP';
 
+        $recipeActivity = $this->recentActivityByRecipe($recipes->pluck('id')->all());
+
         $pdf = Pdf::loadView('pdf.sop-all', compact(
-            'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'recipeStepImages', 'exportedBy', 'brandName'
+            'grouped', 'company', 'logoBase64', 'recipeImages', 'recipeQrs', 'recipeStepImages', 'exportedBy', 'brandName', 'recipeActivity'
         ))->setPaper('a4', 'portrait');
 
         $fileLabel = $prepOnly
@@ -212,6 +217,28 @@ class SopPdfController extends Controller
                 : ($category ?: 'Training-SOPs'));
 
         return $pdf->download($this->safeFilename("{$brandName}-{$fileLabel}.pdf"));
+    }
+
+    /**
+     * Latest audit entries per recipe (newest first, max $limit each) for the
+     * "Latest 5 Update Activity" section. One query for the whole recipe set —
+     * a per-recipe query would N+1 on bulk exports. Returns a collection keyed
+     * by recipe id.
+     */
+    private function recentActivityByRecipe(array $recipeIds, int $limit = 5)
+    {
+        if (empty($recipeIds)) {
+            return collect();
+        }
+
+        return AuditLog::with('user:id,name')
+            ->select(['id', 'user_id', 'user_name', 'event', 'auditable_id', 'old_values', 'new_values', 'created_at'])
+            ->where('auditable_type', Recipe::class)
+            ->whereIn('auditable_id', $recipeIds)
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->get()
+            ->groupBy('auditable_id')
+            ->map(fn ($logs) => $logs->take($limit)->values());
     }
 
     /**

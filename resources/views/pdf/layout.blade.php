@@ -272,6 +272,14 @@
             letter-spacing: 0.4px;
         }
 
+        /* ═══ Update activity ══════════════════════════════════ */
+        .activity-section { margin-top: 12px; padding-top: 7px; border-top: 1px solid #cbd5e1; }
+        .activity-title { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #475569; margin-bottom: 4px; }
+        table.activity { width: 100%; border-collapse: collapse; }
+        table.activity td { padding: 2px 0; font-size: 7.5pt; color: #64748b; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        table.activity td.act-date { width: 80px; white-space: nowrap; color: #94a3b8; }
+        table.activity td.act-actor { width: 140px; text-align: right; color: #475569; }
+
         /* ═══ Footer ═══════════════════════════════════════════ */
         .pdf-footer {
             margin-top: 18px;
