@@ -67,7 +67,8 @@
     </div>
 
     {{-- Stats --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 transition-opacity duration-200"
+         wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Revenue</p>
             <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($filteredRevenue, 2) }}</p>
@@ -156,7 +157,8 @@
     </div>
 
     {{-- Category Breakdown + Meal Period + Events + Missing Dates --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-4 transition-opacity duration-200"
+         wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange">
         {{-- Sales by Category --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales by Category</h3>
@@ -401,7 +403,8 @@
     </div>
 
     {{-- Target Progress + AI Predictive --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 transition-opacity duration-200"
+         wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange">
         {{-- Sales Target Progress --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales Target</h3>
@@ -529,7 +532,8 @@
     @endif
 
     {{-- Table — horizontally scrollable on mobile so all columns are reachable. --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-opacity duration-200"
+         wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange, search">
       <div class="overflow-x-auto">
         <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">

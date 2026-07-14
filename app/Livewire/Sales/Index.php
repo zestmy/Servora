@@ -621,9 +621,12 @@ class Index extends Component
                 // Current month actual revenue for the selected outlet
                 $monthStart = now()->startOfMonth()->toDateString();
                 $monthEnd   = now()->endOfMonth()->toDateString();
-                $monthQ     = SalesRecord::where('outlet_id', $targetOutletId);
-                $monthRevenue = (clone $monthQ)->whereBetween('sale_date', [$monthStart, $monthEnd])->sum('total_revenue');
-                $monthPax     = (clone $monthQ)->whereBetween('sale_date', [$monthStart, $monthEnd])->sum('pax');
+                $monthTotals = SalesRecord::where('outlet_id', $targetOutletId)
+                    ->whereBetween('sale_date', [$monthStart, $monthEnd])
+                    ->selectRaw('SUM(total_revenue) as revenue, SUM(pax) as pax')
+                    ->first();
+                $monthRevenue = (float) ($monthTotals->revenue ?? 0);
+                $monthPax     = (int) ($monthTotals->pax ?? 0);
 
                 $pct = $target->target_revenue > 0
                     ? round($monthRevenue / $target->target_revenue * 100, 1)
