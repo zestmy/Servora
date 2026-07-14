@@ -482,7 +482,7 @@
             @elseif ($predictionError)
                 <div class="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{{ $predictionError }}</div>
             @elseif ($prediction)
-                <div class="prose prose-sm prose-gray max-w-none text-xs leading-relaxed max-h-64 overflow-y-auto">
+                <div class="prose prose-sm prose-gray max-w-none leading-relaxed [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-indigo-600 [&_h2]:mb-1 [&_h2]:mt-0 [&_p]:my-0.5 [&_p]:text-sm [&_p]:text-gray-500">
                     {!! \Illuminate\Support\Str::markdown($prediction['response']) !!}
                 </div>
                 <div class="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">

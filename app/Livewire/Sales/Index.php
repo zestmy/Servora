@@ -378,18 +378,19 @@ class Index extends Component
             // Use current month for context
             $period = now()->format('Y-m');
 
+            $nextMonth = now()->addMonth()->format('F Y');
+
             $service = app(AiAnalyticsService::class);
             $result = $service->analyze(
                 $period,
                 $outletId,
                 'custom',
-                "Based on the historical sales data provided, generate a predictive sales forecast for the next month. Include:\n"
-                . "1. **Predicted Revenue Range** — provide a low/mid/high estimate\n"
-                . "2. **Predicted Daily Average** — expected average daily revenue\n"
-                . "3. **Best & Worst Days** — which days of week are likely strongest/weakest\n"
-                . "4. **Key Factors** — what will influence next month's performance (events, trends, seasonality)\n"
-                . "5. **Confidence Level** — how reliable is this prediction based on available data\n"
-                . "Keep it concise and actionable. Use bullet points."
+                "Based on the historical sales data provided, predict the total sales revenue for {$nextMonth}.\n"
+                . "Reply with ONLY the following 3 lines and nothing else — no report, no explanation, no analysis, no extra text:\n"
+                . "## RM <predicted total>\n"
+                . "Range: RM <low> – RM <high>\n"
+                . "Daily Avg: RM <predicted daily average>\n"
+                . "Format all numbers with thousand separators and no decimals (e.g. RM 45,000)."
             );
 
             $this->prediction = $result;
