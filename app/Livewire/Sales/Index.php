@@ -51,10 +51,16 @@ class Index extends Component
     public ?string $predictionError  = null;
 
     public function updatedSearch(): void           { $this->resetPage(); }
-    public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPage(); }
-    public function updatedDateTo(): void           { $this->quickRange = 'custom'; $this->resetPage(); }
+    public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPrediction(); $this->resetPage(); }
+    public function updatedDateTo(): void           { $this->quickRange = 'custom'; $this->resetPrediction(); $this->resetPage(); }
     public function updatedMealPeriodFilter(): void { $this->resetPage(); }
-    public function updatedOutletFilter(): void     { $this->resetPage(); }
+    public function updatedOutletFilter(): void     { $this->resetPrediction(); $this->resetPage(); }
+
+    private function resetPrediction(): void
+    {
+        $this->prediction      = null;
+        $this->predictionError = null;
+    }
 
     public function setQuickRange(string $range): void
     {
@@ -76,6 +82,7 @@ class Index extends Component
             default      => null,
         };
 
+        $this->resetPrediction();
         $this->resetPage();
     }
 
@@ -445,6 +452,7 @@ class Index extends Component
             }
 
             $this->prediction = [
+                'outlet'     => Outlet::where('id', $outletId)->value('name'),
                 'month'      => $monthLabel,
                 'total'      => $total,
                 'low'        => min($low, $total),

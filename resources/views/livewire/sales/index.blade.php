@@ -483,7 +483,9 @@
                 <div class="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{{ $predictionError }}</div>
             @elseif ($prediction)
                 <div>
-                    <p class="text-xs text-gray-400">Predicted total sales — {{ $prediction['month'] }}</p>
+                    <p class="text-xs text-gray-400">
+                        Predicted total sales — {{ $prediction['month'] }}@if (!empty($prediction['outlet'])) · <span class="text-gray-500 font-medium">{{ $prediction['outlet'] }}</span>@endif
+                    </p>
                     <p class="text-3xl font-bold text-indigo-600 mt-1">RM {{ number_format($prediction['total']) }}</p>
                     <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                         <span>Range: RM {{ number_format($prediction['low']) }} – RM {{ number_format($prediction['high']) }}</span>
