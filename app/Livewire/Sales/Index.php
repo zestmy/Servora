@@ -372,28 +372,88 @@ class Index extends Component
         $this->predictionError = null;
 
         try {
-            $user      = Auth::user();
-            $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+            $user     = Auth::user();
+            $outletId = $this->outletFilter
+                ? (int) $this->outletFilter
+                : ($user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id'));
 
-            // Use current month for context
-            $period = now()->format('Y-m');
+            // Target month follows the page's date filter (most recent month in range)
+            $filterDate  = $this->dateTo ?: $this->dateFrom;
+            $targetMonth = ($filterDate ? Carbon::parse($filterDate) : now())->startOfMonth();
+            $monthLabel  = $targetMonth->format('F Y');
+            $daysInMonth = $targetMonth->daysInMonth;
 
-            $nextMonth = now()->addMonth()->format('F Y');
+            // Deterministic baseline from recorded sales, so the AI figure is anchored
+            $monthBase    = SalesRecord::where('outlet_id', $outletId)
+                ->whereBetween('sale_date', [$targetMonth, $targetMonth->copy()->endOfMonth()]);
+            $actual       = (float) (clone $monthBase)->sum('total_revenue');
+            $daysRecorded = (clone $monthBase)->distinct()->count('sale_date');
+
+            if ($daysRecorded >= 5) {
+                $dailyAvg = $actual / $daysRecorded;
+            } else {
+                $trail    = SalesRecord::where('outlet_id', $outletId)
+                    ->whereBetween('sale_date', [$targetMonth->copy()->subDays(90), $targetMonth->copy()->subDay()]);
+                $trailRev  = (float) (clone $trail)->sum('total_revenue');
+                $trailDays = (clone $trail)->distinct()->count('sale_date');
+                $dailyAvg  = $trailDays > 0 ? $trailRev / $trailDays : 0;
+            }
+
+            $today = now();
+            if ($targetMonth->isSameMonth($today)) {
+                $remainingDays = $daysInMonth - $today->day;
+            } elseif ($targetMonth->lt($today->copy()->startOfMonth())) {
+                $remainingDays = 0;
+            } else {
+                $remainingDays = $daysInMonth;
+            }
+            $baseline = $actual + ($dailyAvg * $remainingDays);
+
+            if ($baseline <= 0) {
+                throw new \RuntimeException("Not enough sales data to predict {$monthLabel}. Record some sales first.");
+            }
 
             $service = app(AiAnalyticsService::class);
             $result = $service->analyze(
-                $period,
+                $targetMonth->format('Y-m'),
                 $outletId,
                 'custom',
-                "Based on the historical sales data provided, predict the total sales revenue for {$nextMonth}.\n"
-                . "Reply with ONLY the following 3 lines and nothing else — no report, no explanation, no analysis, no extra text:\n"
-                . "## RM <predicted total>\n"
-                . "Range: RM <low> – RM <high>\n"
-                . "Daily Avg: RM <predicted daily average>\n"
-                . "Format all numbers with thousand separators and no decimals (e.g. RM 45,000)."
+                "Forecast the TOTAL sales revenue for {$monthLabel}.\n"
+                . "A statistical baseline has already been computed from recorded sales:\n"
+                . "- Actual recorded in {$monthLabel} so far: RM " . number_format($actual, 2) . " across {$daysRecorded} day(s)\n"
+                . "- Daily average: RM " . number_format($dailyAvg, 2) . "\n"
+                . "- Remaining days to project: {$remainingDays}\n"
+                . "- Baseline projection (actual + daily average × remaining days): RM " . number_format($baseline, 2) . "\n"
+                . "Start from the baseline projection and adjust only for clear signals in the data (calendar events, day-of-week mix, recent trend). Stay within 15% of the baseline.\n"
+                . "Respond with ONLY this JSON object, no other text:\n"
+                . '{"predicted_total": <number>, "low": <number>, "high": <number>, "daily_avg": <number>}'
             );
 
-            $this->prediction = $result;
+            $ai    = $result['insights'] ?? [];
+            $total = (float) ($ai['predicted_total'] ?? 0);
+
+            // Fall back to the computed baseline if the AI reply is missing or wildly off
+            if ($total <= 0 || abs($total - $baseline) / $baseline > 0.5) {
+                $total = $baseline;
+                $low   = $baseline * 0.9;
+                $high  = $baseline * 1.1;
+                $avg   = $dailyAvg;
+            } else {
+                $low  = (float) ($ai['low'] ?? $total * 0.9);
+                $high = (float) ($ai['high'] ?? $total * 1.1);
+                $avg  = (float) ($ai['daily_avg'] ?? ($daysInMonth > 0 ? $total / $daysInMonth : 0));
+            }
+
+            $this->prediction = [
+                'month'      => $monthLabel,
+                'total'      => $total,
+                'low'        => min($low, $total),
+                'high'       => max($high, $total),
+                'daily_avg'  => $avg,
+                'actual'     => $actual,
+                'cached'     => $result['cached'],
+                'created_at' => $result['created_at'],
+            ];
         } catch (\Throwable $e) {
             $this->predictionError = $e->getMessage();
         } finally {
