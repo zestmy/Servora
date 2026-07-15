@@ -198,6 +198,28 @@ class ReportSubscriptions extends Component
         $this->testSending = false;
     }
 
+    public function runNow(int $subscriptionId, ReportGeneratorService $reportService): void
+    {
+        $subscription = ReportSubscription::findOrFail($subscriptionId);
+
+        try {
+            // Same pipeline as the scheduler: the data-completeness guardrail
+            // applies, and a successful send stamps last_sent_at so the next
+            // scheduled run doesn't duplicate it.
+            $log = $reportService->generateFromSubscription($subscription);
+
+            if ($log->delivery_status === 'sent') {
+                session()->flash('success', 'Report sent to ' . $log->recipient_email . '.');
+            } elseif ($log->delivery_status === 'skipped') {
+                session()->flash('error', 'Report skipped: ' . $log->error_message . ' Use "Send Now" in Recent Report History to send it anyway.');
+            } else {
+                session()->flash('error', 'Report failed: ' . ($log->error_message ?: 'unknown error'));
+            }
+        } catch (\Exception $e) {
+            session()->flash('error', 'Report failed: ' . $e->getMessage());
+        }
+    }
+
     public function resendReport(int $logId, ReportGeneratorService $reportService): void
     {
         $log = ReportLog::with('subscription')->findOrFail($logId);
