@@ -74,17 +74,21 @@ class SendScheduledReports extends Command
 
         $successCount = 0;
         $failCount = 0;
+        $skipCount = 0;
 
         foreach ($subscriptions as $subscription) {
             $outletName = $subscription->outlet?->name ?? 'All Outlets';
             $this->info("Processing: {$subscription->report_type} for {$outletName}...");
 
             try {
-                $log = $this->reportService->generateFromSubscription($subscription);
+                $log = $this->reportService->generateFromSubscription($subscription, force: (bool) $this->option('force'));
 
                 if ($log->delivery_status === 'sent') {
                     $this->info("  -> Sent successfully to {$subscription->user->email}");
                     $successCount++;
+                } elseif ($log->delivery_status === 'skipped') {
+                    $this->warn("  -> Skipped: {$log->error_message}");
+                    $skipCount++;
                 } else {
                     $this->error("  -> Failed: {$log->error_message}");
                     $failCount++;
@@ -100,7 +104,7 @@ class SendScheduledReports extends Command
         }
 
         $this->newLine();
-        $this->info("Completed: {$successCount} sent, {$failCount} failed.");
+        $this->info("Completed: {$successCount} sent, {$skipCount} skipped (incomplete data), {$failCount} failed.");
 
         return $failCount > 0 ? Command::FAILURE : Command::SUCCESS;
     }

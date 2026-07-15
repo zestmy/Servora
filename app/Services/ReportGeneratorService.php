@@ -7,8 +7,11 @@ use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\ReportLog;
 use App\Models\ReportSubscription;
+use App\Models\SalesClosure;
+use App\Models\SalesRecord;
 use App\Scopes\CompanyScope;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 
@@ -30,8 +33,12 @@ class ReportGeneratorService
 
     /**
      * Generate and send a report based on a subscription.
+     *
+     * @param bool $force Bypass the data-completeness guardrail (manual resends).
+     * @param Carbon|null $reportDateOverride Anchor the report to a specific past
+     *        period instead of deriving it from today (used when resending a log).
      */
-    public function generateFromSubscription(ReportSubscription $subscription): ReportLog
+    public function generateFromSubscription(ReportSubscription $subscription, bool $force = false, ?Carbon $reportDateOverride = null): ReportLog
     {
         $company = Company::find($subscription->company_id);
         $outlet = $subscription->outlet_id ? Outlet::find($subscription->outlet_id) : null;
@@ -39,28 +46,65 @@ class ReportGeneratorService
 
         // Determine the report date/period based on report type
         $now = now();
+        $anchor = $reportDateOverride?->copy();
         $reportDate = $now;
         $periodStart = null;
         $periodEnd = null;
 
         switch ($subscription->report_type) {
             case 'daily_sales':
-                $reportDate = $now->copy()->subDay(); // Yesterday's report
+                $reportDate = $anchor ?? $now->copy()->subDay(); // Yesterday's report
                 $periodStart = $reportDate->copy();
                 $periodEnd = $reportDate->copy();
                 break;
 
             case 'weekly_performance':
-                $reportDate = $now->copy()->subWeek()->startOfWeek();
+                $reportDate = ($anchor ?? $now->copy()->subWeek())->startOfWeek();
                 $periodStart = $reportDate->copy();
                 $periodEnd = $reportDate->copy()->endOfWeek();
                 break;
 
             case 'monthly_summary':
-                $reportDate = $now->copy()->subMonth()->startOfMonth();
+                $reportDate = ($anchor ?? $now->copy()->subMonth())->startOfMonth();
                 $periodStart = $reportDate->copy();
                 $periodEnd = $reportDate->copy()->endOfMonth();
                 break;
+        }
+
+        // Guardrail: don't send reports built on empty or incomplete data. Checked
+        // before any generation so retries cost a few cheap queries, no AI calls.
+        if (!$force) {
+            $issue = $this->checkDataCompleteness($subscription->company_id, $subscription->outlet_id, $periodStart, $periodEnd);
+
+            if ($issue !== null) {
+                // Reuse the existing skip log for this period so the 15-minute
+                // scheduler doesn't pile up duplicate entries all day.
+                $log = ReportLog::withoutGlobalScopes()
+                    ->where('subscription_id', $subscription->id)
+                    ->whereDate('report_date', $reportDate->toDateString())
+                    ->where('delivery_status', 'skipped')
+                    ->first();
+
+                if ($log) {
+                    $log->update(['error_message' => $issue]);
+                } else {
+                    $log = ReportLog::create([
+                        'subscription_id' => $subscription->id,
+                        'company_id' => $subscription->company_id,
+                        'outlet_id' => $subscription->outlet_id,
+                        'report_type' => $subscription->report_type,
+                        'report_date' => $reportDate,
+                        'period_start' => $periodStart,
+                        'period_end' => $periodEnd,
+                        'delivery_channel' => $subscription->delivery_channel,
+                        'recipient_email' => implode(', ', $recipientEmails),
+                        'delivery_status' => 'skipped',
+                        'error_message' => $issue,
+                    ]);
+                }
+
+                return $log;
+            }
         }
 
         // Create the report log entry
@@ -119,7 +163,11 @@ class ReportGeneratorService
 
             if ($allSuccess) {
                 $log->markAsSent();
-                $subscription->update(['last_sent_at' => now()]);
+                // A manual resend of an old period shouldn't suppress today's
+                // scheduled send, so only stamp last_sent_at on scheduled runs.
+                if (!$force) {
+                    $subscription->update(['last_sent_at' => now()]);
+                }
             } else {
                 $log->markAsFailed('Failed to send to: ' . implode(', ', $failedRecipients));
             }
@@ -295,6 +343,90 @@ class ReportGeneratorService
             'charts' => $charts,
             'period_label' => $periodLabel,
         ];
+    }
+
+    /**
+     * Check whether sales data for the report period is complete enough to send.
+     *
+     * Returns null when the data is fine, or a human-readable reason to skip:
+     * - a day in the period has neither a sales record nor a registered closure
+     * - the whole period has zero revenue
+     * For "All Outlets" subscriptions every active outlet is checked.
+     */
+    public function checkDataCompleteness(int $companyId, ?int $outletId, Carbon $periodStart, Carbon $periodEnd): ?string
+    {
+        $outlets = Outlet::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->when($outletId, fn ($q) => $q->where('id', $outletId))
+            ->when(!$outletId, fn ($q) => $q->where('is_active', true)->excludingCentralKitchens())
+            ->orderBy('name')
+            ->get();
+
+        if ($outlets->isEmpty()) {
+            return 'No active outlets found for this company.';
+        }
+
+        // Only judge days that have fully passed
+        $end = $periodEnd->copy()->min(now()->subDay());
+        if ($end->lt($periodStart)) {
+            return 'The report period has no completed days yet.';
+        }
+
+        $issues = [];
+
+        foreach ($outlets as $outlet) {
+            $revenueByDate = SalesRecord::withoutGlobalScope(CompanyScope::class)
+                ->where('company_id', $companyId)
+                ->where('outlet_id', $outlet->id)
+                ->whereBetween('sale_date', [$periodStart->toDateString(), $end->toDateString()])
+                ->selectRaw('sale_date, SUM(total_revenue) as revenue')
+                ->groupBy('sale_date')
+                ->toBase()
+                ->pluck('revenue', 'sale_date');
+
+            $closureDates = SalesClosure::withoutGlobalScope(CompanyScope::class)
+                ->where('company_id', $companyId)
+                ->where(fn ($q) => $q->where('outlet_id', $outlet->id)->orWhereNull('outlet_id'))
+                ->whereBetween('closure_date', [$periodStart->toDateString(), $end->toDateString()])
+                ->toBase()
+                ->pluck('closure_date')
+                ->map(fn ($d) => substr((string) $d, 0, 10))
+                ->all();
+
+            $totalRevenue = 0.0;
+            $missingDays = [];
+            $closedDays = 0;
+            $totalDays = 0;
+
+            foreach (CarbonPeriod::create($periodStart, $end) as $day) {
+                $totalDays++;
+                $key = $day->toDateString();
+                if (isset($revenueByDate[$key])) {
+                    $totalRevenue += (float) $revenueByDate[$key];
+                } elseif (in_array($key, $closureDates, true)) {
+                    $closedDays++;
+                } else {
+                    $missingDays[] = $day->format('j M');
+                }
+            }
+
+            if ($totalRevenue <= 0 && $closedDays === $totalDays) {
+                $issues[] = "{$outlet->name}: closed for the entire period (closure recorded)";
+            } elseif ($totalRevenue <= 0) {
+                $issues[] = "{$outlet->name}: no sales recorded for this period";
+            } elseif (!empty($missingDays)) {
+                $shown = array_slice($missingDays, 0, 5);
+                $more = count($missingDays) - count($shown);
+                $issues[] = "{$outlet->name}: no sales entry or closure for " . implode(', ', $shown) . ($more > 0 ? " (+{$more} more)" : '');
+            }
+        }
+
+        if (empty($issues)) {
+            return null;
+        }
+
+        return 'Data incomplete — ' . implode('; ', $issues)
+            . '. The report will send automatically once data is complete, or use Resend to send it as-is.';
     }
 
     /**

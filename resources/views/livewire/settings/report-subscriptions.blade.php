@@ -6,6 +6,12 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)"
+             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
@@ -141,19 +147,32 @@
                         <th class="px-4 py-2 text-left">Outlet</th>
                         <th class="px-4 py-2 text-left">Recipient</th>
                         <th class="px-4 py-2 text-center">Status</th>
+                        <th class="px-4 py-2 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @foreach($recentLogs as $log)
-                    <tr>
+                    <tr wire:key="report-log-{{ $log->id }}">
                         <td class="px-4 py-2 text-gray-600">{{ $log->created_at->format('d M Y H:i') }}</td>
                         <td class="px-4 py-2 text-gray-700">{{ ucwords(str_replace('_', ' ', $log->report_type)) }}</td>
                         <td class="px-4 py-2 text-gray-600">{{ $log->outlet?->name ?? 'All Outlets' }}</td>
                         <td class="px-4 py-2 text-gray-600 text-xs">{{ $log->recipient_email }}</td>
                         <td class="px-4 py-2 text-center">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $log->getStatusBadgeClass() }}">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $log->getStatusBadgeClass() }}"
+                                  @if($log->error_message) title="{{ $log->error_message }}" @endif>
                                 {{ ucfirst($log->delivery_status) }}
                             </span>
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            @if($log->subscription && $log->delivery_status !== 'pending')
+                                <button wire:click="resendReport({{ $log->id }})"
+                                        wire:loading.attr="disabled" wire:target="resendReport({{ $log->id }})"
+                                        wire:confirm="{{ $log->delivery_status === 'skipped' ? 'This report was skipped because its data was incomplete. Send it anyway?' : 'Resend this report to ' . $log->recipient_email . '?' }}"
+                                        class="px-2.5 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition disabled:opacity-50">
+                                    <span wire:loading.remove wire:target="resendReport({{ $log->id }})">{{ $log->delivery_status === 'skipped' ? 'Send Now' : 'Resend' }}</span>
+                                    <span wire:loading wire:target="resendReport({{ $log->id }})">Sending...</span>
+                                </button>
+                            @endif
                         </td>
                     </tr>
                     @endforeach

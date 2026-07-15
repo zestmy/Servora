@@ -6,6 +6,7 @@ use App\Models\Outlet;
 use App\Models\ReportLog;
 use App\Models\ReportSubscription;
 use App\Services\ReportGeneratorService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -195,6 +196,32 @@ class ReportSubscriptions extends Component
         }
 
         $this->testSending = false;
+    }
+
+    public function resendReport(int $logId, ReportGeneratorService $reportService): void
+    {
+        $log = ReportLog::with('subscription')->findOrFail($logId);
+
+        if (!$log->subscription) {
+            session()->flash('error', 'The subscription for this report no longer exists.');
+            return;
+        }
+
+        try {
+            $newLog = $reportService->generateFromSubscription(
+                $log->subscription,
+                force: true,
+                reportDateOverride: $log->report_date ? Carbon::parse($log->report_date) : null
+            );
+
+            if ($newLog->delivery_status === 'sent') {
+                session()->flash('success', 'Report sent to ' . $newLog->recipient_email . '.');
+            } else {
+                session()->flash('error', 'Resend failed: ' . ($newLog->error_message ?: 'unknown error'));
+            }
+        } catch (\Exception $e) {
+            session()->flash('error', 'Resend failed: ' . $e->getMessage());
+        }
     }
 
     public function render()
