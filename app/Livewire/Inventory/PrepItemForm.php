@@ -12,6 +12,7 @@ use App\Models\OutletGroup;
 use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use App\Services\UomService;
+use App\Services\VisionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -230,6 +231,191 @@ class PrepItemForm extends Component
         if (isset($this->steps[$idx])) {
             $this->steps[$idx]['new_image'] = null;
         }
+    }
+
+    // ── AI step assistance (mirrors Recipes\Form) ────────────────────────
+
+    /**
+     * Use AI to suggest preparation steps from the prep item name,
+     * ingredient list, and any presentation photos.
+     *
+     * @param  string  $mode  'append' (keep existing steps) or 'replace' (overwrite all).
+     */
+    public function suggestPreparationSteps(string $mode = 'append'): void
+    {
+        $ingredientNames = $this->recipeIngredientNames();
+
+        if (trim($this->name) === '' && empty($ingredientNames)) {
+            session()->flash('ai_steps_error', 'Add a prep item name and at least one ingredient before generating steps.');
+            return;
+        }
+
+        try {
+            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, $this->collectDishImagePaths());
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        if ($mode === 'replace') {
+            $this->steps = [];
+        } else {
+            // Drop blank placeholder steps before appending (non-destructive).
+            $this->steps = array_values(array_filter($this->steps, fn ($s) => trim($s['instruction'] ?? '') !== ''));
+        }
+
+        foreach ($suggested as $s) {
+            $this->steps[] = [
+                'id'           => null,
+                'title'        => $s['title'] ?? '',
+                'instruction'  => $s['instruction'] ?? '',
+                'image_path'   => null,
+                'image_url'    => null,
+                'new_image'    => null,
+                'remove_image' => false,
+            ];
+        }
+
+        $verb = $mode === 'replace' ? 'replaced all steps' : 'added';
+        session()->flash('ai_steps_success', count($suggested) . " AI-suggested step(s) {$verb}. Review and edit before saving.");
+    }
+
+    /**
+     * Regenerate a single preparation step with AI, keeping it consistent with the others.
+     */
+    public function regenerateStep(int $idx): void
+    {
+        if (! isset($this->steps[$idx])) {
+            return;
+        }
+
+        $ingredientNames = $this->recipeIngredientNames();
+        if (trim($this->name) === '' && empty($ingredientNames)) {
+            session()->flash('ai_steps_error', 'Add a prep item name and at least one ingredient before regenerating.');
+            return;
+        }
+
+        $existing = array_map(fn ($s) => [
+            'title'       => $s['title'] ?? '',
+            'instruction' => $s['instruction'] ?? '',
+        ], $this->steps);
+
+        try {
+            $new = app(VisionService::class)->regeneratePreparationStep(
+                $this->name,
+                $ingredientNames,
+                $existing,
+                $idx + 1,
+                $this->collectDishImagePaths(),
+            );
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        $this->steps[$idx]['title']       = $new['title'] ?? $this->steps[$idx]['title'];
+        $this->steps[$idx]['instruction'] = $new['instruction'] ?? $this->steps[$idx]['instruction'];
+
+        session()->flash('ai_steps_success', 'Step ' . ($idx + 1) . ' regenerated.');
+    }
+
+    /**
+     * Fine-tune all existing steps with AI: fix spelling/grammar and polish the
+     * wording into simple, precise SOP-training language. Titles, order, and
+     * step count are preserved; images and ids are untouched.
+     */
+    public function fineTuneSteps(): void
+    {
+        // Only steps with an instruction are sent; remember their positions so
+        // the polished versions map back onto the right rows.
+        $indexes = [];
+        foreach ($this->steps as $i => $s) {
+            if (trim($s['instruction'] ?? '') !== '') {
+                $indexes[] = $i;
+            }
+        }
+
+        if (empty($indexes)) {
+            session()->flash('ai_steps_error', 'Add at least one step with an instruction before fine-tuning.');
+            return;
+        }
+
+        $payload = array_map(fn ($i) => [
+            'title'       => $this->steps[$i]['title'] ?? '',
+            'instruction' => $this->steps[$i]['instruction'] ?? '',
+        ], $indexes);
+
+        try {
+            $polished = app(VisionService::class)->fineTunePreparationSteps(
+                $this->name,
+                $this->recipeIngredientNames(),
+                $payload,
+            );
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        $changed = 0;
+        foreach ($indexes as $k => $i) {
+            $newTitle = $polished[$k]['title'] ?? ($this->steps[$i]['title'] ?? '');
+            $newInstr = $polished[$k]['instruction'] ?? $this->steps[$i]['instruction'];
+
+            if ($newTitle !== ($this->steps[$i]['title'] ?? '') || $newInstr !== $this->steps[$i]['instruction']) {
+                $changed++;
+            }
+
+            $this->steps[$i]['title']       = $newTitle;
+            $this->steps[$i]['instruction'] = $newInstr;
+        }
+
+        session()->flash('ai_steps_success', $changed === 0
+            ? 'All steps already read well — no changes needed.'
+            : "{$changed} step(s) fine-tuned for spelling and clarity. Review and save.");
+    }
+
+    /** Ingredient names for the current prep item lines (for AI prompts). */
+    private function recipeIngredientNames(): array
+    {
+        return collect($this->lines)
+            ->pluck('ingredient_name')
+            ->filter(fn ($n) => $n && $n !== '—')
+            ->values()
+            ->all();
+    }
+
+    /** Absolute paths to product images — saved presentation photos first, then pending uploads (max 3). */
+    private function collectDishImagePaths(): array
+    {
+        $imagePaths = [];
+
+        if ($this->recipeId) {
+            $saved = \App\Models\RecipeImage::where('recipe_id', $this->recipeId)
+                ->where('type', 'presentation')
+                ->orderBy('sort_order')
+                ->limit(3)
+                ->get();
+            foreach ($saved as $img) {
+                $path = Storage::disk('public')->path($img->file_path);
+                if (is_file($path)) {
+                    $imagePaths[] = $path;
+                }
+            }
+        }
+
+        foreach ($this->newPresentationImages as $upload) {
+            if (count($imagePaths) >= 3) {
+                break;
+            }
+            if (is_object($upload) && method_exists($upload, 'getRealPath')) {
+                $real = $upload->getRealPath();
+                if ($real && is_file($real)) {
+                    $imagePaths[] = $real;
+                }
+            }
+        }
+
+        return array_slice($imagePaths, 0, 3);
     }
 
     // ── Presentation photos ───────────────────────────────────────────────

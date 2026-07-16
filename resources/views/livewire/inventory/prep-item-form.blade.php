@@ -608,11 +608,76 @@
                         <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
                         <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
                     </div>
-                    <button type="button" wire:click="addStep"
-                            class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
-                        + Add Step
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="relative" x-data="{ aiOpen: false }" wire:loading.class="opacity-50 pointer-events-none" wire:target="suggestPreparationSteps">
+                            <button type="button" @click="aiOpen = !aiOpen" @click.outside="aiOpen = false"
+                                    wire:loading.attr="disabled" wire:target="suggestPreparationSteps"
+                                    class="px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                <span wire:loading.remove wire:target="suggestPreparationSteps" class="flex items-center gap-1.5">
+                                    ✨ AI Suggest Steps
+                                    <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                </span>
+                                <span wire:loading wire:target="suggestPreparationSteps" class="flex items-center gap-1.5">
+                                    <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                    Analyzing…
+                                </span>
+                            </button>
+                            <div x-show="aiOpen" x-transition style="display:none"
+                                 class="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                                <button type="button" @click="aiOpen = false" wire:click="suggestPreparationSteps('append')"
+                                        class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
+                                    Add to existing steps
+                                </button>
+                                <button type="button" @click="aiOpen = false" wire:click="suggestPreparationSteps('replace')"
+                                        wire:confirm="Replace ALL current preparation steps with new AI suggestions? This cannot be undone."
+                                        class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
+                                    Replace all steps
+                                </button>
+                            </div>
+                        </div>
+                        @if (count($steps))
+                            <button type="button" wire:click="fineTuneSteps"
+                                    wire:loading.attr="disabled" wire:target="fineTuneSteps"
+                                    title="AI checks spelling and grammar and polishes the wording of all steps for SOP training — without changing their meaning or order"
+                                    class="px-3 py-1.5 text-xs font-medium text-teal-600 bg-teal-50 rounded-lg hover:bg-teal-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                <span wire:loading.remove wire:target="fineTuneSteps" class="flex items-center gap-1.5">
+                                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    Fine Tune &amp; Check Spelling
+                                </span>
+                                <span wire:loading wire:target="fineTuneSteps" class="flex items-center gap-1.5">
+                                    <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                    Fine-tuning…
+                                </span>
+                            </button>
+                        @endif
+                        <button type="button" wire:click="addStep"
+                                class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                            + Add Step
+                        </button>
+                    </div>
                 </div>
+
+                @if (session('ai_steps_success'))
+                    <div class="mb-3 px-3 py-2 bg-green-50 border border-green-200 text-green-700 text-xs rounded-lg">
+                        {{ session('ai_steps_success') }}
+                    </div>
+                @endif
+                @if (session('ai_steps_error'))
+                    <div class="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+                        {{ session('ai_steps_error') }}
+                    </div>
+                @endif
+                <p class="mb-3 text-xs text-gray-400">
+                    ✨ AI analyses the prep item name, ingredients, and presentation photos to draft steps. Review and edit before saving.
+                </p>
 
                 @if (count($steps))
                     <div class="space-y-3">
@@ -663,12 +728,26 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <button type="button" wire:click="removeStep({{ $idx }})"
-                                            class="flex-shrink-0 text-red-400 hover:text-red-600 transition mt-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
+                                    <div class="flex-shrink-0 flex flex-col items-center gap-2 mt-1">
+                                        <button type="button" wire:click="regenerateStep({{ $idx }})"
+                                                wire:loading.attr="disabled" wire:target="regenerateStep({{ $idx }})"
+                                                title="Regenerate this step with AI"
+                                                class="text-purple-400 hover:text-purple-600 transition disabled:opacity-50">
+                                            <svg wire:loading.remove wire:target="regenerateStep({{ $idx }})" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            <svg wire:loading wire:target="regenerateStep({{ $idx }})" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                            </svg>
+                                        </button>
+                                        <button type="button" wire:click="removeStep({{ $idx }})"
+                                                class="text-red-400 hover:text-red-600 transition">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
