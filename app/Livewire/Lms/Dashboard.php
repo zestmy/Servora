@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Lms;
 
-use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use Illuminate\Support\Facades\Auth;
@@ -44,17 +43,6 @@ class Dashboard extends Component
             $categorySortMap[strtolower($rc->name)] = [$parentSort, $parentName, $subSort, $subName];
         }
 
-        $prepCategorySortMap = IngredientCategory::where('company_id', $user->company_id)
-            ->with('parent')
-            ->get()
-            ->mapWithKeys(fn ($ic) => [
-                $ic->id => [
-                    $ic->parent ? $ic->parent->sort_order : $ic->sort_order,
-                    strtolower($ic->parent ? $ic->parent->name : $ic->name),
-                    $ic->parent ? $ic->sort_order : 0,
-                ],
-            ]);
-
         // Build category filter names (include children when parent selected)
         $filterNames = null;
         if ($this->categoryFilter) {
@@ -67,21 +55,19 @@ class Dashboard extends Component
             }
         }
 
+        // Prep items use the same menu categories as recipes (recipes.category);
+        // they sort by the same hierarchy but group after the recipe sections.
         $recipes = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
             ->tap($outletScope)
-            ->with(['images', 'steps', 'ingredientCategory'])
+            ->with(['images', 'steps'])
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
             ->when($filterNames, fn ($q) => $q->whereIn('category', $filterNames->toArray()))
             ->get()
-            ->sortBy(function ($r) use ($categorySortMap, $prepCategorySortMap) {
-                if ($r->is_prep) {
-                    $ps = $prepCategorySortMap[$r->ingredient_category_id] ?? [PHP_INT_MAX, '~', 0];
-                    return [1, $ps[0], $ps[1], $ps[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
-                }
+            ->sortBy(function ($r) use ($categorySortMap) {
                 $cs = $categorySortMap[strtolower($r->category ?? '')] ?? [PHP_INT_MAX, '~', 0, ''];
-                return [0, $cs[0], $cs[1], $cs[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
+                return [$r->is_prep ? 1 : 0, $cs[0], $cs[1], $cs[2], $cs[3], $r->menu_sort_order ?? 0, strtolower($r->name)];
             })
             ->values();
 
@@ -95,7 +81,7 @@ class Dashboard extends Component
             ->get();
 
         $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
-            ? 'Prep — ' . ($r->ingredientCategory?->name ?? 'Uncategorised')
+            ? 'Prep — ' . ($r->category ?? 'Uncategorised')
             : ($r->category ?? 'Uncategorised'));
 
         return view('livewire.lms.dashboard', compact('recipes', 'categories', 'grouped'))

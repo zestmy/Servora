@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Lms;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
-use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\VideoShareToken;
@@ -80,17 +79,18 @@ class SopPdfController extends Controller
         // Optional prep-only export — only prep-item SOPs, skipping menu recipes.
         $prepOnly = request()->boolean('prep');
 
-        // Optional prep sub-category filter — an ingredient-category id; exports only
-        // prep-item SOPs in that category plus its sub-categories. Implies prep-only.
+        // Optional prep category filter — a recipe-category id (prep items share the
+        // recipes' menu categories); exports only prep-item SOPs in that category
+        // plus its sub-categories. Implies prep-only.
         $prepCategoryId = (int) request('prep_category') ?: null;
-        $prepCategoryIds = null;
+        $prepCategoryNames = null;
         $prepCategoryLabel = null;
         if ($prepCategoryId) {
-            $prepCat = IngredientCategory::where('company_id', $user->company_id)
+            $prepCat = RecipeCategory::where('company_id', $user->company_id)
                 ->with('children')
                 ->find($prepCategoryId);
             if ($prepCat) {
-                $prepCategoryIds = collect([$prepCat->id])->merge($prepCat->children->pluck('id'))->all();
+                $prepCategoryNames = collect([$prepCat->name])->merge($prepCat->children->pluck('name'))->all();
                 $prepCategoryLabel = $prepCat->name;
             }
             $prepOnly = true;
@@ -114,7 +114,7 @@ class SopPdfController extends Controller
         $isFiltered = $category !== null || $groupNames !== null;
 
         $eager = [
-            'steps', 'images', 'lines.uom', 'yieldUom', 'ingredientCategory',
+            'steps', 'images', 'lines.uom', 'yieldUom',
             'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
         ];
 
@@ -159,22 +159,31 @@ class SopPdfController extends Controller
             ->with($eager)
             ->get();
 
-        // Prep items follow, ordered by ingredient-category hierarchy. Skipped when a
-        // recipe-category filter is active (prep items have no menu category).
+        // Prep items follow, ordered by the same menu-category hierarchy (prep items
+        // share the recipes' menu categories). Skipped when a recipe-category filter
+        // is active — the Training Portal offers dedicated prep-category exports.
         $prep = ($isFiltered && ! $prepOnly)
             ? collect()
             : $applyScope(Recipe::query()->where('recipes.is_prep', true))
-                ->when($prepCategoryIds, fn ($q) => $q->whereIn('recipes.ingredient_category_id', $prepCategoryIds))
-                ->leftJoin('ingredient_categories as rc', function ($join) {
-                    $join->on('rc.id', '=', 'recipes.ingredient_category_id')
-                         ->whereNull('rc.deleted_at');
+                ->when($prepCategoryNames, fn ($q) => $q->whereIn('recipes.category', $prepCategoryNames))
+                ->leftJoin('recipe_categories as rc', function ($join) {
+                    $join->on('rc.name', '=', 'recipes.category')
+                         ->on('rc.company_id', '=', 'recipes.company_id')
+                         ->whereNull('rc.deleted_at')
+                         ->whereNotNull('rc.parent_id');
                 })
-                ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
-                ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
-                ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
-                ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
-                ->orderBy('rc.sort_order')
-                ->orderBy('rc.name')
+                ->leftJoin('recipe_categories as rc_root', function ($join) {
+                    $join->on('rc_root.name', '=', 'recipes.category')
+                         ->on('rc_root.company_id', '=', 'recipes.company_id')
+                         ->whereNull('rc_root.deleted_at')
+                         ->whereNull('rc_root.parent_id');
+                })
+                ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id')
+                ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) IS NULL')
+                ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) ASC')
+                ->orderByRaw('COALESCE(rcp.name, rc_root.name, rc.name) ASC')
+                ->orderByRaw('COALESCE(rc.sort_order, rc_root.sort_order) ASC')
+                ->orderByRaw('COALESCE(rc.name, rc_root.name) ASC')
                 ->orderBy('recipes.menu_sort_order')
                 ->orderBy('recipes.name')
                 ->select('recipes.*')
@@ -184,7 +193,7 @@ class SopPdfController extends Controller
         $recipes = $nonPrep->concat($prep);
 
         $grouped = $recipes->groupBy(fn ($r) => $r->is_prep
-            ? 'Prep — ' . ($r->ingredientCategory?->name ?? 'Uncategorised')
+            ? 'Prep — ' . ($r->category ?? 'Uncategorised')
             : ($r->category ?? 'Uncategorised'));
         $logoBase64 = $this->logoToBase64($company);
 

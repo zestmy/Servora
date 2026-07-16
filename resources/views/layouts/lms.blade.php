@@ -23,18 +23,9 @@
             $lmsCategorySortMap[strtolower($rc->name)] = [$parentSort, $parentName, $subSort, $subName];
         }
 
-        $lmsPrepCategorySortMap = \App\Models\IngredientCategory::where('company_id', $lmsUser->company_id)
-            ->with('parent')
-            ->get()
-            ->mapWithKeys(fn ($ic) => [
-                $ic->id => [
-                    $ic->parent ? $ic->parent->sort_order : $ic->sort_order,
-                    strtolower($ic->parent ? $ic->parent->name : $ic->name),
-                    $ic->parent ? $ic->sort_order : 0,
-                ],
-            ]);
-
-        // Build sidebar SOP list grouped by category (filtered to trainee's outlet)
+        // Build sidebar SOP list grouped by category (filtered to trainee's outlet).
+        // Prep items use the same menu categories as recipes (recipes.category);
+        // they sort by the same hierarchy but group after the recipe sections.
         $sidebarSops = \App\Models\Recipe::where('company_id', $lmsUser->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
@@ -42,20 +33,15 @@
                 $q->whereDoesntHave('outlets')
                   ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $lmsUser->outlet_id));
             }))
-            ->with(['ingredientCategory:id,name'])
-            ->select('id', 'name', 'code', 'category', 'menu_sort_order', 'is_prep', 'ingredient_category_id')
+            ->select('id', 'name', 'code', 'category', 'menu_sort_order', 'is_prep')
             ->get()
-            ->sortBy(function ($r) use ($lmsCategorySortMap, $lmsPrepCategorySortMap) {
-                if ($r->is_prep) {
-                    $ps = $lmsPrepCategorySortMap[$r->ingredient_category_id] ?? [PHP_INT_MAX, '~', 0];
-                    return [1, $ps[0], $ps[1], $ps[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
-                }
+            ->sortBy(function ($r) use ($lmsCategorySortMap) {
                 $cs = $lmsCategorySortMap[strtolower($r->category ?? '')] ?? [PHP_INT_MAX, '~', 0, ''];
-                return [0, $cs[0], $cs[1], $cs[2], $r->menu_sort_order ?? 0, strtolower($r->name)];
+                return [$r->is_prep ? 1 : 0, $cs[0], $cs[1], $cs[2], $cs[3], $r->menu_sort_order ?? 0, strtolower($r->name)];
             })
             ->values()
             ->groupBy(fn ($r) => $r->is_prep
-                ? 'Prep — ' . ($r->ingredientCategory?->name ?? 'Uncategorised')
+                ? 'Prep — ' . ($r->category ?? 'Uncategorised')
                 : ($r->category ?? 'Uncategorised'));
     @endphp
 

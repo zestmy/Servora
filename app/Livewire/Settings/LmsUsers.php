@@ -78,20 +78,30 @@ class LmsUsers extends Component
             ->sort()
             ->values();
 
-        // Prep-item SOPs get their own export link (they have no menu category).
+        // Prep-item SOPs get their own export links.
         $hasPrepSops = Recipe::where('is_active', true)
             ->where('is_prep', true)
             ->where('exclude_from_lms', false)
             ->exists();
 
-        // Ingredient categories holding at least one LMS-visible prep item —
-        // each gets its own prep-SOP export link.
-        $prepSopCategories = \App\Models\IngredientCategory::whereHas('recipes', fn ($q) => $q
-                ->where('is_active', true)
-                ->where('is_prep', true)
-                ->where('exclude_from_lms', false))
+        // Menu categories (shared with recipes) holding at least one LMS-visible
+        // prep item — each gets its own prep-SOP export link. Matched by name
+        // (recipes.category stores the category name), preferring sub-categories
+        // when the same name exists at both levels.
+        $prepCategoryNames = Recipe::where('is_active', true)
+            ->where('is_prep', true)
+            ->where('exclude_from_lms', false)
+            ->whereNotNull('category')
+            ->distinct()
+            ->pluck('category')
+            ->map(fn ($n) => mb_strtolower($n));
+
+        $prepSopCategories = \App\Models\RecipeCategory::where('company_id', $companyId)
             ->with('parent')
             ->get()
+            ->filter(fn ($c) => $prepCategoryNames->contains(mb_strtolower($c->name)))
+            ->sortBy(fn ($c) => $c->parent_id === null ? 1 : 0)
+            ->unique(fn ($c) => mb_strtolower($c->name))
             ->sortBy(fn ($c) => [
                 $c->parent->sort_order ?? $c->sort_order,
                 $c->parent->name ?? $c->name,
