@@ -39,10 +39,10 @@
                                 'cost'     => $costFilter,
                             ]);
                         @endphp
-                        <a href="{{ route('recipes.cost-pdf-all', $pdfFilters) }}" target="_blank"
-                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Recipe Costs</a>
-                        <a href="{{ route('recipes.cost-pdf-summary', $pdfFilters) }}" target="_blank"
-                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Summary</a>
+                        <x-download-link href="{{ route('recipes.cost-pdf-all', $pdfFilters) }}"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Recipe Costs</x-download-link>
+                        <x-download-link href="{{ route('recipes.cost-pdf-summary', $pdfFilters) }}"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Summary</x-download-link>
                     </div>
                 </div>
 
@@ -86,10 +86,10 @@
                                 'outlet'   => $outletFilter,
                             ]);
                         @endphp
-                        <a href="{{ route('recipes.prep-cost-pdf-all', $pdfPrepFilters) }}" target="_blank"
-                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Prep Item Costs</a>
-                        <a href="{{ route('recipes.prep-cost-pdf-summary', $pdfPrepFilters) }}" target="_blank"
-                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Prep Item Cost Summary</a>
+                        <x-download-link href="{{ route('recipes.prep-cost-pdf-all', $pdfPrepFilters) }}"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Prep Item Costs</x-download-link>
+                        <x-download-link href="{{ route('recipes.prep-cost-pdf-summary', $pdfPrepFilters) }}"
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Prep Item Cost Summary</x-download-link>
                     </div>
                 </div>
 

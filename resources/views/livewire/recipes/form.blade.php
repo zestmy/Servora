@@ -22,14 +22,14 @@
             <p class="text-xs text-gray-400"><a href="{{ route('recipes.index') }}" class="hover:underline">Recipes</a> / {{ $recipeId ? $name : 'New Recipe' }}</p>
         </div>
         @if ($recipeId)
-            <a href="{{ route('recipes.cost-pdf', $recipeId) }}" target="_blank" rel="noopener"
+            <x-download-link href="{{ route('recipes.cost-pdf', $recipeId) }}"
                title="Export this recipe's costing as a PDF"
                class="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span class="hidden sm:inline">Export Cost PDF</span>
-            </a>
+            </x-download-link>
         @endif
         <span wire:dirty wire:loading.remove wire:target="save"
               class="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 text-xs font-medium rounded-full border border-amber-200">

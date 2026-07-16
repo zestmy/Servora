@@ -12,12 +12,12 @@
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
             {{-- Print cost card PDF --}}
-            <a href="{{ route('recipes.cost-pdf', $recipe->id) }}" target="_blank" rel="noopener"
+            <x-download-link href="{{ route('recipes.cost-pdf', $recipe->id) }}"
                title="Print this recipe's cost card as a PDF"
                class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                 Print PDF
-            </a>
+            </x-download-link>
             <a href="{{ route('recipes.edit', $recipe->id) }}"
                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                 Edit Recipe

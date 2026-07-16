@@ -18,11 +18,11 @@
                 <p class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">Top-tier</p>
                 @foreach ($recipeCategories as $cat)
                     @if ($cat->children && $cat->children->count())
-                        <a href="{{ route($costPdfRoute, ['category' => $cat->id]) }}" target="_blank"
+                        <x-download-link href="{{ route($costPdfRoute, ['category' => $cat->id]) }}"
                            class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" /></svg>
                             All {{ $cat->name }}
-                        </a>
+                        </x-download-link>
                     @endif
                 @endforeach
             @endif
@@ -30,18 +30,18 @@
             @foreach ($recipeCategories as $cat)
                 @if ($cat->children && $cat->children->count())
                     @foreach ($cat->children as $sub)
-                        <a href="{{ route($costPdfRoute, ['category' => $sub->id]) }}" target="_blank"
+                        <x-download-link href="{{ route($costPdfRoute, ['category' => $sub->id]) }}"
                            class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" /></svg>
                             {{ $sub->name }}
-                        </a>
+                        </x-download-link>
                     @endforeach
                 @else
-                    <a href="{{ route($costPdfRoute, ['category' => $cat->id]) }}" target="_blank"
+                    <x-download-link href="{{ route($costPdfRoute, ['category' => $cat->id]) }}"
                        class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $pdfIcon }}" /></svg>
                         {{ $cat->name }}
-                    </a>
+                    </x-download-link>
                 @endif
             @endforeach
         </div>
