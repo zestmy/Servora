@@ -113,8 +113,54 @@ class Index extends Component
     public function delete(int $id): void
     {
         if (! $this->assertUnlocked()) return;
-        Recipe::findOrFail($id)->delete();
+        $recipe = Recipe::findOrFail($id);
+
+        if ($recipe->is_prep) {
+            $error = $this->deletePrepRecipe($recipe);
+            if ($error) {
+                session()->flash('error', $error);
+                return;
+            }
+            session()->flash('success', 'Prep item deleted.');
+            return;
+        }
+
+        $recipe->delete();
         session()->flash('success', 'Recipe deleted.');
+    }
+
+    /**
+     * Delete a prep recipe together with its linked ingredient — otherwise the
+     * ingredient stays behind as an orphan that still appears in ingredient
+     * search but no longer exists in the Prep Items list (and re-creating the
+     * prep item then duplicates it). Blocked while other live recipes still
+     * use the ingredient; returns the error message when blocked, null on success.
+     */
+    private function deletePrepRecipe(Recipe $recipe): ?string
+    {
+        $ingredient = $recipe->ingredient;
+
+        if ($ingredient) {
+            $usedBy = \App\Models\RecipeLine::where('ingredient_id', $ingredient->id)
+                ->whereHas('recipe', fn ($q) => $q->where('recipes.id', '!=', $recipe->id))
+                ->with('recipe:id,name,is_prep')
+                ->get()
+                ->pluck('recipe.name')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($usedBy->isNotEmpty()) {
+                $names = $usedBy->take(5)->implode(', ') . ($usedBy->count() > 5 ? ', …' : '');
+                return "Cannot delete '{$recipe->name}' — it is used as an ingredient in: {$names}. Remove it from those recipes first.";
+            }
+
+            $ingredient->delete();
+        }
+
+        $recipe->delete();
+
+        return null;
     }
 
     public function duplicate(int $id): void
@@ -186,17 +232,33 @@ class Index extends Component
     public function bulkDelete(): void
     {
         if (! $this->assertUnlocked()) return;
-        $count = count($this->selectedIds);
-        if ($count === 0) return;
+        if (count($this->selectedIds) === 0) return;
 
+        $deleted = 0;
+        $blocked = [];
+
+        // Model deletes (not a bulk query) so the audit observer logs each one
+        // and prep items take their linked ingredient along.
         foreach (Recipe::whereIn('id', $this->selectedIds)->get() as $recipe) {
-            \App\Services\AuditLogService::logDeletion($recipe);
+            if ($recipe->is_prep) {
+                if ($this->deletePrepRecipe($recipe)) {
+                    $blocked[] = $recipe->name;
+                    continue;
+                }
+            } else {
+                $recipe->delete();
+            }
+            $deleted++;
         }
-        Recipe::whereIn('id', $this->selectedIds)->delete();
         $this->clearSelection();
 
         $label = $this->tab === 'prep-items' ? 'prep item' : 'recipe';
-        session()->flash('success', "{$count} {$label}(s) deleted.");
+        if (! empty($blocked)) {
+            $names = implode(', ', array_slice($blocked, 0, 5)) . (count($blocked) > 5 ? ', …' : '');
+            session()->flash('error', "{$deleted} {$label}(s) deleted. Skipped (still used as an ingredient in other recipes): {$names}.");
+        } else {
+            session()->flash('success', "{$deleted} {$label}(s) deleted.");
+        }
     }
 
     private function clearSelection(): void

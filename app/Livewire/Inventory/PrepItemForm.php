@@ -762,6 +762,8 @@ class PrepItemForm extends Component
                     $q->where('name', 'like', '%' . $this->ingredientSearch . '%')
                       ->orWhere('code', 'like', '%' . $this->ingredientSearch . '%');
                 })
+                // Hide orphaned prep ingredients (their prep recipe was deleted).
+                ->where(fn ($q) => $q->where('is_prep', false)->orWhereHas('prepRecipe'))
                 ->when($existingIds, fn ($q) => $q->whereNotIn('id', $existingIds))
                 ->orderByDesc('is_active')
                 ->orderBy('name')
