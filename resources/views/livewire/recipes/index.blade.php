@@ -215,7 +215,7 @@
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">All Outlets</option>
                     @foreach ($outlets as $outlet)
-                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}{{ in_array($outlet->id, $centralKitchenOutletIds) ? ' (CK)' : '' }}</option>
                     @endforeach
                 </select>
             </div>

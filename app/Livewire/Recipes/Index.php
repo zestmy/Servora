@@ -565,10 +565,15 @@ class Index extends Component
                 ->get();
         }
 
-        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
+        // Central kitchen outlets are included so items tagged to the central
+        // kitchen can be filtered too; the dropdown labels them "(CK)".
+        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')
+            ->pluck('outlet_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
-            ->whereNotIn('id', $centralKitchenOutletIds)
             ->orderBy('name')
             ->get();
 
@@ -580,7 +585,7 @@ class Index extends Component
 
         $categoryStats = $isPrep ? [] : $this->buildCategoryStats();
 
-        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'isPrep', 'priceClasses', 'categoryStats'))
+        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'centralKitchenOutletIds', 'isPrep', 'priceClasses', 'categoryStats'))
             ->layout('layouts.app', ['title' => $isPrep ? 'Prep Items' : 'Recipes']);
     }
 }

@@ -203,10 +203,8 @@ class Form extends Component
         $group = OutletGroup::with('outlets')->find($groupId);
         if (! $group) return;
 
-        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
         $groupOutletIds = $group->outlets
             ->pluck('id')
-            ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
             ->map(fn ($id) => (int) $id)
             ->all();
 
@@ -826,16 +824,17 @@ class Form extends Component
         $departments = \App\Models\Department::active()->ordered()->get();
         $priceClasses = RecipePriceClass::ordered()->get();
 
-        // Exclude outlets that are linked as central kitchen locations — they have
-        // their own recipe interface (ProductionRecipe) and aren't regular outlets.
+        // Central kitchen outlets are selectable too, so recipes can be tagged
+        // as visible to the central kitchen. Their ids are passed along so the
+        // picker can badge them.
         $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')
             ->pluck('outlet_id')
             ->filter()
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
-            ->whereNotIn('id', $centralKitchenOutletIds)
             ->orderBy('name')
             ->get();
 
@@ -844,15 +843,11 @@ class Form extends Component
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
-            ->map(function ($g) use ($centralKitchenOutletIds) {
-                $ids = $g->outlets->pluck('id')
-                    ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
-                    ->values()
-                    ->all();
+            ->map(function ($g) {
                 return (object) [
                     'id'         => $g->id,
                     'name'       => $g->name,
-                    'outlet_ids' => $ids,
+                    'outlet_ids' => $g->outlets->pluck('id')->values()->all(),
                 ];
             })
             ->filter(fn ($g) => count($g->outlet_ids) > 0)
@@ -931,7 +926,7 @@ class Form extends Component
         }
 
         return view('livewire.recipes.form', compact(
-            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'outletGroups', 'searchResults', 'packagingSearchResults', 'lineCosts', 'totalCost',
+            'uoms', 'recipeCategories', 'categories', 'departments', 'outlets', 'outletGroups', 'centralKitchenOutletIds', 'searchResults', 'packagingSearchResults', 'lineCosts', 'totalCost',
             'packagingLineCosts', 'packagingCost', 'packagingTax',
             'extraCostTotal', 'grandCost', 'costPerServing', 'foodCostPct', 'grossProfit', 'grossProfitPct',
             'lineTaxes', 'totalTax', 'totalTaxWithPackaging', 'grandCostWithTax', 'costPerServingWithTax', 'foodCostPctWithTax',

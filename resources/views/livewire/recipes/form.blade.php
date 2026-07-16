@@ -235,6 +235,7 @@
 
                             <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                                 @foreach ($outlets as $outlet)
+                                    @php $isCentralKitchen = in_array($outlet->id, $centralKitchenOutletIds); @endphp
                                     <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
                                         {{ in_array($outlet->id, $outletIds) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
                                         <input type="checkbox"
@@ -242,7 +243,12 @@
                                                wire:model.live="outletIds"
                                                class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                                         <div class="min-w-0">
-                                            <span class="text-sm font-medium text-gray-700 block truncate">{{ $outlet->name }}</span>
+                                            <span class="text-sm font-medium text-gray-700 block truncate">
+                                                {{ $outlet->name }}
+                                                @if ($isCentralKitchen)
+                                                    <span class="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded align-middle" title="Central kitchen location">CK</span>
+                                                @endif
+                                            </span>
                                             @if ($outlet->code)
                                                 <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
                                             @endif

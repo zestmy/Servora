@@ -179,10 +179,8 @@ class PrepItemForm extends Component
         $group = OutletGroup::with('outlets')->find($groupId);
         if (! $group) return;
 
-        $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')->pluck('outlet_id')->all();
         $groupOutletIds = $group->outlets
             ->pluck('id')
-            ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
             ->map(fn ($id) => (int) $id)
             ->all();
 
@@ -529,15 +527,17 @@ class PrepItemForm extends Component
             ->orderBy('name')
             ->get();
 
-        // Outlets (exclude central kitchen outlets)
+        // Central kitchen outlets are selectable too, so prep items can be
+        // tagged as visible to the central kitchen. Their ids are passed along
+        // so the picker can badge them.
         $centralKitchenOutletIds = CentralKitchen::whereNotNull('outlet_id')
             ->pluck('outlet_id')
             ->filter()
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         $outlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
-            ->whereNotIn('id', $centralKitchenOutletIds)
             ->orderBy('name')
             ->get();
 
@@ -546,15 +546,11 @@ class PrepItemForm extends Component
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
-            ->map(function ($g) use ($centralKitchenOutletIds) {
-                $ids = $g->outlets->pluck('id')
-                    ->reject(fn ($id) => in_array($id, $centralKitchenOutletIds))
-                    ->values()
-                    ->all();
+            ->map(function ($g) {
                 return (object) [
                     'id'         => $g->id,
                     'name'       => $g->name,
-                    'outlet_ids' => $ids,
+                    'outlet_ids' => $g->outlets->pluck('id')->values()->all(),
                 ];
             })
             ->filter(fn ($g) => count($g->outlet_ids) > 0)
@@ -587,7 +583,7 @@ class PrepItemForm extends Component
         $outputIngredientId = $this->ingredientId; // the ingredient this prep recipe produces
 
         return view('livewire.inventory.prep-item-form', compact(
-            'uoms', 'departments', 'categories', 'outlets', 'outletGroups', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit', 'outputIngredientId'
+            'uoms', 'departments', 'categories', 'outlets', 'outletGroups', 'centralKitchenOutletIds', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit', 'outputIngredientId'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
