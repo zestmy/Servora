@@ -31,9 +31,19 @@
                 <span class="hidden sm:inline">Export Cost PDF</span>
             </a>
         @endif
-        <button wire:click="save"
-                class="flex-shrink-0 px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-            Save
+        <span wire:dirty wire:loading.remove wire:target="save"
+              class="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 text-xs font-medium rounded-full border border-amber-200">
+            <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+            Unsaved changes
+        </span>
+        <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
+                class="flex-shrink-0 px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5">
+            <svg wire:loading wire:target="save" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span wire:loading.remove wire:target="save">Save</span>
+            <span wire:loading wire:target="save">Saving…</span>
         </button>
     </div>
 
@@ -516,9 +526,10 @@
 
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
             <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Cancel</a>
-            <button wire:click="save"
-                    class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                Save Prep Item
+            <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
+                    class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                <span wire:loading.remove wire:target="save">Save Prep Item</span>
+                <span wire:loading wire:target="save">Saving…</span>
             </button>
         </div>
     </div>
@@ -813,12 +824,17 @@
 
                     {{-- Save Button --}}
                     <div class="mt-6 pt-4 border-t border-gray-100">
-                        <button wire:click="save"
-                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
+                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                            <svg wire:loading.remove wire:target="save" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
-                            Save Prep Item
+                            <svg wire:loading wire:target="save" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            <span wire:loading.remove wire:target="save">Save Prep Item</span>
+                            <span wire:loading wire:target="save">Saving…</span>
                         </button>
                     </div>
                 </div>
