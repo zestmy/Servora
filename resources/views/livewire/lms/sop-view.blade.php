@@ -27,13 +27,13 @@
                 @endif
             </div>
             <div class="flex gap-2 flex-shrink-0">
-                <a href="{{ route('lms.sop.pdf', $recipe->id) }}" target="_blank"
+                <x-download-link href="{{ route('lms.sop.pdf', $recipe->id) }}"
                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
                     Print / PDF
-                </a>
+                </x-download-link>
             </div>
         </div>
     </div>
@@ -138,6 +138,15 @@
         {{-- Ingredients (+ Packaging) --}}
         <div class="space-y-6">
             @if ($sopIngredientLines->count())
+                @php
+                    // Prep items can define extra batch sizes (recipe multiples);
+                    // quantities are shown side by side, base recipe highlighted.
+                    $sopBatchCols = $recipe->is_prep
+                        ? collect([1.0])->merge($recipe->batchMultipliers())->sort()->values()
+                        : collect([1.0]);
+                    $sopHasBatches = $sopBatchCols->count() > 1;
+                    $fmtSopQty = fn ($q) => rtrim(rtrim(number_format((float) $q, 4), '0'), '.') ?: '0';
+                @endphp
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-gray-700">Ingredients</h2>
@@ -151,13 +160,23 @@
                                 <tr>
                                     <th class="px-4 py-2 text-left w-8">#</th>
                                     <th class="px-4 py-2 text-left">Ingredient</th>
-                                    <th class="px-4 py-2 text-right">Qty</th>
-                                    <th class="px-4 py-2 text-left w-16">UOM</th>
+                                    @if ($sopHasBatches)
+                                        @foreach ($sopBatchCols as $m)
+                                            <th class="px-4 py-2 text-right {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50 text-indigo-600' : '' }}">
+                                                {{ \App\Models\Recipe::fmtMultiplier($m) }} Recipe
+                                                <span class="block normal-case font-normal text-[10px] text-gray-400">
+                                                    {{ $fmtSopQty($recipe->yield_quantity * $m) }} {{ $recipe->yieldUom?->abbreviation }}
+                                                </span>
+                                            </th>
+                                        @endforeach
+                                    @else
+                                        <th class="px-4 py-2 text-right">Qty</th>
+                                        <th class="px-4 py-2 text-left w-16">UOM</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
                                 @foreach ($sopIngredientLines as $idx => $line)
-                                    @php $disp = $line->sopUomDisplay(); @endphp
                                     <tr>
                                         <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                         <td class="px-4 py-2">
@@ -168,13 +187,26 @@
                                                 @endif
                                             </div>
                                         </td>
-                                        <td class="px-4 py-2 text-right tabular-nums">
-                                            {{ $disp['main_qty'] }}
-                                            @if ($disp['ref_qty'] !== null)
-                                                <span class="block text-xs text-gray-400 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-2 text-gray-600">{{ $disp['main_uom'] ?: '—' }}</td>
+                                        @if ($sopHasBatches)
+                                            @foreach ($sopBatchCols as $m)
+                                                @php $disp = $line->sopUomDisplay($m); @endphp
+                                                <td class="px-4 py-2 text-right tabular-nums {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50/50 font-medium text-gray-800' : 'text-gray-600' }}">
+                                                    {{ $disp['main_qty'] }} <span class="text-xs text-gray-400">{{ $disp['main_uom'] }}</span>
+                                                    @if ($disp['ref_qty'] !== null)
+                                                        <span class="block text-xs text-gray-400 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
+                                                    @endif
+                                                </td>
+                                            @endforeach
+                                        @else
+                                            @php $disp = $line->sopUomDisplay(); @endphp
+                                            <td class="px-4 py-2 text-right tabular-nums">
+                                                {{ $disp['main_qty'] }}
+                                                @if ($disp['ref_qty'] !== null)
+                                                    <span class="block text-xs text-gray-400 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-2 text-gray-600">{{ $disp['main_uom'] ?: '—' }}</td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>

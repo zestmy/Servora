@@ -17,7 +17,7 @@ class Recipe extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'description', 'video_url', 'yield_quantity', 'yield_uom_id',
-        'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
+        'batch_multipliers', 'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
         'ingredient_category_id', 'department_id', 'is_active', 'is_prep',
         'exclude_from_lms', 'menu_sort_order',
     ];
@@ -31,6 +31,7 @@ class Recipe extends Model
         'selling_price'       => 'decimal:4',
         'cost_per_yield_unit' => 'decimal:4',
         'extra_costs'         => 'array',
+        'batch_multipliers'   => 'array',
     ];
 
     protected static function booted(): void
@@ -95,6 +96,27 @@ class Recipe extends Model
     public function ingredient(): HasOne
     {
         return $this->hasOne(Ingredient::class, 'prep_recipe_id');
+    }
+
+    /**
+     * Extra batch sizes for prep items, as recipe multiples (1 Recipe = the
+     * base yield). Cleaned: floats > 0, the base 1.0 removed, unique, sorted.
+     */
+    public function batchMultipliers(): array
+    {
+        return collect($this->batch_multipliers ?? [])
+            ->map(fn ($m) => round((float) $m, 4))
+            ->filter(fn ($m) => $m > 0 && abs($m - 1.0) > 0.0001)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    /** Format a batch multiplier for display: 0.5, 1.5, 2 (no trailing zeros). */
+    public static function fmtMultiplier(float $m): string
+    {
+        return rtrim(rtrim(number_format($m, 4, '.', ''), '0'), '.') ?: '0';
     }
 
     /**

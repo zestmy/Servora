@@ -22,14 +22,14 @@
             </p>
         </div>
         @if ($recipeId)
-            <a href="{{ route('recipes.cost-pdf', $recipeId) }}" target="_blank" rel="noopener"
+            <x-download-link href="{{ route('recipes.cost-pdf', $recipeId) }}"
                title="Export this prep item's costing as a PDF"
                class="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span class="hidden sm:inline">Export Cost PDF</span>
-            </a>
+            </x-download-link>
         @endif
         <span wire:dirty wire:loading.remove wire:target="save"
               class="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 text-xs font-medium rounded-full border border-amber-200">
@@ -531,6 +531,90 @@
                 <span wire:loading.remove wire:target="save">Save Prep Item</span>
                 <span wire:loading wire:target="save">Saving…</span>
             </button>
+        </div>
+    </div>
+
+    {{-- ── Batch Scaling (recipe multiples) ── --}}
+    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h3 class="text-sm font-semibold text-gray-700">Batch Scaling</h3>
+            <p class="text-xs text-gray-400 mt-0.5">
+                1 Recipe = {{ $yield_quantity ?: '1' }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'unit' }}.
+                Add extra batch sizes (e.g. 0.5 or 1.5 Recipe) — ingredient quantities are scaled and shown side by side here and in the LMS SOP.
+            </p>
+        </div>
+
+        <div class="px-6 py-4 space-y-4">
+            <div class="flex flex-wrap items-start gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <x-text-input wire:model="newMultiplier" wire:keydown.enter="addMultiplier"
+                                      type="number" step="0.25" min="0.05"
+                                      placeholder="e.g. 0.5" class="w-28" />
+                        <span class="text-sm text-gray-500">Recipe</span>
+                        <button type="button" wire:click="addMultiplier"
+                                class="px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                            + Add Batch Size
+                        </button>
+                    </div>
+                    <x-input-error :messages="$errors->get('newMultiplier')" class="mt-1" />
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-500 text-xs font-medium" title="The base recipe is always shown">
+                        1 Recipe
+                    </span>
+                    @foreach ($batchMultipliers as $idx => $m)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium" wire:key="bm-{{ $idx }}">
+                            {{ \App\Models\Recipe::fmtMultiplier((float) $m) }} Recipe
+                            <button type="button" wire:click="removeMultiplier({{ $idx }})"
+                                    class="text-indigo-300 hover:text-red-500 transition" title="Remove">×</button>
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+
+            @if (count($batchMultipliers) && count($lines))
+                @php
+                    $batchCols = collect([1.0])->merge(array_map('floatval', $batchMultipliers))->sort()->values();
+                    $yieldAbbrBatch = collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? '';
+                    $uomById = collect($uoms)->keyBy('id');
+                    $fmtBatchQty = fn ($q) => rtrim(rtrim(number_format((float) $q, 4), '0'), '.') ?: '0';
+                @endphp
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Ingredient</th>
+                                @foreach ($batchCols as $m)
+                                    <th class="px-4 py-2 text-right {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50 text-indigo-600' : '' }}">
+                                        {{ \App\Models\Recipe::fmtMultiplier($m) }} Recipe
+                                        <span class="block normal-case font-normal text-[10px] text-gray-400">
+                                            {{ $fmtBatchQty(floatval($yield_quantity ?: 1) * $m) }} {{ $yieldAbbrBatch }}
+                                        </span>
+                                    </th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            @foreach ($lines as $line)
+                                <tr wire:key="batch-row-{{ $line['ingredient_id'] }}">
+                                    <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
+                                    @foreach ($batchCols as $m)
+                                        <td class="px-4 py-2 text-right tabular-nums {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50/50 font-medium text-gray-800' : 'text-gray-600' }}">
+                                            {{ $fmtBatchQty(floatval($line['quantity'] ?: 0) * $m) }}
+                                            <span class="text-xs text-gray-400">{{ $uomById->get((int) ($line['uom_id'] ?? 0))?->abbreviation ?? '' }}</span>
+                                        </td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-400">Waste % is not shown here — batch quantities are the raw recipe amounts × the multiple.</p>
+            @elseif (count($batchMultipliers))
+                <p class="text-xs text-gray-400">Add ingredients above to see the scaled batch table.</p>
+            @endif
         </div>
     </div>
 

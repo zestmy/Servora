@@ -48,6 +48,10 @@ class PrepItemForm extends Component
     public array  $lines            = [];
     public string $ingredientSearch = '';
 
+    // Batch scaling: extra recipe multiples (1 Recipe = base yield), e.g. [0.5, 1.5]
+    public array  $batchMultipliers = [];
+    public string $newMultiplier    = '';
+
     // Secondary recipe UOM (optional alternative unit for use in recipes)
     public ?int   $secondary_recipe_uom_id = null;
     public string $secondary_uom_factor    = ''; // virtual — synced to IngredientUomConversion
@@ -111,6 +115,7 @@ class PrepItemForm extends Component
         $this->notes                  = $recipe->description ?? '';
         $this->yield_quantity         = $this->fmt($recipe->yield_quantity);
         $this->yield_uom_id           = $recipe->yield_uom_id;
+        $this->batchMultipliers       = $recipe->batchMultipliers();
         $this->is_active              = $recipe->is_active;
         $this->exclude_from_lms       = (bool) $recipe->exclude_from_lms;
         $this->department_id          = $recipe->department_id;
@@ -196,6 +201,41 @@ class PrepItemForm extends Component
     public function clearOutletSelection(): void
     {
         $this->outletIds = [];
+    }
+
+    // ── Batch scaling (recipe multiples) ─────────────────────────────────
+
+    public function addMultiplier(): void
+    {
+        $value = round(floatval($this->newMultiplier), 4);
+
+        if ($value <= 0) {
+            $this->addError('newMultiplier', 'Enter a number greater than zero, e.g. 0.5 or 1.5.');
+            return;
+        }
+        if (abs($value - 1.0) < 0.0001) {
+            $this->addError('newMultiplier', '1 Recipe is always shown — add a different multiple.');
+            return;
+        }
+        if (in_array($value, array_map('floatval', $this->batchMultipliers))) {
+            $this->addError('newMultiplier', 'That multiple is already added.');
+            return;
+        }
+        if (count($this->batchMultipliers) >= 4) {
+            $this->addError('newMultiplier', 'Maximum 4 extra batch sizes (columns need to stay readable).');
+            return;
+        }
+
+        $this->batchMultipliers[] = $value;
+        sort($this->batchMultipliers);
+        $this->newMultiplier = '';
+        $this->resetErrorBag('newMultiplier');
+    }
+
+    public function removeMultiplier(int $idx): void
+    {
+        unset($this->batchMultipliers[$idx]);
+        $this->batchMultipliers = array_values($this->batchMultipliers);
     }
 
     // ── Steps ────────────────────────────────────────────────────────────
@@ -545,6 +585,7 @@ class PrepItemForm extends Component
                 'video_url'              => $this->video_url ?: null,
                 'yield_quantity'         => $this->yield_quantity,
                 'yield_uom_id'           => $this->yield_uom_id,
+                'batch_multipliers'      => ! empty($this->batchMultipliers) ? array_values($this->batchMultipliers) : null,
                 'selling_price'          => 0,
                 'cost_per_yield_unit'    => round($costPerYieldUnit, 4),
                 'is_active'              => $this->is_active,

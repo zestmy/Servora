@@ -71,6 +71,14 @@
                         $ingredientLines = $recipe->lines->where('is_packaging', false)->values();
                         $packagingLines  = $recipe->lines->where('is_packaging', true)->values();
                     @endphp
+                    @php
+                        // Prep batch sizes (recipe multiples) — quantities side by side.
+                        $sopBatchCols = $recipe->is_prep
+                            ? collect([1.0])->merge($recipe->batchMultipliers())->sort()->values()
+                            : collect([1.0]);
+                        $sopHasBatches = $sopBatchCols->count() > 1;
+                        $fmtSopQty = fn ($q) => rtrim(rtrim(number_format((float) $q, 4), '0'), '.') ?: '0';
+                    @endphp
                     @if ($ingredientLines->count())
                         <tr>
                             <td colspan="4" class="label">Ingredients</td>
@@ -78,12 +86,26 @@
                         <tr>
                             <td colspan="4" class="ing-list-cell">
                                 <table class="ing-table">
+                                    @if ($sopHasBatches)
+                                        <tr>
+                                            <td class="ing-bullet"></td>
+                                            <td class="ing-name" style="font-size:6.5pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; color:#6b7280;">Batch</td>
+                                            @foreach ($sopBatchCols as $m)
+                                                <td class="ing-qty" style="font-size:6.5pt; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px; color:{{ abs($m - 1.0) < 0.0001 ? '#4338ca' : '#6b7280' }};">
+                                                    {{ \App\Models\Recipe::fmtMultiplier($m) }} Recipe<br>
+                                                    <span style="font-weight:normal; color:#9ca3af;">{{ $fmtSopQty($recipe->yield_quantity * $m) }} {{ $recipe->yieldUom?->abbreviation }}</span>
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endif
                                     @foreach ($ingredientLines as $line)
-                                        @php $disp = $line->sopUomDisplay(); @endphp
                                         <tr>
                                             <td class="ing-bullet">&bull;</td>
                                             <td class="ing-name">{{ $line->ingredient?->name ?? '—' }}@if ($line->ingredient?->is_prep)<span style="display:inline-block; margin-left:4px; padding:1px 5px; background:#fef3c7; color:#b45309; font-size:7pt; font-weight:bold; letter-spacing:0.5px; border-radius:3px;">PREP</span>@endif</td>
-                                            <td class="ing-qty">{{ $disp['main_qty'] }} {{ $disp['main_uom'] }}@if ($disp['ref_qty'] !== null) <span style="color:#9ca3af;">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>@endif</td>
+                                            @foreach ($sopBatchCols as $m)
+                                                @php $disp = $line->sopUomDisplay($m); @endphp
+                                                <td class="ing-qty" @if ($sopHasBatches && abs($m - 1.0) < 0.0001) style="background:#eef2ff;" @endif>{{ $disp['main_qty'] }} {{ $disp['main_uom'] }}@if ($disp['ref_qty'] !== null) <span style="color:#9ca3af;">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>@endif</td>
+                                            @endforeach
                                         </tr>
                                     @endforeach
                                 </table>

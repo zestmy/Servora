@@ -66,11 +66,13 @@ class RecipeLine extends Model
      * the primary recipe UOM in brackets for reference (e.g. "54 g"). Falls back to
      * the line's own UOM when no secondary unit is configured or cannot be resolved.
      *
+     * $multiplier scales the quantity for prep-item batch sizes (1 = base recipe).
+     *
      * @return array{main_qty:string, main_uom:string, ref_qty:?string, ref_uom:?string}
      */
-    public function sopUomDisplay(): array
+    public function sopUomDisplay(float $multiplier = 1.0): array
     {
-        $qty = (float) $this->quantity;
+        $qty = (float) $this->quantity * $multiplier;
 
         $fallback = [
             'main_qty' => $this->fmtQty($qty),
