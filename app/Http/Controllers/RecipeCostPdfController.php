@@ -29,7 +29,17 @@ class RecipeCostPdfController extends Controller
         $pdf = Pdf::loadView('pdf.recipe-cost-single', $data);
         $pdf->setPaper('a4', 'portrait');
 
-        return $pdf->stream("recipe-cost-{$recipe->code}-{$recipe->id}.pdf");
+        return $pdf->stream($this->safeFilename("recipe-cost-{$recipe->code}-{$recipe->id}.pdf"));
+    }
+
+    /**
+     * Strip characters Symfony rejects in Content-Disposition filenames.
+     * Recipe codes are user-entered and may contain "/" (e.g. "MAIN/01"),
+     * which would otherwise 500 the download.
+     */
+    private function safeFilename(string $name): string
+    {
+        return str_replace(['/', '\\', '%'], '-', $name);
     }
 
     public function all(Request $request)

@@ -11,23 +11,13 @@
             <h1 class="text-lg font-bold text-gray-800 mt-0.5">{{ $recipe->name }}</h1>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-            {{-- PDF dropdown --}}
-            <div x-data="{ open: false }" class="relative">
-                <button @click="open = !open" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    Print PDF
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                <div x-show="open" @click.away="open = false" x-transition
-                     class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    <a href="{{ route('recipes.cost-pdf', $recipe->id) }}" target="_blank"
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Card</a>
-                    <a href="{{ route('recipes.cost-pdf-all') }}" target="_blank"
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All Recipe Costs</a>
-                    <a href="{{ route('recipes.cost-pdf-summary') }}" target="_blank"
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Recipe Cost Summary List</a>
-                </div>
-            </div>
+            {{-- Print cost card PDF --}}
+            <a href="{{ route('recipes.cost-pdf', $recipe->id) }}" target="_blank" rel="noopener"
+               title="Print this recipe's cost card as a PDF"
+               class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Print PDF
+            </a>
             <a href="{{ route('recipes.edit', $recipe->id) }}"
                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                 Edit Recipe
