@@ -41,9 +41,12 @@ class Dashboard extends Component
             $categorySortMap[strtolower($rc->name)] = [$parentSort, $parentName, $subSort, $subName];
         }
 
+        // Special filter value "prep" shows only prep-item SOPs.
+        $prepOnly = $this->categoryFilter === 'prep';
+
         // Build category filter names (include children when parent selected)
         $filterNames = null;
-        if ($this->categoryFilter) {
+        if ($this->categoryFilter && ! $prepOnly) {
             $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
             if ($selectedCat) {
                 $filterNames = collect([$selectedCat->name]);
@@ -61,6 +64,7 @@ class Dashboard extends Component
             ->tap($outletScope)
             ->with(['images', 'steps'])
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
+            ->when($prepOnly, fn ($q) => $q->where('is_prep', true))
             ->when($filterNames, fn ($q) => $q->whereIn('category', $filterNames->toArray()))
             ->get()
             ->sortBy(function ($r) use ($categorySortMap) {

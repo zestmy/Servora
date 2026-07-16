@@ -15,6 +15,7 @@
             <select wire:model.live="categoryFilter"
                     class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 <option value="">All Categories</option>
+                <option value="prep">Prep Items (all)</option>
                 @foreach ($categories as $cat)
                     @if ($cat->children->isNotEmpty())
                         <optgroup label="{{ $cat->name }}">
