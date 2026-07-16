@@ -25,6 +25,33 @@
                 @if ($recipe->description)
                     <p class="text-sm text-gray-600 mt-2">{{ $recipe->description }}</p>
                 @endif
+                @if ($recipe->shelfLifeLabel() || $recipe->storageLabel())
+                    <div class="flex flex-wrap items-center gap-2 mt-3">
+                        @if ($recipe->shelfLifeLabel())
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Shelf Life: {{ $recipe->shelfLifeLabel() }}
+                            </span>
+                        @endif
+                        @if ($recipe->storageLabel())
+                            @php
+                                $storageChip = match ($recipe->storage_instruction) {
+                                    'chill'   => 'bg-sky-50 border-sky-200 text-sky-700',
+                                    'frozen'  => 'bg-blue-50 border-blue-200 text-blue-700',
+                                    default   => 'bg-amber-50 border-amber-200 text-amber-700',
+                                };
+                            @endphp
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium {{ $storageChip }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                                Storage: {{ $recipe->storageLabel() }}
+                            </span>
+                        @endif
+                    </div>
+                @endif
             </div>
             <div class="flex gap-2 flex-shrink-0">
                 <x-download-link href="{{ route('lms.sop.pdf', $recipe->id) }}"

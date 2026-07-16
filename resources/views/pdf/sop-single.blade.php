@@ -67,6 +67,14 @@
                             <td colspan="2"></td>
                         @endif
                     </tr>
+                    @if ($recipe->shelfLifeLabel() || $recipe->storageLabel())
+                        <tr>
+                            <td class="label">Shelf Life</td>
+                            <td><span class="big-value">{{ $recipe->shelfLifeLabel() ?? '—' }}</span></td>
+                            <td class="label">Storage</td>
+                            <td><span class="big-value">{{ $recipe->storageLabel() ?? '—' }}</span></td>
+                        </tr>
+                    @endif
                     @php
                         $ingredientLines = $recipe->lines->where('is_packaging', false)->values();
                         $packagingLines  = $recipe->lines->where('is_packaging', true)->values();

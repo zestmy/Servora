@@ -163,6 +163,38 @@
                     </div>
                 </div>
 
+                {{-- Shelf Life & Storing Instruction --}}
+                <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                    <div>
+                        <x-input-label for="p_shelf_life" value="Shelf Life" />
+                        <div class="mt-1 flex gap-2">
+                            <x-text-input id="p_shelf_life" wire:model="shelf_life_value" type="number"
+                                          min="0.01" step="0.5" placeholder="e.g. 3" class="block w-24" />
+                            <select wire:model="shelf_life_unit"
+                                    class="block flex-1 rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @foreach (\App\Models\Recipe::SHELF_LIFE_UNITS as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <p class="mt-0.5 text-xs text-gray-400">How long this prep item keeps. Shown in the LMS and SOP PDFs.</p>
+                        <x-input-error :messages="$errors->get('shelf_life_value')" class="mt-1" />
+                        <x-input-error :messages="$errors->get('shelf_life_unit')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="p_storage" value="Storing Instruction" />
+                        <select id="p_storage" wire:model="storage_instruction"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">— Not specified —</option>
+                            @foreach (\App\Models\Recipe::STORAGE_OPTIONS as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-0.5 text-xs text-gray-400">Where to store it. Shown in the LMS and SOP PDFs.</p>
+                        <x-input-error :messages="$errors->get('storage_instruction')" class="mt-1" />
+                    </div>
+                </div>
+
                 {{-- Secondary Recipe UOM --}}
                 <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
                     <div class="flex items-center justify-between">

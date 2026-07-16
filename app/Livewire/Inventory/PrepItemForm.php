@@ -52,6 +52,11 @@ class PrepItemForm extends Component
     public array  $batchMultipliers = [];
     public string $newMultiplier    = '';
 
+    // Shelf life & storing instruction (shown in LMS + SOP PDFs)
+    public string $shelf_life_value    = '';
+    public string $shelf_life_unit     = 'days';
+    public string $storage_instruction = '';
+
     // Secondary recipe UOM (optional alternative unit for use in recipes)
     public ?int   $secondary_recipe_uom_id = null;
     public string $secondary_uom_factor    = ''; // virtual — synced to IngredientUomConversion
@@ -73,6 +78,9 @@ class PrepItemForm extends Component
             'yield_quantity'           => 'required|numeric|min:0.0001',
             'yield_uom_id'             => 'required|exists:units_of_measure,id',
             'category'                 => 'nullable|string|max:100',
+            'shelf_life_value'         => 'nullable|numeric|min:0.01|max:9999',
+            'shelf_life_unit'          => 'nullable|in:minutes,hours,days,weeks,months',
+            'storage_instruction'      => 'nullable|in:chill,frozen,ambient',
             'lines'                    => 'required|array|min:1',
             'lines.*.ingredient_id'    => 'required|exists:ingredients,id',
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
@@ -116,6 +124,9 @@ class PrepItemForm extends Component
         $this->yield_quantity         = $this->fmt($recipe->yield_quantity);
         $this->yield_uom_id           = $recipe->yield_uom_id;
         $this->batchMultipliers       = $recipe->batchMultipliers();
+        $this->shelf_life_value       = $recipe->shelf_life_value ? $this->fmt($recipe->shelf_life_value) : '';
+        $this->shelf_life_unit        = $recipe->shelf_life_unit ?: 'days';
+        $this->storage_instruction    = $recipe->storage_instruction ?? '';
         $this->is_active              = $recipe->is_active;
         $this->exclude_from_lms       = (bool) $recipe->exclude_from_lms;
         $this->department_id          = $recipe->department_id;
@@ -586,6 +597,9 @@ class PrepItemForm extends Component
                 'yield_quantity'         => $this->yield_quantity,
                 'yield_uom_id'           => $this->yield_uom_id,
                 'batch_multipliers'      => ! empty($this->batchMultipliers) ? array_values($this->batchMultipliers) : null,
+                'shelf_life_value'       => $this->shelf_life_value !== '' ? $this->shelf_life_value : null,
+                'shelf_life_unit'        => $this->shelf_life_value !== '' ? ($this->shelf_life_unit ?: 'days') : null,
+                'storage_instruction'    => $this->storage_instruction ?: null,
                 'selling_price'          => 0,
                 'cost_per_yield_unit'    => round($costPerYieldUnit, 4),
                 'is_active'              => $this->is_active,

@@ -17,9 +17,26 @@ class Recipe extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'description', 'video_url', 'yield_quantity', 'yield_uom_id',
-        'batch_multipliers', 'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
+        'batch_multipliers', 'shelf_life_value', 'shelf_life_unit', 'storage_instruction',
+        'selling_price', 'cost_per_yield_unit', 'extra_costs', 'category',
         'ingredient_category_id', 'department_id', 'is_active', 'is_prep',
         'exclude_from_lms', 'menu_sort_order',
+    ];
+
+    /** Shelf-life units selectable on prep items (value => label). */
+    public const SHELF_LIFE_UNITS = [
+        'minutes' => 'Minutes',
+        'hours'   => 'Hours',
+        'days'    => 'Days',
+        'weeks'   => 'Weeks',
+        'months'  => 'Months',
+    ];
+
+    /** Storing instructions selectable on prep items (value => label). */
+    public const STORAGE_OPTIONS = [
+        'chill'   => 'Chill',
+        'frozen'  => 'Frozen',
+        'ambient' => 'Ambient',
     ];
 
     protected $casts = [
@@ -117,6 +134,31 @@ class Recipe extends Model
     public static function fmtMultiplier(float $m): string
     {
         return rtrim(rtrim(number_format($m, 4, '.', ''), '0'), '.') ?: '0';
+    }
+
+    /** Human-readable shelf life, e.g. "3 Days" / "1 Week" — null when not set. */
+    public function shelfLifeLabel(): ?string
+    {
+        if (! $this->shelf_life_value || ! $this->shelf_life_unit) {
+            return null;
+        }
+
+        $value = rtrim(rtrim(number_format((float) $this->shelf_life_value, 2, '.', ''), '0'), '.');
+        $unit  = self::SHELF_LIFE_UNITS[$this->shelf_life_unit] ?? ucfirst($this->shelf_life_unit);
+
+        if (abs((float) $this->shelf_life_value - 1.0) < 0.0001) {
+            $unit = rtrim($unit, 's');
+        }
+
+        return "{$value} {$unit}";
+    }
+
+    /** Human-readable storing instruction, e.g. "Chill" — null when not set. */
+    public function storageLabel(): ?string
+    {
+        return $this->storage_instruction
+            ? (self::STORAGE_OPTIONS[$this->storage_instruction] ?? ucfirst($this->storage_instruction))
+            : null;
     }
 
     /**
