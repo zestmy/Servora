@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -119,7 +120,6 @@ class Users extends Component
         $regularOutletIds = array_diff($allOutletIds, $kitchenOutletIds);
 
         $assignedRegular = array_intersect($assignedOutletIds, $regularOutletIds);
-        $assignedKitchens = array_intersect($assignedOutletIds, $kitchenOutletIds);
 
         // Outlet mode
         if (count($assignedRegular) >= count($regularOutletIds) && count($regularOutletIds) > 0) {
@@ -133,17 +133,24 @@ class Users extends Component
             $this->outletIds = array_map('strval', array_values($assignedRegular));
         }
 
-        // Kitchen mode
-        if (empty($kitchenOutletIds) || empty($assignedKitchens)) {
+        // Kitchen mode — derived from the kitchen_users pivot, which is what the
+        // CK nav button, workspace switcher, and kitchen.user middleware gate on.
+        $allKitchenIds  = \App\Models\CentralKitchen::where('company_id', $user->company_id)
+            ->pluck('id')->map(fn ($i) => (int) $i)->all();
+        $userKitchenIds = DB::table('kitchen_users')
+            ->where('user_id', $user->id)
+            ->whereIn('kitchen_id', $allKitchenIds)
+            ->pluck('kitchen_id')->map(fn ($i) => (int) $i)->all();
+
+        if (empty($allKitchenIds) || empty($userKitchenIds)) {
             $this->kitchenMode = 'none';
             $this->kitchenIds = [];
-        } elseif (count($assignedKitchens) >= count($kitchenOutletIds)) {
+        } elseif (count($userKitchenIds) >= count($allKitchenIds)) {
             $this->kitchenMode = 'all';
             $this->kitchenIds = [];
         } else {
             $this->kitchenMode = 'selected';
-            // Map outlet_ids back to kitchen ids
-            $this->kitchenIds = array_map('strval', \App\Models\CentralKitchen::whereIn('outlet_id', $assignedKitchens)->pluck('id')->toArray());
+            $this->kitchenIds = array_map('strval', $userKitchenIds);
         }
 
         $this->showModal = true;
@@ -247,11 +254,45 @@ class Users extends Component
 
         $user->outlets()->sync(array_unique($syncIds));
 
-        // Set default_kitchen_id if kitchen access granted
-        if (in_array($this->kitchenMode, ['all', 'all_except', 'selected'])) {
-            $firstKitchen = \App\Models\CentralKitchen::where('company_id', $companyId)->first();
-            $user->update(['default_kitchen_id' => $firstKitchen?->id]);
+        // Sync kitchen-mode access. The "Switch to Central Kitchen Mode" nav
+        // button, the workspace switcher, and the kitchen.user middleware all
+        // gate on the kitchen_users pivot — outlet rows alone leave the CK
+        // navigation invisible.
+        $targetKitchenIds = match ($this->kitchenMode) {
+            'all'        => \App\Models\CentralKitchen::where('company_id', $companyId)
+                ->pluck('id')->map(fn ($i) => (int) $i)->all(),
+            'all_except' => \App\Models\CentralKitchen::where('company_id', $companyId)
+                ->whereNotIn('id', array_map('intval', $this->kitchenIds))
+                ->pluck('id')->map(fn ($i) => (int) $i)->all(),
+            'selected'   => \App\Models\CentralKitchen::where('company_id', $companyId)
+                ->whereIn('id', array_map('intval', $this->kitchenIds))
+                ->pluck('id')->map(fn ($i) => (int) $i)->all(),
+            default      => [],
+        };
+
+        $currentKitchenIds = DB::table('kitchen_users')
+            ->where('user_id', $user->id)
+            ->pluck('kitchen_id')->map(fn ($i) => (int) $i)->all();
+
+        foreach (array_diff($targetKitchenIds, $currentKitchenIds) as $kitchenId) {
+            DB::table('kitchen_users')->insert([
+                'kitchen_id' => $kitchenId,
+                'user_id'    => $user->id,
+                'role'       => 'staff',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
+        $removeKitchenIds = array_diff($currentKitchenIds, $targetKitchenIds);
+        if (! empty($removeKitchenIds)) {
+            DB::table('kitchen_users')
+                ->where('user_id', $user->id)
+                ->whereIn('kitchen_id', $removeKitchenIds)
+                ->delete();
+        }
+
+        // Default kitchen for kitchen mode: first granted kitchen (cleared when none).
+        $user->update(['default_kitchen_id' => $targetKitchenIds[0] ?? null]);
 
         session()->flash('success', ($this->editingId ? 'User updated.' : 'User created.'));
         $this->redirect(route('settings.users'), navigate: true);
