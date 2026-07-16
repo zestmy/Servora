@@ -97,6 +97,23 @@ class Recipe extends Model
         return $this->hasOne(Ingredient::class, 'prep_recipe_id');
     }
 
+    /**
+     * Limit to recipes visible for the given outlet ids: untagged recipes
+     * (available everywhere) plus recipes tagged to any of the outlets.
+     * An empty id list means unrestricted — no filter applied.
+     */
+    public function scopeVisibleToOutlets($query, array $outletIds)
+    {
+        if (empty($outletIds)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($outletIds) {
+            $q->whereDoesntHave('outlets')
+              ->orWhereHas('outlets', fn ($o) => $o->whereIn('outlets.id', $outletIds));
+        });
+    }
+
     public function getTotalCostAttribute(): float
     {
         return $this->lines->sum(fn ($line) => $line->cost_per_recipe_uom * $line->quantity);

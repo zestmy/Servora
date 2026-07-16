@@ -23,12 +23,10 @@ class Dashboard extends Component
     {
         $user = Auth::guard('lms')->user();
 
-        $outletScope = fn ($q) => $user->outlet_id
-            ? $q->where(function ($q) use ($user) {
-                $q->whereDoesntHave('outlets')
-                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $user->outlet_id));
-            })
-            : $q;
+        // Per-user SOP access (Settings > Training Portal): untagged recipes plus
+        // recipes tagged to any outlet the trainee has been granted.
+        $accessibleOutletIds = $user->accessibleOutletIds();
+        $outletScope = fn ($q) => $q->visibleToOutlets($accessibleOutletIds);
 
         // Build parent/sub hierarchy sort map (same approach as LMS sidebar)
         $categorySortMap = [];

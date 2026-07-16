@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
@@ -33,6 +34,28 @@ class LmsUser extends Authenticatable
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    /** Outlets this trainee may see SOPs for (managed in Settings > Training Portal). */
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class, 'lms_user_outlets')->withTimestamps();
+    }
+
+    /**
+     * Outlet ids whose SOPs this trainee may see. Falls back to the
+     * registration outlet when no explicit access rows exist; an empty
+     * array means unrestricted (legacy users registered without an outlet).
+     */
+    public function accessibleOutletIds(): array
+    {
+        $ids = $this->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+
+        if (empty($ids) && $this->outlet_id) {
+            $ids = [(int) $this->outlet_id];
+        }
+
+        return $ids;
     }
 
     public function approver(): BelongsTo

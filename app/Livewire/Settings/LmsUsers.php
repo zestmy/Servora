@@ -15,6 +15,12 @@ class LmsUsers extends Component
     public string $statusFilter = 'pending';
     public string $search = '';
 
+    // SOP access editing (per-outlet, incl. central kitchen outlets)
+    public bool   $showAccessModal = false;
+    public ?int   $accessUserId    = null;
+    public string $accessUserName  = '';
+    public array  $accessOutletIds = [];
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -23,6 +29,61 @@ class LmsUsers extends Component
     public function updatedStatusFilter(): void
     {
         $this->resetPage();
+    }
+
+    // ── SOP access editing ────────────────────────────────────────────────
+
+    public function openAccess(int $id): void
+    {
+        $user = LmsUser::where('company_id', Auth::user()->company_id)->findOrFail($id);
+
+        $this->accessUserId   = $user->id;
+        $this->accessUserName = $user->name;
+
+        // Current access — explicit rows, registration-outlet fallback, or
+        // everything for legacy users registered without an outlet.
+        $ids = $user->accessibleOutletIds();
+        if (empty($ids)) {
+            $ids = \App\Models\Outlet::where('company_id', $user->company_id)
+                ->where('is_active', true)
+                ->pluck('id')
+                ->all();
+        }
+        $this->accessOutletIds = array_map('strval', $ids);
+
+        $this->showAccessModal = true;
+    }
+
+    public function selectAllAccessOutlets(): void
+    {
+        $this->accessOutletIds = \App\Models\Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+    }
+
+    public function saveAccess(): void
+    {
+        if (! $this->accessUserId) return;
+
+        $user = LmsUser::where('company_id', Auth::user()->company_id)->findOrFail($this->accessUserId);
+
+        $validIds = \App\Models\Outlet::where('company_id', $user->company_id)
+            ->whereIn('id', array_map('intval', $this->accessOutletIds))
+            ->pluck('id')
+            ->all();
+
+        if (empty($validIds)) {
+            session()->flash('error', 'Select at least one outlet — to block the user entirely, reject the account instead.');
+            return;
+        }
+
+        $user->outlets()->sync($validIds);
+
+        $this->showAccessModal = false;
+        $this->accessUserId = null;
+        session()->flash('success', "SOP access updated for {$user->name}.");
     }
 
     public function approve(int $id): void
@@ -54,7 +115,7 @@ class LmsUsers extends Component
                 $q2->where('name', 'like', "%{$this->search}%")
                    ->orWhere('email', 'like', "%{$this->search}%");
             }))
-            ->with(['outlet', 'approver'])
+            ->with(['outlet', 'outlets', 'approver'])
             ->latest()
             ->paginate(20);
 
@@ -139,10 +200,23 @@ class LmsUsers extends Component
             $lmsRegisterUrl = null;
         }
 
+        // Outlets for the SOP-access editor; central kitchen outlets are
+        // included (badged "CK") so CK SOP visibility can be granted/revoked.
+        $accessOutlets = \App\Models\Outlet::where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $centralKitchenOutletIds = \App\Models\CentralKitchen::whereNotNull('outlet_id')
+            ->pluck('outlet_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         return view('livewire.settings.lms-users', compact(
             'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',
             'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories', 'sopCategoryGroups', 'hasPrepSops', 'prepSopCategories',
-            'lmsUrl', 'lmsRegisterUrl', 'company'
+            'lmsUrl', 'lmsRegisterUrl', 'company', 'accessOutlets', 'centralKitchenOutletIds'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Training Portal']);
     }
 }

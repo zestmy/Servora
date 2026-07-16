@@ -26,15 +26,12 @@ class SopPdfController extends Controller
 
         $company = Company::find($user->company_id);
 
-        $traineeOutletId = $isLmsTrainee ? $user->outlet_id : null;
+        $traineeOutletIds = $isLmsTrainee ? $user->accessibleOutletIds() : [];
 
         $recipe = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
-            ->when($traineeOutletId, fn ($q) => $q->where(function ($q) use ($traineeOutletId) {
-                $q->whereDoesntHave('outlets')
-                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
-            }))
+            ->visibleToOutlets($traineeOutletIds)
             ->with([
                 'steps', 'images', 'lines.uom', 'yieldUom',
                 'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
@@ -74,7 +71,7 @@ class SopPdfController extends Controller
 
         $company = Company::find($user->company_id);
 
-        $traineeOutletId = $isLmsTrainee ? $user->outlet_id : null;
+        $traineeOutletIds = $isLmsTrainee ? $user->accessibleOutletIds() : [];
 
         // Optional prep-only export — only prep-item SOPs, skipping menu recipes.
         $prepOnly = request()->boolean('prep');
@@ -118,15 +115,12 @@ class SopPdfController extends Controller
             'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',
         ];
 
-        // Shared LMS visibility scope (company + active + LMS-enabled + trainee outlet).
-        $applyScope = function ($q) use ($user, $traineeOutletId) {
+        // Shared LMS visibility scope (company + active + LMS-enabled + trainee outlets).
+        $applyScope = function ($q) use ($user, $traineeOutletIds) {
             return $q->where('recipes.company_id', $user->company_id)
                 ->where('recipes.is_active', true)
                 ->where('recipes.exclude_from_lms', false)
-                ->when($traineeOutletId, fn ($q2) => $q2->where(function ($w) use ($traineeOutletId) {
-                    $w->whereDoesntHave('outlets')
-                      ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $traineeOutletId));
-                }));
+                ->visibleToOutlets($traineeOutletIds);
         };
 
         // Non-prep recipes — ordered EXACTLY like the Recipes list (category hierarchy:

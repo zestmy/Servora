@@ -26,10 +26,7 @@ class SopView extends Component
         $this->recipe = Recipe::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
-            ->when($user->outlet_id, fn ($q) => $q->where(function ($q) use ($user) {
-                $q->whereDoesntHave('outlets')
-                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $user->outlet_id));
-            }))
+            ->visibleToOutlets($user->accessibleOutletIds())
             ->with([
                 'steps', 'images', 'lines.uom', 'yieldUom',
                 'lines.ingredient.recipeUom', 'lines.ingredient.secondaryRecipeUom', 'lines.ingredient.uomConversions',

@@ -259,7 +259,7 @@
                             <th class="px-4 py-3 text-left">Name</th>
                             <th class="px-4 py-3 text-left">Email</th>
                             <th class="px-4 py-3 text-left">Phone</th>
-                            <th class="px-4 py-3 text-left">Outlet</th>
+                            <th class="px-4 py-3 text-left">SOP Access</th>
                             <th class="px-4 py-3 text-left">Registered</th>
                             <th class="px-4 py-3 text-left">Status</th>
                             <th class="px-4 py-3 text-center">Actions</th>
@@ -271,7 +271,23 @@
                                 <td class="px-4 py-3 font-medium text-gray-800">{{ $user->name }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ $user->email }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ $user->phone ?? '—' }}</td>
-                                <td class="px-4 py-3 text-gray-600">{{ $user->outlet?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 text-gray-600">
+                                    @php
+                                        $accessNames = $user->outlets->pluck('name');
+                                        if ($accessNames->isEmpty() && $user->outlet) {
+                                            $accessNames = collect([$user->outlet->name]);
+                                        }
+                                    @endphp
+                                    @if ($accessNames->isEmpty())
+                                        <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">All outlets</span>
+                                    @elseif ($accessNames->count() >= $accessOutlets->count() && $accessOutlets->count() > 0)
+                                        <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-full">All outlets ({{ $accessNames->count() }})</span>
+                                    @elseif ($accessNames->count() <= 2)
+                                        {{ $accessNames->implode(', ') }}
+                                    @else
+                                        <span title="{{ $accessNames->implode(', ') }}">{{ $accessNames->take(2)->implode(', ') }} <span class="text-xs text-gray-400">+{{ $accessNames->count() - 2 }} more</span></span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-gray-500 text-xs">{{ $user->created_at->format('d M Y') }}</td>
                                 <td class="px-4 py-3">
                                     @if ($user->status === 'pending')
@@ -286,8 +302,8 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    @if ($user->status === 'pending')
-                                        <div class="flex items-center justify-center gap-2">
+                                    <div class="flex items-center justify-center gap-2">
+                                        @if ($user->status === 'pending')
                                             <button wire:click="approve({{ $user->id }})"
                                                     wire:confirm="Approve {{ $user->name }}?"
                                                     class="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
@@ -298,15 +314,18 @@
                                                     class="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
                                                 Reject
                                             </button>
-                                        </div>
-                                    @elseif ($user->status === 'rejected')
-                                        <button wire:click="approve({{ $user->id }})"
-                                                class="px-3 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
-                                            Approve
+                                        @elseif ($user->status === 'rejected')
+                                            <button wire:click="approve({{ $user->id }})"
+                                                    class="px-3 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                                                Approve
+                                            </button>
+                                        @endif
+                                        <button wire:click="openAccess({{ $user->id }})"
+                                                title="Choose which outlets' SOPs this user can see (including central kitchen)"
+                                                class="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+                                            Edit Access
                                         </button>
-                                    @else
-                                        <span class="text-xs text-gray-400">—</span>
-                                    @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -323,4 +342,65 @@
             </div>
         @endif
     </div>
+
+    {{-- ── SOP Access modal ── --}}
+    @if ($showAccessModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/40" wire:click="$set('showAccessModal', false)"></div>
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-800">SOP Access — {{ $accessUserName }}</h3>
+                    <p class="text-xs text-gray-400 mt-0.5">
+                        Choose which outlets' SOPs this user can see. SOPs available at all outlets are always visible.
+                        Central kitchen outlets are marked <span class="px-1 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">CK</span>.
+                    </p>
+                </div>
+
+                <div class="px-6 py-4 overflow-y-auto flex-1">
+                    <div class="flex items-center justify-end gap-3 mb-3 text-xs">
+                        <button type="button" wire:click="selectAllAccessOutlets"
+                                class="text-indigo-500 hover:underline">Select all</button>
+                        <button type="button" wire:click="$set('accessOutletIds', [])"
+                                class="text-gray-400 hover:underline">Clear</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        @foreach ($accessOutlets as $outlet)
+                            <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
+                                {{ in_array((string) $outlet->id, array_map('strval', $accessOutletIds)) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                <input type="checkbox"
+                                       value="{{ $outlet->id }}"
+                                       wire:model.live="accessOutletIds"
+                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                <div class="min-w-0">
+                                    <span class="text-sm font-medium text-gray-700 block truncate">
+                                        {{ $outlet->name }}
+                                        @if (in_array($outlet->id, $centralKitchenOutletIds))
+                                            <span class="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded align-middle" title="Central kitchen location">CK</span>
+                                        @endif
+                                    </span>
+                                    @if ($outlet->code)
+                                        <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
+                                    @endif
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                    @if (empty($accessOutletIds))
+                        <p class="mt-2 text-xs text-amber-500">Select at least one outlet — to block the user entirely, reject the account instead.</p>
+                    @endif
+                </div>
+
+                <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                    <button type="button" wire:click="$set('showAccessModal', false)"
+                            class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition">Cancel</button>
+                    <button type="button" wire:click="saveAccess"
+                            wire:loading.attr="disabled" wire:target="saveAccess"
+                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span wire:loading.remove wire:target="saveAccess">Save Access</span>
+                        <span wire:loading wire:target="saveAccess">Saving…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

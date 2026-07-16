@@ -29,10 +29,7 @@
         $sidebarSops = \App\Models\Recipe::where('company_id', $lmsUser->company_id)
             ->where('is_active', true)
             ->where('exclude_from_lms', false)
-            ->when($lmsUser->outlet_id, fn ($q) => $q->where(function ($q) use ($lmsUser) {
-                $q->whereDoesntHave('outlets')
-                  ->orWhereHas('outlets', fn ($o) => $o->where('outlets.id', $lmsUser->outlet_id));
-            }))
+            ->visibleToOutlets($lmsUser->accessibleOutletIds())
             ->select('id', 'name', 'code', 'category', 'menu_sort_order', 'is_prep')
             ->get()
             ->sortBy(function ($r) use ($lmsCategorySortMap) {
