@@ -37,7 +37,8 @@ class PrepItemForm extends Component
     public bool   $is_active              = true;
     public bool   $exclude_from_lms       = false;
     public ?int   $department_id          = null;
-    public ?int   $ingredient_category_id = null;
+    // Menu category (same list as recipes; stored as the category name)
+    public string $category               = '';
 
     // Outlet tagging
     public bool  $allOutlets = true;
@@ -67,7 +68,7 @@ class PrepItemForm extends Component
             'notes'                    => 'nullable|string',
             'yield_quantity'           => 'required|numeric|min:0.0001',
             'yield_uom_id'             => 'required|exists:units_of_measure,id',
-            'ingredient_category_id'   => 'nullable|exists:ingredient_categories,id',
+            'category'                 => 'nullable|string|max:100',
             'lines'                    => 'required|array|min:1',
             'lines.*.ingredient_id'    => 'required|exists:ingredients,id',
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
@@ -113,7 +114,7 @@ class PrepItemForm extends Component
         $this->is_active              = $recipe->is_active;
         $this->exclude_from_lms       = (bool) $recipe->exclude_from_lms;
         $this->department_id          = $recipe->department_id;
-        $this->ingredient_category_id = $recipe->ingredient_category_id;
+        $this->category               = $recipe->category ?? '';
 
         // Outlet tags
         $taggedOutletIds = $recipe->outlets->pluck('id')->toArray();
@@ -530,7 +531,13 @@ class PrepItemForm extends Component
         // Whether this is an edit (recipeId gets set on create below).
         $isEdit = (bool) $this->recipeId;
 
-        DB::transaction(function () use ($totalCost, $costPerYieldUnit, $yieldQty, $isEdit) {
+        // Menu category is the source of truth; keep the ingredient-side cost
+        // category in sync when an ingredient category with the same name exists.
+        $matchedIngredientCategoryId = $this->category !== ''
+            ? IngredientCategory::whereRaw('LOWER(name) = ?', [mb_strtolower($this->category)])->value('id')
+            : null;
+
+        DB::transaction(function () use ($totalCost, $costPerYieldUnit, $yieldQty, $isEdit, $matchedIngredientCategoryId) {
             $recipeData = [
                 'name'                   => $this->name,
                 'code'                   => $this->code ?: null,
@@ -544,7 +551,8 @@ class PrepItemForm extends Component
                 'is_prep'                => true,
                 'exclude_from_lms'       => $this->exclude_from_lms,
                 'department_id'          => $this->department_id,
-                'ingredient_category_id' => $this->ingredient_category_id,
+                'category'               => $this->category ?: null,
+                'ingredient_category_id' => $matchedIngredientCategoryId,
             ];
 
             if ($this->recipeId) {
@@ -660,7 +668,7 @@ class PrepItemForm extends Component
                 'is_active'               => $this->is_active,
                 'is_prep'                 => true,
                 'prep_recipe_id'          => $recipe->id,
-                'ingredient_category_id'  => $this->ingredient_category_id,
+                'ingredient_category_id'  => $matchedIngredientCategoryId,
             ];
 
             if ($this->ingredientId) {
@@ -706,7 +714,8 @@ class PrepItemForm extends Component
 
         $departments = Department::active()->ordered()->get();
 
-        $categories = IngredientCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+        // Same menu categories as the recipe form (Settings → Recipe Categories).
+        $recipeCategories = \App\Models\RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
             ->roots()
             ->where('is_active', true)
             ->orderBy('sort_order')
@@ -769,7 +778,7 @@ class PrepItemForm extends Component
         $outputIngredientId = $this->ingredientId; // the ingredient this prep recipe produces
 
         return view('livewire.inventory.prep-item-form', compact(
-            'uoms', 'departments', 'categories', 'outlets', 'outletGroups', 'centralKitchenOutletIds', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit', 'outputIngredientId'
+            'uoms', 'departments', 'recipeCategories', 'outlets', 'outletGroups', 'centralKitchenOutletIds', 'searchResults', 'lineCosts', 'totalCost', 'costPerYieldUnit', 'outputIngredientId'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 

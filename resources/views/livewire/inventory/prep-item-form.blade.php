@@ -102,24 +102,31 @@
                         <p class="mt-0.5 text-xs text-gray-400">Assigns cost to a department.</p>
                     </div>
                     <div>
-                        <x-input-label for="p_category" value="Cost Category" />
-                        <select id="p_category" wire:model="ingredient_category_id"
+                        <x-input-label for="p_category" value="Category" />
+                        <select id="p_category" wire:model="category"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">— No Category —</option>
-                            @foreach ($categories as $cat)
-                                @if ($cat->children->isEmpty())
-                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                                @else
+                            @foreach ($recipeCategories as $cat)
+                                @if ($cat->children && $cat->children->count())
                                     <optgroup label="{{ $cat->name }}">
-                                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                        <option value="{{ $cat->name }}">{{ $cat->name }} (All)</option>
                                         @foreach ($cat->children as $sub)
-                                            <option value="{{ $sub->id }}">&nbsp;&nbsp;{{ $sub->name }}</option>
+                                            <option value="{{ $sub->name }}">{{ $sub->name }}</option>
                                         @endforeach
                                     </optgroup>
+                                @else
+                                    <option value="{{ $cat->name }}">{{ $cat->name }}</option>
                                 @endif
                             @endforeach
                         </select>
-                        <x-input-error :messages="$errors->get('ingredient_category_id')" class="mt-1" />
+                        @if ($recipeCategories->isEmpty())
+                            <p class="mt-0.5 text-xs text-gray-400">
+                                <a href="{{ route('settings.recipe-categories') }}" class="text-indigo-500 hover:underline" target="_blank">Add recipe categories</a> in Settings.
+                            </p>
+                        @else
+                            <p class="mt-0.5 text-xs text-gray-400">Same categories as recipes.</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('category')" class="mt-1" />
                     </div>
                 </div>
 

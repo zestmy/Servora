@@ -40,8 +40,8 @@ class Index extends Component
         // opening Prep Items would be forced back to the last-used Recipes tab.
         $this->tab = request()->query('tab') === 'prep-items' ? 'prep-items' : 'recipes';
 
-        // Filters are scoped per tab because Recipes and Prep Items use different
-        // category systems (recipe categories vs ingredient categories).
+        // Filters are scoped per tab so a filter picked while browsing Recipes
+        // doesn't silently follow you to Prep Items (and vice versa).
         $saved = session($this->filtersKey());
         if (is_array($saved)) {
             $this->search         = $saved['search']         ?? $this->search;
@@ -394,34 +394,25 @@ class Index extends Component
             'lines.ingredient.uomConversions',
             'lines.uom',
             'prices.priceClass',
-            'ingredientCategory.parent',
         ])
             ->where('recipes.is_prep', $isPrep);
 
-        // Prep items group by ingredient_category_id; recipes group by menu
-        // category string (which FK's by name to recipe_categories).
-        if ($isPrep) {
-            $query->leftJoin('ingredient_categories as rc', function ($join) {
-                    $join->on('rc.id', '=', 'recipes.ingredient_category_id')
-                         ->whereNull('rc.deleted_at');
-                })
-                ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
-        } else {
-            // Prefer sub-category match (has parent_id) over root when same name exists at both levels
-            $query->leftJoin('recipe_categories as rc', function ($join) {
-                    $join->on('rc.name', '=', 'recipes.category')
-                         ->on('rc.company_id', '=', 'recipes.company_id')
-                         ->whereNull('rc.deleted_at')
-                         ->whereNotNull('rc.parent_id');
-                })
-                ->leftJoin('recipe_categories as rc_root', function ($join) {
-                    $join->on('rc_root.name', '=', 'recipes.category')
-                         ->on('rc_root.company_id', '=', 'recipes.company_id')
-                         ->whereNull('rc_root.deleted_at')
-                         ->whereNull('rc_root.parent_id');
-                })
-                ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
-        }
+        // Recipes AND prep items both group by the menu category string
+        // (which FK's by name to recipe_categories).
+        // Prefer sub-category match (has parent_id) over root when same name exists at both levels
+        $query->leftJoin('recipe_categories as rc', function ($join) {
+                $join->on('rc.name', '=', 'recipes.category')
+                     ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc.deleted_at')
+                     ->whereNotNull('rc.parent_id');
+            })
+            ->leftJoin('recipe_categories as rc_root', function ($join) {
+                $join->on('rc_root.name', '=', 'recipes.category')
+                     ->on('rc_root.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc_root.deleted_at')
+                     ->whereNull('rc_root.parent_id');
+            })
+            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
 
         $query->select('recipes.*')->withCount('lines');
 
@@ -435,32 +426,16 @@ class Index extends Component
         if ($this->categoryFilter === 'uncategorized') {
             // Same definition as the stat cards' "Uncategorised" group: the
             // category string matches no recipe category (or is empty).
-            if ($isPrep) {
-                $query->whereNull('recipes.ingredient_category_id');
-            } else {
-                $query->whereNull('rc.id')->whereNull('rc_root.id');
-            }
+            $query->whereNull('rc.id')->whereNull('rc_root.id');
         } elseif ($this->categoryFilter) {
-            if ($isPrep) {
-                // Prep items use ingredient_category_id (FK). Include children.
-                $selectedCat = \App\Models\IngredientCategory::with('children')->find((int) $this->categoryFilter);
-                if ($selectedCat) {
-                    $ids = collect([$selectedCat->id]);
-                    if ($selectedCat->children->isNotEmpty()) {
-                        $ids = $ids->merge($selectedCat->children->pluck('id'));
-                    }
-                    $query->whereIn('recipes.ingredient_category_id', $ids->toArray());
+            // Both tabs match by the menu-category string.
+            $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
+            if ($selectedCat) {
+                $names = collect([$selectedCat->name]);
+                if ($selectedCat->children->isNotEmpty()) {
+                    $names = $names->merge($selectedCat->children->pluck('name'));
                 }
-            } else {
-                // Recipes match by the menu-category string.
-                $selectedCat = RecipeCategory::with('children')->find((int) $this->categoryFilter);
-                if ($selectedCat) {
-                    $names = collect([$selectedCat->name]);
-                    if ($selectedCat->children->isNotEmpty()) {
-                        $names = $names->merge($selectedCat->children->pluck('name'));
-                    }
-                    $query->whereIn('recipes.category', $names->toArray());
-                }
+                $query->whereIn('recipes.category', $names->toArray());
             }
         }
 
@@ -481,22 +456,14 @@ class Index extends Component
 
         // Sort by category hierarchy → manual menu order → recipe name.
         // Recipes whose category string doesn't match any category go last.
-        if ($isPrep) {
-            $query->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
-                  ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) ASC')
-                  ->orderByRaw('COALESCE(rcp.name, rc.name) ASC')
-                  ->orderBy('rc.sort_order')
-                  ->orderBy('rc.name');
-        } else {
-            // rc = sub-category match, rc_root = root fallback, rcp = parent of sub
-            // Parent sort: if sub matched → use rcp (parent), else use rc_root
-            $query->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) IS NULL')
-                  ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) ASC')
-                  ->orderByRaw('COALESCE(rcp.name, rc_root.name, rc.name) ASC')
-                  ->orderByRaw('COALESCE(rc.sort_order, rc_root.sort_order) ASC')
-                  ->orderByRaw('COALESCE(rc.name, rc_root.name) ASC');
-        }
-        $query->orderBy('recipes.menu_sort_order')
+        // rc = sub-category match, rc_root = root fallback, rcp = parent of sub
+        // Parent sort: if sub matched → use rcp (parent), else use rc_root
+        $query->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) IS NULL')
+              ->orderByRaw('COALESCE(rcp.sort_order, rc_root.sort_order, rc.sort_order) ASC')
+              ->orderByRaw('COALESCE(rcp.name, rc_root.name, rc.name) ASC')
+              ->orderByRaw('COALESCE(rc.sort_order, rc_root.sort_order) ASC')
+              ->orderByRaw('COALESCE(rc.name, rc_root.name) ASC')
+              ->orderBy('recipes.menu_sort_order')
               ->orderBy('recipes.name');
 
         if ($this->costFilter) {
@@ -530,40 +497,15 @@ class Index extends Component
             $recipes = $query->paginate($this->perPage);
         }
 
-        if ($isPrep) {
-            // Cost-category picker for prep items. Only categories that actually
-            // have prep items are listed (filter + PDF export dropdowns) — empty
-            // ingredient categories from Settings are just noise here.
-            $usedCatIds = Recipe::where('is_prep', true)
-                ->whereNotNull('ingredient_category_id')
-                ->distinct()
-                ->pluck('ingredient_category_id');
-
-            $recipeCategories = \App\Models\IngredientCategory::with(['children' => function ($q) use ($usedCatIds) {
-                    $q->where('is_active', true)
-                      ->whereIn('id', $usedCatIds)
-                      ->orderBy('sort_order')
-                      ->orderBy('name');
-                }])
-                ->roots()
-                ->where('is_active', true)
-                ->where(function ($q) use ($usedCatIds) {
-                    $q->whereIn('id', $usedCatIds)
-                      ->orWhereHas('children', fn ($c) => $c->whereIn('id', $usedCatIds));
-                })
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get();
-        } else {
-            $recipeCategories = RecipeCategory::with(['children' => function ($q) {
-                    $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
-                }])
-                ->roots()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get();
-        }
+        // Both tabs share the same menu categories (Settings → Recipe Categories).
+        $recipeCategories = RecipeCategory::with(['children' => function ($q) {
+                $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+            }])
+            ->roots()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         // Central kitchen outlets are included so items tagged to the central
         // kitchen can be filtered too; the dropdown labels them "(CK)".

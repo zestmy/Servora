@@ -81,24 +81,14 @@ class RecipeCostPdfController extends Controller
         }
 
         if ($category !== '') {
-            if ($isPrep) {
-                $selectedCat = \App\Models\IngredientCategory::with('children')->find((int) $category);
-                if ($selectedCat) {
-                    $ids = collect([$selectedCat->id]);
-                    if ($selectedCat->children->isNotEmpty()) {
-                        $ids = $ids->merge($selectedCat->children->pluck('id'));
-                    }
-                    $query->whereIn('recipes.ingredient_category_id', $ids->toArray());
+            // Both recipes and prep items match by the menu-category string.
+            $selectedCat = RecipeCategory::with('children')->find((int) $category);
+            if ($selectedCat) {
+                $names = collect([$selectedCat->name]);
+                if ($selectedCat->children->isNotEmpty()) {
+                    $names = $names->merge($selectedCat->children->pluck('name'));
                 }
-            } else {
-                $selectedCat = RecipeCategory::with('children')->find((int) $category);
-                if ($selectedCat) {
-                    $names = collect([$selectedCat->name]);
-                    if ($selectedCat->children->isNotEmpty()) {
-                        $names = $names->merge($selectedCat->children->pluck('name'));
-                    }
-                    $query->whereIn('recipes.category', $names->toArray());
-                }
+                $query->whereIn('recipes.category', $names->toArray());
             }
         }
 
@@ -130,22 +120,14 @@ class RecipeCostPdfController extends Controller
      */
     private function applyDashboardSort(\Illuminate\Database\Eloquent\Builder $query, bool $isPrep = false): void
     {
-        if ($isPrep) {
-            // Prep items use ingredient_category_id (FK).
-            $query->leftJoin('ingredient_categories as rc', function ($join) {
-                    $join->on('rc.id', '=', 'recipes.ingredient_category_id')
-                         ->whereNull('rc.deleted_at');
-                })
-                ->leftJoin('ingredient_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
-        } else {
-            // Recipes use category string joined by name to recipe_categories.
-            $query->leftJoin('recipe_categories as rc', function ($join) {
-                    $join->on('rc.name', '=', 'recipes.category')
-                         ->on('rc.company_id', '=', 'recipes.company_id')
-                         ->whereNull('rc.deleted_at');
-                })
-                ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
-        }
+        // Recipes and prep items both use the category string joined by name
+        // to recipe_categories.
+        $query->leftJoin('recipe_categories as rc', function ($join) {
+                $join->on('rc.name', '=', 'recipes.category')
+                     ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->whereNull('rc.deleted_at');
+            })
+            ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');
 
         $query->select('recipes.*')
             ->orderByRaw('COALESCE(rcp.sort_order, rc.sort_order) IS NULL')
@@ -189,7 +171,7 @@ class RecipeCostPdfController extends Controller
 
         $query = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
-            'lines.uom', 'yieldUom', 'ingredientCategory.parent', 'department',
+            'lines.uom', 'yieldUom', 'department',
             'prices.priceClass', 'outlets',
         ])->where('recipes.is_prep', $isPrep);
 
@@ -200,16 +182,8 @@ class RecipeCostPdfController extends Controller
 
         $recipes = $this->applyCostFilter($recipes, $request);
 
-        // Group by category for the PDF (Laravel Collections preserve insertion order).
-        // Prep items group by their ingredient category root; recipes group by menu category.
-        $grouped = $recipes->groupBy(function ($r) use ($isPrep) {
-            if ($isPrep) {
-                $ic = $r->ingredientCategory;
-                $root = $ic?->parent ?? $ic;
-                return $root?->name ?: 'Uncategorised';
-            }
-            return $r->category ?: 'Uncategorised';
-        });
+        // Group by menu category for the PDF (Laravel Collections preserve insertion order).
+        $grouped = $recipes->groupBy(fn ($r) => $r->category ?: 'Uncategorised');
 
         $groupedData = $grouped->map(function ($items) {
             return $items->map(fn ($r) => $this->buildRecipeData($r))->values()->all();
@@ -221,7 +195,7 @@ class RecipeCostPdfController extends Controller
         $logoBase64 = $this->companyLogoBase64();
         $pageTitle = "All {$label} Costs";
         $totalRecipes = $recipes->count();
-        $activeFilters = $this->describeActiveFilters($request, $isPrep);
+        $activeFilters = $this->describeActiveFilters($request);
 
         $pdf = Pdf::loadView('pdf.recipe-cost-all', compact(
             'groupedData', 'company', 'brandName', 'exportedBy', 'logoBase64',
@@ -239,7 +213,7 @@ class RecipeCostPdfController extends Controller
 
         $query = Recipe::with([
             'lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.ingredient.taxRate',
-            'lines.uom', 'yieldUom', 'ingredientCategory.parent',
+            'lines.uom', 'yieldUom',
             'prices.priceClass', 'outlets',
         ])->where('recipes.is_prep', $isPrep);
 
@@ -254,15 +228,7 @@ class RecipeCostPdfController extends Controller
 
         $summaryRows = $recipes->map(function ($recipe) use ($priceClasses, $isPrep) {
             $data = $this->buildRecipeData($recipe);
-            // For prep items the "category" column shows the ingredient category
-            // root so the group headers match the hierarchical sort order.
-            if ($isPrep) {
-                $ic = $recipe->ingredientCategory;
-                $root = $ic?->parent ?? $ic;
-                $categoryLabel = $root?->name ?? '';
-            } else {
-                $categoryLabel = $recipe->category;
-            }
+            $categoryLabel = $recipe->category;
             $row = [
                 'name'            => $recipe->name,
                 'code'            => $recipe->code,
@@ -293,7 +259,7 @@ class RecipeCostPdfController extends Controller
         $logoBase64 = $this->companyLogoBase64();
         $pageTitle = "{$label} Cost Summary";
         $totalRecipes = $recipes->count();
-        $activeFilters = $this->describeActiveFilters($request, $isPrep);
+        $activeFilters = $this->describeActiveFilters($request);
 
         $pdf = Pdf::loadView('pdf.recipe-cost-summary', compact(
             'summaryRows', 'priceClasses', 'company', 'brandName', 'exportedBy',
@@ -308,7 +274,7 @@ class RecipeCostPdfController extends Controller
     /**
      * Build a human-readable summary of active filters for display in PDF header.
      */
-    private function describeActiveFilters(Request $request, bool $isPrep = false): array
+    private function describeActiveFilters(Request $request): array
     {
         $filters = [];
 
@@ -316,9 +282,7 @@ class RecipeCostPdfController extends Controller
             $filters[] = 'Search: "' . $search . '"';
         }
         if ($categoryId = (int) $request->get('category', 0)) {
-            $cat = $isPrep
-                ? \App\Models\IngredientCategory::find($categoryId)
-                : RecipeCategory::find($categoryId);
+            $cat = RecipeCategory::find($categoryId);
             if ($cat) $filters[] = 'Category: ' . $cat->name;
         }
         if ($status = $request->get('status')) {
