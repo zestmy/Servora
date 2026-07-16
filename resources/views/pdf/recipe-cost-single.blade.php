@@ -203,7 +203,9 @@
         $mainGp = $mainSp > 0 ? $mainSp - $costPerServing : null;
         $mainMargin = $mainSp > 0 ? (($mainSp - $costPerServing) / $mainSp) * 100 : null;
         $mainMarkup = $costPerServing > 0 ? (($mainSp - $costPerServing) / $costPerServing) * 100 : null;
-        $costRatio = $mainSp > 0 ? $costPerServing / $mainSp : null;
+        // Ratio only meaningful when both sides are non-zero — a zero-cost
+        // recipe must not divide by zero below.
+        $costRatio = ($mainSp > 0 && $costPerServing > 0) ? $costPerServing / $mainSp : null;
 
         $fcBoxClass = match(true) {
             $mainFc === null => '',
@@ -238,7 +240,7 @@
             </div>
             <div class="cost-box">
                 <div class="cb-label">Markup</div>
-                <div class="cb-value">{{ number_format($mainMarkup, 1) }}%</div>
+                <div class="cb-value">{{ $mainMarkup !== null ? number_format($mainMarkup, 1) . '%' : '—' }}</div>
                 <div class="cb-sub">ratio 1 : {{ $costRatio !== null ? number_format(1 / $costRatio, 2) : '—' }}</div>
             </div>
         </div>
