@@ -10,7 +10,10 @@ class UomService
 {
     /**
      * Convert an ingredient's cost to cost per target UOM.
-     * Note: current_cost is stored as cost per RECIPE UOM (purchase_price / pack_size).
+     * Note: current_cost is the EFFECTIVE cost per base UOM:
+     * purchase_price ÷ pack_size ÷ (yield_percent / 100).
+     * All cost math must start from current_cost — never raw purchase_price,
+     * which is per pack and pre-yield.
      * Tries ingredient-specific conversions first, then falls back to standard UOM factor ratio.
      */
     public function convertCost(Ingredient $ingredient, UnitOfMeasure $targetUom): float
@@ -81,30 +84,24 @@ class UomService
             // Factor between 0 and 1 is valid (e.g., 1 g = 0.001 kg).
             $factor = (float) ($baseToRecipe->factor ?? 0);
             if ($baseToRecipe && $factor > 0 && $factor != 1.0) {
-                return (float) $ingredient->purchase_price / $factor;
+                return (float) $ingredient->current_cost / $factor;
             }
 
             // Check for standard SI conversion (e.g., kg→g, L→ml).
             // If both UOMs have base_unit_factor, they're in the same measurement system.
-            // Use purchase_price directly (not current_cost which may have pack_size applied).
             $recipeUom = $targetUom; // target is already recipe_uom at this point
             if ($baseUom->base_unit_factor && $recipeUom->base_unit_factor && $baseUom->base_unit_factor != 0) {
                 $stdFactor = (float) $recipeUom->base_unit_factor / (float) $baseUom->base_unit_factor;
-                return (float) $ingredient->purchase_price * $stdFactor;
+                return (float) $ingredient->current_cost * $stdFactor;
             }
 
-            // No standard conversion available - use current_cost (pack_size based)
+            // No standard conversion available - use current_cost as-is
             return (float) $ingredient->current_cost;
         }
 
-        // If target is the base UOM, return purchase_price (cost per base UOM)
+        // If target is the base UOM, current_cost is already the effective cost per base UOM
         if ($baseUom->id === $targetUom->id) {
-            // If base == recipe, current_cost is already correct
-            if ((int) $baseUom->id === (int) $ingredient->recipe_uom_id) {
-                return (float) $ingredient->current_cost;
-            }
-            // Otherwise, purchase_price is the cost per base UOM
-            return (float) $ingredient->purchase_price;
+            return (float) $ingredient->current_cost;
         }
 
         $baseId   = (int) $baseUom->id;
@@ -130,15 +127,15 @@ class UomService
         }
 
         // from=base, to=target, factor=N means "1 base = N target"
-        // cost per target = purchase_price ÷ N  (e.g. RM60/ctn ÷ 12000ml/ctn = RM0.005/ml)
+        // cost per target = cost per base ÷ N  (e.g. RM60/ctn ÷ 12000ml/ctn = RM0.005/ml)
         if ($conversion && (float) $conversion->factor != 0) {
-            return (float) $ingredient->purchase_price / (float) $conversion->factor;
+            return (float) $ingredient->current_cost / (float) $conversion->factor;
         }
 
         // reverse: from=target, to=base, factor=N means "1 target = N base"
-        // cost per target = purchase_price × N  (e.g. RM60/ctn × 0.001ctn/ml = RM0.06/ml)
+        // cost per target = cost per base × N  (e.g. RM60/ctn × 0.001ctn/ml = RM0.06/ml)
         if ($reverseConversion && (float) $reverseConversion->factor != 0) {
-            return (float) $ingredient->purchase_price * (float) $reverseConversion->factor;
+            return (float) $ingredient->current_cost * (float) $reverseConversion->factor;
         }
 
         // Chain through recipe UOM for secondary recipe UOM resolution.
