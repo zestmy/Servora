@@ -228,7 +228,15 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-sm font-semibold text-gray-800">Overtime Trend — Last 12 Weeks</h2>
-                <p class="text-xs text-gray-400 mt-0.5">Approved OT hours only, by type</p>
+                <p class="text-xs text-gray-400 mt-0.5">
+                    Approved OT hours only, by type
+                    @if ($sectionFilter && ($sn = $sections->firstWhere('id', (int) $sectionFilter)?->name))
+                        · <span class="text-indigo-500 font-medium">{{ $sn }}</span>
+                    @endif
+                    @if ($employeeFilter && ($en = $allEmployees->firstWhere('id', (int) $employeeFilter)?->name))
+                        · <span class="text-indigo-500 font-medium">{{ $en }}</span>
+                    @endif
+                </p>
             </div>
             {{-- Mini stats --}}
             <div class="flex items-center gap-5">
@@ -255,8 +263,10 @@
             </div>
         </div>
 
-        {{-- Chart --}}
-        <div class="relative h-56"
+        {{-- Chart. Keyed by the data so Livewire replaces this block (and
+             Alpine re-runs init) whenever a filter changes — a morphed canvas
+             would otherwise keep the stale, now-dead Chart.js instance. --}}
+        <div class="relative h-56" wire:key="ot-trend-{{ md5(json_encode($trendChartData)) }}"
              x-data="{
                 chartInstance: null,
                 init() {
@@ -331,24 +341,31 @@
             <canvas x-ref="canvas"></canvas>
         </div>
 
-        {{-- Top employees by date range --}}
-        @if ($topEmployees->isNotEmpty())
+        {{-- Top employees by date range, one column per section --}}
+        @if ($topBySection->isNotEmpty())
             <div class="mt-5 border-t border-gray-100 pt-4">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                    Top OT — {{ \Carbon\Carbon::parse($statsDateFrom)->format('d M Y') }} to {{ \Carbon\Carbon::parse($statsDateTo)->format('d M Y') }}
+                    Top OT by Section — {{ \Carbon\Carbon::parse($statsDateFrom)->format('d M Y') }} to {{ \Carbon\Carbon::parse($statsDateTo)->format('d M Y') }}
                 </p>
-                @php $maxHours = $topEmployees->max('hours'); @endphp
-                <div class="space-y-2">
-                    @foreach ($topEmployees as $rank => $row)
-                        @php $pct = $maxHours > 0 ? ($row->hours / $maxHours * 100) : 0; @endphp
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs text-gray-400 w-4 text-right">{{ $rank + 1 }}</span>
-                            <span class="text-xs font-medium text-gray-700 w-48">{{ $row->employee?->name ?? '—' }}</span>
-                            <div class="flex-1 bg-gray-100 rounded-full h-2">
-                                <div class="h-2 rounded-full {{ $pct >= 80 ? 'bg-red-400' : ($pct >= 50 ? 'bg-amber-400' : 'bg-indigo-400') }}"
-                                     style="width: {{ number_format($pct, 1) }}%"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-5">
+                    @foreach ($topBySection as $sectionName => $rows)
+                        <div wire:key="top-ot-{{ md5($sectionName) }}">
+                            <p class="text-xs font-semibold text-indigo-600 mb-2">{{ $sectionName }}</p>
+                            @php $maxHours = $rows->max('hours'); @endphp
+                            <div class="space-y-2">
+                                @foreach ($rows as $rank => $row)
+                                    @php $pct = $maxHours > 0 ? ($row->hours / $maxHours * 100) : 0; @endphp
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-400 w-4 text-right">{{ $rank + 1 }}</span>
+                                        <span class="text-xs font-medium text-gray-700 w-32 truncate" title="{{ $row->employee?->name }}">{{ $row->employee?->name ?? '—' }}</span>
+                                        <div class="flex-1 bg-gray-100 rounded-full h-2">
+                                            <div class="h-2 rounded-full {{ $pct >= 80 ? 'bg-red-400' : ($pct >= 50 ? 'bg-amber-400' : 'bg-indigo-400') }}"
+                                                 style="width: {{ number_format($pct, 1) }}%"></div>
+                                        </div>
+                                        <span class="text-xs font-semibold tabular-nums text-gray-700 w-14 text-right">{{ number_format($row->hours, 1) }}</span>
+                                    </div>
+                                @endforeach
                             </div>
-                            <span class="text-xs font-semibold tabular-nums text-gray-700 w-16 text-right">{{ number_format($row->hours, 1) }} hrs</span>
                         </div>
                     @endforeach
                 </div>

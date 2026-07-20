@@ -534,9 +534,12 @@ class OvertimeClaims extends Component
         $trendFrom = $trendWeeks[0][0];
         $trendTo   = $trendWeeks[11][1];
 
-        // Filter by EMPLOYEE's outlet, not claim's outlet
+        // Filter by EMPLOYEE's outlet, not claim's outlet.
+        // Mirror the list's employee/section filters so the chart follows them.
         $rawTrend = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
+            ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
+            ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
             ->where('overtime_claims.status', 'approved')
             ->whereBetween('overtime_claims.claim_date', [$trendFrom, $trendTo])
             ->selectRaw("DATE(DATE_SUB(overtime_claims.claim_date, INTERVAL (WEEKDAY(overtime_claims.claim_date)) DAY)) as week_start,
@@ -571,18 +574,33 @@ class OvertimeClaims extends Component
             ? round(array_sum($weekTotals) / max(1, count(array_filter($weekTotals))), 1)
             : 0;
 
-        // Top 5 employees by OT hours (based on date filter)
-        // Filter by EMPLOYEE's outlet, not claim's outlet
-        $topEmployees = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+        // Top 5 employees by OT hours PER SECTION (based on date filter),
+        // shown side by side. Filter by EMPLOYEE's outlet, not claim's outlet;
+        // mirrors the list's employee/section filters like the stats cards.
+        $topBySection = OvertimeClaim::join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
+            ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
+            ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
             ->where('overtime_claims.status', 'approved')
             ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
-            ->selectRaw('overtime_claims.employee_id, SUM(overtime_claims.total_ot_hours) as hours')
-            ->groupBy('overtime_claims.employee_id')
+            ->selectRaw("overtime_claims.employee_id,
+                COALESCE(sections.name, 'Unassigned') as section_name,
+                SUM(overtime_claims.total_ot_hours) as hours")
+            ->groupBy('overtime_claims.employee_id', 'sections.name')
             ->orderByDesc('hours')
-            ->limit(5)
             ->get()
-            ->load('employee:id,name');
+            ->load('employee:id,name')
+            ->groupBy('section_name')
+            ->map(fn ($rows) => $rows->take(5)->values());
+
+        // Order the section columns like the Sections settings (sort order),
+        // with any unmatched group (e.g. "Unassigned") last.
+        $sectionOrder = $sections->pluck('name')->all();
+        $topBySection = $topBySection->sortBy(function ($rows, $name) use ($sectionOrder) {
+            $idx = array_search($name, $sectionOrder);
+            return $idx === false ? PHP_INT_MAX : $idx;
+        });
 
         $trendChartData = [
             'labels'  => $trendLabels,
@@ -597,7 +615,7 @@ class OvertimeClaims extends Component
             'sectionStats', 'totalSubmittedHours', 'totalApprovedHours', 'totalPendingHours', 'totalRejectedHours',
             'statsDateFrom', 'statsDateTo',
             'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
-            'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topEmployees'
+            'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topBySection'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 
