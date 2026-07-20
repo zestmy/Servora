@@ -526,4 +526,23 @@
         </script>
         @endscript
     @endif
+
+    {{-- ══ Row 5: Latest update activity (bottom of the SOP) ═════════════════ --}}
+    @if ($recentActivity->isNotEmpty())
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="text-sm font-semibold text-gray-700 mb-4">Latest Update Activity</h2>
+            <div class="divide-y divide-gray-50">
+                @foreach ($recentActivity as $log)
+                    <div class="flex items-start gap-3 py-2 first:pt-0 last:pb-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="text-xs text-gray-400 tabular-nums w-20 flex-shrink-0 pt-0.5">{{ $log->created_at?->format('d M Y') }}</span>
+                        <span class="text-sm text-gray-700 flex-1">{{ $log->summary() }}</span>
+                        <span class="text-xs text-gray-400 flex-shrink-0 pt-0.5">{{ $log->actorName() }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </div>

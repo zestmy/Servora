@@ -41,7 +41,17 @@ class SopView extends Component
         $dineInImages   = $this->recipe->images->whereIn('type', ['dine_in', 'presentation'])->values();
         $takeawayImages = $this->recipe->images->where('type', 'takeaway')->values();
 
-        return view('livewire.lms.sop-view', compact('dineInImages', 'takeawayImages'))
+        // Latest update activity — same data as the SOP PDFs' "Latest 5 Update
+        // Activity" section, so changes are visible on screen when the SOP opens.
+        $recentActivity = \App\Models\AuditLog::with('user:id,name')
+            ->select(['id', 'user_id', 'user_name', 'event', 'auditable_id', 'old_values', 'new_values', 'created_at'])
+            ->where('auditable_type', Recipe::class)
+            ->where('auditable_id', $this->recipe->id)
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+        return view('livewire.lms.sop-view', compact('dineInImages', 'takeawayImages', 'recentActivity'))
             ->layout('layouts.lms', ['title' => $this->recipe->name]);
     }
 
