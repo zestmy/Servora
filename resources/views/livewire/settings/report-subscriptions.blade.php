@@ -171,15 +171,24 @@
                             </span>
                         </td>
                         <td class="px-4 py-2 text-center">
-                            @if($log->subscription && $log->delivery_status !== 'pending')
-                                <button wire:click="resendReport({{ $log->id }})"
-                                        wire:loading.attr="disabled" wire:target="resendReport({{ $log->id }})"
-                                        wire:confirm="{{ $log->delivery_status === 'skipped' ? 'This report was skipped because its data was incomplete. Send it anyway?' : 'Resend this report to ' . $log->recipient_email . '?' }}"
-                                        class="px-2.5 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition disabled:opacity-50">
-                                    <span wire:loading.remove wire:target="resendReport({{ $log->id }})">{{ $log->delivery_status === 'skipped' ? 'Send Now' : 'Resend' }}</span>
-                                    <span wire:loading wire:target="resendReport({{ $log->id }})">Sending...</span>
-                                </button>
-                            @endif
+                            <div class="inline-flex items-center gap-1.5">
+                                @if($log->subscription && $log->delivery_status !== 'pending')
+                                    <button wire:click="resendReport({{ $log->id }})"
+                                            wire:loading.attr="disabled" wire:target="resendReport({{ $log->id }})"
+                                            wire:confirm="{{ $log->delivery_status === 'skipped' ? 'This report was skipped because its data was incomplete. Send it anyway?' : 'Resend this report to ' . $log->recipient_email . '?' }}"
+                                            class="px-2.5 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition disabled:opacity-50">
+                                        <span wire:loading.remove wire:target="resendReport({{ $log->id }})">{{ $log->delivery_status === 'skipped' ? 'Send Now' : 'Resend' }}</span>
+                                        <span wire:loading wire:target="resendReport({{ $log->id }})">Sending...</span>
+                                    </button>
+                                @endif
+                                @if($log->delivery_status !== 'pending')
+                                    <x-download-link href="{{ route('settings.reports.log-pdf', $log->id) }}"
+                                        title="Download this report as PDF (same content as the email)"
+                                        class="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                        PDF
+                                    </x-download-link>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @endforeach
