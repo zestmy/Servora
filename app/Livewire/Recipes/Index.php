@@ -29,6 +29,9 @@ class Index extends Component
     public array $selectedIds = [];
     public bool $selectAll = false;
 
+    // Activity slide-over (recent add/update/delete audit trail)
+    public bool $showActivityLog = false;
+
     protected $queryString = ['tab'];
 
     /** Session key holding the last-chosen list filters so they survive navigation (e.g. saving the form). */
@@ -589,7 +592,31 @@ class Index extends Component
 
         $categoryStats = $isPrep ? [] : $this->buildCategoryStats();
 
-        return view('livewire.recipes.index', compact('recipes', 'recipeCategories', 'outlets', 'centralKitchenOutletIds', 'isPrep', 'priceClasses', 'categoryStats'))
-            ->layout('layouts.app', ['title' => $isPrep ? 'Prep Items' : 'Recipes']);
+        // Activity slide-over: latest recipe/prep audit entries for the active
+        // tab (who added / updated / deleted what). Both tabs audit the Recipe
+        // model, so narrow by is_prep via a subquery (withTrashed keeps entries
+        // for soft-deleted records attributable). Queried only while open.
+        $activityLogs   = collect();
+        $activityLabels = [];
+        if ($this->showActivityLog) {
+            // Prep tab: only entries for known prep recipes. Recipes tab: every-
+            // thing EXCEPT known preps, so entries for hard-deleted records
+            // (is_prep no longer resolvable) still show up on exactly one tab.
+            $prepIds = Recipe::withTrashed()->where('is_prep', true)->select('id');
+            $activityLogs = \App\Models\AuditLog::with('user')
+                ->where('auditable_type', Recipe::class)
+                ->when($isPrep,
+                    fn ($q) => $q->whereIn('auditable_id', $prepIds),
+                    fn ($q) => $q->whereNotIn('auditable_id', $prepIds))
+                ->orderByDesc('created_at')->orderByDesc('id')
+                ->limit(40)
+                ->get();
+            $activityLabels = \App\Services\AuditLogService::recordLabels($activityLogs);
+        }
+
+        return view('livewire.recipes.index', compact(
+            'recipes', 'recipeCategories', 'outlets', 'centralKitchenOutletIds', 'isPrep', 'priceClasses', 'categoryStats',
+            'activityLogs', 'activityLabels'
+        ))->layout('layouts.app', ['title' => $isPrep ? 'Prep Items' : 'Recipes']);
     }
 }

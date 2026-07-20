@@ -20,6 +20,16 @@
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 class="text-lg font-semibold text-gray-700">{{ $isPrep ? 'Prep Items' : 'Recipes' }}</h2>
         <div class="flex flex-wrap items-center gap-2">
+            @can('audit.view')
+                <button wire:click="$set('showActivityLog', true)"
+                        title="Recent activity — who added, updated or deleted {{ $isPrep ? 'prep items' : 'recipes' }}"
+                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="hidden sm:inline">Activity</span>
+                </button>
+            @endcan
             @if (! $isPrep)
                 {{-- PDF dropdown --}}
                 <div x-data="{ open: false }" class="relative">
@@ -134,6 +144,13 @@
             @endif
         </div>
     </div>
+
+    @can('audit.view')
+        <x-activity-log-panel :show="$showActivityLog"
+            :title="$isPrep ? 'Prep Item Activity' : 'Recipe Activity'"
+            :logs="$activityLogs" :labels="$activityLabels"
+            :view-all-url="route('audit-logs.index', ['typeFilter' => \App\Models\Recipe::class, 'quickRange' => 'all'])" />
+    @endcan
 
     {{-- Category cost stat cards (recipes tab only; active recipes) --}}
     @if (! $isPrep && count($categoryStats))

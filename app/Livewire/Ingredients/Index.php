@@ -68,6 +68,9 @@ class Index extends Component
     public bool  $quickEdit     = false;
     public array $editableRows  = [];
 
+    // Activity slide-over (recent add/update/delete audit trail)
+    public bool $showActivityLog = false;
+
     // Import
     public $importFile = null;
     public bool $showImportModal = false;
@@ -888,9 +891,27 @@ class Index extends Component
 
         $taxRates = \App\Models\TaxRate::active()->orderBy('name')->get();
 
+        // Activity slide-over: latest ingredient audit entries (who added /
+        // updated / deleted what). Only queried while the panel is open.
+        $activityLogs   = collect();
+        $activityLabels = [];
+        if ($this->showActivityLog) {
+            // Exclude prep-linked pseudo-ingredients (managed via Prep Items,
+            // hidden from this list). whereNotIn keeps entries for hard-deleted
+            // ingredients visible — "who deleted what" is the point here.
+            $activityLogs = \App\Models\AuditLog::with('user')
+                ->where('auditable_type', \App\Models\Ingredient::class)
+                ->whereNotIn('auditable_id', Ingredient::withTrashed()->where('is_prep', true)->select('id'))
+                ->orderByDesc('created_at')->orderByDesc('id')
+                ->limit(40)
+                ->get();
+            $activityLabels = \App\Services\AuditLogService::recordLabels($activityLogs);
+        }
+
         return view('livewire.ingredients.index', compact(
             'ingredients', 'uoms', 'suppliers', 'categories', 'outlets', 'taxRates',
-            'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr'
+            'baseCost', 'effectiveCost', 'recipeCost', 'baseUomAbbr', 'recipeUomAbbr',
+            'activityLogs', 'activityLabels'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Market List']);
     }
 

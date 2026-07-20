@@ -11,6 +11,16 @@
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 class="text-lg font-semibold text-gray-700">Market List</h2>
         <div class="flex flex-wrap items-center gap-2">
+            @can('audit.view')
+                <button wire:click="$set('showActivityLog', true)"
+                        title="Recent activity — who added, updated or deleted products"
+                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="hidden sm:inline">Activity</span>
+                </button>
+            @endcan
             @if (! $this->locked && ! $quickEdit)
                 <button wire:click="enterQuickEdit"
                         title="Quick Edit"
@@ -84,6 +94,12 @@
             @endif
         </div>
     </div>
+
+    @can('audit.view')
+        <x-activity-log-panel :show="$showActivityLog" title="Market List Activity"
+            :logs="$activityLogs" :labels="$activityLabels"
+            :view-all-url="route('audit-logs.index', ['typeFilter' => \App\Models\Ingredient::class, 'quickRange' => 'all'])" />
+    @endcan
 
     {{-- Filter Bar --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
