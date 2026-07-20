@@ -10,6 +10,7 @@ use App\Livewire\Recipes\Form as RecipesForm;
 use App\Livewire\Recipes\Show as RecipesShow;
 use App\Livewire\Recipes\SmartImport as RecipesImport;
 use App\Http\Controllers\RecipeCostPdfController;
+use App\Http\Controllers\RecipeCostExcelController;
 use App\Livewire\Purchasing\Index as PurchasingIndex;
 use App\Livewire\Purchasing\OrderForm as PurchasingOrderForm;
 use App\Livewire\Purchasing\ReceiveForm as PurchasingReceiveForm;
@@ -188,6 +189,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/recipes/cost-pdf/summary', [RecipeCostPdfController::class, 'summary'])->name('recipes.cost-pdf-summary')->middleware('can:recipes.view');
     Route::get('/recipes/prep/cost-pdf/all', [RecipeCostPdfController::class, 'prepAll'])->name('recipes.prep-cost-pdf-all')->middleware('can:recipes.view');
     Route::get('/recipes/prep/cost-pdf/summary', [RecipeCostPdfController::class, 'prepSummary'])->name('recipes.prep-cost-pdf-summary')->middleware('can:recipes.view');
+    Route::get('/recipes/cost-excel', [RecipeCostExcelController::class, 'all'])->name('recipes.cost-excel')->middleware('can:recipes.view');
+    Route::get('/recipes/prep/cost-excel', [RecipeCostExcelController::class, 'prepAll'])->name('recipes.prep-cost-excel')->middleware('can:recipes.view');
     Route::get('/recipes/{id}', RecipesShow::class)->name('recipes.show')->middleware('can:recipes.view');
     Route::get('/recipes/{id}/edit', RecipesForm::class)->name('recipes.edit')->middleware('can:recipes.view');
     Route::get('/recipes/{id}/cost-pdf', [RecipeCostPdfController::class, 'single'])->name('recipes.cost-pdf')->middleware('can:recipes.view');

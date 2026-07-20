@@ -37,7 +37,7 @@ class RecipeCostPdfController extends Controller
      * Recipe codes are user-entered and may contain "/" (e.g. "MAIN/01"),
      * which would otherwise 500 the download.
      */
-    private function safeFilename(string $name): string
+    protected function safeFilename(string $name): string
     {
         return str_replace(['/', '\\', '%'], '-', $name);
     }
@@ -66,7 +66,7 @@ class RecipeCostPdfController extends Controller
      * Apply UI filters (search, category, status, outlet, cost) to a recipe query.
      * Mirrors the logic in App\Livewire\Recipes\Index@render.
      */
-    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request, bool $isPrep): \Illuminate\Database\Eloquent\Builder
+    protected function applyFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request, bool $isPrep): \Illuminate\Database\Eloquent\Builder
     {
         $search   = trim((string) $request->get('search', ''));
         $category = trim((string) $request->get('category', ''));
@@ -118,7 +118,7 @@ class RecipeCostPdfController extends Controller
      * manual menu_sort_order → recipe name. Recipes whose category string
      * doesn't match any recipe_category land last.
      */
-    private function applyDashboardSort(\Illuminate\Database\Eloquent\Builder $query, bool $isPrep = false): void
+    protected function applyDashboardSort(\Illuminate\Database\Eloquent\Builder $query, bool $isPrep = false): void
     {
         // Recipes and prep items both use the category string joined by name
         // to recipe_categories.
@@ -142,7 +142,7 @@ class RecipeCostPdfController extends Controller
     /**
      * Apply the costFilter (under25/25to35/35to45/over45/none) post-query.
      */
-    private function applyCostFilter($recipes, Request $request)
+    protected function applyCostFilter($recipes, Request $request)
     {
         $costFilter = (string) $request->get('cost', '');
         if ($costFilter === '') return $recipes;
@@ -274,7 +274,7 @@ class RecipeCostPdfController extends Controller
     /**
      * Build a human-readable summary of active filters for display in PDF header.
      */
-    private function describeActiveFilters(Request $request): array
+    protected function describeActiveFilters(Request $request): array
     {
         $filters = [];
 
@@ -307,7 +307,7 @@ class RecipeCostPdfController extends Controller
         return $filters;
     }
 
-    private function buildRecipeData(Recipe $recipe): array
+    protected function buildRecipeData(Recipe $recipe): array
     {
         $uomService = app(UomService::class);
         $company = Auth::user()?->company;
@@ -340,6 +340,7 @@ class RecipeCostPdfController extends Controller
                     'waste_percentage' => floatval($line->waste_percentage),
                     'unit_cost'        => $costPerUom,
                     'line_cost'        => $lineCost,
+                    'tax_pct'          => $taxPct,
                 ];
 
                 if ($line->is_packaging) {

@@ -46,6 +46,14 @@
                     </div>
                 </div>
 
+                {{-- Excel cost workbook (live formulas), same filters as the PDF exports --}}
+                <x-download-link href="{{ route('recipes.cost-excel', $pdfFilters) }}"
+                   title="Download an Excel workbook of recipe costs with live formulas (respects the active filters)"
+                   class="px-2.5 md:px-3 py-2 text-sm font-medium text-green-700 border border-green-300 rounded-lg hover:bg-green-50 transition flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    Excel
+                </x-download-link>
+
                 {{-- Export cost PDF by category --}}
                 @include('livewire.recipes._cost-pdf-category-dropdown')
                 @if ($this->locked)
@@ -92,6 +100,14 @@
                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Prep Item Cost Summary</x-download-link>
                     </div>
                 </div>
+
+                {{-- Excel cost workbook (live formulas), same filters as the PDF exports --}}
+                <x-download-link href="{{ route('recipes.prep-cost-excel', $pdfPrepFilters) }}"
+                   title="Download an Excel workbook of prep item costs with live formulas (respects the active filters)"
+                   class="px-2.5 md:px-3 py-2 text-sm font-medium text-green-700 border border-green-300 rounded-lg hover:bg-green-50 transition flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    Excel
+                </x-download-link>
 
                 {{-- Export cost PDF by category --}}
                 @include('livewire.recipes._cost-pdf-category-dropdown')
