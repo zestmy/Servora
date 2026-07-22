@@ -4,15 +4,16 @@
     <meta charset="utf-8">
     <title>{{ ($company->brand_name ?? $company->name) }} - Training SOPs</title>
     <style>
-        /* Universal reset */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Scoped reset — `html` (or `*`) must NOT be reset here: dompdf
+           implements @page margins via the root element, so `html { margin: 0 }`
+           silently zeroes the page margins. */
+        body, div, span, p, h1, h2, h3, h4, small, strong, img, table, thead, tbody, tfoot, tr, th, td { margin: 0; padding: 0; box-sizing: border-box; }
         @@page { margin: 12mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
-            margin: 12mm;
         }
         .page-break { page-break-before: always; }
 

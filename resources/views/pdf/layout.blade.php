@@ -4,16 +4,16 @@
     <meta charset="utf-8">
     <title>@yield('title')</title>
     <style>
-        /* Universal reset (excluding body — DomPDF uses body margin for page padding) */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        /* Page margins */
+        /* Scoped reset — `html` (or `*`) must NOT be reset here: dompdf
+           implements @page margins via the root element, so `html { margin: 0 }`
+           silently zeroes the page margins. */
+        body, div, span, p, h1, h2, h3, h4, small, strong, img, table, thead, tbody, tfoot, tr, th, td { margin: 0; padding: 0; box-sizing: border-box; }
         @@page { margin: 12mm; }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;
-            margin: 12mm;
         }
 
         /* ═══ Document Header — compact & elegant ═══════════════ */

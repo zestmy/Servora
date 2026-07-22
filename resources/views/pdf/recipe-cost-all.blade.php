@@ -4,9 +4,12 @@
     <meta charset="utf-8">
     <title>{{ $pageTitle ?? 'All Recipe Costs' }}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Scoped reset — `html` (or `*`) must NOT be reset here: dompdf
+           implements @page margins via the root element, so `html { margin: 0 }`
+           silently zeroes the page margins. */
+        body, div, span, p, h1, h2, h3, h4, small, strong, img, table, thead, tbody, tfoot, tr, th, td { margin: 0; padding: 0; box-sizing: border-box; }
         @@page { margin: 12mm; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8px; color: #1a1a1a; line-height: 1.25; margin: 12mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 8px; color: #1a1a1a; line-height: 1.25; }
         .page { padding: 0; }
 
         /* Page header */

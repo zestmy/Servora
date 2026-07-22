@@ -4,9 +4,12 @@
     <meta charset="utf-8">
     <title>Market List</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Scoped reset — `html` (or `*`) must NOT be reset here: dompdf
+           implements @page margins via the root element, so `html { margin: 0 }`
+           silently zeroes the page margins. */
+        body, div, span, p, h1, h2, h3, h4, small, strong, img, table, thead, tbody, tfoot, tr, th, td { margin: 0; padding: 0; box-sizing: border-box; }
         @@page { margin: 15mm 12mm; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 7.5px; color: #1a1a1a; line-height: 1.3; padding: 5mm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 7.5px; color: #1a1a1a; line-height: 1.3; }
 
         .header { display: table; width: 100%; margin-bottom: 8px; border-bottom: 1.5px solid #2d3748; padding-bottom: 6px; }
         .header-left { display: table-cell; vertical-align: middle; width: 60%; }
