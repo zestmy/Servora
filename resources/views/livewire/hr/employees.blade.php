@@ -96,13 +96,18 @@
                     <th class="px-4 py-3 text-center">Food Handler</th>
                     <th class="px-4 py-3 text-center">Typhoid Card</th>
                     <th class="px-4 py-3 text-center">Status</th>
-                    <th class="px-4 py-3 text-center">Actions</th>
+                    <th class="px-4 py-3 text-center sticky right-0 z-10 bg-gray-50 border-l border-gray-100">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
                 @forelse ($employees as $emp)
-                    <tr class="hover:bg-gray-50 {{ ! $emp->is_active ? 'opacity-60' : '' }}">
-                        <td class="px-4 py-3 font-medium text-gray-800">{{ $emp->name }}</td>
+                    <tr class="group hover:bg-gray-50 {{ ! $emp->is_active ? 'opacity-60' : '' }}">
+                        <td class="px-4 py-3">
+                            <button wire:click="openEdit({{ $emp->id }})" title="Edit employee"
+                                    class="font-medium text-gray-800 text-left hover:text-indigo-600 hover:underline">
+                                {{ $emp->name }}
+                            </button>
+                        </td>
                         <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->designation ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->section?->name ?? '—' }}</td>
@@ -125,12 +130,12 @@
                                 {{ $emp->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3 sticky right-0 z-10 bg-white group-hover:bg-gray-50 border-l border-gray-100">
                             <div class="flex items-center justify-center gap-1">
                                 <button wire:click="openEdit({{ $emp->id }})"
                                         title="Edit"
-                                        class="text-indigo-500 hover:text-indigo-700 p-1">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                        class="px-2 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                                    Edit
                                 </button>
                                 <button wire:click="toggleActive({{ $emp->id }})"
                                         title="{{ $emp->is_active ? 'Deactivate' : 'Activate' }}"
