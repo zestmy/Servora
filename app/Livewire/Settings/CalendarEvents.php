@@ -156,21 +156,53 @@ class CalendarEvents extends Component
         }
 
         if ($this->editingId) {
-            $this->reconcileGroup($targets, $shared, $companyId);
+            try {
+                $this->reconcileGroup($targets, $shared, $companyId);
+            } catch (\Illuminate\Database\QueryException $e) {
+                if (($e->errorInfo[0] ?? null) === '23000') {
+                    $this->addError('title', 'An event with this title and date already exists for the selected outlet(s).');
+                    return;
+                }
+                throw $e;
+            }
             session()->flash('success', 'Event updated.');
             $this->closeModal();
         } else {
-            $firstEvent = null;
-            foreach ($targets as $outletId) {
-                $event = CalendarEvent::create($shared + [
-                    'company_id' => $companyId,
-                    'outlet_id'  => $outletId,
-                    'created_by' => Auth::id(),
-                ]);
-                $firstEvent ??= $event;
+            // Skip targets that already have an identical event so re-adding an
+            // existing event shows a friendly message instead of creating a
+            // duplicate row (or erroring on databases with a unique index).
+            $toCreate = array_values(array_filter(
+                $targets,
+                fn ($outletId) => ! $this->eventExists($companyId, $outletId)
+            ));
+
+            if (empty($toCreate)) {
+                $this->addError('title', 'This event already exists in Calendar Events for the selected outlet(s).');
+                return;
             }
 
-            session()->flash('success', 'Event created.');
+            $firstEvent = null;
+            try {
+                foreach ($toCreate as $outletId) {
+                    $event = CalendarEvent::create($shared + [
+                        'company_id' => $companyId,
+                        'outlet_id'  => $outletId,
+                        'created_by' => Auth::id(),
+                    ]);
+                    $firstEvent ??= $event;
+                }
+            } catch (\Illuminate\Database\QueryException $e) {
+                if (($e->errorInfo[0] ?? null) === '23000') {
+                    $this->addError('title', 'This event already exists in Calendar Events for the selected outlet(s).');
+                    return;
+                }
+                throw $e;
+            }
+
+            $skipped = count($targets) - count($toCreate);
+            session()->flash('success', $skipped > 0
+                ? "Event created. Skipped {$skipped} outlet(s) that already have this event."
+                : 'Event created.');
             $this->closeModal();
 
             // Clear any active filters so the new event isn't hidden, then jump
@@ -184,6 +216,23 @@ class CalendarEvents extends Component
                 $this->gotoCreatedEventPage($firstEvent);
             }
         }
+    }
+
+    /**
+     * Whether an event with the same title and start date already exists for
+     * the given outlet target (null = the company-wide event).
+     */
+    private function eventExists(int $companyId, ?int $outletId): bool
+    {
+        return CalendarEvent::where('company_id', $companyId)
+            ->where('title', $this->title)
+            ->whereDate('event_date', $this->event_date)
+            ->when(
+                $outletId === null,
+                fn ($q) => $q->whereNull('outlet_id'),
+                fn ($q) => $q->where('outlet_id', $outletId)
+            )
+            ->exists();
     }
 
     /**

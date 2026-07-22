@@ -30,6 +30,9 @@ class Employees extends Component
     public string $f_designation    = '';
     public string $f_email          = '';
     public string $f_phone          = '';
+    public string $f_join_date      = '';
+    public bool   $f_food_handler_certified = false;
+    public bool   $f_typhoid_card   = false;
     public bool   $f_is_active      = true;
 
     // CSV import modal
@@ -77,6 +80,9 @@ class Employees extends Component
             'f_designation'    => 'nullable|string|max:255',
             'f_email'          => 'nullable|email|max:255',
             'f_phone'          => 'nullable|string|max:50',
+            'f_join_date'      => 'nullable|date',
+            'f_food_handler_certified' => 'boolean',
+            'f_typhoid_card'   => 'boolean',
             'f_is_active'      => 'boolean',
         ];
     }
@@ -116,6 +122,9 @@ class Employees extends Component
         $this->f_designation   = $emp->designation ?? '';
         $this->f_email         = $emp->email ?? '';
         $this->f_phone         = $emp->phone ?? '';
+        $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
+        $this->f_food_handler_certified = (bool) $emp->food_handler_certified;
+        $this->f_typhoid_card  = (bool) $emp->typhoid_card;
         $this->f_is_active     = (bool) $emp->is_active;
         $this->showForm        = true;
     }
@@ -134,6 +143,9 @@ class Employees extends Component
             'designation'   => $this->f_designation ?: null,
             'email'         => $this->f_email ?: null,
             'phone'         => $this->f_phone ?: null,
+            'join_date'     => $this->f_join_date ?: null,
+            'food_handler_certified' => $this->f_food_handler_certified,
+            'typhoid_card'  => $this->f_typhoid_card,
             'is_active'     => $this->f_is_active,
         ];
 
@@ -180,6 +192,9 @@ class Employees extends Component
         $this->f_designation   = '';
         $this->f_email         = '';
         $this->f_phone         = '';
+        $this->f_join_date     = '';
+        $this->f_food_handler_certified = false;
+        $this->f_typhoid_card  = false;
         $this->f_is_active     = true;
     }
 
@@ -274,7 +289,22 @@ class Employees extends Component
             'mobile number'   => 'phone',
             'contact'         => 'phone',
             'contact number'  => 'phone',
+            'join date'       => 'join_date',
+            'joining date'    => 'join_date',
+            'date joined'     => 'join_date',
+            'joined'          => 'join_date',
+            'food handler'    => 'food_handler_certified',
+            'food handler certified' => 'food_handler_certified',
+            'food handler certification' => 'food_handler_certified',
+            'food handler cert' => 'food_handler_certified',
+            'typhoid'         => 'typhoid_card',
+            'typhoid card'    => 'typhoid_card',
+            'typhoid jab'     => 'typhoid_card',
         ];
+
+        $parseBool = fn (string $v): bool => in_array(
+            strtolower(trim($v)), ['yes', 'y', '1', 'true', 'certified'], true
+        );
 
         while (($row = fgetcsv($tmp, 0, $delim)) !== false) {
             $rowNum++;
@@ -377,6 +407,26 @@ class Employees extends Component
                 'is_active'     => true,
             ];
 
+            // New HR fields only overwrite when their column is present in the
+            // CSV, so older files don't blank out existing values on update.
+            if (array_key_exists('join_date', $data)) {
+                $joinDate = null;
+                if ($data['join_date'] !== '') {
+                    try {
+                        $joinDate = \Carbon\Carbon::parse($data['join_date'])->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $errors[] = "Row $rowNum: invalid join date '" . $data['join_date'] . "' ignored";
+                    }
+                }
+                $payload['join_date'] = $joinDate;
+            }
+            if (array_key_exists('food_handler_certified', $data)) {
+                $payload['food_handler_certified'] = $parseBool($data['food_handler_certified']);
+            }
+            if (array_key_exists('typhoid_card', $data)) {
+                $payload['typhoid_card'] = $parseBool($data['typhoid_card']);
+            }
+
             if ($existing) {
                 $existing->update($payload);
                 $updated++;
@@ -400,10 +450,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Food Handler Certified', 'Typhoid Card'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543'],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Yes', 'Yes'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'No',  'No'],
         ];
 
         $output = fopen('php://temp', 'r+');

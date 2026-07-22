@@ -82,7 +82,7 @@
         {{-- Table — horizontally scrollable on mobile so every column (staff ID,
              designation, section, email, phone…) stays reachable. --}}
       <div class="overflow-x-auto">
-        <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
+        <table class="min-w-[1400px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
@@ -92,6 +92,9 @@
                     <th class="px-4 py-3 text-left">Outlet</th>
                     <th class="px-4 py-3 text-left">Email</th>
                     <th class="px-4 py-3 text-left">Phone</th>
+                    <th class="px-4 py-3 text-left">Join Date</th>
+                    <th class="px-4 py-3 text-center">Food Handler</th>
+                    <th class="px-4 py-3 text-center">Typhoid Card</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
@@ -106,6 +109,17 @@
                         <td class="px-4 py-3 text-gray-600">{{ $emp->outlet?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->email ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->phone ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{{ $emp->join_date?->format('d M Y') ?? '—' }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->food_handler_certified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                                {{ $emp->food_handler_certified ? 'Certified' : 'No' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->typhoid_card ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                                {{ $emp->typhoid_card ? 'Yes' : 'No' }}
+                            </span>
+                        </td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                 {{ $emp->is_active ? 'Active' : 'Inactive' }}
@@ -132,7 +146,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
+                    <tr><td colspan="12" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -208,6 +222,23 @@
                             <input type="text" wire:model="f_phone" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                         </div>
                     </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Join Date</label>
+                            <input type="date" wire:model="f_join_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('f_join_date')" class="mt-1" />
+                        </div>
+                        <div class="flex flex-col justify-end gap-2 pb-1">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" wire:model="f_food_handler_certified" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">Food Handler Certified</span>
+                            </label>
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" wire:model="f_typhoid_card" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                <span class="text-sm text-gray-700">Typhoid Card (jab taken)</span>
+                            </label>
+                        </div>
+                    </div>
                     <label class="inline-flex items-center gap-2">
                         <input type="checkbox" wire:model="f_is_active" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                         <span class="text-sm text-gray-700">Active</span>
@@ -245,7 +276,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Food Handler Certified, Typhoid Card</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>

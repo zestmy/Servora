@@ -12,10 +12,14 @@ class Employee extends Model
         'company_id', 'outlet_id', 'section_id', 'staff_id',
         'name', 'designation',
         'email', 'phone', 'is_active',
+        'join_date', 'food_handler_certified', 'typhoid_card',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'              => 'boolean',
+        'join_date'              => 'date',
+        'food_handler_certified' => 'boolean',
+        'typhoid_card'           => 'boolean',
     ];
 
     protected static function booted(): void
