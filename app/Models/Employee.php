@@ -16,6 +16,7 @@ class Employee extends Model
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date',
+        'service_points_entitlement',
     ];
 
     /**
@@ -49,6 +50,7 @@ class Employee extends Model
         'typhoid_expired_on'     => 'date',
         'halal_training'         => 'boolean',
         'halal_training_date'    => 'date',
+        'service_points_entitlement' => 'decimal:2',
     ];
 
     protected static function booted(): void

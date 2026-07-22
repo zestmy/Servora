@@ -26,12 +26,14 @@
             text-align: left; font-weight: 600;
         }
         thead th.c { text-align: center; }
+        thead th.r { text-align: right; }
         tbody td {
             padding: 3px 5px; font-size: 8px;
             border-bottom: 1px solid #edf2f7;
             vertical-align: top;
         }
         tbody td.c { text-align: center; }
+        tbody td.r { text-align: right; }
         tbody tr:nth-child(even) { background: #fafbfc; }
 
         .outlet-row td { background: #edf2f7; font-weight: bold; font-size: 8px; padding: 3.5px 5px; color: #2d3748; }
@@ -86,6 +88,7 @@
                 <th style="width: 72px;" class="c">Food Handler</th>
                 <th style="width: 72px;" class="c">Typhoid Card</th>
                 <th style="width: 62px;" class="c">Halal Training</th>
+                <th style="width: 45px;" class="r">Service Pts</th>
                 <th style="width: 40px;" class="c">Status</th>
             </tr>
         </thead>
@@ -101,7 +104,7 @@
             @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $outletName => $group)
                 <tr class="outlet-row">
-                    <td colspan="13">{{ $outletName }} ({{ $group->count() }})</td>
+                    <td colspan="14">{{ $outletName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -147,6 +150,7 @@
                                 <div class="sub">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
                             @endif
                         </td>
+                        <td class="r">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
                         <td class="c">
                             <span class="pill {{ $emp->is_active ? 'pill-green' : 'pill-gray' }}">{{ $emp->is_active ? 'Active' : 'Inactive' }}</span>
                         </td>
@@ -154,7 +158,7 @@
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="13" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="14" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>

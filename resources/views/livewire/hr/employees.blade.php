@@ -110,7 +110,7 @@
         {{-- Table — horizontally scrollable on mobile so every column (staff ID,
              designation, section, email, phone…) stays reachable. --}}
       <div class="overflow-x-auto">
-        <table class="min-w-[1650px] divide-y divide-gray-100 text-sm">
+        <table class="min-w-[1750px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left w-12">#</th>
@@ -126,6 +126,7 @@
                     <th class="px-4 py-3 text-center">Food Handler</th>
                     <th class="px-4 py-3 text-center">Typhoid Card</th>
                     <th class="px-4 py-3 text-center">Halal Training</th>
+                    <th class="px-4 py-3 text-right">Service Pts</th>
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center sticky right-0 z-10 bg-gray-50 border-l border-gray-100">Actions</th>
                 </tr>
@@ -196,6 +197,9 @@
                                 <div class="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
                             @endif
                         </td>
+                        <td class="px-4 py-3 text-right text-gray-600 tabular-nums">
+                            {{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}
+                        </td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                 {{ $emp->is_active ? 'Active' : 'Inactive' }}
@@ -222,7 +226,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="15" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
+                    <tr><td colspan="16" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -362,6 +366,14 @@
                             </div>
                         @endif
                     </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Service Points Entitlement</label>
+                            <input type="number" step="0.01" min="0" wire:model="f_service_points"
+                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
+                            <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
+                        </div>
+                    </div>
                     @if ($f_food_handler_certified)
                         <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <label class="text-xs font-semibold text-gray-600">Food Handler Certificate — Serial No.</label>
@@ -427,7 +439,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Service Points Entitlement</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>

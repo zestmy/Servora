@@ -44,6 +44,7 @@ class Employees extends Component
     public string $f_typhoid_expired_on = '';
     public bool   $f_halal_training     = false;
     public string $f_halal_training_date = '';
+    public string $f_service_points    = '';
     public bool   $f_is_active      = true;
 
     // CSV import modal
@@ -111,6 +112,7 @@ class Employees extends Component
             ]),
             'f_halal_training'      => 'boolean',
             'f_halal_training_date' => 'nullable|date',
+            'f_service_points'      => 'nullable|numeric|min:0|max:999999.99',
             'f_is_active'      => 'boolean',
         ];
     }
@@ -197,6 +199,9 @@ class Employees extends Component
         $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
         $this->f_halal_training      = (bool) $emp->halal_training;
         $this->f_halal_training_date = $emp->halal_training_date?->format('Y-m-d') ?? '';
+        $this->f_service_points = $emp->service_points_entitlement !== null
+            ? number_format((float) $emp->service_points_entitlement, 2, '.', '')
+            : '';
         $this->f_is_active     = (bool) $emp->is_active;
         $this->showForm        = true;
     }
@@ -238,6 +243,9 @@ class Employees extends Component
             'typhoid_expired_on' => $this->f_typhoid_card ? ($this->f_typhoid_expired_on ?: null) : null,
             'halal_training'      => $this->f_halal_training,
             'halal_training_date' => $this->f_halal_training ? ($this->f_halal_training_date ?: null) : null,
+            'service_points_entitlement' => $this->f_service_points !== ''
+                ? round((float) $this->f_service_points, 2)
+                : null,
             'is_active'     => $this->f_is_active,
         ];
 
@@ -297,6 +305,7 @@ class Employees extends Component
         $this->f_typhoid_expired_on = '';
         $this->f_halal_training      = false;
         $this->f_halal_training_date = '';
+        $this->f_service_points = '';
         $this->f_is_active     = true;
     }
 
@@ -417,6 +426,9 @@ class Employees extends Component
             'typhoid'         => 'typhoid_card',
             'typhoid card'    => 'typhoid_card',
             'typhoid jab'     => 'typhoid_card',
+            'service points entitlement' => 'service_points_entitlement',
+            'service points'             => 'service_points_entitlement',
+            'service pts'                => 'service_points_entitlement',
             'halal awareness training' => 'halal_training',
             'halal training'           => 'halal_training',
             'halal'                    => 'halal_training',
@@ -591,6 +603,16 @@ class Employees extends Component
             if (array_key_exists('halal_training', $data)) {
                 $payload['halal_training'] = $parseBool($data['halal_training']);
             }
+            if (array_key_exists('service_points_entitlement', $data)) {
+                $spRaw = str_replace(',', '', $data['service_points_entitlement']);
+                if ($spRaw === '') {
+                    $payload['service_points_entitlement'] = null;
+                } elseif (is_numeric($spRaw)) {
+                    $payload['service_points_entitlement'] = round((float) $spRaw, 2);
+                } else {
+                    $errors[] = "Row $rowNum: invalid service points '" . $data['service_points_entitlement'] . "' ignored";
+                }
+            }
 
             if ($existing) {
                 $existing->update($payload);
@@ -615,10 +637,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date', 'Service Points Entitlement'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '1.50'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', '', ''],
         ];
 
         $output = fopen('php://temp', 'r+');
