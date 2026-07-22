@@ -32,6 +32,7 @@ class Employees extends Component
     public string $f_phone          = '';
     public string $f_join_date      = '';
     public bool   $f_food_handler_certified = false;
+    public string $f_food_handler_cert_no   = '';
     public bool   $f_typhoid_card   = false;
     public string $f_typhoid_valid_from = '';
     public string $f_typhoid_expired_on = '';
@@ -84,6 +85,7 @@ class Employees extends Component
             'f_phone'          => 'nullable|string|max:50',
             'f_join_date'      => 'nullable|date',
             'f_food_handler_certified' => 'boolean',
+            'f_food_handler_cert_no'   => 'nullable|string|max:100',
             'f_typhoid_card'   => 'boolean',
             'f_typhoid_valid_from' => 'nullable|date',
             'f_typhoid_expired_on' => array_filter([
@@ -132,6 +134,7 @@ class Employees extends Component
         $this->f_phone         = $emp->phone ?? '';
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
         $this->f_food_handler_certified = (bool) $emp->food_handler_certified;
+        $this->f_food_handler_cert_no   = $emp->food_handler_cert_no ?? '';
         $this->f_typhoid_card  = (bool) $emp->typhoid_card;
         $this->f_typhoid_valid_from = $emp->typhoid_valid_from?->format('Y-m-d') ?? '';
         $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
@@ -155,6 +158,9 @@ class Employees extends Component
             'phone'         => $this->f_phone ?: null,
             'join_date'     => $this->f_join_date ?: null,
             'food_handler_certified' => $this->f_food_handler_certified,
+            // Cert number only applies while the certified box is ticked —
+            // unticking clears it, same as the typhoid validity dates.
+            'food_handler_cert_no'   => $this->f_food_handler_certified ? ($this->f_food_handler_cert_no ?: null) : null,
             'typhoid_card'  => $this->f_typhoid_card,
             // Validity dates only apply while the card box is ticked — unticking
             // clears them so a "No" employee can't carry stale validity info.
@@ -208,6 +214,7 @@ class Employees extends Component
         $this->f_phone         = '';
         $this->f_join_date     = '';
         $this->f_food_handler_certified = false;
+        $this->f_food_handler_cert_no   = '';
         $this->f_typhoid_card  = false;
         $this->f_typhoid_valid_from = '';
         $this->f_typhoid_expired_on = '';
@@ -313,6 +320,13 @@ class Employees extends Component
             'food handler certified' => 'food_handler_certified',
             'food handler certification' => 'food_handler_certified',
             'food handler cert' => 'food_handler_certified',
+            'food handler cert no'      => 'food_handler_cert_no',
+            'food handler cert no.'     => 'food_handler_cert_no',
+            'food handler cert number'  => 'food_handler_cert_no',
+            'food handler certificate no'     => 'food_handler_cert_no',
+            'food handler certificate number' => 'food_handler_cert_no',
+            'food handler serial no'     => 'food_handler_cert_no',
+            'food handler serial number' => 'food_handler_cert_no',
             'typhoid'         => 'typhoid_card',
             'typhoid card'    => 'typhoid_card',
             'typhoid jab'     => 'typhoid_card',
@@ -448,6 +462,11 @@ class Employees extends Component
             if (array_key_exists('food_handler_certified', $data)) {
                 $payload['food_handler_certified'] = $parseBool($data['food_handler_certified']);
             }
+            if (array_key_exists('food_handler_cert_no', $data)) {
+                $payload['food_handler_cert_no'] = $data['food_handler_cert_no'] !== ''
+                    ? mb_substr($data['food_handler_cert_no'], 0, 100)
+                    : null;
+            }
             if (array_key_exists('typhoid_card', $data)) {
                 $payload['typhoid_card'] = $parseBool($data['typhoid_card']);
             }
@@ -475,10 +494,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Food Handler Certified', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Yes', 'Yes', '2026-01-10', '2029-01-09'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'No',  'No',  '', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'No',  '',              'No',  '', ''],
         ];
 
         $output = fopen('php://temp', 'r+');

@@ -119,6 +119,9 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->food_handler_certified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                 {{ $emp->food_handler_certified ? 'Certified' : 'No' }}
                             </span>
+                            @if ($emp->food_handler_certified && $emp->food_handler_cert_no)
+                                <div class="text-[10px] text-gray-400 mt-0.5 font-mono whitespace-nowrap">{{ $emp->food_handler_cert_no }}</div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             @php $typhoidExpired = $emp->typhoid_card && $emp->typhoid_expired_on?->isBefore(today()); @endphp
@@ -241,7 +244,7 @@
                         </div>
                         <div class="flex flex-col justify-end gap-2 pb-1">
                             <label class="inline-flex items-center gap-2">
-                                <input type="checkbox" wire:model="f_food_handler_certified" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                <input type="checkbox" wire:model.live="f_food_handler_certified" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                 <span class="text-sm text-gray-700">Food Handler Certified</span>
                             </label>
                             <label class="inline-flex items-center gap-2">
@@ -250,6 +253,13 @@
                             </label>
                         </div>
                     </div>
+                    @if ($f_food_handler_certified)
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <label class="text-xs font-semibold text-gray-600">Food Handler Certificate — Serial No.</label>
+                            <input type="text" wire:model="f_food_handler_cert_no" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. FHC-2026-0123" />
+                            <x-input-error :messages="$errors->get('f_food_handler_cert_no')" class="mt-1" />
+                        </div>
+                    @endif
                     @if ($f_typhoid_card)
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <div>
@@ -301,7 +311,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Food Handler Certified, Typhoid Card, Typhoid Valid From, Typhoid Expired On</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>

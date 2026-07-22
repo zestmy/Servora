@@ -12,8 +12,8 @@ class Employee extends Model
         'company_id', 'outlet_id', 'section_id', 'staff_id',
         'name', 'designation',
         'email', 'phone', 'is_active',
-        'join_date', 'food_handler_certified', 'typhoid_card',
-        'typhoid_valid_from', 'typhoid_expired_on',
+        'join_date', 'food_handler_certified', 'food_handler_cert_no',
+        'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
     ];
 
     protected $casts = [
