@@ -58,6 +58,27 @@ class SalesTargets extends Component
     {
         $this->validate();
 
+        $editing = $this->editingId ? SalesTarget::findOrFail($this->editingId) : null;
+
+        // One target per outlet (or company-wide) per period — the table has a
+        // unique index on (company, outlet, period, type), so a blind insert
+        // 500s. Pre-check and show a friendly error instead. NULL outlets slip
+        // past the unique index (MySQL allows repeated NULLs) so the same rule
+        // is enforced here for company-wide targets too.
+        $duplicate = SalesTarget::where('period', $this->period)
+            ->where('type', $editing->type ?? 'monthly')
+            ->when($this->outlet_id,
+                fn ($q) => $q->where('outlet_id', $this->outlet_id),
+                fn ($q) => $q->whereNull('outlet_id'))
+            ->when($editing, fn ($q) => $q->where('id', '!=', $editing->id))
+            ->exists();
+        if ($duplicate) {
+            $this->addError('period', $this->outlet_id
+                ? 'A sales target for this outlet and month already exists.'
+                : 'A company-wide sales target for this month already exists.');
+            return;
+        }
+
         $data = [
             'period'         => $this->period,
             'outlet_id'      => $this->outlet_id ?: null,
@@ -66,15 +87,25 @@ class SalesTargets extends Component
             'notes'          => $this->notes ?: null,
         ];
 
-        if ($this->editingId) {
-            SalesTarget::findOrFail($this->editingId)->update($data);
-            session()->flash('success', 'Sales target updated.');
-        } else {
-            $data['company_id'] = Auth::user()->company_id;
-            $data['created_by'] = Auth::id();
-            $data['type']       = 'monthly';
-            SalesTarget::create($data);
-            session()->flash('success', 'Sales target created.');
+        try {
+            if ($editing) {
+                $editing->update($data);
+                session()->flash('success', 'Sales target updated.');
+            } else {
+                $data['company_id'] = Auth::user()->company_id;
+                $data['created_by'] = Auth::id();
+                $data['type']       = 'monthly';
+                SalesTarget::create($data);
+                session()->flash('success', 'Sales target created.');
+            }
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Race or schema drift: surface the unique-index hit as the same
+            // friendly error rather than a 500.
+            if (($e->errorInfo[0] ?? null) === '23000') {
+                $this->addError('period', 'A sales target for this outlet and month already exists.');
+                return;
+            }
+            throw $e;
         }
 
         $this->closeModal();
