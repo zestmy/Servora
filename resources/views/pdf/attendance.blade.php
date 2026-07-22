@@ -4,12 +4,15 @@
     <meta charset="utf-8">
     <title>Attendance Record</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        @@page { margin: 10mm 8mm; }
+        /* Scoped reset — `html` (or `*`) must NOT be reset here: dompdf
+           implements @page margins via the root element, so `html { margin: 0 }`
+           silently zeroes the page margins. */
+        body, div, span, h1, h2, h3, p, img, table, thead, tbody, tr, th, td { margin: 0; padding: 0; box-sizing: border-box; }
+        @@page { margin: 16mm 14mm; }
         /* DejaVu Sans ships with dompdf and renders the ✓ glyph. */
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 7px; color: #1a1a1a; line-height: 1.3; }
 
-        .header { display: table; width: 100%; margin-bottom: 6px; border-bottom: 1.5px solid #2d3748; padding-bottom: 5px; }
+        .header { display: table; width: 100%; margin-bottom: 10px; border-bottom: 1.5px solid #2d3748; padding-bottom: 7px; }
         .header-left { display: table-cell; vertical-align: middle; width: 55%; }
         .header-right { display: table-cell; vertical-align: middle; width: 45%; text-align: right; }
         .logo { max-height: 30px; max-width: 95px; margin-right: 6px; vertical-align: middle; }
@@ -30,7 +33,7 @@
         thead th.sun { background: #7f1d1d; }
         thead th.sat { background: #78350f; }
 
-        tbody td { padding: 2px; font-size: 6.5px; vertical-align: middle; }
+        tbody td { padding: 2.5px 2px; font-size: 6.5px; vertical-align: middle; }
         td.info { text-align: left; padding-left: 3px; white-space: nowrap; }
         td.name { font-weight: bold; }
         td.num { text-align: center; color: #6b7280; }
@@ -43,7 +46,7 @@
             padding: 2.5px 4px; color: #1e293b; text-align: left;
         }
 
-        .legend { margin-top: 8px; }
+        .legend { margin-top: 14px; }
         .legend-title { font-size: 6.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 3px; }
         table.legend-table { width: 100%; border-collapse: collapse; }
         table.legend-table td { padding: 1.5px 8px 1.5px 0; font-size: 6.5px; color: #374151; width: 25%; }
@@ -53,12 +56,12 @@
             font-weight: bold; font-size: 6px; text-align: center;
         }
 
-        .signatures { display: table; width: 100%; margin-top: 18px; }
-        .sig { display: table-cell; width: 33%; padding-right: 30px; }
-        .sig-line { border-top: 0.8px solid #475569; margin-top: 28px; padding-top: 3px; font-size: 6.5px; color: #475569; }
+        .signatures { display: table; width: 100%; margin-top: 26px; }
+        .sig { display: table-cell; width: 33%; padding-right: 35px; }
+        .sig-line { border-top: 0.8px solid #475569; margin-top: 32px; padding-top: 3px; font-size: 6.5px; color: #475569; }
         .sig-label { font-size: 7px; font-weight: bold; color: #1e293b; }
 
-        .footer { margin-top: 8px; padding-top: 4px; border-top: 1px solid #e2e8f0; font-size: 6.5px; color: #94a3b8; text-align: right; }
+        .footer { margin-top: 14px; padding-top: 5px; border-top: 1px solid #e2e8f0; font-size: 6.5px; color: #94a3b8; text-align: right; }
     </style>
 </head>
 <body>
@@ -89,8 +92,8 @@
         <thead>
             <tr>
                 <th style="width: 2%;">#</th>
-                <th class="info" style="width: 13.5%;">Name</th>
-                <th class="info" style="width: 6.5%;">Position</th>
+                <th class="info" style="width: 13%;">Name</th>
+                <th class="info" style="width: 7.5%;">Position</th>
                 <th class="info" style="width: 4.5%;">Emp ID</th>
                 <th class="info" style="width: 4.5%;">Section</th>
                 <th class="info" style="width: 5%;">Date Join</th>
