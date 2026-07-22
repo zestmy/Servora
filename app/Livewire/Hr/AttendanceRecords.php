@@ -20,6 +20,7 @@ class AttendanceRecords extends Component
     public string $search        = '';
     public string $outletFilter  = '';
     public string $sectionFilter = '';
+    public string $employmentStatusFilter = ''; // '' all | status key | 'none'
 
     // Period: a calendar month by default, or a custom from–to range
     public string $periodMode = 'month'; // 'month' | 'range'
@@ -338,6 +339,11 @@ class AttendanceRecords extends Component
         }
         if ($this->sectionFilter !== '') {
             $query->where('section_id', (int) $this->sectionFilter);
+        }
+        if ($this->employmentStatusFilter === 'none') {
+            $query->whereNull('employment_status');
+        } elseif ($this->employmentStatusFilter !== '') {
+            $query->where('employment_status', $this->employmentStatusFilter);
         }
 
         return $query;

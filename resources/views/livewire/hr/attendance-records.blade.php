@@ -23,7 +23,7 @@
             </h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')])"
+            <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'employment_status' => $employmentStatusFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')])"
                     title="Export PDF"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -68,6 +68,13 @@
                 @foreach ($sections as $s)
                     <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
+            </select>
+            <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Employment</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                @endforeach
+                <option value="none">No Status</option>
             </select>
 
             {{-- Period picker --}}

@@ -83,6 +83,7 @@
             <div class="meta">
                 {{ $from->format('d M Y') }} – {{ $to->format('d M Y') }}
                 @if ($outletName) · {{ $outletName }} @endif
+                @if ($employmentLabel) · {{ $employmentLabel }} @endif
                 · {{ $employees->count() }} employee(s)
             </div>
         </div>

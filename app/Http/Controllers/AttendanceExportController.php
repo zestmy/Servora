@@ -66,6 +66,15 @@ class AttendanceExportController extends Controller
         if ($sectionFilter !== '') {
             $query->where('section_id', (int) $sectionFilter);
         }
+        $employmentLabel  = null;
+        $employmentStatus = (string) $request->get('employment_status', '');
+        if ($employmentStatus === 'none') {
+            $query->whereNull('employment_status');
+            $employmentLabel = 'No Employment Status';
+        } elseif ($employmentStatus !== '' && isset(Employee::EMPLOYMENT_STATUSES[$employmentStatus])) {
+            $query->where('employment_status', $employmentStatus);
+            $employmentLabel = Employee::EMPLOYMENT_STATUSES[$employmentStatus];
+        }
 
         $employees = $query->get();
 
@@ -95,7 +104,7 @@ class AttendanceExportController extends Controller
 
         $pdf = Pdf::loadView('pdf.attendance', compact(
             'employees', 'dates', 'from', 'to', 'codesById', 'cellMap',
-            'legendCodes', 'brandName', 'logoBase64', 'outletName'
+            'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel'
         ))->setPaper('a4', 'landscape');
 
         return $pdf->stream('Attendance-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.pdf');
