@@ -52,7 +52,7 @@ class EmployeeExportController extends Controller
 
         // Title block
         $sheet->setCellValueExplicit('A1', $brandName . ' — Employee List', DataType::TYPE_STRING);
-        $sheet->mergeCells('A1:N1');
+        $sheet->mergeCells('A1:O1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEF2FF');
         $sheet->getRowDimension(1)->setRowHeight(24);
@@ -62,19 +62,19 @@ class EmployeeExportController extends Controller
             $subtitle .= ' · Filters: ' . implode(' · ', $filters);
         }
         $sheet->setCellValueExplicit('A2', $subtitle, DataType::TYPE_STRING);
-        $sheet->mergeCells('A2:N2');
+        $sheet->mergeCells('A2:O2');
         $sheet->getStyle('A2')->getFont()->setSize(9)->getColor()->setARGB('FF6B7280');
 
         // Header row
         $headers = [
             'No.', 'Name', 'Staff ID', 'Designation', 'Section', 'Outlet', 'E-mail', 'Phone',
-            'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Status',
+            'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training', 'Status',
         ];
         $headerRow = 4;
         foreach ($headers as $i => $h) {
             $sheet->setCellValueExplicit([$i + 1, $headerRow], $h, DataType::TYPE_STRING);
         }
-        $headerRange = 'A' . $headerRow . ':N' . $headerRow;
+        $headerRange = 'A' . $headerRow . ':O' . $headerRow;
         $sheet->getStyle($headerRange)->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1F2937');
         $sheet->getStyle($headerRange)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
@@ -97,6 +97,11 @@ class EmployeeExportController extends Controller
                     : ' (until ' . $emp->typhoid_expired_on->format('d M Y') . ')';
             }
 
+            $halal = $emp->halal_training ? 'Yes' : 'No';
+            if ($emp->halal_training && $emp->halal_training_date) {
+                $halal .= ' (attended ' . $emp->halal_training_date->format('d M Y') . ')';
+            }
+
             $values = [
                 $i + 1,
                 $emp->name,
@@ -111,6 +116,7 @@ class EmployeeExportController extends Controller
                 $emp->food_handler_certified ? 'Certified' : 'No',
                 $emp->food_handler_cert_no,
                 $typhoid,
+                $halal,
                 $emp->is_active ? 'Active' : 'Inactive',
             ];
             foreach ($values as $col => $value) {
@@ -124,19 +130,19 @@ class EmployeeExportController extends Controller
             }
 
             if ($row % 2 === 0) {
-                $sheet->getStyle('A' . $row . ':N' . $row)->getFill()
+                $sheet->getStyle('A' . $row . ':O' . $row)->getFill()
                     ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9FAFB');
             }
         }
 
         if ($row > $headerRow) {
-            $sheet->getStyle('A' . $headerRow . ':N' . $row)->getBorders()->getAllBorders()
+            $sheet->getStyle('A' . $headerRow . ':O' . $row)->getBorders()->getAllBorders()
                 ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFE5E7EB');
             $sheet->setAutoFilter($headerRange);
         }
 
         $sheet->freezePane('A' . ($headerRow + 1));
-        foreach (range('A', 'N') as $col) {
+        foreach (range('A', 'O') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 

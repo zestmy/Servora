@@ -85,6 +85,7 @@
                 <th style="width: 82px;" class="c">Employment</th>
                 <th style="width: 72px;" class="c">Food Handler</th>
                 <th style="width: 72px;" class="c">Typhoid Card</th>
+                <th style="width: 62px;" class="c">Halal Training</th>
                 <th style="width: 40px;" class="c">Status</th>
             </tr>
         </thead>
@@ -100,7 +101,7 @@
             @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $outletName => $group)
                 <tr class="outlet-row">
-                    <td colspan="12">{{ $outletName }} ({{ $group->count() }})</td>
+                    <td colspan="13">{{ $outletName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -141,13 +142,19 @@
                             @endif
                         </td>
                         <td class="c">
+                            <span class="pill {{ $emp->halal_training ? 'pill-green' : 'pill-gray' }}">{{ $emp->halal_training ? 'Yes' : 'No' }}</span>
+                            @if ($emp->halal_training && $emp->halal_training_date)
+                                <div class="sub">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
+                            @endif
+                        </td>
+                        <td class="c">
                             <span class="pill {{ $emp->is_active ? 'pill-green' : 'pill-gray' }}">{{ $emp->is_active ? 'Active' : 'Inactive' }}</span>
                         </td>
                     </tr>
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="12" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="13" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>

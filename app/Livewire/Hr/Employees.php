@@ -30,6 +30,7 @@ class Employees extends Component
     public string $f_name           = '';
     public string $f_designation    = '';
     public string $f_email          = '';
+    public string $f_phone_code     = '';
     public string $f_phone          = '';
     public string $f_join_date      = '';
     public string $f_employment_status      = '';
@@ -41,6 +42,8 @@ class Employees extends Component
     public bool   $f_typhoid_card   = false;
     public string $f_typhoid_valid_from = '';
     public string $f_typhoid_expired_on = '';
+    public bool   $f_halal_training     = false;
+    public string $f_halal_training_date = '';
     public bool   $f_is_active      = true;
 
     // CSV import modal
@@ -87,6 +90,7 @@ class Employees extends Component
             'f_name'           => 'required|string|max:255',
             'f_designation'    => 'nullable|string|max:255',
             'f_email'          => 'nullable|email|max:255',
+            'f_phone_code'     => 'nullable|in:' . implode(',', array_values(Employee::PHONE_COUNTRY_CODES)),
             'f_phone'          => 'nullable|string|max:50',
             'f_join_date'      => 'nullable|date',
             'f_employment_status' => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_STATUSES)),
@@ -105,6 +109,8 @@ class Employees extends Component
                 'nullable', 'date',
                 $this->f_typhoid_valid_from ? 'after:f_typhoid_valid_from' : null,
             ]),
+            'f_halal_training'      => 'boolean',
+            'f_halal_training_date' => 'nullable|date',
             'f_is_active'      => 'boolean',
         ];
     }
@@ -133,6 +139,37 @@ class Employees extends Component
         $this->showForm = true;
     }
 
+    /** Company default dial code (from default_tax_country), MY fallback. */
+    private function defaultPhoneCode(): string
+    {
+        $iso = strtoupper((string) Auth::user()?->company?->default_tax_country) ?: 'MY';
+
+        return Employee::PHONE_COUNTRY_CODES[$iso] ?? '+60';
+    }
+
+    /**
+     * Split a stored phone into [dial code, local part] by longest-prefix
+     * match against the known codes; unknown formats keep the whole value in
+     * the local part with the company default code selected.
+     */
+    private function splitPhone(?string $phone): array
+    {
+        $phone = trim((string) $phone);
+        if ($phone === '') {
+            return [$this->defaultPhoneCode(), ''];
+        }
+
+        $codes = array_values(Employee::PHONE_COUNTRY_CODES);
+        usort($codes, fn ($a, $b) => strlen($b) <=> strlen($a));
+        foreach ($codes as $code) {
+            if (str_starts_with($phone, $code)) {
+                return [$code, ltrim(substr($phone, strlen($code)))];
+            }
+        }
+
+        return [$this->defaultPhoneCode(), $phone];
+    }
+
     public function openEdit(int $id): void
     {
         $emp = Employee::findOrFail($id);
@@ -147,7 +184,7 @@ class Employees extends Component
         $this->f_name          = $emp->name;
         $this->f_designation   = $emp->designation ?? '';
         $this->f_email         = $emp->email ?? '';
-        $this->f_phone         = $emp->phone ?? '';
+        [$this->f_phone_code, $this->f_phone] = $this->splitPhone($emp->phone);
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
         $this->f_employment_status      = $emp->employment_status ?? '';
         $this->f_employment_status_date = $emp->employment_status_date?->format('Y-m-d') ?? '';
@@ -158,6 +195,8 @@ class Employees extends Component
         $this->f_typhoid_card  = (bool) $emp->typhoid_card;
         $this->f_typhoid_valid_from = $emp->typhoid_valid_from?->format('Y-m-d') ?? '';
         $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
+        $this->f_halal_training      = (bool) $emp->halal_training;
+        $this->f_halal_training_date = $emp->halal_training_date?->format('Y-m-d') ?? '';
         $this->f_is_active     = (bool) $emp->is_active;
         $this->showForm        = true;
     }
@@ -175,7 +214,10 @@ class Employees extends Component
             'name'          => $this->f_name,
             'designation'   => $this->f_designation ?: null,
             'email'         => $this->f_email ?: null,
-            'phone'         => $this->f_phone ?: null,
+            // Full number stored with its dial code, e.g. "+60 123456789".
+            'phone'         => trim($this->f_phone)
+                ? trim(($this->f_phone_code ?: $this->defaultPhoneCode()) . ' ' . trim($this->f_phone))
+                : null,
             'join_date'     => $this->f_join_date ?: null,
             'employment_status' => $this->f_employment_status ?: null,
             // Date applies to probation/confirmed/extension; company to outsourcing.
@@ -194,6 +236,8 @@ class Employees extends Component
             // clears them so a "No" employee can't carry stale validity info.
             'typhoid_valid_from' => $this->f_typhoid_card ? ($this->f_typhoid_valid_from ?: null) : null,
             'typhoid_expired_on' => $this->f_typhoid_card ? ($this->f_typhoid_expired_on ?: null) : null,
+            'halal_training'      => $this->f_halal_training,
+            'halal_training_date' => $this->f_halal_training ? ($this->f_halal_training_date ?: null) : null,
             'is_active'     => $this->f_is_active,
         ];
 
@@ -239,6 +283,7 @@ class Employees extends Component
         $this->f_name          = '';
         $this->f_designation   = '';
         $this->f_email         = '';
+        $this->f_phone_code    = $this->defaultPhoneCode();
         $this->f_phone         = '';
         $this->f_join_date     = '';
         $this->f_employment_status      = '';
@@ -250,6 +295,8 @@ class Employees extends Component
         $this->f_typhoid_card  = false;
         $this->f_typhoid_valid_from = '';
         $this->f_typhoid_expired_on = '';
+        $this->f_halal_training      = false;
+        $this->f_halal_training_date = '';
         $this->f_is_active     = true;
     }
 
@@ -370,6 +417,12 @@ class Employees extends Component
             'typhoid'         => 'typhoid_card',
             'typhoid card'    => 'typhoid_card',
             'typhoid jab'     => 'typhoid_card',
+            'halal awareness training' => 'halal_training',
+            'halal training'           => 'halal_training',
+            'halal'                    => 'halal_training',
+            'halal training date'      => 'halal_training_date',
+            'halal date attended'      => 'halal_training_date',
+            'date attended'            => 'halal_training_date',
             'typhoid valid from'  => 'typhoid_valid_from',
             'typhoid valid'       => 'typhoid_valid_from',
             'typhoid expired on'  => 'typhoid_expired_on',
@@ -485,7 +538,7 @@ class Employees extends Component
 
             // New HR fields only overwrite when their column is present in the
             // CSV, so older files don't blank out existing values on update.
-            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on', 'employment_status_date' => 'employment status date'] as $dateKey => $dateLabel) {
+            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on', 'employment_status_date' => 'employment status date', 'halal_training_date' => 'halal training date'] as $dateKey => $dateLabel) {
                 if (! array_key_exists($dateKey, $data)) {
                     continue;
                 }
@@ -535,6 +588,9 @@ class Employees extends Component
             if (array_key_exists('typhoid_card', $data)) {
                 $payload['typhoid_card'] = $parseBool($data['typhoid_card']);
             }
+            if (array_key_exists('halal_training', $data)) {
+                $payload['halal_training'] = $parseBool($data['halal_training']);
+            }
 
             if ($existing) {
                 $existing->update($payload);
@@ -559,10 +615,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', ''],
         ];
 
         $output = fopen('php://temp', 'r+');
