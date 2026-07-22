@@ -18,6 +18,22 @@
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Employees</h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            <x-download-link :href="route('hr.employees.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter])"
+                    title="Export PDF"
+                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="hidden sm:inline">PDF</span>
+            </x-download-link>
+            <x-download-link :href="route('hr.employees.export-excel', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter])"
+                    title="Export Excel"
+                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-8 0h16a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span class="hidden sm:inline">Excel</span>
+            </x-download-link>
             <button wire:click="downloadTemplate"
                     title="Download CSV template"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
@@ -82,7 +98,7 @@
         {{-- Table — horizontally scrollable on mobile so every column (staff ID,
              designation, section, email, phone…) stays reachable. --}}
       <div class="overflow-x-auto">
-        <table class="min-w-[1400px] divide-y divide-gray-100 text-sm">
+        <table class="min-w-[1550px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
@@ -93,6 +109,7 @@
                     <th class="px-4 py-3 text-left">Email</th>
                     <th class="px-4 py-3 text-left">Phone</th>
                     <th class="px-4 py-3 text-left">Join Date</th>
+                    <th class="px-4 py-3 text-center">Employment</th>
                     <th class="px-4 py-3 text-center">Food Handler</th>
                     <th class="px-4 py-3 text-center">Typhoid Card</th>
                     <th class="px-4 py-3 text-center">Status</th>
@@ -115,6 +132,28 @@
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->email ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->phone ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{{ $emp->join_date?->format('d M Y') ?? '—' }}</td>
+                        <td class="px-4 py-3 text-center">
+                            @if ($emp->employment_status)
+                                @php
+                                    $esColors = [
+                                        'probation'          => 'bg-amber-100 text-amber-700',
+                                        'confirmed'          => 'bg-green-100 text-green-700',
+                                        'extended_probation' => 'bg-orange-100 text-orange-700',
+                                        'outsourcing'        => 'bg-blue-100 text-blue-700',
+                                    ];
+                                    $probationOverdue = in_array($emp->employment_status, ['probation', 'extended_probation'], true)
+                                        && $emp->employment_status_date?->isBefore(today());
+                                @endphp
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $probationOverdue ? 'bg-red-100 text-red-700' : $esColors[$emp->employment_status] }}">
+                                    {{ $emp->employmentStatusLabel() }}
+                                </span>
+                                @if ($emp->employmentStatusDetail())
+                                    <div class="text-[10px] mt-0.5 whitespace-nowrap {{ $probationOverdue ? 'text-red-500' : 'text-gray-400' }}">{{ $emp->employmentStatusDetail() }}</div>
+                                @endif
+                            @else
+                                <span class="text-gray-400 text-xs">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->food_handler_certified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                 {{ $emp->food_handler_certified ? 'Certified' : 'No' }}
@@ -160,7 +199,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="12" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
+                    <tr><td colspan="13" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -253,6 +292,40 @@
                             </label>
                         </div>
                     </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Employment Status</label>
+                            <select wire:model.live="f_employment_status" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                <option value="">— None —</option>
+                                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('f_employment_status')" class="mt-1" />
+                        </div>
+                        @if (in_array($f_employment_status, ['probation', 'confirmed', 'extended_probation'], true))
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">
+                                    {{ ['probation' => 'Probation — Until', 'confirmed' => 'Confirmed — On', 'extended_probation' => 'Probation Extended — Until'][$f_employment_status] }}
+                                    <span class="text-red-500">*</span>
+                                </label>
+                                <input type="date" wire:model="f_employment_status_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('f_employment_status_date')" class="mt-1" />
+                            </div>
+                        @elseif ($f_employment_status === 'outsourcing')
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Outsourcing Company</label>
+                                <select wire:model.live="f_outsourcing_provider" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                    <option value="experiva">Experiva</option>
+                                    <option value="others">Others</option>
+                                </select>
+                                @if ($f_outsourcing_provider === 'others')
+                                    <input type="text" wire:model="f_outsourcing_company" class="mt-2 w-full text-sm rounded-lg border-gray-300" placeholder="Company name" />
+                                @endif
+                                <x-input-error :messages="$errors->get('f_outsourcing_company')" class="mt-1" />
+                            </div>
+                        @endif
+                    </div>
                     @if ($f_food_handler_certified)
                         <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <label class="text-xs font-semibold text-gray-600">Food Handler Certificate — Serial No.</label>
@@ -311,7 +384,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>

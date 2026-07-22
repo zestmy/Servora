@@ -31,6 +31,10 @@ class Employees extends Component
     public string $f_email          = '';
     public string $f_phone          = '';
     public string $f_join_date      = '';
+    public string $f_employment_status      = '';
+    public string $f_employment_status_date = '';
+    public string $f_outsourcing_provider   = 'experiva'; // 'experiva' | 'others'
+    public string $f_outsourcing_company    = '';
     public bool   $f_food_handler_certified = false;
     public string $f_food_handler_cert_no   = '';
     public bool   $f_typhoid_card   = false;
@@ -84,6 +88,14 @@ class Employees extends Component
             'f_email'          => 'nullable|email|max:255',
             'f_phone'          => 'nullable|string|max:50',
             'f_join_date'      => 'nullable|date',
+            'f_employment_status' => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_STATUSES)),
+            'f_employment_status_date' => in_array($this->f_employment_status, ['probation', 'confirmed', 'extended_probation'], true)
+                ? 'required|date'
+                : 'nullable|date',
+            'f_outsourcing_provider' => 'in:experiva,others',
+            'f_outsourcing_company'  => ($this->f_employment_status === 'outsourcing' && $this->f_outsourcing_provider === 'others')
+                ? 'required|string|max:100'
+                : 'nullable|string|max:100',
             'f_food_handler_certified' => 'boolean',
             'f_food_handler_cert_no'   => 'nullable|string|max:100',
             'f_typhoid_card'   => 'boolean',
@@ -101,6 +113,8 @@ class Employees extends Component
         return [
             'f_outlet_id.in' => 'You do not have access to the selected outlet.',
             'f_typhoid_expired_on.after' => 'The Expired On date must be after the Valid From date.',
+            'f_employment_status_date.required' => 'Please set the date for this employment status.',
+            'f_outsourcing_company.required'    => 'Please enter the outsourcing company name.',
         ];
     }
 
@@ -133,6 +147,10 @@ class Employees extends Component
         $this->f_email         = $emp->email ?? '';
         $this->f_phone         = $emp->phone ?? '';
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
+        $this->f_employment_status      = $emp->employment_status ?? '';
+        $this->f_employment_status_date = $emp->employment_status_date?->format('Y-m-d') ?? '';
+        $this->f_outsourcing_provider   = ($emp->outsourcing_company && strcasecmp($emp->outsourcing_company, 'Experiva') !== 0) ? 'others' : 'experiva';
+        $this->f_outsourcing_company    = $this->f_outsourcing_provider === 'others' ? ($emp->outsourcing_company ?? '') : '';
         $this->f_food_handler_certified = (bool) $emp->food_handler_certified;
         $this->f_food_handler_cert_no   = $emp->food_handler_cert_no ?? '';
         $this->f_typhoid_card  = (bool) $emp->typhoid_card;
@@ -157,6 +175,14 @@ class Employees extends Component
             'email'         => $this->f_email ?: null,
             'phone'         => $this->f_phone ?: null,
             'join_date'     => $this->f_join_date ?: null,
+            'employment_status' => $this->f_employment_status ?: null,
+            // Date applies to probation/confirmed/extension; company to outsourcing.
+            'employment_status_date' => in_array($this->f_employment_status, ['probation', 'confirmed', 'extended_probation'], true)
+                ? ($this->f_employment_status_date ?: null)
+                : null,
+            'outsourcing_company' => $this->f_employment_status === 'outsourcing'
+                ? ($this->f_outsourcing_provider === 'others' ? ($this->f_outsourcing_company ?: null) : 'Experiva')
+                : null,
             'food_handler_certified' => $this->f_food_handler_certified,
             // Cert number only applies while the certified box is ticked —
             // unticking clears it, same as the typhoid validity dates.
@@ -213,6 +239,10 @@ class Employees extends Component
         $this->f_email         = '';
         $this->f_phone         = '';
         $this->f_join_date     = '';
+        $this->f_employment_status      = '';
+        $this->f_employment_status_date = '';
+        $this->f_outsourcing_provider   = 'experiva';
+        $this->f_outsourcing_company    = '';
         $this->f_food_handler_certified = false;
         $this->f_food_handler_cert_no   = '';
         $this->f_typhoid_card  = false;
@@ -316,6 +346,14 @@ class Employees extends Component
             'joining date'    => 'join_date',
             'date joined'     => 'join_date',
             'joined'          => 'join_date',
+            'employment status'      => 'employment_status',
+            'employment'             => 'employment_status',
+            'employment status date' => 'employment_status_date',
+            'status date'            => 'employment_status_date',
+            'probation until'        => 'employment_status_date',
+            'confirmed on'           => 'employment_status_date',
+            'outsourcing company'    => 'outsourcing_company',
+            'outsourcing provider'   => 'outsourcing_company',
             'food handler'    => 'food_handler_certified',
             'food handler certified' => 'food_handler_certified',
             'food handler certification' => 'food_handler_certified',
@@ -445,7 +483,7 @@ class Employees extends Component
 
             // New HR fields only overwrite when their column is present in the
             // CSV, so older files don't blank out existing values on update.
-            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on'] as $dateKey => $dateLabel) {
+            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on', 'employment_status_date' => 'employment status date'] as $dateKey => $dateLabel) {
                 if (! array_key_exists($dateKey, $data)) {
                     continue;
                 }
@@ -458,6 +496,31 @@ class Employees extends Component
                     }
                 }
                 $payload[$dateKey] = $parsed;
+            }
+            if (array_key_exists('employment_status', $data)) {
+                $statusRaw = strtolower(trim($data['employment_status']));
+                $statusMap = [
+                    'probation'          => 'probation',
+                    'confirmed'          => 'confirmed',
+                    'confirm'            => 'confirmed',
+                    'extended probation' => 'extended_probation',
+                    'extend probation'   => 'extended_probation',
+                    'extended_probation' => 'extended_probation',
+                    'outsourcing'        => 'outsourcing',
+                    'outsource'          => 'outsourcing',
+                ];
+                if ($statusRaw === '') {
+                    $payload['employment_status'] = null;
+                } elseif (isset($statusMap[$statusRaw])) {
+                    $payload['employment_status'] = $statusMap[$statusRaw];
+                } else {
+                    $errors[] = "Row $rowNum: unknown employment status '" . $data['employment_status'] . "' ignored";
+                }
+            }
+            if (array_key_exists('outsourcing_company', $data)) {
+                $payload['outsourcing_company'] = $data['outsourcing_company'] !== ''
+                    ? mb_substr($data['outsourcing_company'], 0, 100)
+                    : null;
             }
             if (array_key_exists('food_handler_certified', $data)) {
                 $payload['food_handler_certified'] = $parseBool($data['food_handler_certified']);
@@ -494,10 +557,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'No',  '',              'No',  '', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', ''],
         ];
 
         $output = fopen('php://temp', 'r+');
