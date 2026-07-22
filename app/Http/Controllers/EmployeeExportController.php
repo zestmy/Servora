@@ -198,6 +198,15 @@ class EmployeeExportController extends Controller
         if ($status === 'active')   { $query->where('is_active', true);  $filters[] = 'Status: Active'; }
         if ($status === 'inactive') { $query->where('is_active', false); $filters[] = 'Status: Inactive'; }
 
+        $employmentStatus = (string) $request->get('employment_status', '');
+        if ($employmentStatus === 'none') {
+            $query->whereNull('employment_status');
+            $filters[] = 'Employment: No Status';
+        } elseif ($employmentStatus !== '' && isset(Employee::EMPLOYMENT_STATUSES[$employmentStatus])) {
+            $query->where('employment_status', $employmentStatus);
+            $filters[] = 'Employment: ' . Employee::EMPLOYMENT_STATUSES[$employmentStatus];
+        }
+
         return [$query->get(), $filters];
     }
 

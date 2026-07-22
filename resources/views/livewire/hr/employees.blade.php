@@ -15,10 +15,15 @@
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
             <p class="text-xs text-gray-400">HR / Employees</p>
-            <h2 class="text-lg font-semibold text-gray-700 mt-1">Employees</h2>
+            <h2 class="text-lg font-semibold text-gray-700 mt-1 flex items-center gap-2">
+                Employees
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                    {{ number_format($employees->total()) }}
+                </span>
+            </h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <x-download-link :href="route('hr.employees.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter])"
+            <x-download-link :href="route('hr.employees.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter, 'employment_status' => $employmentStatusFilter])"
                     title="Export PDF"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -26,7 +31,7 @@
                 </svg>
                 <span class="hidden sm:inline">PDF</span>
             </x-download-link>
-            <x-download-link :href="route('hr.employees.export-excel', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter])"
+            <x-download-link :href="route('hr.employees.export-excel', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter, 'employment_status' => $employmentStatusFilter])"
                     title="Export Excel"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -80,6 +85,13 @@
                     <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
             </select>
+            <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Employment</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                @endforeach
+                <option value="none">No Status</option>
+            </select>
             <select wire:model.live="statusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -101,6 +113,7 @@
         <table class="min-w-[1550px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
+                    <th class="px-4 py-3 text-left w-12">#</th>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Staff ID</th>
                     <th class="px-4 py-3 text-left">Designation</th>
@@ -119,6 +132,7 @@
             <tbody class="divide-y divide-gray-50">
                 @forelse ($employees as $emp)
                     <tr class="group hover:bg-gray-50 {{ ! $emp->is_active ? 'opacity-60' : '' }}">
+                        <td class="px-4 py-3 text-gray-400 text-xs">{{ $employees->firstItem() + $loop->index }}</td>
                         <td class="px-4 py-3">
                             <button wire:click="openEdit({{ $emp->id }})" title="Edit employee"
                                     class="font-medium text-gray-800 text-left hover:text-indigo-600 hover:underline">
@@ -199,7 +213,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="13" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
+                    <tr><td colspan="14" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>

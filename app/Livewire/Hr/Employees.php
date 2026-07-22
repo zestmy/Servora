@@ -19,6 +19,7 @@ class Employees extends Component
     public string $outletFilter     = '';
     public string $sectionFilter = '';
     public string $statusFilter     = 'active';
+    public string $employmentStatusFilter = ''; // '' all | status key | 'none'
 
     // Add/edit modal
     public bool  $showForm          = false;
@@ -122,6 +123,7 @@ class Employees extends Component
     public function updatingOutletFilter(): void   { $this->resetPage(); }
     public function updatingSectionFilter(): void  { $this->resetPage(); }
     public function updatingStatusFilter(): void   { $this->resetPage(); }
+    public function updatingEmploymentStatusFilter(): void { $this->resetPage(); }
 
     public function openCreate(): void
     {
@@ -618,6 +620,11 @@ class Employees extends Component
         }
         if ($this->statusFilter === 'active')   $query->where('is_active', true);
         if ($this->statusFilter === 'inactive') $query->where('is_active', false);
+        if ($this->employmentStatusFilter === 'none') {
+            $query->whereNull('employment_status');
+        } elseif ($this->employmentStatusFilter !== '') {
+            $query->where('employment_status', $this->employmentStatusFilter);
+        }
 
         $employees = $query->paginate(25);
 
