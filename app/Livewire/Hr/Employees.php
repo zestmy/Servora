@@ -33,6 +33,8 @@ class Employees extends Component
     public string $f_join_date      = '';
     public bool   $f_food_handler_certified = false;
     public bool   $f_typhoid_card   = false;
+    public string $f_typhoid_valid_from = '';
+    public string $f_typhoid_expired_on = '';
     public bool   $f_is_active      = true;
 
     // CSV import modal
@@ -83,6 +85,11 @@ class Employees extends Component
             'f_join_date'      => 'nullable|date',
             'f_food_handler_certified' => 'boolean',
             'f_typhoid_card'   => 'boolean',
+            'f_typhoid_valid_from' => 'nullable|date',
+            'f_typhoid_expired_on' => array_filter([
+                'nullable', 'date',
+                $this->f_typhoid_valid_from ? 'after:f_typhoid_valid_from' : null,
+            ]),
             'f_is_active'      => 'boolean',
         ];
     }
@@ -91,6 +98,7 @@ class Employees extends Component
     {
         return [
             'f_outlet_id.in' => 'You do not have access to the selected outlet.',
+            'f_typhoid_expired_on.after' => 'The Expired On date must be after the Valid From date.',
         ];
     }
 
@@ -125,6 +133,8 @@ class Employees extends Component
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
         $this->f_food_handler_certified = (bool) $emp->food_handler_certified;
         $this->f_typhoid_card  = (bool) $emp->typhoid_card;
+        $this->f_typhoid_valid_from = $emp->typhoid_valid_from?->format('Y-m-d') ?? '';
+        $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
         $this->f_is_active     = (bool) $emp->is_active;
         $this->showForm        = true;
     }
@@ -146,6 +156,10 @@ class Employees extends Component
             'join_date'     => $this->f_join_date ?: null,
             'food_handler_certified' => $this->f_food_handler_certified,
             'typhoid_card'  => $this->f_typhoid_card,
+            // Validity dates only apply while the card box is ticked — unticking
+            // clears them so a "No" employee can't carry stale validity info.
+            'typhoid_valid_from' => $this->f_typhoid_card ? ($this->f_typhoid_valid_from ?: null) : null,
+            'typhoid_expired_on' => $this->f_typhoid_card ? ($this->f_typhoid_expired_on ?: null) : null,
             'is_active'     => $this->f_is_active,
         ];
 
@@ -195,6 +209,8 @@ class Employees extends Component
         $this->f_join_date     = '';
         $this->f_food_handler_certified = false;
         $this->f_typhoid_card  = false;
+        $this->f_typhoid_valid_from = '';
+        $this->f_typhoid_expired_on = '';
         $this->f_is_active     = true;
     }
 
@@ -300,6 +316,12 @@ class Employees extends Component
             'typhoid'         => 'typhoid_card',
             'typhoid card'    => 'typhoid_card',
             'typhoid jab'     => 'typhoid_card',
+            'typhoid valid from'  => 'typhoid_valid_from',
+            'typhoid valid'       => 'typhoid_valid_from',
+            'typhoid expired on'  => 'typhoid_expired_on',
+            'typhoid expiry'      => 'typhoid_expired_on',
+            'typhoid expiry date' => 'typhoid_expired_on',
+            'typhoid expired'     => 'typhoid_expired_on',
         ];
 
         $parseBool = fn (string $v): bool => in_array(
@@ -409,16 +431,19 @@ class Employees extends Component
 
             // New HR fields only overwrite when their column is present in the
             // CSV, so older files don't blank out existing values on update.
-            if (array_key_exists('join_date', $data)) {
-                $joinDate = null;
-                if ($data['join_date'] !== '') {
+            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on'] as $dateKey => $dateLabel) {
+                if (! array_key_exists($dateKey, $data)) {
+                    continue;
+                }
+                $parsed = null;
+                if ($data[$dateKey] !== '') {
                     try {
-                        $joinDate = \Carbon\Carbon::parse($data['join_date'])->format('Y-m-d');
+                        $parsed = \Carbon\Carbon::parse($data[$dateKey])->format('Y-m-d');
                     } catch (\Exception $e) {
-                        $errors[] = "Row $rowNum: invalid join date '" . $data['join_date'] . "' ignored";
+                        $errors[] = "Row $rowNum: invalid {$dateLabel} '" . $data[$dateKey] . "' ignored";
                     }
                 }
-                $payload['join_date'] = $joinDate;
+                $payload[$dateKey] = $parsed;
             }
             if (array_key_exists('food_handler_certified', $data)) {
                 $payload['food_handler_certified'] = $parseBool($data['food_handler_certified']);
@@ -450,10 +475,10 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Food Handler Certified', 'Typhoid Card'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Food Handler Certified', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Yes', 'Yes'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'No',  'No'],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Yes', 'Yes', '2026-01-10', '2029-01-09'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'No',  'No',  '', ''],
         ];
 
         $output = fopen('php://temp', 'r+');

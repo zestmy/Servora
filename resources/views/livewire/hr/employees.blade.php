@@ -121,9 +121,15 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->typhoid_card ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                                {{ $emp->typhoid_card ? 'Yes' : 'No' }}
+                            @php $typhoidExpired = $emp->typhoid_card && $emp->typhoid_expired_on?->isBefore(today()); @endphp
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $typhoidExpired ? 'bg-red-100 text-red-700' : ($emp->typhoid_card ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500') }}">
+                                {{ $typhoidExpired ? 'Expired' : ($emp->typhoid_card ? 'Yes' : 'No') }}
                             </span>
+                            @if ($emp->typhoid_card && $emp->typhoid_expired_on)
+                                <div class="text-[10px] mt-0.5 whitespace-nowrap {{ $typhoidExpired ? 'text-red-500' : 'text-gray-400' }}">
+                                    {{ $typhoidExpired ? 'expired' : 'until' }} {{ $emp->typhoid_expired_on->format('d M Y') }}
+                                </div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
@@ -239,11 +245,25 @@
                                 <span class="text-sm text-gray-700">Food Handler Certified</span>
                             </label>
                             <label class="inline-flex items-center gap-2">
-                                <input type="checkbox" wire:model="f_typhoid_card" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                <input type="checkbox" wire:model.live="f_typhoid_card" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                 <span class="text-sm text-gray-700">Typhoid Card (jab taken)</span>
                             </label>
                         </div>
                     </div>
+                    @if ($f_typhoid_card)
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Typhoid Card — Valid From</label>
+                                <input type="date" wire:model="f_typhoid_valid_from" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('f_typhoid_valid_from')" class="mt-1" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Typhoid Card — Expired On</label>
+                                <input type="date" wire:model="f_typhoid_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('f_typhoid_expired_on')" class="mt-1" />
+                            </div>
+                        </div>
+                    @endif
                     <label class="inline-flex items-center gap-2">
                         <input type="checkbox" wire:model="f_is_active" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                         <span class="text-sm text-gray-700">Active</span>
@@ -281,7 +301,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Food Handler Certified, Typhoid Card</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Food Handler Certified, Typhoid Card, Typhoid Valid From, Typhoid Expired On</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>

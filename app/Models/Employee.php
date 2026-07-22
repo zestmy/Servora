@@ -13,6 +13,7 @@ class Employee extends Model
         'name', 'designation',
         'email', 'phone', 'is_active',
         'join_date', 'food_handler_certified', 'typhoid_card',
+        'typhoid_valid_from', 'typhoid_expired_on',
     ];
 
     protected $casts = [
@@ -20,6 +21,8 @@ class Employee extends Model
         'join_date'              => 'date',
         'food_handler_certified' => 'boolean',
         'typhoid_card'           => 'boolean',
+        'typhoid_valid_from'     => 'date',
+        'typhoid_expired_on'     => 'date',
     ];
 
     protected static function booted(): void
