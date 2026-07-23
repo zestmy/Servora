@@ -47,6 +47,12 @@ class Company extends Model
         return $this->hasMany(User::class);
     }
 
+    /** All users with membership in this company (company_user pivot). */
+    public function members()
+    {
+        return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
     public function suppliers(): HasMany
     {
         return $this->hasMany(Supplier::class);

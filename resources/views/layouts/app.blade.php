@@ -407,22 +407,8 @@
         {{-- ── Bottom: Company / Outlet / User ────────────────────────────── --}}
         <div class="flex-shrink-0 border-t border-gray-700">
 
-            {{-- Company (expanded only) --}}
-            <div x-show="sidebarExpanded"
-                 x-transition:enter="transition-opacity duration-150 delay-100"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-100"
-                 x-transition:leave="transition-opacity duration-75"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0"
-                 class="px-3 pt-3 pb-2 space-y-1">
-                <div class="flex items-center gap-2 px-1">
-                    <span class="text-sm leading-none">🏢</span>
-                    <span class="text-xs font-medium text-gray-300 truncate">
-                        {{ Auth::user()->company->name ?? '—' }}
-                    </span>
-                </div>
-            </div>
+            {{-- Company (expanded only) — switcher when the user belongs to multiple companies --}}
+            <livewire:company-switcher />
 
             {{-- User button --}}
             <div class="p-2">

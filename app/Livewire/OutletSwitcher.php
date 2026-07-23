@@ -36,7 +36,7 @@ class OutletSwitcher extends Component
 
         $allOutlets = $user->canViewAllOutlets()
             ? Outlet::where('company_id', $user->company_id)->where('is_active', true)->orderBy('name')->get()
-            : $user->outlets()->where('is_active', true)->orderBy('name')->get();
+            : $user->outlets()->where('outlets.company_id', $user->company_id)->where('is_active', true)->orderBy('name')->get();
 
         $kitchenOutletIds = \App\Models\CentralKitchen::where('company_id', $user->company_id)
             ->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();

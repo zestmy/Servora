@@ -39,6 +39,39 @@ class User extends Authenticatable
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * All companies this user is a member of (company_user pivot).
+     * `company_id` remains the ACTIVE company — every query scope keys off it.
+     */
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class)->withTimestamps();
+    }
+
+    public function hasMultipleCompanies(): bool
+    {
+        return $this->companies()->count() > 1;
+    }
+
+    /**
+     * Switch the active company. Only allowed for companies the user is a
+     * member of; returns false (no change) otherwise.
+     */
+    public function switchToCompany(int $companyId): bool
+    {
+        if ((int) $this->company_id === $companyId) {
+            return true;
+        }
+
+        if (! $this->companies()->where('companies.id', $companyId)->exists()) {
+            return false;
+        }
+
+        $this->update(['company_id' => $companyId]);
+
+        return true;
+    }
+
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
@@ -59,7 +92,11 @@ class User extends Authenticatable
         // 'pivot_created_at' is the Eloquent accessor name; the actual DB column
         // in the pivot table is 'created_at'. Use the qualified table.column form
         // to avoid ambiguity with other created_at columns in the join.
-        return $this->outlets()->orderBy('outlet_user.created_at')->value('outlets.id');
+        // Multi-company users may have outlet rows from other companies — only
+        // outlets of the active company count.
+        return $this->outlets()
+            ->where('outlets.company_id', $this->company_id)
+            ->orderBy('outlet_user.created_at')->value('outlets.id');
     }
 
     public function activeOutlet(): ?Outlet
@@ -75,8 +112,17 @@ class User extends Authenticatable
 
     public function canAccessOutlet(int $outletId): bool
     {
-        if ($this->canViewAllOutlets()) return true;
-        return $this->outlets()->where('outlets.id', $outletId)->exists();
+        if ($this->isSystemRole()) return true;
+
+        // Access never crosses the active company, even for "all outlets" users.
+        if ($this->can_view_all_outlets) {
+            return Outlet::where('id', $outletId)->where('company_id', $this->company_id)->exists();
+        }
+
+        return $this->outlets()
+            ->where('outlets.id', $outletId)
+            ->where('outlets.company_id', $this->company_id)
+            ->exists();
     }
 
     /** Check if user has a system-level role (Super Admin / System Admin). */
@@ -106,11 +152,15 @@ class User extends Authenticatable
         return $this->designation ?: 'Team Member';
     }
 
-    /** Check if user is assigned to any central kitchen. */
+    /** Check if user is assigned to any central kitchen of the active company. */
     public function isKitchenUser(): bool
     {
         return \Illuminate\Support\Facades\DB::table('kitchen_users')
-            ->where('user_id', $this->id)->exists();
+            ->join('central_kitchens', 'central_kitchens.id', '=', 'kitchen_users.kitchen_id')
+            ->where('kitchen_users.user_id', $this->id)
+            ->where('central_kitchens.company_id', $this->company_id)
+            ->whereNull('central_kitchens.deleted_at')
+            ->exists();
     }
 
     /** Get the active workspace mode from session (falls back to DB default). */
@@ -129,6 +179,11 @@ class User extends Authenticatable
     public function activeKitchen(): ?CentralKitchen
     {
         $kitchenId = session('active_kitchen_id', $this->default_kitchen_id);
-        return $kitchenId ? CentralKitchen::find($kitchenId) : null;
+        if (! $kitchenId) return null;
+
+        // Guard against a stale session/default pointing at another company's kitchen
+        return CentralKitchen::where('id', $kitchenId)
+            ->where('company_id', $this->company_id)
+            ->first();
     }
 }

@@ -19,7 +19,7 @@ trait ScopesToActiveOutlet
 
         return $user->canViewAllOutlets()
             ? Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
+            : $user->outlets()->where('outlets.company_id', $user->company_id)->pluck('outlets.id')->all();
     }
 
     /**

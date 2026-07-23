@@ -123,6 +123,9 @@
                         <label class="block text-xs font-medium text-gray-500 mb-1">Email *</label>
                         <input type="email" wire:model="email" class="w-full rounded-lg border-gray-300 text-sm" />
                         @error('email') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        @if (! $editingId)
+                            <p class="text-[11px] text-gray-400 mt-1">If this email already has a Servora account, that user will be linked to your company instead (they keep their existing password).</p>
+                        @endif
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Password {{ $editingId ? '(leave blank to keep)' : '*' }}</label>

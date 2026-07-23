@@ -160,7 +160,11 @@ class Users extends Component
     {
         $rules = [
             'name'        => 'required|string|max:100',
-            'email'       => ['required', 'email', Rule::unique('users', 'email')->ignore($this->editingId)],
+            // On create an existing email is not an error — it links that user
+            // to this company instead (multi-company access, one login).
+            'email'       => $this->editingId
+                ? ['required', 'email', Rule::unique('users', 'email')->ignore($this->editingId)]
+                : ['required', 'email'],
             'designation' => 'nullable|string|max:100',
             'outletIds'   => 'array',
         ];
@@ -177,6 +181,14 @@ class Users extends Component
         $companyId = $currentUser->isSystemRole()
             ? $this->company_id
             : $currentUser->company_id;
+
+        if (! $this->editingId && $companyId) {
+            $existing = User::where('email', $this->email)->first();
+            if ($existing) {
+                $this->linkExistingUser($existing, (int) $companyId);
+                return;
+            }
+        }
 
         $primaryOutletId = ! empty($this->outletIds) ? (int) $this->outletIds[0] : null;
 
@@ -209,6 +221,11 @@ class Users extends Component
             session()->flash('success', 'User created.');
         }
 
+        // Keep company membership (company_user) in step with the active company.
+        if ($companyId) {
+            $user->companies()->syncWithoutDetaching([(int) $companyId]);
+        }
+
         // Sync module permissions (direct, not via role)
         $validPermissions = array_intersect($this->moduleAccess, array_keys(self::MODULES));
         // Add users.manage if can_manage_users
@@ -217,6 +234,74 @@ class Users extends Component
         }
         $user->syncPermissions($validPermissions);
 
+        if ($companyId) {
+            $this->syncOutletAccess($user, (int) $companyId);
+        }
+
+        session()->flash('success', ($this->editingId ? 'User updated.' : 'User created.'));
+        $this->redirect(route('settings.users'), navigate: true);
+    }
+
+    /**
+     * Link an already-registered user (same email, another company) to the
+     * current company, so one login can manage multiple companies.
+     */
+    private function linkExistingUser(User $user, int $companyId): void
+    {
+        if ($user->isSystemRole()) {
+            $this->addError('email', 'This email belongs to a system account and cannot be linked.');
+            return;
+        }
+
+        $alreadyMember = (int) $user->company_id === $companyId
+            || $user->companies()->where('companies.id', $companyId)->exists();
+
+        if ($alreadyMember) {
+            $this->addError('email', 'A user with this email already belongs to this company.');
+            return;
+        }
+
+        $user->companies()->syncWithoutDetaching([$companyId]);
+        // Make sure their original company is recorded as a membership too
+        // (backfill covers existing users; this is belt-and-braces).
+        if ($user->company_id) {
+            $user->companies()->syncWithoutDetaching([(int) $user->company_id]);
+        }
+
+        // Additive grants only — module permissions and capability flags are
+        // global to the account, so never strip what they hold elsewhere.
+        $validPermissions = array_intersect($this->moduleAccess, array_keys(self::MODULES));
+        if ($this->can_manage_users) {
+            $validPermissions[] = 'users.manage';
+        }
+        if (! empty($validPermissions)) {
+            $user->givePermissionTo($validPermissions);
+        }
+
+        $capabilities = array_filter([
+            'can_manage_users'    => $this->can_manage_users,
+            'can_approve_po'      => $this->can_approve_po,
+            'can_approve_pr'      => $this->can_approve_pr,
+            'can_delete_records'  => $this->can_delete_records,
+            'can_receive_grn'     => $this->can_receive_grn,
+            'can_manage_invoices' => $this->can_manage_invoices,
+        ]);
+        if (! empty($capabilities)) {
+            $user->update($capabilities);
+        }
+
+        $this->syncOutletAccess($user, $companyId);
+
+        session()->flash('success', 'Existing user "' . $user->name . '" linked to this company. They can now switch companies from the sidebar — their password stays the same.');
+        $this->redirect(route('settings.users'), navigate: true);
+    }
+
+    /**
+     * Apply the modal's outlet/kitchen access selection for ONE company.
+     * Scoped so a multi-company user's assignments in other companies survive.
+     */
+    private function syncOutletAccess(User $user, int $companyId): void
+    {
         // Resolve outlet IDs from mode
         $allRegularOutletIds = Outlet::where('company_id', $companyId)->where('is_active', true)->pluck('id')->toArray();
         $kitchenOutletIds = \App\Models\CentralKitchen::where('company_id', $companyId)->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
@@ -252,7 +337,15 @@ class Users extends Component
             $syncIds = array_merge($syncIds, $selectedKitchenOutletIds);
         }
 
-        $user->outlets()->sync(array_unique($syncIds));
+        // Sync only THIS company's outlets: detach the ones not selected,
+        // attach the selected — rows for other companies are left untouched.
+        $companyOutletIds = Outlet::where('company_id', $companyId)->pluck('id')->toArray();
+        $syncIds = array_unique($syncIds);
+        $removeOutletIds = array_diff($companyOutletIds, $syncIds);
+        if (! empty($removeOutletIds)) {
+            $user->outlets()->detach($removeOutletIds);
+        }
+        $user->outlets()->syncWithoutDetaching($syncIds);
 
         // Sync kitchen-mode access. The "Switch to Central Kitchen Mode" nav
         // button, the workspace switcher, and the kitchen.user middleware all
@@ -270,9 +363,12 @@ class Users extends Component
             default      => [],
         };
 
+        // Only this company's kitchen rows are compared/removed
         $currentKitchenIds = DB::table('kitchen_users')
-            ->where('user_id', $user->id)
-            ->pluck('kitchen_id')->map(fn ($i) => (int) $i)->all();
+            ->join('central_kitchens', 'central_kitchens.id', '=', 'kitchen_users.kitchen_id')
+            ->where('kitchen_users.user_id', $user->id)
+            ->where('central_kitchens.company_id', $companyId)
+            ->pluck('kitchen_users.kitchen_id')->map(fn ($i) => (int) $i)->all();
 
         foreach (array_diff($targetKitchenIds, $currentKitchenIds) as $kitchenId) {
             DB::table('kitchen_users')->insert([
@@ -291,11 +387,16 @@ class Users extends Component
                 ->delete();
         }
 
-        // Default kitchen for kitchen mode: first granted kitchen (cleared when none).
-        $user->update(['default_kitchen_id' => $targetKitchenIds[0] ?? null]);
+        // Default kitchen: first granted kitchen. Only overwrite when the
+        // current default is empty or belongs to this company — a linked user's
+        // default in another company is not ours to clobber.
+        $currentDefaultInCompany = $user->default_kitchen_id
+            && \App\Models\CentralKitchen::where('id', $user->default_kitchen_id)
+                ->where('company_id', $companyId)->exists();
 
-        session()->flash('success', ($this->editingId ? 'User updated.' : 'User created.'));
-        $this->redirect(route('settings.users'), navigate: true);
+        if (! $user->default_kitchen_id || $currentDefaultInCompany) {
+            $user->update(['default_kitchen_id' => $targetKitchenIds[0] ?? null]);
+        }
     }
 
     public function delete(int $id): void
@@ -306,6 +407,47 @@ class Users extends Component
         }
 
         $user = User::findOrFail($id);
+        $currentUser = Auth::user();
+
+        if (! $currentUser->isSystemRole() && $user->isSystemRole()) {
+            session()->flash('error', 'You cannot delete this user.');
+            return;
+        }
+
+        $scopeCompanyId = $currentUser->isSystemRole()
+            ? (int) $user->company_id
+            : (int) $currentUser->company_id;
+
+        $otherCompanyIds = $user->companies()
+            ->where('companies.id', '!=', $scopeCompanyId)
+            ->pluck('companies.id');
+
+        // Member of other companies too → unlink from this one, keep the account
+        if ($scopeCompanyId && $otherCompanyIds->isNotEmpty()) {
+            $user->companies()->detach($scopeCompanyId);
+
+            $companyOutletIds = Outlet::where('company_id', $scopeCompanyId)->pluck('id')->all();
+            if (! empty($companyOutletIds)) {
+                $user->outlets()->detach($companyOutletIds);
+            }
+
+            $companyKitchenIds = \App\Models\CentralKitchen::where('company_id', $scopeCompanyId)->pluck('id')->all();
+            if (! empty($companyKitchenIds)) {
+                DB::table('kitchen_users')
+                    ->where('user_id', $user->id)
+                    ->whereIn('kitchen_id', $companyKitchenIds)
+                    ->delete();
+            }
+
+            // If this was their active company, move them to a remaining one
+            if ((int) $user->company_id === $scopeCompanyId) {
+                $user->update(['company_id' => $otherCompanyIds->first(), 'outlet_id' => null]);
+            }
+
+            session()->flash('success', 'User removed from this company. Their account and access to other companies remain.');
+            return;
+        }
+
         $user->outlets()->detach();
         $user->delete();
         session()->flash('success', 'User deleted.');
@@ -327,12 +469,18 @@ class Users extends Component
                 \Illuminate\Support\Facades\DB::raw('(SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id) as last_session_activity'),
             ])
             ->when($this->search, fn ($q) =>
-                $q->where('name', 'like', '%'.$this->search.'%')
-                  ->orWhere('email', 'like', '%'.$this->search.'%')
+                // Grouped so the OR can't bypass the company filter below
+                $q->where(fn ($qq) => $qq
+                    ->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('email', 'like', '%'.$this->search.'%'))
             );
 
         if (! $isSuperAdmin) {
-            $query->where('company_id', $currentUser->company_id);
+            // Members of this company — whether or not it's their active one
+            $companyId = $currentUser->company_id;
+            $query->where(fn ($q) => $q
+                ->where('company_id', $companyId)
+                ->orWhereHas('companies', fn ($c) => $c->where('companies.id', $companyId)));
             $query->whereDoesntHave('roles', fn ($q) =>
                 $q->whereIn('name', ['Super Admin', 'System Admin'])
             );
