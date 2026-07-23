@@ -300,6 +300,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.view');
     Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\App\Http\Middleware\SystemAdminOnly::class);
     Route::get('/settings/users', SettingsUsers::class)->name('settings.users')->middleware('can:users.manage');
+    Route::get('/company/create', \App\Livewire\CompanyCreate::class)->name('company.create'); // gated in component (can_manage_users)
     Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.view');
     Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:users.manage');
     Route::get('/settings/calendar-events', SettingsCalendarEvents::class)->name('settings.calendar-events')->middleware('can:reports.view');
