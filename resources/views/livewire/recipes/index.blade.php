@@ -369,7 +369,7 @@
                    })">
                 @forelse ($recipes as $recipe)
                     @php
-                        $totalCost   = $recipe->total_cost;
+                        $totalCost   = $recipe->grand_total_cost;
                         $selling     = $recipe->effective_selling_price;
                         $foodCostPct = $selling > 0 ? ($totalCost / $selling) * 100 : null;
                         $fcColor     = match(true) {

@@ -367,7 +367,7 @@ class Index extends Component
                 $root = $cat?->parent?->name ?? $cat?->name ?? 'Uncategorised';
                 $sub  = ($cat && $cat->parent_id !== null) ? $cat->name : null;
 
-                $cost    = $recipe->total_cost;
+                $cost    = $recipe->grand_total_cost;
                 $selling = $recipe->effective_selling_price;
                 $pct     = $selling > 0 ? ($cost / $selling) * 100 : null;
 
@@ -535,7 +535,7 @@ class Index extends Component
             $allRecipes = $query->get();
 
             $filtered = $allRecipes->filter(function ($recipe) {
-                $totalCost = $recipe->total_cost;
+                $totalCost = $recipe->grand_total_cost;
                 $selling   = $recipe->effective_selling_price;
                 $pct       = $selling > 0 ? ($totalCost / $selling) * 100 : null;
 

@@ -184,6 +184,27 @@ class Recipe extends Model
     }
 
     /**
+     * Line costs plus the recipe's extra costs — matches the form's Grand Total Cost.
+     * Percent-type extras are a % of the ingredient (non-packaging) line total.
+     */
+    public function getGrandTotalCostAttribute(): float
+    {
+        $ingredientTotal = $this->lines
+            ->reject(fn ($line) => $line->is_packaging)
+            ->sum(fn ($line) => $line->cost_per_recipe_uom * $line->quantity);
+
+        $extras = is_array($this->extra_costs) ? $this->extra_costs : [];
+        $extraTotal = collect($extras)->sum(function ($c) use ($ingredientTotal) {
+            if (($c['type'] ?? 'value') === 'percent') {
+                return $ingredientTotal * (floatval($c['amount'] ?? 0) / 100);
+            }
+            return floatval($c['amount'] ?? 0);
+        });
+
+        return $this->total_cost + $extraTotal;
+    }
+
+    /**
      * Get the effective selling price — from default price class, or fallback to recipe.selling_price.
      */
     public function getEffectiveSellingPriceAttribute(): float
