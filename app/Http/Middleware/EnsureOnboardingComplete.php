@@ -34,7 +34,7 @@ class EnsureOnboardingComplete
         }
 
         // System Admins skip onboarding
-        if ($user->hasRole('System Admin')) {
+        if ($user->isSystemRole()) {
             return $next($request);
         }
 

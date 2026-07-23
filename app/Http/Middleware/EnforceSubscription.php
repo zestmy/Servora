@@ -35,7 +35,7 @@ class EnforceSubscription
         }
 
         // System Admins — no restrictions
-        if ($user->hasRole('System Admin')) {
+        if ($user->isSystemRole()) {
             View::share('subscriptionExpired', false);
             View::share('subscriptionBanner', null);
             return $next($request);

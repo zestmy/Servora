@@ -268,16 +268,16 @@ class Users extends Component
             $user->companies()->syncWithoutDetaching([(int) $user->company_id]);
         }
 
-        // Additive grants only — module permissions and capability flags are
-        // global to the account, so never strip what they hold elsewhere.
+        // Module permissions are per-company (Spatie teams mode) — sync under
+        // the admin's active company, which is the company being linked into.
         $validPermissions = array_intersect($this->moduleAccess, array_keys(self::MODULES));
         if ($this->can_manage_users) {
             $validPermissions[] = 'users.manage';
         }
-        if (! empty($validPermissions)) {
-            $user->givePermissionTo($validPermissions);
-        }
+        $user->syncPermissions($validPermissions);
 
+        // Capability flags are still account-global: only ever turn on what
+        // was ticked, never strip what they hold elsewhere.
         $capabilities = array_filter([
             'can_manage_users'    => $this->can_manage_users,
             'can_approve_po'      => $this->can_approve_po,
@@ -438,6 +438,14 @@ class Users extends Component
                     ->whereIn('kitchen_id', $companyKitchenIds)
                     ->delete();
             }
+
+            // Drop their role/permission rows for this company (teams mode)
+            DB::table('model_has_roles')
+                ->where('model_type', User::class)->where('model_id', $user->id)
+                ->where('team_id', $scopeCompanyId)->delete();
+            DB::table('model_has_permissions')
+                ->where('model_type', User::class)->where('model_id', $user->id)
+                ->where('team_id', $scopeCompanyId)->delete();
 
             // If this was their active company, move them to a remaining one
             if ((int) $user->company_id === $scopeCompanyId) {

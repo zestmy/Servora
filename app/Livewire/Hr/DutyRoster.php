@@ -739,7 +739,7 @@ class DutyRoster extends Component
         // Check delete permission: company admin, business admin, or roster.delete
         $user = Auth::user();
         $canDelete = $user->can('roster.delete')
-            || $user->hasRole(['Super Admin', 'System Admin', 'Company Admin', 'Business Admin']);
+            || $user->isSystemRole() || $user->hasRole(['Company Admin', 'Business Admin']);
 
         if (!$canDelete) {
             session()->flash('error', 'You do not have permission to delete rosters.');
@@ -987,7 +987,7 @@ class DutyRoster extends Component
         $canApprove = $this->canApprove();
         $canAmend = $user->can('roster.amend');
         $canDelete = $user->can('roster.delete')
-            || $user->hasRole(['Super Admin', 'System Admin', 'Company Admin', 'Business Admin']);
+            || $user->isSystemRole() || $user->hasRole(['Company Admin', 'Business Admin']);
 
         // Leave types for the form
         $leaveTypes = RosterEntry::LEAVE_TYPES;

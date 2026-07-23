@@ -298,7 +298,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:purchasing.view');
     Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:purchasing.view');
     Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.view');
-    Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':Super Admin|System Admin');
+    Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\App\Http\Middleware\SystemAdminOnly::class);
     Route::get('/settings/users', SettingsUsers::class)->name('settings.users')->middleware('can:users.manage');
     Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.view');
     Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:users.manage');
@@ -353,7 +353,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/refer', ReferralDashboard::class)->name('referral.dashboard');
 
     // Admin routes (System Admin only)
-    Route::prefix('admin')->middleware(\Spatie\Permission\Middleware\RoleMiddleware::class . ':System Admin')->group(function () {
+    Route::prefix('admin')->middleware(\App\Http\Middleware\SystemAdminOnly::class)->group(function () {
         Route::get('/plans', AdminPlansIndex::class)->name('admin.plans.index');
         Route::get('/plans/create', AdminPlansForm::class)->name('admin.plans.create');
         Route::get('/plans/{id}/edit', AdminPlansForm::class)->name('admin.plans.edit');

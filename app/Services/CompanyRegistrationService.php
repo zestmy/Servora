@@ -39,6 +39,11 @@ class CompanyRegistrationService
                 'password'   => Hash::make($data['password']),
                 'company_id' => $company->id,
             ]);
+            $user->companies()->syncWithoutDetaching([$company->id]);
+
+            // Registration runs unauthenticated: scope the role/permission
+            // grants below to the new company (Spatie teams mode).
+            setPermissionsTeamId($company->id);
             $user->assignRole('Company Admin');
 
             // Set Company Admin capabilities and permissions

@@ -38,9 +38,10 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        // Super Admin bypasses all permission checks
+        // Super Admin bypasses all permission checks (team-agnostic: with
+        // Spatie teams mode, hasRole only sees the active company's rows)
         Gate::before(function ($user, $ability) {
-            return $user->hasRole('Super Admin') ? true : null;
+            return method_exists($user, 'hasGlobalRole') && $user->hasGlobalRole('Super Admin') ? true : null;
         });
 
         // @feature('analytics') ... @endfeature

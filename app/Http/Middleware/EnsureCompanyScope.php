@@ -14,7 +14,7 @@ class EnsureCompanyScope
 
         if ($user && ! $user->company_id) {
             // System Admin may not have a company — allow through
-            if ($user->hasRole('System Admin')) {
+            if ($user->isSystemRole()) {
                 return $next($request);
             }
 

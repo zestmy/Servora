@@ -36,6 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Display-only per-user / per-company timezone adjustment
         $middleware->web(append: [
             \App\Http\Middleware\SetDisplayTimezone::class,
+            // Spatie teams mode: scope role/permission checks to the active company
+            \App\Http\Middleware\SetPermissionsTeamFromCompany::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

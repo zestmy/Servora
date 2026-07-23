@@ -25,7 +25,7 @@ class CheckSubscription
         }
 
         // System Admins bypass
-        if ($user->hasRole('System Admin')) {
+        if ($user->isSystemRole()) {
             return $next($request);
         }
 

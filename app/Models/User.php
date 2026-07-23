@@ -69,6 +69,12 @@ class User extends Authenticatable
 
         $this->update(['company_id' => $companyId]);
 
+        // Spatie teams mode: re-scope permission checks for the rest of this
+        // request and drop any team-stale cached relations.
+        setPermissionsTeamId($companyId);
+        $this->unsetRelation('roles');
+        $this->unsetRelation('permissions');
+
         return true;
     }
 
@@ -125,11 +131,29 @@ class User extends Authenticatable
             ->exists();
     }
 
+    /**
+     * Team-agnostic role check. With Spatie teams mode on, hasRole() only sees
+     * the active company's assignment rows — system-level roles must apply in
+     * EVERY company, so check the pivot directly, ignoring team_id.
+     */
+    public function hasGlobalRole(array|string $roles): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_type', self::class)
+            ->where('model_has_roles.model_id', $this->id)
+            ->whereIn('roles.name', (array) $roles)
+            ->exists();
+    }
+
     /** Check if user has a system-level role (Super Admin / System Admin). */
     public function isSystemRole(): bool
     {
-        return $this->hasRole(['Super Admin', 'System Admin']);
+        return $this->memoIsSystemRole ??= $this->hasGlobalRole(['Super Admin', 'System Admin']);
     }
+
+    /** @var bool|null request-lifetime memo for isSystemRole() */
+    protected ?bool $memoIsSystemRole = null;
 
     /** Check a capability flag (system roles always have all capabilities). */
     public function hasCapability(string $capability): bool
