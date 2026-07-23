@@ -136,12 +136,15 @@ class Wizard extends Component
                     'password'   => Hash::make('changeme123'),
                     'company_id' => $company->id,
                 ]);
+                $user->companies()->syncWithoutDetaching([$company->id]);
 
-                // Assign permissions and capabilities based on selected role
+                // Assign permissions and capabilities based on selected role.
+                // Capabilities are per-company (pivot); this company is the
+                // user's active one, so the cache columns mirror automatically.
                 match ($invite['role']) {
-                    'Company Admin' => (function () use ($user) {
-                        $user->update([
-                            'designation'          => 'Company Admin',
+                    'Company Admin' => (function () use ($user, $company) {
+                        $user->update(['designation' => 'Company Admin']);
+                        $user->setCapabilitiesForCompany($company->id, [
                             'can_manage_users'     => true,
                             'can_approve_po'       => true,
                             'can_approve_pr'       => true,
@@ -154,9 +157,9 @@ class Wizard extends Component
                             'settings.view', 'users.manage',
                         ]);
                     })(),
-                    'Outlet Manager' => (function () use ($user) {
-                        $user->update([
-                            'designation'    => 'Outlet Manager',
+                    'Outlet Manager' => (function () use ($user, $company) {
+                        $user->update(['designation' => 'Outlet Manager']);
+                        $user->setCapabilitiesForCompany($company->id, [
                             'can_approve_po' => true,
                             'can_approve_pr' => true,
                         ]);

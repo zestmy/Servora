@@ -39,13 +39,67 @@ class User extends Authenticatable
         return $this->belongsTo(Company::class);
     }
 
+    /** Per-company capability flags stored on the company_user pivot. */
+    public const CAPABILITIES = [
+        'can_manage_users', 'can_approve_po', 'can_approve_pr', 'can_delete_records',
+        'can_view_all_outlets', 'can_receive_grn', 'can_manage_invoices',
+    ];
+
     /**
      * All companies this user is a member of (company_user pivot).
      * `company_id` remains the ACTIVE company — every query scope keys off it.
      */
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(Company::class)->withTimestamps();
+        return $this->belongsToMany(Company::class)
+            ->withPivot(self::CAPABILITIES)
+            ->withTimestamps();
+    }
+
+    /** Capability flags for one company, from the pivot (null if not a member). */
+    public function capabilitiesForCompany(int $companyId): ?array
+    {
+        $row = $this->companies()->where('companies.id', $companyId)->first();
+        if (! $row) {
+            return null;
+        }
+
+        return collect(self::CAPABILITIES)
+            ->mapWithKeys(fn ($cap) => [$cap => (bool) $row->pivot->{$cap}])
+            ->all();
+    }
+
+    /**
+     * Write capability flags for one company. The pivot is the truth; the
+     * users-table columns only cache the ACTIVE company's flags, so they are
+     * mirrored when (and only when) that company is the active one.
+     */
+    public function setCapabilitiesForCompany(int $companyId, array $flags): void
+    {
+        $flags = array_intersect_key($flags, array_flip(self::CAPABILITIES));
+        if (empty($flags)) {
+            return;
+        }
+
+        $this->companies()->syncWithoutDetaching([$companyId]);
+        $this->companies()->updateExistingPivot($companyId, $flags);
+
+        if ((int) $this->company_id === $companyId) {
+            $this->update($flags);
+        }
+    }
+
+    /** Re-copy the active company's pivot flags into the users-table cache. */
+    public function refreshCapabilityCache(): void
+    {
+        if (! $this->company_id) {
+            return;
+        }
+
+        $flags = $this->capabilitiesForCompany((int) $this->company_id);
+        if ($flags !== null) {
+            $this->update($flags);
+        }
     }
 
     public function hasMultipleCompanies(): bool
@@ -74,6 +128,9 @@ class User extends Authenticatable
         setPermissionsTeamId($companyId);
         $this->unsetRelation('roles');
         $this->unsetRelation('permissions');
+
+        // Capability cache columns follow the active company
+        $this->refreshCapabilityCache();
 
         return true;
     }

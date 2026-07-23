@@ -46,9 +46,11 @@ class CompanyRegistrationService
             setPermissionsTeamId($company->id);
             $user->assignRole('Company Admin');
 
-            // Set Company Admin capabilities and permissions
-            $user->update([
-                'designation'          => 'Company Admin',
+            // Set Company Admin capabilities and permissions. Capabilities are
+            // per-company (pivot); this also mirrors to the users-table cache
+            // since the new company is the user's active one.
+            $user->update(['designation' => 'Company Admin']);
+            $user->setCapabilitiesForCompany($company->id, [
                 'can_manage_users'     => true,
                 'can_approve_po'       => true,
                 'can_approve_pr'       => true,

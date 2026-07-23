@@ -98,13 +98,21 @@ class Users extends Component
         $this->password            = '';
         $this->designation         = $user->designation ?? '';
         $this->company_id          = $user->company_id;
-        $this->can_manage_users    = $user->can_manage_users;
-        $this->can_approve_po      = $user->can_approve_po;
-        $this->can_approve_pr      = $user->can_approve_pr;
-        $this->can_delete_records  = $user->can_delete_records;
-        $this->can_view_all_outlets = $user->can_view_all_outlets;
-        $this->can_receive_grn     = $user->can_receive_grn;
-        $this->can_manage_invoices = $user->can_manage_invoices;
+
+        // Capabilities are per-company: show this company's pivot flags
+        // (fall back to the users-table cache for legacy rows).
+        $contextCompanyId = $currentUser->isSystemRole()
+            ? (int) $user->company_id
+            : (int) $currentUser->company_id;
+        $flags = $contextCompanyId ? $user->capabilitiesForCompany($contextCompanyId) : null;
+
+        $this->can_manage_users    = $flags['can_manage_users']     ?? $user->can_manage_users;
+        $this->can_approve_po      = $flags['can_approve_po']       ?? $user->can_approve_po;
+        $this->can_approve_pr      = $flags['can_approve_pr']       ?? $user->can_approve_pr;
+        $this->can_delete_records  = $flags['can_delete_records']   ?? $user->can_delete_records;
+        $this->can_view_all_outlets = $flags['can_view_all_outlets'] ?? $user->can_view_all_outlets;
+        $this->can_receive_grn     = $flags['can_receive_grn']      ?? $user->can_receive_grn;
+        $this->can_manage_invoices = $flags['can_manage_invoices']  ?? $user->can_manage_invoices;
 
         // Load current permissions as module access
         $this->moduleAccess = $user->getDirectPermissions()->pluck('name')->toArray();
@@ -198,13 +206,6 @@ class Users extends Component
             'company_id'           => $companyId,
             'outlet_id'            => $primaryOutletId,
             'designation'          => $this->designation ?: null,
-            'can_manage_users'     => $this->can_manage_users,
-            'can_approve_po'       => $this->can_approve_po,
-            'can_approve_pr'       => $this->can_approve_pr,
-            'can_delete_records'   => $this->can_delete_records,
-            'can_view_all_outlets' => $this->can_view_all_outlets,
-            'can_receive_grn'      => $this->can_receive_grn,
-            'can_manage_invoices'  => $this->can_manage_invoices,
         ];
 
         if ($this->password) {
@@ -224,6 +225,9 @@ class Users extends Component
         // Keep company membership (company_user) in step with the active company.
         if ($companyId) {
             $user->companies()->syncWithoutDetaching([(int) $companyId]);
+
+            // Capability flags live on the pivot, per company
+            $user->setCapabilitiesForCompany((int) $companyId, $this->capabilityFlags());
         }
 
         // Sync module permissions (direct, not via role)
@@ -276,24 +280,28 @@ class Users extends Component
         }
         $user->syncPermissions($validPermissions);
 
-        // Capability flags are still account-global: only ever turn on what
-        // was ticked, never strip what they hold elsewhere.
-        $capabilities = array_filter([
-            'can_manage_users'    => $this->can_manage_users,
-            'can_approve_po'      => $this->can_approve_po,
-            'can_approve_pr'      => $this->can_approve_pr,
-            'can_delete_records'  => $this->can_delete_records,
-            'can_receive_grn'     => $this->can_receive_grn,
-            'can_manage_invoices' => $this->can_manage_invoices,
-        ]);
-        if (! empty($capabilities)) {
-            $user->update($capabilities);
-        }
+        // Capability flags are per-company too: exactly what was ticked, on
+        // this company's pivot only — their other companies are untouched.
+        $user->setCapabilitiesForCompany($companyId, $this->capabilityFlags());
 
         $this->syncOutletAccess($user, $companyId);
 
         session()->flash('success', 'Existing user "' . $user->name . '" linked to this company. They can now switch companies from the sidebar — their password stays the same.');
         $this->redirect(route('settings.users'), navigate: true);
+    }
+
+    /** The modal's capability checkboxes as a flags array. */
+    private function capabilityFlags(): array
+    {
+        return [
+            'can_manage_users'     => $this->can_manage_users,
+            'can_approve_po'       => $this->can_approve_po,
+            'can_approve_pr'       => $this->can_approve_pr,
+            'can_delete_records'   => $this->can_delete_records,
+            'can_view_all_outlets' => $this->can_view_all_outlets,
+            'can_receive_grn'      => $this->can_receive_grn,
+            'can_manage_invoices'  => $this->can_manage_invoices,
+        ];
     }
 
     /**
@@ -312,10 +320,10 @@ class Users extends Component
         // Regular outlets
         if ($this->outletMode === 'all') {
             $syncIds = array_merge($syncIds, $regularOutletIds);
-            $user->update(['can_view_all_outlets' => true]);
+            $user->setCapabilitiesForCompany($companyId, ['can_view_all_outlets' => true]);
         } else {
             // Clear "all outlets" flag when switching to selected or except mode
-            $user->update(['can_view_all_outlets' => false]);
+            $user->setCapabilitiesForCompany($companyId, ['can_view_all_outlets' => false]);
 
             if ($this->outletMode === 'all_except') {
                 $excludeIds = array_map('intval', $this->outletIds);
@@ -452,6 +460,9 @@ class Users extends Component
                 $user->update(['company_id' => $otherCompanyIds->first(), 'outlet_id' => null]);
             }
 
+            // Users-table capability columns cache the active company's flags
+            $user->refreshCapabilityCache();
+
             session()->flash('success', 'User removed from this company. Their account and access to other companies remain.');
             return;
         }
@@ -473,6 +484,11 @@ class Users extends Component
         $isSuperAdmin = $currentUser->isSystemRole();
 
         $query = User::with(['outlets', 'company'])
+            // Pivot capabilities for THIS company (list badge) — superadmin
+            // sees the global list, where the cache columns are close enough
+            ->when(! $isSuperAdmin, fn ($q) =>
+                $q->with(['companies' => fn ($c) => $c->where('companies.id', $currentUser->company_id)])
+            )
             ->addSelect(['*',
                 \Illuminate\Support\Facades\DB::raw('(SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id) as last_session_activity'),
             ])

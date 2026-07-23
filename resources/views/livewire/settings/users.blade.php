@@ -60,7 +60,14 @@
                             </div>
                         </td>
                         <td class="px-5 py-3">
-                            @if ($u->can_view_all_outlets)
+                            @php
+                                // Per-company flag from the membership pivot; the
+                                // users-table column only caches their ACTIVE company
+                                $rowViewAll = $u->relationLoaded('companies') && $u->companies->isNotEmpty()
+                                    ? (bool) $u->companies->first()->pivot->can_view_all_outlets
+                                    : (bool) $u->can_view_all_outlets;
+                            @endphp
+                            @if ($rowViewAll)
                                 <span class="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] rounded font-medium">All Outlets</span>
                             @else
                                 <span class="text-xs text-gray-500">{{ $u->outlets->pluck('name')->implode(', ') ?: '—' }}</span>
