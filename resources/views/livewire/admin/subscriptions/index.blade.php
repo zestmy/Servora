@@ -17,6 +17,13 @@
             <h1 class="text-lg font-bold text-gray-800">Subscriptions</h1>
             <p class="text-xs text-gray-400 mt-0.5">View and manage all company subscriptions.</p>
         </div>
+        <button wire:click="openCreate"
+                class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Subscription
+        </button>
     </div>
 
     {{-- Filters --}}
@@ -86,12 +93,25 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
+                                <button wire:click="openEdit({{ $sub->id }})"
+                                        title="Edit subscription"
+                                        class="px-2 py-0.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded hover:bg-indigo-50 transition">
+                                    Edit
+                                </button>
                                 @if ($sub->isTrial())
                                     <button wire:click="extendTrial({{ $sub->id }}, 7)"
                                             wire:confirm="Extend trial by 7 days?"
                                             title="Extend trial +7 days"
                                             class="text-blue-500 hover:text-blue-700 transition text-xs font-medium">
                                         +7d
+                                    </button>
+                                @endif
+                                @if (! $sub->isActive() || $sub->isTrial())
+                                    <button wire:click="activateSubscription({{ $sub->id }})"
+                                            wire:confirm="Activate paid subscription for {{ $sub->company->name }}? A new billing period starts today."
+                                            title="Activate (start paid period today)"
+                                            class="text-green-600 hover:text-green-700 transition text-xs font-medium">
+                                        Activate
                                     </button>
                                 @endif
                                 @if ($sub->isActive() || $sub->isTrial())
@@ -104,6 +124,14 @@
                                         </svg>
                                     </button>
                                 @endif
+                                <button wire:click="deleteSubscription({{ $sub->id }})"
+                                        wire:confirm="Delete this subscription record for {{ $sub->company->name }}? With no subscription the company is treated as grandfathered (unlimited access). This cannot be undone."
+                                        title="Delete subscription record"
+                                        class="text-gray-300 hover:text-red-600 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -121,5 +149,98 @@
 
     @if ($subscriptions->hasPages())
         <div class="mt-4">{{ $subscriptions->links() }}</div>
+    @endif
+
+    {{-- Create / Edit modal --}}
+    @if ($showModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-gray-900/50" wire:click="closeModal"></div>
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+                <h2 class="text-base font-bold text-gray-800 mb-4">
+                    {{ $editingId ? 'Edit Subscription' : 'Add Subscription' }}
+                </h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Company *</label>
+                        @if ($editingId)
+                            @php $editCompany = \App\Models\Company::find($sub_company_id); @endphp
+                            <input type="text" value="{{ $editCompany?->name ?? '—' }}" disabled
+                                   class="w-full rounded-lg border-gray-200 bg-gray-50 text-sm text-gray-500" />
+                        @else
+                            <select wire:model="sub_company_id" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="">Select company…</option>
+                                @foreach ($availableCompanies as $company)
+                                    <option value="{{ $company->id }}">{{ $company->name }}</option>
+                                @endforeach
+                            </select>
+                            <p class="text-[11px] text-gray-400 mt-1">Only companies without a live subscription are listed.</p>
+                        @endif
+                        @error('sub_company_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Plan *</label>
+                            <select wire:model="sub_plan_id" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="">Select plan…</option>
+                                @foreach ($plans as $plan)
+                                    <option value="{{ $plan->id }}">{{ $plan->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('sub_plan_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Billing Cycle *</label>
+                            <select wire:model="sub_billing_cycle" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Status *</label>
+                            <select wire:model.live="sub_status" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="trialing">Trial</option>
+                                <option value="active">Active</option>
+                                <option value="past_due">Past Due</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="expired">Expired</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Trial Ends</label>
+                            <input type="date" wire:model="sub_trial_ends_at" class="w-full rounded-lg border-gray-300 text-sm"
+                                   @if ($sub_status !== 'trialing') disabled @endif />
+                            @error('sub_trial_ends_at') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Period Start</label>
+                            <input type="date" wire:model="sub_period_start" class="w-full rounded-lg border-gray-300 text-sm" />
+                            @error('sub_period_start') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Period End</label>
+                            <input type="date" wire:model="sub_period_end" class="w-full rounded-lg border-gray-300 text-sm" />
+                            @error('sub_period_end') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button wire:click="closeModal"
+                            class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                    <button wire:click="saveSubscription"
+                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        {{ $editingId ? 'Save Changes' : 'Create Subscription' }}
+                    </button>
+                </div>
+            </div>
+        </div>
     @endif
 </div>
