@@ -61,8 +61,8 @@
         {{-- Coupon --}}
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Coupon Code <span class="text-gray-400 font-normal">(optional)</span></label>
-            <input type="text" wire:model="coupon_code" placeholder="e.g. LIFETIME2026"
-                   class="w-full sm:w-64 rounded-lg border-gray-300 text-sm text-gray-900 placeholder-gray-400 uppercase focus:border-indigo-500 focus:ring-indigo-500" />
+            <input type="text" wire:model="coupon_code"
+                   class="w-full sm:w-64 rounded-lg border-gray-300 text-sm text-gray-900 uppercase focus:border-indigo-500 focus:ring-indigo-500" />
             <p class="text-xs text-gray-400 mt-1">Discount or lifetime-deal coupons are applied to the new company's subscription immediately.</p>
             @error('coupon_code') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
         </div>
