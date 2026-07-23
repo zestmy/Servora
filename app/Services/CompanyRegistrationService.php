@@ -101,6 +101,72 @@ class CompanyRegistrationService
         });
     }
 
+    /**
+     * Create an ADDITIONAL company for an existing, logged-in user
+     * (multi-company: same login, new company with its own trial
+     * subscription). Same provisioning as register() minus user creation.
+     * The caller is responsible for switching the user's active company.
+     */
+    public function registerAdditionalCompany(User $user, array $data): array
+    {
+        return DB::transaction(function () use ($user, $data) {
+            $plan = Plan::findOrFail($data['plan_id']);
+            $slug = $this->generateUniqueSlug($data['company_name']);
+
+            $company = Company::create([
+                'name'           => $data['company_name'],
+                'slug'           => $slug,
+                'email'          => $user->email,
+                'currency'       => 'MYR',
+                'is_active'      => true,
+                'registered_via' => 'self_signup',
+            ]);
+
+            $user->companies()->syncWithoutDetaching([$company->id]);
+
+            // Scope role/permission grants to the new company; the caller's
+            // switchToCompany() re-sets the team afterwards.
+            setPermissionsTeamId($company->id);
+            $user->assignRole('Company Admin');
+            $user->setCapabilitiesForCompany($company->id, [
+                'can_manage_users'     => true,
+                'can_approve_po'       => true,
+                'can_approve_pr'       => true,
+                'can_delete_records'   => true,
+                'can_view_all_outlets' => true,
+            ]);
+            $user->givePermissionTo([
+                'ingredients.view', 'recipes.view', 'sales.view',
+                'inventory.view', 'purchasing.view', 'reports.view',
+                'settings.view', 'users.manage', 'hr.view',
+                'hr.documents.view', 'hr.documents.manage',
+            ]);
+
+            $outlet = Outlet::create([
+                'company_id' => $company->id,
+                'name'       => 'Main Outlet',
+                'code'       => 'MAIN',
+                'is_active'  => true,
+            ]);
+            $user->outlets()->attach($outlet->id);
+
+            $subscription = app(SubscriptionService::class)->createTrial($company, $plan, $data['billing_cycle'] ?? 'monthly');
+
+            foreach (OnboardingStep::STEPS as $step) {
+                OnboardingStep::create([
+                    'company_id' => $company->id,
+                    'step'       => $step,
+                ]);
+            }
+
+            return [
+                'company'      => $company,
+                'outlet'       => $outlet,
+                'subscription' => $subscription,
+            ];
+        });
+    }
+
     private function generateUniqueSlug(string $name): string
     {
         $baseSlug = Str::slug($name);
