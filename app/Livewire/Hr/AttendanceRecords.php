@@ -7,6 +7,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\Section;
+use App\Models\ServiceChargePeriod;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -30,6 +31,15 @@ class AttendanceRecords extends Component
 
     // Paint tool: the code applied when a day cell is clicked (null = eraser)
     public ?int $selectedCodeId = null;
+
+    // Service charge panel: pool amount + per-day deduction percentages for
+    // the current period; scLoadedKey tracks which period/outlet the inputs
+    // were hydrated for so switching periods reloads the stored values.
+    public bool   $showServiceCharge = false;
+    public string $scAmount     = '';
+    public string $scMcPercent  = '5';
+    public string $scAbsPercent = '10';
+    public string $scLoadedKey  = '';
 
     // Manage-codes modal
     public bool   $showCodes     = false;
@@ -232,6 +242,69 @@ class AttendanceRecords extends Component
         session()->flash('success', $count . ' record(s) cleared.');
     }
 
+    // ── Service charge ─────────────────────────────────────────────────────
+
+    /** Outlet key for the stored pool: the filtered outlet, or null for All. */
+    protected function serviceChargeOutletId(): ?int
+    {
+        return $this->outletFilter !== '' ? (int) $this->outletFilter : null;
+    }
+
+    /**
+     * Hydrate the panel inputs from the stored pool whenever the visible
+     * period or outlet changes; returns the stored row (null if none yet).
+     */
+    protected function loadServiceCharge(): ?ServiceChargePeriod
+    {
+        [$from, $to] = $this->period();
+        $key = ($this->outletFilter !== '' ? $this->outletFilter : 'all')
+            . '|' . $from->format('Y-m-d') . '|' . $to->format('Y-m-d');
+
+        $row = ServiceChargePeriod::where('outlet_id', $this->serviceChargeOutletId())
+            ->whereDate('period_from', $from)
+            ->whereDate('period_to', $to)
+            ->first();
+
+        if ($key !== $this->scLoadedKey) {
+            $this->scAmount     = $row ? number_format((float) $row->amount, 2, '.', '') : '';
+            $this->scMcPercent  = $row ? rtrim(rtrim(number_format((float) $row->mc_percent, 2, '.', ''), '0'), '.') : '5';
+            $this->scAbsPercent = $row ? rtrim(rtrim(number_format((float) $row->abs_percent, 2, '.', ''), '0'), '.') : '10';
+            $this->scLoadedKey  = $key;
+        }
+
+        return $row;
+    }
+
+    public function saveServiceCharge(): void
+    {
+        $this->validate([
+            'scAmount'     => 'required|numeric|min:0|max:9999999999',
+            'scMcPercent'  => 'required|numeric|min:0|max:100',
+            'scAbsPercent' => 'required|numeric|min:0|max:100',
+        ], [], [
+            'scAmount'     => 'service charge amount',
+            'scMcPercent'  => 'MC deduction %',
+            'scAbsPercent' => 'absent deduction %',
+        ]);
+
+        [$from, $to] = $this->period();
+        ServiceChargePeriod::updateOrCreate(
+            [
+                'company_id'  => Auth::user()->company_id,
+                'outlet_id'   => $this->serviceChargeOutletId(),
+                'period_from' => $from->format('Y-m-d'),
+                'period_to'   => $to->format('Y-m-d'),
+            ],
+            [
+                'amount'      => round((float) $this->scAmount, 2),
+                'mc_percent'  => round((float) $this->scMcPercent, 2),
+                'abs_percent' => round((float) $this->scAbsPercent, 2),
+            ]
+        );
+
+        session()->flash('success', 'Service charge saved for this period.');
+    }
+
     // ── Manage codes ───────────────────────────────────────────────────────
 
     public function openCodeCreate(): void
@@ -370,6 +443,74 @@ class AttendanceRecords extends Component
         return $query;
     }
 
+    /**
+     * Service charge distribution for the visible grid.
+     *
+     * The stored pool is split by Service Points entitlement: value per
+     * point = pool / total points of eligible (points > 0) employees, gross
+     * share = points x value per point. Each employee is then deducted
+     * (MC days x mc%) + (absent days x abs%) of their own gross, capped at
+     * 100%. MC days = cells marked with a code named MC or SL, or whose
+     * label mentions "sick" (companies can rename/add codes); absent days
+     * use the protected built-in Absent code.
+     */
+    protected function buildServiceCharge($employees, $codes, $cellMap, array $absentCounts): array
+    {
+        $row = $this->loadServiceCharge();
+
+        $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
+                || stripos($c->label, 'sick') !== false)
+            ->pluck('id')->all();
+
+        $mcCounts = [];
+        foreach ($cellMap as $key => $codeId) {
+            if (in_array($codeId, $mcCodeIds, true)) {
+                $empId = (int) strtok($key, ':');
+                $mcCounts[$empId] = ($mcCounts[$empId] ?? 0) + 1;
+            }
+        }
+
+        $totalPoints = $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
+        $perPoint    = ($row && $totalPoints > 0) ? (float) $row->amount / $totalPoints : 0.0;
+        $mcPct       = $row ? (float) $row->mc_percent : (float) $this->scMcPercent;
+        $absPct      = $row ? (float) $row->abs_percent : (float) $this->scAbsPercent;
+
+        $rows   = [];
+        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'net' => 0.0];
+        foreach ($employees as $emp) {
+            $points  = max(0, (float) $emp->service_points_entitlement);
+            $mcDays  = $mcCounts[$emp->id] ?? 0;
+            $absDays = $absentCounts[$emp->id] ?? 0;
+            $dedPct  = min(100.0, $mcDays * $mcPct + $absDays * $absPct);
+            $gross   = $points * $perPoint;
+            $dedAmt  = $gross * $dedPct / 100;
+
+            $rows[] = [
+                'employee' => $emp,
+                'points'   => $points,
+                'mcDays'   => $mcDays,
+                'absDays'  => $absDays,
+                'dedPct'   => $dedPct,
+                'gross'    => $gross,
+                'dedAmt'   => $dedAmt,
+                'net'      => $gross - $dedAmt,
+            ];
+            $totals['gross']     += $gross;
+            $totals['deduction'] += $dedAmt;
+            $totals['net']       += $gross - $dedAmt;
+        }
+
+        return [
+            'row'         => $row,
+            'rows'        => $rows,
+            'totals'      => $totals,
+            'totalPoints' => $totalPoints,
+            'perPoint'    => $perPoint,
+            'mcPct'       => $mcPct,
+            'absPct'      => $absPct,
+        ];
+    }
+
     public function render()
     {
         $user      = Auth::user();
@@ -417,10 +558,14 @@ class AttendanceRecords extends Component
             if ($codeId === $absentId)  $absentCounts[$empId]  = ($absentCounts[$empId] ?? 0) + 1;
         }
 
+        $serviceCharge = $this->showServiceCharge
+            ? $this->buildServiceCharge($employees, $codes, $cellMap, $absentCounts)
+            : null;
+
         return view('livewire.hr.attendance-records', compact(
             'employees', 'outlets', 'sections', 'canViewAll',
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
-            'presentCounts', 'absentCounts',
+            'presentCounts', 'absentCounts', 'serviceCharge',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }

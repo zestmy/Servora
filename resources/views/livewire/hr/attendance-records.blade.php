@@ -43,6 +43,13 @@
                 </svg>
                 <span class="hidden sm:inline">Manage Codes</span>
             </button>
+            <button wire:click="$toggle('showServiceCharge')"
+                    class="px-2.5 md:px-3 py-2 text-sm font-medium rounded-lg transition flex items-center gap-1.5 border {{ $showServiceCharge ? 'bg-teal-600 border-teal-600 text-white hover:bg-teal-700' : 'text-teal-700 border-teal-200 hover:bg-teal-50' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="hidden sm:inline">Service Charge</span>
+            </button>
             <button wire:click="fillPresent"
                     wire:confirm="Mark every empty day in the visible grid as Present?"
                     class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
@@ -222,6 +229,117 @@
             </table>
         </div>
     </div>
+
+    {{-- Service Charge distribution --}}
+    @if ($showServiceCharge && $serviceCharge)
+        <div class="bg-white rounded-xl shadow-sm border border-teal-100 overflow-hidden mb-4">
+            <div class="px-4 py-3 bg-teal-50/60 border-b border-teal-100">
+                <h3 class="text-sm font-semibold text-teal-800">
+                    Service Charge · {{ $from->format('d M Y') }} – {{ $to->format('d M Y') }}
+                    @if ($outletFilter !== '')
+                        · {{ $outlets->firstWhere('id', (int) $outletFilter)?->name }}
+                    @else
+                        · All Outlets
+                    @endif
+                </h3>
+            </div>
+
+            {{-- Pool + deduction settings --}}
+            <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Service Charge Pool (RM)</label>
+                    <input type="number" step="0.01" min="0" wire:model="scAmount" placeholder="e.g. 12000.00"
+                           class="w-40 text-sm rounded-lg border-gray-300 shadow-sm" />
+                    @error('scAmount') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">MC deduction % / day</label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model="scMcPercent"
+                           class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
+                    @error('scMcPercent') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Absent deduction % / day</label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model="scAbsPercent"
+                           class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
+                    @error('scAbsPercent') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <button wire:click="saveServiceCharge"
+                        class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+                    Save &amp; Calculate
+                </button>
+                @if ($serviceCharge['row'])
+                    <div class="flex flex-wrap items-center gap-2 ml-auto text-xs">
+                        <span class="px-2.5 py-1 rounded-full bg-teal-100 text-teal-800 font-semibold">
+                            Pool RM {{ number_format((float) $serviceCharge['row']->amount, 2) }}
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                            Total Points {{ number_format($serviceCharge['totalPoints'], 2) }}
+                        </span>
+                        <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                            RM {{ number_format($serviceCharge['perPoint'], 4) }} / point
+                        </span>
+                    </div>
+                @endif
+            </div>
+
+            @if ($serviceCharge['row'])
+                <div class="overflow-x-auto">
+                    <table class="text-sm w-full">
+                        <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Name</th>
+                                <th class="px-2 py-2 text-right">Svc Pts</th>
+                                <th class="px-2 py-2 text-center">MC Days</th>
+                                <th class="px-2 py-2 text-center">ABS Days</th>
+                                <th class="px-2 py-2 text-right">Deduction %</th>
+                                <th class="px-2 py-2 text-right">Gross (RM)</th>
+                                <th class="px-2 py-2 text-right">Deduction (RM)</th>
+                                <th class="px-2 py-2 text-right">Net (RM)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($serviceCharge['rows'] as $scRow)
+                                <tr wire:key="sc-{{ $scRow['employee']->id }}" class="hover:bg-gray-50/70 {{ $scRow['points'] <= 0 ? 'opacity-50' : '' }}">
+                                    <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">{{ $scRow['employee']->name }}</td>
+                                    <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
+                                    <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-amber-600 font-semibold' : 'text-gray-300' }}">{{ $scRow['mcDays'] }}</td>
+                                    <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-300' }}">{{ $scRow['absDays'] }}</td>
+                                    <td class="px-2 py-1.5 text-right {{ $scRow['dedPct'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
+                                        {{ $scRow['dedPct'] > 0 ? rtrim(rtrim(number_format($scRow['dedPct'], 2, '.', ''), '0'), '.') . '%' : '—' }}
+                                    </td>
+                                    <td class="px-2 py-1.5 text-right text-gray-600 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['gross'], 2) : '—' }}</td>
+                                    <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['dedAmt'] > 0 ? 'text-red-600' : 'text-gray-300' }}">
+                                        {{ $scRow['dedAmt'] > 0 ? '-' . number_format($scRow['dedAmt'], 2) : '—' }}
+                                    </td>
+                                    <td class="px-2 py-1.5 text-right font-semibold text-teal-700 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold">
+                            <tr>
+                                <td class="px-3 py-2 text-gray-700" colspan="5">Total</td>
+                                <td class="px-2 py-2 text-right text-gray-700 tabular-nums">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
+                                <td class="px-2 py-2 text-right text-red-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
+                                <td class="px-2 py-2 text-right text-teal-700 tabular-nums">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <p class="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-100">
+                    Gross = Service Points × RM/point (pool ÷ total points of the visible employees).
+                    Deduction = MC days × {{ rtrim(rtrim(number_format($serviceCharge['mcPct'], 2, '.', ''), '0'), '.') }}%
+                    + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
+                    MC days count cells marked with a code named MC or SL, or labelled “Sick”; ABS uses the built-in Absent code.
+                    Employees without Service Points are excluded from the split.
+                </p>
+            @else
+                <p class="px-4 py-4 text-sm text-gray-400">
+                    Enter the total service charge collected for this period and click <span class="font-medium text-gray-500">Save &amp; Calculate</span>.
+                </p>
+            @endif
+        </div>
+    @endif
 
     {{-- Legend --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
