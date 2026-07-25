@@ -1,4 +1,8 @@
 <div>
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    @endonce
+
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -131,10 +135,27 @@
                     <th class="px-4 py-3 text-center sticky right-0 z-10 bg-gray-50 border-l border-gray-100">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody class="divide-y divide-gray-50"
+                   x-data x-init="new Sortable($el, {
+                       handle: '.row-drag-handle',
+                       animation: 150,
+                       ghostClass: 'bg-indigo-50',
+                       onEnd(e) {
+                           const ids = Array.from(e.from.querySelectorAll('tr[data-employee-id]'))
+                               .map(row => parseInt(row.dataset.employeeId));
+                           $wire.reorderRows(ids);
+                       }
+                   })">
                 @forelse ($employees as $emp)
-                    <tr class="group hover:bg-gray-50 {{ ! $emp->is_active ? 'opacity-60' : '' }}">
-                        <td class="px-4 py-3 text-gray-400 text-xs">{{ $employees->firstItem() + $loop->index }}</td>
+                    <tr wire:key="emp-row-{{ $emp->id }}" data-employee-id="{{ $emp->id }}"
+                        class="group hover:bg-gray-50 {{ ! $emp->is_active ? 'opacity-60' : '' }}">
+                        <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                            <span class="row-drag-handle inline-flex align-middle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                                  title="Drag to reorder">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16"/></svg>
+                            </span>
+                            <span class="align-middle">{{ $employees->firstItem() + $loop->index }}</span>
+                        </td>
                         <td class="px-4 py-3">
                             <button wire:click="openEdit({{ $emp->id }})" title="Edit employee"
                                     class="font-medium text-gray-800 text-left hover:text-indigo-600 hover:underline">

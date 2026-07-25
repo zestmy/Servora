@@ -1,4 +1,8 @@
 <div>
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    @endonce
+
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -159,10 +163,26 @@
                         <th class="px-2 py-2 text-center min-w-[44px] border-b border-gray-200 text-red-500" title="Days marked Absent">ABS</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-gray-100"
+                       x-data x-init="new Sortable($el, {
+                           handle: '.row-drag-handle',
+                           animation: 150,
+                           ghostClass: 'bg-indigo-50',
+                           onEnd(e) {
+                               const ids = Array.from(e.from.querySelectorAll('tr[data-employee-id]'))
+                                   .map(row => parseInt(row.dataset.employeeId));
+                               $wire.reorderRows(ids);
+                           }
+                       })">
                     @forelse ($employees as $emp)
-                        <tr wire:key="row-{{ $emp->id }}" class="hover:bg-gray-50/70">
-                            <td class="px-2 py-1.5 text-gray-400 text-xs">{{ $loop->iteration }}</td>
+                        <tr wire:key="row-{{ $emp->id }}" data-employee-id="{{ $emp->id }}" class="hover:bg-gray-50/70">
+                            <td class="px-2 py-1.5 text-gray-400 text-xs whitespace-nowrap">
+                                <span class="row-drag-handle inline-flex align-middle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                                      title="Drag to reorder">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16"/></svg>
+                                </span>
+                                <span class="align-middle">{{ $loop->iteration }}</span>
+                            </td>
                             <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap sticky left-0 bg-white z-10">{{ $emp->name }}</td>
                             <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->designation ?? '—' }}</td>
                             <td class="px-2 py-1.5 text-gray-500 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>

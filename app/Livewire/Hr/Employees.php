@@ -261,6 +261,25 @@ class Employees extends Component
         $this->resetForm();
     }
 
+    /**
+     * Persist a drag-and-drop row order. Order lives in employees.sort_order,
+     * shared with the Attendance Record grid so both screens stay in sync.
+     */
+    public function reorderRows(array $orderedIds): void
+    {
+        $allowed = Employee::whereIn('id', $orderedIds)
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->pluck('id')
+            ->flip();
+
+        // Offset by the current page so a drag on page 2 stays after page 1.
+        $index = (($this->paginators['page'] ?? 1) - 1) * 25;
+        foreach ($orderedIds as $id) {
+            if (! isset($allowed[(int) $id])) continue;
+            Employee::where('id', (int) $id)->update(['sort_order' => $index++]);
+        }
+    }
+
     public function toggleActive(int $id): void
     {
         $emp = Employee::findOrFail($id);
@@ -679,6 +698,8 @@ class Employees extends Component
         // their outlet-access grants.
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
+            ->orderByRaw('sort_order IS NULL')
+            ->orderBy('sort_order')
             ->orderBy('name');
 
         if ($this->search !== '') {

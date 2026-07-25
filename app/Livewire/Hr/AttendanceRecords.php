@@ -167,6 +167,21 @@ class AttendanceRecords extends Component
         );
     }
 
+    /** Persist a drag-and-drop row order; ids outside the user's outlets are ignored. */
+    public function reorderRows(array $orderedIds): void
+    {
+        $allowed = Employee::whereIn('id', $orderedIds)
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->pluck('id')
+            ->flip();
+
+        $index = 0;
+        foreach ($orderedIds as $id) {
+            if (! isset($allowed[(int) $id])) continue;
+            Employee::where('id', (int) $id)->update(['sort_order' => $index++]);
+        }
+    }
+
     /** Mark every empty cell in the visible grid as Present. */
     public function fillPresent(): void
     {
@@ -324,6 +339,8 @@ class AttendanceRecords extends Component
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
             ->where('is_active', true)
+            ->orderByRaw('sort_order IS NULL')
+            ->orderBy('sort_order')
             ->orderBy('name');
 
         if ($this->search !== '') {

@@ -47,6 +47,8 @@ class AttendanceExportController extends Controller
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
             ->where('is_active', true)
+            ->orderByRaw('sort_order IS NULL')
+            ->orderBy('sort_order')
             ->orderBy('name');
 
         $search = trim((string) $request->get('search', ''));

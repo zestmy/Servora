@@ -16,7 +16,7 @@ class Employee extends Model
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date',
-        'service_points_entitlement',
+        'service_points_entitlement', 'sort_order',
     ];
 
     /**
