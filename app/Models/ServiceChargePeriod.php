@@ -73,8 +73,10 @@ class ServiceChargePeriod extends Model
             if ($codeId === $absentId)               $absCounts[$empId] = ($absCounts[$empId] ?? 0) + 1;
         }
 
+        // RM/point is rounded DOWN to a whole ringgit (e.g. 360.6130 -> 360);
+        // the remainder stays undistributed.
         $totalPoints ??= $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
-        $perPoint    = ($row && $totalPoints > 0) ? (float) $row->amount / $totalPoints : 0.0;
+        $perPoint    = ($row && $totalPoints > 0) ? floor((float) $row->amount / $totalPoints) : 0.0;
         $mcPct       = $row ? (float) $row->mc_percent : $mcPctFallback;
         $absPct      = $row ? (float) $row->abs_percent : $absPctFallback;
 

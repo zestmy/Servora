@@ -277,7 +277,7 @@
                             Total Points {{ number_format($serviceCharge['totalPoints'], 2) }}
                         </span>
                         <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                            RM {{ number_format($serviceCharge['perPoint'], 4) }} / point
+                            RM {{ number_format($serviceCharge['perPoint']) }} / point
                         </span>
                     </div>
                 @endif
@@ -327,7 +327,7 @@
                     </table>
                 </div>
                 <p class="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-100">
-                    Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet — section, employment and search filters narrow this table but never change the RM/point value).
+                    Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet, rounded down to the nearest RM — section, employment and search filters narrow this table but never change the RM/point value).
                     Deduction = MC days × {{ rtrim(rtrim(number_format($serviceCharge['mcPct'], 2, '.', ''), '0'), '.') }}%
                     + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
                     MC days count cells marked with a code named MC or SL, or labelled “Sick”; ABS uses the built-in Absent code.
