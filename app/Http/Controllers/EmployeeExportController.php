@@ -213,6 +213,11 @@ class EmployeeExportController extends Controller
         if ($employmentStatus === 'none') {
             $query->whereNull('employment_status');
             $filters[] = 'Employment: No Status';
+        } elseif ($employmentStatus === 'exclude_outsourcing') {
+            $query->where(function ($q) {
+                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
+            });
+            $filters[] = 'Employment: All Exclude Outsourcing';
         } elseif ($employmentStatus !== '' && isset(Employee::EMPLOYMENT_STATUSES[$employmentStatus])) {
             $query->where('employment_status', $employmentStatus);
             $filters[] = 'Employment: ' . Employee::EMPLOYMENT_STATUSES[$employmentStatus];

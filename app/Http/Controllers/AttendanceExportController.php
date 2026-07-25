@@ -73,6 +73,11 @@ class AttendanceExportController extends Controller
         if ($employmentStatus === 'none') {
             $query->whereNull('employment_status');
             $employmentLabel = 'No Employment Status';
+        } elseif ($employmentStatus === 'exclude_outsourcing') {
+            $query->where(function ($q) {
+                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
+            });
+            $employmentLabel = 'All Exclude Outsourcing';
         } elseif ($employmentStatus !== '' && isset(Employee::EMPLOYMENT_STATUSES[$employmentStatus])) {
             $query->where('employment_status', $employmentStatus);
             $employmentLabel = Employee::EMPLOYMENT_STATUSES[$employmentStatus];

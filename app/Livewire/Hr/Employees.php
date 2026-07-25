@@ -721,6 +721,10 @@ class Employees extends Component
         if ($this->statusFilter === 'inactive') $query->where('is_active', false);
         if ($this->employmentStatusFilter === 'none') {
             $query->whereNull('employment_status');
+        } elseif ($this->employmentStatusFilter === 'exclude_outsourcing') {
+            $query->where(function ($q) {
+                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
+            });
         } elseif ($this->employmentStatusFilter !== '') {
             $query->where('employment_status', $this->employmentStatusFilter);
         }

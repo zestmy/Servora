@@ -75,6 +75,7 @@
             </select>
             <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="">All Employment</option>
+                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                 @endforeach
