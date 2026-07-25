@@ -443,74 +443,6 @@ class AttendanceRecords extends Component
         return $query;
     }
 
-    /**
-     * Service charge distribution for the visible grid.
-     *
-     * The stored pool is split by Service Points entitlement: value per
-     * point = pool / total points of eligible (points > 0) employees, gross
-     * share = points x value per point. Each employee is then deducted
-     * (MC days x mc%) + (absent days x abs%) of their own gross, capped at
-     * 100%. MC days = cells marked with a code named MC or SL, or whose
-     * label mentions "sick" (companies can rename/add codes); absent days
-     * use the protected built-in Absent code.
-     */
-    protected function buildServiceCharge($employees, $codes, $cellMap, array $absentCounts): array
-    {
-        $row = $this->loadServiceCharge();
-
-        $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
-                || stripos($c->label, 'sick') !== false)
-            ->pluck('id')->all();
-
-        $mcCounts = [];
-        foreach ($cellMap as $key => $codeId) {
-            if (in_array($codeId, $mcCodeIds, true)) {
-                $empId = (int) strtok($key, ':');
-                $mcCounts[$empId] = ($mcCounts[$empId] ?? 0) + 1;
-            }
-        }
-
-        $totalPoints = $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
-        $perPoint    = ($row && $totalPoints > 0) ? (float) $row->amount / $totalPoints : 0.0;
-        $mcPct       = $row ? (float) $row->mc_percent : (float) $this->scMcPercent;
-        $absPct      = $row ? (float) $row->abs_percent : (float) $this->scAbsPercent;
-
-        $rows   = [];
-        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'net' => 0.0];
-        foreach ($employees as $emp) {
-            $points  = max(0, (float) $emp->service_points_entitlement);
-            $mcDays  = $mcCounts[$emp->id] ?? 0;
-            $absDays = $absentCounts[$emp->id] ?? 0;
-            $dedPct  = min(100.0, $mcDays * $mcPct + $absDays * $absPct);
-            $gross   = $points * $perPoint;
-            $dedAmt  = $gross * $dedPct / 100;
-
-            $rows[] = [
-                'employee' => $emp,
-                'points'   => $points,
-                'mcDays'   => $mcDays,
-                'absDays'  => $absDays,
-                'dedPct'   => $dedPct,
-                'gross'    => $gross,
-                'dedAmt'   => $dedAmt,
-                'net'      => $gross - $dedAmt,
-            ];
-            $totals['gross']     += $gross;
-            $totals['deduction'] += $dedAmt;
-            $totals['net']       += $gross - $dedAmt;
-        }
-
-        return [
-            'row'         => $row,
-            'rows'        => $rows,
-            'totals'      => $totals,
-            'totalPoints' => $totalPoints,
-            'perPoint'    => $perPoint,
-            'mcPct'       => $mcPct,
-            'absPct'      => $absPct,
-        ];
-    }
-
     public function render()
     {
         $user      = Auth::user();
@@ -559,7 +491,11 @@ class AttendanceRecords extends Component
         }
 
         $serviceCharge = $this->showServiceCharge
-            ? $this->buildServiceCharge($employees, $codes, $cellMap, $absentCounts)
+            ? ServiceChargePeriod::distribute(
+                $this->loadServiceCharge(), $employees, $codes, $cellMap,
+                is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
+                is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
+            )
             : null;
 
         return view('livewire.hr.attendance-records', compact(

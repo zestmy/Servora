@@ -46,6 +46,18 @@
             padding: 2.5px 4px; color: #1e293b; text-align: left;
         }
 
+        .sc { margin-top: 14px; }
+        .sc-title { font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #0f766e; margin-bottom: 2px; }
+        .sc-meta { font-size: 6.5px; color: #6b7280; margin-bottom: 4px; }
+        table.sc-table { width: 100%; border-collapse: collapse; }
+        table.sc-table th, table.sc-table td { border: 0.6px solid #cbd5e1; padding: 2.5px 3px; font-size: 6.5px; }
+        table.sc-table thead th { background: #0f766e; color: #fff; font-size: 6px; text-transform: uppercase; letter-spacing: 0.3px; text-align: center; }
+        table.sc-table td.l { text-align: left; }
+        table.sc-table td.r { text-align: right; }
+        table.sc-table td.c { text-align: center; }
+        table.sc-table tr.sc-total td { background: #f0fdfa; font-weight: bold; }
+        .sc-note { font-size: 6px; color: #94a3b8; margin-top: 3px; }
+
         .legend { margin-top: 14px; }
         .legend-title { font-size: 6.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 3px; }
         table.legend-table { width: 100%; border-collapse: collapse; }
@@ -152,6 +164,66 @@
             @endif
         </tbody>
     </table>
+
+    @if (! empty($serviceCharge) && $serviceCharge['row'])
+        @php
+            $fmtPct = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
+        @endphp
+        <div class="sc">
+            <div class="sc-title">Service Charge Distribution</div>
+            <div class="sc-meta">
+                Pool RM {{ number_format((float) $serviceCharge['row']->amount, 2) }}
+                · Total Service Points {{ number_format($serviceCharge['totalPoints'], 2) }}
+                · RM {{ number_format($serviceCharge['perPoint'], 4) }} / point
+                · MC deduction {{ $fmtPct($serviceCharge['mcPct']) }}% / day
+                · Absent deduction {{ $fmtPct($serviceCharge['absPct']) }}% / day
+            </div>
+            <table class="sc-table">
+                <thead>
+                    <tr>
+                        <th style="width: 3%;">#</th>
+                        <th style="width: 22%;">Name</th>
+                        <th style="width: 13%;">Outlet</th>
+                        <th style="width: 8%;">Svc Pts</th>
+                        <th style="width: 8%;">MC Days</th>
+                        <th style="width: 8%;">ABS Days</th>
+                        <th style="width: 9%;">Deduction %</th>
+                        <th style="width: 10%;">Gross (RM)</th>
+                        <th style="width: 9%;">Deduction (RM)</th>
+                        <th style="width: 10%;">Net (RM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($serviceCharge['rows'] as $i => $scRow)
+                        <tr>
+                            <td class="c" style="color: #6b7280;">{{ $i + 1 }}</td>
+                            <td class="l" style="font-weight: bold;">{{ $scRow['employee']->name }}</td>
+                            <td class="l">{{ $scRow['employee']->outlet?->name }}</td>
+                            <td class="r">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
+                            <td class="c" style="{{ $scRow['mcDays'] > 0 ? 'color: #92400e; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['mcDays'] ?: '—' }}</td>
+                            <td class="c" style="{{ $scRow['absDays'] > 0 ? 'color: #b91c1c; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['absDays'] ?: '—' }}</td>
+                            <td class="r" style="{{ $scRow['dedPct'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">{{ $scRow['dedPct'] > 0 ? $fmtPct($scRow['dedPct']) . '%' : '—' }}</td>
+                            <td class="r">{{ $scRow['points'] > 0 ? number_format($scRow['gross'], 2) : '—' }}</td>
+                            <td class="r" style="{{ $scRow['dedAmt'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">{{ $scRow['dedAmt'] > 0 ? '-' . number_format($scRow['dedAmt'], 2) : '—' }}</td>
+                            <td class="r" style="font-weight: bold; color: #0f766e;">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
+                        </tr>
+                    @endforeach
+                    <tr class="sc-total">
+                        <td class="l" colspan="7">Total</td>
+                        <td class="r">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
+                        <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
+                        <td class="r" style="color: #0f766e;">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="sc-note">
+                Gross = Service Points × RM/point (pool ÷ total points). Deduction = MC days × {{ $fmtPct($serviceCharge['mcPct']) }}%
+                + Absent days × {{ $fmtPct($serviceCharge['absPct']) }}% of gross, capped at 100%.
+                MC days count codes named MC or SL, or labelled "Sick"; ABS uses the built-in Absent code.
+                Employees without Service Points are excluded from the split.
+            </div>
+        </div>
+    @endif
 
     <div class="legend">
         <div class="legend-title">Legend</div>

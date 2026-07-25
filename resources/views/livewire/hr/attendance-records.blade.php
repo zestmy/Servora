@@ -27,7 +27,7 @@
             </h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'employment_status' => $employmentStatusFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')])"
+            <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'employment_status' => $employmentStatusFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'), 'service_charge' => $showServiceCharge ? 1 : 0])"
                     title="Export PDF"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -332,6 +332,7 @@
                     + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
                     MC days count cells marked with a code named MC or SL, or labelled “Sick”; ABS uses the built-in Absent code.
                     Employees without Service Points are excluded from the split.
+                    While this panel is open, the PDF export includes this table.
                 </p>
             @else
                 <p class="px-4 py-4 text-sm text-gray-400">

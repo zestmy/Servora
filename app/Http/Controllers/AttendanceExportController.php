@@ -7,6 +7,7 @@ use App\Models\AttendanceCode;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Outlet;
+use App\Models\ServiceChargePeriod;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -109,9 +110,26 @@ class AttendanceExportController extends Controller
 
         $outletName = $outletFilter !== '' ? Outlet::find((int) $outletFilter)?->name : null;
 
+        // Optional Service Charge section: included when the grid's panel is
+        // open (service_charge=1) AND a pool has been saved for this exact
+        // period + outlet selection (same key as the Livewire panel).
+        $serviceCharge = null;
+        if ($request->boolean('service_charge')) {
+            $scOutletId = ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true))
+                ? (int) $outletFilter : null;
+            $scRow = ServiceChargePeriod::where('outlet_id', $scOutletId)
+                ->whereDate('period_from', $from)
+                ->whereDate('period_to', $to)
+                ->first();
+            if ($scRow) {
+                $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap);
+            }
+        }
+
         $pdf = Pdf::loadView('pdf.attendance', compact(
             'employees', 'dates', 'from', 'to', 'codesById', 'cellMap',
-            'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel'
+            'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel',
+            'serviceCharge'
         ))->setPaper('a4', 'landscape');
 
         return $pdf->stream('Attendance-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.pdf');
