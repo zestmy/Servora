@@ -217,7 +217,7 @@
                 </tbody>
             </table>
             <div class="sc-note">
-                Gross = Service Points × RM/point (pool ÷ total points). Deduction = MC days × {{ $fmtPct($serviceCharge['mcPct']) }}%
+                Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet). Deduction = MC days × {{ $fmtPct($serviceCharge['mcPct']) }}%
                 + Absent days × {{ $fmtPct($serviceCharge['absPct']) }}% of gross, capped at 100%.
                 MC days count codes named MC or SL, or labelled "Sick"; ABS uses the built-in Absent code.
                 Employees without Service Points are excluded from the split.

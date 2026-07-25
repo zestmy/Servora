@@ -122,7 +122,13 @@ class AttendanceExportController extends Controller
                 ->whereDate('period_to', $to)
                 ->first();
             if ($scRow) {
-                $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap);
+                // RM/point base: ALL active employees in the outlet scope —
+                // section/employment/search only narrow the displayed rows.
+                $totalPoints = (float) Employee::whereIn('outlet_id', $accessible ?: [0])
+                    ->where('is_active', true)
+                    ->when($scOutletId !== null, fn ($q) => $q->where('outlet_id', $scOutletId))
+                    ->sum('service_points_entitlement');
+                $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints);
             }
         }
 

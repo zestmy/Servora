@@ -275,6 +275,20 @@ class AttendanceRecords extends Component
         return $row;
     }
 
+    /**
+     * Distribution base for RM/point: the points of ALL active employees in
+     * the outlet scope. Only the outlet filter narrows this — the section,
+     * employment and search filters narrow the displayed rows but must not
+     * change how much one point is worth.
+     */
+    protected function serviceChargeTotalPoints(): float
+    {
+        return (float) Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->where('is_active', true)
+            ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter))
+            ->sum('service_points_entitlement');
+    }
+
     public function saveServiceCharge(): void
     {
         $this->validate([
@@ -495,6 +509,7 @@ class AttendanceRecords extends Component
                 $this->loadServiceCharge(), $employees, $codes, $cellMap,
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
                 is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
+                $this->serviceChargeTotalPoints(),
             )
             : null;
 

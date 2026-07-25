@@ -51,8 +51,14 @@ class ServiceChargePeriod extends Model
      * configurable); absent days use the built-in Absent system code.
      * $cellMap is the grid's "empId:Y-m-d" => attendance_code_id map.
      * Fallback percents apply while no pool row exists yet ($row null).
+     *
+     * $totalPoints is the distribution base: the points sum of ALL active
+     * employees in the outlet scope, NOT just the (possibly section/
+     * employment/search-filtered) $employees rows being displayed —
+     * filtering the grid must never inflate the RM/point value. Falls back
+     * to summing $employees when not given.
      */
-    public static function distribute(?self $row, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0): array
+    public static function distribute(?self $row, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null): array
     {
         $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
                 || stripos($c->label, 'sick') !== false)
@@ -67,7 +73,7 @@ class ServiceChargePeriod extends Model
             if ($codeId === $absentId)               $absCounts[$empId] = ($absCounts[$empId] ?? 0) + 1;
         }
 
-        $totalPoints = $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
+        $totalPoints ??= $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
         $perPoint    = ($row && $totalPoints > 0) ? (float) $row->amount / $totalPoints : 0.0;
         $mcPct       = $row ? (float) $row->mc_percent : $mcPctFallback;
         $absPct      = $row ? (float) $row->abs_percent : $absPctFallback;
