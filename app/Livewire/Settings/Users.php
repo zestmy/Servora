@@ -47,6 +47,9 @@ class Users extends Component
 
     public string  $search     = '';
 
+    // Access level: an assignable role name, or 'custom' for a hand-picked set
+    public string $accessRole = 'custom';
+
     // Available modules (permission name => display label)
     public const MODULES = [
         'ingredients.view'     => 'Ingredients',
@@ -64,10 +67,84 @@ class Users extends Component
         'roster.amend'         => 'Duty Roster (Amend Approved)',
         'roster.settings'      => 'Duty Roster (Settings)',
         'reports.view'         => 'Reports',
+        'audit.view'           => 'Audit Logs',
         'settings.view'        => 'Settings',
     ];
 
+    /**
+     * Roles a company admin may assign, with a plain-language description.
+     * The module set each role grants comes from role_has_permissions (the
+     * single source of truth) — shown locked in the modal so what a role
+     * includes is always explicit. System roles are deliberately absent:
+     * they can never be granted from this screen.
+     */
+    public const ASSIGNABLE_ROLES = [
+        'Company Admin'      => 'Full access: every module, all settings, billing and user management.',
+        'Business Manager'   => 'Runs the business day-to-day: all operational modules, reports, rosters, billing and user management.',
+        'Operations Manager' => 'Operational oversight: purchasing, inventory, recipes, sales, reports and audit logs.',
+        'Branch Manager'     => 'Runs outlets: sales, purchasing, inventory, reports and audit logs.',
+        'Outlet Manager'     => 'Duty roster planning: create and edit rosters for their outlets.',
+        'Chef'               => 'Kitchen-focused: recipes, ingredients, inventory and purchasing.',
+        'Purchasing'         => 'Creates and processes purchase orders.',
+        'Finance'            => 'Reviews the numbers: sales, purchasing, inventory and reports.',
+        'HR Manager'         => 'People operations: employees, HR documents and duty rosters.',
+        'Staff'              => 'No modules by default — add only what this person needs.',
+    ];
+
+    /** Capability flags suggested when a role is picked (all editable after). */
+    public const ROLE_CAPABILITIES = [
+        'Company Admin'      => ['can_manage_users', 'can_approve_po', 'can_approve_pr', 'can_delete_records', 'can_view_all_outlets', 'can_receive_grn', 'can_manage_invoices'],
+        'Business Manager'   => ['can_manage_users', 'can_approve_po', 'can_approve_pr', 'can_view_all_outlets', 'can_manage_invoices'],
+        'Operations Manager' => ['can_view_all_outlets', 'can_approve_pr'],
+        'Branch Manager'     => ['can_receive_grn'],
+        'Outlet Manager'     => [],
+        'Chef'               => [],
+        'Purchasing'         => [],
+        'Finance'            => ['can_manage_invoices'],
+        'HR Manager'         => [],
+        'Staff'              => [],
+    ];
+
     public function updatedSearch(): void { $this->resetPage(); }
+
+    /** Module permissions each assignable role grants (from the roles table). */
+    protected function rolePermMap(): array
+    {
+        static $map = null;
+        return $map ??= DB::table('role_has_permissions')
+            ->join('roles', 'roles.id', '=', 'role_has_permissions.role_id')
+            ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
+            ->whereIn('roles.name', array_keys(self::ASSIGNABLE_ROLES))
+            ->select('roles.name as role_name', 'permissions.name as perm')
+            ->get()
+            ->groupBy('role_name')
+            ->map(fn ($rows) => $rows->pluck('perm')->values()->all())
+            ->all();
+    }
+
+    /**
+     * Picking an access level applies that role's template: its module set
+     * (rendered locked in the modal) plus suggested capability flags. Both
+     * remain editable — switching to Custom keeps the ticks for fine-tuning.
+     */
+    public function updatedAccessRole(string $value): void
+    {
+        if ($value === 'custom' || ! isset(self::ASSIGNABLE_ROLES[$value])) {
+            return;
+        }
+
+        $rolePerms = $this->rolePermMap()[$value] ?? [];
+        $this->moduleAccess = array_values(array_intersect($rolePerms, array_keys(self::MODULES)));
+
+        $suggested = self::ROLE_CAPABILITIES[$value] ?? [];
+        foreach (array_keys($this->capabilityFlags()) as $flag) {
+            $this->{$flag} = in_array($flag, $suggested, true);
+        }
+        // users.manage rides on the role where defined — mirror the flag.
+        if (in_array('users.manage', $rolePerms, true)) {
+            $this->can_manage_users = true;
+        }
+    }
 
     public function updatedAllOutlets(): void
     {
@@ -113,6 +190,17 @@ class Users extends Component
         $this->can_view_all_outlets = $flags['can_view_all_outlets'] ?? $user->can_view_all_outlets;
         $this->can_receive_grn     = $flags['can_receive_grn']      ?? $user->can_receive_grn;
         $this->can_manage_invoices = $flags['can_manage_invoices']  ?? $user->can_manage_invoices;
+
+        // Access level: the user's assignable role in this company (teams
+        // pivot), or Custom when they have none / only a system role.
+        $roleName = DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_type', User::class)
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('model_has_roles.team_id', $contextCompanyId)
+            ->whereIn('roles.name', array_keys(self::ASSIGNABLE_ROLES))
+            ->value('roles.name');
+        $this->accessRole = $roleName ?: 'custom';
 
         // Load current permissions as module access
         $this->moduleAccess = $user->getDirectPermissions()->pluck('name')->toArray();
@@ -230,15 +318,8 @@ class Users extends Component
             $user->setCapabilitiesForCompany((int) $companyId, $this->capabilityFlags());
         }
 
-        // Sync module permissions (direct, not via role)
-        $validPermissions = array_intersect($this->moduleAccess, array_keys(self::MODULES));
-        // Add users.manage if can_manage_users
-        if ($this->can_manage_users) {
-            $validPermissions[] = 'users.manage';
-        }
-        $user->syncPermissions($validPermissions);
-
         if ($companyId) {
+            $this->syncAccessLevel($user, (int) $companyId);
             $this->syncOutletAccess($user, (int) $companyId);
         }
 
@@ -272,13 +353,9 @@ class Users extends Component
             $user->companies()->syncWithoutDetaching([(int) $user->company_id]);
         }
 
-        // Module permissions are per-company (Spatie teams mode) — sync under
-        // the admin's active company, which is the company being linked into.
-        $validPermissions = array_intersect($this->moduleAccess, array_keys(self::MODULES));
-        if ($this->can_manage_users) {
-            $validPermissions[] = 'users.manage';
-        }
-        $user->syncPermissions($validPermissions);
+        // Role + module permissions are per-company (Spatie teams mode) —
+        // synced under the company being linked into.
+        $this->syncAccessLevel($user, $companyId);
 
         // Capability flags are per-company too: exactly what was ticked, on
         // this company's pivot only — their other companies are untouched.
@@ -288,6 +365,46 @@ class Users extends Component
 
         session()->flash('success', 'Existing user "' . $user->name . '" linked to this company. They can now switch companies from the sidebar — their password stays the same.');
         $this->redirect(route('settings.users'), navigate: true);
+    }
+
+    /**
+     * Apply the chosen access level for ONE company: the assignable role
+     * (teams-scoped, so other companies' assignments survive) plus direct
+     * module permissions. Role-granted modules are always merged into the
+     * direct set so ticked access can never silently fall below the role's
+     * baseline; system roles are never assigned or removed here.
+     */
+    private function syncAccessLevel(User $user, int $companyId): void
+    {
+        $prevTeam = getPermissionsTeamId();
+        setPermissionsTeamId($companyId);
+
+        try {
+            $valid = array_intersect($this->moduleAccess, array_keys(self::MODULES));
+
+            if (isset(self::ASSIGNABLE_ROLES[$this->accessRole])) {
+                $rolePerms = $this->rolePermMap()[$this->accessRole] ?? [];
+                $valid = array_merge($valid, array_intersect($rolePerms, array_keys(self::MODULES)));
+                if (! $user->isSystemRole()) {
+                    $user->unsetRelation('roles');
+                    $user->syncRoles([$this->accessRole]);
+                }
+            } elseif (! $user->isSystemRole()) {
+                // Custom: access is exactly the ticked set, no role attached.
+                $user->unsetRelation('roles');
+                $user->syncRoles([]);
+            }
+
+            if ($this->can_manage_users) {
+                $valid[] = 'users.manage';
+            }
+            $user->unsetRelation('permissions');
+            $user->syncPermissions(array_values(array_unique($valid)));
+        } finally {
+            setPermissionsTeamId($prevTeam);
+        }
+
+        $user->unsetRelation('roles')->unsetRelation('permissions');
     }
 
     /** The modal's capability checkboxes as a flags array. */
@@ -483,7 +600,7 @@ class Users extends Component
         $currentUser = Auth::user();
         $isSuperAdmin = $currentUser->isSystemRole();
 
-        $query = User::with(['outlets', 'company'])
+        $query = User::with(['outlets', 'company', 'roles'])
             // Pivot capabilities for THIS company (list badge) — superadmin
             // sees the global list, where the cache columns are close enough
             ->when(! $isSuperAdmin, fn ($q) =>
@@ -527,8 +644,16 @@ class Users extends Component
             $q->where('company_id', $currentUser->company_id)
         )->where('is_active', true)->orderBy('name')->get();
 
+        // Only offer roles that actually exist in this install
+        $existingRoleNames = DB::table('roles')
+            ->whereIn('name', array_keys(self::ASSIGNABLE_ROLES))
+            ->pluck('name')->all();
+        $assignableRoles = array_intersect_key(self::ASSIGNABLE_ROLES, array_flip($existingRoleNames));
+        $rolePermMap     = $this->rolePermMap();
+
         return view('livewire.settings.users', compact(
-            'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules'
+            'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules',
+            'assignableRoles', 'rolePermMap'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
     }
 
@@ -540,6 +665,7 @@ class Users extends Component
         $this->password = '';
         $this->designation = '';
         $this->company_id = null;
+        $this->accessRole = 'custom';
         $this->moduleAccess = [];
         $this->outletMode = 'all';
         $this->outletIds = [];

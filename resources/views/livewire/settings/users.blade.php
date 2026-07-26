@@ -14,7 +14,59 @@
             </a>
             <h2 class="text-lg font-semibold text-gray-700">Users</h2>
         </div>
-        <button wire:click="openCreate" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">+ Add User</button>
+        <div class="flex items-center gap-2" x-data>
+            <button @click="$dispatch('open-role-guide')"
+                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                Role Guide
+            </button>
+            <button wire:click="openCreate" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">+ Add User</button>
+        </div>
+    </div>
+
+    {{-- Role guide: what each access level includes --}}
+    <div x-data="{ open: false }" @open-role-guide.window="open = true">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak @keydown.escape.window="open = false" class="fixed inset-0 z-[100] overflow-y-auto">
+                <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                <div class="relative min-h-full flex items-start justify-center p-4">
+                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-3xl my-8" @click.stop>
+                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-800">Role Guide — what each access level includes</h3>
+                            <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div class="p-5 max-h-[70vh] overflow-y-auto divide-y divide-gray-50">
+                            @foreach ($assignableRoles as $roleName => $desc)
+                                <div class="py-3 first:pt-0 last:pb-0">
+                                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                                        <div class="min-w-[200px]">
+                                            <p class="text-sm font-semibold text-gray-800">{{ $roleName }}</p>
+                                            <p class="text-xs text-gray-500 mt-0.5">{{ $desc }}</p>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1 max-w-md justify-end">
+                                            @forelse (array_intersect($rolePermMap[$roleName] ?? [], array_keys($modules)) as $perm)
+                                                <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] rounded font-medium whitespace-nowrap">{{ $modules[$perm] }}</span>
+                                            @empty
+                                                <span class="text-[11px] text-gray-300">No modules — add manually</span>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                            <div class="py-3">
+                                <p class="text-sm font-semibold text-gray-800">Custom</p>
+                                <p class="text-xs text-gray-500 mt-0.5">No role attached — the user gets exactly the modules you tick, nothing more.</p>
+                            </div>
+                        </div>
+                        <p class="px-5 pb-4 text-[11px] text-gray-400">
+                            A role guarantees its listed modules; you can grant extra modules on top of a role, and every capability
+                            (approvals, deleting records, GRN, invoices…) stays individually adjustable per user per company.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 
     {{-- Search --}}
@@ -31,7 +83,7 @@
                     <th class="px-5 py-3 text-left">Name</th>
                     <th class="px-5 py-3 text-left">Email</th>
                     @if ($isSuperAdmin)<th class="px-5 py-3 text-left">Company</th>@endif
-                    <th class="px-5 py-3 text-left">Designation</th>
+                    <th class="px-5 py-3 text-left">Access Level</th>
                     <th class="px-5 py-3 text-left">Modules</th>
                     <th class="px-5 py-3 text-left">Outlets</th>
                     <th class="px-5 py-3 text-left">Created</th>
@@ -48,7 +100,18 @@
                             <td class="px-5 py-3 text-xs text-gray-600">{{ $u->company?->name ?? '—' }}</td>
                         @endif
                         <td class="px-5 py-3">
-                            <span class="text-xs text-gray-600">{{ $u->designation ?? $u->roles->first()?->name ?? '—' }}</span>
+                            @php $rowRole = $u->roles->first()?->name; @endphp
+                            @if ($rowRole)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap
+                                             {{ in_array($rowRole, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700' }}">
+                                    {{ $rowRole }}
+                                </span>
+                            @else
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">Custom</span>
+                            @endif
+                            @if ($u->designation)
+                                <p class="text-[11px] text-gray-400 mt-0.5">{{ $u->designation }}</p>
+                            @endif
                         </td>
                         <td class="px-5 py-3">
                             <div class="flex flex-wrap gap-1">
@@ -153,15 +216,47 @@
                     </div>
                 @endif
 
+                {{-- Access Level (role template) --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Access Level</label>
+                    <select wire:model.live="accessRole" class="w-full rounded-lg border-gray-300 text-sm">
+                        @foreach ($assignableRoles as $roleName => $desc)
+                            <option value="{{ $roleName }}">{{ $roleName }}</option>
+                        @endforeach
+                        <option value="custom">Custom — pick modules manually</option>
+                    </select>
+                    <p class="text-[11px] text-gray-400 mt-1">
+                        @if ($accessRole !== 'custom' && isset($assignableRoles[$accessRole]))
+                            {{ $assignableRoles[$accessRole] }}
+                            <span class="text-gray-300">·</span>
+                            The role's modules are locked below — add extras on top, or switch to Custom to fine-tune freely.
+                        @else
+                            No role attached — this user gets exactly the modules ticked below.
+                        @endif
+                    </p>
+                </div>
+
                 {{-- Module Access --}}
                 <div>
+                    @php
+                        $lockedPerms = $accessRole !== 'custom' ? ($rolePermMap[$accessRole] ?? []) : [];
+                    @endphp
                     <label class="block text-xs font-medium text-gray-500 mb-2">Module Access</label>
                     <div class="grid grid-cols-2 gap-2 border border-gray-200 rounded-lg p-3">
                         @foreach ($modules as $perm => $label)
-                            <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" wire:model="moduleAccess" value="{{ $perm }}"
-                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                <span class="text-sm text-gray-700">{{ $label }}</span>
+                            @php $locked = in_array($perm, $lockedPerms, true); @endphp
+                            <label wire:key="mod-{{ $accessRole }}-{{ $perm }}"
+                                   class="flex items-center gap-2 px-2 py-1.5 rounded {{ $locked ? 'bg-indigo-50/60 cursor-default' : 'hover:bg-gray-50 cursor-pointer' }}">
+                                @if ($locked)
+                                    <input type="checkbox" checked disabled
+                                           class="rounded border-gray-300 text-indigo-400" />
+                                    <span class="text-sm text-gray-700">{{ $label }}</span>
+                                    <span class="ml-auto text-[9px] uppercase tracking-wider text-indigo-400 font-semibold">role</span>
+                                @else
+                                    <input type="checkbox" wire:model="moduleAccess" value="{{ $perm }}"
+                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <span class="text-sm text-gray-700">{{ $label }}</span>
+                                @endif
                             </label>
                         @endforeach
                     </div>
