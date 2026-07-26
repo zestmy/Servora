@@ -1,4 +1,16 @@
 <div>
+    @if (session()->has('success'))
+        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if (session()->has('error'))
+        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <h1 class="text-lg font-bold text-gray-800 mb-1">All Users</h1>
     <p class="text-xs text-gray-400 mb-6">Every account across all companies — memberships, roles and activity.</p>
 
@@ -63,6 +75,7 @@
                         <th class="px-4 py-3 text-center">Verified</th>
                         <th class="px-4 py-3 text-left">Last Active</th>
                         <th class="px-4 py-3 text-left">Joined</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -115,9 +128,27 @@
                                 {{ isset($lastActive[$u->id]) ? $lastActive[$u->id]->diffForHumans() : 'Never' }}
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ $u->created_at?->format('d M Y') }}</td>
+                            <td class="px-4 py-3 text-center">
+                                @php
+                                    $isSystemAccount = collect($rolesByUser[$u->id] ?? [])->intersect(['Super Admin', 'System Admin'])->isNotEmpty();
+                                @endphp
+                                @if (! $isSystemAccount && $u->id !== auth()->id())
+                                    <button wire:click="impersonate({{ $u->id }})"
+                                            wire:confirm="Log in as {{ $u->name }}? You will see the app exactly as they do until you click 'Return to admin'."
+                                            title="Log in as this user"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition whitespace-nowrap">
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                        </svg>
+                                        Login as
+                                    </button>
+                                @else
+                                    <span class="text-xs text-gray-300">—</span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-4 py-10 text-center text-gray-400">No users match the selected filters.</td></tr>
+                        <tr><td colspan="7" class="px-4 py-10 text-center text-gray-400">No users match the selected filters.</td></tr>
                     @endforelse
                 </tbody>
             </table>

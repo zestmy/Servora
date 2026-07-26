@@ -353,6 +353,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Refer & Earn (all users)
     Route::get('/refer', ReferralDashboard::class)->name('referral.dashboard');
 
+    // End impersonation — deliberately NOT SystemAdminOnly: while
+    // impersonating, the logged-in user is the non-admin target.
+    Route::post('/impersonation/stop', [\App\Http\Controllers\ImpersonationController::class, 'stop'])->name('impersonation.stop');
+
     // Admin routes (System Admin only)
     Route::prefix('admin')->middleware(\App\Http\Middleware\SystemAdminOnly::class)->group(function () {
         Route::get('/users', \App\Livewire\Admin\Users::class)->name('admin.users');

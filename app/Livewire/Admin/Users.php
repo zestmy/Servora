@@ -4,7 +4,9 @@ namespace App\Livewire\Admin;
 
 use App\Models\Company;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -36,6 +38,52 @@ class Users extends Component
             ->where('model_has_roles.model_type', User::class)
             ->whereIn('roles.name', ['Super Admin', 'System Admin'])
             ->select('model_has_roles.model_id');
+    }
+
+    /**
+     * Log in as another user for support. The admin's id is kept in the
+     * session so the banner's "Return to admin" can restore the original
+     * login; system-role accounts can never be impersonated and
+     * impersonation cannot be nested.
+     */
+    public function impersonate(int $userId): void
+    {
+        $admin = Auth::user();
+        if (! $admin->isSystemRole() || session()->has('impersonator_id')) {
+            return;
+        }
+
+        $target = User::find($userId);
+        if (! $target || $target->id === $admin->id) {
+            return;
+        }
+        if ($target->hasGlobalRole(['Super Admin', 'System Admin'])) {
+            session()->flash('error', 'System-level accounts cannot be impersonated.');
+            return;
+        }
+
+        // The app assumes an active company — repoint to the first membership
+        // if the pointer is empty, and refuse accounts with no company at all.
+        if (! $target->company_id) {
+            $firstCompanyId = $target->companies()->value('companies.id');
+            if (! $firstCompanyId) {
+                session()->flash('error', 'This user has no company membership to impersonate into.');
+                return;
+            }
+            $target->switchToCompany((int) $firstCompanyId);
+        }
+
+        Log::info('Impersonation started', [
+            'admin_id' => $admin->id, 'admin_email' => $admin->email,
+            'target_id' => $target->id, 'target_email' => $target->email,
+        ]);
+
+        session()->put('impersonator_id', $admin->id);
+        // Outlet / workspace state belongs to the admin's session — reset it.
+        session()->forget(['active_outlet_id', 'workspace_mode', 'active_kitchen_id']);
+        Auth::login($target);
+
+        $this->redirect(route('dashboard'));
     }
 
     public function render()

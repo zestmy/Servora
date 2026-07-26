@@ -16,6 +16,8 @@
 </head>
 <body class="font-sans antialiased bg-gray-100">
 
+@include('partials.impersonation-banner')
+
 @php
     $authUser = Auth::user();
     $activeKitchen = $authUser->activeKitchen();

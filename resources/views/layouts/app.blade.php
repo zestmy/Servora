@@ -51,6 +51,8 @@
 </head>
 <body class="font-sans antialiased bg-gray-100">
 
+@include('partials.impersonation-banner')
+
 <div x-data="{
         sidebarOpen: localStorage.getItem('sidebar') !== '0',
         toggleSidebar() {
