@@ -136,11 +136,10 @@ class Users extends Component
             ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
             ->where('model_has_roles.model_type', User::class)
             ->whereIn('model_has_roles.model_id', $ids)
-            ->select('model_has_roles.model_id as user_id', 'roles.name')
+            ->selectRaw('model_has_roles.model_id as user_id, roles.name, COALESCE(roles.display_name, roles.name) as label')
             ->distinct()
             ->get()
-            ->groupBy('user_id')
-            ->map(fn ($rows) => $rows->pluck('name')->unique()->sort()->values());
+            ->groupBy('user_id');
 
         // Last activity per visible user (database session driver).
         $lastActive = DB::table('sessions')

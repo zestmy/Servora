@@ -41,7 +41,7 @@
                                 <div class="py-3 first:pt-0 last:pb-0">
                                     <div class="flex items-start justify-between gap-3 flex-wrap">
                                         <div class="min-w-[200px]">
-                                            <p class="text-sm font-semibold text-gray-800">{{ $roleName }}</p>
+                                            <p class="text-sm font-semibold text-gray-800">{{ $roleDisplayMap[$roleName] ?? $roleName }}</p>
                                             <p class="text-xs text-gray-500 mt-0.5">{{ $desc }}</p>
                                         </div>
                                         <div class="flex flex-wrap gap-1 max-w-md justify-end">
@@ -104,7 +104,7 @@
                             @if ($rowRole)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap
                                              {{ in_array($rowRole, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700' }}">
-                                    {{ $rowRole }}
+                                    {{ $roleDisplayMap[$rowRole] ?? $u->roles->first()?->display_name ?? $rowRole }}
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">Custom</span>
@@ -221,7 +221,7 @@
                     <label class="block text-xs font-medium text-gray-500 mb-1">Access Level</label>
                     <select wire:model.live="accessRole" class="w-full rounded-lg border-gray-300 text-sm">
                         @foreach ($assignableRoles as $roleName => $desc)
-                            <option value="{{ $roleName }}">{{ $roleName }}</option>
+                            <option value="{{ $roleName }}">{{ $roleDisplayMap[$roleName] ?? $roleName }}</option>
                         @endforeach
                         <option value="custom">Custom — pick modules manually</option>
                     </select>

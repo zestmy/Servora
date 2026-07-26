@@ -221,8 +221,8 @@
                         'items' => [
                             ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view'],
                             ['route' => 'hr.duty-roster',          'label' => 'Duty Roster'], // Viewable by all users
-                            ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.view'],
-                            ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.view'],
+                            ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance'],
+                            ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims'],
                             ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view'],
                             ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
                             ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view'],
@@ -249,6 +249,7 @@
 
                 $adminNavItems = [
                     ['route' => 'admin.users',               'icon' => '👥', 'label' => 'Users',         'permission' => null],
+                    ['route' => 'admin.role-templates',      'icon' => '🛡️', 'label' => 'Role Templates', 'permission' => null],
                     ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
                     ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],
                     ['route' => 'admin.coupons',             'icon' => '🎟️', 'label' => 'Coupons',       'permission' => null],

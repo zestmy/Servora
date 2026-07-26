@@ -323,11 +323,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/employees', \App\Livewire\Hr\Employees::class)->name('hr.employees')->middleware('can:hr.view');
     Route::get('/hr/employees/export-pdf', [\App\Http\Controllers\EmployeeExportController::class, 'pdf'])->name('hr.employees.export-pdf')->middleware('can:hr.view');
     Route::get('/hr/employees/export-excel', [\App\Http\Controllers\EmployeeExportController::class, 'excel'])->name('hr.employees.export-excel')->middleware('can:hr.view');
-    Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.view');
-    Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.view');
-    Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.view');
-    Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.view');
-    Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.view');
+    Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
+    Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
+    Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.claims');
+    Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.claims');
+    Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.claims');
     Route::get('/hr/documents', \App\Livewire\Hr\Documents::class)->name('hr.documents')->middleware('can:hr.documents.view');
     Route::get('/hr/duty-roster', \App\Livewire\Hr\DutyRoster::class)->name('hr.duty-roster'); // Viewable by all authenticated users
     Route::get('/hr/roster-stations', \App\Livewire\Hr\RosterStations::class)->name('hr.roster-stations')->middleware('can:roster.settings');
@@ -360,6 +360,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Admin routes (System Admin only)
     Route::prefix('admin')->middleware(\App\Http\Middleware\SystemAdminOnly::class)->group(function () {
         Route::get('/users', \App\Livewire\Admin\Users::class)->name('admin.users');
+        Route::get('/role-templates', \App\Livewire\Admin\RoleTemplates::class)->name('admin.role-templates');
         Route::get('/plans', AdminPlansIndex::class)->name('admin.plans.index');
         Route::get('/plans/create', AdminPlansForm::class)->name('admin.plans.create');
         Route::get('/plans/{id}/edit', AdminPlansForm::class)->name('admin.plans.edit');

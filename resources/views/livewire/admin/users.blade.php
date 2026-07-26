@@ -109,8 +109,8 @@
                                 <div class="flex flex-wrap gap-1 max-w-[180px]">
                                     @forelse ($rolesByUser[$u->id] ?? [] as $role)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap
-                                                     {{ in_array($role, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600' }}">
-                                            {{ $role }}
+                                                     {{ in_array($role->name, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600' }}">
+                                            {{ $role->label }}
                                         </span>
                                     @empty
                                         <span class="text-xs text-gray-300">—</span>
@@ -130,7 +130,7 @@
                             <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ $u->created_at?->format('d M Y') }}</td>
                             <td class="px-4 py-3 text-center">
                                 @php
-                                    $isSystemAccount = collect($rolesByUser[$u->id] ?? [])->intersect(['Super Admin', 'System Admin'])->isNotEmpty();
+                                    $isSystemAccount = collect($rolesByUser[$u->id] ?? [])->pluck('name')->intersect(['Super Admin', 'System Admin'])->isNotEmpty();
                                 @endphp
                                 @if (! $isSystemAccount && $u->id !== auth()->id())
                                     <button wire:click="impersonate({{ $u->id }})"

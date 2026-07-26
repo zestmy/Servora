@@ -57,7 +57,9 @@ class Users extends Component
         'purchasing.view'      => 'Purchasing',
         'sales.view'           => 'Sales',
         'inventory.view'       => 'Inventory & Kitchen',
-        'hr.view'              => 'HR',
+        'hr.view'              => 'HR — Employees & Labour',
+        'hr.attendance'        => 'HR — Attendance & Service Charge',
+        'hr.claims'            => 'HR — Overtime Claims',
         'hr.documents.view'    => 'HR Documents (View)',
         'hr.documents.manage'  => 'HR Documents (Manage)',
         'roster.create'        => 'Duty Roster (Create)',
@@ -644,16 +646,25 @@ class Users extends Component
             $q->where('company_id', $currentUser->company_id)
         )->where('is_active', true)->orderBy('name')->get();
 
-        // Only offer roles that actually exist in this install
-        $existingRoleNames = DB::table('roles')
+        // Only offer roles that actually exist in this install. Display name
+        // and description come from the roles table (editable in Admin > Role
+        // Templates); the const description is the fallback for legacy rows.
+        $roleRows = DB::table('roles')
             ->whereIn('name', array_keys(self::ASSIGNABLE_ROLES))
-            ->pluck('name')->all();
-        $assignableRoles = array_intersect_key(self::ASSIGNABLE_ROLES, array_flip($existingRoleNames));
-        $rolePermMap     = $this->rolePermMap();
+            ->get(['name', 'display_name', 'description']);
+        $assignableRoles = [];
+        $roleDisplayMap  = [];
+        foreach (array_keys(self::ASSIGNABLE_ROLES) as $name) {
+            $row = $roleRows->firstWhere('name', $name);
+            if (! $row) continue;
+            $assignableRoles[$name] = $row->description ?: self::ASSIGNABLE_ROLES[$name];
+            $roleDisplayMap[$name]  = $row->display_name ?: $name;
+        }
+        $rolePermMap = $this->rolePermMap();
 
         return view('livewire.settings.users', compact(
             'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules',
-            'assignableRoles', 'rolePermMap'
+            'assignableRoles', 'rolePermMap', 'roleDisplayMap'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
     }
 
