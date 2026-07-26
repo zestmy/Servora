@@ -73,9 +73,12 @@ class Dashboard extends Component
         $approverOutletIds = PoApprover::approverOutletIds($user->id);
         $isAppointed = count($approverOutletIds) > 0;
 
+        // isSystemRole must be checked FIRST: hasCapability() returns true for
+        // system roles, so the capability arm would otherwise shadow the
+        // platform dashboard and send system admins to the business one.
         $data = match (true) {
-            $user->hasCapability('can_manage_users')                                                  => $this->businessManagerDashboard($user),
             $user->isSystemRole()                                                                      => $this->systemDashboard($user),
+            $user->hasCapability('can_manage_users')                                                  => $this->businessManagerDashboard($user),
             $user->hasPermissionTo('purchasing.view') && ! $user->hasPermissionTo('sales.view')        => $this->purchasingDashboard($user),
             $user->hasPermissionTo('reports.view') && ! $user->hasPermissionTo('purchasing.view')      => $this->financeDashboard($user),
             $user->hasPermissionTo('recipes.view') && ! $user->hasPermissionTo('sales.view') && ! $isAppointed => $this->chefDashboard($user),
@@ -97,19 +100,65 @@ class Dashboard extends Component
 
     private function systemDashboard($user): array
     {
-        $totalCompanies = Company::count();
-        $totalUsers     = User::count();
-        $totalOutlets   = Outlet::count();
-        $activeUsers    = User::whereNotNull('email_verified_at')->count();
+        $now = now();
+
+        $subCounts = \App\Models\Subscription::selectRaw('status, COUNT(*) c')
+            ->groupBy('status')->pluck('c', 'status');
+
+        // Platform-wide activity: distinct users seen in the last 24h / 7d
+        // (database session driver keeps last_activity per user).
+        $dayAgo  = $now->copy()->subDay()->timestamp;
+        $weekAgo = $now->copy()->subDays(7)->timestamp;
+        $active24h = \Illuminate\Support\Facades\DB::table('sessions')
+            ->whereNotNull('user_id')->where('last_activity', '>=', $dayAgo)
+            ->distinct('user_id')->count('user_id');
+        $active7d = \Illuminate\Support\Facades\DB::table('sessions')
+            ->whereNotNull('user_id')->where('last_activity', '>=', $weekAgo)
+            ->distinct('user_id')->count('user_id');
+
+        $stats = [
+            ['label' => 'Companies',      'value' => Company::count(),
+             'sub'   => Company::where('is_active', true)->count() . ' active',                'color' => 'indigo'],
+            ['label' => 'Users',          'value' => User::count(),
+             'sub'   => User::has('companies', '>=', 2)->count() . ' multi-company',          'color' => 'blue'],
+            ['label' => 'Outlets',        'value' => Outlet::count(),
+             'sub'   => null,                                                                  'color' => 'sky'],
+            ['label' => 'Active Subs',    'value' => (int) ($subCounts['active'] ?? 0),
+             'sub'   => ($subCounts['past_due'] ?? 0) . ' past due',                           'color' => 'green'],
+            ['label' => 'Trials',         'value' => (int) ($subCounts['trialing'] ?? 0),
+             'sub'   => null,                                                                  'color' => 'amber'],
+            ['label' => 'New Companies',  'value' => Company::where('created_at', '>=', $now->copy()->subDays(30))->count(),
+             'sub'   => 'last 30 days',                                                        'color' => 'purple'],
+            ['label' => 'Active Today',   'value' => $active24h,
+             'sub'   => $active7d . ' this week',                                              'color' => 'teal'],
+            ['label' => 'Unverified',     'value' => User::whereNull('email_verified_at')->count(),
+             'sub'   => 'user accounts',                                                       'color' => 'gray'],
+        ];
+
+        $recentCompanies = Company::withCount(['users', 'outlets'])
+            ->with(['subscription.plan'])
+            ->latest()
+            ->take(6)
+            ->get();
+
+        $quickLinks = [
+            ['route' => 'admin.users',               'label' => 'All Users',      'desc' => 'Cross-company user directory'],
+            ['route' => 'admin.company-health',      'label' => 'Company Health', 'desc' => 'Engagement & at-risk accounts'],
+            ['route' => 'admin.subscriptions.index', 'label' => 'Subscriptions',  'desc' => 'Manage company subscriptions'],
+            ['route' => 'admin.plans.index',         'label' => 'Plans',          'desc' => 'Pricing plans & features'],
+            ['route' => 'admin.trials.index',        'label' => 'Trials',         'desc' => 'Trial pipeline & conversions'],
+            ['route' => 'admin.coupons',             'label' => 'Coupons',        'desc' => 'Discount & lifetime codes'],
+            ['route' => 'admin.referrals.index',     'label' => 'Referrals',      'desc' => 'Referral programs & payouts'],
+            ['route' => 'admin.announcements',       'label' => 'Announcements',  'desc' => 'Broadcast to all companies'],
+            ['route' => 'admin.pages',               'label' => 'Pages',          'desc' => 'Public site content'],
+            ['route' => 'settings.api-keys',         'label' => 'API Keys',       'desc' => 'System integrations'],
+        ];
 
         return [
-            'dashboardType' => 'system',
-            'stats' => [
-                ['label' => 'Companies',    'value' => $totalCompanies, 'icon' => 'building'],
-                ['label' => 'Total Users',  'value' => $totalUsers,     'icon' => 'users'],
-                ['label' => 'Active Users', 'value' => $activeUsers,    'icon' => 'check'],
-                ['label' => 'Outlets',      'value' => $totalOutlets,   'icon' => 'location'],
-            ],
+            'dashboardType'   => 'system',
+            'stats'           => $stats,
+            'recentCompanies' => $recentCompanies,
+            'quickLinks'      => $quickLinks,
         ];
     }
 

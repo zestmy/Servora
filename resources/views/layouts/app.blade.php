@@ -246,6 +246,7 @@
                 ];
 
                 $adminNavItems = [
+                    ['route' => 'admin.users',               'icon' => '👥', 'label' => 'Users',         'permission' => null],
                     ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
                     ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],
                     ['route' => 'admin.coupons',             'icon' => '🎟️', 'label' => 'Coupons',       'permission' => null],
@@ -254,6 +255,7 @@
                     ['route' => 'admin.company-health',      'icon' => '💚', 'label' => 'Health',        'permission' => null],
                     ['route' => 'admin.announcements',       'icon' => '📢', 'label' => 'Announcements', 'permission' => null],
                     ['route' => 'admin.pages',               'icon' => '📄', 'label' => 'Pages',         'permission' => null],
+                    ['route' => 'settings.api-keys',         'icon' => '🔑', 'label' => 'API Keys',      'permission' => null],
                 ];
             @endphp
 
@@ -263,7 +265,7 @@
                 foreach ($navGroups as $g) {
                     if (! $g['label']) continue;
                     $vis = $isSystemRole
-                        ? array_filter($g['items'], fn($i) => in_array($i['route'], ['dashboard', 'settings.index']))
+                        ? array_filter($g['items'], fn($i) => in_array($i['route'], ['dashboard']))
                         : array_filter($g['items'], $canSee);
                     foreach ($vis as $vi) {
                         if (empty($vi['route'])) continue;
@@ -285,7 +287,7 @@
             @foreach ($navGroups as $gIdx => $group)
                 @php
                     $visibleItems = $isSystemRole
-                        ? array_filter($group['items'], fn($i) => in_array($i['route'], ['dashboard', 'settings.index']))
+                        ? array_filter($group['items'], fn($i) => in_array($i['route'], ['dashboard']))
                         : array_filter($group['items'], $canSee);
 
                     // Check if any item in this group is active (auto-expand)

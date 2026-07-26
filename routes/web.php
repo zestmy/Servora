@@ -355,6 +355,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 
     // Admin routes (System Admin only)
     Route::prefix('admin')->middleware(\App\Http\Middleware\SystemAdminOnly::class)->group(function () {
+        Route::get('/users', \App\Livewire\Admin\Users::class)->name('admin.users');
         Route::get('/plans', AdminPlansIndex::class)->name('admin.plans.index');
         Route::get('/plans/create', AdminPlansForm::class)->name('admin.plans.create');
         Route::get('/plans/{id}/edit', AdminPlansForm::class)->name('admin.plans.edit');

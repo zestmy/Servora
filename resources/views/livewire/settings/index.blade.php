@@ -9,16 +9,28 @@
             <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">System Administration</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-                {{-- Users & Roles --}}
-                <a href="{{ route('settings.users') }}"
+                {{-- All Users (cross-company directory) --}}
+                <a href="{{ route('admin.users') }}"
                    class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
                     <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gray-200 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                     </div>
                     <div>
-                        <p class="font-semibold text-gray-800">Users & Roles</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Manage user accounts and permissions</p>
+                        <p class="font-semibold text-gray-800">All Users</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Every account across all companies, with memberships & roles</p>
                         <p class="text-xs text-indigo-500 font-medium mt-2">{{ $userCount }} {{ Str::plural('user', $userCount) }}</p>
+                    </div>
+                </a>
+
+                {{-- Company Health --}}
+                <a href="{{ route('admin.company-health') }}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-indigo-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gray-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Company Health</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Engagement, usage and at-risk accounts</p>
                     </div>
                 </a>
 
@@ -74,7 +86,9 @@
     @endif
 
     {{-- ── General Settings (anyone with settings.view permission) ──────── --}}
-    @if ($hasSettingsAccess)
+    {{-- Company-level settings are irrelevant to platform admins — company
+         admins manage these within their own company. --}}
+    @if ($hasSettingsAccess && ! $isSystemLevel)
         <div class="mb-6">
             <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General Settings</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
