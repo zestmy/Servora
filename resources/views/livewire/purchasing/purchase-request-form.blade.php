@@ -33,21 +33,13 @@
         @endif
     </div>
 
-    {{-- Status Badge --}}
+    {{-- Where this request is in its life --}}
     @if ($requestId)
-        <div class="mb-4">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                {{ match($status) {
-                    'draft' => 'bg-gray-100 text-gray-700',
-                    'submitted' => 'bg-yellow-100 text-yellow-700',
-                    'approved' => 'bg-green-100 text-green-700',
-                    'rejected' => 'bg-red-100 text-red-700',
-                    'converted' => 'bg-indigo-100 text-indigo-700',
-                    'cancelled' => 'bg-gray-100 text-gray-500',
-                    default => 'bg-gray-100 text-gray-700',
-                } }}">
-                {{ ucfirst($status) }}
-            </span>
+        <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+            <x-doc-stepper
+                :steps="['draft' => 'Draft', 'submitted' => 'Pending Approval', 'approved' => 'Approved', 'converted' => 'Converted to PO']"
+                :current="$status"
+                :dead="in_array($status, ['rejected', 'cancelled']) ? ucfirst($status) : null" />
         </div>
     @endif
 

@@ -36,6 +36,27 @@ class ProductionExecute extends Component
         }
     }
 
+    /**
+     * Persist entered actuals WITHOUT completing — a locked or swapped
+     * tablet must not lose half-entered quantities (mount() restores them
+     * from actual_quantity on reopen).
+     */
+    public function saveProgress(): void
+    {
+        $this->validate([
+            'actuals'   => 'array',
+            'actuals.*' => 'nullable|numeric|min:0',
+        ]);
+
+        foreach ($this->order->lines as $idx => $line) {
+            if (isset($this->actuals[$idx]) && $this->actuals[$idx] !== '') {
+                $line->update(['actual_quantity' => floatval($this->actuals[$idx])]);
+            }
+        }
+
+        session()->flash('success', 'Progress saved — you can safely leave and continue later.');
+    }
+
     public function complete(): void
     {
         $this->validate([

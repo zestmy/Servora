@@ -85,8 +85,11 @@
                         ['route' => 'kitchen.index', 'label' => 'Dashboard', 'svg' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
                     ]],
                     ['label' => 'Production', 'items' => [
+                        // List first, create second — the sidebar previously jumped
+                        // straight to the create form while the page tab showed the list
+                        ['route' => 'kitchen.index', 'label' => 'Production Orders', 'query' => 'tab=orders'],
+                        ['route' => 'kitchen.orders.create', 'label' => 'New Production Order'],
                         ['route' => 'kitchen.recipes.index', 'label' => 'Production Recipes'],
-                        ['route' => 'kitchen.orders.create', 'label' => 'Production Orders'],
                         ['route' => 'kitchen.index', 'label' => 'Inventory', 'query' => 'tab=inventory'],
                     ]],
                     ['label' => 'Procurement', 'items' => [

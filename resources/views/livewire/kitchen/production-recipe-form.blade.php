@@ -280,6 +280,9 @@
             <div class="lg:sticky lg:top-4 space-y-4">
 
                 {{-- Costing Summary --}}
+                {{-- Costing is a manager concern — line staff editing a recipe's
+                     ingredients/method don't need margin math in their face. --}}
+                @if (auth()->user()->can('reports.view') || auth()->user()->isSystemRole())
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
                     <h3 class="text-sm font-semibold text-gray-700">Costing Summary</h3>
 
@@ -344,6 +347,7 @@
                         <p>Margin % = Margin / Selling x 100</p>
                     </div>
                 </div>
+                @endif
 
             </div>
         </div>

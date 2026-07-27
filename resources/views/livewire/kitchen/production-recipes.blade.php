@@ -69,8 +69,11 @@
                             <th class="px-4 py-3 text-left">Kitchen</th>
                             <th class="px-4 py-3 text-right">Yield</th>
                             <th class="px-4 py-3 text-left">Packaging</th>
-                            <th class="px-4 py-3 text-right">Cost/Unit</th>
-                            <th class="px-4 py-3 text-right">Sell/Unit</th>
+                            @php $seesCosting = auth()->user()->can('reports.view') || auth()->user()->isSystemRole(); @endphp
+                            @if ($seesCosting)
+                                <th class="px-4 py-3 text-right">Cost/Unit</th>
+                                <th class="px-4 py-3 text-right">Sell/Unit</th>
+                            @endif
                             <th class="px-4 py-3 text-center">Status</th>
                             <th class="px-4 py-3 text-right">Actions</th>
                         </tr>
@@ -91,8 +94,10 @@
                                     <span class="text-gray-400 text-xs ml-0.5">{{ $recipe->yieldUom?->abbreviation ?? '' }}</span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600 text-xs">{{ $recipe->packaging_uom ?? '-' }}</td>
-                                <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format(floatval($recipe->total_cost_per_unit), 4) }}</td>
-                                <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format(floatval($recipe->selling_price_per_unit), 4) }}</td>
+                                @if ($seesCosting)
+                                    <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format(floatval($recipe->total_cost_per_unit), 4) }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format(floatval($recipe->selling_price_per_unit), 4) }}</td>
+                                @endif
                                 <td class="px-4 py-3 text-center">
                                     <span class="px-2 py-0.5 text-xs rounded-full font-medium {{ $recipe->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                         {{ $recipe->is_active ? 'Active' : 'Inactive' }}

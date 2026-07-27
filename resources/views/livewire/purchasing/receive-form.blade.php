@@ -18,6 +18,11 @@
                 <a href="{{ route('purchasing.index') }}" class="hover:underline">Purchasing</a>
                 / {{ $poId ? 'Receive: ' . $poNumber : 'Record Direct Purchase' }}
             </p>
+            @if ($poId)
+                <x-doc-stepper class="mt-1.5"
+                    :steps="['ordered' => 'Ordered', 'delivered' => 'Delivered', 'receiving' => 'Confirm what arrived']"
+                    current="receiving" />
+            @endif
         </div>
         <button wire:click="confirm"
                 class="flex-shrink-0 px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">

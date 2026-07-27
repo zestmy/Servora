@@ -18,11 +18,17 @@
                 / Execute: {{ $order->order_number }}
             </p>
         </div>
-        <button wire:click="complete"
-                wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
-                class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
-            Complete Production
-        </button>
+        <div class="flex gap-2">
+            <button wire:click="saveProgress" wire:loading.attr="disabled"
+                    class="px-5 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                Save Progress
+            </button>
+            <button wire:click="complete"
+                    wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
+                    class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                Complete Production
+            </button>
+        </div>
     </div>
 
     {{-- Order Info --}}
@@ -112,11 +118,17 @@
             <a href="{{ route('kitchen.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">
                 &larr; Back to Kitchen
             </a>
-            <button wire:click="complete"
-                    wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
-                    class="px-6 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
-                Complete Production
-            </button>
+            <div class="flex gap-2">
+                <button wire:click="saveProgress" wire:loading.attr="disabled"
+                        class="px-5 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                    Save Progress
+                </button>
+                <button wire:click="complete"
+                        wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
+                        class="px-6 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                    Complete Production
+                </button>
+            </div>
         </div>
     </div>
 </div>

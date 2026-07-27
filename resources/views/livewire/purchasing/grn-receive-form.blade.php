@@ -14,6 +14,9 @@
         <div>
             <h2 class="text-lg font-semibold text-gray-700">Receive Goods — {{ $grnNumber }}</h2>
             <p class="text-xs text-gray-400 mt-0.5">Confirm received quantities and conditions</p>
+            <x-doc-stepper class="mt-2"
+                :steps="['ordered' => 'Ordered', 'delivered' => 'Delivered', 'receiving' => 'Confirm what arrived']"
+                current="receiving" />
         </div>
         <a href="{{ route('purchasing.index', ['tab' => 'grn']) }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to list</a>
     </div>

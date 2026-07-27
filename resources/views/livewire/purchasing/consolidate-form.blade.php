@@ -326,13 +326,15 @@
                     </div>
 
                     <div class="mt-4 space-y-2">
+                        {{-- Review-first is the recommended path: quantities and
+                             suppliers are editable there before anything commits. --}}
                         <button wire:click="enterEditMode"
-                                class="w-full px-4 py-2.5 border border-indigo-300 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-50 transition">
-                            Customize & Review
+                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            Review &amp; Adjust, then Create
                         </button>
                         <button wire:click="consolidate" wire:loading.attr="disabled"
-                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                            <span wire:loading.remove wire:target="consolidate">Create {{ $creatableCount }} draft PO(s)</span>
+                                class="w-full px-4 py-2.5 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                            <span wire:loading.remove wire:target="consolidate">Create {{ $creatableCount }} draft PO(s) as-is</span>
                             <span wire:loading wire:target="consolidate">Creating...</span>
                         </button>
                         <p class="text-[11px] text-gray-400 text-center">Orders are created as drafts — review and send them from the Orders (PO) tab.</p>

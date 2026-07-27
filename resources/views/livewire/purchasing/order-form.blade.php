@@ -49,6 +49,19 @@
         </div>
     @endif
 
+    {{-- Where this order is in its life --}}
+    @if ($orderId)
+        @php
+            $poSteps = ['draft' => 'Draft', 'submitted' => 'Pending Approval', 'approved' => 'Approved', 'sent' => 'Processing', 'received' => 'Received'];
+            if ($status === 'partial') {
+                $poSteps = ['draft' => 'Draft', 'submitted' => 'Pending Approval', 'approved' => 'Approved', 'sent' => 'Processing', 'partial' => 'Partially Received', 'received' => 'Received'];
+            }
+        @endphp
+        <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+            <x-doc-stepper :steps="$poSteps" :current="$status" :dead="$status === 'cancelled' ? 'Cancelled' : null" />
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {{-- Details card (2/3) --}}
@@ -252,8 +265,21 @@
         </div>
         @endif
 
-        {{-- Lines table --}}
+        {{-- Lines table. Simple view hides the finance columns (par level,
+             balance, unit cost, tax) for people who just need product + qty;
+             detailed is the default for users who approve POs. --}}
         @if (count($lines))
+            <div x-data="{
+                    detailed: (localStorage.getItem('po_view') ?? '{{ auth()->user()->hasCapability('can_approve_po') ? '1' : '0' }}') === '1',
+                    toggleView() { this.detailed = ! this.detailed; localStorage.setItem('po_view', this.detailed ? '1' : '0'); }
+                 }">
+                <div class="flex justify-end mb-2">
+                    <button type="button" @click="toggleView()"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span x-text="detailed ? 'Simple view' : 'Show costs & details'"></span>
+                    </button>
+                </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
@@ -263,14 +289,14 @@
                             @endif
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Product</th>
-                            <th class="px-4 py-2 text-right w-24">Par Level</th>
+                            <th x-show="detailed" class="px-4 py-2 text-right w-24">Par Level</th>
                             @if ($isEditable)
-                            <th class="px-4 py-2 text-right w-24">Balance</th>
+                            <th x-show="detailed" class="px-4 py-2 text-right w-24">Balance</th>
                             @endif
                             <th class="px-4 py-2 text-right w-24">Order Qty</th>
                             <th class="px-4 py-2 text-left w-28">UOM</th>
-                            <th class="px-4 py-2 text-right w-28">Unit Cost (RM)</th>
-                            <th class="px-4 py-2 text-center w-24">Tax</th>
+                            <th x-show="detailed" class="px-4 py-2 text-right w-28">Unit Cost (RM)</th>
+                            <th x-show="detailed" class="px-4 py-2 text-center w-24">Tax</th>
                             <th class="px-4 py-2 text-right w-28">Total (RM)</th>
                             @if ($isEditable)
                             <th class="px-4 py-2 w-10"></th>
@@ -312,7 +338,7 @@
                                     @endif
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
                                 </td>
-                                <td class="px-4 py-2 text-right tabular-nums text-gray-500 text-xs">
+                                <td x-show="detailed" class="px-4 py-2 text-right tabular-nums text-gray-500 text-xs">
                                     @if (floatval($line['par_level'] ?? 0) > 0)
                                         {{ rtrim(rtrim(number_format(floatval($line['par_level']), 4), '0'), '.') }}
                                     @else
@@ -320,7 +346,7 @@
                                     @endif
                                 </td>
                                 @if ($isEditable)
-                                <td class="px-4 py-2">
+                                <td x-show="detailed" class="px-4 py-2">
                                     @if (floatval($line['par_level'] ?? 0) > 0)
                                         <input type="number" step="0.01" min="0"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.balance"
@@ -346,7 +372,7 @@
                                     <span class="text-sm font-medium text-gray-600">{{ $lineUom?->abbreviation ?? '—' }}</span>
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.uom_id')" class="mt-0.5" />
                                 </td>
-                                <td class="px-4 py-2">
+                                <td x-show="detailed" class="px-4 py-2">
                                     @if ($isEditable)
                                         <input type="number" step="0.0001" min="0"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.unit_cost"
@@ -356,7 +382,7 @@
                                         <p class="text-right tabular-nums text-gray-700">{{ number_format($line['unit_cost'], 4) }}</p>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2 text-center">
+                                <td x-show="detailed" class="px-4 py-2 text-center">
                                     @if (!empty($line['tax_label']))
                                         <span class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded
                                             {{ floatval($line['tax_rate_pct'] ?? 0) > 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500' }}">
@@ -384,19 +410,19 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200">
                         <tr>
-                            <td colspan="{{ $isEditable ? 9 : 7 }}" class="px-4 py-2 text-right text-sm text-gray-500">Subtotal</td>
+                            <td :colspan="detailed ? {{ $isEditable ? 9 : 7 }} : {{ $isEditable ? 5 : 3 }}" class="px-4 py-2 text-right text-sm text-gray-500">Subtotal</td>
                             <td class="px-4 py-2 text-right font-medium text-gray-700 tabular-nums">{{ number_format($subtotal, 2) }}</td>
                             @if ($isEditable) <td></td> @endif
                         </tr>
                         @foreach ($taxBreakdown as $label => $amount)
                         <tr>
-                            <td colspan="{{ $isEditable ? 9 : 7 }}" class="px-4 py-1 text-right text-sm text-gray-500">{{ $label }}</td>
+                            <td :colspan="detailed ? {{ $isEditable ? 9 : 7 }} : {{ $isEditable ? 5 : 3 }}" class="px-4 py-1 text-right text-sm text-gray-500">{{ $label }}</td>
                             <td class="px-4 py-1 text-right font-medium text-gray-700 tabular-nums">{{ number_format($amount, 2) }}</td>
                             @if ($isEditable) <td></td> @endif
                         </tr>
                         @endforeach
                         <tr>
-                            <td colspan="{{ $isEditable ? 9 : 7 }}" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
+                            <td :colspan="detailed ? {{ $isEditable ? 9 : 7 }} : {{ $isEditable ? 5 : 3 }}" class="px-4 py-3 text-right text-sm font-semibold text-gray-600">Grand Total</td>
                             <td class="px-4 py-3 text-right font-bold text-gray-900 tabular-nums text-base">
                                 {{ number_format($grandTotal, 2) }}
                             </td>
@@ -405,6 +431,7 @@
                     </tfoot>
                 </table>
             </div>
+            </div>{{-- /simple-detailed toggle wrapper --}}
         @else
             <div class="px-6 py-12 text-center text-gray-400">
                 <p class="text-3xl mb-2">📦</p>
