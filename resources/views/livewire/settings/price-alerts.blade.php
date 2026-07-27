@@ -90,6 +90,85 @@
     </div>
 
     @if ($view === 'history')
+    @if ($historyStats && $historyStats['total'] > 0)
+        {{-- Range stats --}}
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Price Changes</p>
+                <p class="text-2xl font-bold text-gray-800 mt-1">{{ number_format($historyStats['total']) }}</p>
+                <p class="text-[11px] text-gray-400 mt-0.5">
+                    <span class="text-red-600 font-medium">{{ $historyStats['increases'] }} up</span> ·
+                    <span class="text-green-600 font-medium">{{ $historyStats['decreases'] }} down</span>
+                </p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Net Value Change</p>
+                <p class="text-2xl font-bold mt-1 tabular-nums {{ $historyStats['netAmount'] > 0 ? 'text-red-600' : ($historyStats['netAmount'] < 0 ? 'text-green-600' : 'text-gray-800') }}">
+                    {{ $historyStats['netAmount'] > 0 ? '+' : ($historyStats['netAmount'] < 0 ? '−' : '') }}{{ number_format(abs($historyStats['netAmount']), 2) }}
+                </p>
+                <p class="text-[11px] text-gray-400 mt-0.5">sum of all pack-price movements (RM)</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Average Change</p>
+                <p class="text-2xl font-bold mt-1 tabular-nums {{ ($historyStats['avgPct'] ?? 0) > 0 ? 'text-red-600' : (($historyStats['avgPct'] ?? 0) < 0 ? 'text-green-600' : 'text-gray-800') }}">
+                    {{ $historyStats['avgPct'] !== null ? (($historyStats['avgPct'] > 0 ? '+' : '') . $historyStats['avgPct'] . '%') : '—' }}
+                </p>
+                <p class="text-[11px] text-gray-400 mt-0.5">mean of per-change percentages</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Biggest Move</p>
+                @php $big = $historyStats['topChanges']->first(); @endphp
+                @if ($big)
+                    <p class="text-2xl font-bold mt-1 tabular-nums {{ $big->change_amt > 0 ? 'text-red-600' : 'text-green-600' }}">
+                        {{ $big->change_amt > 0 ? '+' : '−' }}{{ number_format(abs($big->change_pct ?? 0), 1) }}%
+                    </p>
+                    <p class="text-[11px] text-gray-400 mt-0.5 truncate" title="{{ $big->ingredient_name }}">{{ $big->ingredient_name }}</p>
+                @else
+                    <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
+                @endif
+            </div>
+        </div>
+
+        {{-- Top movers + supplier breakdown --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Top 5 Changes</h3>
+                <div class="space-y-2">
+                    @foreach ($historyStats['topChanges'] as $t)
+                        <div class="flex items-center justify-between gap-2 text-sm">
+                            <div class="min-w-0">
+                                <p class="font-medium text-gray-700 truncate">{{ $t->ingredient_name }}</p>
+                                <p class="text-[11px] text-gray-400 truncate">{{ $t->supplier_name ?? 'Manual edit' }} · {{ \Carbon\Carbon::parse($t->effective_date)->format('d M') }}</p>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $t->change_amt > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                                    {{ $t->change_amt > 0 ? '+' : '−' }}{{ number_format(abs($t->change_pct ?? 0), 1) }}%
+                                </span>
+                                <p class="text-[11px] text-gray-400 mt-0.5 tabular-nums">{{ number_format($t->prev_cost, 2) }} → {{ number_format($t->cost, 2) }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Changes by Supplier</h3>
+                <div class="space-y-2">
+                    @foreach ($historyStats['bySupplier'] as $s)
+                        <div class="flex items-center justify-between gap-2 text-sm">
+                            <p class="font-medium text-gray-700 truncate">{{ $s['name'] }}</p>
+                            <div class="text-right flex-shrink-0">
+                                <span class="text-xs text-gray-600">{{ $s['count'] }} {{ Str::plural('change', $s['count']) }}</span>
+                                <span class="ml-2 text-xs font-medium tabular-nums {{ $s['net'] > 0 ? 'text-red-600' : ($s['net'] < 0 ? 'text-green-600' : 'text-gray-400') }}">
+                                    {{ $s['net'] > 0 ? '+' : ($s['net'] < 0 ? '−' : '') }}{{ number_format(abs($s['net']), 2) }}
+                                </span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Price movement timeline, straight from ingredient_price_history --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[900px] w-full divide-y divide-gray-100 text-sm">
