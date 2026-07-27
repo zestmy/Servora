@@ -135,8 +135,12 @@ class ConsolidateForm extends Component
 
     public function consolidate()
     {
-        if (empty($this->selectedPrIds) || ! $this->cpuId) {
+        if (empty($this->selectedPrIds)) {
             session()->flash('error', 'Select at least one purchase request.');
+            return;
+        }
+        if (! $this->cpuId) {
+            session()->flash('error', 'Choose a Central Purchasing Unit (CPU) to consolidate into.');
             return;
         }
 

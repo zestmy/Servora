@@ -19,7 +19,7 @@
             </p>
         </div>
         <button wire:click="complete"
-                wire:confirm="Complete this production order? This will create production logs and outlet transfers."
+                wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
                 class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
             Complete Production
         </button>
@@ -113,7 +113,7 @@
                 &larr; Back to Kitchen
             </a>
             <button wire:click="complete"
-                    wire:confirm="Complete this production order? This will create production logs and outlet transfers."
+                    wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
                     class="px-6 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
                 Complete Production
             </button>

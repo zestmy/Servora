@@ -11,9 +11,29 @@
             </a>
             <h2 class="text-lg font-semibold text-gray-700">Price Alerts</h2>
         </div>
-        @if ($view === 'alerts' && $unreadCount > 0)
-            <button wire:click="markAllRead" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Mark all as read</button>
-        @endif
+        <div class="flex items-center gap-2">
+            @if ($view === 'history')
+                <x-download-link :href="route('settings.price-alerts.export-pdf', ['from' => $dateFrom, 'to' => $dateTo, 'search' => $search, 'direction' => $directionFilter])"
+                        title="Export PDF"
+                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span class="hidden sm:inline">PDF</span>
+                </x-download-link>
+                <x-download-link :href="route('settings.price-alerts.export-excel', ['from' => $dateFrom, 'to' => $dateTo, 'search' => $search, 'direction' => $directionFilter])"
+                        title="Export Excel"
+                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span class="hidden sm:inline">Excel</span>
+                </x-download-link>
+            @endif
+            @if ($view === 'alerts' && $unreadCount > 0)
+                <button wire:click="markAllRead" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Mark all as read</button>
+            @endif
+        </div>
     </div>
 
     {{-- View switch: alert inbox vs full price movement timeline --}}

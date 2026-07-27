@@ -66,53 +66,19 @@ class PriceAlerts extends Component
     }
 
     /**
-     * Every Market List price change in the date range, derived from
-     * ingredient_price_history: each row is compared against the previous
-     * row for the same (ingredient, supplier); unchanged-cost receives are
-     * filtered out, so what remains is the price movement timeline.
+     * The price movement timeline. The query definition lives in
+     * PriceHistoryExportController::query() — shared with the PDF/Excel
+     * exports so screen and export always agree.
      */
     protected function historyQuery()
     {
-        $companyId = \Illuminate\Support\Facades\Auth::user()->company_id;
-
-        $q = \Illuminate\Support\Facades\DB::table('ingredient_price_history as iph')
-            ->join('ingredients as i', 'i.id', '=', 'iph.ingredient_id')
-            ->leftJoin('suppliers as s', 's.id', '=', 'iph.supplier_id')
-            ->leftJoin('units_of_measure as u', 'u.id', '=', 'iph.uom_id')
-            ->where('i.company_id', $companyId)
-            ->selectRaw("iph.id, iph.ingredient_id, iph.cost, iph.effective_date, iph.source,
-                i.name as ingredient_name, s.name as supplier_name, u.abbreviation as uom_abbr,
-                (SELECT iph2.cost FROM ingredient_price_history iph2
-                 WHERE iph2.ingredient_id = iph.ingredient_id
-                   AND COALESCE(iph2.supplier_id, 0) = COALESCE(iph.supplier_id, 0)
-                   AND (iph2.effective_date < iph.effective_date
-                        OR (iph2.effective_date = iph.effective_date AND iph2.id < iph.id))
-                 ORDER BY iph2.effective_date DESC, iph2.id DESC LIMIT 1) as prev_cost");
-
-        if ($this->dateFrom) {
-            $q->where('iph.effective_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $q->where('iph.effective_date', '<=', $this->dateTo . ' 23:59:59');
-        }
-        if ($this->search !== '') {
-            $s = '%' . $this->search . '%';
-            $q->where(fn ($w) => $w->where('i.name', 'like', $s)->orWhere('s.name', 'like', $s));
-        }
-
-        // Only rows where the price actually moved (direction-filterable).
-        // Filtered in an outer query — MySQL strict mode rejects HAVING on
-        // non-grouped columns.
-        $outer = \Illuminate\Support\Facades\DB::query()->fromSub($q, 't')
-            ->whereNotNull('t.prev_cost')
-            ->whereColumn('t.prev_cost', '!=', 't.cost');
-        if ($this->directionFilter === 'increase') {
-            $outer->whereColumn('t.cost', '>', 't.prev_cost');
-        } elseif ($this->directionFilter === 'decrease') {
-            $outer->whereColumn('t.cost', '<', 't.prev_cost');
-        }
-
-        return $outer->orderByDesc('t.effective_date')->orderByDesc('t.id');
+        return \App\Http\Controllers\PriceHistoryExportController::query(
+            \Illuminate\Support\Facades\Auth::user()->company_id,
+            $this->dateFrom,
+            $this->dateTo,
+            $this->search,
+            $this->directionFilter,
+        );
     }
 
     public function render()

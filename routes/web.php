@@ -316,6 +316,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.view');
     Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:purchasing.view');
     Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:purchasing.view');
+    Route::get('/settings/price-alerts/export-pdf', [\App\Http\Controllers\PriceHistoryExportController::class, 'pdf'])->name('settings.price-alerts.export-pdf')->middleware('can:purchasing.view');
+    Route::get('/settings/price-alerts/export-excel', [\App\Http\Controllers\PriceHistoryExportController::class, 'excel'])->name('settings.price-alerts.export-excel')->middleware('can:purchasing.view');
     Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:hr.view');
     Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:hr.view');
 

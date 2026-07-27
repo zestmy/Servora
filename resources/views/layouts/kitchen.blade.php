@@ -13,6 +13,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak] { display: none !important; }</style>
+    @include('partials.nav-theme')
 </head>
 <body class="font-sans antialiased bg-gray-100">
 
@@ -24,7 +25,14 @@
     $hasOutletAccess = $authUser->outlets()->count() > 0 || $authUser->canViewAllOutlets();
 @endphp
 
-<div x-data="{ mobileNavOpen: false }" class="flex h-screen overflow-hidden">
+<div x-data="{
+        mobileNavOpen: false,
+        navTheme: localStorage.getItem('nav_theme') || 'dark',
+        toggleNavTheme() {
+            this.navTheme = this.navTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('nav_theme', this.navTheme);
+        },
+     }" class="flex h-screen overflow-hidden">
 
     {{-- Mobile scrim --}}
     <div x-show="mobileNavOpen" x-cloak
@@ -38,11 +46,22 @@
     {{-- Sidebar: off-canvas on mobile, fixed-width on desktop --}}
     <aside :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
            @click="if ($event.target.closest && $event.target.closest('a')) mobileNavOpen = false"
+           :data-nav-theme="navTheme"
            class="fixed inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-auto md:w-56 flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-y-auto transform transition-transform duration-300 ease-in-out">
 
         {{-- Logo --}}
         <div class="flex items-center h-14 px-4 bg-gray-800 flex-shrink-0">
             <img src="/images/servora-logo-white.png" alt="Servora" class="h-9">
+            <button @click="toggleNavTheme()"
+                    :title="navTheme === 'dark' ? 'Switch navigation to light theme' : 'Switch navigation to dark theme'"
+                    class="ml-auto flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
+                <svg x-show="navTheme === 'dark'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <svg x-show="navTheme === 'light'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+            </button>
         </div>
 
         {{-- Kitchen badge --}}
@@ -54,9 +73,16 @@
         {{-- Navigation --}}
         <nav class="flex-1 py-3 px-3 space-y-0.5">
             @php
+                $ckIcons = [
+                    'Production'  => '<path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/>',
+                    'Procurement' => '<path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>',
+                    'Operations'  => '<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>',
+                    'Insights'    => '<path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>',
+                    'System'      => '<path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>',
+                ];
                 $kitchenNav = [
                     ['label' => null, 'items' => [
-                        ['route' => 'kitchen.index', 'label' => 'Dashboard'],
+                        ['route' => 'kitchen.index', 'label' => 'Dashboard', 'svg' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
                     ]],
                     ['label' => 'Production', 'items' => [
                         ['route' => 'kitchen.recipes.index', 'label' => 'Production Recipes'],
@@ -106,7 +132,12 @@
                     <div class="mt-2">
                         <button @click="toggle('{{ $groupSlug }}')"
                                 class="w-full flex items-center justify-between px-3 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
-                            <span>{{ $group['label'] }}</span>
+                            <span class="flex items-center gap-2">
+                                @if (isset($ckIcons[$group['label']]))
+                                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">{!! $ckIcons[$group['label']] !!}</svg>
+                                @endif
+                                <span>{{ $group['label'] }}</span>
+                            </span>
                             <svg :class="activeGroup === '{{ $groupSlug }}' && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
                         <div x-show="activeGroup === '{{ $groupSlug }}'">
@@ -131,8 +162,11 @@
                     @foreach ($group['items'] as $item)
                         @php $isActive = request()->routeIs($item['route']); @endphp
                         <a href="{{ route($item['route']) }}"
-                           class="block rounded-lg text-sm font-medium transition-colors px-3 py-2
+                           class="flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors px-3 py-2
                                   {{ $isActive ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                            @if (!empty($item['svg']))
+                                <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['svg'] }}"/></svg>
+                            @endif
                             {{ $item['label'] }}
                         </a>
                     @endforeach
