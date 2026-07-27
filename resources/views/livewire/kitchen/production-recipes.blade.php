@@ -99,16 +99,18 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <div class="flex gap-2 justify-end">
+                                    {{-- Tap-sized buttons: kitchens run on tablets. Delete is
+                                         spaced away from the others so a mis-tap can't hit it. --}}
+                                    <div class="flex gap-2 justify-end items-center">
                                         <a href="{{ route('kitchen.recipes.edit', $recipe->id) }}"
-                                           class="text-xs text-indigo-600 hover:text-indigo-800 transition font-medium">Edit</a>
+                                           class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-indigo-600 border border-indigo-200 text-xs font-semibold rounded-lg hover:bg-indigo-50 transition">Edit</a>
                                         <button wire:click="toggleActive({{ $recipe->id }})"
-                                                class="text-xs {{ $recipe->is_active ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800' }} transition font-medium">
+                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 border text-xs font-semibold rounded-lg transition {{ $recipe->is_active ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' : 'text-green-600 border-green-200 hover:bg-green-50' }}">
                                             {{ $recipe->is_active ? 'Deactivate' : 'Activate' }}
                                         </button>
                                         <button wire:click="deleteRecipe({{ $recipe->id }})"
                                                 wire:confirm="Delete this recipe? This cannot be undone."
-                                                class="text-xs text-red-500 hover:text-red-700 transition">Delete</button>
+                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-500 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition ml-3">Delete</button>
                                     </div>
                                 </td>
                             </tr>

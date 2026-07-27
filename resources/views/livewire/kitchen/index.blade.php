@@ -1,9 +1,13 @@
 <div>
-    {{-- Flash --}}
+    {{-- Flash — persistent + dismissible: on a shared kitchen tablet a
+         3-second toast is gone before anyone looks up. --}}
     @if (session()->has('success'))
-        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
-            {{ session('success') }}
+        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show"
+             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg flex items-center justify-between gap-3">
+            <span>{{ session('success') }}</span>
+            <button @click="show = false" title="Dismiss" class="flex-shrink-0 text-green-400 hover:text-green-600 p-1.5">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
     @endif
     @if (session()->has('error'))
@@ -160,22 +164,23 @@
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ $order->lines_count }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ $order->createdBy?->name ?? '-' }}</td>
                                     <td class="px-4 py-3 text-right">
+                                        {{-- Tap-sized buttons: kitchens run on tablets --}}
                                         <div class="flex gap-2 justify-end">
                                             @if ($order->status === 'draft')
                                                 <button wire:click="scheduleOrder({{ $order->id }})"
-                                                        class="text-xs text-blue-600 hover:text-blue-800 transition font-medium">Schedule</button>
+                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">Schedule</button>
                                                 <button wire:click="cancelOrder({{ $order->id }})"
                                                         wire:confirm="Cancel this production order?"
-                                                        class="text-xs text-red-500 hover:text-red-700 transition">Cancel</button>
+                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-600 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition">Cancel</button>
                                             @elseif ($order->status === 'scheduled')
                                                 <a href="{{ route('kitchen.orders.execute', $order->id) }}"
-                                                   class="text-xs text-green-600 hover:text-green-800 transition font-medium">Start</a>
+                                                   class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Start</a>
                                                 <button wire:click="cancelOrder({{ $order->id }})"
                                                         wire:confirm="Cancel this production order?"
-                                                        class="text-xs text-red-500 hover:text-red-700 transition">Cancel</button>
+                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-600 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition">Cancel</button>
                                             @elseif ($order->status === 'in_progress')
                                                 <a href="{{ route('kitchen.orders.execute', $order->id) }}"
-                                                   class="text-xs text-green-600 hover:text-green-800 transition font-medium">Continue</a>
+                                                   class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Continue</a>
                                             @endif
                                         </div>
                                     </td>
@@ -248,15 +253,16 @@
                                     </td>
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ $request->lines_count }}</td>
                                     <td class="px-4 py-3 text-right">
+                                        {{-- Tap-sized buttons: kitchens run on tablets --}}
                                         <div class="flex gap-2 justify-end">
                                             @if ($request->status === 'submitted')
                                                 <button wire:click="approveRequest({{ $request->id }})"
-                                                        class="text-xs text-blue-600 hover:text-blue-800 transition font-medium">Approve</button>
+                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-blue-600 border border-blue-200 text-xs font-semibold rounded-lg hover:bg-blue-50 transition">Approve</button>
                                             @endif
                                             @if (in_array($request->status, ['submitted', 'approved']))
                                                 <button wire:click="fulfillRequest({{ $request->id }})"
                                                         wire:confirm="Fulfil this request for {{ $request->outlet?->name ?? 'the outlet' }}? {{ $request->lines_count }} item(s) will be transferred out of kitchen stock immediately."
-                                                        class="text-xs text-green-600 hover:text-green-800 transition font-medium">Fulfill</button>
+                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Fulfill</button>
                                             @endif
                                         </div>
                                     </td>

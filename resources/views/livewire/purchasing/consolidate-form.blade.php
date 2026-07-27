@@ -57,12 +57,19 @@
                 @php
                     $activeLines = collect($group['lines'])->filter(fn($l) => !($l['excluded'] ?? false));
                 @endphp
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" wire:key="group-{{ $group['supplier_id'] }}">
+                @php $isNoSupplierGroup = (int) ($group['supplier_id'] ?? 0) === 0; @endphp
+                <div class="bg-white rounded-xl shadow-sm border {{ $isNoSupplierGroup ? 'border-amber-300' : 'border-gray-100' }} overflow-hidden" wire:key="group-{{ $group['supplier_id'] }}">
                     {{-- Group Header --}}
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <div class="flex items-center justify-between px-6 py-4 border-b {{ $isNoSupplierGroup ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50' }}">
                         <div>
-                            <h3 class="text-sm font-semibold text-gray-700">{{ $group['supplier_name'] }}</h3>
-                            <p class="text-xs text-gray-400 mt-0.5">{{ $activeLines->count() }} active item(s) · {{ count($group['outlet_ids']) }} outlet(s)</p>
+                            <h3 class="text-sm font-semibold {{ $isNoSupplierGroup ? 'text-amber-800' : 'text-gray-700' }}">
+                                {{ $isNoSupplierGroup ? '⚠ No supplier assigned' : $group['supplier_name'] }}
+                            </h3>
+                            @if ($isNoSupplierGroup)
+                                <p class="text-xs text-amber-600 mt-0.5">These items will be SKIPPED unless you pick a supplier on each line below.</p>
+                            @else
+                                <p class="text-xs text-gray-400 mt-0.5">{{ $activeLines->count() }} active item(s) · {{ count($group['outlet_ids']) }} outlet(s)</p>
+                            @endif
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-gray-400">PO Total</p>
@@ -110,8 +117,12 @@
                                         </td>
                                         <td class="px-4 py-2 text-gray-600">{{ $line['uom'] }}</td>
                                         <td class="px-4 py-2">
+                                            @php $lineNoSupplier = (int) ($line['supplier_id'] ?? 0) === 0; @endphp
                                             <select wire:change="updateLineSupplier({{ $gIdx }}, {{ $lIdx }}, $event.target.value)"
-                                                    class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    class="w-full rounded text-sm focus:border-indigo-500 focus:ring-indigo-500 {{ $lineNoSupplier ? 'border-amber-400 bg-amber-50' : 'border-gray-300' }}">
+                                                @if ($lineNoSupplier)
+                                                    <option value="0" selected>— choose supplier —</option>
+                                                @endif
                                                 @foreach ($supplierOptions as $so)
                                                     <option value="{{ $so['id'] }}" {{ $so['id'] == $line['supplier_id'] ? 'selected' : '' }}>
                                                         {{ $so['name'] }}

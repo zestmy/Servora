@@ -1,10 +1,28 @@
 <div>
-    {{-- Flash --}}
+    {{-- Flash. Actions with follow-up guidance render a PERSISTENT dismissible
+         panel (a 3-second toast is too easy to miss when documents move
+         between tabs); plain successes keep the auto-hiding toast. --}}
     @if (session()->has('success'))
-        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
-            {{ session('success') }}
-        </div>
+        @if (session()->has('success_next'))
+            <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show"
+                 class="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg flex items-start justify-between gap-3">
+                <div class="text-sm">
+                    <p class="text-green-700 font-medium">{{ session('success') }}</p>
+                    <p class="text-green-700/70 text-xs mt-1">
+                        <span class="font-semibold uppercase tracking-wider text-[10px] text-green-600">What happens next</span><br>
+                        {{ session('success_next') }}
+                    </p>
+                </div>
+                <button @click="show = false" title="Dismiss" class="flex-shrink-0 text-green-400 hover:text-green-600 p-1">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        @else
+            <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+                 class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+                {{ session('success') }}
+            </div>
+        @endif
     @endif
     @if (session()->has('error'))
         <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
