@@ -151,9 +151,11 @@
         <div class="mt-4">{{ $subscriptions->links() }}</div>
     @endif
 
-    {{-- Create / Edit modal --}}
+    {{-- Create / Edit modal — teleported to body: the app layout's sidebar
+         transform turns position:fixed into absolute, clipping the overlay. --}}
     @if ($showModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
             <div class="absolute inset-0 bg-gray-900/50" wire:click="closeModal"></div>
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
                 <h2 class="text-base font-bold text-gray-800 mb-4">
@@ -242,5 +244,6 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>
