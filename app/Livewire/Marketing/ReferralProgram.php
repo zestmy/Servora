@@ -11,7 +11,7 @@ class ReferralProgram extends Component
     public function render()
     {
         $programs = ReferralProgramModel::active()->with('plan')->get();
-        $plans = Plan::active()->ordered()->get();
+        $plans = Plan::publiclyVisible()->ordered()->get();
 
         return view('livewire.marketing.referral-program', compact('programs', 'plans'))
             ->layout('layouts.marketing', ['title' => 'Referral Program']);

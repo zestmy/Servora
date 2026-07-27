@@ -105,16 +105,18 @@ class Dashboard extends Component
         $subCounts = \App\Models\Subscription::selectRaw('status, COUNT(*) c')
             ->groupBy('status')->pluck('c', 'status');
 
-        // Platform-wide activity: distinct users seen in the last 24h / 7d
-        // (database session driver keeps last_activity per user).
-        $dayAgo  = $now->copy()->subDay()->timestamp;
-        $weekAgo = $now->copy()->subDays(7)->timestamp;
-        $active24h = \Illuminate\Support\Facades\DB::table('sessions')
-            ->whereNotNull('user_id')->where('last_activity', '>=', $dayAgo)
-            ->distinct('user_id')->count('user_id');
-        $active7d = \Illuminate\Support\Facades\DB::table('sessions')
-            ->whereNotNull('user_id')->where('last_activity', '>=', $weekAgo)
-            ->distinct('user_id')->count('user_id');
+        // Platform-wide activity: users.last_active_at (session-driver
+        // independent), with the DB sessions table as legacy fallback.
+        $activeSince = function ($since) {
+            return User::where('last_active_at', '>=', $since)
+                ->orWhereIn('id', \Illuminate\Support\Facades\DB::table('sessions')
+                    ->whereNotNull('user_id')
+                    ->where('last_activity', '>=', $since->timestamp)
+                    ->select('user_id'))
+                ->count();
+        };
+        $active24h = $activeSince($now->copy()->subDay());
+        $active7d  = $activeSince($now->copy()->subDays(7));
 
         $stats = [
             ['label' => 'Companies',      'value' => Company::count(),

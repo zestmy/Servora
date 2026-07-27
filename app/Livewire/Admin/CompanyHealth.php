@@ -34,7 +34,17 @@ class CompanyHealth extends Component
         // Enrich with health data
         $companyIds = $companies->pluck('id');
 
-        // Last login per company (most recent user session)
+        // Last activity per company. Primary source: users.last_active_at
+        // (session-driver independent — prod sessions live in Redis, so the
+        // DB sessions table is stale there). The sessions table is kept as
+        // a fallback for history predating the column.
+        $lastActiveAt = DB::table('users')
+            ->whereIn('company_id', $companyIds)
+            ->whereNotNull('last_active_at')
+            ->groupBy('company_id')
+            ->selectRaw('company_id, MAX(last_active_at) as la')
+            ->pluck('la', 'company_id');
+
         $lastLogins = DB::table('sessions')
             ->join('users', 'sessions.user_id', '=', 'users.id')
             ->whereIn('users.company_id', $companyIds)
@@ -45,9 +55,14 @@ class CompanyHealth extends Component
         // Classify health
         $healthData = [];
         foreach ($companies as $company) {
-            $lastActive = isset($lastLogins[$company->id])
-                ? \Carbon\Carbon::createFromTimestamp($lastLogins[$company->id])
-                : null;
+            $candidates = [];
+            if (isset($lastActiveAt[$company->id])) {
+                $candidates[] = \Carbon\Carbon::parse($lastActiveAt[$company->id]);
+            }
+            if (isset($lastLogins[$company->id])) {
+                $candidates[] = \Carbon\Carbon::createFromTimestamp($lastLogins[$company->id]);
+            }
+            $lastActive = collect($candidates)->max();
 
             $daysSinceActive = $lastActive ? (int) $lastActive->diffInDays(now()) : null;
 

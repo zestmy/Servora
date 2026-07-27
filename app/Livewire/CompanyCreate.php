@@ -25,7 +25,7 @@ class CompanyCreate extends Component
     {
         abort_unless($this->authorized(), 403);
 
-        $this->plan_id = Plan::active()->ordered()->value('id');
+        $this->plan_id = Plan::publiclyVisible()->ordered()->value('id');
     }
 
     public function create(): void
@@ -90,7 +90,7 @@ class CompanyCreate extends Component
     public function render()
     {
         return view('livewire.company-create', [
-            'plans' => Plan::active()->ordered()->get(),
+            'plans' => Plan::publiclyVisible()->ordered()->get(),
         ])->layout('layouts.app', ['title' => 'Create New Company']);
     }
 }

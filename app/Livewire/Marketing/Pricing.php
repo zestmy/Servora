@@ -11,7 +11,7 @@ class Pricing extends Component
 
     public function render()
     {
-        $plans = Plan::active()->ordered()->get();
+        $plans = Plan::publiclyVisible()->ordered()->get();
 
         return view('livewire.marketing.pricing', compact('plans'))
             ->layout('layouts.marketing', ['title' => 'Pricing']);

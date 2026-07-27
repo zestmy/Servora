@@ -15,7 +15,7 @@ class Plan extends Model
         'name', 'slug', 'description',
         'price_monthly', 'price_yearly', 'currency',
         'max_outlets', 'max_users', 'max_recipes', 'max_ingredients', 'max_lms_users',
-        'feature_flags', 'is_active', 'sort_order', 'trial_days', 'api_rate_limit',
+        'feature_flags', 'is_active', 'is_public', 'sort_order', 'trial_days', 'api_rate_limit',
     ];
 
     protected $casts = [
@@ -60,6 +60,17 @@ class Plan extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Plans shown on public sales surfaces (pricing page, referral program,
+     * create-company picker). Hidden (is_public=false) plans stay active —
+     * assignable by admins and reachable via direct checkout/register links
+     * for private offers.
+     */
+    public function scopePubliclyVisible($query)
+    {
+        return $query->where('is_active', true)->where('is_public', true);
     }
 
     public function scopeOrdered($query)

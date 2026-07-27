@@ -40,6 +40,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetPermissionsTeamFromCompany::class,
             // Suspended users / suspended companies are logged out on any request
             \App\Http\Middleware\EnsureAccountActive::class,
+            // users.last_active_at heartbeat (session-driver-independent)
+            \App\Http\Middleware\TouchLastActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

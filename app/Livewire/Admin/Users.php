@@ -286,13 +286,19 @@ class Users extends Component
             ->get()
             ->groupBy('user_id');
 
-        // Last activity per visible user (database session driver).
+        // Last activity per visible user: last_active_at heartbeat first,
+        // DB sessions as legacy fallback (prod sessions are on Redis).
         $lastActive = DB::table('sessions')
             ->whereIn('user_id', $ids)
             ->groupBy('user_id')
             ->selectRaw('user_id, MAX(last_activity) as la')
             ->pluck('la', 'user_id')
             ->map(fn ($ts) => \Carbon\Carbon::createFromTimestamp($ts));
+        foreach ($users->items() as $u) {
+            if ($u->last_active_at && (! isset($lastActive[$u->id]) || $u->last_active_at->gt($lastActive[$u->id]))) {
+                $lastActive[$u->id] = $u->last_active_at;
+            }
+        }
 
         return view('livewire.admin.users', [
             'users'        => $users,

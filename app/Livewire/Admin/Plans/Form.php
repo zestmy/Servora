@@ -24,6 +24,7 @@ class Form extends Component
     public string $trial_days      = '14';
     public string $sort_order      = '0';
     public bool $is_active         = true;
+    public bool $is_public         = true;
 
     // Feature flags
     public bool $flag_lms         = true;
@@ -50,6 +51,7 @@ class Form extends Component
             $this->trial_days      = (string) $plan->trial_days;
             $this->sort_order      = (string) $plan->sort_order;
             $this->is_active       = $plan->is_active;
+            $this->is_public       = (bool) ($plan->is_public ?? true);
 
             $flags = $plan->feature_flags ?? [];
             $this->flag_lms         = !empty($flags['lms']);
@@ -106,6 +108,7 @@ class Form extends Component
             'trial_days'      => (int) $this->trial_days,
             'sort_order'      => (int) $this->sort_order,
             'is_active'       => $this->is_active,
+            'is_public'       => $this->is_public,
             'feature_flags'   => [
                 'lms'         => $this->flag_lms,
                 'reports'     => $this->flag_reports,

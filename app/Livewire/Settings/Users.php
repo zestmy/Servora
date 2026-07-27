@@ -610,7 +610,9 @@ class Users extends Component
                 $q->with(['companies' => fn ($c) => $c->where('companies.id', $currentUser->company_id)])
             )
             ->addSelect(['*',
-                \Illuminate\Support\Facades\DB::raw('(SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id) as last_session_activity'),
+                // last_active_at heartbeat first; DB sessions as legacy
+                // fallback (prod sessions are on Redis). 0 renders as Never.
+                \Illuminate\Support\Facades\DB::raw('GREATEST(COALESCE((SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id), 0), COALESCE(UNIX_TIMESTAMP(users.last_active_at), 0)) as last_session_activity'),
             ])
             ->when($this->search, fn ($q) =>
                 // Grouped so the OR can't bypass the company filter below

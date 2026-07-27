@@ -24,6 +24,8 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at'    => 'datetime',
+        'suspended_at'         => 'datetime',
+        'last_active_at'       => 'datetime',
         'password'             => 'hashed',
         'can_manage_users'     => 'boolean',
         'can_approve_po'       => 'boolean',

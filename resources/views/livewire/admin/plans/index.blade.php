@@ -38,6 +38,9 @@
                         @else
                             <span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">Inactive</span>
                         @endif
+                        @unless ($plan->is_public)
+                            <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full" title="Not shown on the public pricing page — assignable by admins and reachable via direct links">Hidden</span>
+                        @endunless
                     </div>
                 </div>
 

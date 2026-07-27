@@ -54,11 +54,16 @@
                         <x-input-label for="plan_trial" value="Trial Days" />
                         <x-text-input id="plan_trial" wire:model="trial_days" type="number" min="0" max="365" class="mt-1 block w-full" />
                     </div>
-                    <div class="flex items-end pb-1">
+                    <div class="flex items-end pb-1 gap-5">
                         <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="is_active"
                                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
                             <span class="text-sm text-gray-700 font-medium">Active</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer" title="Shown on the public pricing page and plan pickers. Hidden plans stay assignable by admins and reachable via direct checkout links (private offers).">
+                            <input type="checkbox" wire:model="is_public"
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                            <span class="text-sm text-gray-700 font-medium">Show on public pricing</span>
                         </label>
                     </div>
                 </div>
