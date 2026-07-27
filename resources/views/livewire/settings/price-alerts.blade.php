@@ -11,11 +11,27 @@
             </a>
             <h2 class="text-lg font-semibold text-gray-700">Price Alerts</h2>
         </div>
-        @if ($unreadCount > 0)
+        @if ($view === 'alerts' && $unreadCount > 0)
             <button wire:click="markAllRead" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Mark all as read</button>
         @endif
     </div>
 
+    {{-- View switch: alert inbox vs full price movement timeline --}}
+    <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm mb-6">
+        <button wire:click="setView('alerts')"
+                class="px-4 py-2 {{ $view === 'alerts' ? 'bg-indigo-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+            Alerts
+            @if ($unreadCount > 0)
+                <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold {{ $view === 'alerts' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700' }}">{{ $unreadCount }}</span>
+            @endif
+        </button>
+        <button wire:click="setView('history')"
+                class="px-4 py-2 border-l border-gray-300 {{ $view === 'history' ? 'bg-indigo-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+            Price History
+        </button>
+    </div>
+
+    @if ($view === 'alerts')
     {{-- Stats (increase/decrease cards toggle the direction filter) --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -51,10 +67,15 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- Filters --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+            <div class="flex-1 min-w-[180px]">
+                <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search product or supplier…"
+                       class="w-full rounded-lg border-gray-300 text-sm" />
+            </div>
             <select wire:model.live="directionFilter" class="rounded-lg border-gray-300 text-sm">
                 <option value="">All Changes</option>
                 <option value="increase">Increases Only</option>
@@ -68,6 +89,69 @@
         </div>
     </div>
 
+    @if ($view === 'history')
+    {{-- Price movement timeline, straight from ingredient_price_history --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto"><table class="min-w-[900px] w-full divide-y divide-gray-100 text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="px-4 py-3 text-left">Effective Date</th>
+                    <th class="px-4 py-3 text-left">Product</th>
+                    <th class="px-4 py-3 text-left">Supplier</th>
+                    <th class="px-4 py-3 text-right">Old Price</th>
+                    <th class="px-4 py-3 text-right">New Price</th>
+                    <th class="px-4 py-3 text-center">Change</th>
+                    <th class="px-4 py-3 text-center">Source</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                @forelse ($history as $h)
+                    @php
+                        $prev = (float) $h->prev_cost;
+                        $curr = (float) $h->cost;
+                        $pct  = $prev > 0 ? round((($curr - $prev) / $prev) * 100, 1) : null;
+                        $up   = $curr > $prev;
+                    @endphp
+                    <tr wire:key="h-{{ $h->id }}" class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ \Carbon\Carbon::parse($h->effective_date)->format('d M Y') }}</td>
+                        <td class="px-4 py-3">
+                            <a href="{{ route('reports.price-history', ['search' => $h->ingredient_name]) }}"
+                               title="View full price history for {{ $h->ingredient_name }}"
+                               class="font-medium text-gray-700 hover:text-indigo-600 hover:underline">{{ $h->ingredient_name }}</a>
+                            @if ($h->uom_abbr)
+                                <span class="text-[11px] text-gray-400">/ {{ $h->uom_abbr }}</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 text-xs">{{ $h->supplier_name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums text-gray-500">{{ number_format($prev, 4) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($curr, 4) }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $up ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                                {{ $up ? '+' : '−' }}{{ $pct !== null ? number_format(abs($pct), 1) : '?' }}%
+                            </span>
+                            <div class="text-[11px] text-gray-400 mt-0.5 tabular-nums">{{ $up ? '+' : '−' }}{{ number_format(abs($curr - $prev), 2) }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
+                                {{ str_replace('_', ' ', $h->source ?? '—') }}
+                            </span>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                            <p>No price changes {{ $search || $directionFilter ? 'match the selected filters' : 'recorded in this date range' }}.</p>
+                            <p class="text-xs mt-1">Every change to a supplier price — from GRN receives, deliveries and scanned invoices — appears here by its invoice/effective date.</p>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table></div>
+        @if ($history->hasPages())
+            <div class="px-4 py-3 border-t border-gray-100">{{ $history->links() }}</div>
+        @endif
+    </div>
+    @else
     {{-- Notifications Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
@@ -140,4 +224,5 @@
             <div class="px-4 py-3 border-t border-gray-100">{{ $notifications->links() }}</div>
         @endif
     </div>
+    @endif
 </div>
