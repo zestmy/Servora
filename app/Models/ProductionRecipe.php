@@ -13,7 +13,7 @@ class ProductionRecipe extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'kitchen_id', 'name', 'code', 'description', 'category',
+        'company_id', 'kitchen_id', 'name', 'code', 'description', 'video_url', 'category',
         'yield_quantity', 'yield_uom_id',
         'packaging_uom', 'per_carton_qty', 'carton_weight',
         'shelf_life_days', 'storage_temperature', 'min_batch_size',
@@ -45,18 +45,41 @@ class ProductionRecipe extends Model
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function lines(): HasMany { return $this->hasMany(ProductionRecipeLine::class); }
 
+    public function steps(): HasMany
+    {
+        return $this->hasMany(ProductionRecipeStep::class)->orderBy('sort_order');
+    }
+
     /**
-     * Calculate costs from ingredient lines.
+     * Calculate costs from ingredient lines — UOM-aware: each line's cost is
+     * converted to the line's unit via UomService (a kg-priced ingredient
+     * used in grams costs 1/1000 per unit, not the raw purchase price).
      */
     public function calculateCosts(): void
     {
-        $this->loadMissing('lines.ingredient');
+        $this->loadMissing('lines.ingredient.baseUom', 'lines.ingredient.uomConversions', 'lines.uom');
 
+        $uomService = app(\App\Services\UomService::class);
         $rawCost = 0;
         foreach ($this->lines as $line) {
-            $ingredientCost = floatval($line->ingredient?->purchase_price ?? 0);
+            $ingredient = $line->ingredient;
+            $uom        = $line->uom;
+            if (! $ingredient || ! $uom) continue;
+
+            if ($ingredient->is_prep) {
+                $costPerUom = $uomService->convertCost($ingredient, $uom);
+            } else {
+                // Pre-yield cost basis (purchase_price / pack_size), converted
+                // to the line's unit — same basis as the prep item form.
+                $originalCost = $ingredient->current_cost;
+                $packSize = max((float) $ingredient->pack_size, 0.0001);
+                $ingredient->current_cost = (float) $ingredient->purchase_price / $packSize;
+                $costPerUom = $uomService->convertCost($ingredient, $uom);
+                $ingredient->current_cost = $originalCost;
+            }
+
             $wasteFactor = 1 + (floatval($line->waste_percentage) / 100);
-            $rawCost += $ingredientCost * floatval($line->quantity) * $wasteFactor;
+            $rawCost += $costPerUom * floatval($line->quantity) * $wasteFactor;
         }
 
         $yield = max(floatval($this->yield_quantity), 0.0001);

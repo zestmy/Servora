@@ -120,17 +120,6 @@
                 <img src="/images/servora-logo-white.png" alt="Servora" class="h-11">
             </div>
 
-            <button x-show="sidebarExpanded" @click="toggleNavTheme()"
-                    :title="navTheme === 'dark' ? 'Switch navigation to light theme' : 'Switch navigation to dark theme'"
-                    class="flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
-                <svg x-show="navTheme === 'dark'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <svg x-show="navTheme === 'light'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-            </button>
-
             <button @click="toggleSidebar()"
                     :class="sidebarOpen ? '' : 'mx-auto'"
                     title="Toggle sidebar"
@@ -431,20 +420,6 @@
             @endif
         </nav>
 
-        {{-- Kitchen mode switcher --}}
-        @if (Auth::user()->isKitchenUser())
-            <div class="pb-2" :class="sidebarExpanded ? 'px-3' : 'px-2'">
-                <a href="{{ route('workspace.switch', 'kitchen') }}"
-                   title="Switch to Central Kitchen Mode"
-                   class="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-medium text-purple-300 border border-purple-700 rounded-lg hover:bg-purple-900/40 hover:text-white transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
-                    <span x-show="sidebarExpanded" class="whitespace-nowrap">Switch to Central Kitchen Mode</span>
-                </a>
-            </div>
-        @endif
-
         {{-- ── Bottom: Company / Outlet / User ────────────────────────────── --}}
         <div class="flex-shrink-0 border-t border-gray-700">
 
@@ -457,9 +432,14 @@
                         @click="sidebarOpen || toggleSidebar(); $nextTick(() => openUserMenu())"
                         class="flex items-center w-full rounded-lg px-3 py-2 hover:bg-gray-800 transition gap-3"
                         :class="sidebarExpanded ? '' : 'justify-center px-2'">
-                    <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                        {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                    </div>
+                    @if (Auth::user()->avatar)
+                        <img src="{{ \Illuminate\Support\Facades\Storage::url(Auth::user()->avatar) }}" alt=""
+                             class="flex-shrink-0 w-8 h-8 rounded-full object-cover" />
+                    @else
+                        <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                        </div>
+                    @endif
                     <div x-show="sidebarExpanded"
                          x-transition:enter="transition-opacity duration-150 delay-100"
                          x-transition:enter-start="opacity-0"
@@ -545,9 +525,19 @@
              style="position: fixed;">
 
             {{-- User info header --}}
-            <div class="px-4 py-2.5 border-b border-gray-700">
-                <p class="text-sm font-semibold text-white">{{ Auth::user()->name }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">{{ Auth::user()->email }}</p>
+            <div class="px-4 py-2.5 border-b border-gray-700 flex items-center gap-3">
+                @if (Auth::user()->avatar)
+                    <img src="{{ \Illuminate\Support\Facades\Storage::url(Auth::user()->avatar) }}" alt=""
+                         class="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                @else
+                    <div class="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                    </div>
+                @endif
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">{{ Auth::user()->name }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5 truncate">{{ Auth::user()->email }}</p>
+                </div>
             </div>
 
             <div class="py-1">
@@ -559,6 +549,27 @@
                     </svg>
                     Profile
                 </a>
+
+                @if (Auth::user()->isKitchenUser())
+                    <a href="{{ route('workspace.switch', 'kitchen') }}"
+                       class="flex items-center gap-2.5 px-4 py-2 text-sm text-purple-300 hover:bg-gray-700 hover:text-purple-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Switch to Central Kitchen
+                    </a>
+                @endif
+
+                <button @click="toggleNavTheme()"
+                        class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition text-left">
+                    <svg x-show="navTheme === 'dark'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg x-show="navTheme === 'light'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <span x-text="navTheme === 'dark' ? 'Light navigation' : 'Dark navigation'"></span>
+                </button>
             </div>
 
             <div class="border-t border-gray-700 py-1">

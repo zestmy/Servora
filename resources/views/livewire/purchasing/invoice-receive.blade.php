@@ -124,7 +124,15 @@
                                 @endforeach
                             </select>
                             @if ($supplierConfidence > 0 && $supplierConfidence < 1)
-                                <p class="text-xs text-amber-600 mt-0.5">Match confidence: {{ round($supplierConfidence * 100) }}%</p>
+                                <p class="text-xs mt-0.5 {{ $supplierConfidence >= 0.8 ? 'text-green-600' : 'text-amber-600' }}">
+                                    @if ($supplierConfidence >= 0.8)
+                                        We're quite sure this is the right supplier — please confirm.
+                                    @elseif ($supplierConfidence >= 0.5)
+                                        This looks like the right supplier, but do double-check.
+                                    @else
+                                        We couldn't confidently match the supplier — please pick the correct one.
+                                    @endif
+                                </p>
                             @endif
                             @error('selectedSupplierId') <p class="text-red-500 text-xs mt-0.5">{{ $message }}</p> @enderror
                         </div>
@@ -189,7 +197,7 @@
                                                 @endforeach
                                             </select>
                                             @if ($line['match_confidence'] > 0 && $line['match_confidence'] < 0.5)
-                                                <p class="text-xs text-amber-500 mt-0.5">Low match ({{ round($line['match_confidence'] * 100) }}%)</p>
+                                                <p class="text-xs text-amber-500 mt-0.5">Not sure about this product — please check it's the right one.</p>
                                             @endif
                                         </td>
                                         <td class="px-3 py-2 text-xs text-gray-600 max-w-48 truncate" title="{{ $line['description'] }}">
@@ -353,10 +361,11 @@
                     </div>
                 @endif
 
-                {{-- Exceptions Detail --}}
+                {{-- Things to check before approving (plain language) --}}
                 @if (count($exceptions) > 0)
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Exceptions</h4>
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Things to Check</h4>
+                        <p class="text-[11px] text-gray-400 mb-3">Differences we spotted between this invoice and your records — review each before approving.</p>
                         <div class="space-y-2 max-h-80 overflow-y-auto">
                             @foreach ($exceptions as $ex)
                                 @php
@@ -365,11 +374,26 @@
                                         'warning' => 'border-l-amber-500 bg-amber-50 text-amber-700',
                                         default   => 'border-l-blue-500 bg-blue-50 text-blue-700',
                                     };
+                                    $exHeading = match($ex['severity']) {
+                                        'error'   => 'Needs fixing before approval',
+                                        'warning' => 'Double-check this',
+                                        default   => 'Good to know',
+                                    };
+                                    $exTypeLabel = match($ex['type']) {
+                                        'price_variance', 'price_mismatch' => 'Price differs from the order',
+                                        'quantity_variance', 'quantity_mismatch' => 'Quantity differs from what was received',
+                                        'unmatched_line', 'no_match' => 'Product not found in your records',
+                                        'missing_po', 'no_po' => 'No matching purchase order found',
+                                        'missing_grn', 'no_grn' => 'No matching goods received note found',
+                                        'total_mismatch' => 'Invoice total doesn\'t add up',
+                                        default => str_replace('_', ' ', ucfirst($ex['type'])),
+                                    };
                                 @endphp
                                 <div class="border-l-4 rounded-r-lg p-2.5 text-xs {{ $exColor }}">
-                                    <span class="font-medium">{{ str_replace('_', ' ', ucfirst($ex['type'])) }}</span>
+                                    <span class="font-semibold">{{ $exHeading }}:</span>
+                                    <span class="font-medium">{{ $exTypeLabel }}</span>
                                     @if ($ex['line_index'] !== null)
-                                        <span class="text-gray-400 ml-1">(Line {{ $ex['line_index'] + 1 }})</span>
+                                        <span class="opacity-60 ml-1">(item {{ $ex['line_index'] + 1 }})</span>
                                     @endif
                                     <p class="mt-0.5 opacity-80">{{ $ex['message'] }}</p>
                                 </div>

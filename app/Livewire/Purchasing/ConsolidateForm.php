@@ -86,6 +86,10 @@ class ConsolidateForm extends Component
         ])->toArray();
 
         $this->showPreview = true;
+        // Unified flow: go straight into the always-editable review — one
+        // screen, one commit point. The sidebar summary remains reachable
+        // via "Back to Summary" as a read-only overview.
+        $this->editMode = true;
     }
 
     public function enterEditMode(): void

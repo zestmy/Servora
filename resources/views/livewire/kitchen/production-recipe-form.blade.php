@@ -63,7 +63,31 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                        <input type="text" wire:model="category" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Sauce, Marinade, Base" />
+                        @if ($recipeCategories->isNotEmpty())
+                            <select wire:model="category" class="w-full rounded-lg border-gray-300 text-sm">
+                                <option value="">— None —</option>
+                                @foreach ($recipeCategories as $cat)
+                                    @if ($cat->children->isNotEmpty())
+                                        <optgroup label="{{ $cat->name }}">
+                                            <option value="{{ $cat->name }}">{{ $cat->name }} (All)</option>
+                                            @foreach ($cat->children as $child)
+                                                <option value="{{ $child->name }}">{{ $child->name }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @else
+                                        <option value="{{ $cat->name }}">{{ $cat->name }}</option>
+                                    @endif
+                                @endforeach
+                                @if ($category !== '' && ! $recipeCategories->flatMap(fn ($c) => collect([$c->name])->merge($c->children->pluck('name')))->contains($category))
+                                    <option value="{{ $category }}">{{ $category }} (legacy)</option>
+                                @endif
+                            </select>
+                        @else
+                            <input type="text" wire:model="category" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Sauce, Marinade, Base" />
+                        @endif
+                        <p class="text-[11px] text-gray-400 mt-1">
+                            Manage categories in <a href="{{ route('settings.recipe-categories') }}" target="_blank" class="text-indigo-500 hover:underline">Settings → Recipe Categories</a>.
+                        </p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Kitchen *</label>
@@ -81,6 +105,13 @@
                     <label class="block text-xs font-medium text-gray-500 mb-1">Description</label>
                     <textarea wire:model="description" rows="2" class="w-full rounded-lg border-gray-300 text-sm"
                               placeholder="Preparation notes, method summary..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Training Video Link</label>
+                    <input type="url" wire:model="video_url" class="w-full rounded-lg border-gray-300 text-sm"
+                           placeholder="https://youtube.com/…" />
+                    @error('video_url') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
 
@@ -210,12 +241,18 @@
                             <tbody class="divide-y divide-gray-50">
                                 @foreach ($lines as $idx => $line)
                                     @php
-                                        $qty   = floatval($line['quantity'] ?? 0);
-                                        $cost  = floatval($line['unit_cost'] ?? 0);
-                                        $waste = floatval($line['waste_percentage'] ?? 0);
-                                        $lineCost = $cost * $qty * (1 + $waste / 100);
+                                        $cost     = floatval($line['unit_cost'] ?? 0);
+                                        $lineCost = $line['line_cost'] ?? null;
+                                        // Only the ingredient's recipe UOMs are valid here —
+                                        // costing converts per unit, so foreign units mislead.
+                                        $lineUomIds = array_filter([
+                                            $line['recipe_uom_id'] ?? null,
+                                            $line['secondary_recipe_uom_id'] ?? null,
+                                            $line['uom_id'] ?? null,
+                                        ]);
+                                        $lineUoms = ! empty($lineUomIds) ? $uoms->whereIn('id', $lineUomIds) : $uoms;
                                     @endphp
-                                    <tr class="hover:bg-gray-50 transition">
+                                    <tr class="hover:bg-gray-50 transition" wire:key="prl-{{ $line['ingredient_id'] }}">
                                         <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                         <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
                                         <td class="px-4 py-2">
@@ -224,9 +261,9 @@
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                         </td>
                                         <td class="px-4 py-2">
-                                            <select wire:model="lines.{{ $idx }}.uom_id"
+                                            <select wire:model.live="lines.{{ $idx }}.uom_id"
                                                     class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                                @foreach ($uoms as $u)
+                                                @foreach ($lineUoms as $u)
                                                     <option value="{{ $u->id }}">{{ $u->abbreviation }}</option>
                                                 @endforeach
                                             </select>
@@ -240,7 +277,7 @@
                                             {{ number_format($cost, 4) }}
                                         </td>
                                         <td class="px-4 py-2 text-right tabular-nums text-gray-700 font-medium">
-                                            {{ number_format($lineCost, 4) }}
+                                            {{ $lineCost !== null ? number_format($lineCost, 4) : '—' }}
                                         </td>
                                         <td class="px-4 py-2 text-center">
                                             <button type="button" wire:click="removeLine({{ $idx }})"
@@ -270,6 +307,90 @@
                     <button wire:click="save"
                             class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                         Save Recipe
+                    </button>
+                </div>
+            </div>
+
+            {{-- Training / SOP — Preparation Steps (with AI assistance) --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700">Training / SOP — Preparation Steps</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Step-by-step method shown to kitchen staff. Add photos per step.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" wire:click="suggestPreparationSteps('append')" wire:loading.attr="disabled" wire:target="suggestPreparationSteps"
+                                class="px-3 py-1.5 text-xs font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 transition">
+                            <span wire:loading.remove wire:target="suggestPreparationSteps">✨ AI Suggest Steps</span>
+                            <span wire:loading wire:target="suggestPreparationSteps">Thinking…</span>
+                        </button>
+                        <button type="button" wire:click="suggestPreparationSteps('replace')" wire:loading.attr="disabled" wire:target="suggestPreparationSteps"
+                                wire:confirm="Replace ALL current steps with AI-generated ones?"
+                                class="px-3 py-1.5 text-xs font-medium text-purple-500 border border-purple-200 rounded-lg hover:bg-purple-50 transition">
+                            Replace All
+                        </button>
+                        <button type="button" wire:click="fineTuneSteps" wire:loading.attr="disabled" wire:target="fineTuneSteps"
+                                title="Polish spelling, grammar and wording of the existing steps"
+                                class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition">
+                            <span wire:loading.remove wire:target="fineTuneSteps">Fine-tune</span>
+                            <span wire:loading wire:target="fineTuneSteps">Polishing…</span>
+                        </button>
+                    </div>
+                </div>
+
+                @if (session()->has('ai_steps_success'))
+                    <div class="mx-6 mt-4 px-3 py-2 bg-purple-50 border border-purple-200 text-purple-700 text-xs rounded-lg">{{ session('ai_steps_success') }}</div>
+                @endif
+                @if (session()->has('ai_steps_error'))
+                    <div class="mx-6 mt-4 px-3 py-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg">{{ session('ai_steps_error') }}</div>
+                @endif
+
+                <div class="p-6 space-y-4">
+                    @forelse ($steps as $sIdx => $step)
+                        <div class="border border-gray-100 rounded-lg p-4" wire:key="step-{{ $sIdx }}">
+                            <div class="flex items-start gap-3">
+                                <span class="flex-shrink-0 w-7 h-7 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $sIdx + 1 }}</span>
+                                <div class="flex-1 space-y-2">
+                                    <input type="text" wire:model="steps.{{ $sIdx }}.title" placeholder="Step title (optional)"
+                                           class="w-full rounded-lg border-gray-300 text-sm font-medium" />
+                                    <textarea wire:model="steps.{{ $sIdx }}.instruction" rows="2" placeholder="What to do in this step…"
+                                              class="w-full rounded-lg border-gray-300 text-sm"></textarea>
+
+                                    <div class="flex flex-wrap items-center gap-3">
+                                        @if (!empty($step['image_path']) && empty($step['remove_image']))
+                                            <div class="flex items-center gap-2">
+                                                <img src="{{ \Illuminate\Support\Facades\Storage::url($step['image_path']) }}" class="h-12 w-12 rounded object-cover border border-gray-200" alt="" />
+                                                <button type="button" wire:click="removeStepImage({{ $sIdx }})" class="text-[11px] text-red-500 hover:text-red-700 underline">Remove photo</button>
+                                            </div>
+                                        @elseif (!empty($step['new_image']))
+                                            <span class="text-[11px] text-green-600">New photo attached</span>
+                                            <button type="button" wire:click="clearStepNewImage({{ $sIdx }})" class="text-[11px] text-gray-400 hover:text-gray-600 underline">Clear</button>
+                                        @else
+                                            <label class="text-[11px] text-indigo-500 hover:text-indigo-700 underline cursor-pointer">
+                                                <input type="file" wire:model="steps.{{ $sIdx }}.new_image" accept="image/*" class="hidden" />
+                                                + Add photo
+                                            </label>
+                                        @endif
+                                        @error('steps.' . $sIdx . '.new_image') <span class="text-[11px] text-red-500">{{ $message }}</span> @enderror
+
+                                        <button type="button" wire:click="regenerateStep({{ $sIdx }})" wire:loading.attr="disabled" wire:target="regenerateStep"
+                                                title="Rewrite this step with AI, consistent with the others"
+                                                class="ml-auto text-[11px] text-purple-500 hover:text-purple-700 underline">↻ AI rewrite</button>
+                                        <button type="button" wire:click="removeStep({{ $sIdx }})"
+                                                class="text-[11px] text-red-400 hover:text-red-600 underline">Remove step</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm text-gray-400 text-center py-4">
+                            No steps yet — add them manually or let AI draft them from the recipe name and ingredients.
+                        </p>
+                    @endforelse
+
+                    <button type="button" wire:click="addStep"
+                            class="w-full px-4 py-2 border border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition">
+                        + Add Step
                     </button>
                 </div>
             </div>

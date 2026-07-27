@@ -6,6 +6,12 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div class="max-w-xl">
+                <livewire:profile.avatar-upload />
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="max-w-xl">
                 <livewire:profile.update-profile-information-form />
             </div>
         </div>

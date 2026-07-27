@@ -80,7 +80,34 @@
             <p class="text-xs text-gray-400 mt-0.5">Enter actual quantities produced for each line.</p>
         </div>
 
-        <div class="overflow-x-auto">
+        {{-- Narrow screens: one card per line, big input with the unit right
+             beside the number — nothing scrolls out of sight on a tablet. --}}
+        <div class="md:hidden divide-y divide-gray-100">
+            @foreach ($order->lines as $idx => $line)
+                <div class="p-4" wire:key="xline-m-{{ $line->id }}">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="font-semibold text-gray-800">{{ $line->recipe?->name ?? '-' }}</p>
+                        <span class="text-xs text-gray-400 whitespace-nowrap">#{{ $idx + 1 }}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-0.5">
+                        Planned: <span class="font-medium text-gray-600 tabular-nums">{{ rtrim(rtrim(number_format(floatval($line->planned_quantity), 4), '0'), '.') }} {{ $line->uom?->abbreviation }}</span>
+                        @if ($line->toOutlet)
+                            · for {{ $line->toOutlet->name }}
+                        @endif
+                    </p>
+                    <div class="mt-2 flex items-center gap-2">
+                        <label class="text-xs font-medium text-gray-500 flex-shrink-0">Actual</label>
+                        <input type="number" step="0.01" min="0" inputmode="decimal"
+                               wire:model="actuals.{{ $idx }}"
+                               class="flex-1 text-right text-lg font-semibold rounded-lg border-gray-300 py-2.5 focus:border-green-500 focus:ring-green-500 bg-green-50" />
+                        <span class="text-sm font-medium text-gray-600 flex-shrink-0 w-12">{{ $line->uom?->abbreviation ?? '' }}</span>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        {{-- Wide screens: the table --}}
+        <div class="hidden md:block overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -94,7 +121,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @foreach ($order->lines as $idx => $line)
-                        <tr class="hover:bg-gray-50 transition">
+                        <tr class="hover:bg-gray-50 transition" wire:key="xline-d-{{ $line->id }}">
                             <td class="px-4 py-3 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $line->recipe?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $line->uom?->abbreviation ?? '-' }}</td>

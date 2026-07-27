@@ -52,16 +52,6 @@
         {{-- Logo --}}
         <div class="flex items-center h-14 px-4 bg-gray-800 flex-shrink-0">
             <img src="/images/servora-logo-white.png" alt="Servora" class="h-9">
-            <button @click="toggleNavTheme()"
-                    :title="navTheme === 'dark' ? 'Switch navigation to light theme' : 'Switch navigation to dark theme'"
-                    class="ml-auto flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
-                <svg x-show="navTheme === 'dark'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <svg x-show="navTheme === 'light'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-            </button>
         </div>
 
         {{-- Kitchen badge --}}
@@ -178,23 +168,54 @@
             </div>
         </nav>
 
-        {{-- Bottom: Workspace Switcher + User --}}
-        <div class="flex-shrink-0 border-t border-gray-700 p-3 space-y-2">
-            @if ($hasOutletAccess)
-                <a href="{{ route('workspace.switch', 'outlet') }}"
-                   class="block w-full text-center px-3 py-1.5 text-xs font-medium text-gray-300 border border-gray-600 rounded-lg hover:bg-gray-700 hover:text-white transition">
-                    Switch to Outlet Mode
+        {{-- Bottom: User panel — profile, workspace switch, nav theme, sign out --}}
+        <div class="flex-shrink-0 border-t border-gray-700 p-2" x-data="{ userOpen: false }">
+            <div x-show="userOpen" x-cloak
+                 class="mb-1 rounded-lg border border-gray-700 bg-gray-800 py-1">
+                <a href="{{ route('profile') }}"
+                   class="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    Profile
                 </a>
-            @endif
-            <div class="flex items-center gap-2 px-1">
-                <div class="w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                    {{ strtoupper(substr($authUser->name, 0, 2)) }}
-                </div>
-                <div class="flex-1 min-w-0">
+                @if ($hasOutletAccess)
+                    <a href="{{ route('workspace.switch', 'outlet') }}"
+                       class="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                        Switch to Outlet Mode
+                    </a>
+                @endif
+                <button @click="toggleNavTheme()"
+                        class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition text-left">
+                    <svg x-show="navTheme === 'dark'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <svg x-show="navTheme === 'light'" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    <span x-text="navTheme === 'dark' ? 'Light navigation' : 'Dark navigation'"></span>
+                </button>
+                <form method="POST" action="{{ route('logout') }}" class="border-t border-gray-700 mt-1 pt-1">
+                    @csrf
+                    <button type="submit"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition text-left">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        Sign Out
+                    </button>
+                </form>
+            </div>
+
+            <button @click="userOpen = ! userOpen"
+                    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800 transition">
+                @if ($authUser->avatar)
+                    <img src="{{ \Illuminate\Support\Facades\Storage::url($authUser->avatar) }}" alt=""
+                         class="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                @else
+                    <div class="w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                        {{ strtoupper(substr($authUser->name, 0, 2)) }}
+                    </div>
+                @endif
+                <div class="flex-1 min-w-0 text-left">
                     <p class="text-xs font-medium text-white truncate">{{ $authUser->name }}</p>
                     <p class="text-[10px] text-purple-300 truncate">{{ $authUser->displayDesignation() }}</p>
                 </div>
-            </div>
+                <svg :class="userOpen && 'rotate-180'" class="h-3.5 w-3.5 text-gray-400 transition-transform flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+            </button>
         </div>
     </aside>
 

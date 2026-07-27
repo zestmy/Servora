@@ -24,11 +24,18 @@
             @if ($editMode)
                 <button wire:click="exitEditMode"
                         class="px-4 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
-                    Back to Preview
+                    Back to Summary
                 </button>
+                <select wire:model="cpuId" title="Central Purchasing Unit that places these orders"
+                        class="rounded-lg text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 {{ $cpuId ? 'border-gray-300' : 'border-amber-400 bg-amber-50' }}">
+                    <option value="">— Select CPU —</option>
+                    @foreach ($cpus as $cpu)
+                        <option value="{{ $cpu->id }}">{{ $cpu->name }}</option>
+                    @endforeach
+                </select>
                 <button wire:click="consolidate" wire:loading.attr="disabled"
                         class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                    <span wire:loading.remove wire:target="consolidate">Generate {{ count(collect($editablePreview)->filter(fn($g) => collect($g['lines'])->where('excluded', false)->isNotEmpty())) }} PO(s)</span>
+                    <span wire:loading.remove wire:target="consolidate">Create {{ count(collect($editablePreview)->filter(fn($g) => ((int) ($g['supplier_id'] ?? 0)) !== 0 && collect($g['lines'])->where('excluded', false)->isNotEmpty())) }} draft PO(s)</span>
                     <span wire:loading wire:target="consolidate">Creating...</span>
                 </button>
             @elseif (count($selectedPrIds) > 0 && !$showPreview)
@@ -326,18 +333,13 @@
                     </div>
 
                     <div class="mt-4 space-y-2">
-                        {{-- Review-first is the recommended path: quantities and
-                             suppliers are editable there before anything commits. --}}
+                        {{-- Single commit path: creating happens in the editable
+                             review, where quantities and suppliers can be fixed. --}}
                         <button wire:click="enterEditMode"
                                 class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                            Review &amp; Adjust, then Create
+                            Open Review &amp; Create
                         </button>
-                        <button wire:click="consolidate" wire:loading.attr="disabled"
-                                class="w-full px-4 py-2.5 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
-                            <span wire:loading.remove wire:target="consolidate">Create {{ $creatableCount }} draft PO(s) as-is</span>
-                            <span wire:loading wire:target="consolidate">Creating...</span>
-                        </button>
-                        <p class="text-[11px] text-gray-400 text-center">Orders are created as drafts — review and send them from the Orders (PO) tab.</p>
+                        <p class="text-[11px] text-gray-400 text-center">Orders are created as drafts from the review screen — then sent from the Orders (PO) tab.</p>
                     </div>
                 </div>
             @endif

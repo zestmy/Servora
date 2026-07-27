@@ -5,13 +5,20 @@ namespace App\Livewire\Kitchen;
 use App\Models\CentralKitchen;
 use App\Models\Ingredient;
 use App\Models\ProductionRecipe;
+use App\Models\RecipeCategory;
 use App\Models\UnitOfMeasure;
+use App\Services\UomService;
+use App\Services\VisionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class ProductionRecipeForm extends Component
 {
+    use WithFileUploads;
+
     public ?int $recipeId = null;
 
     // Basic
@@ -20,6 +27,7 @@ class ProductionRecipeForm extends Component
     public string $category    = '';
     public ?int   $kitchen_id  = null;
     public string $description = '';
+    public string $video_url   = '';
 
     // Yield
     public string $yield_quantity = '1';
@@ -43,9 +51,13 @@ class ProductionRecipeForm extends Component
     public float $margin              = 0;
     public float $margin_percent      = 0;
 
-    // Ingredient lines: [{ingredient_id, ingredient_name, quantity, uom_id, uom_name, waste_percentage, unit_cost}]
+    // Ingredient lines: [{ingredient_id, ingredient_name, quantity, uom_id,
+    //  recipe_uom_id, secondary_recipe_uom_id, waste_percentage, unit_cost, line_cost}]
     public array  $lines            = [];
     public string $ingredientSearch = '';
+
+    // Training / SOP steps: [{id, title, instruction, image_path, new_image, remove_image}]
+    public array $steps = [];
 
     protected function rules(): array
     {
@@ -55,6 +67,7 @@ class ProductionRecipeForm extends Component
             'category'                 => 'nullable|string|max:100',
             'kitchen_id'               => 'required|exists:central_kitchens,id',
             'description'              => 'nullable|string',
+            'video_url'                => 'nullable|url|max:500',
             'yield_quantity'           => 'required|numeric|min:0.0001',
             'yield_uom_id'            => 'required|exists:units_of_measure,id',
             'packaging_uom'            => 'nullable|string|max:100',
@@ -70,6 +83,7 @@ class ProductionRecipeForm extends Component
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
             'lines.*.uom_id'          => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage' => 'nullable|numeric|min:0|max:100',
+            'steps.*.new_image'        => 'nullable|image|max:4096',
         ];
     }
 
@@ -80,6 +94,7 @@ class ProductionRecipeForm extends Component
             'kitchen_id.required'        => 'Please select a kitchen.',
             'yield_quantity.required'     => 'Yield quantity is required.',
             'yield_uom_id.required'      => 'Yield UOM is required.',
+            'video_url.url'              => 'The training video link must be a valid URL.',
             'lines.required'             => 'Add at least one ingredient line.',
             'lines.min'                  => 'Add at least one ingredient line.',
             'lines.*.quantity.min'       => 'Quantity must be greater than zero.',
@@ -90,7 +105,7 @@ class ProductionRecipeForm extends Component
     {
         if (! $id) return;
 
-        $recipe = ProductionRecipe::with(['lines.ingredient', 'lines.uom'])->findOrFail($id);
+        $recipe = ProductionRecipe::with(['lines.ingredient', 'lines.uom', 'steps'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->name                   = $recipe->name;
@@ -98,6 +113,7 @@ class ProductionRecipeForm extends Component
         $this->category               = $recipe->category ?? '';
         $this->kitchen_id             = $recipe->kitchen_id;
         $this->description            = $recipe->description ?? '';
+        $this->video_url              = $recipe->video_url ?? '';
         $this->yield_quantity         = (string) floatval($recipe->yield_quantity);
         $this->yield_uom_id          = $recipe->yield_uom_id;
         $this->packaging_uom          = $recipe->packaging_uom ?? '';
@@ -110,13 +126,25 @@ class ProductionRecipeForm extends Component
         $this->selling_price_per_unit = (string) floatval($recipe->selling_price_per_unit);
 
         $this->lines = $recipe->lines->map(fn ($l) => [
-            'ingredient_id'    => $l->ingredient_id,
-            'ingredient_name'  => $l->ingredient?->name ?? '-',
-            'quantity'         => (string) floatval($l->quantity),
-            'uom_id'           => $l->uom_id,
-            'uom_name'         => $l->uom?->abbreviation ?? '-',
-            'waste_percentage' => (string) floatval($l->waste_percentage),
-            'unit_cost'        => (string) floatval($l->ingredient?->purchase_price ?? 0),
+            'ingredient_id'           => $l->ingredient_id,
+            'ingredient_name'         => $l->ingredient?->name ?? '-',
+            'quantity'                => (string) floatval($l->quantity),
+            'uom_id'                  => $l->uom_id,
+            'uom_name'                => $l->uom?->abbreviation ?? '-',
+            'recipe_uom_id'           => $l->ingredient?->recipe_uom_id,
+            'secondary_recipe_uom_id' => $l->ingredient?->secondary_recipe_uom_id,
+            'waste_percentage'        => (string) floatval($l->waste_percentage),
+            'unit_cost'               => '0',
+            'line_cost'               => null,
+        ])->toArray();
+
+        $this->steps = $recipe->steps->map(fn ($s) => [
+            'id'           => $s->id,
+            'title'        => $s->title ?? '',
+            'instruction'  => $s->instruction,
+            'image_path'   => $s->image_path,
+            'new_image'    => null,
+            'remove_image' => false,
         ])->toArray();
 
         $this->recalculate();
@@ -126,7 +154,7 @@ class ProductionRecipeForm extends Component
 
     public function addIngredient(int $ingredientId): void
     {
-        $ingredient = Ingredient::with('baseUom')->find($ingredientId);
+        $ingredient = Ingredient::with(['baseUom', 'recipeUom'])->find($ingredientId);
         if (! $ingredient) return;
 
         // Skip duplicates
@@ -137,14 +165,21 @@ class ProductionRecipeForm extends Component
             }
         }
 
+        // Default to the ingredient's RECIPE unit — that is the unit recipes
+        // are written in; the base/pack unit is for purchasing.
+        $defaultUomId = $ingredient->recipe_uom_id ?? $ingredient->base_uom_id;
+
         $this->lines[] = [
-            'ingredient_id'    => $ingredientId,
-            'ingredient_name'  => $ingredient->name,
-            'quantity'         => '1',
-            'uom_id'           => $ingredient->base_uom_id,
-            'uom_name'         => $ingredient->baseUom?->abbreviation ?? '-',
-            'waste_percentage' => '0',
-            'unit_cost'        => (string) floatval($ingredient->purchase_price ?? 0),
+            'ingredient_id'           => $ingredientId,
+            'ingredient_name'         => $ingredient->name,
+            'quantity'                => '1',
+            'uom_id'                  => $defaultUomId,
+            'uom_name'                => $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation ?? '-',
+            'recipe_uom_id'           => $ingredient->recipe_uom_id,
+            'secondary_recipe_uom_id' => $ingredient->secondary_recipe_uom_id,
+            'waste_percentage'        => '0',
+            'unit_cost'               => '0',
+            'line_cost'               => null,
         ];
 
         $this->ingredientSearch = '';
@@ -183,16 +218,53 @@ class ProductionRecipeForm extends Component
         $this->recalculate();
     }
 
-    // ── Costing Calculation ─────────────────────────────────────────────
+    // ── Costing Calculation (UOM-aware, same basis as the prep item form) ──
 
     private function recalculate(): void
     {
         $rawCost = 0;
-        foreach ($this->lines as $line) {
-            $cost        = floatval($line['unit_cost'] ?? 0);
-            $qty         = floatval($line['quantity'] ?? 0);
-            $wasteFactor = 1 + (floatval($line['waste_percentage'] ?? 0) / 100);
-            $rawCost    += $cost * $qty * $wasteFactor;
+
+        if (! empty($this->lines)) {
+            $ingredientIds = collect($this->lines)->pluck('ingredient_id')->filter()->unique()->values();
+            $uomIds        = collect($this->lines)->pluck('uom_id')->filter()->unique()->values();
+
+            $ingredientsMap = $ingredientIds->isNotEmpty()
+                ? Ingredient::with(['baseUom', 'uomConversions'])->whereIn('id', $ingredientIds)->get()->keyBy('id')
+                : collect();
+            $uomsMap = $uomIds->isNotEmpty()
+                ? UnitOfMeasure::whereIn('id', $uomIds)->get()->keyBy('id')
+                : collect();
+
+            $uomService = app(UomService::class);
+
+            foreach ($this->lines as $idx => $line) {
+                $ingredient = $ingredientsMap->get($line['ingredient_id'] ?? 0);
+                $uom        = $uomsMap->get($line['uom_id'] ?? 0);
+                $qty        = floatval($line['quantity'] ?? 0);
+
+                if ($ingredient && $uom && $qty > 0) {
+                    if ($ingredient->is_prep) {
+                        $costPerUom = $uomService->convertCost($ingredient, $uom);
+                    } else {
+                        // Pre-yield basis: purchase_price / pack_size, converted
+                        // to the line's unit.
+                        $originalCost = $ingredient->current_cost;
+                        $packSize = max((float) $ingredient->pack_size, 0.0001);
+                        $ingredient->current_cost = (float) $ingredient->purchase_price / $packSize;
+                        $costPerUom = $uomService->convertCost($ingredient, $uom);
+                        $ingredient->current_cost = $originalCost;
+                    }
+
+                    $wasteFactor = 1 + (floatval($line['waste_percentage'] ?? 0) / 100);
+                    $lineCost    = $costPerUom * $wasteFactor * $qty;
+
+                    $this->lines[$idx]['unit_cost'] = (string) round($costPerUom, 4);
+                    $this->lines[$idx]['line_cost'] = round($lineCost, 4);
+                    $rawCost += $lineCost;
+                } else {
+                    $this->lines[$idx]['line_cost'] = null;
+                }
+            }
         }
 
         $yield        = max(floatval($this->yield_quantity), 0.0001);
@@ -207,6 +279,161 @@ class ProductionRecipeForm extends Component
         $this->total_cost_per_unit = round($costPerUnit, 4);
         $this->margin              = round($margin, 4);
         $this->margin_percent      = round($marginPct, 2);
+    }
+
+    // ── Training / SOP steps ────────────────────────────────────────────
+
+    public function addStep(): void
+    {
+        $this->steps[] = [
+            'id'           => null,
+            'title'        => '',
+            'instruction'  => '',
+            'image_path'   => null,
+            'new_image'    => null,
+            'remove_image' => false,
+        ];
+    }
+
+    public function removeStep(int $idx): void
+    {
+        unset($this->steps[$idx]);
+        $this->steps = array_values($this->steps);
+    }
+
+    public function removeStepImage(int $idx): void
+    {
+        if (isset($this->steps[$idx])) {
+            $this->steps[$idx]['remove_image'] = true;
+            $this->steps[$idx]['new_image']    = null;
+        }
+    }
+
+    public function clearStepNewImage(int $idx): void
+    {
+        if (isset($this->steps[$idx])) {
+            $this->steps[$idx]['new_image'] = null;
+        }
+    }
+
+    // ── AI step assistance (same VisionService as the prep item form) ───
+
+    public function suggestPreparationSteps(string $mode = 'append'): void
+    {
+        $ingredientNames = $this->recipeIngredientNames();
+
+        if (trim($this->name) === '' && empty($ingredientNames)) {
+            session()->flash('ai_steps_error', 'Add a recipe name and at least one ingredient before generating steps.');
+            return;
+        }
+
+        try {
+            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, []);
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        if ($mode === 'replace') {
+            $this->steps = [];
+        } else {
+            $this->steps = array_values(array_filter($this->steps, fn ($s) => trim($s['instruction'] ?? '') !== ''));
+        }
+
+        foreach ($suggested as $s) {
+            $this->steps[] = [
+                'id'           => null,
+                'title'        => $s['title'] ?? '',
+                'instruction'  => $s['instruction'] ?? '',
+                'image_path'   => null,
+                'new_image'    => null,
+                'remove_image' => false,
+            ];
+        }
+
+        $verb = $mode === 'replace' ? 'replaced all steps' : 'added';
+        session()->flash('ai_steps_success', count($suggested) . " AI-suggested step(s) {$verb}. Review and edit before saving.");
+    }
+
+    public function regenerateStep(int $idx): void
+    {
+        if (! isset($this->steps[$idx])) return;
+
+        $ingredientNames = $this->recipeIngredientNames();
+        if (trim($this->name) === '' && empty($ingredientNames)) {
+            session()->flash('ai_steps_error', 'Add a recipe name and at least one ingredient before regenerating.');
+            return;
+        }
+
+        $existing = array_map(fn ($s) => [
+            'title'       => $s['title'] ?? '',
+            'instruction' => $s['instruction'] ?? '',
+        ], $this->steps);
+
+        try {
+            $new = app(VisionService::class)->regeneratePreparationStep(
+                $this->name, $ingredientNames, $existing, $idx + 1, [],
+            );
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        $this->steps[$idx]['title']       = $new['title'] ?? $this->steps[$idx]['title'];
+        $this->steps[$idx]['instruction'] = $new['instruction'] ?? $this->steps[$idx]['instruction'];
+
+        session()->flash('ai_steps_success', 'Step ' . ($idx + 1) . ' regenerated.');
+    }
+
+    public function fineTuneSteps(): void
+    {
+        $indexes = [];
+        foreach ($this->steps as $i => $s) {
+            if (trim($s['instruction'] ?? '') !== '') $indexes[] = $i;
+        }
+
+        if (empty($indexes)) {
+            session()->flash('ai_steps_error', 'Add at least one step with an instruction before fine-tuning.');
+            return;
+        }
+
+        $payload = array_map(fn ($i) => [
+            'title'       => $this->steps[$i]['title'] ?? '',
+            'instruction' => $this->steps[$i]['instruction'] ?? '',
+        ], $indexes);
+
+        try {
+            $polished = app(VisionService::class)->fineTunePreparationSteps(
+                $this->name, $this->recipeIngredientNames(), $payload,
+            );
+        } catch (\Throwable $e) {
+            session()->flash('ai_steps_error', $e->getMessage());
+            return;
+        }
+
+        $changed = 0;
+        foreach ($indexes as $k => $i) {
+            $newTitle = $polished[$k]['title'] ?? ($this->steps[$i]['title'] ?? '');
+            $newInstr = $polished[$k]['instruction'] ?? $this->steps[$i]['instruction'];
+            if ($newTitle !== ($this->steps[$i]['title'] ?? '') || $newInstr !== $this->steps[$i]['instruction']) {
+                $changed++;
+            }
+            $this->steps[$i]['title']       = $newTitle;
+            $this->steps[$i]['instruction'] = $newInstr;
+        }
+
+        session()->flash('ai_steps_success', $changed === 0
+            ? 'All steps already read well — no changes needed.'
+            : "{$changed} step(s) fine-tuned for spelling and clarity. Review and save.");
+    }
+
+    private function recipeIngredientNames(): array
+    {
+        return collect($this->lines)
+            ->pluck('ingredient_name')
+            ->filter(fn ($n) => $n && $n !== '—' && $n !== '-')
+            ->values()
+            ->all();
     }
 
     // ── Save ────────────────────────────────────────────────────────────
@@ -225,6 +452,7 @@ class ProductionRecipeForm extends Component
                 'category'               => $this->category ?: null,
                 'kitchen_id'             => $this->kitchen_id,
                 'description'            => $this->description ?: null,
+                'video_url'              => $this->video_url ?: null,
                 'yield_quantity'         => floatval($this->yield_quantity),
                 'yield_uom_id'          => $this->yield_uom_id,
                 'packaging_uom'          => $this->packaging_uom ?: null,
@@ -260,6 +488,51 @@ class ProductionRecipeForm extends Component
                     'sort_order'       => $idx + 1,
                 ]);
             }
+
+            // Sync training steps (upsert, preserve images)
+            $keepStepIds = [];
+            foreach ($this->steps as $idx => $step) {
+                if (trim($step['instruction'] ?? '') === '') continue;
+
+                $imagePath = $step['image_path'] ?? null;
+
+                if (! empty($step['remove_image']) && $imagePath) {
+                    Storage::disk('public')->delete($imagePath);
+                    $imagePath = null;
+                }
+
+                if (! empty($step['new_image']) && is_object($step['new_image'])) {
+                    if ($imagePath) {
+                        Storage::disk('public')->delete($imagePath);
+                    }
+                    $imagePath = \App\Services\ImageStorageService::storeCompressed($step['new_image'], 'production-recipe-steps');
+                }
+
+                $stepData = [
+                    'sort_order'  => $idx,
+                    'title'       => $step['title'] ?: null,
+                    'instruction' => $step['instruction'],
+                    'image_path'  => $imagePath,
+                ];
+
+                if (! empty($step['id'])) {
+                    $existing = $recipe->steps()->find($step['id']);
+                    if ($existing) {
+                        $existing->update($stepData);
+                        $keepStepIds[] = $existing->id;
+                        continue;
+                    }
+                }
+
+                $newStep = $recipe->steps()->create($stepData);
+                $keepStepIds[] = $newStep->id;
+            }
+            $recipe->steps()->whereNotIn('id', $keepStepIds ?: [0])->get()->each(function ($s) {
+                if ($s->image_path) {
+                    Storage::disk('public')->delete($s->image_path);
+                }
+                $s->delete();
+            });
         });
 
         session()->flash('success', $this->recipeId ? 'Production recipe updated.' : 'Production recipe created.');
@@ -272,6 +545,13 @@ class ProductionRecipeForm extends Component
     {
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
         $uoms     = UnitOfMeasure::orderBy('name')->get();
+
+        // Managed categories (same source as the prep item / recipe forms)
+        $recipeCategories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')])
+            ->roots()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
 
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {
@@ -290,7 +570,7 @@ class ProductionRecipeForm extends Component
             ? 'Edit: ' . $this->name
             : 'New Production Recipe';
 
-        return view('livewire.kitchen.production-recipe-form', compact('kitchens', 'uoms', 'searchResults'))
+        return view('livewire.kitchen.production-recipe-form', compact('kitchens', 'uoms', 'searchResults', 'recipeCategories'))
             ->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }
