@@ -16,20 +16,22 @@
         @endif
     </div>
 
-    {{-- Stats --}}
+    {{-- Stats (increase/decrease cards toggle the direction filter) --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Unread Alerts</p>
             <p class="text-2xl font-bold {{ $unreadCount > 0 ? 'text-amber-600' : 'text-gray-800' }} mt-1">{{ $unreadCount }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <button wire:click="$set('directionFilter', '{{ $directionFilter === 'increase' ? '' : 'increase' }}')"
+                class="text-left bg-white rounded-xl shadow-sm border p-5 transition {{ $directionFilter === 'increase' ? 'border-red-300 ring-1 ring-red-200' : 'border-gray-100 hover:border-red-200' }}">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Price Increases</p>
             <p class="text-2xl font-bold text-red-600 mt-1">{{ $increaseCount }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        </button>
+        <button wire:click="$set('directionFilter', '{{ $directionFilter === 'decrease' ? '' : 'decrease' }}')"
+                class="text-left bg-white rounded-xl shadow-sm border p-5 transition {{ $directionFilter === 'decrease' ? 'border-green-300 ring-1 ring-green-200' : 'border-gray-100 hover:border-green-200' }}">
             <p class="text-xs text-gray-400 uppercase tracking-wider">Price Decreases</p>
             <p class="text-2xl font-bold text-green-600 mt-1">{{ $decreaseCount }}</p>
-        </div>
+        </button>
     </div>
 
     {{-- Threshold Setting --}}
@@ -38,7 +40,7 @@
             <div>
                 <p class="text-sm font-semibold text-gray-800">Alert Threshold</p>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    Automatically detect price changes of <strong>{{ $threshold }}%</strong> or more across all your supplier ingredients. Checked daily.
+                    Detects changes of <strong>{{ $threshold }}%</strong> or more against the previous supplier price — even across several same-price deliveries. Checked daily at 7:00 AM; only changes from the last 14 days are flagged.
                 </p>
             </div>
             <div class="flex items-center gap-2">
@@ -84,21 +86,30 @@
                 @forelse ($notifications as $n)
                     <tr class="{{ $n->is_read ? '' : 'bg-amber-50/40' }} hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
-                            <div class="font-medium text-gray-700">{{ $n->ingredient?->name ?? '—' }}</div>
-                            @if (! $n->is_read)
-                                <span class="inline-block w-2 h-2 bg-amber-500 rounded-full"></span>
-                            @endif
+                            <div class="flex items-center gap-1.5">
+                                @if (! $n->is_read)
+                                    <span class="inline-block w-2 h-2 bg-amber-500 rounded-full flex-shrink-0" title="Unread"></span>
+                                @endif
+                                <a href="{{ route('reports.price-history', ['search' => $n->ingredient?->name]) }}"
+                                   title="View full price history for {{ $n->ingredient?->name }}"
+                                   class="font-medium text-gray-700 hover:text-indigo-600 hover:underline">
+                                    {{ $n->ingredient?->name ?? '—' }}
+                                </a>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $n->supplier?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-500">{{ number_format($n->old_price, 4) }}</td>
                         <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">{{ number_format($n->new_price, 4) }}</td>
                         <td class="px-4 py-3 text-center">
-                            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap
                                 {{ $n->direction === 'increase' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
-                                {{ $n->direction === 'increase' ? '+' : '' }}{{ $n->change_percent }}%
+                                {{ $n->direction === 'increase' ? '+' : '−' }}{{ number_format(abs($n->change_percent), 1) }}%
                             </span>
+                            <div class="text-[11px] text-gray-400 mt-0.5 tabular-nums">
+                                {{ $n->direction === 'increase' ? '+' : '−' }}{{ number_format(abs($n->change_amount ?? ($n->new_price - $n->old_price)), 2) }}
+                            </div>
                         </td>
-                        <td class="px-4 py-3 text-center text-gray-400 text-xs">{{ $n->detected_at->diffForHumans() }}</td>
+                        <td class="px-4 py-3 text-center text-gray-400 text-xs" title="{{ $n->detected_at->format('d M Y, h:i A') }}">{{ $n->detected_at->diffForHumans() }}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex items-center justify-center gap-1">
                                 @if (! $n->is_read)
@@ -115,7 +126,11 @@
                 @empty
                     <tr>
                         <td colspan="7" class="px-4 py-8 text-center text-gray-400">
-                            No price changes detected. The system automatically monitors all your supplier prices daily.
+                            <p>No price changes {{ $directionFilter || $dateFrom ? 'match the selected filters' : 'detected' }}.</p>
+                            <p class="text-xs mt-1">
+                                Supplier prices are checked every morning at 7:00 — a change of
+                                <span class="font-medium text-gray-500">{{ $threshold }}%</span> or more against the previous price creates an alert here.
+                            </p>
                         </td>
                     </tr>
                 @endforelse

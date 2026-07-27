@@ -18,6 +18,7 @@ class PriceHistory extends Component
     public string $period = 'monthly';
     public string $dateFrom = '';
     public string $dateTo = '';
+    #[\Livewire\Attributes\Url]
     public string $search = '';
     public string $supplierFilter = '';
     public string $categoryFilter = '';

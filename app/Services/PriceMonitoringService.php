@@ -34,20 +34,38 @@ class PriceMonitoringService
         $created = 0;
 
         foreach ($records as $si) {
-            // Get the previous price from history (second-most-recent entry)
-            $history = IngredientPriceHistory::where('ingredient_id', $si->ingredient_id)
+            // History gets a row on EVERY receive, including unchanged-cost
+            // ones — comparing just the last two rows masked a real change
+            // as soon as the next same-price delivery landed. Walk recent
+            // rows to the most recent DIFFERENT price instead.
+            $rows = IngredientPriceHistory::where('ingredient_id', $si->ingredient_id)
                 ->where('supplier_id', $si->supplier_id)
                 ->orderByDesc('effective_date')
                 ->orderByDesc('id')
-                ->limit(2)
-                ->pluck('cost');
+                ->limit(20)
+                ->get(['cost', 'effective_date']);
 
-            if ($history->count() < 2) continue;
+            if ($rows->count() < 2) continue;
 
-            $currentPrice = floatval($history->first());
-            $previousPrice = floatval($history->last());
+            $currentPrice    = floatval($rows->first()->cost);
+            $changePointDate = $rows->first()->effective_date;
+            $previousPrice   = null;
+            foreach ($rows->skip(1) as $row) {
+                if (floatval($row->cost) !== $currentPrice) {
+                    $previousPrice = floatval($row->cost);
+                    break;
+                }
+                // Still inside the current-price run — the change happened
+                // at (or before) this older row.
+                $changePointDate = $row->effective_date;
+            }
 
-            if ($previousPrice <= 0) continue;
+            if ($previousPrice === null || $previousPrice <= 0) continue;
+
+            // Only flag changes that actually HAPPENED recently. Without
+            // this, the first run for a company (or a long detection gap)
+            // resurfaces months-old changes as if they were new.
+            if (\Carbon\Carbon::parse($changePointDate)->lt(now()->subDays(14))) continue;
 
             $changePct = round((($currentPrice - $previousPrice) / $previousPrice) * 100, 2);
 
@@ -118,11 +136,14 @@ class PriceMonitoringService
         $ingredientId = $alert->ingredient_id;
         $supplierId = $alert->supplier_id;
 
-        // Get current and previous price
+        // Current price vs the most recent DIFFERENT price (history logs a
+        // row on every receive, so adjacent rows are often the same cost).
+        // id tiebreak keeps same-day rows deterministic.
         $history = IngredientPriceHistory::where('ingredient_id', $ingredientId)
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))
             ->orderByDesc('effective_date')
-            ->limit(2)
+            ->orderByDesc('id')
+            ->limit(20)
             ->get();
 
         if ($history->count() < 2) {
@@ -130,8 +151,17 @@ class PriceMonitoringService
         }
 
         $currentPrice = floatval($history->first()->cost);
-        $previousPrice = floatval($history->last()->cost);
+        $previousPrice = null;
+        foreach ($history->skip(1) as $row) {
+            if (floatval($row->cost) !== $currentPrice) {
+                $previousPrice = floatval($row->cost);
+                break;
+            }
+        }
 
+        if ($previousPrice === null) {
+            return ['triggered' => false, 'message' => 'No prior price differs from the current one.'];
+        }
         if ($previousPrice <= 0) {
             return ['triggered' => false, 'message' => 'Previous price is zero.'];
         }
