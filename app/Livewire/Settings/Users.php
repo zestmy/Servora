@@ -307,8 +307,9 @@ class Users extends Component
             $user->update($data);
             session()->flash('success', 'User updated.');
         } else {
-            $data['email_verified_at'] = now();
             $user = User::create($data);
+            // Not mass-assignable — admin-created accounts are pre-verified.
+            $user->forceFill(['email_verified_at' => now()])->save();
             session()->flash('success', 'User created.');
         }
 

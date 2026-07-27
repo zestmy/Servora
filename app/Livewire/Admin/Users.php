@@ -25,6 +25,16 @@ class Users extends Component
     public string $roleFilter    = '';
     public string $typeFilter    = ''; // '' | multi | system | unverified
 
+    // Account edit modal (platform-level fields; per-company access lives
+    // in Settings > Users within each company)
+    public bool    $showEdit      = false;
+    public ?int    $editId        = null;
+    public string  $e_name        = '';
+    public string  $e_email       = '';
+    public string  $e_designation = '';
+    public string  $e_password    = '';
+    public bool    $e_verified    = true;
+
     public function updatingSearch(): void        { $this->resetPage(); }
     public function updatingCompanyFilter(): void { $this->resetPage(); }
     public function updatingRoleFilter(): void    { $this->resetPage(); }
@@ -38,6 +48,108 @@ class Users extends Component
             ->where('model_has_roles.model_type', User::class)
             ->whereIn('roles.name', ['Super Admin', 'System Admin'])
             ->select('model_has_roles.model_id');
+    }
+
+    public function openEdit(int $userId): void
+    {
+        if (! Auth::user()->isSystemRole()) return;
+        $user = User::find($userId);
+        if (! $user) return;
+
+        $this->editId        = $user->id;
+        $this->e_name        = $user->name;
+        $this->e_email       = $user->email;
+        $this->e_designation = $user->designation ?? '';
+        $this->e_password    = '';
+        $this->e_verified    = $user->email_verified_at !== null;
+        $this->showEdit      = true;
+    }
+
+    public function saveEdit(): void
+    {
+        if (! Auth::user()->isSystemRole() || ! $this->editId) return;
+        $user = User::find($this->editId);
+        if (! $user) return;
+
+        $this->validate([
+            'e_name'        => 'required|string|max:100',
+            'e_email'       => ['required', 'email', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($user->id)],
+            'e_designation' => 'nullable|string|max:100',
+            'e_password'    => 'nullable|string|min:8',
+        ], [], [
+            'e_name' => 'name', 'e_email' => 'email',
+            'e_designation' => 'designation', 'e_password' => 'password',
+        ]);
+
+        $data = [
+            'name'        => $this->e_name,
+            'email'       => $this->e_email,
+            'designation' => $this->e_designation ?: null,
+        ];
+        if ($this->e_password !== '') {
+            $data['password'] = \Illuminate\Support\Facades\Hash::make($this->e_password);
+        }
+        $user->update($data);
+
+        // email_verified_at is not mass-assignable — set it explicitly.
+        // Keep the original timestamp when already verified; stamp now()
+        // when newly verifying; null to revoke.
+        $user->forceFill([
+            'email_verified_at' => $this->e_verified ? ($user->email_verified_at ?? now()) : null,
+        ])->save();
+
+        Log::info('Admin edited user account', [
+            'admin_id' => Auth::id(), 'target_id' => $user->id,
+            'password_reset' => $this->e_password !== '',
+        ]);
+
+        $this->showEdit = false;
+        $this->editId   = null;
+        session()->flash('success', 'User "' . $user->name . '" updated.');
+    }
+
+    public function closeEdit(): void
+    {
+        $this->showEdit = false;
+        $this->editId   = null;
+        $this->resetValidation();
+    }
+
+    /**
+     * Delete an account entirely, across every company — memberships, outlet
+     * and kitchen assignments, role/permission rows and sessions included.
+     * Self and system-level accounts can never be deleted here.
+     */
+    public function deleteUser(int $userId): void
+    {
+        $admin = Auth::user();
+        if (! $admin->isSystemRole()) return;
+        if ($userId === $admin->id) {
+            session()->flash('error', 'You cannot delete your own account.');
+            return;
+        }
+
+        $user = User::find($userId);
+        if (! $user) return;
+        if ($user->hasGlobalRole(['Super Admin', 'System Admin'])) {
+            session()->flash('error', 'System-level accounts cannot be deleted here.');
+            return;
+        }
+
+        $user->outlets()->detach();
+        $user->companies()->detach();
+        DB::table('kitchen_users')->where('user_id', $user->id)->delete();
+        DB::table('model_has_roles')->where('model_type', User::class)->where('model_id', $user->id)->delete();
+        DB::table('model_has_permissions')->where('model_type', User::class)->where('model_id', $user->id)->delete();
+        DB::table('sessions')->where('user_id', $user->id)->delete();
+
+        Log::info('Admin deleted user account', [
+            'admin_id' => $admin->id, 'target_id' => $user->id, 'target_email' => $user->email,
+        ]);
+
+        $name = $user->name;
+        $user->delete();
+        session()->flash('success', 'User "' . $name . '" deleted (all companies).');
     }
 
     /**

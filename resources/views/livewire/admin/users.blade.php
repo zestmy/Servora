@@ -132,19 +132,30 @@
                                 @php
                                     $isSystemAccount = collect($rolesByUser[$u->id] ?? [])->pluck('name')->intersect(['Super Admin', 'System Admin'])->isNotEmpty();
                                 @endphp
-                                @if (! $isSystemAccount && $u->id !== auth()->id())
-                                    <button wire:click="impersonate({{ $u->id }})"
-                                            wire:confirm="Log in as {{ $u->name }}? You will see the app exactly as they do until you click 'Return to admin'."
-                                            title="Log in as this user"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition whitespace-nowrap">
-                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                                        </svg>
-                                        Login as
+                                <div class="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                    <button wire:click="openEdit({{ $u->id }})"
+                                            title="Edit account (name, email, password, verification)"
+                                            class="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                        Edit
                                     </button>
-                                @else
-                                    <span class="text-xs text-gray-300">—</span>
-                                @endif
+                                    @if (! $isSystemAccount && $u->id !== auth()->id())
+                                        <button wire:click="impersonate({{ $u->id }})"
+                                                wire:confirm="Log in as {{ $u->name }}? You will see the app exactly as they do until you click 'Return to admin'."
+                                                title="Log in as this user"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                            </svg>
+                                            Login as
+                                        </button>
+                                        <button wire:click="deleteUser({{ $u->id }})"
+                                                wire:confirm="Delete {{ $u->name }} ({{ $u->email }}) PERMANENTLY? This removes their account and access to ALL companies and cannot be undone."
+                                                title="Delete account across all companies"
+                                                class="px-2.5 py-1 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition">
+                                            Delete
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -158,4 +169,50 @@
     <div class="mt-4">
         {{ $users->links() }}
     </div>
+
+    {{-- Account edit modal --}}
+    @if ($showEdit)
+        @teleport('body')
+        <div class="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-4">
+            <div class="absolute inset-0 bg-gray-900/50" wire:click="closeEdit"></div>
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md z-10 p-6 mt-16">
+                <h3 class="text-sm font-semibold text-gray-800 mb-4">Edit Account</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Name *</label>
+                        <input type="text" wire:model="e_name" class="w-full rounded-lg border-gray-300 text-sm" />
+                        @error('e_name') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Email *</label>
+                        <input type="email" wire:model="e_email" class="w-full rounded-lg border-gray-300 text-sm" />
+                        @error('e_email') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Designation</label>
+                            <input type="text" wire:model="e_designation" class="w-full rounded-lg border-gray-300 text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">New Password <span class="text-gray-400">(blank = keep)</span></label>
+                            <input type="password" wire:model="e_password" class="w-full rounded-lg border-gray-300 text-sm" />
+                            @error('e_password') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                        <input type="checkbox" wire:model="e_verified" class="rounded border-gray-300 text-indigo-600" />
+                        Email verified
+                    </label>
+                    <p class="text-[11px] text-gray-400">
+                        Per-company access (role, modules, outlets, capabilities) is managed in that company's Settings &gt; Users.
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button wire:click="closeEdit" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button wire:click="saveEdit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">Save</button>
+                </div>
+            </div>
+        </div>
+        @endteleport
+    @endif
 </div>
