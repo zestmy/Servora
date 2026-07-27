@@ -353,10 +353,6 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Refer & Earn (all users)
     Route::get('/refer', ReferralDashboard::class)->name('referral.dashboard');
 
-    // End impersonation — deliberately NOT SystemAdminOnly: while
-    // impersonating, the logged-in user is the non-admin target.
-    Route::post('/impersonation/stop', [\App\Http\Controllers\ImpersonationController::class, 'stop'])->name('impersonation.stop');
-
     // Admin routes (System Admin only)
     Route::prefix('admin')->middleware(\App\Http\Middleware\SystemAdminOnly::class)->group(function () {
         Route::get('/users', \App\Livewire\Admin\Users::class)->name('admin.users');
@@ -378,5 +374,14 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
+
+// End impersonation. Deliberately OUTSIDE 'verified' / 'enforce.subscription'
+// (and NOT SystemAdminOnly): while impersonating, the logged-in user is the
+// non-admin target — an unverified email or an expired subscription must
+// never trap the admin in the impersonated session. Authority comes from the
+// impersonator_id stored in the session, verified as a system role.
+Route::post('/impersonation/stop', [\App\Http\Controllers\ImpersonationController::class, 'stop'])
+    ->middleware(['auth'])
+    ->name('impersonation.stop');
 
 require __DIR__ . '/auth.php';
