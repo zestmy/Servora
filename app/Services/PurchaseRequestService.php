@@ -330,10 +330,11 @@ class PurchaseRequestService
 
         // Group by supplier
         $groups = [];
+        $kitchenLineCount = 0;
         foreach ($prs as $pr) {
             foreach ($pr->lines as $line) {
                 if (! $line->ingredient_id) continue;
-                if ($line->source === 'kitchen') continue;
+                if ($line->source === 'kitchen') { $kitchenLineCount++; continue; }
 
                 $supplierId = $line->preferred_supplier_id ?? 0;
                 if (! isset($groups[$supplierId])) {
@@ -401,11 +402,14 @@ class PurchaseRequestService
             ->get(['id', 'name'])->map(fn ($k) => ['id' => $k->id, 'name' => $k->name])->toArray();
 
         return [
-            'groups'           => array_values($groups),
-            'cost_lookup'      => $costLookup,
-            'tax_lookup'       => $taxLookup,
-            'supplier_options' => $supplierOptions,
-            'kitchen_options'  => $kitchenOptions,
+            'groups'             => array_values($groups),
+            'cost_lookup'        => $costLookup,
+            'tax_lookup'         => $taxLookup,
+            'supplier_options'   => $supplierOptions,
+            'kitchen_options'    => $kitchenOptions,
+            // Lines routed to kitchen production instead of supplier POs —
+            // surfaced in the preview so their absence is explained.
+            'kitchen_line_count' => $kitchenLineCount,
         ];
     }
 

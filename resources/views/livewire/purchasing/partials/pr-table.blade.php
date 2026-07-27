@@ -19,7 +19,7 @@
             <div class="p-3 space-y-2">
                 <div class="flex items-start justify-between gap-2">
                     <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $pr->pr_number }}</a>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ ucfirst($pr->status) }}</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ \App\Helpers\PurchasingStatus::pr($pr->status) }}</span>
                 </div>
                 @if ($multiOutlet)
                     <div class="text-xs text-gray-500 truncate">{{ $pr->outlet?->name ?? '—' }}</div>
@@ -67,7 +67,13 @@
                 </div>
             </div>
         @empty
-            <div class="p-8 text-center text-gray-400 text-sm font-medium">No purchase requests found</div>
+            <div class="p-8 text-center text-gray-400 text-sm">
+                <p class="font-medium">No purchase requests yet</p>
+                <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
+                @if ($canCreatePr ?? false)
+                    <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first request</a>
+                @endif
+            </div>
         @endforelse
     </div>
 
@@ -120,7 +126,7 @@
                     <td class="px-4 py-3 text-gray-600 text-xs">{{ $pr->createdBy?->name ?? '—' }}</td>
                     <td class="px-4 py-3 text-center">
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badge }}">
-                            {{ ucfirst($pr->status) }}
+                            {{ \App\Helpers\PurchasingStatus::pr($pr->status) }}
                         </span>
                     </td>
                     <td class="px-4 py-3">
@@ -178,7 +184,7 @@
 
                             {{-- Approved: Convert to PO / Revert to Draft --}}
                             @if ($pr->status === 'approved')
-                                <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}" title="Convert to Purchase Order"
+                                <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}" title="Turn this approved request into a purchase order to send to a supplier"
                                    class="text-indigo-500 hover:text-indigo-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                 </a>
@@ -221,7 +227,13 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $multiOutlet ? 8 : 7 }}" class="px-4 py-8 text-center text-gray-400">No purchase requests found.</td>
+                    <td colspan="{{ $multiOutlet ? 8 : 7 }}" class="px-4 py-10 text-center text-gray-400">
+                        <p class="font-medium">No purchase requests yet</p>
+                        <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
+                        @if ($canCreatePr ?? false)
+                            <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first request</a>
+                        @endif
+                    </td>
                 </tr>
             @endforelse
         </tbody>

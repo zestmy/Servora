@@ -21,6 +21,7 @@ class ConsolidateForm extends Component
     public array $editablePreview   = [];
     public array $supplierOptions   = [];
     public array $kitchenOptions    = [];
+    public int   $kitchenLineCount  = 0;
     public array $costLookup        = [];
     public array $taxLookup         = [];
 
@@ -67,11 +68,12 @@ class ConsolidateForm extends Component
 
         $data = PurchaseRequestService::consolidationPreviewWithCosts($this->selectedPrIds);
 
-        $this->editablePreview = $data['groups'];
-        $this->costLookup      = $data['cost_lookup'];
-        $this->taxLookup       = $data['tax_lookup'];
-        $this->supplierOptions = $data['supplier_options'];
-        $this->kitchenOptions  = $data['kitchen_options'];
+        $this->editablePreview  = $data['groups'];
+        $this->costLookup       = $data['cost_lookup'];
+        $this->taxLookup        = $data['tax_lookup'];
+        $this->supplierOptions  = $data['supplier_options'];
+        $this->kitchenOptions   = $data['kitchen_options'];
+        $this->kitchenLineCount = (int) ($data['kitchen_line_count'] ?? 0);
 
         // Also build the simple preview for quick view
         $this->preview = collect($data['groups'])->map(fn ($g) => [
@@ -160,7 +162,7 @@ class ConsolidateForm extends Component
         }
 
         $count = count($createdPoIds);
-        session()->flash('success', "{$count} Purchase Order(s) created from consolidated requests.");
+        session()->flash('success', "{$count} draft Purchase Order(s) created from the consolidated requests — review and send them below.");
 
         return $this->redirect(route('purchasing.index', ['tab' => 'po']), navigate: true);
     }

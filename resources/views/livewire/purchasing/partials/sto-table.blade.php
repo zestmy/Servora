@@ -71,7 +71,10 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">No stock transfer orders found.</td></tr>
+                <tr><td colspan="9" class="px-4 py-10 text-center text-gray-400">
+                    <p class="font-medium">No stock transfers yet</p>
+                    <p class="text-xs mt-1">Transfers move goods from central purchasing to your outlets — they appear here once central stock is dispatched.</p>
+                </td></tr>
             @endforelse
         </tbody>
     </table>

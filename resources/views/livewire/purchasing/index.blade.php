@@ -60,32 +60,37 @@
         <nav class="flex gap-4 -mb-px flex-wrap">
             @if ($showPrTab)
                 <button wire:click="$set('tab', 'pr')"
+                        title="Purchase Requests — what your outlet needs, sent for approval before ordering"
                         class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'pr' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Requests
+                    Requests (PR)
                 </button>
             @endif
             @if ($showPoTab)
                 <button wire:click="$set('tab', 'po')"
+                        title="Purchase Orders — confirmed orders sent to suppliers"
                         class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'po' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Orders
+                    Orders (PO)
                 </button>
             @endif
             @if ($showDoTab)
                 <button wire:click="$set('tab', 'do')"
+                        title="Delivery Orders — deliveries that arrived against an order"
                         class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'do' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Delivery Orders
+                    Deliveries (DO)
                 </button>
             @endif
             @if ($showGrnTab)
                 <button wire:click="$set('tab', 'grn')"
+                        title="Goods Received Notes — confirm what actually arrived and in what condition"
                         class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'grn' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Goods Received
+                    Goods Received (GRN)
                 </button>
             @endif
             @if ($showStoTab)
                 <button wire:click="$set('tab', 'sto')"
+                        title="Stock Transfers — goods moving from central purchasing to outlets"
                         class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ $tab === 'sto' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
-                    Transfers
+                    Transfers (STO)
                 </button>
             @endif
             @if ($showInvoiceTab)
@@ -108,6 +113,20 @@
             @endif
         </nav>
     </div>
+
+    {{-- Plain-language explainer for the active tab --}}
+    @php
+        $tabHelp = [
+            'pr'  => 'A Purchase Request (PR) is your outlet\'s shopping list — what you need, sent for approval before anything is ordered.',
+            'po'  => 'A Purchase Order (PO) is the confirmed order sent to a supplier. Once approved, goods are delivered against it.',
+            'do'  => 'A Delivery Order (DO) records a delivery that arrived from a supplier against an order.',
+            'grn' => 'A Goods Received Note (GRN) confirms what was actually received — quantities and condition — and updates your stock costs.',
+            'sto' => 'A Stock Transfer (STO) moves goods from central purchasing to an outlet.',
+        ];
+    @endphp
+    @if (isset($tabHelp[$tab]))
+        <p class="text-xs text-gray-400 -mt-1 mb-4">{{ $tabHelp[$tab] }}</p>
+    @endif
 
     {{-- Filters --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -152,7 +171,7 @@
                     <option value="submitted">Pending Approval</option>
                     <option value="approved">Approved</option>
                     <option value="sent">Processing</option>
-                    <option value="partial">Partial</option>
+                    <option value="partial">Partially Received</option>
                     <option value="received">Received</option>
                     <option value="cancelled">Cancelled</option>
                 </select>

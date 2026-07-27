@@ -14,12 +14,7 @@
                     'cancelled' => 'bg-red-100 text-red-600',
                     default     => 'bg-gray-100 text-gray-500',
                 };
-                $mStatus = match($po->status) {
-                    'submitted' => 'Pending',
-                    'approved'  => 'Approved',
-                    'sent'      => 'Processing',
-                    default     => ucfirst($po->status),
-                };
+                $mStatus = \App\Helpers\PurchasingStatus::po($po->status);
                 $mCanApprove = $isAppointed && collect($approverAssignments)->contains(function ($a) use ($po) {
                     if ($a['outlet_id'] != $po->outlet_id) return false;
                     if (! $po->department_id) return true;
@@ -74,7 +69,13 @@
                 </div>
             </div>
         @empty
-            <div class="p-8 text-center text-gray-400 text-sm font-medium">No purchase orders found</div>
+            <div class="p-8 text-center text-gray-400 text-sm">
+                <p class="font-medium">No purchase orders yet</p>
+                <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
+                @if ($canCreatePo ?? false)
+                    <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first order</a>
+                @endif
+            </div>
         @endforelse
     </div>
 
@@ -106,12 +107,7 @@
                         'cancelled' => 'bg-red-100 text-red-600',
                         default     => 'bg-gray-100 text-gray-500',
                     };
-                    $statusLabel = match($po->status) {
-                        'submitted' => 'Pending Approval',
-                        'approved'  => 'Approved',
-                        'sent'      => 'Processing',
-                        default     => ucfirst($po->status),
-                    };
+                    $statusLabel = \App\Helpers\PurchasingStatus::po($po->status);
                     $canApproveThis = $isAppointed && collect($approverAssignments)->contains(function ($a) use ($po) {
                         if ($a['outlet_id'] != $po->outlet_id) return false;
                         // PO without department — any approver for the outlet can approve
@@ -207,11 +203,11 @@
 
                             {{-- Approved: Convert to DO, Send to supplier, Receive directly --}}
                             @if (in_array($po->status, ['approved', 'sent', 'partial']))
-                                <a href="{{ route('purchasing.convert-to-do', $po->id) }}" title="Create Delivery Order"
+                                <a href="{{ route('purchasing.convert-to-do', $po->id) }}" title="Record a delivery for this order — creates a delivery order and a goods received note to confirm against"
                                    class="text-green-500 hover:text-green-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                                 </a>
-                                <a href="{{ route('purchasing.orders.receive', $po->id) }}" title="Receive Delivery"
+                                <a href="{{ route('purchasing.orders.receive', $po->id) }}" title="Record what arrived — quantities, condition and costs"
                                    class="text-blue-500 hover:text-blue-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                                 </a>
@@ -246,7 +242,11 @@
             @empty
                 <tr>
                     <td colspan="{{ $multiOutlet ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
-                        <p class="font-medium">No purchase orders found</p>
+                        <p class="font-medium">No purchase orders yet</p>
+                        <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
+                        @if ($canCreatePo ?? false)
+                            <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first order</a>
+                        @endif
                     </td>
                 </tr>
             @endforelse

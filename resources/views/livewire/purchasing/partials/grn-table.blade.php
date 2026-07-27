@@ -43,7 +43,10 @@
                 </div>
             </div>
         @empty
-            <div class="p-8 text-center text-gray-400 text-sm font-medium">No goods received notes found</div>
+            <div class="p-8 text-center text-gray-400 text-sm">
+                <p class="font-medium">Nothing waiting to be received</p>
+                <p class="text-xs mt-1">A goods received note is created when a delivery is on its way — open it to confirm what actually arrived and in what condition.</p>
+            </div>
         @endforelse
     </div>
 
@@ -122,7 +125,8 @@
             @empty
                 <tr>
                     <td colspan="{{ $showPrice ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
-                        <p class="font-medium">No goods received notes found</p>
+                        <p class="font-medium">Nothing waiting to be received</p>
+                        <p class="text-xs mt-1">A goods received note is created when a delivery is on its way — open it to confirm what actually arrived and in what condition.</p>
                     </td>
                 </tr>
             @endforelse

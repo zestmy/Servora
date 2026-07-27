@@ -59,7 +59,8 @@
             @empty
                 <tr>
                     <td colspan="8" class="px-4 py-12 text-center text-gray-400">
-                        <p class="font-medium">No delivery orders found</p>
+                        <p class="font-medium">No deliveries yet</p>
+                        <p class="text-xs mt-1">Deliveries appear here when goods arrive against an approved purchase order — use "Receive" on an order in the Orders (PO) tab.</p>
                     </td>
                 </tr>
             @endforelse

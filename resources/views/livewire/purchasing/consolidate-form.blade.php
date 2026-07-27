@@ -40,6 +40,16 @@
         </div>
     </div>
 
+    {{-- How it works (plain language) --}}
+    @unless ($editMode)
+        <div class="mb-6 bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-indigo-900">
+            <span class="font-semibold uppercase tracking-wider text-indigo-500">How it works</span>
+            <span><span class="font-bold text-indigo-600">1.</span> Tick the approved outlet requests below</span>
+            <span><span class="font-bold text-indigo-600">2.</span> Preview — items are grouped into one order per supplier</span>
+            <span><span class="font-bold text-indigo-600">3.</span> Create the draft purchase orders, then review &amp; send them from the Orders (PO) tab</span>
+        </div>
+    @endunless
+
     {{-- EDIT MODE: Full-width smart review --}}
     @if ($editMode)
         <div class="space-y-4">
@@ -242,20 +252,45 @@
         <div class="space-y-4">
             {{-- CPU Selection --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">CPU</h3>
-                <select wire:model="cpuId" class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="">— Select CPU —</option>
-                    @foreach ($cpus as $cpu)
-                        <option value="{{ $cpu->id }}">{{ $cpu->name }}</option>
-                    @endforeach
-                </select>
+                <h3 class="text-sm font-semibold text-gray-700 mb-1">Central Purchasing Unit (CPU)</h3>
+                <p class="text-[11px] text-gray-400 mb-3">The unit that will place these orders and receive the goods.</p>
+                @if (count($cpus) === 0)
+                    <div class="px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                        No CPU configured yet — orders can't be consolidated without one.
+                        <a href="{{ route('settings.cpu-management') }}" class="font-semibold underline hover:text-amber-900">Create a CPU</a>
+                    </div>
+                @else
+                    <select wire:model="cpuId" class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">— Select CPU —</option>
+                        @foreach ($cpus as $cpu)
+                            <option value="{{ $cpu->id }}">{{ $cpu->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
             </div>
 
             {{-- Preview --}}
             @if ($showPreview && count($preview) > 0)
+                @php
+                    $noSupplierGroup = collect($preview)->first(fn ($p) => (int) ($p['supplier_id'] ?? 0) === 0);
+                    $creatableCount  = collect($preview)->filter(fn ($p) => (int) ($p['supplier_id'] ?? 0) !== 0)->count();
+                @endphp
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">PO Preview</h3>
-                    <p class="text-xs text-gray-400 mb-4">{{ count($preview) }} Purchase Order(s) will be created:</p>
+
+                    @if ($noSupplierGroup)
+                        <div class="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                            <span class="font-semibold">{{ count($noSupplierGroup['lines']) }} item(s) have no preferred supplier and will be skipped.</span>
+                            Use "Customize &amp; Review" to assign a supplier so they get ordered.
+                        </div>
+                    @endif
+                    @if ($kitchenLineCount > 0)
+                        <div class="mb-3 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
+                            {{ $kitchenLineCount }} item(s) are kitchen-made — they were routed to Central Kitchen production instead of a supplier order.
+                        </div>
+                    @endif
+
+                    <p class="text-xs text-gray-400 mb-4">{{ $creatableCount }} Purchase Order(s) will be created:</p>
 
                     <div class="space-y-4">
                         @foreach ($preview as $po)
@@ -286,9 +321,10 @@
                         </button>
                         <button wire:click="consolidate" wire:loading.attr="disabled"
                                 class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                            <span wire:loading.remove wire:target="consolidate">Create {{ count($preview) }} PO(s)</span>
+                            <span wire:loading.remove wire:target="consolidate">Create {{ $creatableCount }} draft PO(s)</span>
                             <span wire:loading wire:target="consolidate">Creating...</span>
                         </button>
+                        <p class="text-[11px] text-gray-400 text-center">Orders are created as drafts — review and send them from the Orders (PO) tab.</p>
                     </div>
                 </div>
             @endif

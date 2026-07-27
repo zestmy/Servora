@@ -144,6 +144,18 @@
                                             } }}">
                                             {{ ucfirst(str_replace('_', ' ', $order->status)) }}
                                         </span>
+                                        @php
+                                            $orderHint = match($order->status) {
+                                                'draft'       => 'Schedule it when ready',
+                                                'scheduled'   => 'Ready — press Start to begin',
+                                                'in_progress' => 'Enter actual quantities, then complete',
+                                                'completed'   => 'Output added to kitchen stock',
+                                                default       => null,
+                                            };
+                                        @endphp
+                                        @if ($orderHint)
+                                            <p class="text-[10px] text-gray-400 mt-0.5">{{ $orderHint }}</p>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ $order->lines_count }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ $order->createdBy?->name ?? '-' }}</td>
@@ -222,6 +234,17 @@
                                             } }}">
                                             {{ ucfirst($request->status) }}
                                         </span>
+                                        @php
+                                            $reqHint = match($request->status) {
+                                                'submitted' => 'Awaiting approval / fulfilment',
+                                                'approved'  => 'Ready to fulfil — sends stock to the outlet',
+                                                'fulfilled' => 'Stock transferred to the outlet',
+                                                default     => null,
+                                            };
+                                        @endphp
+                                        @if ($reqHint)
+                                            <p class="text-[10px] text-gray-400 mt-0.5">{{ $reqHint }}</p>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ $request->lines_count }}</td>
                                     <td class="px-4 py-3 text-right">
@@ -232,6 +255,7 @@
                                             @endif
                                             @if (in_array($request->status, ['submitted', 'approved']))
                                                 <button wire:click="fulfillRequest({{ $request->id }})"
+                                                        wire:confirm="Fulfil this request for {{ $request->outlet?->name ?? 'the outlet' }}? {{ $request->lines_count }} item(s) will be transferred out of kitchen stock immediately."
                                                         class="text-xs text-green-600 hover:text-green-800 transition font-medium">Fulfill</button>
                                             @endif
                                         </div>
