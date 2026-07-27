@@ -288,15 +288,28 @@ class Index extends Component
 
         if ($this->editingId) {
             $ingredient = Ingredient::findOrFail($this->editingId);
+            $oldPrice   = floatval($ingredient->purchase_price);
             $ingredient->update($data);
             $this->saveConversions($ingredient);
             $this->saveSupplierLinks($ingredient);
+            $this->logManualPriceChange($ingredient, $oldPrice, $purchasePrice);
             session()->flash('success', 'Product updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
             $ingredient = Ingredient::create($data);
             $this->saveConversions($ingredient);
             $this->saveSupplierLinks($ingredient);
+            // Baseline row so future changes have something to diff against.
+            if ($purchasePrice > 0) {
+                \App\Models\IngredientPriceHistory::create([
+                    'ingredient_id'  => $ingredient->id,
+                    'supplier_id'    => null,
+                    'cost'           => $purchasePrice,
+                    'uom_id'         => $this->base_uom_id,
+                    'effective_date' => now()->toDateString(),
+                    'source'         => 'manual_edit',
+                ]);
+            }
             session()->flash('success', 'Product created.');
         }
 
@@ -308,6 +321,42 @@ class Index extends Component
         }
 
         $this->closeModal();
+    }
+
+    /**
+     * A manual Market List price edit is a price event like any receive or
+     * scan — record it in ingredient_price_history (supplier NULL: it is not
+     * a supplier-documented price, so it forms its own series and never
+     * distorts per-supplier price alerts). When the product has no manual
+     * history yet, the old price is backfilled a day earlier so the change
+     * shows as a proper old→new diff in the Price History view.
+     */
+    private function logManualPriceChange(Ingredient $ingredient, float $oldPrice, float $newPrice): void
+    {
+        if (abs($newPrice - $oldPrice) <= 0.0001) return;
+
+        $hasManualHistory = \App\Models\IngredientPriceHistory::where('ingredient_id', $ingredient->id)
+            ->whereNull('supplier_id')
+            ->exists();
+        if (! $hasManualHistory && $oldPrice > 0) {
+            \App\Models\IngredientPriceHistory::create([
+                'ingredient_id'  => $ingredient->id,
+                'supplier_id'    => null,
+                'cost'           => $oldPrice,
+                'uom_id'         => $ingredient->base_uom_id,
+                'effective_date' => now()->subDay()->toDateString(),
+                'source'         => 'manual_edit_backfill',
+            ]);
+        }
+
+        \App\Models\IngredientPriceHistory::create([
+            'ingredient_id'  => $ingredient->id,
+            'supplier_id'    => null,
+            'cost'           => $newPrice,
+            'uom_id'         => $ingredient->base_uom_id,
+            'effective_date' => now()->toDateString(),
+            'source'         => 'manual_edit',
+        ]);
     }
 
     public function delete(int $id): void
