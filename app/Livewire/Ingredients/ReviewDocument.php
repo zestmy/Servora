@@ -138,9 +138,21 @@ class ReviewDocument extends Component
                 }
             }
 
-            if ($oldPrice !== null && $price > 0 && $oldPrice > 0 && abs($price - $oldPrice) > 0.0001) {
-                $priceChange    = $price - $oldPrice;
-                $priceChangePct = round(($priceChange / $oldPrice) * 100, 1);
+            // Reference unit for the stored price: the supplier link's unit
+            // when linked, else the ingredient's base unit.
+            $refUomId = $alreadyLinked
+                ? (($existingLinks[$match['id']]->uom_id ?? null) ?: ($match['base_uom_id'] ?? null))
+                : ($match['base_uom_id'] ?? null);
+
+            $uomMismatch = false;
+            if ($oldPrice !== null && $price > 0 && $oldPrice > 0) {
+                [$priceChange, $priceChangePct, $uomMismatch] = $this->priceDiff($oldPrice, $price, $uomId, $refUomId);
+            } elseif ($match && $uomId && $refUomId && $uomId !== $refUomId) {
+                // No stored price to compare, but the units still disagree —
+                // warn so the wrong unit isn't silently recorded.
+                $map = $this->uomFactorMap();
+                $a = $map[$uomId] ?? null; $b = $map[$refUomId] ?? null;
+                $uomMismatch = ! ($a && $b && $a[0] === $b[0]);
             }
 
             // Smart default action:
@@ -148,9 +160,12 @@ class ReviewDocument extends Component
             // - no match   → create
             // - already linked + price changed → link (will update last_cost)
             // - already linked + same price    → skip
+            // - unit mismatch → skip until the user fixes the unit/price
             $defaultAction = 'create';
             if ($match) {
-                if ($alreadyLinked) {
+                if ($uomMismatch) {
+                    $defaultAction = 'skip';
+                } elseif ($alreadyLinked) {
                     $defaultAction = $priceChange !== null ? 'link' : 'skip';
                 } else {
                     $defaultAction = 'link';
@@ -177,6 +192,8 @@ class ReviewDocument extends Component
                 'already_linked'   => $alreadyLinked,
                 'status'           => $status,
                 'action'           => $defaultAction,
+                'ref_uom_id'       => $refUomId ?? null,
+                'uom_mismatch'     => $uomMismatch ?? false,
             ];
         }
 
@@ -193,6 +210,7 @@ class ReviewDocument extends Component
                 'name'           => $ing->name,
                 'confidence'     => 100,
                 'purchase_price' => (float) ($ing->purchase_price ?? 0),
+                'base_uom_id'    => $ing->base_uom_id,
             ];
         }
         $bestScore = 0; $bestMatch = null;
@@ -205,6 +223,7 @@ class ReviewDocument extends Component
             'name'           => $bestMatch->name,
             'confidence'     => (int) $bestScore,
             'purchase_price' => (float) ($bestMatch->purchase_price ?? 0),
+            'base_uom_id'    => $bestMatch->base_uom_id,
         ] : null;
     }
 
@@ -258,7 +277,8 @@ class ReviewDocument extends Component
             $oldSource = 'ingredient';
         }
 
-        [$change, $changePct] = $this->diff($old, $newPrice);
+        $refUomId = ($link && ($link->uom_id ?? null)) ? $link->uom_id : $ing->base_uom_id;
+        [$change, $changePct, $mismatch] = $this->priceDiff($old, $newPrice, $this->items[$idx]['uom_id'] ?? null, $refUomId);
 
         $this->items[$idx]['ingredient_id']    = $ing->id;
         $this->items[$idx]['matched_name']     = $ing->name;
@@ -269,9 +289,11 @@ class ReviewDocument extends Component
         $this->items[$idx]['old_price_source'] = $oldSource;
         $this->items[$idx]['price_change']     = $change;
         $this->items[$idx]['price_change_pct'] = $changePct;
-        $this->items[$idx]['action']           = $link
-            ? ($change !== null ? 'link' : 'skip')
-            : 'link';
+        $this->items[$idx]['ref_uom_id']       = $refUomId;
+        $this->items[$idx]['uom_mismatch']     = $mismatch;
+        $this->items[$idx]['action']           = $mismatch
+            ? 'skip'
+            : ($link ? ($change !== null ? 'link' : 'skip') : 'link');
         $this->recalcCounts();
     }
 
@@ -284,9 +306,77 @@ class ReviewDocument extends Component
         return [$delta, $pct];
     }
 
+    /** SI families for cross-unit comparison: abbr → [family, size in family base]. */
+    private const UOM_FACTORS = [
+        'mg' => ['mass', 0.001], 'g' => ['mass', 1], 'kg' => ['mass', 1000],
+        'ml' => ['vol', 1], 'cl' => ['vol', 10], 'dl' => ['vol', 100], 'l' => ['vol', 1000],
+    ];
+
+    /** uom_id → [family, factor] for the SI units above. */
+    private function uomFactorMap(): array
+    {
+        static $map = null;
+        if ($map === null) {
+            $map = [];
+            foreach (UnitOfMeasure::all() as $u) {
+                $key = strtolower(trim((string) $u->abbreviation));
+                if (isset(self::UOM_FACTORS[$key])) $map[$u->id] = self::UOM_FACTORS[$key];
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Price diff that respects units — the source of "apple RM0.85/pcs shown
+     * as RM6.80": the invoice line's unit (e.g. kg) was compared against a
+     * price stored per a DIFFERENT unit (e.g. pcs) as if they were the same.
+     *
+     * Returns [change, changePct, uomMismatch]:
+     * - same (or unresolved) units → plain diff
+     * - SI-convertible units (kg↔g, l↔ml) → invoice price converted first
+     * - incomparable units (pcs vs kg) → NO diff, mismatch flagged so the UI
+     *   warns instead of reporting a bogus percentage.
+     */
+    private function priceDiff(?float $old, ?float $new, ?int $scanUomId, ?int $refUomId): array
+    {
+        if ($scanUomId && $refUomId && $scanUomId !== $refUomId) {
+            $map = $this->uomFactorMap();
+            $a = $map[$scanUomId] ?? null;
+            $b = $map[$refUomId] ?? null;
+            if ($a && $b && $a[0] === $b[0]) {
+                // e.g. RM6.80/kg vs price per g → compare 6.80 × (1/1000)
+                $converted = $new !== null ? $new * ($b[1] / $a[1]) : null;
+                [$change, $pct] = $this->diff($old, $converted);
+                return [$change, $pct, false];
+            }
+            return [null, null, true];
+        }
+        [$change, $pct] = $this->diff($old, $new);
+        return [$change, $pct, false];
+    }
+
     public function fixUom(int $idx, int $uomId): void
     {
-        if (isset($this->items[$idx])) $this->items[$idx]['uom_id'] = $uomId;
+        if (! isset($this->items[$idx])) return;
+        $this->items[$idx]['uom_id'] = $uomId;
+
+        // Correcting the unit re-evaluates the price comparison and clears
+        // (or raises) the mismatch warning.
+        $item = $this->items[$idx];
+        if ($item['ingredient_id']) {
+            [$change, $changePct, $mismatch] = $this->priceDiff(
+                $item['old_price'] !== null ? (float) $item['old_price'] : null,
+                (float) ($item['price'] ?? 0),
+                $uomId,
+                $item['ref_uom_id'] ?? null,
+            );
+            $this->items[$idx]['price_change']     = $change;
+            $this->items[$idx]['price_change_pct'] = $changePct;
+            $this->items[$idx]['uom_mismatch']     = $mismatch;
+            if (! $mismatch && $this->items[$idx]['action'] === 'skip' && $item['already_linked'] && $change !== null) {
+                $this->items[$idx]['action'] = 'link';
+            }
+        }
     }
 
     public function setAction(int $idx, string $action): void
@@ -333,14 +423,15 @@ class ReviewDocument extends Component
         if (! $this->supplierId) return;
         $existing = DB::table('supplier_ingredients')
             ->where('supplier_id', $this->supplierId)
-            ->select('ingredient_id', 'last_cost')
+            ->select('ingredient_id', 'last_cost', 'uom_id')
             ->get()
             ->keyBy('ingredient_id');
 
-        // Cache ingredient purchase_price for fallback diff when this
-        // supplier doesn't have a last_cost yet.
+        // Cache ingredient purchase_price + base uom for fallback diff when
+        // this supplier doesn't have a last_cost yet.
         $ingredientIds  = collect($this->items)->pluck('ingredient_id')->filter()->unique()->all();
-        $purchasePrices = Ingredient::whereIn('id', $ingredientIds)->pluck('purchase_price', 'id');
+        $ingredientRows = Ingredient::whereIn('id', $ingredientIds)->get(['id', 'purchase_price', 'base_uom_id'])->keyBy('id');
+        $purchasePrices = $ingredientRows->map(fn ($r) => $r->purchase_price);
 
         foreach ($this->items as $idx => $item) {
             if (! $item['ingredient_id']) continue;
@@ -357,7 +448,10 @@ class ReviewDocument extends Component
                 $oldSource = 'ingredient';
             }
 
-            [$change, $changePct] = $this->diff($old, (float) ($item['price'] ?? 0));
+            $refUomId = ($link && ($link->uom_id ?? null))
+                ? $link->uom_id
+                : ($ingredientRows[$item['ingredient_id']]->base_uom_id ?? null);
+            [$change, $changePct, $mismatch] = $this->priceDiff($old, (float) ($item['price'] ?? 0), $item['uom_id'] ?? null, $refUomId);
 
             $this->items[$idx]['already_linked']   = $linked;
             $this->items[$idx]['status']           = $linked ? 'already_linked' : 'match';
@@ -365,9 +459,11 @@ class ReviewDocument extends Component
             $this->items[$idx]['old_price_source'] = $oldSource;
             $this->items[$idx]['price_change']     = $change;
             $this->items[$idx]['price_change_pct'] = $changePct;
-            $this->items[$idx]['action']           = $linked
-                ? ($change !== null ? 'link' : 'skip')
-                : 'link';
+            $this->items[$idx]['ref_uom_id']       = $refUomId;
+            $this->items[$idx]['uom_mismatch']     = $mismatch;
+            $this->items[$idx]['action']           = $mismatch
+                ? 'skip'
+                : ($linked ? ($change !== null ? 'link' : 'skip') : 'link');
         }
         $this->recalcCounts();
     }

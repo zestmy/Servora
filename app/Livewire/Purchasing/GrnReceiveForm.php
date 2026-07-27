@@ -24,6 +24,7 @@ class GrnReceiveForm extends Component
     public string $status = 'pending';
 
     public string $received_date = '';
+    public string $invoice_date  = '';   // price effective date; falls back to received date
     public string $reference_number = '';
     public string $notes = '';
 
@@ -34,6 +35,7 @@ class GrnReceiveForm extends Component
     {
         return [
             'received_date'            => 'required|date',
+            'invoice_date'             => 'nullable|date',
             'lines'                    => 'required|array|min:1',
             'lines.*.received_qty'     => 'required|numeric|min:0',
             'lines.*.unit_cost'        => 'required|numeric|min:0',
@@ -130,7 +132,7 @@ class GrnReceiveForm extends Component
                 if ($condition === 'good' && $received > 0) {
                     $ingredient = Ingredient::find($line['ingredient_id']);
                     if ($ingredient) {
-                        $packSize = $this->getPackSize($ingredient->id, $grn->supplier_id);
+                        $packSize = $this->getPackSize($ingredient->id, $grn->supplier_id, (int) ($line['uom_id'] ?? 0) ?: null);
                         $yieldFactor = max(floatval($ingredient->yield_percent), 0.01) / 100;
                         $baseCost = $unitCost / max($packSize, 0.0001);
 
@@ -152,7 +154,9 @@ class GrnReceiveForm extends Component
                             'supplier_id'    => $grn->supplier_id,
                             'cost'           => $unitCost,
                             'uom_id'         => $line['uom_id'],
-                            'effective_date' => $this->received_date,
+                            // Price is effective from the supplier's invoice
+                            // date when given; received date otherwise.
+                            'effective_date' => $this->invoice_date ?: $this->received_date,
                             'source'         => 'grn_receive',
                         ]);
                     }
@@ -285,13 +289,22 @@ class GrnReceiveForm extends Component
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Receive GRN: ' . $this->grnNumber]);
     }
 
-    private function getPackSize(int $ingredientId, int $supplierId): float
+    /**
+     * Supplier pack size — but only when the received line is priced in the
+     * supplier's pack unit. A line priced in a different unit (e.g. the base
+     * unit) must not be divided by the pack, or current_cost is deflated by
+     * the whole pack factor.
+     */
+    private function getPackSize(int $ingredientId, int $supplierId, ?int $lineUomId = null): float
     {
-        $packSize = DB::table('supplier_ingredients')
+        $link = DB::table('supplier_ingredients')
             ->where('supplier_id', $supplierId)
             ->where('ingredient_id', $ingredientId)
-            ->value('pack_size');
+            ->first(['pack_size', 'uom_id']);
 
-        return floatval($packSize ?? 1) ?: 1;
+        if (! $link) return 1;
+        if ($lineUomId && $link->uom_id && (int) $link->uom_id !== $lineUomId) return 1;
+
+        return floatval($link->pack_size ?? 1) ?: 1;
     }
 }

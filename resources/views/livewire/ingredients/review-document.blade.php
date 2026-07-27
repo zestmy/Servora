@@ -180,7 +180,13 @@
                                 <div class="{{ $item['price_change'] !== null ? 'font-semibold' : '' }}">
                                     {{ $item['price'] > 0 ? number_format($item['price'], 2) : '—' }}
                                 </div>
-                                @if ($item['old_price'] !== null)
+                                @if ($item['uom_mismatch'] ?? false)
+                                    @php $refAbbr = $uoms->firstWhere('id', $item['ref_uom_id'] ?? 0)?->abbreviation; @endphp
+                                    <div class="mt-0.5 text-[10px] text-amber-600 font-medium leading-tight"
+                                         title="The invoice unit doesn't match the unit this product's price is stored in — the prices can't be compared. Fix the unit (or the price) before importing, or the wrong per-unit price gets recorded.">
+                                        ⚠ unit: {{ $item['uom_raw'] ?: '?' }} vs {{ $refAbbr ?? 'product unit' }}
+                                    </div>
+                                @elseif ($item['old_price'] !== null)
                                     @if ($item['price_change'] !== null)
                                         <div class="mt-0.5 text-[10px] flex items-center justify-end gap-1 leading-tight
                                                     {{ $item['price_change'] > 0 ? 'text-red-600' : 'text-green-600' }}">

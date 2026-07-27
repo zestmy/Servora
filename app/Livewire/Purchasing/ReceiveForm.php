@@ -26,6 +26,7 @@ class ReceiveForm extends Component
     public ?int   $supplier_id       = null;
     public string $doNumber          = '';
     public string $delivery_date     = '';
+    public string $invoice_date      = '';   // price effective date; falls back to delivery date
     public string $reference_number  = '';   // invoice / DO ref
     public string $notes             = '';
     public bool   $is_final_delivery = false;
@@ -40,6 +41,7 @@ class ReceiveForm extends Component
     {
         return [
             'delivery_date'            => 'required|date',
+            'invoice_date'             => 'nullable|date',
             'lines'                    => 'required|array|min:1',
             'lines.*.received_qty'     => 'required|numeric|min:0',
             'lines.*.unit_cost'        => 'required|numeric|min:0',
@@ -187,20 +189,42 @@ class ReceiveForm extends Component
                 if ($condition === 'good' && $received > 0) {
                     $ingredient = Ingredient::find($line['ingredient_id']);
                     if ($ingredient && abs(floatval($ingredient->purchase_price) - $unitCost) > 0.0001) {
-                        $oldCost = floatval($ingredient->purchase_price);
+                        // Pack size applies only when the line is priced in the
+                        // supplier's pack unit — a line in the base unit must
+                        // not be divided by the pack (and vice versa this path
+                        // previously ignored pack_size entirely, inflating
+                        // current_cost by the whole pack factor).
+                        $link = DB::table('supplier_ingredients')
+                            ->where('supplier_id', $this->supplier_id)
+                            ->where('ingredient_id', $ingredient->id)
+                            ->first(['pack_size', 'uom_id']);
+                        $packSize = ($link && floatval($link->pack_size ?? 0) > 0
+                                && (! $link->uom_id || (int) $line['uom_id'] === (int) $link->uom_id))
+                            ? floatval($link->pack_size)
+                            : 1.0;
+
                         $yieldFactor = max(floatval($ingredient->yield_percent), 0.01) / 100;
+                        $baseCost = $unitCost / max($packSize, 0.0001);
 
                         $ingredient->update([
                             'purchase_price' => $unitCost,
-                            'current_cost'   => round($unitCost / $yieldFactor, 4),
+                            'pack_size'      => $packSize,
+                            'current_cost'   => round($baseCost / $yieldFactor, 4),
                         ]);
+
+                        DB::table('supplier_ingredients')
+                            ->where('supplier_id', $this->supplier_id)
+                            ->where('ingredient_id', $ingredient->id)
+                            ->update(['last_cost' => $unitCost, 'updated_at' => now()]);
 
                         IngredientPriceHistory::create([
                             'ingredient_id'  => $ingredient->id,
                             'supplier_id'    => $this->supplier_id,
                             'cost'           => $unitCost,
                             'uom_id'         => $line['uom_id'],
-                            'effective_date' => $this->delivery_date,
+                            // Price is effective from the supplier's invoice
+                            // date when given; delivery date otherwise.
+                            'effective_date' => $this->invoice_date ?: $this->delivery_date,
                             'source'         => 'purchase_record',
                         ]);
                     }

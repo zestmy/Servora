@@ -96,6 +96,12 @@
                         <x-input-error :messages="$errors->get('delivery_date')" class="mt-1" />
                     </div>
                     <div>
+                        <x-input-label for="invoice_date" value="Invoice Date" />
+                        <x-text-input id="invoice_date" wire:model="invoice_date" type="date" class="mt-1 block w-full" />
+                        <p class="text-[11px] text-gray-400 mt-1">Prices recorded as effective from this date; blank = delivery date.</p>
+                        <x-input-error :messages="$errors->get('invoice_date')" class="mt-1" />
+                    </div>
+                    <div>
                         <x-input-label for="do_ref" value="Invoice / DO Reference" />
                         <x-text-input id="do_ref" wire:model="reference_number" type="text"
                                       class="mt-1 block w-full" placeholder="e.g. INV-2024-001" />
