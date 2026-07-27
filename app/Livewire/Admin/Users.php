@@ -116,6 +116,39 @@ class Users extends Component
     }
 
     /**
+     * Suspend / reinstate an account. Suspension logs the user out on their
+     * next request (EnsureAccountActive middleware) and their sessions are
+     * killed immediately; system-level accounts and self are exempt.
+     */
+    public function toggleSuspend(int $userId): void
+    {
+        $admin = Auth::user();
+        if (! $admin->isSystemRole()) return;
+        if ($userId === $admin->id) {
+            session()->flash('error', 'You cannot suspend your own account.');
+            return;
+        }
+
+        $user = User::find($userId);
+        if (! $user) return;
+        if ($user->hasGlobalRole(['Super Admin', 'System Admin'])) {
+            session()->flash('error', 'System-level accounts cannot be suspended.');
+            return;
+        }
+
+        if ($user->suspended_at) {
+            $user->forceFill(['suspended_at' => null])->save();
+            Log::info('Admin unsuspended user', ['admin_id' => $admin->id, 'target_id' => $user->id]);
+            session()->flash('success', 'User "' . $user->name . '" reinstated.');
+        } else {
+            $user->forceFill(['suspended_at' => now()])->save();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            Log::info('Admin suspended user', ['admin_id' => $admin->id, 'target_id' => $user->id]);
+            session()->flash('success', 'User "' . $user->name . '" suspended — they have been logged out.');
+        }
+    }
+
+    /**
      * Delete an account entirely, across every company — memberships, outlet
      * and kitchen assignments, role/permission rows and sessions included.
      * Self and system-level accounts can never be deleted here.

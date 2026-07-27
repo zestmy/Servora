@@ -143,6 +143,7 @@ class Dashboard extends Component
 
         $quickLinks = [
             ['route' => 'admin.users',               'label' => 'All Users',      'desc' => 'Cross-company user directory'],
+            ['route' => 'admin.companies',           'label' => 'Companies',      'desc' => 'Suspend, reactivate or delete'],
             ['route' => 'admin.role-templates',      'label' => 'Role Templates', 'desc' => 'Access template per role'],
             ['route' => 'admin.company-health',      'label' => 'Company Health', 'desc' => 'Engagement & at-risk accounts'],
             ['route' => 'admin.subscriptions.index', 'label' => 'Subscriptions',  'desc' => 'Manage company subscriptions'],

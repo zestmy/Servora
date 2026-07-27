@@ -249,6 +249,7 @@
 
                 $adminNavItems = [
                     ['route' => 'admin.users',               'icon' => '👥', 'label' => 'Users',         'permission' => null],
+                    ['route' => 'admin.companies',           'icon' => '🏢', 'label' => 'Companies',     'permission' => null],
                     ['route' => 'admin.role-templates',      'icon' => '🛡️', 'label' => 'Role Templates', 'permission' => null],
                     ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
                     ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],

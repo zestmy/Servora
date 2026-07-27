@@ -38,6 +38,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetDisplayTimezone::class,
             // Spatie teams mode: scope role/permission checks to the active company
             \App\Http\Middleware\SetPermissionsTeamFromCompany::class,
+            // Suspended users / suspended companies are logged out on any request
+            \App\Http\Middleware\EnsureAccountActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

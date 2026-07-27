@@ -82,7 +82,12 @@
                     @forelse ($users as $u)
                         <tr wire:key="au-{{ $u->id }}" class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
-                                <p class="font-medium text-gray-800">{{ $u->name }}</p>
+                                <p class="font-medium text-gray-800">
+                                    {{ $u->name }}
+                                    @if ($u->suspended_at)
+                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 align-middle">Suspended</span>
+                                    @endif
+                                </p>
                                 <p class="text-xs text-gray-400">{{ $u->email }}</p>
                                 @if ($u->designation)
                                     <p class="text-[11px] text-gray-400">{{ $u->designation }}</p>
@@ -147,6 +152,12 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                                             </svg>
                                             Login as
+                                        </button>
+                                        <button wire:click="toggleSuspend({{ $u->id }})"
+                                                wire:confirm="{{ $u->suspended_at ? 'Reinstate ' . $u->name . '? They will be able to log in again.' : 'Suspend ' . $u->name . '? They will be logged out immediately and blocked from logging in.' }}"
+                                                title="{{ $u->suspended_at ? 'Reinstate account' : 'Suspend account (blocks login)' }}"
+                                                class="px-2.5 py-1 text-xs font-medium rounded-lg border transition {{ $u->suspended_at ? 'text-green-600 border-green-200 hover:bg-green-50' : 'text-amber-600 border-amber-200 hover:bg-amber-50' }}">
+                                            {{ $u->suspended_at ? 'Reinstate' : 'Suspend' }}
                                         </button>
                                         <button wire:click="deleteUser({{ $u->id }})"
                                                 wire:confirm="Delete {{ $u->name }} ({{ $u->email }}) PERMANENTLY? This removes their account and access to ALL companies and cannot be undone."

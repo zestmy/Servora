@@ -160,7 +160,8 @@
                         Uploading...
                     </div>
 
-                    {{-- Preview Lightbox --}}
+                    {{-- Preview Lightbox (teleported: sidebar transform breaks position:fixed) --}}
+                    <template x-teleport="body">
                     <div x-show="preview" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
                          x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                          class="fixed inset-0 z-50 flex items-center justify-center p-4" @keydown.escape.window="preview = null">
@@ -193,6 +194,7 @@
                             </div>
                         </div>
                     </div>
+                    </template>
                 </div>
             </div>
 
