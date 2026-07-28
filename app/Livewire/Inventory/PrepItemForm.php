@@ -770,7 +770,7 @@ class PrepItemForm extends Component
         $departments = Department::active()->ordered()->get();
 
         // Same menu categories as the recipe form (Settings → Recipe Categories).
-        $recipeCategories = \App\Models\RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+        $recipeCategories = \App\Models\RecipeCategory::outletScope()->with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
             ->roots()
             ->where('is_active', true)
             ->orderBy('sort_order')

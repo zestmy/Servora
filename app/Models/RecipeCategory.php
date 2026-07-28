@@ -10,9 +10,53 @@ class RecipeCategory extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['company_id', 'parent_id', 'name', 'color', 'sort_order', 'is_active'];
+    protected $fillable = ['company_id', 'scope', 'parent_id', 'name', 'color', 'sort_order', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
+
+    /**
+     * Which workspace a category belongs to. Outlet menu categories and
+     * Central Kitchen production categories are separate vocabularies — a
+     * query that doesn't pick one will mix both lists together.
+     */
+    public const SCOPE_OUTLET  = 'outlet';
+    public const SCOPE_KITCHEN = 'kitchen';
+
+    public const SCOPES = [
+        self::SCOPE_OUTLET  => 'Outlet menu',
+        self::SCOPE_KITCHEN => 'Central Kitchen',
+    ];
+
+    /** The scope matching the caller's active workspace. */
+    public static function currentScope(): string
+    {
+        return \Illuminate\Support\Facades\Auth::user()?->inKitchenMode()
+            ? self::SCOPE_KITCHEN
+            : self::SCOPE_OUTLET;
+    }
+
+    public function scopeInScope($query, string $scope)
+    {
+        return $query->where('recipe_categories.scope', $scope);
+    }
+
+    /** Outlet menu categories — the default for every non-kitchen screen. */
+    public function scopeOutletScope($query)
+    {
+        return $query->inScope(self::SCOPE_OUTLET);
+    }
+
+    /** Central Kitchen production categories. */
+    public function scopeKitchenScope($query)
+    {
+        return $query->inScope(self::SCOPE_KITCHEN);
+    }
+
+    /** Whichever list belongs to the active workspace. */
+    public function scopeForWorkspace($query)
+    {
+        return $query->inScope(self::currentScope());
+    }
 
     protected static function booted(): void
     {

@@ -122,9 +122,12 @@ class RecipeCostPdfController extends Controller
     {
         // Recipes and prep items both use the category string joined by name
         // to recipe_categories.
+        // Scope guard: Central Kitchen categories share this table and can
+        // reuse a name, which would duplicate rows on a name-based join.
         $query->leftJoin('recipe_categories as rc', function ($join) {
                 $join->on('rc.name', '=', 'recipes.category')
                      ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->where('rc.scope', RecipeCategory::SCOPE_OUTLET)
                      ->whereNull('rc.deleted_at');
             })
             ->leftJoin('recipe_categories as rcp', 'rcp.id', '=', 'rc.parent_id');

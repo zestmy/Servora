@@ -352,7 +352,7 @@ class Index extends Component
             // (recipes.category stores a name that may exist at both levels).
             // Keys are lowercased: recipes.category is matched case-insensitively
             // everywhere else (MySQL collation), so "RETAIL" must hit "Retail".
-            $cats = RecipeCategory::with('parent')->get();
+            $cats = RecipeCategory::outletScope()->with('parent')->get();
             $byName = [];
             foreach ($cats as $cat) {
                 $key = mb_strtolower($cat->name);
@@ -465,15 +465,19 @@ class Index extends Component
         // Recipes AND prep items both group by the menu category string
         // (which FK's by name to recipe_categories).
         // Prefer sub-category match (has parent_id) over root when same name exists at both levels
+        // Scope guard: kitchen categories live in the same table and can share
+        // a name with an outlet one, which would duplicate rows on this join.
         $query->leftJoin('recipe_categories as rc', function ($join) {
                 $join->on('rc.name', '=', 'recipes.category')
                      ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->where('rc.scope', RecipeCategory::SCOPE_OUTLET)
                      ->whereNull('rc.deleted_at')
                      ->whereNotNull('rc.parent_id');
             })
             ->leftJoin('recipe_categories as rc_root', function ($join) {
                 $join->on('rc_root.name', '=', 'recipes.category')
                      ->on('rc_root.company_id', '=', 'recipes.company_id')
+                     ->where('rc_root.scope', RecipeCategory::SCOPE_OUTLET)
                      ->whereNull('rc_root.deleted_at')
                      ->whereNull('rc_root.parent_id');
             })
@@ -562,8 +566,9 @@ class Index extends Component
             $recipes = $query->paginate($this->perPage);
         }
 
-        // Both tabs share the same menu categories (Settings → Recipe Categories).
-        $recipeCategories = RecipeCategory::with(['children' => function ($q) {
+        // Both tabs share the outlet menu categories (Settings → Recipe
+        // Categories). Central Kitchen keeps its own separate list.
+        $recipeCategories = RecipeCategory::outletScope()->with(['children' => function ($q) {
                 $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
             }])
             ->roots()

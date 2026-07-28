@@ -90,7 +90,7 @@
                             <input type="text" wire:model="category" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Sauce, Marinade, Base" />
                         @endif
                         <p class="text-[11px] text-gray-400 mt-1">
-                            Manage categories in <a href="{{ route('settings.recipe-categories') }}" target="_blank" class="text-indigo-500 hover:underline">Settings → Recipe Categories</a>.
+                            Manage the kitchen's own list in <a href="{{ route('settings.recipe-categories') }}" target="_blank" class="text-indigo-500 hover:underline">Production Categories</a> — separate from the outlet menu categories.
                         </p>
                     </div>
                     <div>

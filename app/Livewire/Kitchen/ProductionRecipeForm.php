@@ -660,8 +660,10 @@ class ProductionRecipeForm extends Component
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
         $uoms     = UnitOfMeasure::orderBy('name')->get();
 
-        // Managed categories (same source as the prep item / recipe forms)
+        // Central Kitchen's own category list — deliberately separate from the
+        // outlet menu categories used by recipes and prep items.
         $recipeCategories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')])
+            ->kitchenScope()
             ->roots()
             ->where('is_active', true)
             ->orderBy('sort_order')

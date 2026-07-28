@@ -12,7 +12,8 @@
 
         // Category sort-order lookup with parent hierarchy (parent_sort → parent_name → sub_sort → sub_name)
         $lmsCategorySortMap = [];
-        $lmsRecipeCategories = \App\Models\RecipeCategory::where('company_id', $lmsUser->company_id)
+        $lmsRecipeCategories = \App\Models\RecipeCategory::outletScope()
+            ->where('company_id', $lmsUser->company_id)
             ->with('parent')
             ->get();
         foreach ($lmsRecipeCategories as $rc) {

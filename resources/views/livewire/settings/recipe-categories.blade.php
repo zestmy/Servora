@@ -23,7 +23,22 @@
             </svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Recipe Categories</p>
+            <p class="text-xs text-gray-400">
+                <a href="{{ route('settings.index') }}" class="hover:underline">Settings</a>
+                / {{ $isKitchen ? 'Production Categories' : 'Recipe Categories' }}
+            </p>
+            {{-- The two workspaces keep separate lists; say which one is open
+                 so nobody wonders where their other categories went. --}}
+            <p class="text-xs mt-1 flex items-center gap-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $isKitchen ? 'bg-orange-100 text-orange-700' : 'bg-indigo-100 text-indigo-700' }}">
+                    {{ $scopeLabel }}
+                </span>
+                <span class="text-gray-400">
+                    {{ $isKitchen
+                        ? 'Used by Central Kitchen production recipes only — separate from the outlet menu list.'
+                        : 'Used by outlet recipes and prep items only — separate from the Central Kitchen list.' }}
+                </span>
+            </p>
             <p class="text-xs text-gray-400 mt-0.5">Drag to reorder categories and sub-categories.</p>
         </div>
         <button wire:click="openCreate"
@@ -37,8 +52,12 @@
         @if ($categories->isEmpty())
             <div class="px-4 py-12 text-center text-gray-400">
                 <div class="text-3xl mb-2">📂</div>
-                <p class="font-medium">No recipe categories yet</p>
-                <p class="text-xs mt-1">Create categories to organise your recipes.</p>
+                <p class="font-medium">No {{ $isKitchen ? 'production' : 'recipe' }} categories yet</p>
+                <p class="text-xs mt-1">
+                    {{ $isKitchen
+                        ? 'Create categories to organise your Central Kitchen production recipes.'
+                        : 'Create categories to organise your recipes.' }}
+                </p>
             </div>
         @else
             <div x-data x-init="new Sortable($el, {
@@ -83,7 +102,7 @@
                                         class="{{ $cat->is_active ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-gray-600' }} p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </button>
-                                <button wire:click="delete({{ $cat->id }})" wire:confirm="Delete '{{ $cat->name }}'? Recipes using this category will keep their category label." title="Delete"
+                                <button wire:click="delete({{ $cat->id }})" wire:confirm="Delete '{{ $cat->name }}'? {{ $isKitchen ? 'Production recipes' : 'Recipes' }} using this category will keep their category label." title="Delete"
                                         class="text-red-400 hover:text-red-600 p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
@@ -157,7 +176,7 @@
                     @elseif ($parent_id)
                         New Sub-category
                     @else
-                        New Recipe Category
+                        New {{ $isKitchen ? 'Production' : 'Recipe' }} Category
                     @endif
                 </h3>
                 <button @click="$wire.closeModal()" class="text-gray-400 hover:text-gray-600 transition">
@@ -172,7 +191,7 @@
 
                     {{-- Parent info (for sub-categories) --}}
                     @if ($parent_id)
-                        @php $parentCat = \App\Models\RecipeCategory::find($parent_id); @endphp
+                        @php $parentCat = \App\Models\RecipeCategory::inScope($scope)->find($parent_id); @endphp
                         @if ($parentCat)
                             <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm">
                                 <div class="w-3 h-3 rounded-full" style="background-color: {{ $parentCat->color }}"></div>

@@ -810,7 +810,7 @@ class Form extends Component
     {
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
-        $recipeCategories = RecipeCategory::with(['children' => function ($q) {
+        $recipeCategories = RecipeCategory::outletScope()->with(['children' => function ($q) {
                 $q->where('is_active', true)->orderBy('sort_order')->orderBy('name');
             }])
             ->roots()

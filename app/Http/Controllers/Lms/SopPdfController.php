@@ -83,7 +83,8 @@ class SopPdfController extends Controller
         $prepCategoryNames = null;
         $prepCategoryLabel = null;
         if ($prepCategoryId) {
-            $prepCat = RecipeCategory::where('company_id', $user->company_id)
+            $prepCat = RecipeCategory::outletScope()
+                ->where('company_id', $user->company_id)
                 ->with('children')
                 ->find($prepCategoryId);
             if ($prepCat) {
@@ -102,7 +103,7 @@ class SopPdfController extends Controller
         $groupNames = null;
         $groupLabel = null;
         if ($categoryGroupId) {
-            $root = RecipeCategory::where('company_id', $user->company_id)->with('children')->find($categoryGroupId);
+            $root = RecipeCategory::outletScope()->where('company_id', $user->company_id)->with('children')->find($categoryGroupId);
             if ($root) {
                 $groupNames = collect([$root->name])->merge($root->children->pluck('name'))->all();
                 $groupLabel = $root->name;
@@ -129,15 +130,19 @@ class SopPdfController extends Controller
         $nonPrep = $prepOnly ? collect() : $applyScope(Recipe::query()->where('recipes.is_prep', false))
             ->when($category, fn ($q) => $q->where('recipes.category', $category))
             ->when($groupNames, fn ($q) => $q->whereIn('recipes.category', $groupNames))
+            // Scope guard: kitchen categories share this table and can reuse a
+            // name, which would duplicate rows on a name-based join.
             ->leftJoin('recipe_categories as rc', function ($join) {
                 $join->on('rc.name', '=', 'recipes.category')
                      ->on('rc.company_id', '=', 'recipes.company_id')
+                     ->where('rc.scope', RecipeCategory::SCOPE_OUTLET)
                      ->whereNull('rc.deleted_at')
                      ->whereNotNull('rc.parent_id');
             })
             ->leftJoin('recipe_categories as rc_root', function ($join) {
                 $join->on('rc_root.name', '=', 'recipes.category')
                      ->on('rc_root.company_id', '=', 'recipes.company_id')
+                     ->where('rc_root.scope', RecipeCategory::SCOPE_OUTLET)
                      ->whereNull('rc_root.deleted_at')
                      ->whereNull('rc_root.parent_id');
             })
@@ -163,12 +168,14 @@ class SopPdfController extends Controller
                 ->leftJoin('recipe_categories as rc', function ($join) {
                     $join->on('rc.name', '=', 'recipes.category')
                          ->on('rc.company_id', '=', 'recipes.company_id')
+                         ->where('rc.scope', RecipeCategory::SCOPE_OUTLET)
                          ->whereNull('rc.deleted_at')
                          ->whereNotNull('rc.parent_id');
                 })
                 ->leftJoin('recipe_categories as rc_root', function ($join) {
                     $join->on('rc_root.name', '=', 'recipes.category')
                          ->on('rc_root.company_id', '=', 'recipes.company_id')
+                         ->where('rc_root.scope', RecipeCategory::SCOPE_OUTLET)
                          ->whereNull('rc_root.deleted_at')
                          ->whereNull('rc_root.parent_id');
                 })

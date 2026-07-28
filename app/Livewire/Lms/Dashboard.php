@@ -30,7 +30,8 @@ class Dashboard extends Component
 
         // Build parent/sub hierarchy sort map (same approach as LMS sidebar)
         $categorySortMap = [];
-        $allRecipeCategories = RecipeCategory::where('company_id', $user->company_id)
+        $allRecipeCategories = RecipeCategory::outletScope()
+            ->where('company_id', $user->company_id)
             ->with('parent')
             ->get();
         foreach ($allRecipeCategories as $rc) {
@@ -74,7 +75,7 @@ class Dashboard extends Component
             ->values();
 
         // Category dropdown with hierarchy
-        $categories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+        $categories = RecipeCategory::outletScope()->with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
             ->roots()
             ->where('company_id', $user->company_id)
             ->where('is_active', true)

@@ -640,7 +640,8 @@ PROMPT;
         $existingRecipesByName = $existingRecipes->keyBy(fn ($r) => strtolower($r->name));
 
         // Build case-insensitive category lookup for matching AI output to existing names
-        $existingCategories = RecipeCategory::where('company_id', $companyId)
+        $existingCategories = RecipeCategory::outletScope()
+            ->where('company_id', $companyId)
             ->where('is_active', true)
             ->pluck('name')
             ->keyBy(fn ($n) => strtolower($n));
@@ -926,6 +927,8 @@ PROMPT;
 
         $cat = RecipeCategory::create([
             'company_id' => $companyId,
+            // Recipe import is an outlet-menu flow.
+            'scope'      => RecipeCategory::SCOPE_OUTLET,
             'name'       => $name,
             'parent_id'  => $parentId ?: null,
             'is_active'  => true,
@@ -1218,7 +1221,7 @@ PROMPT;
             ->map(fn ($i) => ['id' => (int) $i->id, 'name' => $i->name])
             ->all();
 
-        $recipeCategories = RecipeCategory::with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+        $recipeCategories = RecipeCategory::outletScope()->with(['children' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
             ->roots()
             ->where('is_active', true)
             ->orderBy('sort_order')

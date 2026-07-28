@@ -157,7 +157,8 @@ class LmsUsers extends Component
             ->pluck('category')
             ->map(fn ($n) => mb_strtolower($n));
 
-        $prepSopCategories = \App\Models\RecipeCategory::where('company_id', $companyId)
+        $prepSopCategories = \App\Models\RecipeCategory::outletScope()
+            ->where('company_id', $companyId)
             ->with('parent')
             ->get()
             ->filter(fn ($c) => $prepCategoryNames->contains(mb_strtolower($c->name)))
@@ -173,7 +174,8 @@ class LmsUsers extends Component
 
         // Top-tier category groups (e.g. "All Food", "All Beverages") — root recipe
         // categories that contain at least one LMS recipe (themselves or via a child).
-        $sopCategoryGroups = \App\Models\RecipeCategory::where('company_id', $companyId)
+        $sopCategoryGroups = \App\Models\RecipeCategory::outletScope()
+            ->where('company_id', $companyId)
             ->whereNull('parent_id')
             ->where('is_active', true)
             ->with(['children' => fn ($q) => $q->orderBy('sort_order')->orderBy('name')])

@@ -124,6 +124,9 @@
                         ['route' => 'reports.yield-analysis', 'label' => 'Yield Analysis'],
                     ]],
                     ['label' => 'System', 'items' => [
+                        // Kitchen keeps its own production category list, so it
+                        // needs a way in that isn't the outlet sidebar.
+                        ['route' => 'settings.recipe-categories', 'label' => 'Production Categories', 'permission' => 'recipes.view'],
                         ['route' => 'settings.index', 'label' => 'Settings'],
                     ]],
                 ];
@@ -172,6 +175,8 @@
                         </button>
                         <div x-show="sidebarExpanded && activeGroup === '{{ $groupSlug }}'">
                             @foreach ($group['items'] as $item)
+                                {{-- Items may declare a permission; those without one stay open to all. --}}
+                                @continue (! empty($item['permission']) && ! auth()->user()?->can($item['permission']))
                                 @php
                                     $href = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
                                     $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');

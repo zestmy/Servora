@@ -17,13 +17,29 @@ class RecipeCategories extends Component
     public bool $is_active = true;
     public ?int $parent_id = null;
 
+    /**
+     * Outlet menu categories and Central Kitchen production categories are
+     * separate lists. This screen always edits the one belonging to the
+     * workspace the user is currently in.
+     */
+    protected function scope(): string
+    {
+        return RecipeCategory::currentScope();
+    }
+
     protected function rules(): array
     {
         return [
             'name'       => 'required|string|max:100',
             'color'      => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'sort_order' => 'required|integer|min:0|max:9999',
-            'parent_id'  => 'nullable|exists:recipe_categories,id',
+            // A sub-category can only sit under a parent from the same list.
+            'parent_id'  => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('recipe_categories', 'id')
+                    ->where('scope', $this->scope())
+                    ->whereNull('deleted_at'),
+            ],
         ];
     }
 
@@ -34,7 +50,7 @@ class RecipeCategories extends Component
 
         // Inherit parent color for sub-categories
         if ($parentId) {
-            $parent = RecipeCategory::find($parentId);
+            $parent = RecipeCategory::inScope($this->scope())->find($parentId);
             if ($parent) {
                 $this->color = $parent->color;
             }
@@ -45,7 +61,7 @@ class RecipeCategories extends Component
 
     public function openEdit(int $id): void
     {
-        $cat = RecipeCategory::findOrFail($id);
+        $cat = RecipeCategory::inScope($this->scope())->findOrFail($id);
 
         $this->editingId  = $cat->id;
         $this->name       = $cat->name;
@@ -70,18 +86,23 @@ class RecipeCategories extends Component
         ];
 
         if ($this->editingId) {
-            $cat = RecipeCategory::findOrFail($this->editingId);
+            $cat = RecipeCategory::inScope($this->scope())->findOrFail($this->editingId);
             $oldName = $cat->name;
             $cat->update($data);
 
-            // Sync the text category field on recipes when name changes
+            // Sync the text category field on whichever recipes use this list
             if ($oldName !== $this->name) {
-                \App\Models\Recipe::where('category', $oldName)->update(['category' => $this->name]);
+                if ($this->scope() === RecipeCategory::SCOPE_KITCHEN) {
+                    \App\Models\ProductionRecipe::where('category', $oldName)->update(['category' => $this->name]);
+                } else {
+                    \App\Models\Recipe::where('category', $oldName)->update(['category' => $this->name]);
+                }
             }
 
             session()->flash('success', 'Category updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
+            $data['scope']      = $this->scope();
             RecipeCategory::create($data);
             session()->flash('success', 'Category created.');
         }
@@ -91,7 +112,7 @@ class RecipeCategories extends Component
 
     public function delete(int $id): void
     {
-        $cat = RecipeCategory::withCount('children')->findOrFail($id);
+        $cat = RecipeCategory::inScope($this->scope())->withCount('children')->findOrFail($id);
         if ($cat->children_count > 0) {
             session()->flash('error', 'Cannot delete a category that has sub-categories. Remove sub-categories first.');
             return;
@@ -102,21 +123,24 @@ class RecipeCategories extends Component
 
     public function toggleActive(int $id): void
     {
-        $cat = RecipeCategory::findOrFail($id);
+        $cat = RecipeCategory::inScope($this->scope())->findOrFail($id);
         $cat->update(['is_active' => ! $cat->is_active]);
     }
 
     public function reorderParents(array $orderedIds): void
     {
         foreach ($orderedIds as $index => $id) {
-            RecipeCategory::where('id', (int) $id)->update(['sort_order' => $index]);
+            RecipeCategory::inScope($this->scope())
+                ->where('id', (int) $id)
+                ->update(['sort_order' => $index]);
         }
     }
 
     public function reorderChildren(int $parentId, array $orderedIds): void
     {
         foreach ($orderedIds as $index => $id) {
-            RecipeCategory::where('id', (int) $id)
+            RecipeCategory::inScope($this->scope())
+                ->where('id', (int) $id)
                 ->where('parent_id', $parentId)
                 ->update(['sort_order' => $index]);
         }
@@ -130,24 +154,35 @@ class RecipeCategories extends Component
 
     public function render()
     {
+        $scope = $this->scope();
+
         $categories = RecipeCategory::with(['children' => function ($q) {
             $q->orderBy('sort_order')->orderBy('name');
         }])
+            ->inScope($scope)
             ->roots()
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
 
-        // Count recipes per category name (stored as string, no FK)
-        $recipeCounts = \App\Models\Recipe::selectRaw('category, count(*) as total')
+        // Count whatever this list actually categorises (category is a string,
+        // matched by name — there's no FK either side).
+        $isKitchen    = $scope === RecipeCategory::SCOPE_KITCHEN;
+        $recipeCounts = ($isKitchen ? \App\Models\ProductionRecipe::query() : \App\Models\Recipe::query())
+            ->selectRaw('category, count(*) as total')
             ->whereNotNull('category')
             ->groupBy('category')
             ->pluck('total', 'category');
 
         $colorOptions = RecipeCategory::colorOptions();
+        $scopeLabel   = RecipeCategory::SCOPES[$scope];
+        $countLabel   = $isKitchen ? 'production recipe' : 'recipe';
 
-        return view('livewire.settings.recipe-categories', compact('categories', 'colorOptions', 'recipeCounts'))
-            ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Recipe Categories']);
+        return view('livewire.settings.recipe-categories', compact(
+            'categories', 'colorOptions', 'recipeCounts', 'scope', 'isKitchen', 'scopeLabel', 'countLabel'
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), [
+            'title' => $isKitchen ? 'Production Categories' : 'Recipe Categories',
+        ]);
     }
 
     private function resetForm(): void
