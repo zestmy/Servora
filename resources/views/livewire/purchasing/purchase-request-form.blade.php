@@ -61,6 +61,26 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Request Details</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {{-- Which outlet the request is FOR. Central Kitchen mode has
+                         no active outlet, so this can't be left implicit. --}}
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Outlet *</label>
+                        @if ($outlets->count() === 1 && ! $requestId)
+                            <p class="text-sm text-gray-700 py-2">{{ $outlets->first()->name }}</p>
+                        @else
+                            <select wire:model.live="outlet_id" {{ !$isEditable ? 'disabled' : '' }}
+                                    class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50">
+                                <option value="">— Select outlet —</option>
+                                @foreach ($outlets as $o)
+                                    <option value="{{ $o->id }}">{{ $o->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+                        <x-input-error :messages="$errors->get('outlet_id')" class="mt-1" />
+                        @if ($outlets->isEmpty())
+                            <p class="mt-1 text-xs text-red-500">You aren't assigned to any outlet, so this request can't be raised. Ask an admin for outlet access.</p>
+                        @endif
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Request Date *</label>
                         <input type="date" wire:model="requested_date" {{ !$isEditable ? 'disabled' : '' }}

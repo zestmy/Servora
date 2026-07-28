@@ -21,6 +21,7 @@ class PurchaseRequestForm extends Component
     public string $prNumber = '';
     public string $status   = 'draft';
 
+    public ?int   $outlet_id      = null;
     public string $requested_date = '';
     public string $needed_by_date = '';
     public string $notes          = '';
@@ -29,9 +30,30 @@ class PurchaseRequestForm extends Component
     public array  $lines            = [];
     public string $ingredientSearch = '';
 
+    /**
+     * Outlets this user may raise a request for. In Central Kitchen mode there
+     * is no "active outlet" to fall back on, so the request has to name its
+     * outlet explicitly — otherwise it silently lands on whichever outlet
+     * happened to be first in the user's assignments.
+     */
+    protected function accessibleOutletIds(): array
+    {
+        $user = Auth::user();
+
+        if ($user->canViewAllOutlets()) {
+            return Outlet::where('company_id', $user->company_id)
+                ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        return $user->outlets()
+            ->where('outlets.company_id', $user->company_id)
+            ->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+    }
+
     protected function rules(): array
     {
         return [
+            'outlet_id'                       => ['required', 'integer', \Illuminate\Validation\Rule::in($this->accessibleOutletIds())],
             'requested_date'                  => 'required|date',
             'needed_by_date'                  => 'nullable|date|after_or_equal:requested_date',
             'notes'                           => 'nullable|string',
@@ -51,6 +73,8 @@ class PurchaseRequestForm extends Component
             'lines.required'           => 'Add at least one ingredient.',
             'lines.min'                => 'Add at least one ingredient.',
             'lines.*.quantity.min'     => 'Quantity must be greater than zero.',
+            'outlet_id.required'       => 'Choose which outlet this request is for.',
+            'outlet_id.in'             => 'You do not have access to the selected outlet.',
         ];
     }
 
@@ -60,6 +84,14 @@ class PurchaseRequestForm extends Component
 
         if (! $id) {
             $this->prNumber = PurchaseRequestService::generatePrNumber();
+            // Default to the active outlet where there is one (outlet mode);
+            // kitchen mode has none, so fall back to the only accessible
+            // outlet and otherwise leave the picker for the user.
+            $accessible = $this->accessibleOutletIds();
+            $active     = Auth::user()->activeOutletId();
+            $this->outlet_id = ($active && in_array((int) $active, $accessible, true))
+                ? (int) $active
+                : (count($accessible) === 1 ? $accessible[0] : null);
             return;
         }
 
@@ -72,6 +104,7 @@ class PurchaseRequestForm extends Component
         $this->requestId      = $pr->id;
         $this->prNumber       = $pr->pr_number;
         $this->status         = $pr->status;
+        $this->outlet_id      = $pr->outlet_id;
         $this->requested_date = $pr->requested_date->toDateString();
         $this->needed_by_date = $pr->needed_by_date?->toDateString() ?? '';
         $this->notes          = $pr->notes ?? '';
@@ -177,7 +210,8 @@ class PurchaseRequestForm extends Component
 
         $user = Auth::user();
         $company = $user->company;
-        $outletId = $user->activeOutletId() ?: $user->outlets()->first()?->id;
+        // Explicitly chosen and validated against the user's accessible outlets.
+        $outletId = $this->outlet_id;
 
         // Determine the CPU that consolidates this outlet's requests
         $cpuId = ProcurementRoutingService::resolveCpuId($outletId, $user);
@@ -241,7 +275,9 @@ class PurchaseRequestForm extends Component
 
     private function getParLevel(int $ingredientId): float
     {
-        $outletId = Auth::user()->activeOutletId();
+        // Par levels belong to the outlet the request is being raised for,
+        // not whichever outlet the user happens to be assigned to.
+        $outletId = $this->outlet_id ?: Auth::user()->activeOutletId();
         if (! $outletId) return 0;
 
         return (float) (IngredientParLevel::where('ingredient_id', $ingredientId)
@@ -270,12 +306,18 @@ class PurchaseRequestForm extends Component
         $departments = Department::where('is_active', true)->orderBy('sort_order')->get();
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
+        $outlets = Outlet::whereIn('id', $this->accessibleOutletIds() ?: [0])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return view('livewire.purchasing.purchase-request-form', [
             'searchResults' => $searchResults,
             'suppliers'     => $suppliers,
             'departments'   => $departments,
             'uoms'          => $uoms,
             'isEditable'    => $isEditable,
+            'outlets'       => $outlets,
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $this->requestId ? 'Edit Purchase Request' : 'New Purchase Request']);
     }
 }
