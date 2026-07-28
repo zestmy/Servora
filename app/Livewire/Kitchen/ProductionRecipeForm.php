@@ -38,7 +38,15 @@ class ProductionRecipeForm extends Component
     public string $per_carton_qty       = '';
     public string $carton_weight        = '';
     public string $shelf_life_days      = '';
+    public string $shelf_life_value     = '';
+    public string $shelf_life_unit      = 'days';
+    public string $storage_instruction  = '';
     public string $storage_temperature  = '';
+    public string $min_batch_size       = '';
+
+    // Product / presentation photos
+    public array $newPresentationImages      = [];
+    public array $existingPresentationImages = [];
 
     // Costing inputs
     public string $packaging_cost_per_unit = '0';
@@ -74,7 +82,12 @@ class ProductionRecipeForm extends Component
             'per_carton_qty'           => 'nullable|numeric|min:0',
             'carton_weight'            => 'nullable|numeric|min:0',
             'shelf_life_days'          => 'nullable|integer|min:0',
+            'shelf_life_value'         => 'nullable|numeric|min:0',
+            'shelf_life_unit'          => 'nullable|in:' . implode(',', array_keys(\App\Models\Recipe::SHELF_LIFE_UNITS)),
+            'storage_instruction'      => 'nullable|in:' . implode(',', array_keys(\App\Models\Recipe::STORAGE_OPTIONS)),
             'storage_temperature'      => 'nullable|string|max:50',
+            'min_batch_size'           => 'nullable|numeric|min:0',
+            'newPresentationImages.*'  => 'nullable|image|max:4096',
             'packaging_cost_per_unit'  => 'nullable|numeric|min:0',
             'label_cost'               => 'nullable|numeric|min:0',
             'selling_price_per_unit'   => 'nullable|numeric|min:0',
@@ -120,7 +133,11 @@ class ProductionRecipeForm extends Component
         $this->per_carton_qty         = $recipe->per_carton_qty ? (string) $recipe->per_carton_qty : '';
         $this->carton_weight          = $recipe->carton_weight ? (string) floatval($recipe->carton_weight) : '';
         $this->shelf_life_days        = $recipe->shelf_life_days ? (string) $recipe->shelf_life_days : '';
+        $this->shelf_life_value       = $recipe->shelf_life_value ? (string) floatval($recipe->shelf_life_value) : '';
+        $this->shelf_life_unit        = $recipe->shelf_life_unit ?: 'days';
+        $this->storage_instruction    = $recipe->storage_instruction ?? '';
         $this->storage_temperature    = $recipe->storage_temperature ?? '';
+        $this->min_batch_size         = $recipe->min_batch_size ? (string) floatval($recipe->min_batch_size) : '';
         $this->packaging_cost_per_unit = (string) floatval($recipe->packaging_cost_per_unit);
         $this->label_cost             = (string) floatval($recipe->label_cost);
         $this->selling_price_per_unit = (string) floatval($recipe->selling_price_per_unit);
@@ -147,6 +164,7 @@ class ProductionRecipeForm extends Component
             'remove_image' => false,
         ])->toArray();
 
+        $this->loadPresentationImages();
         $this->recalculate();
     }
 
@@ -191,6 +209,20 @@ class ProductionRecipeForm extends Component
         unset($this->lines[$idx]);
         $this->lines = array_values($this->lines);
         $this->recalculate();
+    }
+
+    /** Drag-and-drop line reordering (SortableJS posts the new index order). */
+    public function reorderLines(array $orderedIndexes): void
+    {
+        $reordered = [];
+        foreach ($orderedIndexes as $idx) {
+            if (isset($this->lines[(int) $idx])) {
+                $reordered[] = $this->lines[(int) $idx];
+            }
+        }
+        if (count($reordered) === count($this->lines)) {
+            $this->lines = $reordered;
+        }
     }
 
     public function updatedLines(): void
@@ -281,6 +313,68 @@ class ProductionRecipeForm extends Component
         $this->margin_percent      = round($marginPct, 2);
     }
 
+    // ── Product / presentation photos ───────────────────────────────────
+
+    private function loadPresentationImages(): void
+    {
+        if (! $this->recipeId) {
+            $this->existingPresentationImages = [];
+            return;
+        }
+
+        $this->existingPresentationImages = \App\Models\ProductionRecipeImage::where('production_recipe_id', $this->recipeId)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn ($img) => [
+                'id'        => $img->id,
+                'file_path' => $img->file_path,
+                'file_name' => $img->file_name,
+            ])->toArray();
+    }
+
+    public function updatedNewPresentationImages(): void
+    {
+        $this->validate(['newPresentationImages.*' => 'nullable|image|max:4096']);
+    }
+
+    public function removeNewPresentationImage(int $idx): void
+    {
+        unset($this->newPresentationImages[$idx]);
+        $this->newPresentationImages = array_values($this->newPresentationImages);
+    }
+
+    public function deletePresentationImage(int $imageId): void
+    {
+        $img = \App\Models\ProductionRecipeImage::where('production_recipe_id', $this->recipeId)->find($imageId);
+        if (! $img) return;
+
+        Storage::disk('public')->delete($img->file_path);
+        $img->delete();
+        $this->loadPresentationImages();
+    }
+
+    /** Absolute paths to product photos — saved first, then pending uploads (max 3, for AI prompts). */
+    private function collectDishImagePaths(): array
+    {
+        $paths = [];
+
+        foreach ($this->existingPresentationImages as $img) {
+            if (count($paths) >= 3) break;
+            $path = Storage::disk('public')->path($img['file_path']);
+            if (is_file($path)) $paths[] = $path;
+        }
+
+        foreach ($this->newPresentationImages as $upload) {
+            if (count($paths) >= 3) break;
+            if (is_object($upload) && method_exists($upload, 'getRealPath')) {
+                $real = $upload->getRealPath();
+                if ($real && is_file($real)) $paths[] = $real;
+            }
+        }
+
+        return array_slice($paths, 0, 3);
+    }
+
     // ── Training / SOP steps ────────────────────────────────────────────
 
     public function addStep(): void
@@ -328,7 +422,7 @@ class ProductionRecipeForm extends Component
         }
 
         try {
-            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, []);
+            $suggested = app(VisionService::class)->suggestPreparationSteps($this->name, $ingredientNames, $this->collectDishImagePaths());
         } catch (\Throwable $e) {
             session()->flash('ai_steps_error', $e->getMessage());
             return;
@@ -372,7 +466,7 @@ class ProductionRecipeForm extends Component
 
         try {
             $new = app(VisionService::class)->regeneratePreparationStep(
-                $this->name, $ingredientNames, $existing, $idx + 1, [],
+                $this->name, $ingredientNames, $existing, $idx + 1, $this->collectDishImagePaths(),
             );
         } catch (\Throwable $e) {
             session()->flash('ai_steps_error', $e->getMessage());
@@ -459,7 +553,11 @@ class ProductionRecipeForm extends Component
                 'per_carton_qty'         => $this->per_carton_qty ? (int) $this->per_carton_qty : null,
                 'carton_weight'          => $this->carton_weight ? floatval($this->carton_weight) : null,
                 'shelf_life_days'        => $this->shelf_life_days ? (int) $this->shelf_life_days : null,
+                'shelf_life_value'       => $this->shelf_life_value !== '' ? floatval($this->shelf_life_value) : null,
+                'shelf_life_unit'        => $this->shelf_life_value !== '' ? ($this->shelf_life_unit ?: 'days') : null,
+                'storage_instruction'    => $this->storage_instruction ?: null,
                 'storage_temperature'    => $this->storage_temperature ?: null,
+                'min_batch_size'         => $this->min_batch_size !== '' ? floatval($this->min_batch_size) : null,
                 'packaging_cost_per_unit' => floatval($this->packaging_cost_per_unit),
                 'label_cost'             => floatval($this->label_cost),
                 'raw_material_cost'      => $this->raw_material_cost,
@@ -533,6 +631,22 @@ class ProductionRecipeForm extends Component
                 }
                 $s->delete();
             });
+
+            // Store newly uploaded product photos
+            if (! empty($this->newPresentationImages)) {
+                $nextSort = (int) $recipe->images()->max('sort_order');
+                foreach ($this->newPresentationImages as $upload) {
+                    if (! is_object($upload)) continue;
+                    $path = \App\Services\ImageStorageService::storeCompressed($upload, 'production-recipe-images');
+                    $recipe->images()->create([
+                        'file_name'  => $upload->getClientOriginalName(),
+                        'file_path'  => $path,
+                        'mime_type'  => $upload->getMimeType(),
+                        'file_size'  => Storage::disk('public')->size($path),
+                        'sort_order' => ++$nextSort,
+                    ]);
+                }
+            }
         });
 
         session()->flash('success', $this->recipeId ? 'Production recipe updated.' : 'Production recipe created.');

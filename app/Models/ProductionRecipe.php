@@ -16,7 +16,8 @@ class ProductionRecipe extends Model
         'company_id', 'kitchen_id', 'name', 'code', 'description', 'video_url', 'category',
         'yield_quantity', 'yield_uom_id',
         'packaging_uom', 'per_carton_qty', 'carton_weight',
-        'shelf_life_days', 'storage_temperature', 'min_batch_size',
+        'shelf_life_days', 'shelf_life_value', 'shelf_life_unit', 'storage_instruction',
+        'storage_temperature', 'min_batch_size',
         'packaging_cost_per_unit', 'label_cost', 'raw_material_cost',
         'total_cost_per_unit', 'selling_price_per_unit',
         'is_active', 'created_by',
@@ -48,6 +49,36 @@ class ProductionRecipe extends Model
     public function steps(): HasMany
     {
         return $this->hasMany(ProductionRecipeStep::class)->orderBy('sort_order');
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductionRecipeImage::class)->orderBy('sort_order');
+    }
+
+    /** Human-readable shelf life, e.g. "3 Days" — null when not set. */
+    public function shelfLifeLabel(): ?string
+    {
+        if (! $this->shelf_life_value || ! $this->shelf_life_unit) {
+            // Fall back to the legacy day count
+            return $this->shelf_life_days ? $this->shelf_life_days . ' Day' . ($this->shelf_life_days == 1 ? '' : 's') : null;
+        }
+
+        $value = rtrim(rtrim(number_format((float) $this->shelf_life_value, 2, '.', ''), '0'), '.');
+        $unit  = Recipe::SHELF_LIFE_UNITS[$this->shelf_life_unit] ?? ucfirst($this->shelf_life_unit);
+        if (abs((float) $this->shelf_life_value - 1.0) < 0.0001) {
+            $unit = rtrim($unit, 's');
+        }
+
+        return "{$value} {$unit}";
+    }
+
+    /** Human-readable storing instruction, e.g. "Chill" — null when not set. */
+    public function storageLabel(): ?string
+    {
+        return $this->storage_instruction
+            ? (Recipe::STORAGE_OPTIONS[$this->storage_instruction] ?? ucfirst($this->storage_instruction))
+            : null;
     }
 
     /**

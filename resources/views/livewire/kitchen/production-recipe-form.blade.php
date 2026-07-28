@@ -1,4 +1,8 @@
 <div>
+    @once
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    @endonce
+
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
@@ -158,16 +162,77 @@
                                class="w-full rounded-lg border-gray-300 text-sm" />
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Shelf Life (days)</label>
-                        <input type="number" step="1" min="0" wire:model="shelf_life_days"
-                               class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. 30" />
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Min Batch Size</label>
+                        <input type="number" step="0.01" min="0" wire:model="min_batch_size"
+                               class="w-full rounded-lg border-gray-300 text-sm" placeholder="Smallest practical batch" />
                     </div>
-                    <div class="sm:col-span-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Shelf Life</label>
+                        <div class="flex gap-2">
+                            <input type="number" step="0.5" min="0" wire:model="shelf_life_value"
+                                   class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. 3" />
+                            <select wire:model="shelf_life_unit" class="rounded-lg border-gray-300 text-sm w-32">
+                                @foreach (\App\Models\Recipe::SHELF_LIFE_UNITS as $slKey => $slLabel)
+                                    <option value="{{ $slKey }}">{{ $slLabel }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Storing Instruction</label>
+                        <select wire:model="storage_instruction" class="w-full rounded-lg border-gray-300 text-sm">
+                            <option value="">— Not set —</option>
+                            @foreach (\App\Models\Recipe::STORAGE_OPTIONS as $stKey => $stLabel)
+                                <option value="{{ $stKey }}">{{ $stLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Storage Temperature</label>
                         <input type="text" wire:model="storage_temperature" class="w-full rounded-lg border-gray-300 text-sm"
                                placeholder="e.g. 2-8°C, Frozen -18°C" />
                     </div>
                 </div>
+            </div>
+
+            {{-- Product Photos — also given to the AI when drafting steps --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-3">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700">Product Photos</h3>
+                    <p class="text-xs text-gray-400 mt-0.5">Finished-product images for training. AI also looks at these when drafting steps.</p>
+                </div>
+
+                @if (! empty($existingPresentationImages))
+                    <div class="flex flex-wrap gap-3">
+                        @foreach ($existingPresentationImages as $img)
+                            <div class="relative" wire:key="pri-{{ $img['id'] }}">
+                                <img src="{{ \Illuminate\Support\Facades\Storage::url($img['file_path']) }}"
+                                     class="h-20 w-20 rounded-lg object-cover border border-gray-200" alt="" />
+                                <button type="button" wire:click="deletePresentationImage({{ $img['id'] }})"
+                                        wire:confirm="Remove this photo?"
+                                        class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs leading-none hover:bg-red-600">×</button>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if (! empty($newPresentationImages))
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($newPresentationImages as $niIdx => $newImg)
+                            <span wire:key="npri-{{ $niIdx }}" class="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 text-green-700 text-[11px] rounded-lg">
+                                {{ is_object($newImg) ? $newImg->getClientOriginalName() : 'Photo' }}
+                                <button type="button" wire:click="removeNewPresentationImage({{ $niIdx }})" class="text-green-500 hover:text-green-700">×</button>
+                            </span>
+                        @endforeach
+                    </div>
+                @endif
+
+                <label class="inline-block px-4 py-2 border border-dashed border-gray-300 text-gray-500 text-xs rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition cursor-pointer">
+                    <input type="file" wire:model="newPresentationImages" multiple accept="image/*" class="hidden" />
+                    <span wire:loading.remove wire:target="newPresentationImages">+ Add photos</span>
+                    <span wire:loading wire:target="newPresentationImages">Uploading…</span>
+                </label>
+                @error('newPresentationImages.*') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
             </div>
 
             {{-- Ingredient Lines --}}
@@ -228,6 +293,7 @@
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                                 <tr>
+                                    <th class="px-2 py-2 w-6"></th>
                                     <th class="px-4 py-2 text-left w-8">#</th>
                                     <th class="px-4 py-2 text-left">Ingredient</th>
                                     <th class="px-4 py-2 text-right w-28">Quantity</th>
@@ -238,7 +304,17 @@
                                     <th class="px-4 py-2 w-10"></th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody class="divide-y divide-gray-50"
+                                   x-data
+                                   x-init="new Sortable($el, {
+                                       handle: '.line-drag-handle',
+                                       animation: 150,
+                                       ghostClass: 'bg-indigo-50',
+                                       onEnd: () => {
+                                           const idxs = Array.from($el.querySelectorAll('tr[data-idx]')).map(tr => tr.dataset.idx);
+                                           $wire.reorderLines(idxs);
+                                       }
+                                   })">
                                 @foreach ($lines as $idx => $line)
                                     @php
                                         $cost     = floatval($line['unit_cost'] ?? 0);
@@ -252,7 +328,10 @@
                                         ]);
                                         $lineUoms = ! empty($lineUomIds) ? $uoms->whereIn('id', $lineUomIds) : $uoms;
                                     @endphp
-                                    <tr class="hover:bg-gray-50 transition" wire:key="prl-{{ $line['ingredient_id'] }}">
+                                    <tr class="hover:bg-gray-50 transition" wire:key="prl-{{ $line['ingredient_id'] }}" data-idx="{{ $idx }}">
+                                        <td class="line-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
+                                            <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                                        </td>
                                         <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
                                         <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
                                         <td class="px-4 py-2">
