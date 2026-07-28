@@ -17,7 +17,9 @@ class ProductionExecute extends Component
     public function mount(int $id): void
     {
         $this->order = ProductionOrder::with([
-            'kitchen', 'lines.recipe.yieldUom', 'lines.recipe.ingredient', 'lines.uom', 'lines.toOutlet',
+            'kitchen', 'lines.recipe.yieldUom', 'lines.recipe.ingredient',
+            'lines.productionRecipe.yieldUom', 'lines.productionRecipe.ingredient',
+            'lines.uom', 'lines.toOutlet',
         ])->findOrFail($id);
 
         if (! in_array($this->order->status, ['scheduled', 'in_progress'])) {
@@ -64,6 +66,11 @@ class ProductionExecute extends Component
             'actuals.*' => 'required|numeric|min:0',
         ]);
 
+        if (! Auth::user()->canRunProduction($this->order->kitchen_id)) {
+            session()->flash('error', 'Only kitchen managers and chefs can complete a production batch.');
+            return;
+        }
+
         DB::transaction(function () {
             $userId = Auth::id();
             $kitchenId = $this->order->kitchen_id;
@@ -79,9 +86,11 @@ class ProductionExecute extends Component
                 $batchNumber = $this->order->order_number . '-' . str_pad($idx + 1, 2, '0', STR_PAD_LEFT);
 
                 ProductionLog::create([
+                    'company_id'               => $this->order->company_id,
                     'production_order_id'      => $this->order->id,
                     'production_order_line_id' => $line->id,
                     'recipe_id'                => $line->recipe_id,
+                    'production_recipe_id'     => $line->production_recipe_id,
                     'batch_number'             => $batchNumber,
                     'planned_yield'            => $planned,
                     'actual_yield'             => $actual,
@@ -92,10 +101,12 @@ class ProductionExecute extends Component
                     'produced_at'              => now(),
                 ]);
 
-                // Add to kitchen inventory (not auto-transfer)
-                $prepIngredient = $line->recipe?->ingredient;
-                if ($prepIngredient && $actual > 0) {
-                    KitchenInventory::addStock($kitchenId, $prepIngredient->id, $actual, $line->uom_id, $unitCost);
+                // Add to kitchen inventory (not auto-transfer). A line is
+                // either a Central Kitchen production recipe or an outlet prep
+                // item; each carries its own stockable ingredient.
+                $stockItem = $line->productionRecipe?->ingredient ?? $line->recipe?->ingredient;
+                if ($stockItem && $actual > 0) {
+                    KitchenInventory::addStock($kitchenId, $stockItem->id, $actual, $line->uom_id, $unitCost);
                 }
             }
 

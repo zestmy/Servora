@@ -107,6 +107,13 @@
                                     {{-- Tap-sized buttons: kitchens run on tablets. Delete is
                                          spaced away from the others so a mis-tap can't hit it. --}}
                                     <div class="flex gap-2 justify-end items-center">
+                                        {{-- Straight from the recipe into a production order —
+                                             the two were previously unconnected. --}}
+                                        @if ($recipe->is_active)
+                                            <a href="{{ route('kitchen.orders.create', ['recipe' => $recipe->id]) }}"
+                                               title="Start a production order for this recipe"
+                                               class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition">Produce</a>
+                                        @endif
                                         <a href="{{ route('kitchen.recipes.edit', $recipe->id) }}"
                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-indigo-600 border border-indigo-200 text-xs font-semibold rounded-lg hover:bg-indigo-50 transition">Edit</a>
                                         <button wire:click="toggleActive({{ $recipe->id }})"

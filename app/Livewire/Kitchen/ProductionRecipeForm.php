@@ -575,6 +575,10 @@ class ProductionRecipeForm extends Component
                 $recipe = ProductionRecipe::create($data);
             }
 
+            // Keep the paired stock item in step with the recipe. Without it a
+            // completed production batch would have nowhere to put its output.
+            $recipe->syncStockItem();
+
             // Sync lines
             $recipe->lines()->delete();
             foreach ($this->lines as $idx => $line) {

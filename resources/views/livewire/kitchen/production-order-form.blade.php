@@ -125,12 +125,42 @@
                 </div>
                 <input type="text"
                        wire:model.live.debounce.300ms="recipeSearch"
-                       placeholder="Search prep recipes to add... (type at least 2 characters)"
+                       placeholder="Search production recipes or prep items to add... (type at least 2 characters)"
                        class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
 
+            {{-- The kitchen's own products come first; prep items are the
+                 outlet-side recipes the kitchen also produces. --}}
+            @if ($productionResults->isNotEmpty())
+                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wider text-purple-600">Production Recipes</p>
+                <div class="mt-1 border border-purple-200 rounded-lg overflow-hidden divide-y divide-purple-100 shadow-sm">
+                    @foreach ($productionResults as $pr)
+                        <button type="button"
+                                wire:click="addProductionRecipe({{ $pr->id }})"
+                                class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-purple-50 transition text-left">
+                            <div>
+                                <span class="font-medium text-gray-800 text-sm">{{ $pr->name }}</span>
+                                @if ($pr->code)
+                                    <span class="ml-2 text-xs text-gray-400">{{ $pr->code }}</span>
+                                @endif
+                                @if ($pr->category)
+                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-700">{{ $pr->category }}</span>
+                                @endif
+                            </div>
+                            <div class="text-right flex-shrink-0 ml-4 text-xs text-gray-400">
+                                <span>Batch {{ rtrim(rtrim(number_format((float) $pr->yield_quantity, 2, '.', ''), '0'), '.') }} {{ $pr->yieldUom?->abbreviation ?? '' }}</span>
+                                @if (floatval($pr->total_cost_per_unit) > 0)
+                                    <span class="ml-1">· Cost {{ number_format($pr->total_cost_per_unit, 4) }}</span>
+                                @endif
+                            </div>
+                        </button>
+                    @endforeach
+                </div>
+            @endif
+
             @if ($searchResults->isNotEmpty())
-                <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
+                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Prep Items (outlet recipes)</p>
+                <div class="mt-1 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
                     @foreach ($searchResults as $recipe)
                         <button type="button"
                                 wire:click="addRecipe({{ $recipe->id }})"
@@ -151,8 +181,13 @@
                         </button>
                     @endforeach
                 </div>
-            @elseif (strlen($recipeSearch) >= 2)
-                <p class="mt-2 text-sm text-gray-400 text-center py-2">No prep recipes found for "{{ $recipeSearch }}".</p>
+            @endif
+
+            @if (strlen($recipeSearch) >= 2 && $searchResults->isEmpty() && $productionResults->isEmpty())
+                <p class="mt-2 text-sm text-gray-400 text-center py-2">
+                    Nothing found for "{{ $recipeSearch }}".
+                    <a href="{{ route('kitchen.recipes.create') }}" class="text-indigo-500 hover:underline">Create a production recipe</a>.
+                </p>
             @endif
 
             @error('lines') <p class="text-xs text-red-500 mt-2">{{ $message }}</p> @enderror
@@ -166,7 +201,7 @@
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                         <tr>
                             <th class="px-4 py-2 text-left w-8">#</th>
-                            <th class="px-4 py-2 text-left">Recipe</th>
+                            <th class="px-4 py-2 text-left">Item</th>
                             <th class="px-4 py-2 text-right w-28">Planned Qty</th>
                             <th class="px-4 py-2 text-left w-20">UOM</th>
                             <th class="px-4 py-2 text-right w-28">Unit Cost</th>
@@ -180,7 +215,16 @@
                         @foreach ($lines as $idx => $line)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
-                                <td class="px-4 py-2 font-medium text-gray-800">{{ $line['recipe_name'] }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-800">
+                                    {{ $line['recipe_name'] }}
+                                    {{-- Say which list the line came from; the two produce
+                                         the same way but are managed in different places. --}}
+                                    @if (($line['source'] ?? 'prep') === 'production')
+                                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700">Production recipe</span>
+                                    @else
+                                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">Prep item</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2">
                                     @if ($isEditable)
                                         <input type="number" step="0.01" min="0.01"

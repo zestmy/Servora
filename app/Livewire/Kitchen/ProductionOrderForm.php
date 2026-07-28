@@ -5,10 +5,12 @@ namespace App\Livewire\Kitchen;
 use App\Models\CentralKitchen;
 use App\Models\Outlet;
 use App\Models\ProductionOrder;
+use App\Models\ProductionRecipe;
 use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class ProductionOrderForm extends Component
@@ -23,22 +25,42 @@ class ProductionOrderForm extends Component
     public string $needed_by_date  = '';
     public string $notes           = '';
 
-    // Lines: [recipe_id, recipe_name, planned_quantity, uom_id, uom_name, unit_cost, to_outlet_id]
+    /**
+     * Lines carry a source: 'production' (a Central Kitchen production recipe)
+     * or 'prep' (an outlet prep item). Both are producible in the kitchen and
+     * both stock the kitchen on completion, via different tables.
+     * [source, recipe_id, production_recipe_id, recipe_name, planned_quantity,
+     *  uom_id, uom_name, unit_cost, to_outlet_id]
+     */
     public array  $lines        = [];
     public string $recipeSearch = '';
+
+    /**
+     * Kitchens of the active company. A bare `exists:central_kitchens,id` rule
+     * queries the table directly and so bypasses CompanyScope — a crafted
+     * payload could name another tenant's kitchen.
+     */
+    protected function selectableKitchenIds(): array
+    {
+        return CentralKitchen::where('company_id', Auth::user()->company_id)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
 
     protected function rules(): array
     {
         return [
-            'kitchen_id'               => 'required|exists:central_kitchens,id',
+            'kitchen_id'               => ['required', 'integer', Rule::in($this->selectableKitchenIds())],
             'production_date'          => 'required|date',
             'needed_by_date'           => 'nullable|date|after_or_equal:production_date',
             'notes'                    => 'nullable|string',
             'lines'                    => 'required|array|min:1',
-            'lines.*.recipe_id'        => 'required|exists:recipes,id',
+            'lines.*.source'           => 'required|in:production,prep',
+            'lines.*.recipe_id'            => 'nullable|exists:recipes,id',
+            'lines.*.production_recipe_id' => 'nullable|exists:production_recipes,id',
             'lines.*.planned_quantity' => 'required|numeric|min:0.0001',
             'lines.*.uom_id'          => 'required|exists:units_of_measure,id',
-            'lines.*.to_outlet_id'    => 'nullable|exists:outlets,id',
+            // Destination outlets are limited to ones this user can reach.
+            'lines.*.to_outlet_id'    => ['nullable', 'integer', Rule::in(Auth::user()->accessibleOutletIds())],
         ];
     }
 
@@ -46,6 +68,8 @@ class ProductionOrderForm extends Component
     {
         return [
             'kitchen_id.required'              => 'Please select a kitchen.',
+            'kitchen_id.in'                    => 'You do not have access to the selected kitchen.',
+            'lines.*.to_outlet_id.in'          => 'You do not have access to the selected destination outlet.',
             'lines.required'                   => 'Add at least one recipe line.',
             'lines.min'                        => 'Add at least one recipe line.',
             'lines.*.planned_quantity.min'     => 'Quantity must be greater than zero.',
@@ -58,10 +82,22 @@ class ProductionOrderForm extends Component
 
         if (! $id) {
             $this->orderNumber = ProductionOrder::generateNumber();
+
+            // "Produce" from the Production Recipes list lands here with the
+            // recipe preselected, so the order starts one click from done.
+            if ($recipeId = (int) request('recipe')) {
+                $recipe = ProductionRecipe::find($recipeId);
+                if ($recipe) {
+                    $this->kitchen_id = $recipe->kitchen_id;
+                    $this->addProductionRecipe($recipeId);
+                }
+            }
             return;
         }
 
-        $order = ProductionOrder::with(['lines.recipe.yieldUom', 'lines.uom', 'lines.toOutlet'])->findOrFail($id);
+        $order = ProductionOrder::with([
+            'lines.recipe.yieldUom', 'lines.productionRecipe.yieldUom', 'lines.uom', 'lines.toOutlet',
+        ])->findOrFail($id);
 
         $this->orderId         = $order->id;
         $this->orderNumber     = $order->order_number;
@@ -72,16 +108,49 @@ class ProductionOrderForm extends Component
         $this->notes           = $order->notes ?? '';
 
         $this->lines = $order->lines->map(fn ($l) => [
-            'recipe_id'        => $l->recipe_id,
-            'recipe_name'      => $l->recipe?->name ?? '-',
-            'planned_quantity' => (string) floatval($l->planned_quantity),
-            'uom_id'           => $l->uom_id,
-            'uom_name'         => $l->uom?->abbreviation ?? '-',
-            'unit_cost'        => (string) floatval($l->unit_cost),
-            'to_outlet_id'     => $l->to_outlet_id,
+            'source'               => $l->production_recipe_id ? 'production' : 'prep',
+            'recipe_id'            => $l->recipe_id,
+            'production_recipe_id' => $l->production_recipe_id,
+            'recipe_name'          => $l->productionRecipe?->name ?? $l->recipe?->name ?? '-',
+            'planned_quantity'     => (string) floatval($l->planned_quantity),
+            'uom_id'               => $l->uom_id,
+            'uom_name'             => $l->uom?->abbreviation ?? '-',
+            'unit_cost'            => (string) floatval($l->unit_cost),
+            'to_outlet_id'         => $l->to_outlet_id,
         ])->toArray();
     }
 
+    /** Add a Central Kitchen production recipe. */
+    public function addProductionRecipe(int $id): void
+    {
+        $recipe = ProductionRecipe::with('yieldUom')->find($id);
+        if (! $recipe) return;
+
+        foreach ($this->lines as $line) {
+            if (($line['source'] ?? '') === 'production' && (int) $line['production_recipe_id'] === $id) {
+                $this->recipeSearch = '';
+                return;
+            }
+        }
+
+        $this->lines[] = [
+            'source'               => 'production',
+            'recipe_id'            => null,
+            'production_recipe_id' => $id,
+            'recipe_name'          => $recipe->name,
+            // Default to one batch — a production recipe is defined per batch
+            // yield, so 1 x yield_quantity is the meaningful starting point.
+            'planned_quantity'     => (string) floatval($recipe->yield_quantity ?: 1),
+            'uom_id'               => $recipe->yield_uom_id,
+            'uom_name'             => $recipe->yieldUom?->abbreviation ?? '-',
+            'unit_cost'            => (string) floatval($recipe->total_cost_per_unit),
+            'to_outlet_id'         => null,
+        ];
+
+        $this->recipeSearch = '';
+    }
+
+    /** Add an outlet prep item. */
     public function addRecipe(int $recipeId): void
     {
         $recipe = Recipe::with('yieldUom')->find($recipeId);
@@ -89,20 +158,22 @@ class ProductionOrderForm extends Component
 
         // Skip duplicates
         foreach ($this->lines as $line) {
-            if ((int) $line['recipe_id'] === $recipeId) {
+            if (($line['source'] ?? 'prep') === 'prep' && (int) $line['recipe_id'] === $recipeId) {
                 $this->recipeSearch = '';
                 return;
             }
         }
 
         $this->lines[] = [
-            'recipe_id'        => $recipeId,
-            'recipe_name'      => $recipe->name,
-            'planned_quantity' => '1',
-            'uom_id'           => $recipe->yield_uom_id,
-            'uom_name'         => $recipe->yieldUom?->abbreviation ?? '-',
-            'unit_cost'        => (string) floatval($recipe->cost_per_yield_unit),
-            'to_outlet_id'     => null,
+            'source'               => 'prep',
+            'recipe_id'            => $recipeId,
+            'production_recipe_id' => null,
+            'recipe_name'          => $recipe->name,
+            'planned_quantity'     => '1',
+            'uom_id'               => $recipe->yield_uom_id,
+            'uom_name'             => $recipe->yieldUom?->abbreviation ?? '-',
+            'unit_cost'            => (string) floatval($recipe->cost_per_yield_unit),
+            'to_outlet_id'         => null,
         ];
 
         $this->recipeSearch = '';
@@ -145,7 +216,8 @@ class ProductionOrderForm extends Component
             $order->lines()->delete();
             foreach ($this->lines as $line) {
                 $order->lines()->create([
-                    'recipe_id'        => $line['recipe_id'],
+                    'recipe_id'            => ($line['source'] ?? 'prep') === 'prep' ? $line['recipe_id'] : null,
+                    'production_recipe_id' => ($line['source'] ?? 'prep') === 'production' ? $line['production_recipe_id'] : null,
                     'planned_quantity' => floatval($line['planned_quantity']),
                     'uom_id'           => $line['uom_id'],
                     'unit_cost'        => floatval($line['unit_cost']),
@@ -163,17 +235,30 @@ class ProductionOrderForm extends Component
     public function render()
     {
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
-        $outlets  = Outlet::where('company_id', Auth::user()->company_id)
+        $outlets  = Auth::user()->accessibleOutlets()
             ->where('is_active', true)->orderBy('name')->get();
         $uoms     = UnitOfMeasure::orderBy('name')->get();
 
-        $searchResults = collect();
+        // Both sources are searchable. Production recipes lead — they're the
+        // kitchen's own products; prep items are the outlet-side recipes the
+        // kitchen also produces.
+        $productionResults = collect();
+        $searchResults     = collect();
         if (strlen($this->recipeSearch) >= 2) {
+            $term = '%' . $this->recipeSearch . '%';
+
+            $productionResults = ProductionRecipe::with('yieldUom')
+                ->where('is_active', true)
+                ->when($this->kitchen_id, fn ($q) => $q->where('kitchen_id', $this->kitchen_id))
+                ->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('code', 'like', $term))
+                ->orderBy('name')
+                ->limit(8)
+                ->get();
+
             $searchResults = Recipe::with('yieldUom')
                 ->where('is_prep', true)
                 ->where('is_active', true)
-                ->where(fn ($q) => $q->where('name', 'like', '%' . $this->recipeSearch . '%')
-                    ->orWhere('code', 'like', '%' . $this->recipeSearch . '%'))
+                ->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('code', 'like', $term))
                 ->orderBy('name')
                 ->limit(8)
                 ->get();
@@ -186,7 +271,7 @@ class ProductionOrderForm extends Component
             : 'New Production Order';
 
         return view('livewire.kitchen.production-order-form', compact(
-            'kitchens', 'outlets', 'uoms', 'searchResults', 'isEditable'
+            'kitchens', 'outlets', 'uoms', 'searchResults', 'productionResults', 'isEditable'
         ))->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

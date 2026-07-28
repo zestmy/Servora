@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -278,6 +279,44 @@ class User extends Authenticatable
     public function activeWorkspace(): string
     {
         return session('workspace_mode', $this->workspace_mode ?? 'outlet');
+    }
+
+    /**
+     * This user's role in the given kitchen (or their active one): manager,
+     * chef or staff. Null when they aren't a member.
+     *
+     * Kitchen rights hang off this rather than a Spatie permission — the
+     * kitchen_users pivot already carries the role, and kitchen membership is
+     * per-kitchen rather than per-company.
+     */
+    public function kitchenRole(?int $kitchenId = null): ?string
+    {
+        $kitchenId ??= $this->activeKitchen()?->id;
+        if (! $kitchenId) return null;
+
+        return DB::table('kitchen_users')
+            ->where('user_id', $this->id)
+            ->where('kitchen_id', $kitchenId)
+            ->value('role');
+    }
+
+    /**
+     * May approve prep requests, fulfil them (which moves stock out of the
+     * kitchen), and cancel orders. System roles always qualify.
+     */
+    public function canManageKitchen(?int $kitchenId = null): bool
+    {
+        return $this->isSystemRole() || $this->kitchenRole($kitchenId) === 'manager';
+    }
+
+    /**
+     * May run production: schedule orders, record actuals and complete a
+     * batch. Managers and chefs; plain staff can look but not commit.
+     */
+    public function canRunProduction(?int $kitchenId = null): bool
+    {
+        return $this->isSystemRole()
+            || in_array($this->kitchenRole($kitchenId), ['manager', 'chef'], true);
     }
 
     /** Check if currently in kitchen workspace. */

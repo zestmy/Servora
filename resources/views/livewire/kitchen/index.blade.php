@@ -31,13 +31,19 @@
         </div>
     </div>
 
-    {{-- Stats --}}
+    {{-- Stats — click-through to the tab/status behind each number. --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         @foreach ($stats as $stat)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            @php
+                $accent = ['indigo' => 'group-hover:border-indigo-300', 'yellow' => 'group-hover:border-amber-300', 'green' => 'group-hover:border-green-300'][$stat['color']] ?? '';
+                $value  = ['indigo' => 'text-indigo-700', 'yellow' => 'text-amber-600', 'green' => 'text-green-700'][$stat['color']] ?? 'text-gray-800';
+            @endphp
+            <button type="button" wire:click="openStat('{{ $stat['tab'] }}', '{{ $stat['status'] }}')"
+                    class="group text-left bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition hover:shadow-md {{ $accent }}">
                 <p class="text-xs text-gray-400 uppercase tracking-wider">{{ $stat['label'] }}</p>
-                <p class="text-2xl font-bold text-gray-800 mt-1">{{ $stat['value'] }}</p>
-            </div>
+                <p class="text-2xl font-bold mt-1 {{ $stat['value'] > 0 ? $value : 'text-gray-300' }}">{{ $stat['value'] }}</p>
+                <p class="text-[11px] text-gray-400 mt-1">{{ $stat['hint'] }}</p>
+            </button>
         @endforeach
     </div>
 
@@ -66,6 +72,23 @@
             </a>
         </nav>
     </div>
+
+    {{-- What the open tab is for. The kitchen runs two opposite flows — it
+         pushes production out and pulls requests in — and the difference was
+         never stated anywhere on screen. --}}
+    @php
+        $tabBlurb = [
+            'orders'    => ['Production Orders', 'What this kitchen is making. Add production recipes or prep items, schedule the batch, then Execute to record what actually came out — finished quantities are added to kitchen stock.'],
+            'requests'  => ['Prep Requests', 'What outlets are asking this kitchen to send them. Approve a request, then Fulfil it — fulfilling deducts from kitchen stock and creates a transfer to that outlet.'],
+            'inventory' => ['Kitchen Inventory', 'What this kitchen currently holds. Stock arrives when a production batch is completed, and leaves when a prep request is fulfilled.'],
+            'logs'      => ['Production Logs', 'Every completed batch, with planned versus actual yield so you can see where losses are happening.'],
+        ][$tab] ?? null;
+    @endphp
+    @if ($tabBlurb)
+        <div class="mb-4 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+            <p class="text-xs text-gray-600"><span class="font-semibold text-gray-700">{{ $tabBlurb[0] }}</span> — {{ $tabBlurb[1] }}</p>
+        </div>
+    @endif
 
     {{-- Filters --}}
     @if ($tab !== 'logs' || $tab === 'inventory')
@@ -167,20 +190,33 @@
                                         {{-- Tap-sized buttons: kitchens run on tablets --}}
                                         <div class="flex gap-2 justify-end">
                                             @if ($order->status === 'draft')
-                                                <button wire:click="scheduleOrder({{ $order->id }})"
-                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">Schedule</button>
-                                                <button wire:click="cancelOrder({{ $order->id }})"
-                                                        wire:confirm="Cancel this production order?"
-                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-600 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition">Cancel</button>
+                                                @if ($canProduce)
+                                                    <button wire:click="scheduleOrder({{ $order->id }})"
+                                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">Schedule</button>
+                                                @endif
+                                                @if ($canManage)
+                                                    <button wire:click="cancelOrder({{ $order->id }})"
+                                                            wire:confirm="Cancel {{ $order->order_number }}? This can't be undone — the order stays on record as cancelled."
+                                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-600 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition">Cancel</button>
+                                                @endif
                                             @elseif ($order->status === 'scheduled')
-                                                <a href="{{ route('kitchen.orders.execute', $order->id) }}"
-                                                   class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Start</a>
-                                                <button wire:click="cancelOrder({{ $order->id }})"
-                                                        wire:confirm="Cancel this production order?"
-                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-600 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition">Cancel</button>
+                                                @if ($canProduce)
+                                                    <a href="{{ route('kitchen.orders.execute', $order->id) }}"
+                                                       class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Start</a>
+                                                @endif
+                                                @if ($canManage)
+                                                    <button wire:click="cancelOrder({{ $order->id }})"
+                                                            wire:confirm="Cancel {{ $order->order_number }}? This can't be undone — the order stays on record as cancelled."
+                                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-600 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition">Cancel</button>
+                                                @endif
                                             @elseif ($order->status === 'in_progress')
-                                                <a href="{{ route('kitchen.orders.execute', $order->id) }}"
-                                                   class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Continue</a>
+                                                @if ($canProduce)
+                                                    <a href="{{ route('kitchen.orders.execute', $order->id) }}"
+                                                       class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Continue</a>
+                                                @endif
+                                            @endif
+                                            @if (! $canProduce && ! $canManage && in_array($order->status, ['draft', 'scheduled', 'in_progress']))
+                                                <span class="text-xs text-gray-400 self-center">View only</span>
                                             @endif
                                         </div>
                                     </td>
@@ -193,8 +229,19 @@
                     {{ $orders->links() }}
                 </div>
             @else
-                <div class="p-8 text-center text-gray-400 text-sm">
-                    No production orders found.
+                <div class="p-10 text-center">
+                    <div class="text-3xl mb-2">🍳</div>
+                    <p class="font-medium text-gray-600 text-sm">
+                        {{ $statusFilter || $dateFrom || $dateTo ? 'No production orders match these filters' : 'No production orders yet' }}
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1 max-w-md mx-auto">
+                        A production order is a batch this kitchen will make. Add production recipes
+                        or prep items, schedule it, then record what actually came out.
+                    </p>
+                    <a href="{{ route('kitchen.orders.create') }}"
+                       class="inline-flex items-center mt-4 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        + Create your first production order
+                    </a>
                 </div>
             @endif
         </div>
@@ -255,14 +302,20 @@
                                     <td class="px-4 py-3 text-right">
                                         {{-- Tap-sized buttons: kitchens run on tablets --}}
                                         <div class="flex gap-2 justify-end">
-                                            @if ($request->status === 'submitted')
-                                                <button wire:click="approveRequest({{ $request->id }})"
-                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-blue-600 border border-blue-200 text-xs font-semibold rounded-lg hover:bg-blue-50 transition">Approve</button>
-                                            @endif
-                                            @if (in_array($request->status, ['submitted', 'approved']))
-                                                <button wire:click="fulfillRequest({{ $request->id }})"
-                                                        wire:confirm="Fulfil this request for {{ $request->outlet?->name ?? 'the outlet' }}? {{ $request->lines_count }} item(s) will be transferred out of kitchen stock immediately."
-                                                        class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Fulfill</button>
+                                            {{-- Approve and Fulfil are manager-only; Fulfil moves
+                                                 real stock out of the kitchen. --}}
+                                            @if ($canManage)
+                                                @if ($request->status === 'submitted')
+                                                    <button wire:click="approveRequest({{ $request->id }})"
+                                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-blue-600 border border-blue-200 text-xs font-semibold rounded-lg hover:bg-blue-50 transition">Approve</button>
+                                                @endif
+                                                @if (in_array($request->status, ['submitted', 'approved']))
+                                                    <button wire:click="fulfillRequest({{ $request->id }})"
+                                                            wire:confirm="Fulfil this request for {{ $request->outlet?->name ?? 'the outlet' }}? {{ $request->lines_count }} item(s) will be transferred out of kitchen stock immediately."
+                                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Fulfil</button>
+                                                @endif
+                                            @elseif (in_array($request->status, ['submitted', 'approved']))
+                                                <span class="text-xs text-gray-400 self-center">Manager approval needed</span>
                                             @endif
                                         </div>
                                     </td>
@@ -275,8 +328,19 @@
                     {{ $requests->links() }}
                 </div>
             @else
-                <div class="p-8 text-center text-gray-400 text-sm">
-                    No prep requests found.
+                <div class="p-10 text-center">
+                    <div class="text-3xl mb-2">📋</div>
+                    <p class="font-medium text-gray-600 text-sm">
+                        {{ $statusFilter ? 'No prep requests match these filters' : 'No prep requests yet' }}
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1 max-w-md mx-auto">
+                        A prep request is an outlet asking this kitchen to make and send them items.
+                        Approve one, then fulfil it to move the stock across.
+                    </p>
+                    <a href="{{ route('kitchen.prep-requests.create') }}"
+                       class="inline-flex items-center mt-4 px-4 py-2 bg-white text-indigo-600 border border-indigo-200 text-sm font-medium rounded-lg hover:bg-indigo-50 transition">
+                        + Raise a prep request
+                    </a>
                 </div>
             @endif
         </div>
@@ -305,7 +369,8 @@
                                 @endphp
                                 <tr class="hover:bg-gray-50 transition">
                                     <td class="px-4 py-3 font-mono text-xs text-gray-700">{{ $log->batch_number }}</td>
-                                    <td class="px-4 py-3 text-gray-700">{{ $log->recipe?->name ?? '-' }}</td>
+                                    {{-- A batch comes from either a production recipe or a prep item. --}}
+                                    <td class="px-4 py-3 text-gray-700">{{ $log->producedItemName() }}</td>
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ rtrim(rtrim(number_format(floatval($log->planned_yield), 4), '0'), '.') }}</td>
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ rtrim(rtrim(number_format(floatval($log->actual_yield), 4), '0'), '.') }}</td>
                                     <td class="px-4 py-3 text-right tabular-nums font-medium {{ $variance >= 0 ? 'text-green-600' : 'text-red-600' }}">
@@ -323,7 +388,8 @@
                 </div>
             @else
                 <div class="p-8 text-center text-gray-400 text-sm">
-                    No production logs found.
+                    No completed batches yet. Logs appear here once a production order is executed,
+                    showing planned versus actual yield.
                 </div>
             @endif
         </div>

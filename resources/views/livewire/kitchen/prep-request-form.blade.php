@@ -82,6 +82,27 @@
             @error('kitchen_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
         </div>
 
+        {{-- Requesting outlet — kitchen mode has no active outlet, so this
+             must be explicit or the request lands on an arbitrary one. --}}
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Requesting Outlet *</label>
+            @if ($outlets->count() === 1 && ! $requestId)
+                <p class="text-sm text-gray-700 py-2">{{ $outlets->first()->name }}</p>
+            @else
+                <select wire:model="outlet_id" class="w-full rounded-lg border-gray-300 text-sm">
+                    <option value="">-- Select Outlet --</option>
+                    @foreach ($outlets as $o)
+                        <option value="{{ $o->id }}">{{ $o->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+            <p class="text-[11px] text-gray-400 mt-1">Which outlet these items will be sent to when the kitchen fulfils this request.</p>
+            @error('outlet_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+            @if ($outlets->isEmpty())
+                <p class="mt-1 text-xs text-red-500">You aren't assigned to any outlet, so this request can't be raised. Ask an admin for outlet access.</p>
+            @endif
+        </div>
+
         {{-- Needed Date --}}
         <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Needed Date *</label>

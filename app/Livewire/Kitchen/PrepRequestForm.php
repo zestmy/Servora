@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class PrepRequestForm extends Component
@@ -19,6 +20,7 @@ class PrepRequestForm extends Component
     public string $status = 'draft';
 
     public ?int   $kitchen_id  = null;
+    public ?int   $outlet_id   = null;
     public string $needed_date = '';
     public string $notes       = '';
 
@@ -26,10 +28,21 @@ class PrepRequestForm extends Component
     public array  $lines        = [];
     public string $recipeSearch = '';
 
+    /** Kitchens of the active company — a bare exists rule bypasses CompanyScope. */
+    protected function selectableKitchenIds(): array
+    {
+        return CentralKitchen::where('company_id', Auth::user()->company_id)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
     protected function rules(): array
     {
         return [
-            'kitchen_id'                  => 'required|exists:central_kitchens,id',
+            'kitchen_id'                  => ['required', 'integer', Rule::in($this->selectableKitchenIds())],
+            // Which outlet is asking. Kitchen mode has no active outlet, so
+            // this can't be left implicit or the request lands on an
+            // arbitrary outlet with nothing on screen saying which.
+            'outlet_id'                   => ['required', 'integer', Rule::in(Auth::user()->accessibleOutletIds())],
             'needed_date'                 => 'required|date',
             'notes'                       => 'nullable|string',
             'lines'                       => 'required|array|min:1',
@@ -43,6 +56,9 @@ class PrepRequestForm extends Component
     {
         return [
             'kitchen_id.required'                 => 'Please select a kitchen.',
+            'kitchen_id.in'                       => 'You do not have access to the selected kitchen.',
+            'outlet_id.required'                  => 'Choose which outlet is requesting these items.',
+            'outlet_id.in'                        => 'You do not have access to the selected outlet.',
             'lines.required'                      => 'Add at least one recipe line.',
             'lines.min'                           => 'Add at least one recipe line.',
             'lines.*.requested_quantity.min'      => 'Quantity must be greater than zero.',
@@ -55,6 +71,13 @@ class PrepRequestForm extends Component
 
         if (! $id) {
             $this->requestNumber = OutletPrepRequest::generateNumber();
+            // Prefill the active outlet in outlet mode; kitchen mode has none,
+            // so fall back to the only accessible outlet or make them pick.
+            $accessible = Auth::user()->accessibleOutletIds();
+            $active     = Auth::user()->activeOutletId();
+            $this->outlet_id = ($active && in_array((int) $active, $accessible, true))
+                ? (int) $active
+                : (count($accessible) === 1 ? $accessible[0] : null);
             return;
         }
 
@@ -64,6 +87,7 @@ class PrepRequestForm extends Component
         $this->requestNumber = $request->request_number;
         $this->status        = $request->status;
         $this->kitchen_id    = $request->kitchen_id;
+        $this->outlet_id     = $request->outlet_id;
         $this->needed_date   = $request->needed_date->toDateString();
         $this->notes         = $request->notes ?? '';
 
@@ -119,6 +143,8 @@ class PrepRequestForm extends Component
 
             $data = [
                 'kitchen_id'  => $this->kitchen_id,
+                // Explicitly chosen and validated against accessible outlets.
+                'outlet_id'   => $this->outlet_id,
                 'needed_date' => $this->needed_date,
                 'notes'       => $this->notes ?: null,
                 'status'      => $status,
@@ -128,9 +154,7 @@ class PrepRequestForm extends Component
                 $request = OutletPrepRequest::findOrFail($this->requestId);
                 $request->update($data);
             } else {
-                $outletId = $user->activeOutletId() ?? Outlet::where('company_id', $user->company_id)->value('id');
                 $data['company_id']     = $user->company_id;
-                $data['outlet_id']      = $outletId;
                 $data['request_number'] = $this->requestNumber;
                 $data['created_by']     = Auth::id();
                 $request = OutletPrepRequest::create($data);
@@ -157,6 +181,8 @@ class PrepRequestForm extends Component
     {
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
         $uoms     = UnitOfMeasure::orderBy('name')->get();
+        $outlets  = Auth::user()->accessibleOutlets()
+            ->where('is_active', true)->orderBy('name')->get();
 
         $searchResults = collect();
         if (strlen($this->recipeSearch) >= 2) {
@@ -177,7 +203,7 @@ class PrepRequestForm extends Component
             : 'New Prep Request';
 
         return view('livewire.kitchen.prep-request-form', compact(
-            'kitchens', 'uoms', 'searchResults', 'isEditable'
+            'kitchens', 'uoms', 'searchResults', 'isEditable', 'outlets'
         ))->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

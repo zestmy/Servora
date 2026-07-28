@@ -2,13 +2,20 @@
 
 namespace App\Models;
 
+use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductionLog extends Model
 {
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CompanyScope());
+    }
+
     protected $fillable = [
-        'production_order_id', 'production_order_line_id', 'recipe_id',
+        'company_id', 'production_order_id', 'production_order_line_id',
+        'recipe_id', 'production_recipe_id',
         'batch_number', 'planned_yield', 'actual_yield', 'yield_variance_pct',
         'uom_id', 'total_cost', 'produced_by', 'produced_at', 'notes',
     ];
@@ -24,6 +31,13 @@ class ProductionLog extends Model
     public function productionOrder(): BelongsTo { return $this->belongsTo(ProductionOrder::class); }
     public function productionOrderLine(): BelongsTo { return $this->belongsTo(ProductionOrderLine::class); }
     public function recipe(): BelongsTo { return $this->belongsTo(Recipe::class); }
+    public function productionRecipe(): BelongsTo { return $this->belongsTo(ProductionRecipe::class); }
+
+    /** What was produced, whichever source the batch came from. */
+    public function producedItemName(): string
+    {
+        return $this->productionRecipe?->name ?? $this->recipe?->name ?? '—';
+    }
     public function uom(): BelongsTo { return $this->belongsTo(UnitOfMeasure::class, 'uom_id'); }
     public function producedBy(): BelongsTo { return $this->belongsTo(User::class, 'produced_by'); }
 }

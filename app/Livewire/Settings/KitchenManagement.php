@@ -25,6 +25,16 @@ class KitchenManagement extends Component
     public bool   $is_active      = true;
 
     public array $assignedUserIds = [];
+
+    /** [userId => manager|chef|staff] for the assigned users. */
+    public array $userRoles = [];
+
+    /** What each kitchen role may do, shown next to the picker. */
+    public const KITCHEN_ROLES = [
+        'manager' => 'Manager — approve and fulfil requests, cancel orders, run production',
+        'chef'    => 'Chef — schedule orders and complete production batches',
+        'staff'   => 'Staff — view only; cannot commit stock movements',
+    ];
     public array $servedOutletIds = [];
 
     protected function rules(): array
@@ -62,6 +72,9 @@ class KitchenManagement extends Component
         $this->phone          = $kitchen->phone ?? '';
         $this->is_active      = $kitchen->is_active;
         $this->assignedUserIds = $kitchen->users->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+        $this->userRoles = $kitchen->users
+            ->mapWithKeys(fn ($u) => [(string) $u->id => $u->pivot->role ?: 'staff'])
+            ->toArray();
         $this->servedOutletIds = Outlet::where('default_kitchen_id', $kitchen->id)
             ->pluck('id')->map(fn ($id) => (string) $id)->toArray();
         $this->showForm = true;
@@ -96,9 +109,13 @@ class KitchenManagement extends Component
             }
 
             // Sync assigned users to kitchen
+            // Role drives what each member may do in the kitchen workspace;
+            // unknown values fall back to the least-privileged option.
             $syncData = [];
             foreach ($this->assignedUserIds as $userId) {
-                $syncData[(int) $userId] = ['role' => 'staff'];
+                $role = $this->userRoles[(string) $userId] ?? 'staff';
+                if (! array_key_exists($role, self::KITCHEN_ROLES)) $role = 'staff';
+                $syncData[(int) $userId] = ['role' => $role];
             }
             $kitchen->users()->sync($syncData);
 
@@ -186,6 +203,7 @@ class KitchenManagement extends Component
         $this->phone = '';
         $this->is_active = true;
         $this->assignedUserIds = [];
+        $this->userRoles       = [];
         $this->servedOutletIds = [];
     }
 

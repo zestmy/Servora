@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,8 +11,13 @@ class KitchenInventory extends Model
     protected $table = 'kitchen_inventory';
 
     protected $fillable = [
-        'kitchen_id', 'ingredient_id', 'quantity_on_hand', 'uom_id', 'unit_cost',
+        'company_id', 'kitchen_id', 'ingredient_id', 'quantity_on_hand', 'uom_id', 'unit_cost',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CompanyScope());
+    }
 
     protected $casts = [
         'quantity_on_hand' => 'decimal:4',
@@ -27,9 +33,14 @@ class KitchenInventory extends Model
      */
     public static function addStock(int $kitchenId, int $ingredientId, float $quantity, int $uomId, float $unitCost): void
     {
+        // company_id comes from the kitchen rather than the acting user, so a
+        // queued or system-run production still lands in the right tenant.
+        // CompanyScope only filters reads — it does not populate on write.
+        $companyId = CentralKitchen::withoutGlobalScopes()->where('id', $kitchenId)->value('company_id');
+
         $inv = static::firstOrCreate(
             ['kitchen_id' => $kitchenId, 'ingredient_id' => $ingredientId],
-            ['quantity_on_hand' => 0, 'uom_id' => $uomId, 'unit_cost' => $unitCost]
+            ['company_id' => $companyId, 'quantity_on_hand' => 0, 'uom_id' => $uomId, 'unit_cost' => $unitCost]
         );
         $inv->increment('quantity_on_hand', $quantity);
         $inv->update(['unit_cost' => $unitCost, 'uom_id' => $uomId]);

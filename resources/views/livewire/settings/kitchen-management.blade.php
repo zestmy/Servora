@@ -177,16 +177,36 @@
                 {{-- User assignment --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-2">Assigned Users</label>
-                    <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                    <p class="text-xs text-gray-400 mb-2">
+                        Role decides what each member may do. Only Managers can approve or fulfil
+                        prep requests — fulfilling moves stock out of the kitchen.
+                    </p>
+                    <div class="max-h-56 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
                         @foreach ($companyUsers as $u)
-                            <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" wire:model="assignedUserIds" value="{{ $u->id }}"
-                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                <span class="text-sm text-gray-700">{{ $u->name }}</span>
-                                <span class="text-xs text-gray-400">({{ $u->email }})</span>
-                            </label>
+                            @php $isAssigned = in_array((string) $u->id, array_map('strval', $assignedUserIds), true); @endphp
+                            <div class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50">
+                                <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                                    <input type="checkbox" wire:model.live="assignedUserIds" value="{{ $u->id }}"
+                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <span class="text-sm text-gray-700 truncate">{{ $u->name }}</span>
+                                    <span class="text-xs text-gray-400 truncate">({{ $u->email }})</span>
+                                </label>
+                                @if ($isAssigned)
+                                    <select wire:model="userRoles.{{ $u->id }}"
+                                            class="text-xs rounded-lg border-gray-300 py-1 w-28 flex-shrink-0">
+                                        @foreach (\App\Livewire\Settings\KitchenManagement::KITCHEN_ROLES as $roleKey => $roleDesc)
+                                            <option value="{{ $roleKey }}" title="{{ $roleDesc }}">{{ ucfirst($roleKey) }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
+                            </div>
                         @endforeach
                     </div>
+                    <ul class="mt-2 text-[11px] text-gray-400 space-y-0.5">
+                        @foreach (\App\Livewire\Settings\KitchenManagement::KITCHEN_ROLES as $roleDesc)
+                            <li>{{ $roleDesc }}</li>
+                        @endforeach
+                    </ul>
                 </div>
             </div>
 

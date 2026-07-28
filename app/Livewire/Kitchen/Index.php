@@ -45,6 +45,10 @@ class Index extends Component
     public function scheduleOrder(int $id): void
     {
         $order = ProductionOrder::findOrFail($id);
+        if (! Auth::user()->canRunProduction($order->kitchen_id)) {
+            session()->flash('error', 'Only kitchen managers and chefs can schedule production.');
+            return;
+        }
         if ($order->status !== 'draft') return;
         $order->update(['status' => 'scheduled']);
         session()->flash('success', "Order {$order->order_number} scheduled.");
@@ -53,6 +57,10 @@ class Index extends Component
     public function cancelOrder(int $id): void
     {
         $order = ProductionOrder::findOrFail($id);
+        if (! Auth::user()->canManageKitchen($order->kitchen_id)) {
+            session()->flash('error', 'Only kitchen managers can cancel an order.');
+            return;
+        }
         if (! in_array($order->status, ['draft', 'scheduled'])) return;
         $order->update(['status' => 'cancelled']);
         session()->flash('success', "Order {$order->order_number} cancelled.");
@@ -63,6 +71,10 @@ class Index extends Component
     public function approveRequest(int $id): void
     {
         $request = OutletPrepRequest::findOrFail($id);
+        if (! Auth::user()->canManageKitchen($request->kitchen_id)) {
+            session()->flash('error', 'Only kitchen managers can approve requests.');
+            return;
+        }
         if ($request->status !== 'submitted') return;
         $request->update(['status' => 'approved']);
         session()->flash('success', "Request {$request->request_number} approved.");
@@ -71,6 +83,19 @@ class Index extends Component
     public function fulfillRequest(int $id): void
     {
         $request = OutletPrepRequest::with('lines.ingredient', 'lines.uom')->findOrFail($id);
+
+        // Fulfil moves real stock out of the kitchen and into an outlet, so it
+        // is manager-only and the destination outlet must be one this user can
+        // actually reach.
+        $user = Auth::user();
+        if (! $user->canManageKitchen($request->kitchen_id)) {
+            session()->flash('error', 'Only kitchen managers can fulfil requests.');
+            return;
+        }
+        if ($request->outlet_id && ! $user->canAccessOutlet((int) $request->outlet_id)) {
+            session()->flash('error', 'You do not have access to the destination outlet.');
+            return;
+        }
         if (! in_array($request->status, ['approved', 'submitted'])) return;
 
         $kitchenId = $request->kitchen_id;
@@ -127,15 +152,48 @@ class Index extends Component
 
     // ── Stats ──────────────────────────────────────────────────────────
 
+    /**
+     * Headline counts. These honour the kitchen filter — a number that ignores
+     * the filter above it reads as a bug when the list below disagrees. Each
+     * one is a shortcut into the tab and status that produced it.
+     */
     private function getStats(): array
     {
         $today = now()->toDateString();
+        $k = fn ($q) => $this->kitchenFilter ? $q->where('kitchen_id', $this->kitchenFilter) : $q;
 
         return [
-            ['label' => "Today's Orders", 'value' => ProductionOrder::whereIn('status', ['scheduled', 'in_progress'])->whereDate('production_date', $today)->count(), 'color' => 'indigo'],
-            ['label' => 'Pending Requests', 'value' => OutletPrepRequest::whereIn('status', ['submitted', 'approved'])->count(), 'color' => 'yellow'],
-            ['label' => 'Completed Today', 'value' => ProductionOrder::where('status', 'completed')->whereDate('completed_at', $today)->count(), 'color' => 'green'],
+            [
+                'label' => "To make today",
+                'value' => $k(ProductionOrder::whereIn('status', ['scheduled', 'in_progress'])->whereDate('production_date', $today))->count(),
+                'color' => 'indigo',
+                'hint'  => 'Scheduled or in progress, due today',
+                'tab'   => 'orders', 'status' => 'scheduled',
+            ],
+            [
+                'label' => 'Requests waiting on you',
+                'value' => $k(OutletPrepRequest::whereIn('status', ['submitted', 'approved']))->count(),
+                'color' => 'yellow',
+                'hint'  => 'Outlets waiting for items to be approved or sent',
+                'tab'   => 'requests', 'status' => '',
+            ],
+            [
+                'label' => 'Completed today',
+                'value' => $k(ProductionOrder::where('status', 'completed')->whereDate('completed_at', $today))->count(),
+                'color' => 'green',
+                'hint'  => 'Batches finished and added to kitchen stock',
+                'tab'   => 'orders', 'status' => 'completed',
+            ],
         ];
+    }
+
+    /** Jump to the tab and status behind a headline number. */
+    public function openStat(string $tab, string $status = ''): void
+    {
+        $this->tab = $tab;
+        $this->resetFilters();
+        $this->statusFilter = $status;
+        $this->resetPage();
     }
 
     // ── Data Builders ──────────────────────────────────────────────────
@@ -160,7 +218,7 @@ class Index extends Component
 
     private function getLogsData(): array
     {
-        $query = ProductionLog::with(['recipe', 'producedBy']);
+        $query = ProductionLog::with(['recipe', 'productionRecipe', 'producedBy']);
         if ($this->dateFrom) $query->whereDate('produced_at', '>=', $this->dateFrom);
         if ($this->dateTo) $query->whereDate('produced_at', '<=', $this->dateTo);
         return ['logs' => $query->orderByDesc('produced_at')->paginate(15)];
@@ -187,9 +245,16 @@ class Index extends Component
 
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
 
+        // Row actions are hidden rather than shown-and-refused; the component
+        // methods re-check, so this is presentation only.
+        $user = Auth::user();
+        $activeKitchenId = $this->kitchenFilter ?: $user->activeKitchen()?->id;
+
         return view('livewire.kitchen.index', array_merge($data, [
-            'stats'    => $this->getStats(),
-            'kitchens' => $kitchens,
+            'stats'      => $this->getStats(),
+            'kitchens'   => $kitchens,
+            'canManage'  => $user->canManageKitchen($activeKitchenId),
+            'canProduce' => $user->canRunProduction($activeKitchenId),
         ]))->layout('layouts.kitchen', ['title' => 'Kitchen']);
     }
 }

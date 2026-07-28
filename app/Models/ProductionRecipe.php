@@ -13,7 +13,7 @@ class ProductionRecipe extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'kitchen_id', 'name', 'code', 'description', 'video_url', 'category',
+        'company_id', 'kitchen_id', 'ingredient_id', 'name', 'code', 'description', 'video_url', 'category',
         'yield_quantity', 'yield_uom_id',
         'packaging_uom', 'per_carton_qty', 'carton_weight',
         'shelf_life_days', 'shelf_life_value', 'shelf_life_unit', 'storage_instruction',
@@ -43,6 +43,46 @@ class ProductionRecipe extends Model
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function kitchen(): BelongsTo { return $this->belongsTo(CentralKitchen::class, 'kitchen_id'); }
     public function yieldUom(): BelongsTo { return $this->belongsTo(UnitOfMeasure::class, 'yield_uom_id'); }
+
+    /**
+     * The stockable item this recipe produces. Completing a production batch
+     * adds to kitchen inventory against this ingredient, which is what makes
+     * the output transferable to outlets.
+     */
+    public function ingredient(): BelongsTo { return $this->belongsTo(Ingredient::class); }
+
+    /**
+     * Create or refresh the paired stock item. Mirrors the prep-item pattern:
+     * base UOM is the recipe's yield UOM, cost is the computed cost per unit.
+     */
+    public function syncStockItem(): void
+    {
+        $data = [
+            'name'           => $this->name,
+            'code'           => $this->code ?: null,
+            'base_uom_id'    => $this->yield_uom_id,
+            'recipe_uom_id'  => $this->yield_uom_id,
+            'current_cost'   => round((float) $this->total_cost_per_unit, 4),
+            'purchase_price' => 0,
+            'pack_size'      => 1,
+            'yield_percent'  => 100,
+            'is_active'      => $this->is_active,
+            'is_prep'        => true,
+        ];
+
+        if ($this->ingredient_id && $ingredient = Ingredient::find($this->ingredient_id)) {
+            $ingredient->update($data);
+            return;
+        }
+
+        $data['company_id'] = $this->company_id;
+        $ingredient = Ingredient::create($data);
+
+        // Written straight to the column so this can be called from within a
+        // save without recursing through the model's own saving hooks.
+        static::withoutGlobalScopes()->where('id', $this->id)->update(['ingredient_id' => $ingredient->id]);
+        $this->ingredient_id = $ingredient->id;
+    }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function lines(): HasMany { return $this->hasMany(ProductionRecipeLine::class); }
 
