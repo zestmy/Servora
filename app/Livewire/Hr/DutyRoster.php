@@ -182,7 +182,8 @@ class DutyRoster extends Component
      */
     protected function prepopulateEmployees(): void
     {
-        // Filter by selected section and order by name
+        // Same staff order as the Employees list and Attendance grid, so a
+        // newly generated roster reads top-to-bottom the way people expect.
         $query = Employee::where('outlet_id', $this->outletId)
             ->where('is_active', true);
 
@@ -190,7 +191,7 @@ class DutyRoster extends Component
             $query->where('section_id', $this->sectionId);
         }
 
-        $employees = $query->orderBy('name')->get();
+        $employees = $query->inListOrder()->get();
         $weekDays = $this->getWeekDays();
 
         // Get default rest duration from settings
@@ -213,6 +214,42 @@ class DutyRoster extends Component
                 'sort_order' => $sortOrder++,
             ]);
         }
+    }
+
+    /**
+     * Re-apply the shared staff order to this roster's rows.
+     *
+     * Row order lives on the roster's own entries, so a roster built before
+     * the staff list was arranged — or one dragged around since — keeps its
+     * own order. This is offered as an explicit action rather than done
+     * automatically, because a deliberate arrangement shouldn't be silently
+     * thrown away every time the roster is opened.
+     */
+    public function resetToStaffOrder(): void
+    {
+        if (! $this->roster || ! $this->roster->isDraft()) {
+            session()->flash('error', 'Only draft rosters can be reordered.');
+            return;
+        }
+
+        if (! Auth::user()->can('roster.edit')) {
+            session()->flash('error', 'You do not have permission to edit rosters.');
+            return;
+        }
+
+        $employeeIds = RosterEntry::where('roster_id', $this->roster->id)
+            ->distinct()->pluck('employee_id');
+
+        $ordered = Employee::whereIn('id', $employeeIds)->inListOrder()->pluck('id');
+
+        foreach ($ordered as $index => $employeeId) {
+            RosterEntry::where('roster_id', $this->roster->id)
+                ->where('employee_id', $employeeId)
+                ->update(['sort_order' => $index]);
+        }
+
+        $this->loadRoster();
+        session()->flash('success', 'Roster reordered to match the staff list.');
     }
 
     /**
@@ -964,7 +1001,7 @@ class DutyRoster extends Component
         if ($this->outletId) {
             $employees = Employee::where('outlet_id', $this->outletId)
                 ->where('is_active', true)
-                ->orderBy('name')
+                ->inListOrder()
                 ->get();
 
             $stations = RosterStation::where('outlet_id', $this->outletId)->active()->ordered()->get();

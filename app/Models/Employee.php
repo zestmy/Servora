@@ -98,6 +98,22 @@ class Employee extends Model
     }
 
     /**
+     * The shared staff order: the manual drag order from the Employees list
+     * first, then anything never dragged, alphabetically.
+     *
+     * Every screen that lists staff uses this so the Employees list,
+     * Attendance Record grid and Duty Roster read top-to-bottom the same way —
+     * reordering in one is meant to be visible in all of them.
+     */
+    public function scopeInListOrder($query)
+    {
+        return $query
+            ->orderByRaw('employees.sort_order IS NULL')
+            ->orderBy('employees.sort_order')
+            ->orderBy('employees.name');
+    }
+
+    /**
      * Whether the given (default: current) user may read salary and service
      * point data. The single gate for every employee screen, export and import
      * so pay visibility can never drift between them.

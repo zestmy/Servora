@@ -780,9 +780,7 @@ class Employees extends Component
         // their outlet-access grants.
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
-            ->orderByRaw('sort_order IS NULL')
-            ->orderBy('sort_order')
-            ->orderBy('name');
+            ->inListOrder();
 
         if ($this->search !== '') {
             $s = '%' . $this->search . '%';

@@ -435,9 +435,7 @@ class AttendanceRecords extends Component
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
             ->where('is_active', true)
-            ->orderByRaw('sort_order IS NULL')
-            ->orderBy('sort_order')
-            ->orderBy('name');
+            ->inListOrder();
 
         // Never load pay columns for users without hr.compensation.
         if (! $this->canViewPay()) {

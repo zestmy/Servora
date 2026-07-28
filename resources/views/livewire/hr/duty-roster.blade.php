@@ -130,6 +130,15 @@
 
                     <div class="flex flex-wrap items-center gap-2">
                         @if ($roster->isDraft() && $canEdit)
+                            {{-- Row order lives on this roster's own entries, so an
+                                 older roster can drift from the staff list. --}}
+                            <button wire:click="resetToStaffOrder"
+                                    wire:confirm="Reorder this roster to match the Employees list? Any manual row order here will be replaced."
+                                    title="Match the order used by the Employees list and Attendance Record"
+                                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/></svg>
+                                Sort by staff order
+                            </button>
                             <button wire:click="submitRoster"
                                     class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
                                 Submit for Approval
