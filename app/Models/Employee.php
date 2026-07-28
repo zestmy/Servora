@@ -16,7 +16,16 @@ class Employee extends Model
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date',
-        'service_points_entitlement', 'sort_order',
+        'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
+    ];
+
+    /**
+     * Attributes only readable with the hr.compensation permission. Screens
+     * that render employee data check this list rather than hard-coding the
+     * column names, so adding a pay field here covers every caller.
+     */
+    public const SENSITIVE_PAY_ATTRIBUTES = [
+        'service_points_entitlement', 'basic_salary', 'pay_type',
     ];
 
     /**
@@ -40,6 +49,20 @@ class Employee extends Model
         'outsourcing'        => 'Outsourcing',
     ];
 
+    /** How basic_salary is expressed. */
+    public const PAY_TYPES = [
+        'monthly' => 'Monthly',
+        'daily'   => 'Daily',
+        'hourly'  => 'Hourly',
+    ];
+
+    /** Short suffix for a salary figure, e.g. "/ mth". */
+    public const PAY_TYPE_SUFFIXES = [
+        'monthly' => '/ mth',
+        'daily'   => '/ day',
+        'hourly'  => '/ hr',
+    ];
+
     protected $casts = [
         'is_active'              => 'boolean',
         'join_date'              => 'date',
@@ -51,6 +74,7 @@ class Employee extends Model
         'halal_training'         => 'boolean',
         'halal_training_date'    => 'date',
         'service_points_entitlement' => 'decimal:2',
+        'basic_salary'               => 'decimal:2',
     ];
 
     protected static function booted(): void
@@ -71,6 +95,28 @@ class Employee extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    /**
+     * Whether the given (default: current) user may read salary and service
+     * point data. The single gate for every employee screen, export and import
+     * so pay visibility can never drift between them.
+     */
+    public static function canViewPay($user = null): bool
+    {
+        $user ??= \Illuminate\Support\Facades\Auth::user();
+
+        return (bool) $user?->can('hr.compensation');
+    }
+
+    /** Salary formatted with its pay-type suffix, e.g. "3,000.00 / mth". */
+    public function salaryLabel(): ?string
+    {
+        if ($this->basic_salary === null) return null;
+
+        $suffix = static::PAY_TYPE_SUFFIXES[$this->pay_type] ?? null;
+
+        return trim(number_format((float) $this->basic_salary, 2) . ' ' . $suffix);
     }
 
     public function employmentStatusLabel(): ?string

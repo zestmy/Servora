@@ -115,7 +115,7 @@
         {{-- Table — horizontally scrollable on mobile so every column (staff ID,
              designation, section, email, phone…) stays reachable. --}}
       <div class="overflow-x-auto">
-        <table class="min-w-[1750px] divide-y divide-gray-100 text-sm">
+        <table class="{{ $canViewPay ? 'min-w-[1950px]' : 'min-w-[1650px]' }} divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 text-left w-12">#</th>
@@ -131,7 +131,11 @@
                     <th class="px-4 py-3 text-center">Food Handler</th>
                     <th class="px-4 py-3 text-center">Typhoid Card</th>
                     <th class="px-4 py-3 text-center">Halal Training</th>
-                    <th class="px-4 py-3 text-right">Service Pts</th>
+                    {{-- Pay-sensitive columns: hr.compensation only. --}}
+                    @if ($canViewPay)
+                        <th class="px-4 py-3 text-right">Salary</th>
+                        <th class="px-4 py-3 text-right">Service Pts</th>
+                    @endif
                     <th class="px-4 py-3 text-center">Status</th>
                     <th class="px-4 py-3 text-center sticky right-0 z-10 bg-gray-50 border-l border-gray-100">Actions</th>
                 </tr>
@@ -219,9 +223,19 @@
                                 <div class="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-right text-gray-600 tabular-nums">
-                            {{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}
-                        </td>
+                        @if ($canViewPay)
+                            <td class="px-4 py-3 text-right text-gray-700 tabular-nums whitespace-nowrap">
+                                @if ($emp->basic_salary !== null)
+                                    {{ number_format((float) $emp->basic_salary, 2) }}
+                                    <span class="text-[10px] text-gray-400">{{ \App\Models\Employee::PAY_TYPE_SUFFIXES[$emp->pay_type] ?? '' }}</span>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-right text-gray-600 tabular-nums">
+                                {{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}
+                            </td>
+                        @endif
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                 {{ $emp->is_active ? 'Active' : 'Inactive' }}
@@ -248,7 +262,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="16" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
+                    <tr><td colspan="{{ $canViewPay ? 17 : 15 }}" class="px-4 py-8 text-center text-gray-400">No employees yet. Add one or import from CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -388,14 +402,41 @@
                             </div>
                         @endif
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Service Points Entitlement</label>
-                            <input type="number" step="0.01" min="0" wire:model="f_service_points"
-                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
-                            <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
+                    {{-- Compensation — restricted to hr.compensation holders. --}}
+                    @if ($canViewPay)
+                        <div class="p-3 bg-amber-50/60 rounded-lg border border-amber-100 space-y-3">
+                            <p class="text-[11px] font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Compensation — restricted
+                            </p>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="sm:col-span-2">
+                                    <label class="text-xs font-semibold text-gray-600">Basic Salary</label>
+                                    <input type="number" step="0.01" min="0" wire:model.live="f_basic_salary"
+                                           class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 2500.00" />
+                                    <x-input-error :messages="$errors->get('f_basic_salary')" class="mt-1" />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600">Pay Type</label>
+                                    <select wire:model="f_pay_type" @disabled($f_basic_salary === '')
+                                            class="mt-1 w-full text-sm rounded-lg border-gray-300 disabled:bg-gray-100 disabled:text-gray-400">
+                                        @foreach (\App\Models\Employee::PAY_TYPES as $ptValue => $ptLabel)
+                                            <option value="{{ $ptValue }}">{{ $ptLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('f_pay_type')" class="mt-1" />
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600">Service Points Entitlement</label>
+                                    <input type="number" step="0.01" min="0" wire:model="f_service_points"
+                                           class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
+                                    <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    @endif
                     @if ($f_food_handler_certified)
                         <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <label class="text-xs font-semibold text-gray-600">Food Handler Certificate — Serial No.</label>
@@ -461,8 +502,11 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Service Points Entitlement</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
+                        @unless ($canViewPay)
+                            <p class="mt-0.5 text-blue-700">Salary and Service Points columns are ignored — you don't have access to compensation data.</p>
+                        @endunless
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
                     </div>
 

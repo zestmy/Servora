@@ -244,6 +244,17 @@ class AttendanceRecords extends Component
 
     // ── Service charge ─────────────────────────────────────────────────────
 
+    /**
+     * The service charge split is pay data — it exposes every employee's
+     * service point entitlement and their RM share. Gated on hr.compensation
+     * independently of hr.attendance, so a user can mark attendance without
+     * seeing the money.
+     */
+    protected function canViewPay(): bool
+    {
+        return Employee::canViewPay(Auth::user());
+    }
+
     /** Outlet key for the stored pool: the filtered outlet, or null for All. */
     protected function serviceChargeOutletId(): ?int
     {
@@ -291,6 +302,8 @@ class AttendanceRecords extends Component
 
     public function saveServiceCharge(): void
     {
+        abort_unless($this->canViewPay(), 403);
+
         $this->validate([
             'scAmount'     => 'required|numeric|min:0|max:9999999999',
             'scMcPercent'  => 'required|numeric|min:0|max:100',
@@ -430,6 +443,14 @@ class AttendanceRecords extends Component
             ->orderBy('sort_order')
             ->orderBy('name');
 
+        // Never load pay columns for users without hr.compensation.
+        if (! $this->canViewPay()) {
+            $query->select(array_values(array_diff(
+                \Illuminate\Support\Facades\Schema::getColumnListing('employees'),
+                Employee::SENSITIVE_PAY_ATTRIBUTES
+            )));
+        }
+
         if ($this->search !== '') {
             $s = '%' . $this->search . '%';
             $query->where(function ($q) use ($s) {
@@ -504,7 +525,9 @@ class AttendanceRecords extends Component
             if ($codeId === $absentId)  $absentCounts[$empId]  = ($absentCounts[$empId] ?? 0) + 1;
         }
 
-        $serviceCharge = $this->showServiceCharge
+        $canViewPay = $this->canViewPay();
+
+        $serviceCharge = ($this->showServiceCharge && $canViewPay)
             ? ServiceChargePeriod::distribute(
                 $this->loadServiceCharge(), $employees, $codes, $cellMap,
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
@@ -516,7 +539,7 @@ class AttendanceRecords extends Component
         return view('livewire.hr.attendance-records', compact(
             'employees', 'outlets', 'sections', 'canViewAll',
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
-            'presentCounts', 'absentCounts', 'serviceCharge',
+            'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }

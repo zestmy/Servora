@@ -12,6 +12,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -51,6 +52,13 @@ class AttendanceExportController extends Controller
             ->orderByRaw('sort_order IS NULL')
             ->orderBy('sort_order')
             ->orderBy('name');
+
+        if (! Employee::canViewPay($user)) {
+            $query->select(array_values(array_diff(
+                Schema::getColumnListing('employees'),
+                Employee::SENSITIVE_PAY_ATTRIBUTES
+            )));
+        }
 
         $search = trim((string) $request->get('search', ''));
         if ($search !== '') {
@@ -113,8 +121,12 @@ class AttendanceExportController extends Controller
         // Optional Service Charge section: included when the grid's panel is
         // open (service_charge=1) AND a pool has been saved for this exact
         // period + outlet selection (same key as the Livewire panel).
+        // Service points and the distribution are pay data — hr.compensation
+        // only, matching the Livewire grid.
+        $canViewPay = Employee::canViewPay($user);
+
         $serviceCharge = null;
-        if ($request->boolean('service_charge')) {
+        if ($canViewPay && $request->boolean('service_charge')) {
             $scOutletId = ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true))
                 ? (int) $outletFilter : null;
             $scRow = ServiceChargePeriod::where('outlet_id', $scOutletId)
@@ -135,7 +147,7 @@ class AttendanceExportController extends Controller
         $pdf = Pdf::loadView('pdf.attendance', compact(
             'employees', 'dates', 'from', 'to', 'codesById', 'cellMap',
             'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel',
-            'serviceCharge'
+            'serviceCharge', 'canViewPay'
         ))->setPaper('a4', 'landscape');
 
         return $pdf->stream('Attendance-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.pdf');

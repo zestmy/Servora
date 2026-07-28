@@ -91,7 +91,10 @@
                 <th style="width: 72px;" class="c">Food Handler</th>
                 <th style="width: 72px;" class="c">Typhoid Card</th>
                 <th style="width: 62px;" class="c">Halal Training</th>
-                <th style="width: 45px;" class="r">Service Pts</th>
+                @if ($canViewPay)
+                    <th style="width: 62px;" class="r">Salary</th>
+                    <th style="width: 45px;" class="r">Service Pts</th>
+                @endif
                 <th style="width: 40px;" class="c">Status</th>
             </tr>
         </thead>
@@ -107,7 +110,7 @@
             @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $outletName => $group)
                 <tr class="outlet-row">
-                    <td colspan="14">{{ $outletName }} ({{ $group->count() }})</td>
+                    <td colspan="{{ $canViewPay ? 15 : 13 }}">{{ $outletName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -153,7 +156,10 @@
                                 <div class="sub">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
                             @endif
                         </td>
-                        <td class="r">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                        @if ($canViewPay)
+                            <td class="r">{{ $emp->salaryLabel() ?? '—' }}</td>
+                            <td class="r">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                        @endif
                         <td class="c">
                             <span class="pill {{ $emp->is_active ? 'pill-green' : 'pill-gray' }}">{{ $emp->is_active ? 'Active' : 'Inactive' }}</span>
                         </td>
@@ -161,7 +167,7 @@
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="14" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="{{ $canViewPay ? 15 : 13 }}" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>

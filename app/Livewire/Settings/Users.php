@@ -60,6 +60,7 @@ class Users extends Component
         'hr.view'              => 'HR — Employees & Labour',
         'hr.attendance'        => 'HR — Attendance & Service Charge',
         'hr.claims'            => 'HR — Overtime Claims',
+        'hr.compensation'      => 'HR — Salary & Service Points (sensitive)',
         'hr.documents.view'    => 'HR Documents (View)',
         'hr.documents.manage'  => 'HR Documents (Manage)',
         'roster.create'        => 'Duty Roster (Create)',

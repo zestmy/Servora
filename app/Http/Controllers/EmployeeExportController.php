@@ -8,7 +8,9 @@ use App\Models\Section;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -31,8 +33,10 @@ class EmployeeExportController extends Controller
         $brandName  = $company?->brand_name ?: $company?->name;
         $logoBase64 = $this->companyLogoBase64($company);
 
+        $canViewPay = Employee::canViewPay();
+
         $pdf = Pdf::loadView('pdf.employees', compact(
-            'employees', 'filters', 'brandName', 'logoBase64'
+            'employees', 'filters', 'brandName', 'logoBase64', 'canViewPay'
         ))->setPaper('a4', 'landscape');
 
         return $pdf->stream('Employees-' . now()->format('Y-m-d') . '.pdf');
@@ -45,14 +49,31 @@ class EmployeeExportController extends Controller
         $company   = Auth::user()->company;
         $brandName = $company?->brand_name ?: $company?->name;
 
+        // Salary and service points only reach the file for permitted users —
+        // the sheet's column layout shifts accordingly.
+        $canViewPay = Employee::canViewPay();
+
         $spreadsheet = new Spreadsheet();
         $spreadsheet->getProperties()->setCreator(Auth::user()->name)->setTitle('Employees');
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Employees');
 
+        $headers = [
+            'No.', 'Name', 'Staff ID', 'Designation', 'Section', 'Outlet', 'E-mail', 'Phone',
+            'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training',
+        ];
+        if ($canViewPay) {
+            $headers[] = 'Service Points';
+            $headers[] = 'Basic Salary';
+            $headers[] = 'Pay Type';
+        }
+        $headers[] = 'Status';
+
+        $lastCol = Coordinate::stringFromColumnIndex(count($headers));
+
         // Title block
         $sheet->setCellValueExplicit('A1', $brandName . ' — Employee List', DataType::TYPE_STRING);
-        $sheet->mergeCells('A1:P1');
+        $sheet->mergeCells('A1:' . $lastCol . '1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEF2FF');
         $sheet->getRowDimension(1)->setRowHeight(24);
@@ -62,19 +83,15 @@ class EmployeeExportController extends Controller
             $subtitle .= ' · Filters: ' . implode(' · ', $filters);
         }
         $sheet->setCellValueExplicit('A2', $subtitle, DataType::TYPE_STRING);
-        $sheet->mergeCells('A2:P2');
+        $sheet->mergeCells('A2:' . $lastCol . '2');
         $sheet->getStyle('A2')->getFont()->setSize(9)->getColor()->setARGB('FF6B7280');
 
         // Header row
-        $headers = [
-            'No.', 'Name', 'Staff ID', 'Designation', 'Section', 'Outlet', 'E-mail', 'Phone',
-            'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training', 'Service Points', 'Status',
-        ];
         $headerRow = 4;
         foreach ($headers as $i => $h) {
             $sheet->setCellValueExplicit([$i + 1, $headerRow], $h, DataType::TYPE_STRING);
         }
-        $headerRange = 'A' . $headerRow . ':P' . $headerRow;
+        $headerRange = 'A' . $headerRow . ':' . $lastCol . $headerRow;
         $sheet->getStyle($headerRange)->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1F2937');
         $sheet->getStyle($headerRange)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
@@ -117,12 +134,17 @@ class EmployeeExportController extends Controller
                 $emp->food_handler_cert_no,
                 $typhoid,
                 $halal,
-                $emp->service_points_entitlement !== null ? (float) $emp->service_points_entitlement : null,
-                $emp->is_active ? 'Active' : 'Inactive',
             ];
+            if ($canViewPay) {
+                $values[] = $emp->service_points_entitlement !== null ? (float) $emp->service_points_entitlement : null;
+                $values[] = $emp->basic_salary !== null ? (float) $emp->basic_salary : null;
+                $values[] = Employee::PAY_TYPES[$emp->pay_type] ?? null;
+            }
+            $values[] = $emp->is_active ? 'Active' : 'Inactive';
+
             foreach ($values as $col => $value) {
                 if ($col === 0 || is_float($value)) {
-                    // Row number and service points are real numbers.
+                    // Row number, service points and salary are real numbers.
                     $sheet->setCellValue([$col + 1, $row], $value);
                 } else {
                     // Explicit strings so names/serials starting with "=" can't
@@ -132,22 +154,27 @@ class EmployeeExportController extends Controller
             }
 
             if ($row % 2 === 0) {
-                $sheet->getStyle('A' . $row . ':P' . $row)->getFill()
+                $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->getFill()
                     ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9FAFB');
             }
         }
 
         if ($row > $headerRow) {
-            $sheet->getStyle('A' . $headerRow . ':P' . $row)->getBorders()->getAllBorders()
+            $sheet->getStyle('A' . $headerRow . ':' . $lastCol . $row)->getBorders()->getAllBorders()
                 ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFE5E7EB');
             $sheet->setAutoFilter($headerRange);
-            // Service Points column: 2-decimal number format.
-            $sheet->getStyle('O' . ($headerRow + 1) . ':O' . $row)
-                ->getNumberFormat()->setFormatCode('#,##0.00');
+            // Service Points and Basic Salary columns: 2-decimal number format.
+            if ($canViewPay) {
+                foreach (['Service Points', 'Basic Salary'] as $numericHeader) {
+                    $c = Coordinate::stringFromColumnIndex(array_search($numericHeader, $headers, true) + 1);
+                    $sheet->getStyle($c . ($headerRow + 1) . ':' . $c . $row)
+                        ->getNumberFormat()->setFormatCode('#,##0.00');
+                }
+            }
         }
 
         $sheet->freezePane('A' . ($headerRow + 1));
-        foreach (range('A', 'P') as $col) {
+        foreach (range('A', $lastCol) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -176,6 +203,14 @@ class EmployeeExportController extends Controller
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
             ->orderBy('name');
+
+        // Don't even read pay columns for users without hr.compensation.
+        if (! Employee::canViewPay($user)) {
+            $query->select(array_values(array_diff(
+                Schema::getColumnListing('employees'),
+                Employee::SENSITIVE_PAY_ATTRIBUTES
+            )));
+        }
 
         $filters = [];
 

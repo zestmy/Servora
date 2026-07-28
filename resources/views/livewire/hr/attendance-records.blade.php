@@ -43,13 +43,16 @@
                 </svg>
                 <span class="hidden sm:inline">Manage Codes</span>
             </button>
-            <button wire:click="$toggle('showServiceCharge')"
-                    class="px-2.5 md:px-3 py-2 text-sm font-medium rounded-lg transition flex items-center gap-1.5 border {{ $showServiceCharge ? 'bg-teal-600 border-teal-600 text-white hover:bg-teal-700' : 'text-teal-700 border-teal-200 hover:bg-teal-50' }}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="hidden sm:inline">Service Charge</span>
-            </button>
+            {{-- Service charge exposes per-employee pay — hr.compensation only. --}}
+            @if ($canViewPay)
+                <button wire:click="$toggle('showServiceCharge')"
+                        class="px-2.5 md:px-3 py-2 text-sm font-medium rounded-lg transition flex items-center gap-1.5 border {{ $showServiceCharge ? 'bg-teal-600 border-teal-600 text-white hover:bg-teal-700' : 'text-teal-700 border-teal-200 hover:bg-teal-50' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="hidden sm:inline">Service Charge</span>
+                </button>
+            @endif
             <button wire:click="fillPresent"
                     wire:confirm="Mark every empty day in the visible grid as Present?"
                     class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
@@ -159,7 +162,9 @@
                         <th class="px-2 py-2 text-left min-w-[90px] border-b border-gray-200">Outlet</th>
                         <th class="px-2 py-2 text-left min-w-[64px] border-b border-gray-200">Section</th>
                         <th class="px-2 py-2 text-left min-w-[76px] border-b border-gray-200">Date Join</th>
-                        <th class="px-2 py-2 text-right min-w-[54px] border-b border-gray-200">Svc Pts</th>
+                        @if ($canViewPay)
+                            <th class="px-2 py-2 text-right min-w-[54px] border-b border-gray-200">Svc Pts</th>
+                        @endif
                         @foreach ($dates as $d)
                             <th wire:key="dh-{{ $d->format('Ymd') }}"
                                 class="px-0 py-1.5 text-center w-9 min-w-[34px] border-b border-l border-gray-200 {{ $d->isSunday() ? 'bg-red-50 text-red-500' : ($d->isSaturday() ? 'bg-amber-50/60 text-amber-600' : '') }} {{ $d->isToday() ? '!bg-indigo-50 !text-indigo-600' : '' }}">
@@ -197,7 +202,9 @@
                             <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->outlet?->name ?? '—' }}</td>
                             <td class="px-2 py-1.5 text-gray-500 text-xs">{{ $emp->section?->name ?? '—' }}</td>
                             <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->join_date?->format('d M y') ?? '—' }}</td>
-                            <td class="px-2 py-1.5 text-gray-500 text-xs text-right">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                            @if ($canViewPay)
+                                <td class="px-2 py-1.5 text-gray-500 text-xs text-right">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                            @endif
                             @foreach ($dates as $d)
                                 @php
                                     $key    = $emp->id . ':' . $d->format('Y-m-d');
@@ -220,7 +227,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ 10 + count($dates) }}" class="px-4 py-10 text-center text-gray-400 text-sm">
+                            <td colspan="{{ ($canViewPay ? 10 : 9) + count($dates) }}" class="px-4 py-10 text-center text-gray-400 text-sm">
                                 No active employees match the selected filters.
                             </td>
                         </tr>

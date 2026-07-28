@@ -110,7 +110,9 @@
                 <th class="info" style="width: 4.5%;">Emp ID</th>
                 <th class="info" style="width: 4.5%;">Section</th>
                 <th class="info" style="width: 5%;">Date Join</th>
-                <th style="width: 3.5%;">Svc Pts</th>
+                @if ($canViewPay)
+                    <th style="width: 3.5%;">Svc Pts</th>
+                @endif
                 @foreach ($dates as $d)
                     <th style="width: {{ $dayW }};" class="{{ $d->isSunday() ? 'sun' : ($d->isSaturday() ? 'sat' : '') }}">
                         {{ $d->day }}<span class="dow">{{ substr($d->format('D'), 0, 2) }}</span>
@@ -124,7 +126,7 @@
             @php $n = 0; @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $groupName => $group)
                 <tr class="outlet-row">
-                    <td colspan="{{ 9 + count($dates) }}">{{ $groupName }} ({{ $group->count() }})</td>
+                    <td colspan="{{ ($canViewPay ? 9 : 8) + count($dates) }}">{{ $groupName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -139,7 +141,9 @@
                         <td class="info">{{ $emp->staff_id }}</td>
                         <td class="info">{{ $emp->section?->name }}</td>
                         <td class="info">{{ $emp->join_date?->format('d/m/y') }}</td>
-                        <td class="num">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '' }}</td>
+                        @if ($canViewPay)
+                            <td class="num">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '' }}</td>
+                        @endif
                         @foreach ($dates as $d)
                             @php
                                 $codeId = $cellMap[$emp->id . ':' . $d->format('Y-m-d')] ?? null;
@@ -160,7 +164,7 @@
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="{{ 9 + count($dates) }}" style="text-align: center; color: #94a3b8; padding: 10px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="{{ ($canViewPay ? 9 : 8) + count($dates) }}" style="text-align: center; color: #94a3b8; padding: 10px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>

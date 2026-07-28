@@ -6,6 +6,7 @@ use App\Models\Section;
 use App\Models\Employee;
 use App\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -45,6 +46,8 @@ class Employees extends Component
     public bool   $f_halal_training     = false;
     public string $f_halal_training_date = '';
     public string $f_service_points    = '';
+    public string $f_basic_salary      = '';
+    public string $f_pay_type          = '';
     public bool   $f_is_active      = true;
 
     // CSV import modal
@@ -76,6 +79,16 @@ class Employees extends Component
             return Outlet::where('company_id', $user->company_id)->pluck('id')->map(fn ($id) => (int) $id)->all();
         }
         return $user->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * Salary and service point entitlement are pay-sensitive: users without
+     * hr.compensation never see them in the list, the form, the CSV template
+     * or the exports, and any value they submit is ignored on save.
+     */
+    protected function canViewPay(): bool
+    {
+        return Employee::canViewPay(Auth::user());
     }
 
     protected function rules(): array
@@ -113,6 +126,8 @@ class Employees extends Component
             'f_halal_training'      => 'boolean',
             'f_halal_training_date' => 'nullable|date',
             'f_service_points'      => 'nullable|numeric|min:0|max:999999.99',
+            'f_basic_salary'        => 'nullable|numeric|min:0|max:9999999999.99',
+            'f_pay_type'            => 'nullable|in:' . implode(',', array_keys(Employee::PAY_TYPES)),
             'f_is_active'      => 'boolean',
         ];
     }
@@ -199,9 +214,17 @@ class Employees extends Component
         $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
         $this->f_halal_training      = (bool) $emp->halal_training;
         $this->f_halal_training_date = $emp->halal_training_date?->format('Y-m-d') ?? '';
-        $this->f_service_points = $emp->service_points_entitlement !== null
-            ? number_format((float) $emp->service_points_entitlement, 2, '.', '')
-            : '';
+        // Pay fields are only hydrated for permitted users — otherwise they'd
+        // ride along in the Livewire payload even with the inputs hidden.
+        if ($this->canViewPay()) {
+            $this->f_service_points = $emp->service_points_entitlement !== null
+                ? number_format((float) $emp->service_points_entitlement, 2, '.', '')
+                : '';
+            $this->f_basic_salary = $emp->basic_salary !== null
+                ? number_format((float) $emp->basic_salary, 2, '.', '')
+                : '';
+            $this->f_pay_type = $emp->pay_type ?? '';
+        }
         $this->f_is_active     = (bool) $emp->is_active;
         $this->showForm        = true;
     }
@@ -243,11 +266,24 @@ class Employees extends Component
             'typhoid_expired_on' => $this->f_typhoid_card ? ($this->f_typhoid_expired_on ?: null) : null,
             'halal_training'      => $this->f_halal_training,
             'halal_training_date' => $this->f_halal_training ? ($this->f_halal_training_date ?: null) : null,
-            'service_points_entitlement' => $this->f_service_points !== ''
-                ? round((float) $this->f_service_points, 2)
-                : null,
             'is_active'     => $this->f_is_active,
         ];
+
+        // Pay fields are omitted entirely for users without hr.compensation, so
+        // an ordinary HR user editing an employee leaves salary and service
+        // points untouched rather than blanking values they can't even see.
+        if ($this->canViewPay()) {
+            $data['service_points_entitlement'] = $this->f_service_points !== ''
+                ? round((float) $this->f_service_points, 2)
+                : null;
+            $data['basic_salary'] = $this->f_basic_salary !== ''
+                ? round((float) $this->f_basic_salary, 2)
+                : null;
+            // Pay type is meaningless without an amount.
+            $data['pay_type'] = $this->f_basic_salary !== ''
+                ? ($this->f_pay_type ?: 'monthly')
+                : null;
+        }
 
         if ($this->editingId) {
             Employee::findOrFail($this->editingId)->update($data);
@@ -325,6 +361,8 @@ class Employees extends Component
         $this->f_halal_training      = false;
         $this->f_halal_training_date = '';
         $this->f_service_points = '';
+        $this->f_basic_salary  = '';
+        $this->f_pay_type      = '';
         $this->f_is_active     = true;
     }
 
@@ -445,9 +483,6 @@ class Employees extends Component
             'typhoid'         => 'typhoid_card',
             'typhoid card'    => 'typhoid_card',
             'typhoid jab'     => 'typhoid_card',
-            'service points entitlement' => 'service_points_entitlement',
-            'service points'             => 'service_points_entitlement',
-            'service pts'                => 'service_points_entitlement',
             'halal awareness training' => 'halal_training',
             'halal training'           => 'halal_training',
             'halal'                    => 'halal_training',
@@ -461,6 +496,25 @@ class Employees extends Component
             'typhoid expiry date' => 'typhoid_expired_on',
             'typhoid expired'     => 'typhoid_expired_on',
         ];
+
+        // Pay columns are only recognised for users with hr.compensation —
+        // for everyone else the headers stay unmapped and the values are
+        // dropped, so an import can't be used to write salary sideways.
+        $canViewPay = $this->canViewPay();
+        if ($canViewPay) {
+            $aliasMap += [
+                'service points entitlement' => 'service_points_entitlement',
+                'service points'             => 'service_points_entitlement',
+                'service pts'                => 'service_points_entitlement',
+                'basic salary'               => 'basic_salary',
+                'salary'                     => 'basic_salary',
+                'monthly salary'             => 'basic_salary',
+                'basic pay'                  => 'basic_salary',
+                'pay type'                   => 'pay_type',
+                'pay basis'                  => 'pay_type',
+                'salary type'                => 'pay_type',
+            ];
+        }
 
         $parseBool = fn (string $v): bool => in_array(
             strtolower(trim($v)), ['yes', 'y', '1', 'true', 'certified'], true
@@ -632,6 +686,31 @@ class Employees extends Component
                     $errors[] = "Row $rowNum: invalid service points '" . $data['service_points_entitlement'] . "' ignored";
                 }
             }
+            if (array_key_exists('basic_salary', $data)) {
+                $salRaw = str_replace([',', ' '], '', $data['basic_salary']);
+                if ($salRaw === '') {
+                    $payload['basic_salary'] = null;
+                    $payload['pay_type']     = null;
+                } elseif (is_numeric($salRaw)) {
+                    $payload['basic_salary'] = round((float) $salRaw, 2);
+                    // Default the basis when the CSV carries an amount but no
+                    // Pay Type column — monthly is the common case.
+                    $payload['pay_type'] = $payload['pay_type'] ?? 'monthly';
+                } else {
+                    $errors[] = "Row $rowNum: invalid salary '" . $data['basic_salary'] . "' ignored";
+                }
+            }
+            if (array_key_exists('pay_type', $data) && ($payload['basic_salary'] ?? null) !== null) {
+                $ptRaw = strtolower(trim($data['pay_type']));
+                $ptMap = ['monthly' => 'monthly', 'month' => 'monthly', 'daily' => 'daily', 'day' => 'daily', 'hourly' => 'hourly', 'hour' => 'hourly'];
+                if ($ptRaw === '') {
+                    $payload['pay_type'] = 'monthly';
+                } elseif (isset($ptMap[$ptRaw])) {
+                    $payload['pay_type'] = $ptMap[$ptRaw];
+                } else {
+                    $errors[] = "Row $rowNum: unknown pay type '" . $data['pay_type'] . "' ignored";
+                }
+            }
 
             if ($existing) {
                 $existing->update($payload);
@@ -656,11 +735,18 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date', 'Service Points Entitlement'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '1.50'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', '', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', ''],
         ];
+
+        // Pay columns only appear in the template for users who may see them.
+        if ($this->canViewPay()) {
+            $headers   = array_merge($headers, ['Service Points Entitlement', 'Basic Salary', 'Pay Type']);
+            $sample[0] = array_merge($sample[0], ['1.50', '2500.00', 'Monthly']);
+            $sample[1] = array_merge($sample[1], ['', '85.00', 'Daily']);
+        }
 
         $output = fopen('php://temp', 'r+');
         fputcsv($output, $headers);
@@ -729,9 +815,18 @@ class Employees extends Component
             $query->where('employment_status', $this->employmentStatusFilter);
         }
 
+        $canViewPay = $this->canViewPay();
+        if (! $canViewPay) {
+            // Never select what the view isn't allowed to render.
+            $query->select(array_values(array_diff(
+                Schema::getColumnListing('employees'),
+                Employee::SENSITIVE_PAY_ATTRIBUTES
+            )));
+        }
+
         $employees = $query->paginate(25);
 
-        return view('livewire.hr.employees', compact('employees', 'outlets', 'sections', 'canViewAll'))
+        return view('livewire.hr.employees', compact('employees', 'outlets', 'sections', 'canViewAll', 'canViewPay'))
             ->layout('layouts.app', ['title' => 'Employees']);
     }
 }
