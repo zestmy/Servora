@@ -98,9 +98,7 @@ class OvertimeClaims extends Component
 
         // Set default outlet for multi-outlet users (no "All Outlets" option)
         $user = Auth::user();
-        $availableOutletIds = $user->canViewAllOutlets()
-            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
+        $availableOutletIds = $user->accessibleOutletIds();
 
         if (count($availableOutletIds) > 1 && empty($this->outletFilter)) {
             $this->outletFilter = (string) $availableOutletIds[0];
@@ -383,9 +381,7 @@ class OvertimeClaims extends Component
 
         // Outlets this user can see. Cross-outlet roles (HR Manager, Business Manager)
         // get all company outlets; everyone else gets only their assigned outlets.
-        $availableOutletIds = $user->canViewAllOutlets()
-            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
+        $availableOutletIds = $user->accessibleOutletIds();
 
         // Approver checks match against every outlet the user can see, so an
         // outlet-specific approver assignment is honoured even for cross-outlet

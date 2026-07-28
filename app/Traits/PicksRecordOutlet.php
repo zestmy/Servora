@@ -24,9 +24,7 @@ trait PicksRecordOutlet
         $user = Auth::user();
         if (! $user) return [];
 
-        return $user->canViewAllOutlets()
-            ? Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
+        return $user->accessibleOutletIds();
     }
 
     /** Active outlets the user can choose from, for the form selector. */

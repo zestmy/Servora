@@ -18,9 +18,7 @@ class OtClaimPdfController extends Controller
 
         // Use same outlet scope as the Livewire component — cross-outlet roles
         // see all company outlets; everyone else sees only assigned outlets.
-        $availableOutletIds = $user->canViewAllOutlets()
-            ? \App\Models\Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
+        $availableOutletIds = $user->accessibleOutletIds();
 
         // If outlet filter is specified, narrow down to that outlet only
         $outletFilter = $request->input('outlet');

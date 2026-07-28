@@ -56,11 +56,7 @@ class RosterApprovers extends Component
 
     protected function accessibleOutlets()
     {
-        $user = Auth::user();
-        if ($user->canViewAllOutlets()) {
-            return Outlet::where('company_id', $user->company_id)->orderBy('name')->get();
-        }
-        return $user->outlets()->orderBy('name')->get();
+        return Auth::user()->accessibleOutlets()->orderBy('name')->get();
     }
 
     protected function getAvailableUsers()

@@ -72,11 +72,7 @@ class AttendanceRecords extends Component
     /** Outlet IDs this user may see — same scoping as the Employees module. */
     protected function accessibleOutletIds(): array
     {
-        $user = Auth::user();
-        if ($user->canViewAllOutlets()) {
-            return Outlet::where('company_id', $user->company_id)->pluck('id')->map(fn ($id) => (int) $id)->all();
-        }
-        return $user->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+        return Auth::user()->accessibleOutletIds();
     }
 
     /**

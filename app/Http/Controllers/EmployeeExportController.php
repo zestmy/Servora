@@ -196,9 +196,7 @@ class EmployeeExportController extends Controller
     {
         $user = Auth::user();
 
-        $accessible = $user->canViewAllOutlets()
-            ? Outlet::where('company_id', $user->company_id)->pluck('id')->map(fn ($id) => (int) $id)->all()
-            : $user->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+        $accessible = $user->accessibleOutletIds();
 
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])

@@ -511,8 +511,6 @@ class AuditLogService
 
     private static function accessibleOutletIds(User $user): array
     {
-        return $user->canViewAllOutlets()
-            ? Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->pluck('outlets.id')->all();
+        return $user->accessibleOutletIds();
     }
 }

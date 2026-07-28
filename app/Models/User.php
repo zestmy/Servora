@@ -175,6 +175,34 @@ class User extends Authenticatable
         return $this->can_view_all_outlets || $this->isSystemRole();
     }
 
+    /**
+     * Outlets of the ACTIVE company this user may see, as a query.
+     *
+     * Use this — never `$user->outlets()` directly — anywhere a list, dropdown
+     * or scope is built. The outlet_user pivot spans every company the user
+     * belongs to, so the raw relation happily returns another company's
+     * outlets; canAccessOutlet() and activeOutletId() have always filtered for
+     * exactly that reason. Mirrors canAccessOutlet(): "view all outlets" means
+     * all outlets of the active company, never across companies.
+     */
+    public function accessibleOutlets()
+    {
+        if ($this->canViewAllOutlets()) {
+            return Outlet::where('company_id', $this->company_id);
+        }
+
+        return $this->outlets()->where('outlets.company_id', $this->company_id);
+    }
+
+    /** Accessible outlet ids for the active company. */
+    public function accessibleOutletIds(): array
+    {
+        return $this->accessibleOutlets()
+            ->pluck('outlets.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function canAccessOutlet(int $outletId): bool
     {
         if ($this->isSystemRole()) return true;
