@@ -78,7 +78,6 @@ use App\Http\Controllers\ReferralTrackingController;
 use App\Livewire\Kitchen\Index as KitchenIndex;
 use App\Livewire\Kitchen\ProductionOrderForm as KitchenOrderForm;
 use App\Livewire\Kitchen\ProductionExecute as KitchenExecute;
-use App\Livewire\Kitchen\PrepRequestForm as KitchenPrepRequestForm;
 use App\Livewire\Settings\KitchenManagement as SettingsKitchenManagement;
 use App\Livewire\Admin\Referrals\Programs as AdminReferralPrograms;
 use App\Livewire\Admin\Referrals\Dashboard as AdminReferralDashboard;
@@ -233,8 +232,6 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
         Route::get('/kitchen/orders/create', KitchenOrderForm::class)->name('kitchen.orders.create');
         Route::get('/kitchen/orders/{id}/edit', KitchenOrderForm::class)->name('kitchen.orders.edit');
         Route::get('/kitchen/orders/{id}/execute', KitchenExecute::class)->name('kitchen.orders.execute');
-        Route::get('/kitchen/prep-requests/create', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.create');
-        Route::get('/kitchen/prep-requests/{id}/edit', KitchenPrepRequestForm::class)->name('kitchen.prep-requests.edit');
         Route::get('/kitchen/recipes', \App\Livewire\Kitchen\ProductionRecipes::class)->name('kitchen.recipes.index');
         Route::get('/kitchen/recipes/create', \App\Livewire\Kitchen\ProductionRecipeForm::class)->name('kitchen.recipes.create');
         Route::get('/kitchen/recipes/{id}/edit', \App\Livewire\Kitchen\ProductionRecipeForm::class)->name('kitchen.recipes.edit');

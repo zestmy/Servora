@@ -116,8 +116,8 @@
                         ['route' => 'purchasing.index', 'label' => 'Purchasing'],
                     ]],
                     ['label' => 'Operations', 'items' => [
-                        ['route' => 'kitchen.index', 'label' => 'Prep Requests', 'query' => 'tab=requests'],
                         ['route' => 'inventory.index', 'label' => 'Stock Takes'],
+                        ['route' => 'inventory.transfers.create', 'label' => 'New Transfer'],
                     ]],
                     ['label' => 'Insights', 'items' => [
                         ['route' => 'reports.production-history', 'label' => 'Production History'],

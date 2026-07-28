@@ -4,13 +4,9 @@ namespace App\Livewire\Kitchen;
 
 use App\Models\CentralKitchen;
 use App\Models\KitchenInventory;
-use App\Models\OutletPrepRequest;
-use App\Models\OutletTransfer;
-use App\Models\OutletTransferLine;
 use App\Models\ProductionLog;
 use App\Models\ProductionOrder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -26,6 +22,19 @@ class Index extends Component
     public ?int $kitchenFilter = null;
 
     protected $queryString = ['tab'];
+
+    /** The tabs this screen still has. */
+    private const TABS = ['orders', 'inventory', 'logs'];
+
+    public function mount(): void
+    {
+        // ?tab= comes from the URL, so a bookmark or a stale link (the retired
+        // prep-requests tab, for one) can name a tab that no longer exists —
+        // which would render an empty page. Fall back to the default.
+        if (! in_array($this->tab, self::TABS, true)) {
+            $this->tab = 'orders';
+        }
+    }
 
     public function updatedTab(): void         { $this->resetPage(); $this->resetFilters(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
@@ -66,90 +75,6 @@ class Index extends Component
         session()->flash('success', "Order {$order->order_number} cancelled.");
     }
 
-    // ── Request Actions ────────────────────────────────────────────────
-
-    public function approveRequest(int $id): void
-    {
-        $request = OutletPrepRequest::findOrFail($id);
-        if (! Auth::user()->canManageKitchen($request->kitchen_id)) {
-            session()->flash('error', 'Only kitchen managers can approve requests.');
-            return;
-        }
-        if ($request->status !== 'submitted') return;
-        $request->update(['status' => 'approved']);
-        session()->flash('success', "Request {$request->request_number} approved.");
-    }
-
-    public function fulfillRequest(int $id): void
-    {
-        $request = OutletPrepRequest::with('lines.ingredient', 'lines.uom')->findOrFail($id);
-
-        // Fulfil moves real stock out of the kitchen and into an outlet, so it
-        // is manager-only and the destination outlet must be one this user can
-        // actually reach.
-        $user = Auth::user();
-        if (! $user->canManageKitchen($request->kitchen_id)) {
-            session()->flash('error', 'Only kitchen managers can fulfil requests.');
-            return;
-        }
-        if ($request->outlet_id && ! $user->canAccessOutlet((int) $request->outlet_id)) {
-            session()->flash('error', 'You do not have access to the destination outlet.');
-            return;
-        }
-        if (! in_array($request->status, ['approved', 'submitted'])) return;
-
-        $kitchenId = $request->kitchen_id;
-        $kitchen = CentralKitchen::find($kitchenId);
-        $kitchenOutletId = $kitchen?->outlet_id;
-
-        if (! $kitchenOutletId) {
-            session()->flash('error', 'Kitchen has no linked outlet for transfers.');
-            return;
-        }
-
-        DB::transaction(function () use ($request, $kitchenId, $kitchenOutletId) {
-            $userId = Auth::id();
-            $companyId = $request->company_id;
-
-            // Create transfer from kitchen to requesting outlet
-            $transferNumber = 'KF-' . now()->format('Ymd') . '-' . substr($request->request_number, -3);
-            $transfer = OutletTransfer::create([
-                'company_id'      => $companyId,
-                'from_outlet_id'  => $kitchenOutletId,
-                'to_outlet_id'    => $request->outlet_id,
-                'transfer_number' => $transferNumber,
-                'status'          => 'in_transit',
-                'transfer_date'   => now()->toDateString(),
-                'notes'           => "Fulfilled from kitchen for {$request->request_number}",
-                'created_by'      => $userId,
-            ]);
-
-            foreach ($request->lines as $line) {
-                $qty = floatval($line->requested_quantity);
-                if ($qty <= 0 || ! $line->ingredient_id) continue;
-
-                // Deduct from kitchen inventory
-                KitchenInventory::deductStock($kitchenId, $line->ingredient_id, $qty);
-
-                // Add to transfer
-                OutletTransferLine::create([
-                    'outlet_transfer_id' => $transfer->id,
-                    'ingredient_id'      => $line->ingredient_id,
-                    'quantity'           => $qty,
-                    'uom_id'            => $line->uom_id,
-                    'unit_cost'         => floatval($line->ingredient?->current_cost ?? 0),
-                ]);
-
-                // Mark line as fulfilled
-                $line->update(['fulfilled_quantity' => $qty]);
-            }
-
-            $request->update(['status' => 'fulfilled']);
-        });
-
-        session()->flash('success', "Request {$request->request_number} fulfilled. Transfer created to {$request->outlet?->name}.");
-    }
-
     // ── Stats ──────────────────────────────────────────────────────────
 
     /**
@@ -171,11 +96,11 @@ class Index extends Component
                 'tab'   => 'orders', 'status' => 'scheduled',
             ],
             [
-                'label' => 'Requests waiting on you',
-                'value' => $k(OutletPrepRequest::whereIn('status', ['submitted', 'approved']))->count(),
+                'label' => 'In progress',
+                'value' => $k(ProductionOrder::where('status', 'in_progress'))->count(),
                 'color' => 'yellow',
-                'hint'  => 'Outlets waiting for items to be approved or sent',
-                'tab'   => 'requests', 'status' => '',
+                'hint'  => 'Batches started but not yet completed',
+                'tab'   => 'orders', 'status' => 'in_progress',
             ],
             [
                 'label' => 'Completed today',
@@ -208,14 +133,6 @@ class Index extends Component
         return ['orders' => $query->orderByDesc('production_date')->orderByDesc('id')->paginate(15)];
     }
 
-    private function getRequestsData(): array
-    {
-        $query = OutletPrepRequest::with(['outlet', 'kitchen', 'createdBy'])->withCount('lines');
-        if ($this->statusFilter) $query->where('status', $this->statusFilter);
-        if ($this->kitchenFilter) $query->where('kitchen_id', $this->kitchenFilter);
-        return ['requests' => $query->orderByDesc('needed_date')->orderByDesc('id')->paginate(15)];
-    }
-
     private function getLogsData(): array
     {
         $query = ProductionLog::with(['recipe', 'productionRecipe', 'producedBy']);
@@ -237,7 +154,6 @@ class Index extends Component
     public function render()
     {
         $data = match ($this->tab) {
-            'requests'  => $this->getRequestsData(),
             'inventory' => $this->getInventoryData(),
             'logs'      => $this->getLogsData(),
             default     => $this->getOrdersData(),
