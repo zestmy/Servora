@@ -32,6 +32,11 @@ class CompanySwitcher extends Component
             'activeCompanyId' => (int) $user->company_id,
             // "Create New Company" (full page) is for admins only
             'canCreate'       => $user->isSystemRole() || $user->hasCapability('can_manage_users'),
+            // Platform (system) admins operate ABOVE companies — a company
+            // name beside their profile misrepresents who they are, so the
+            // block is hidden for them entirely. They manage companies from
+            // Admin > Companies (and create via the Admin nav link).
+            'showCompany'     => ! $user->isSystemRole(),
         ]);
     }
 }

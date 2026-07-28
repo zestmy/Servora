@@ -255,9 +255,10 @@ class AuditLogService
     }
 
     /**
-     * The most recent audit entries for one record, in chronological order
-     * (oldest first) for the activity-timeline snippet on edit forms. Returns
-     * an empty collection when there is no id (i.e. a create form).
+     * The most recent audit entries for one record, NEWEST FIRST, for the
+     * activity-timeline snippet on edit forms — the latest change is what
+     * people look for, so it leads. Returns an empty collection when there
+     * is no id (i.e. a create form).
      */
     public static function recentFor(string $type, $id, int $limit = 6)
     {
@@ -271,7 +272,6 @@ class AuditLogService
             ->orderByDesc('created_at')->orderByDesc('id')
             ->limit($limit)
             ->get()
-            ->reverse()
             ->values();
     }
 

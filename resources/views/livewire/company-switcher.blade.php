@@ -1,13 +1,15 @@
-<div x-show="sidebarExpanded"
+<div @class(['px-3 pt-3 pb-2 space-y-1', 'hidden' => ! $showCompany])
+     x-show="sidebarExpanded"
      x-transition:enter="transition-opacity duration-150 delay-100"
      x-transition:enter-start="opacity-0"
      x-transition:enter-end="opacity-100"
      x-transition:leave="transition-opacity duration-75"
      x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0"
-     class="px-3 pt-3 pb-2 space-y-1">
+     x-transition:leave-end="opacity-0">
 
-    @if ($companies->count() > 1)
+    @if (! $showCompany)
+        {{-- Platform admin with no company memberships — nothing to show --}}
+    @elseif ($companies->count() > 1)
         <div x-data="{ open: false }" class="relative">
             <button @click="open = !open" @click.away="open = false"
                     class="flex items-center gap-2 w-full px-1 py-1 rounded-lg hover:bg-gray-800 transition text-left">

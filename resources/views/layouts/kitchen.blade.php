@@ -27,6 +27,14 @@
 
 <div x-data="{
         mobileNavOpen: false,
+        sidebarOpen: localStorage.getItem('ck_sidebar') !== '0',
+        toggleSidebar() {
+            this.sidebarOpen = ! this.sidebarOpen;
+            localStorage.setItem('ck_sidebar', this.sidebarOpen ? '1' : '0');
+        },
+        // Expanded when the desktop toggle is on OR the mobile drawer is open
+        // (the drawer always renders at full width).
+        get sidebarExpanded() { return this.sidebarOpen || this.mobileNavOpen; },
         navTheme: localStorage.getItem('nav_theme') || 'dark',
         toggleNavTheme() {
             this.navTheme = this.navTheme === 'dark' ? 'light' : 'dark';
@@ -44,24 +52,45 @@
          class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
 
     {{-- Sidebar: off-canvas on mobile, fixed-width on desktop --}}
-    <aside :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
+    <aside :class="{
+               '-translate-x-full md:translate-x-0': ! mobileNavOpen,
+               'translate-x-0': mobileNavOpen,
+               'md:w-16': ! sidebarOpen,
+               'md:w-56': sidebarOpen,
+           }"
            @click="if ($event.target.closest && $event.target.closest('a')) mobileNavOpen = false"
            :data-nav-theme="navTheme"
-           class="fixed inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-auto md:w-56 flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-y-auto transform transition-transform duration-300 ease-in-out">
+           class="fixed inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-auto flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-y-auto transform transition-all duration-300 ease-in-out">
 
-        {{-- Logo --}}
-        <div class="flex items-center h-14 px-4 bg-gray-800 flex-shrink-0">
-            <img src="/images/servora-logo-white.png" alt="Servora" class="h-9">
+        {{-- Logo + collapse toggle --}}
+        <div class="flex items-center h-14 bg-gray-800 flex-shrink-0 gap-2" :class="sidebarExpanded ? 'px-4' : 'px-2'">
+            <img x-show="sidebarExpanded" src="/images/servora-logo-white.png" alt="Servora" class="h-9">
+            <button @click="toggleSidebar()"
+                    :class="sidebarOpen ? 'ml-auto' : 'mx-auto'"
+                    title="Toggle sidebar"
+                    class="hidden md:flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
+                <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                </svg>
+                <svg x-show="! sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
         </div>
 
         {{-- Kitchen badge --}}
-        <div class="px-4 py-3 bg-purple-900/40 border-b border-gray-700">
-            <p class="text-[10px] uppercase tracking-widest text-purple-300 font-semibold">Central Kitchen</p>
-            <p class="text-sm font-medium text-white truncate">{{ $activeKitchen?->name ?? 'Kitchen' }}</p>
+        <div class="bg-purple-900/40 border-b border-gray-700" :class="sidebarExpanded ? 'px-4 py-3' : 'px-2 py-3 text-center'">
+            <template x-if="! sidebarExpanded">
+                <span class="text-lg" title="Central Kitchen — {{ $activeKitchen?->name ?? 'Kitchen' }}">🍳</span>
+            </template>
+            <div x-show="sidebarExpanded">
+                <p class="text-[10px] uppercase tracking-widest text-purple-300 font-semibold">Central Kitchen</p>
+                <p class="text-sm font-medium text-white truncate">{{ $activeKitchen?->name ?? 'Kitchen' }}</p>
+            </div>
         </div>
 
         {{-- Navigation --}}
-        <nav class="flex-1 py-3 px-3 space-y-0.5">
+        <nav class="flex-1 py-3 space-y-0.5" :class="sidebarExpanded ? 'px-3' : 'px-2'">
             @php
                 $ckIcons = [
                     'Production'  => '<path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/>',
@@ -123,7 +152,15 @@
                 @if ($group['label'])
                     @php $groupSlug = Str::slug($group['label']); @endphp
                     <div class="mt-2">
-                        <button @click="toggle('{{ $groupSlug }}')"
+                        {{-- Collapsed: icon-only button that expands the sidebar and opens the group --}}
+                        <button x-show="! sidebarExpanded" @click="toggleSidebar(); activeGroup = '{{ $groupSlug }}'"
+                                title="{{ $group['label'] }}"
+                                class="w-full flex justify-center py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition">
+                            @if (isset($ckIcons[$group['label']]))
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">{!! $ckIcons[$group['label']] !!}</svg>
+                            @endif
+                        </button>
+                        <button x-show="sidebarExpanded" @click="toggle('{{ $groupSlug }}')"
                                 class="w-full flex items-center justify-between px-3 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
                             <span class="flex items-center gap-2">
                                 @if (isset($ckIcons[$group['label']]))
@@ -133,7 +170,7 @@
                             </span>
                             <svg :class="activeGroup === '{{ $groupSlug }}' && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
-                        <div x-show="activeGroup === '{{ $groupSlug }}'">
+                        <div x-show="sidebarExpanded && activeGroup === '{{ $groupSlug }}'">
                             @foreach ($group['items'] as $item)
                                 @php
                                     $href = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
@@ -155,12 +192,14 @@
                     @foreach ($group['items'] as $item)
                         @php $isActive = request()->routeIs($item['route']); @endphp
                         <a href="{{ route($item['route']) }}"
-                           class="flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors px-3 py-2
-                                  {{ $isActive ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                           title="{{ $item['label'] }}"
+                           class="flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors py-2
+                                  {{ $isActive ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
+                           :class="sidebarExpanded ? 'px-3' : 'px-2 justify-center'">
                             @if (!empty($item['svg']))
                                 <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['svg'] }}"/></svg>
                             @endif
-                            {{ $item['label'] }}
+                            <span x-show="sidebarExpanded" class="whitespace-nowrap">{{ $item['label'] }}</span>
                         </a>
                     @endforeach
                 @endif
@@ -168,8 +207,16 @@
             </div>
         </nav>
 
-        {{-- Bottom: User panel — profile, workspace switch, nav theme, sign out --}}
+        {{-- Bottom: Company + User panel (profile, workspace switch, theme, sign out) --}}
         <div class="flex-shrink-0 border-t border-gray-700 p-2" x-data="{ userOpen: false }">
+            @php $ckCompany = $authUser->company; @endphp
+            @if ($ckCompany)
+                <div x-show="sidebarExpanded" class="flex items-center gap-2 px-2 pb-2 mb-1 border-b border-gray-700/70">
+                    <span class="text-sm leading-none">🏢</span>
+                    <span class="flex-1 text-xs font-medium text-gray-300 truncate" title="{{ $ckCompany->name }}">{{ $ckCompany->name }}</span>
+                </div>
+            @endif
+
             <div x-show="userOpen" x-cloak
                  class="mb-1 rounded-lg border border-gray-700 bg-gray-800 py-1">
                 <a href="{{ route('profile') }}"
@@ -200,8 +247,9 @@
                 </form>
             </div>
 
-            <button @click="userOpen = ! userOpen"
-                    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800 transition">
+            <button @click="if (! sidebarExpanded) toggleSidebar(); userOpen = ! userOpen"
+                    :class="sidebarExpanded ? 'px-2' : 'px-0 justify-center'"
+                    class="w-full flex items-center gap-2 py-1.5 rounded-lg hover:bg-gray-800 transition">
                 @if ($authUser->avatar)
                     <img src="{{ \Illuminate\Support\Facades\Storage::url($authUser->avatar) }}" alt=""
                          class="w-7 h-7 rounded-full object-cover flex-shrink-0" />
@@ -210,11 +258,11 @@
                         {{ strtoupper(substr($authUser->name, 0, 2)) }}
                     </div>
                 @endif
-                <div class="flex-1 min-w-0 text-left">
+                <div x-show="sidebarExpanded" class="flex-1 min-w-0 text-left">
                     <p class="text-xs font-medium text-white truncate">{{ $authUser->name }}</p>
                     <p class="text-[10px] text-purple-300 truncate">{{ $authUser->displayDesignation() }}</p>
                 </div>
-                <svg :class="userOpen && 'rotate-180'" class="h-3.5 w-3.5 text-gray-400 transition-transform flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                <svg x-show="sidebarExpanded" :class="userOpen && 'rotate-180'" class="h-3.5 w-3.5 text-gray-400 transition-transform flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
             </button>
         </div>
     </aside>
