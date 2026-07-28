@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -611,9 +612,17 @@ class Users extends Component
                 $q->with(['companies' => fn ($c) => $c->where('companies.id', $currentUser->company_id)])
             )
             ->addSelect(['*',
-                // last_active_at heartbeat first; DB sessions as legacy
-                // fallback (prod sessions are on Redis). 0 renders as Never.
-                \Illuminate\Support\Facades\DB::raw('GREATEST(COALESCE((SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id), 0), COALESCE(UNIX_TIMESTAMP(users.last_active_at), 0)) as last_session_activity'),
+                // Legacy DB-session activity (prod sessions moved to Redis, so
+                // this is empty for anything recent). A real unix timestamp,
+                // therefore timezone-safe to read in SQL.
+                //
+                // users.last_active_at is deliberately NOT converted here:
+                // it's a naive DATETIME holding an app-timezone wall clock, and
+                // UNIX_TIMESTAMP() would reinterpret it in MySQL's own timezone
+                // (UTC on the VPS), landing every heartbeat 8 hours in the
+                // future — "7 hours from now". It's merged below in PHP,
+                // through the Eloquent datetime cast.
+                DB::raw('(SELECT MAX(last_activity) FROM sessions WHERE sessions.user_id = users.id) as last_session_activity'),
             ])
             ->when($this->search, fn ($q) =>
                 // Grouped so the OR can't bypass the company filter below
@@ -634,6 +643,27 @@ class Users extends Component
         }
 
         $users     = $query->orderBy('name')->paginate(20);
+
+        // Last activity per visible user, resolved in PHP so both sources land
+        // on the same basis: the heartbeat through the datetime cast, the
+        // legacy session through its unix timestamp. Mirrors Admin\Users.
+        $appTz      = config('app.timezone');
+        $lastActive = [];
+        foreach ($users->items() as $u) {
+            $candidates = [];
+            if ($u->last_session_activity) {
+                $candidates[] = Carbon::createFromTimestamp($u->last_session_activity, $appTz);
+            }
+            if ($u->last_active_at) {
+                $candidates[] = $u->last_active_at->copy()->setTimezone($appTz);
+            }
+            $best = null;
+            foreach ($candidates as $c) {
+                if (! $best || $c->gt($best)) $best = $c;
+            }
+            if ($best) $lastActive[$u->id] = $best;
+        }
+
         $companies = $isSuperAdmin ? Company::orderBy('name')->get() : collect();
         $outlets   = Outlet::when(! $isSuperAdmin, fn ($q) =>
             $q->where('company_id', $currentUser->company_id)
@@ -668,7 +698,7 @@ class Users extends Component
 
         return view('livewire.settings.users', compact(
             'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules',
-            'assignableRoles', 'rolePermMap', 'roleDisplayMap'
+            'assignableRoles', 'rolePermMap', 'roleDisplayMap', 'lastActive'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
     }
 

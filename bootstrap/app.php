@@ -33,15 +33,20 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforceMainDomain::class,
         ]);
 
-        // Display-only per-user / per-company timezone adjustment
         $middleware->web(append: [
-            \App\Http\Middleware\SetDisplayTimezone::class,
             // Spatie teams mode: scope role/permission checks to the active company
             \App\Http\Middleware\SetPermissionsTeamFromCompany::class,
             // Suspended users / suspended companies are logged out on any request
             \App\Http\Middleware\EnsureAccountActive::class,
-            // users.last_active_at heartbeat (session-driver-independent)
+            // users.last_active_at heartbeat (session-driver-independent).
+            // MUST run before SetDisplayTimezone: last_active_at is a naive
+            // DATETIME, so stamping it after the display timezone switch would
+            // write each user's wall clock on a different basis and make the
+            // column incomparable across users.
             \App\Http\Middleware\TouchLastActive::class,
+            // Display-only per-user / per-company timezone adjustment. Last,
+            // so nothing that persists a timestamp runs under a shifted clock.
+            \App\Http\Middleware\SetDisplayTimezone::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

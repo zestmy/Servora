@@ -138,14 +138,17 @@
                         </td>
                         <td class="px-5 py-3 text-xs text-gray-500">{{ $u->created_at?->format('d M Y') }}</td>
                         <td class="px-5 py-3 text-xs">
-                            @if ($u->last_session_activity)
-                                @php $lastActive = \Carbon\Carbon::createFromTimestamp($u->last_session_activity); @endphp
-                                <span class="{{ $lastActive->diffInDays(now()) > 30 ? 'text-red-400' : ($lastActive->diffInDays(now()) > 7 ? 'text-amber-500' : 'text-green-600') }}"
-                                      title="{{ $lastActive->format('d M Y, h:i A') }}">
-                                    {{ $lastActive->diffForHumans() }}
+                            @if (isset($lastActive[$u->id]))
+                                @php $la = $lastActive[$u->id]; @endphp
+                                <span class="{{ $la->diffInDays(now()) > 30 ? 'text-red-400' : ($la->diffInDays(now()) > 7 ? 'text-amber-500' : 'text-green-600') }}"
+                                      title="{{ $la->format('d M Y, h:i A') }}">
+                                    {{ $la->diffForHumans() }}
                                 </span>
                             @else
-                                <span class="text-gray-300">Never</span>
+                                {{-- Not "Never": activity tracking only began 2026-07-28, and the
+                                     DB sessions fallback went stale when sessions moved to Redis
+                                     (2026-06-29), so a blank here means unrecorded, not inactive. --}}
+                                <span class="text-gray-300" title="Activity tracking started 28 Jul 2026 — earlier visits weren't recorded">No activity recorded</span>
                             @endif
                         </td>
                         <td class="px-5 py-3 text-center">

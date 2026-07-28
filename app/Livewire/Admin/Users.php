@@ -293,7 +293,9 @@ class Users extends Component
             ->groupBy('user_id')
             ->selectRaw('user_id, MAX(last_activity) as la')
             ->pluck('la', 'user_id')
-            ->map(fn ($ts) => \Carbon\Carbon::createFromTimestamp($ts));
+            // Pin to the app timezone — createFromTimestamp() otherwise yields a
+            // UTC-rendered instance, which reads wrong the moment it's format()ed.
+            ->map(fn ($ts) => \Carbon\Carbon::createFromTimestamp($ts, config('app.timezone')));
         foreach ($users->items() as $u) {
             if ($u->last_active_at && (! isset($lastActive[$u->id]) || $u->last_active_at->gt($lastActive[$u->id]))) {
                 $lastActive[$u->id] = $u->last_active_at;
