@@ -81,9 +81,11 @@ class TransferForm extends Component
         } else {
             $this->transfer_number = $this->generateTransferNumber();
 
-            $activeOutletId = Auth::user()->activeOutletId();
-            if ($activeOutletId) {
-                $this->from_outlet_id = (string) $activeOutletId;
+            // Source defaults to where you're working — the kitchen's own
+            // outlet in kitchen mode, otherwise the active outlet.
+            $sourceOutletId = Auth::user()->kitchenOutletId() ?: Auth::user()->activeOutletId();
+            if ($sourceOutletId) {
+                $this->from_outlet_id = (string) $sourceOutletId;
             }
         }
     }
@@ -256,9 +258,11 @@ class TransferForm extends Component
                 ->get();
         }
 
-        // Filter outlets to user's permitted outlets only
-        $availableOutletIds = $this->availableOutletIds();
-        $outlets = Outlet::whereIn('id', $availableOutletIds)
+        // A transfer spans TWO outlets, so this deliberately uses the full
+        // accessible list rather than availableOutletIds() — that narrows to
+        // the kitchen's own outlet in kitchen mode, which would leave no valid
+        // destination and make kitchen-to-outlet transfers impossible.
+        $outlets = Outlet::whereIn('id', Auth::user()->accessibleOutletIds())
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

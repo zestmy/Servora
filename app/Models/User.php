@@ -204,6 +204,28 @@ class User extends Authenticatable
             ->all();
     }
 
+    /**
+     * The outlet that Central Kitchen work is recorded against: the active
+     * kitchen's base outlet.
+     *
+     * In kitchen mode the user is operating one kitchen, not choosing among
+     * outlets — a wastage or stock take there belongs to the kitchen. Returns
+     * null outside kitchen mode, when the kitchen has no linked outlet, or
+     * when the user can't actually reach it, so callers fall back to the
+     * ordinary multi-outlet behaviour instead of inventing access.
+     */
+    public function kitchenOutletId(): ?int
+    {
+        if (! $this->inKitchenMode()) return null;
+
+        $outletId = $this->activeKitchen()?->outlet_id;
+        if (! $outletId) return null;
+
+        return in_array((int) $outletId, $this->accessibleOutletIds(), true)
+            ? (int) $outletId
+            : null;
+    }
+
     public function canAccessOutlet(int $outletId): bool
     {
         if ($this->isSystemRole()) return true;

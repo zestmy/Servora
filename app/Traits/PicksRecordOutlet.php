@@ -18,11 +18,21 @@ trait PicksRecordOutlet
     /** The outlet this record belongs to. */
     public ?int $outlet_id = null;
 
-    /** Outlet ids the user may create records for. */
+    /**
+     * Outlet ids the user may create records for.
+     *
+     * In Central Kitchen mode this collapses to the kitchen's own outlet: the
+     * user is working one kitchen, so offering a list of shop outlets is both
+     * noise and a chance to file kitchen wastage against a restaurant.
+     */
     protected function creatableOutletIds(): array
     {
         $user = Auth::user();
         if (! $user) return [];
+
+        if ($kitchenOutletId = $user->kitchenOutletId()) {
+            return [$kitchenOutletId];
+        }
 
         return $user->accessibleOutletIds();
     }

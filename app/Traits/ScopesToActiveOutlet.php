@@ -17,9 +17,13 @@ trait ScopesToActiveOutlet
         $user = auth()->user();
         if (! $user) return [];
 
-        return $user->canViewAllOutlets()
-            ? Outlet::where('company_id', $user->company_id)->pluck('id')->all()
-            : $user->outlets()->where('outlets.company_id', $user->company_id)->pluck('outlets.id')->all();
+        // Central Kitchen mode narrows every listing to the kitchen's own
+        // outlet — its screens are about the kitchen, not the shops.
+        if ($kitchenOutletId = $user->kitchenOutletId()) {
+            return [$kitchenOutletId];
+        }
+
+        return $user->accessibleOutletIds();
     }
 
     /**
