@@ -40,7 +40,6 @@ class ProductMergeService
         'outlet_transfer_lines',
         'stock_transfer_order_lines',
         'stock_take_lines',
-        'outlet_prep_request_lines',
         'credit_note_lines',
         'form_template_lines',
         'supplier_price_alerts',

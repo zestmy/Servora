@@ -8,7 +8,6 @@ use App\Models\Ingredient;
 use App\Models\IngredientCategory;
 use App\Models\IngredientParLevel;
 use App\Models\LabourCost;
-use App\Models\OutletPrepRequest;
 use App\Models\OutletTransfer;
 use App\Models\OvertimeClaim;
 use App\Models\ProcurementInvoice;
@@ -62,7 +61,6 @@ return [
         StockTake::class,
         StockTransferOrder::class,
         OutletTransfer::class,
-        OutletPrepRequest::class,
         WastageRecord::class,
 
         // Recipes & menu
