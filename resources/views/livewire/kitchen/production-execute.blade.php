@@ -24,12 +24,41 @@
                 Save Progress
             </button>
             <button wire:click="complete"
-                    wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
+                    wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock. Any line with a destination outlet is sent there straight away as a transfer."
                     class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
                 Complete Production
             </button>
         </div>
     </div>
+
+    {{-- What Complete will do with the destination outlets on these lines.
+         Stated up front so nobody discovers stock left the kitchen after the
+         fact. --}}
+    @php
+        $bound = $order->lines->filter(fn ($l) => $l->to_outlet_id)
+            ->groupBy(fn ($l) => $l->toOutlet?->name ?? 'Unknown outlet');
+        $kitchenHasOutlet = (bool) $order->kitchen?->outlet_id;
+    @endphp
+    @if ($bound->isNotEmpty())
+        <div class="mb-4 px-4 py-3 rounded-lg border {{ $kitchenHasOutlet ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800' }}">
+            @if ($kitchenHasOutlet)
+                <p class="text-sm font-semibold">On Complete, these lines are sent out automatically</p>
+                <ul class="mt-1 text-xs list-disc list-inside space-y-0.5">
+                    @foreach ($bound as $outletName => $lines)
+                        <li>{{ $outletName }} — {{ $lines->count() }} item(s), as one transfer</li>
+                    @endforeach
+                </ul>
+                <p class="mt-1 text-xs">Everything is added to kitchen stock first, then what's bound for an outlet is deducted and transferred, so the movement stays on record.</p>
+            @else
+                <p class="text-sm font-semibold">Destination outlets can't be used</p>
+                <p class="mt-1 text-xs">
+                    {{ $order->kitchen?->name ?? 'This kitchen' }} has no linked outlet to transfer from, so the
+                    output will stay in kitchen stock and you'll need to send it manually. Set a linked outlet in
+                    Settings → Kitchen Management to enable automatic transfers.
+                </p>
+            @endif
+        </div>
+    @endif
 
     {{-- Order Info --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
@@ -151,7 +180,7 @@
                     Save Progress
                 </button>
                 <button wire:click="complete"
-                        wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock — outlets receive it when their prep requests are fulfilled."
+                        wire:confirm="Complete this production order? This records the batch and adds the output to kitchen stock. Any line with a destination outlet is sent there straight away as a transfer."
                         class="px-6 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
                     Complete Production
                 </button>

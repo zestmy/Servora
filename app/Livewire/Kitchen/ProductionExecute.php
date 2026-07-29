@@ -3,6 +3,9 @@
 namespace App\Livewire\Kitchen;
 
 use App\Models\KitchenInventory;
+use App\Models\Outlet;
+use App\Models\OutletTransfer;
+use App\Models\OutletTransferLine;
 use App\Models\ProductionLog;
 use App\Models\ProductionOrder;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +62,82 @@ class ProductionExecute extends Component
         session()->flash('success', 'Progress saved — you can safely leave and continue later.');
     }
 
+    /**
+     * Raise one outlet transfer per destination for the lines that named one,
+     * deducting what leaves from kitchen stock.
+     *
+     * @param  array<int, array<int, array>>  $bound  [outletId => [line, ...]]
+     * @return array<int, string>  human-readable notes for the success flash
+     */
+    private function dispatchToOutlets(array $bound, ?int $userId): array
+    {
+        if (! $bound) return [];
+
+        $kitchen = $this->order->kitchen;
+        $fromOutletId = $kitchen?->outlet_id;
+
+        // Without a base outlet there is nowhere to transfer FROM. The stock
+        // stays in the kitchen rather than the completion failing — say so
+        // instead of silently dropping the destination.
+        if (! $fromOutletId) {
+            return ['Destination outlets were skipped: this kitchen has no linked outlet to transfer from.'];
+        }
+
+        $notes = [];
+
+        foreach ($bound as $outletId => $lines) {
+            // Never transfer to itself, and never outside the company.
+            if ((int) $outletId === (int) $fromOutletId) continue;
+            $outlet = Outlet::withoutGlobalScopes()
+                ->where('id', $outletId)
+                ->where('company_id', $this->order->company_id)
+                ->first();
+            if (! $outlet) continue;
+
+            $transfer = OutletTransfer::create([
+                'company_id'      => $this->order->company_id,
+                'from_outlet_id'  => $fromOutletId,
+                'to_outlet_id'    => $outlet->id,
+                'transfer_number' => $this->generateTransferNumber(),
+                'status'          => 'in_transit',
+                'transfer_date'   => now()->toDateString(),
+                'notes'           => 'Auto-created on completing ' . $this->order->order_number,
+                'created_by'      => $userId,
+            ]);
+
+            foreach ($lines as $line) {
+                OutletTransferLine::create([
+                    'outlet_transfer_id' => $transfer->id,
+                    'ingredient_id'      => $line['ingredient_id'],
+                    'quantity'           => $line['quantity'],
+                    'uom_id'             => $line['uom_id'],
+                    'unit_cost'          => $line['unit_cost'],
+                ]);
+
+                KitchenInventory::deductStock(
+                    $this->order->kitchen_id, $line['ingredient_id'], $line['quantity']
+                );
+            }
+
+            $notes[] = "Sent {$transfer->transfer_number} to {$outlet->name}.";
+        }
+
+        return $notes;
+    }
+
+    /** Matches the manual transfer form's numbering so the two interleave. */
+    private function generateTransferNumber(): string
+    {
+        $prefix = 'TRF-' . now()->format('Ymd') . '-';
+        $last   = OutletTransfer::withoutGlobalScopes()
+            ->where('transfer_number', 'like', $prefix . '%')
+            ->orderByDesc('transfer_number')
+            ->value('transfer_number');
+        $seq = $last ? ((int) substr($last, -3) + 1) : 1;
+
+        return $prefix . str_pad($seq, 3, '0', STR_PAD_LEFT);
+    }
+
     public function complete(): void
     {
         $this->validate([
@@ -71,9 +150,16 @@ class ProductionExecute extends Component
             return;
         }
 
-        DB::transaction(function () {
+        $transferSummary = [];
+
+        DB::transaction(function () use (&$transferSummary) {
             $userId = Auth::id();
             $kitchenId = $this->order->kitchen_id;
+
+            // Lines with a destination outlet are collected as we go and sent
+            // on as ONE transfer per outlet at the end, rather than a separate
+            // transfer per line.
+            $bound = [];
 
             foreach ($this->order->lines as $idx => $line) {
                 $actual  = floatval($this->actuals[$idx] ?? 0);
@@ -101,19 +187,34 @@ class ProductionExecute extends Component
                     'produced_at'              => now(),
                 ]);
 
-                // Add to kitchen inventory (not auto-transfer). A line is
-                // either a Central Kitchen production recipe or an outlet prep
-                // item; each carries its own stockable ingredient.
+                // Everything produced lands in kitchen stock first — a line
+                // bound for an outlet is then transferred out of it below, so
+                // the movement is visible rather than teleporting.
                 $stockItem = $line->productionRecipe?->ingredient ?? $line->recipe?->ingredient;
                 if ($stockItem && $actual > 0) {
                     KitchenInventory::addStock($kitchenId, $stockItem->id, $actual, $line->uom_id, $unitCost);
+
+                    if ($line->to_outlet_id) {
+                        $bound[(int) $line->to_outlet_id][] = [
+                            'ingredient_id' => $stockItem->id,
+                            'quantity'      => $actual,
+                            'uom_id'        => $line->uom_id,
+                            'unit_cost'     => $unitCost,
+                        ];
+                    }
                 }
             }
+
+            $transferSummary = $this->dispatchToOutlets($bound, $userId);
 
             $this->order->update(['status' => 'completed', 'completed_at' => now()]);
         });
 
-        session()->flash('success', "Production completed. Stock added to kitchen inventory.");
+        $message = 'Production completed. Stock added to kitchen inventory.';
+        if ($transferSummary) {
+            $message .= ' ' . implode(' ', $transferSummary);
+        }
+        session()->flash('success', $message);
         $this->redirectRoute('kitchen.index');
     }
 
