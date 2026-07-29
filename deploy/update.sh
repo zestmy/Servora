@@ -46,6 +46,17 @@ info "Fetching latest code..."
 git fetch origin main
 git reset --hard origin/main
 
+# The optimised classmap still points at the files the PREVIOUS release had.
+# If that release included a class this one deletes, the map now references a
+# missing file and the very next command that boots Laravel dies — including
+# composer's own post-autoload-dump hook (artisan package:discover), which
+# takes the whole deploy down before migrations ever run.
+#
+# --no-scripts is the point: rebuild the map WITHOUT booting Laravel, so
+# everything after this sees a map that matches the checked-out code.
+info "Refreshing autoloader for the new file set..."
+composer dump-autoload --optimize --no-interaction --no-scripts --quiet
+
 info "Installing dependencies..."
 composer install --no-dev --optimize-autoloader --no-interaction --quiet
 
