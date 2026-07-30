@@ -140,12 +140,18 @@ class PrintScreen extends Component
             return;
         }
 
-        $this->dispatch('label-print', document: $result['document']);
+        // Only the browser driver hands back something to print. PrintNode
+        // has already queued it server-side, and dispatching an empty print
+        // event would pop a dialog with nothing in it.
+        if ($result['document']) {
+            $this->dispatch('label-print', document: $result['document']);
+        }
 
         session()->flash('success', sprintf(
-            '%d label%s sent to %s.',
+            '%d label%s %s %s.',
             $result['labels'],
             $result['labels'] === 1 ? '' : 's',
+            $result['document'] ? 'sent to' : 'queued on',
             $printer->name
         ));
 

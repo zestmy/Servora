@@ -108,12 +108,22 @@ class LabelPrintService
                 throw new \RuntimeException('No printable lines — every item is missing a template.');
             }
 
+            $driver = $this->drivers->for($printer);
+            $result = $driver->submit($renderable, $printer);
+
             $batch->update([
-                'item_count'  => count($renderable),
-                'label_count' => $labelCount,
+                'item_count'    => count($renderable),
+                'label_count'   => $labelCount,
+                'driver'        => $driver->name(),
+                'driver_job_id' => $result['job_id'] ?? null,
             ]);
 
-            $result = $this->drivers->for($printer)->submit($renderable, $printer);
+            // The rows were written before the driver ran, because building
+            // them is what produces the document to submit. Apply the real
+            // status now: 'sent' means we handed it to a browser and cannot
+            // know more, 'queued' means PrintNode accepted it.
+            LabelPrint::where('batch_id', $batch->id)
+                ->update(['status' => $result['status'] ?? 'sent']);
 
             return [
                 'batch'    => $batch,

@@ -107,12 +107,16 @@ class SetPrint extends Component
             return;
         }
 
-        $this->dispatch('label-print', document: $result['document']);
+        // PrintNode queues server-side and returns nothing to print here.
+        if ($result['document']) {
+            $this->dispatch('label-print', document: $result['document']);
+        }
 
         session()->flash('success', sprintf(
-            '%d label%s sent to %s.',
+            '%d label%s %s %s.',
             $result['labels'],
             $result['labels'] === 1 ? '' : 's',
+            $result['document'] ? 'sent to' : 'queued on',
             $printer->name
         ));
     }

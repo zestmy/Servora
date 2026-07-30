@@ -7,15 +7,23 @@ use App\Models\LabelPrinter;
 /**
  * Resolves a printer's transport.
  *
- * Only 'browser' has an implementation. A printer row set to 'printnode'
- * falls back to the browser driver rather than throwing: a chef mid-shift
- * should get a label out of a misconfigured printer record, not a stack
- * trace. When a PrintNode driver ships, it registers here.
+ * An UNRECOGNISED driver value falls back to the browser, because that is a
+ * data problem and a chef mid-shift should get a label rather than a stack
+ * trace.
+ *
+ * A printer explicitly set to 'printnode' does NOT fall back, even when the
+ * key or remote printer is missing. That printer is deliberately not
+ * attached to this PC, so browser printing would send the label to whatever
+ * local printer happens to be default — or silently nowhere. Printing to the
+ * wrong machine is worse than a clear error, and PrintNodeDriver's errors are
+ * written to be shown to the person standing there.
  */
 class DriverFactory
 {
-    public function __construct(private BrowserDriver $browser)
-    {
+    public function __construct(
+        private BrowserDriver $browser,
+        private PrintNodeDriver $printNode,
+    ) {
     }
 
     public function for(LabelPrinter $printer): LabelDriver
@@ -26,7 +34,8 @@ class DriverFactory
     public function make(?string $driver): LabelDriver
     {
         return match ($driver) {
-            default => $this->browser,
+            'printnode' => $this->printNode,
+            default     => $this->browser,
         };
     }
 }

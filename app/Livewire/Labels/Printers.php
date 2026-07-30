@@ -3,10 +3,12 @@
 namespace App\Livewire\Labels;
 
 use App\Models\LabelPrinter;
+use App\Models\LabelSetting;
 use App\Models\LabelTemplate;
 use App\Models\Outlet;
 use App\Services\LabelRenderService;
 use App\Services\Labels\DefaultTemplates;
+use App\Services\Labels\PrintNodeClient;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -42,6 +44,15 @@ class Printers extends Component
 
     public bool $rotate_90 = false;
 
+    public string $driver = 'browser';
+
+    public ?string $printnode_printer_id = null;
+
+    /** Populated on demand — one API call, not one per render. */
+    public array $remotePrinters = [];
+
+    public ?string $remoteError = null;
+
     protected function rules(): array
     {
         return [
@@ -54,7 +65,44 @@ class Printers extends Component
             // configured, and shifting content won't save it.
             'offset_x_mm'         => 'required|numeric|min:-20|max:20',
             'offset_y_mm'         => 'required|numeric|min:-20|max:20',
+            'driver'              => 'required|in:' . implode(',', array_keys(LabelPrinter::DRIVERS)),
+            // Required for PrintNode: without it the driver throws at print
+            // time, and the chef finds out at the printer instead of here.
+            'printnode_printer_id' => 'nullable|required_if:driver,printnode|string|max:50',
         ];
+    }
+
+    /** Ask PrintNode which printers this account can see. */
+    public function loadRemotePrinters(): void
+    {
+        $this->remoteError    = null;
+        $this->remotePrinters = [];
+
+        $key = LabelSetting::forCompany(Auth::user()->company_id)->printnode_api_key;
+
+        if (! $key) {
+            $this->remoteError = 'No PrintNode API key set. Add one in Label Settings first.';
+
+            return;
+        }
+
+        try {
+            $this->remotePrinters = (new PrintNodeClient($key))->printers();
+
+            if (! $this->remotePrinters) {
+                $this->remoteError = 'PrintNode has no printers registered on this account yet.';
+            }
+        } catch (\Throwable $e) {
+            $this->remoteError = $e->getMessage();
+        }
+    }
+
+    /** Switching to PrintNode is useless without knowing the printer list. */
+    public function updatedDriver(string $value): void
+    {
+        if ($value === 'printnode' && ! $this->remotePrinters) {
+            $this->loadRemotePrinters();
+        }
     }
 
     /**
@@ -95,6 +143,12 @@ class Printers extends Component
         $this->offset_x_mm         = (string) (float) $printer->offset_x_mm;
         $this->offset_y_mm         = (string) (float) $printer->offset_y_mm;
         $this->rotate_90           = (bool) $printer->rotate_90;
+        $this->driver              = $printer->driver ?: 'browser';
+        $this->printnode_printer_id = $printer->printnode_printer_id;
+
+        if ($this->driver === 'printnode') {
+            $this->loadRemotePrinters();
+        }
 
         $this->showModal = true;
     }
@@ -113,6 +167,12 @@ class Printers extends Component
             'offset_x_mm'         => (float) $this->offset_x_mm,
             'offset_y_mm'         => (float) $this->offset_y_mm,
             'rotate_90'           => $this->rotate_90,
+            'driver'              => $this->driver,
+            // Cleared when switching back to browser, so a stale remote id
+            // can't quietly come back into play later.
+            'printnode_printer_id' => $this->driver === 'printnode'
+                ? $this->printnode_printer_id
+                : null,
         ];
 
         if ($this->editingId) {
@@ -120,7 +180,6 @@ class Printers extends Component
             session()->flash('success', 'Printer updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
-            $data['driver']     = 'browser';
             LabelPrinter::create($data);
             session()->flash('success', 'Printer added.');
         }
@@ -163,6 +222,10 @@ class Printers extends Component
         $this->offset_x_mm         = '0';
         $this->offset_y_mm         = '0';
         $this->rotate_90           = false;
+        $this->driver              = 'browser';
+        $this->printnode_printer_id = null;
+        $this->remotePrinters      = [];
+        $this->remoteError         = null;
         $this->resetValidation();
     }
 }

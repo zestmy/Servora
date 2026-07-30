@@ -59,6 +59,53 @@ transport layer moves. This is the payoff for decision 2.
 Note that tablets can still *browse* Servora — the expiring-today dashboard, print set
 management, the audit log. They just can't be the device that prints.
 
+### PrintNode — built 2026-07-31
+
+Shipped after v1, and it cost almost nothing above the transport layer, which is
+the point decision 2 was making.
+
+`PrintNodeClient` is the only place that knows PrintNode's wire format: HTTP Basic
+with the API key as username and an empty password, `POST /printjobs` with
+`contentType: pdf_base64`, `GET /printers` for the picker. `PrintNodeDriver` sends the
+**PDF** — PrintNode has no browser, which is what the `pdf()` half of
+`LabelRenderService` was always for, and why the label Blade had to stay inside
+dompdf's CSS subset.
+
+What changed above the driver: nothing, except three things that were latent gaps.
+
+- `LabelPrintService` was hardcoding `'sent'` on every row. It now applies the
+  driver's status — `sent` for browser (we handed it to a browser and cannot know
+  more) and `queued` for PrintNode (accepted, not necessarily printed). Rows are
+  written before the driver runs, because building them is what produces the
+  document, so the status is applied afterwards.
+- `label_print_batches` gained `driver` and `driver_job_id`. The job id is per batch,
+  not per label: one batch is one document is one job.
+- The print screens dispatched a browser print event unconditionally. PrintNode
+  returns no document, and firing the event would open a dialog with nothing in it.
+
+**Rotation goes through PrintNode's job options, not CSS.** dompdf cannot do
+transforms, so the `rotate_90` flag becomes `options.rotate = 90` on the job.
+`fit_to_page` is always false, for the same reason browser printing is 100% scale.
+
+**A printer set to `printnode` never falls back to the browser.** That printer is
+deliberately not attached to this PC, so falling back would send the label to whatever
+local printer is default — or silently nowhere. Only an *unrecognised* driver value
+falls back. The errors are written to be shown to the person standing at the printer.
+
+**The API key is write-only in the UI.** It is never bound to a form field or rendered
+into the DOM; the screen reports only whether one is set. An empty box on save means
+"keep", not "delete" — otherwise an unrelated settings change would silently wipe the
+credential. There's an explicit Remove button, and a Test button that calls
+`/printers` so a wrong key is found in settings rather than at the printer.
+
+**Not built:** master/child account provisioning. The original scoping answer was
+"support both", and this is the BYO-key half. Child accounts under an Integrator plan
+are a separate piece of work — see open question 8.
+
+**Unverified:** the live API round-trip. Every test fakes the HTTP boundary, because
+there is no PrintNode account to test against. The wire format is written to PrintNode's
+documented API but has never been exercised against the real service.
+
 ### Explicit non-goals for v1
 
 Allergens, nutrition, QR traceability pages, barcodes on labels, Production Order and
@@ -556,3 +603,12 @@ Not blocking:
    business. In or out?
 7. **Central Kitchen** — when CK produces for an outlet, does the label print at CK
    carrying the *destination* outlet's name? The data exists as of commit 8479538.
+8. **PrintNode account model** — BYO key is built. Do you also want master/child
+   provisioning, where Servora holds an Integrator plan and creates a child account
+   per company? That removes tenant onboarding friction and lets you bill for it, but
+   you carry the per-printer cost and it needs an account-lifecycle flow (create on
+   subscribe, suspend on cancel). The original scoping answer was "support both";
+   only the BYO half exists today.
+9. **Job reconciliation** — `driver_job_id` is recorded but nothing polls PrintNode
+   for the outcome. Worth adding a webhook or a scheduled check so a `queued` label
+   that never printed shows up somewhere other than a chef's memory.

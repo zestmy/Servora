@@ -19,7 +19,7 @@ class LabelPrintBatch extends Model
 {
     protected $fillable = [
         'company_id', 'outlet_id', 'label_set_id', 'employee_id', 'user_id',
-        'printed_at', 'item_count', 'label_count',
+        'printed_at', 'item_count', 'label_count', 'driver', 'driver_job_id',
     ];
 
     protected $casts = [

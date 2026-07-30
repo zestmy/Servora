@@ -68,6 +68,43 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 max-w-2xl mt-4">
+        <h3 class="text-sm font-semibold text-gray-700">PrintNode (optional)</h3>
+        <p class="mt-2 text-xs text-gray-500">
+            Only needed for printers that aren't attached to the PC doing the printing — a tablet in the kitchen,
+            or head office printing to an outlet. Leave this empty to keep printing through the browser.
+        </p>
+
+        <div class="mt-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">API key</label>
+            <div class="flex gap-2">
+                <input type="password" wire:model="printnode_api_key" autocomplete="off"
+                       placeholder="{{ $hasApiKey ? '•••••••• (a key is set — type to replace it)' : 'Paste your PrintNode API key' }}"
+                       class="flex-1 rounded-lg border-gray-300 text-sm">
+                <button wire:click="testConnection"
+                        class="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 whitespace-nowrap">
+                    Test
+                </button>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+                Stored encrypted and never shown again. Leaving this empty keeps the existing key —
+                it won't wipe it.
+            </p>
+            <x-input-error :messages="$errors->get('printnode_api_key')" class="mt-1" />
+
+            @if ($hasApiKey)
+                <button wire:click="clearApiKey" wire:confirm="Remove the stored PrintNode key?"
+                        class="mt-1 text-xs text-red-500 hover:underline">Remove stored key</button>
+            @endif
+
+            @if ($connectionResult)
+                <p class="mt-2 px-3 py-2 rounded-lg text-xs {{ str_starts_with($connectionResult, 'Connected') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
+                    {{ $connectionResult }}
+                </p>
+            @endif
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 max-w-2xl mt-4">
         <h3 class="text-sm font-semibold text-gray-700">Printing from the outlet PC</h3>
         <p class="mt-2 text-xs text-gray-500">
             Labels print through the browser straight to the label printer attached to the outlet PC.

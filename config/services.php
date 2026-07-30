@@ -45,4 +45,20 @@ return [
         ],
     ],
 
+    /*
+     * PrintNode — server-driven label printing.
+     *
+     * The API key is NOT here: it is per-company and lives encrypted on
+     * label_settings, because different tenants use different accounts.
+     * Only the endpoint and timeout are global.
+     *
+     * The timeout is deliberately short. A chef is stood at the printer
+     * waiting, and a request that hangs for 30 seconds is worse than one
+     * that fails fast and lets them fall back to browser printing.
+     */
+    'printnode' => [
+        'base_url' => env('PRINTNODE_BASE_URL', 'https://api.printnode.com'),
+        'timeout'  => (int) env('PRINTNODE_TIMEOUT', 10),
+    ],
+
 ];
