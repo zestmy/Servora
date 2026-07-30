@@ -106,6 +106,71 @@ class PrintNodeClient
         return (string) $jobId;
     }
 
+    /**
+     * Latest reported state for each job.
+     *
+     * PrintNode groups states per job and returns the history, so the last
+     * entry is the current one. The response shape has been seen both as a
+     * flat list of state objects and as a list-of-lists grouped by job, so
+     * this flattens defensively rather than assuming — a reconciler that
+     * throws on an unexpected shape would leave every job stuck at 'queued'.
+     *
+     * @param  array<int, string>  $jobIds
+     * @return array<string, string> job id => state
+     */
+    public function jobStates(array $jobIds): array
+    {
+        $jobIds = array_values(array_filter(array_map('strval', $jobIds)));
+
+        if (! $jobIds) {
+            return [];
+        }
+
+        $response = $this->request()->get('/printjobs/' . implode(',', $jobIds) . '/states');
+
+        $this->guard($response);
+
+        $states = [];
+
+        foreach ($this->flatten($response->json() ?? []) as $entry) {
+            $jobId = $entry['printJobId'] ?? null;
+            $state = $entry['state'] ?? null;
+
+            if ($jobId && $state) {
+                // Later entries overwrite earlier ones: history in order.
+                $states[(string) $jobId] = (string) $state;
+            }
+        }
+
+        return $states;
+    }
+
+    /** One level of nesting, or none. Both shapes end up as state rows. */
+    private function flatten(array $payload): array
+    {
+        $out = [];
+
+        foreach ($payload as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (isset($item['state']) || isset($item['printJobId'])) {
+                $out[] = $item;
+
+                continue;
+            }
+
+            foreach ($item as $inner) {
+                if (is_array($inner)) {
+                    $out[] = $inner;
+                }
+            }
+        }
+
+        return $out;
+    }
+
     private function request(): PendingRequest
     {
         return Http::withBasicAuth($this->apiKey, '')

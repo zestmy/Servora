@@ -35,6 +35,30 @@ class LabelPrint extends Model
         'discarded' => 'Discarded',
     ];
 
+    /**
+     * Print outcome.
+     *
+     * 'sent' is as far as browser printing can ever get — the browser was
+     * handed a document and nothing reports back. The rest come from
+     * reconciling PrintNode job states, and only 'done' means a label
+     * physically came out.
+     */
+    public const STATUSES = [
+        'sent'    => 'Sent',
+        'queued'  => 'Queued',
+        'done'    => 'Printed',
+        'error'   => 'Failed',
+        'expired' => 'Expired',
+    ];
+
+    /** Statuses still awaiting an outcome from the remote service. */
+    public const PENDING_STATUSES = ['queued'];
+
+    public function statusLabel(): string
+    {
+        return self::STATUSES[$this->status] ?? ucfirst((string) $this->status);
+    }
+
     protected $casts = [
         'start_at'      => 'datetime',
         'end_at'        => 'datetime',

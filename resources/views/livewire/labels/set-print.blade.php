@@ -30,13 +30,19 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Prepared by</label>
-                <select wire:model.live="employeeId" class="w-full rounded-lg border-gray-300 text-sm">
+                <label class="block text-xs font-medium text-gray-500 mb-1">
+                    Prepared by <span class="text-red-500">*</span>
+                </label>
+                <select wire:model.live="employeeId"
+                        class="w-full rounded-lg text-sm {{ $employeeId ? 'border-gray-300' : 'border-amber-300 bg-amber-50' }}">
                     <option value="">— Select staff —</option>
                     @foreach ($employees as $employee)
                         <option value="{{ $employee->id }}">{{ $employee->name }}</option>
                     @endforeach
                 </select>
+                @unless ($employeeId)
+                    <p class="mt-1 text-xs text-amber-600">Required — every label records who prepped it.</p>
+                @endunless
             </div>
         </div>
     </div>

@@ -12,6 +12,11 @@
             Each line shows what was printed at the time, not what the item says now — renaming a recipe or
             changing its shelf life doesn't rewrite history.
         </p>
+        <p class="text-xs text-gray-500 mt-2">
+            <strong>Sent</strong> is as much as browser printing can ever report — nothing comes back from a
+            browser. PrintNode jobs start <strong>Queued</strong> and settle to <strong>Printed</strong> or
+            <strong>Failed</strong> within about ten minutes.
+        </p>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -83,6 +88,7 @@
                                                 <th class="py-1 text-left">Start</th>
                                                 <th class="py-1 text-left">Use by</th>
                                                 <th class="py-1 text-center">Copies</th>
+                                                <th class="py-1 text-center">Outcome</th>
                                             </tr>
                                         </thead>
                                         <tbody class="text-gray-600">
@@ -99,6 +105,19 @@
                                                         @endif
                                                     </td>
                                                     <td class="py-1 text-center">{{ $print->copies }}</td>
+                                                    <td class="py-1 text-center">
+                                                        @php
+                                                            $tone = match ($print->status) {
+                                                                'done'             => 'bg-green-50 text-green-700',
+                                                                'error', 'expired' => 'bg-red-50 text-red-700',
+                                                                'queued'           => 'bg-amber-50 text-amber-700',
+                                                                default            => 'bg-gray-100 text-gray-500',
+                                                            };
+                                                        @endphp
+                                                        <span class="px-1.5 py-0.5 rounded text-[10px] {{ $tone }}">
+                                                            {{ $print->statusLabel() }}
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             @endforeach
                                         </tbody>

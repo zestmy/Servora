@@ -108,6 +108,10 @@ class PrintScreen extends Component
      */
     public function printTray(LabelPrintService $service): void
     {
+        // Clear the previous attempt's message. Without this, fixing the
+        // problem and pressing print again still shows the old complaint.
+        $this->resetValidation();
+
         if (! $this->tray) {
             $this->addError('tray', 'Add something to print first.');
 
@@ -118,6 +122,14 @@ class PrintScreen extends Component
 
         if (! $printer) {
             $this->addError('tray', 'Choose a printer first. Add one under Label Printers if the list is empty.');
+
+            return;
+        }
+
+        // Every label has to name who prepped it — that is the whole point
+        // of the audit trail.
+        if (! $this->employeeId) {
+            $this->addError('tray', 'Select who is preparing these under "Prepared by".');
 
             return;
         }

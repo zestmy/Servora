@@ -64,10 +64,19 @@ class SetPrint extends Component
 
     public function print(LabelPrintService $service): void
     {
+        // Stale errors from a previous attempt would otherwise survive the fix.
+        $this->resetValidation();
+
         $printer = LabelPrinter::find($this->printerId);
 
         if (! $printer) {
             $this->addError('print', 'Choose a printer first.');
+
+            return;
+        }
+
+        if (! $this->employeeId) {
+            $this->addError('print', 'Select who is preparing these under "Prepared by".');
 
             return;
         }

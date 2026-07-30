@@ -69,6 +69,14 @@ class LabelPrintService
             throw new \InvalidArgumentException('Nothing to print.');
         }
 
+        // Enforced here, not only in the forms. An audit row that names
+        // nobody is the one thing this log exists to prevent: "who prepped
+        // this" is the question an auditor asks, and a blank answer makes
+        // every other field on the record academic.
+        if (! $employeeId) {
+            throw new \InvalidArgumentException('Select who is preparing these before printing.');
+        }
+
         // Resolved once, used by every line and every date on every label.
         $printedAt = Carbon::now();
 

@@ -98,6 +98,39 @@ into the DOM; the screen reports only whether one is set. An empty box on save m
 credential. There's an explicit Remove button, and a Test button that calls
 `/printers` so a wrong key is found in settings rather than at the printer.
 
+**Job reconciliation** (added same day). `labels:reconcile-jobs` runs every ten
+minutes and asks PrintNode what actually happened. Without it a PrintNode label sits
+at `queued` forever and the log claims a label exists that may never have come out —
+for a compliance record that is worse than useless, it is confidently wrong.
+
+`LabelPrint::STATUSES` is now `sent` (browser handed it over, nothing reports back —
+as much as can ever be known) → `queued` → `done` / `error` / `expired`. PrintNode
+states in flight (`new`, `sent`, `queued`) are left alone to be asked about again.
+
+Three things the reconciler has to get right, all tested:
+
+- **It must never throw.** It runs unattended across every company, and one tenant's
+  revoked key cannot be allowed to stop everyone else being reconciled. Failures are
+  counted and logged; the command still exits zero, or the scheduler would shout every
+  ten minutes about one bad key.
+- **It runs with no authenticated user**, so `CompanyScope` would silently match
+  nothing. Every query drops the scope and filters by company by hand.
+- **It only looks back 7 days** and only at batches with rows still pending, so
+  settled work drops out of the sweep instead of being re-asked forever.
+
+The state response shape is parsed defensively — flat list or grouped-by-job both
+work — because a reconciler that throws on an unexpected shape leaves every job stuck.
+
+### Prepared by is mandatory
+
+Enforced in both print screens *and* as an invariant in `LabelPrintService`. An audit
+row that names nobody is the one thing this log exists to prevent: "who prepped this"
+is the question an auditor asks, and a blank answer makes every other field academic.
+Historical rows keep a nullable `employee_id`; the rule applies going forward.
+
+Both screens also clear the previous attempt's error before retrying — without that,
+fixing the problem and pressing print again still showed the old complaint.
+
 **Not built:** master/child account provisioning. The original scoping answer was
 "support both", and this is the BYO-key half. Child accounts under an Integrator plan
 are a separate piece of work — see open question 8.
@@ -609,6 +642,6 @@ Not blocking:
    you carry the per-printer cost and it needs an account-lifecycle flow (create on
    subscribe, suspend on cancel). The original scoping answer was "support both";
    only the BYO half exists today.
-9. **Job reconciliation** — `driver_job_id` is recorded but nothing polls PrintNode
-   for the outcome. Worth adding a webhook or a scheduled check so a `queued` label
-   that never printed shows up somewhere other than a chef's memory.
+9. ~~**Job reconciliation**~~ — **Built 2026-07-31**, `labels:reconcile-jobs` every ten
+   minutes. A webhook would be lower-latency than polling if volume ever makes the
+   sweep expensive.

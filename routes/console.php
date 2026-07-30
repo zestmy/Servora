@@ -23,3 +23,9 @@ Schedule::command('price:monitor')->dailyAt('07:00');
 // Send scheduled analytics reports every 15 minutes
 // (checks for reports due based on their delivery_time setting)
 Schedule::command('reports:send-scheduled')->everyFifteenMinutes();
+
+// Find out what actually happened to PrintNode label jobs. Every ten
+// minutes because a chef asking "did that print?" wants an answer within
+// the shift, not tomorrow. withoutOverlapping because a slow PrintNode
+// response must not stack runs on top of each other.
+Schedule::command('labels:reconcile-jobs')->everyTenMinutes()->withoutOverlapping();
