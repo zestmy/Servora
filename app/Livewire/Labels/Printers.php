@@ -40,6 +40,8 @@ class Printers extends Component
 
     public string $offset_y_mm = '0';
 
+    public bool $rotate_90 = false;
+
     protected function rules(): array
     {
         return [
@@ -67,6 +69,7 @@ class Printers extends Component
             (float) $printer->width_mm,
             (float) $printer->height_mm,
             $printer->name,
+            (bool) $printer->rotate_90,
         ));
     }
 
@@ -91,6 +94,7 @@ class Printers extends Component
         $this->is_active           = $printer->is_active;
         $this->offset_x_mm         = (string) (float) $printer->offset_x_mm;
         $this->offset_y_mm         = (string) (float) $printer->offset_y_mm;
+        $this->rotate_90           = (bool) $printer->rotate_90;
 
         $this->showModal = true;
     }
@@ -108,6 +112,7 @@ class Printers extends Component
             'is_active'           => $this->is_active,
             'offset_x_mm'         => (float) $this->offset_x_mm,
             'offset_y_mm'         => (float) $this->offset_y_mm,
+            'rotate_90'           => $this->rotate_90,
         ];
 
         if ($this->editingId) {
@@ -157,6 +162,7 @@ class Printers extends Component
         $this->is_active           = true;
         $this->offset_x_mm         = '0';
         $this->offset_y_mm         = '0';
+        $this->rotate_90           = false;
         $this->resetValidation();
     }
 }

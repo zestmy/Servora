@@ -150,6 +150,21 @@
                             </p>
 
                             <div class="pt-2 border-t border-gray-100">
+                                <label class="inline-flex items-start gap-2">
+                                    <input type="checkbox" wire:model="rotate_90" class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <span>
+                                        <span class="text-sm text-gray-700">Rotate 90°</span>
+                                        <span class="block text-xs text-gray-400">
+                                            Turn this on if the printer driver only offers the label the other way up
+                                            — e.g. it lists 40 × 70 when your stock is 70 × 40. The page is sent at
+                                            the swapped size and the label is turned to fit, instead of overflowing
+                                            and eating several labels per print.
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="pt-2 border-t border-gray-100">
                                 <p class="text-xs font-semibold text-gray-600">Print offset (mm)</p>
                                 <p class="text-xs text-gray-400 mt-0.5">
                                     Leave at zero until you've printed a calibration label. If the printer clips

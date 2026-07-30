@@ -46,6 +46,7 @@ class BrowserDriver implements LabelDriver
             (float) $printer->height_mm,
             (float) $printer->offset_x_mm,
             (float) $printer->offset_y_mm,
+            (bool) $printer->rotate_90,
         );
 
         return [

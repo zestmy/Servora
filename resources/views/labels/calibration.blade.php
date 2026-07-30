@@ -18,8 +18,12 @@
 <head>
     <meta charset="utf-8">
     <title>Calibration</title>
+    @php
+        $pageW = $rotate ? $heightMm : $widthMm;
+        $pageH = $rotate ? $widthMm : $heightMm;
+    @endphp
     <style>
-        @page { size: {{ $widthMm }}mm {{ $heightMm }}mm; margin: 0; }
+        @page { size: {{ $pageW }}mm {{ $pageH }}mm; margin: 0; }
 
         /* Without this the frame's 0.3mm border is ADDED to its 70mm width,
            making it 70.6mm on a 70mm page. Chrome then paginates and the
@@ -29,18 +33,27 @@
         html, body {
             margin: 0;
             padding: 0;
-            width: {{ $widthMm }}mm;
-            height: {{ $heightMm }}mm;
+            width: {{ $pageW }}mm;
+            height: {{ $pageH }}mm;
             overflow: hidden;
         }
 
         .label {
-            position: relative;
+            position: absolute;
             width: {{ $widthMm }}mm;
             height: {{ $heightMm }}mm;
             overflow: hidden;
             font-family: Helvetica, Arial, sans-serif;
             color: #000;
+@if ($rotate)
+            left: {{ $pageW }}mm;
+            top: 0;
+            transform: rotate(90deg);
+            transform-origin: 0 0;
+@else
+            left: 0;
+            top: 0;
+@endif
         }
 
         /* Flush to the declared edge: any missing side is a clipped side. */

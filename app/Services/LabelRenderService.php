@@ -38,16 +38,27 @@ class LabelRenderService
         float $widthMm,
         float $heightMm,
         float $offsetXMm = 0,
-        float $offsetYMm = 0
+        float $offsetYMm = 0,
+        bool $rotate = false
     ): string {
         return View::make('labels.document', [
             'pages'    => $this->pages($labels, $offsetXMm, $offsetYMm),
             'widthMm'  => $widthMm,
             'heightMm' => $heightMm,
+            'rotate'   => $rotate,
         ])->render();
     }
 
     /**
+     * Archive / reprint output.
+     *
+     * Deliberately takes no rotate flag. Rotation exists to satisfy a
+     * printer driver stuck on portrait media; an archived label should read
+     * the natural way up. dompdf also cannot apply CSS transforms, so a
+     * rotated document would render with the label shifted off the page
+     * rather than turned — passing the flag here would produce silent
+     * corruption instead of a rotated PDF.
+     *
      * @param  array<int, array{template: LabelTemplate, values: array<string, string>, copies?: int}>  $labels
      */
     public function pdf(
@@ -59,9 +70,9 @@ class LabelRenderService
     ): string {
         $paper = [0, 0, $widthMm * self::PT_PER_MM, $heightMm * self::PT_PER_MM];
 
-        return Pdf::loadHTML($this->html($labels, $widthMm, $heightMm, $offsetXMm, $offsetYMm))
-            ->setPaper($paper)
-            ->output();
+        return Pdf::loadHTML(
+            $this->html($labels, $widthMm, $heightMm, $offsetXMm, $offsetYMm, false)
+        )->setPaper($paper)->output();
     }
 
     /**
@@ -70,12 +81,20 @@ class LabelRenderService
      * Deliberately NOT offset — it measures the raw hardware, so applying a
      * correction to it would hide the very thing being measured.
      */
-    public function calibration(float $widthMm, float $heightMm, string $printerName): string
-    {
+    public function calibration(
+        float $widthMm,
+        float $heightMm,
+        string $printerName,
+        bool $rotate = false
+    ): string {
         return View::make('labels.calibration', [
             'widthMm'     => $widthMm,
             'heightMm'    => $heightMm,
             'printerName' => $printerName,
+            // Calibration must go through the printer the same way a real
+            // label does, rotation included — otherwise you measure one
+            // orientation and print in another.
+            'rotate'      => $rotate,
         ])->render();
     }
 
