@@ -321,6 +321,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels/sets/{set}/print', \App\Livewire\Labels\SetPrint::class)->name('labels.sets.print')->middleware('can:labels.print');
     Route::get('/labels/expiring', \App\Livewire\Labels\Expiring::class)->name('labels.expiring')->middleware('can:labels.print');
     Route::get('/labels/log', \App\Livewire\Labels\PrintLog::class)->name('labels.log')->middleware('can:labels.view_log');
+    Route::get('/labels/templates', \App\Livewire\Labels\Templates::class)->name('labels.templates')->middleware('can:labels.manage');
+    Route::get('/labels/templates/{template}/design', \App\Livewire\Labels\TemplateDesigner::class)->name('labels.templates.design')->middleware('can:labels.manage');
     Route::get('/labels/shelf-life', \App\Livewire\Labels\ShelfLifeGrid::class)->name('labels.shelf-life')->middleware('can:labels.manage');
     Route::get('/labels/printers', \App\Livewire\Labels\Printers::class)->name('labels.printers')->middleware('can:labels.manage');
     Route::get('/labels/settings', \App\Livewire\Labels\Settings::class)->name('labels.settings')->middleware('can:labels.manage');

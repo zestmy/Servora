@@ -445,9 +445,46 @@ Note that `Recipe` and `Ingredient` **uppercase `name` on save** (`Recipe.php:60
 printed names and frozen payloads are uppercase. That is existing behaviour, not the
 label module's doing.
 
-**Phase 3 — designer**
-Template designer canvas, field palette, size presets, live preview through
-`LabelRenderService::html()`, calibration label.
+**Phase 3 — designer + calibration** — *complete, 2026-07-31*
+
+| Route | Component |
+|---|---|
+| `/labels/templates` | `Labels\Templates` — list, create, duplicate, set default |
+| `/labels/templates/{template}/design` | `Labels\TemplateDesigner` — mm canvas + live preview |
+| Calibrate button | on `/labels/printers`, per printer |
+
+Positioning is **numeric, not drag-and-drop**: a label is 70mm across and the
+difference between 3mm and 4mm matters, which is finicky to hit by dragging, and
+numbers are exact so a layout can be read off and reproduced. Nudge buttons cover
+"just move it a bit". The preview is the real renderer with sample data, not a mock-up.
+
+The designer flags any field hanging off the label **in red and refuses to be quiet
+about it** — anything past the page edge makes the browser paginate, and every extra
+page is a wasted physical label. That bug cost real stock before it was caught.
+
+Guard rails on the template list: exactly one default per label type (enforced on
+write, not by index — two defaults resolve arbitrarily at print time and the chef
+would never know which won); the last template of a type can't be deleted; deleting a
+default hands the flag to a survivor.
+
+### Printer setup, learned the hard way
+
+Three separate things had to be right before a label printed correctly on the Deli
+DL-888 (203dpi, 106mm max width):
+
+1. **Paper size in the driver must be a real 70 × 40 mm form.** The DL-888's default
+   preset is `2 x 4` inches = 50.8 × 101.6mm. Chrome laid the 70 × 40 page onto that
+   sheet, which is 2.54 of our labels long — hence content spanning three labels — and
+   **rotated it to best-fit**, which is where the mystery rotation came from. Neither
+   was the app's doing. Create the form in the driver, or via Windows Print Server
+   Properties → Forms, then select it in Chrome's Paper size dropdown.
+2. **Margins: None, Scale: 100.** "Fit to printable area" defeats exact-mm sizing.
+3. **The printer must learn the label gap** — hold the feed button until it
+   self-measures, or it feeds a default length per job.
+
+`rotate_90` on the printer record exists for stock that is genuinely portrait-fed. It
+was **not** the fix here; the paper size was. Leave it off unless the driver only
+offers the label the other way up.
 
 **Phase 4 — closing the loop** — *complete, 2026-07-30*
 
