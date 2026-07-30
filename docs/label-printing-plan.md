@@ -384,7 +384,8 @@ Company admin gets all three.
 **Phase 1 — foundation** — *complete, 2026-07-30*
 
 6 migrations, 8 models, `ShelfLifeService`, `LabelRenderService`, `LabelDriver`
-interface + `BrowserDriver`, `LabelTemplateService`, and 6 stock templates at 50×25mm
+interface + `BrowserDriver`, `LabelTemplateService`, and 6 stock templates (70×40mm
+since `2026_07_30_000008`; originally seeded at 50×25 as a placeholder)
 (one per label type, `custom` included — the plan originally said 5 before `custom` was
 added to the type list). Templates are seeded for existing companies by migration and
 lazily via `LabelTemplateService::ensureDefaults()` for new ones.
@@ -498,7 +499,12 @@ path can currently yield a null UOM.
 
 Blocking phase 3:
 
-1. **Which physical label sizes** ship as designer presets? 50×25, 56×31, 76×50, other?
+1. ~~**Which physical label sizes** ship as designer presets?~~ **Answered 2026-07-30:
+   70 × 40 mm.** Stock templates re-cut to that size by `2026_07_30_000008`, which only
+   touches templates still carrying the exact original layout so an edited one survives.
+   The extra room over 50×25 bought a two-line item name, a use-by at 18pt instead of
+   11, and the `footer` token — which `LabelPrintService` had been emitting all along
+   with no stock template positioning it.
 2. **Which printer make and model** are outlets buying? Brother QL and Zebra have
    different unprintable margins; the calibration tool needs to know its target.
 

@@ -72,6 +72,7 @@ class LabelTemplate extends Model
         'storage.instruction' => 'Storage instruction',
         'quantity'            => 'Quantity + UOM',
         'batch.ref'           => 'Batch reference',
+        'footer'              => 'Company footer text',
         'static'              => 'Fixed text',
     ];
 

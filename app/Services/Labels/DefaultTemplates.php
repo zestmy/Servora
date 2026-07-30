@@ -5,11 +5,8 @@ namespace App\Services\Labels;
 use App\Models\LabelTemplate;
 
 /**
- * Stock label layouts, one per label type, at 50 × 25 mm.
- *
- * 50 × 25 is the placeholder until the physical label stock is confirmed —
- * the designer will let companies build their own sizes, and these exist so
- * a chef can print something useful on day one without opening it.
+ * Stock label layouts, one per label type, at 70 × 40 mm — the label stock
+ * this deployment standardised on.
  *
  * All types share one field arrangement. They differ only in the caption,
  * which the renderer pulls from LabelTemplate::LABEL_TYPES. Fields whose
@@ -18,8 +15,8 @@ use App\Models\LabelTemplate;
  */
 class DefaultTemplates
 {
-    public const WIDTH_MM  = 50.0;
-    public const HEIGHT_MM = 25.0;
+    public const WIDTH_MM  = 70.0;
+    public const HEIGHT_MM = 40.0;
 
     /** @return array<string, array{name: string, layout: array}> */
     public static function all(): array
@@ -50,45 +47,61 @@ class DefaultTemplates
     }
 
     /**
-     * 2 mm margins on a 50 mm label leave 46 mm of usable width.
+     * 3 mm margins on a 70 × 40 label leave 64 × 34 usable.
      *
-     * The use-by is the largest element on the label by a wide margin: it is
-     * the one thing a chef reads across a chiller at arm's length, and it is
-     * the thing an auditor checks.
+     * The use-by is by far the largest element. It is the one thing a chef
+     * reads across a chiller at arm's length and the one thing an auditor
+     * checks, so it gets 18pt while everything else sits at 7–8.
+     *
+     * The extra height over the old 50 × 25 stock buys three things the
+     * small label had no room for: an item name that can run to two lines
+     * without truncating, a use-by nearly twice the size, and a footer.
      */
+    public const FIELDS = [
+        [
+            'token' => 'item.name',
+            'x' => 3, 'y' => 3, 'w' => 64, 'h' => 9,
+            'font_size' => 12, 'weight' => 'bold', 'align' => 'left',
+        ],
+        [
+            'token' => 'label.caption',
+            'x' => 3, 'y' => 12.5, 'w' => 34, 'h' => 4,
+            'font_size' => 7, 'align' => 'left',
+        ],
+        [
+            'token' => 'date.end',
+            'x' => 3, 'y' => 16.5, 'w' => 64, 'h' => 8,
+            'font_size' => 18, 'weight' => 'bold', 'align' => 'left',
+        ],
+        [
+            'token' => 'date.start',
+            'x' => 3, 'y' => 25, 'w' => 40, 'h' => 4,
+            'font_size' => 7, 'align' => 'left',
+        ],
+        [
+            'token' => 'quantity',
+            'x' => 44, 'y' => 25, 'w' => 23, 'h' => 4,
+            'font_size' => 7, 'align' => 'right',
+        ],
+        [
+            'token' => 'staff.name',
+            'x' => 3, 'y' => 29.5, 'w' => 33, 'h' => 4,
+            'font_size' => 7, 'align' => 'left',
+        ],
+        [
+            'token' => 'storage.instruction',
+            'x' => 37, 'y' => 29.5, 'w' => 30, 'h' => 4,
+            'font_size' => 7, 'weight' => 'bold', 'align' => 'right',
+        ],
+        [
+            'token' => 'footer',
+            'x' => 3, 'y' => 34, 'w' => 64, 'h' => 4,
+            'font_size' => 6, 'align' => 'left',
+        ],
+    ];
+
     private static function fields(): array
     {
-        return [
-            [
-                'token' => 'item.name',
-                'x' => 2, 'y' => 1.5, 'w' => 46, 'h' => 5,
-                'font_size' => 9, 'weight' => 'bold', 'align' => 'left',
-            ],
-            [
-                'token' => 'label.caption',
-                'x' => 2, 'y' => 7, 'w' => 24, 'h' => 3.5,
-                'font_size' => 6, 'align' => 'left',
-            ],
-            [
-                'token' => 'date.end',
-                'x' => 2, 'y' => 10.5, 'w' => 46, 'h' => 5.5,
-                'font_size' => 11, 'weight' => 'bold', 'align' => 'left',
-            ],
-            [
-                'token' => 'date.start',
-                'x' => 2, 'y' => 16.5, 'w' => 30, 'h' => 3.5,
-                'font_size' => 6, 'align' => 'left',
-            ],
-            [
-                'token' => 'staff.name',
-                'x' => 2, 'y' => 20, 'w' => 24, 'h' => 3.5,
-                'font_size' => 6, 'align' => 'left',
-            ],
-            [
-                'token' => 'storage.instruction',
-                'x' => 26, 'y' => 20, 'w' => 22, 'h' => 3.5,
-                'font_size' => 6, 'align' => 'right',
-            ],
-        ];
+        return self::FIELDS;
     }
 }
