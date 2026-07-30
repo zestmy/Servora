@@ -22,9 +22,18 @@
             margin: 0;
         }
 
+        /* Borders and padding must never widen an element past the page.
+           Anything exceeding the page makes Chrome paginate, and each extra
+           page is a wasted physical label. */
+        * { box-sizing: border-box; }
+
+        /* Width only, and NO overflow:hidden here. This document is
+           multi-page — one page per label — and hiding body overflow can
+           suppress every page after the first. Each .label clips itself. */
         html, body {
             margin: 0;
             padding: 0;
+            width: {{ $widthMm }}mm;
         }
 
         .label {

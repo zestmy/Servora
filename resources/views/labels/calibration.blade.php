@@ -20,7 +20,19 @@
     <title>Calibration</title>
     <style>
         @page { size: {{ $widthMm }}mm {{ $heightMm }}mm; margin: 0; }
-        html, body { margin: 0; padding: 0; }
+
+        /* Without this the frame's 0.3mm border is ADDED to its 70mm width,
+           making it 70.6mm on a 70mm page. Chrome then paginates and the
+           print run eats extra labels. */
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: {{ $widthMm }}mm;
+            height: {{ $heightMm }}mm;
+            overflow: hidden;
+        }
 
         .label {
             position: relative;
@@ -52,8 +64,10 @@
 <div class="label">
     <div class="frame"></div>
 
-    {{-- Top ruler: 5mm major ticks, 1mm minor --}}
-    @for ($mm = 0; $mm <= $widthMm; $mm++)
+    {{-- Top ruler: 5mm major ticks, 1mm minor.
+         Stops BEFORE the far edge — a tick at left:70mm on a 70mm page sits
+         outside it and forces an extra page. The frame marks that edge. --}}
+    @for ($mm = 0; $mm < $widthMm; $mm++)
         @php $major = $mm % 5 === 0; @endphp
         <div class="tick tick-h" style="left: {{ $mm }}mm; top: 0; height: {{ $major ? 2 : 1 }}mm;"></div>
         @if ($major && $mm > 0 && $mm < $widthMm)
@@ -61,8 +75,8 @@
         @endif
     @endfor
 
-    {{-- Left ruler --}}
-    @for ($mm = 0; $mm <= $heightMm; $mm++)
+    {{-- Left ruler. Same reason it stops short of the bottom edge. --}}
+    @for ($mm = 0; $mm < $heightMm; $mm++)
         @php $major = $mm % 5 === 0; @endphp
         <div class="tick tick-v" style="top: {{ $mm }}mm; left: 0; width: {{ $major ? 2 : 1 }}mm;"></div>
         @if ($major && $mm > 0 && $mm < $heightMm)
