@@ -219,6 +219,9 @@ The compliance record. One row per line printed, carrying a copies count.
 | `copies` | |
 | `payload` | **json snapshot of exactly what was printed** |
 | `status` | `sent` under the browser driver — see §5 caveat |
+| `resolved_at`, `resolved_by` | set when a chef closes the label off (phase 4) |
+| `resolution` | `used` \| `wasted` \| `discarded` — see §8 phase 4 |
+| `wastage_record_id` | nullable; set only for `wasted` |
 
 `payload` is frozen at print time. **Never re-derive a past label from live data** — the
 item's shelf life will have changed by the time an auditor asks about it.
@@ -445,9 +448,49 @@ label module's doing.
 Template designer canvas, field palette, size presets, live preview through
 `LabelRenderService::html()`, calibration label.
 
-**Phase 4 — closing the loop**
-Expiring-today / tomorrow dashboard read off `label_prints`, with a one-tap path into
-`WastageRecord`. This is what makes the print log pay for itself.
+**Phase 4 — closing the loop** — *complete, 2026-07-30*
+
+`/labels/expiring` (`Labels\Expiring`, `labels.print`) reads unresolved labels off
+`label_prints` into Expired / Today / Tomorrow buckets. `LabelExpiryService` closes
+each one off.
+
+Migration `2026_07_30_000007` adds `resolved_at`, `resolved_by`, `resolution` and
+`wastage_record_id` to `label_prints`. Without somewhere to record that a chef has
+dealt with a label, the list grows forever and last month's expired labels sit at the
+top of it — which is how a compliance screen gets ignored.
+
+**Three resolutions, deliberately distinct:**
+
+| Resolution | Meaning |
+|---|---|
+| `used` | Consumed normally. Nothing to cost. |
+| `wasted` | Binned **and** costed into a wastage record. |
+| `discarded` | Binned but **not** costed — nothing priceable behind it. |
+
+Keeping `discarded` separate from `wasted` is what keeps the wastage figures honest:
+everything counted as wasted has a real cost behind it, and uncosted bin events stay
+visible rather than being folded in at zero.
+
+**Costing is the awkward part.** `wastage_record_lines` requires `quantity`, `uom_id`,
+`unit_cost` and `total_cost`, all NOT NULL, and a label carries none of them. So:
+
+- A label is costable only when it links to something priceable. Ingredients cost via
+  `UomService::convertCost` against `recipeUom ?: baseUom`; recipes via
+  `cost_per_yield_unit` and `yield_uom_id`; a `ProductionRecipe` costs against its
+  mirrored ingredient. Freeform labels and labels whose item has since been deleted
+  are not costable, and the row offers **Discard** instead of **Wasted**.
+- The chef supplies the quantity at the point of binning. Inventing one — defaulting to
+  1, or costing at zero — would quietly corrupt the cost report, so
+  `markWasted()` with a zero or unpriceable line falls back to `discarded` rather
+  than writing a wrong number.
+
+Wasted lines append to **one wastage record per outlet per day**
+(`WST-LBL-{Ymd}-{outlet}`) rather than one record per label. A chiller clear-out would
+otherwise produce fifteen separate records and make the wastage report unreadable.
+
+The `uom_id` guard in `costingFor()` is defensive rather than load-bearing today:
+`recipes.yield_uom_id` and `ingredients.base_uom_id` are both NOT NULL, so neither
+path can currently yield a null UOM.
 
 ---
 

@@ -25,11 +25,20 @@ class LabelPrint extends Model
         'labelable_type', 'labelable_id', 'custom_name', 'label_type',
         'storage_state', 'start_at', 'end_at', 'manual_expiry', 'copies',
         'payload', 'status',
+        'resolved_at', 'resolved_by', 'resolution', 'wastage_record_id',
+    ];
+
+    /** used = consumed; wasted = binned and costed; discarded = binned, not costable. */
+    public const RESOLUTIONS = [
+        'used'      => 'Used',
+        'wasted'    => 'Wasted',
+        'discarded' => 'Discarded',
     ];
 
     protected $casts = [
         'start_at'      => 'datetime',
         'end_at'        => 'datetime',
+        'resolved_at'   => 'datetime',
         'manual_expiry' => 'boolean',
         'copies'        => 'integer',
         'payload'       => 'array',
@@ -83,6 +92,22 @@ class LabelPrint extends Model
     public function scopeExpiringBetween(Builder $query, $from, $to): Builder
     {
         return $query->whereNotNull('end_at')->whereBetween('end_at', [$from, $to]);
+    }
+
+    /** Still sitting in the kitchen as far as Servora knows. */
+    public function scopeUnresolved(Builder $query): Builder
+    {
+        return $query->whereNull('resolved_at');
+    }
+
+    public function resolvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    public function wastageRecord(): BelongsTo
+    {
+        return $this->belongsTo(WastageRecord::class);
     }
 
     public function scopeForOutlet(Builder $query, int $outletId): Builder

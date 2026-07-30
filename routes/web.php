@@ -319,6 +319,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels', \App\Livewire\Labels\PrintScreen::class)->name('labels.print')->middleware('can:labels.print');
     Route::get('/labels/sets', \App\Livewire\Labels\Sets::class)->name('labels.sets')->middleware('can:labels.print');
     Route::get('/labels/sets/{set}/print', \App\Livewire\Labels\SetPrint::class)->name('labels.sets.print')->middleware('can:labels.print');
+    Route::get('/labels/expiring', \App\Livewire\Labels\Expiring::class)->name('labels.expiring')->middleware('can:labels.print');
     Route::get('/labels/log', \App\Livewire\Labels\PrintLog::class)->name('labels.log')->middleware('can:labels.view_log');
     Route::get('/labels/shelf-life', \App\Livewire\Labels\ShelfLifeGrid::class)->name('labels.shelf-life')->middleware('can:labels.manage');
     Route::get('/labels/printers', \App\Livewire\Labels\Printers::class)->name('labels.printers')->middleware('can:labels.manage');
