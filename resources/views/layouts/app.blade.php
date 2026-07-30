@@ -228,6 +228,9 @@
                     [
                         'label' => 'Labels',
                         'items' => [
+                            ['route' => 'labels.print',      'label' => 'Print Labels',    'permission' => 'labels.print'],
+                            ['route' => 'labels.sets',       'label' => 'Print Sets',      'permission' => 'labels.print'],
+                            ['route' => 'labels.log',        'label' => 'Print Log',       'permission' => 'labels.view_log'],
                             ['route' => 'labels.shelf-life', 'label' => 'Shelf Life',      'permission' => 'labels.manage'],
                             ['route' => 'labels.printers',   'label' => 'Label Printers',  'permission' => 'labels.manage'],
                             ['route' => 'labels.settings',   'label' => 'Label Settings',  'permission' => 'labels.manage'],

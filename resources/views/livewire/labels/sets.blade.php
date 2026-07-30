@@ -1,0 +1,195 @@
+<div>
+    @if (session()->has('success'))
+        <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div class="flex items-center gap-3">
+            <a href="{{ route('labels.print') }}" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <div>
+                <p class="text-xs text-gray-400">Labels / Print sets</p>
+                <h2 class="text-lg font-semibold text-gray-700 mt-1">Print sets</h2>
+            </div>
+        </div>
+        <button wire:click="openCreate" class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+            + New set
+        </button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Outlet</label>
+                <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm">
+                    @foreach ($outlets as $outlet)
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <p class="text-xs text-gray-500 pb-2">
+                Sets belong to one outlet — group whatever gets relabelled together, like a chiller or a station.
+            </p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {{-- Sets --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="divide-y divide-gray-50">
+                @forelse ($sets as $row)
+                    <div class="px-4 py-3 {{ $editingSetId === $row->id ? 'bg-indigo-50/60' : 'hover:bg-gray-50' }}"
+                         wire:key="set-{{ $row->id }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <button wire:click="editLines({{ $row->id }})" class="text-left flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-700">{{ $row->name }}</p>
+                                <p class="text-xs text-gray-400">{{ $row->lines_count }} item{{ $row->lines_count === 1 ? '' : 's' }}</p>
+                            </button>
+                            <div class="flex flex-col items-end gap-1">
+                                <a href="{{ route('labels.sets.print', $row) }}"
+                                   class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Print</a>
+                                <div class="flex gap-1 text-xs">
+                                    <button wire:click="openRename({{ $row->id }})" class="text-gray-400 hover:text-gray-600">Rename</button>
+                                    <button wire:click="deleteSet({{ $row->id }})" wire:confirm="Delete this set?"
+                                            class="text-gray-400 hover:text-red-500">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <p class="px-4 py-10 text-center text-gray-400 text-sm">
+                        No sets for this outlet yet.
+                    </p>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Line editor --}}
+        <div class="lg:col-span-2">
+            @if (! $set)
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
+                    <p class="text-sm text-gray-400">Pick a set on the left to edit what's in it.</p>
+                </div>
+            @else
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Add to “{{ $set->name }}”</label>
+                    <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search items…"
+                           class="w-full rounded-lg border-gray-300 text-sm">
+
+                    @if (count($results))
+                        <div class="mt-3 space-y-3 max-h-60 overflow-y-auto">
+                            @foreach ($results as $group => $items)
+                                @if (count($items))
+                                    <div>
+                                        <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">{{ $group }}</p>
+                                        @foreach ($items as $item)
+                                            <button type="button" wire:click="addLine('{{ $item['type'] }}', {{ $item['id'] }})"
+                                                    class="w-full text-left px-3 py-2 rounded-lg border border-gray-100 hover:bg-indigo-50 text-sm text-gray-700 mb-1">
+                                                {{ $item['name'] }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="mt-3 flex gap-2">
+                        <input type="text" wire:model="customName" wire:keydown.enter="addCustomLine"
+                               placeholder="Or add a freeform item…"
+                               class="flex-1 rounded-lg border-gray-300 text-sm">
+                        <button wire:click="addCustomLine" class="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Add</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                        <p class="text-xs text-gray-500">
+                            Order matters — labels come off the roll in this order, so match how you walk the shelf.
+                        </p>
+                    </div>
+                    <div class="divide-y divide-gray-50">
+                        @forelse ($lines as $i => $line)
+                            <div class="px-4 py-3" wire:key="setline-{{ $line->id }}">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex flex-col gap-0.5 pt-1">
+                                        <button wire:click="moveLine({{ $line->id }}, -1)" @disabled($i === 0)
+                                                class="text-gray-300 hover:text-gray-600 disabled:opacity-30 text-xs leading-none">▲</button>
+                                        <button wire:click="moveLine({{ $line->id }}, 1)" @disabled($i === $lines->count() - 1)
+                                                class="text-gray-300 hover:text-gray-600 disabled:opacity-30 text-xs leading-none">▼</button>
+                                    </div>
+
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-700">{{ $line->displayName() }}</p>
+                                        <div class="mt-2 grid grid-cols-3 gap-2">
+                                            <select wire:change="updateLine({{ $line->id }}, 'label_type', $event.target.value)"
+                                                    class="rounded border-gray-200 text-xs py-1">
+                                                @foreach ($labelTypes as $type => $caption)
+                                                    <option value="{{ $type }}" @selected($line->label_type === $type)>{{ $caption ?: 'Custom' }}</option>
+                                                @endforeach
+                                            </select>
+                                            <select wire:change="updateLine({{ $line->id }}, 'storage_state', $event.target.value)"
+                                                    class="rounded border-gray-200 text-xs py-1">
+                                                @foreach ($states as $state => $stateLabel)
+                                                    <option value="{{ $state }}" @selected($line->storage_state === $state)>{{ $stateLabel }}</option>
+                                                @endforeach
+                                            </select>
+                                            <input type="number" min="1" max="99" value="{{ $line->copies }}"
+                                                   wire:change="updateLine({{ $line->id }}, 'copies', $event.target.value)"
+                                                   class="rounded border-gray-200 text-xs py-1">
+                                        </div>
+                                    </div>
+
+                                    <button wire:click="removeLine({{ $line->id }})"
+                                            class="text-gray-300 hover:text-red-500 text-sm leading-none pt-1">×</button>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="px-4 py-10 text-center text-gray-400 text-sm">Nothing in this set yet.</p>
+                        @endforelse
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- Create / rename --}}
+    <div x-data="{ open: @entangle('showModal') }">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak @keydown.escape.window="open = false" class="fixed inset-0 z-[100] overflow-y-auto">
+                <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ $modalSetId ? 'Rename set' : 'New print set' }}</h3>
+                            <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <form wire:submit.prevent="saveSet" class="p-5 space-y-3">
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Name <span class="text-red-500">*</span></label>
+                                <input type="text" wire:model="name" class="mt-1 w-full text-sm rounded-lg border-gray-300"
+                                       placeholder="e.g. Chiller 1, Grill Station" />
+                                <x-input-error :messages="$errors->get('name')" class="mt-1" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Description</label>
+                                <input type="text" wire:model="description" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('description')" class="mt-1" />
+                            </div>
+                            <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                                <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                                <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>

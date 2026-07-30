@@ -408,9 +408,38 @@ Livewire's conventional validation-rules property, and a loader named `hydrateRu
 collides with Livewire's `hydrate{Property}` lifecycle hook — Livewire invokes those
 externally, so a private method of that name throws `BadMethodCallException`.
 
-**Phase 2 — printing**
-Print screen, print sets with drag-sort, set review screen, staff picker, batch +
-print-log writes, print log screen.
+**Phase 2 — printing** — *complete, 2026-07-30*
+
+`LabelPrintService` plus four screens:
+
+| Route | Component | Permission |
+|---|---|---|
+| `/labels` | `Labels\PrintScreen` — search, queue, print | `labels.print` |
+| `/labels/sets` | `Labels\Sets` — set CRUD + ordered line editor | `labels.print` |
+| `/labels/sets/{set}/print` | `Labels\SetPrint` — review checklist | `labels.print` |
+| `/labels/log` | `Labels\PrintLog` — audit trail | `labels.view_log` |
+
+`LabelPrintService::print()` resolves `now()` **once** for the batch, computes each
+line's use-by, writes a `label_prints` row carrying a frozen payload, and hands the
+whole batch to the driver as one document. A chef-typed `end_at` always wins over a
+resolved rule — it is only ever entered because nothing resolved, and overriding it
+would silently discard the input.
+
+Browser printing works by dispatching the rendered HTML to a `label-print` window
+event; the page drops it into a hidden iframe and calls `print()`. `frame.onload` is
+assigned **before** `srcdoc`, because setting `srcdoc` can resolve immediately for a
+small document and the handler would otherwise never fire.
+
+`DriverFactory` resolves a printer's transport and falls back to the browser driver
+for an unimplemented value rather than throwing — a chef mid-shift should get a label
+out of a misconfigured printer record, not a stack trace.
+
+Changing a set line's label type re-points its storage state to that type's default.
+Without it, switching a line to Defrost keeps a chilled state and prints the wrong date.
+
+Note that `Recipe` and `Ingredient` **uppercase `name` on save** (`Recipe.php:60`), so
+printed names and frozen payloads are uppercase. That is existing behaviour, not the
+label module's doing.
 
 **Phase 3 — designer**
 Template designer canvas, field palette, size presets, live preview through
