@@ -315,6 +315,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:purchasing.view');
     Route::get('/settings/price-alerts/export-pdf', [\App\Http\Controllers\PriceHistoryExportController::class, 'pdf'])->name('settings.price-alerts.export-pdf')->middleware('can:purchasing.view');
     Route::get('/settings/price-alerts/export-excel', [\App\Http\Controllers\PriceHistoryExportController::class, 'excel'])->name('settings.price-alerts.export-excel')->middleware('can:purchasing.view');
+    // Label printing — HACCP food safety labels. See docs/label-printing-plan.md
+    Route::get('/labels/shelf-life', \App\Livewire\Labels\ShelfLifeGrid::class)->name('labels.shelf-life')->middleware('can:labels.manage');
+    Route::get('/labels/printers', \App\Livewire\Labels\Printers::class)->name('labels.printers')->middleware('can:labels.manage');
+    Route::get('/labels/settings', \App\Livewire\Labels\Settings::class)->name('labels.settings')->middleware('can:labels.manage');
+
     Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:hr.view');
     Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:hr.view');
 

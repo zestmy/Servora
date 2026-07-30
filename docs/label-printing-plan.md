@@ -378,16 +378,35 @@ Company admin gets all three.
 
 ## 8. Phasing
 
-**Phase 1 — foundation** — *code landed 2026-07-30; UI screens still to build*
+**Phase 1 — foundation** — *complete, 2026-07-30*
 
-Done: 6 migrations, 8 models, `ShelfLifeService`, `LabelRenderService`, `LabelDriver`
+6 migrations, 8 models, `ShelfLifeService`, `LabelRenderService`, `LabelDriver`
 interface + `BrowserDriver`, `LabelTemplateService`, and 6 stock templates at 50×25mm
 (one per label type, `custom` included — the plan originally said 5 before `custom` was
 added to the type list). Templates are seeded for existing companies by migration and
 lazily via `LabelTemplateService::ensureDefaults()` for new ones.
 
-Still to build in phase 1: the shelf-life bulk-edit grid, printer records screen, and
-settings screen.
+Screens, all gated on `labels.manage` with a "Labels" sidebar group:
+
+| Route | Component |
+|---|---|
+| `/labels/shelf-life` | `Labels\ShelfLifeGrid` — matrix editor across categories and the three item types |
+| `/labels/printers` | `Labels\Printers` — per-outlet printer records |
+| `/labels/settings` | `Labels\Settings` — rounding, footer, fallback template, kiosk setup |
+
+Two behaviours worth not regressing:
+
+- **Clearing a cell deletes the rule; it does not store zero.** A zero-length shelf
+  life prints a use-by equal to the prep time, which is worse than no rule at all.
+  Blank and `0` are treated identically.
+- **The settings screen has no PrintNode API key field.** Nothing reads it under the
+  browser driver, and a field for a credential that does nothing invites someone to
+  paste a real key into it. It gets a UI when a PrintNode driver ships.
+
+The grid's state property is `$cells`, **not** `$rules`. `$rules` collides with
+Livewire's conventional validation-rules property, and a loader named `hydrateRules`
+collides with Livewire's `hydrate{Property}` lifecycle hook — Livewire invokes those
+externally, so a private method of that name throws `BadMethodCallException`.
 
 **Phase 2 — printing**
 Print screen, print sets with drag-sort, set review screen, staff picker, batch +

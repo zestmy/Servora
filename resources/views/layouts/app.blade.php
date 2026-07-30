@@ -226,6 +226,14 @@
                         ],
                     ],
                     [
+                        'label' => 'Labels',
+                        'items' => [
+                            ['route' => 'labels.shelf-life', 'label' => 'Shelf Life',      'permission' => 'labels.manage'],
+                            ['route' => 'labels.printers',   'label' => 'Label Printers',  'permission' => 'labels.manage'],
+                            ['route' => 'labels.settings',   'label' => 'Label Settings',  'permission' => 'labels.manage'],
+                        ],
+                    ],
+                    [
                         'label' => 'Sales',
                         'items' => [
                             ['route' => 'sales.index',              'label' => 'Sales Records',  'permission' => 'sales.view'],
