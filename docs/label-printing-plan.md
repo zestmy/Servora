@@ -1,7 +1,8 @@
 # Label Printing Module — Plan
 
-> Status: **planning**. Nothing built yet. This doc captures the decisions taken during
-> scoping so the build doesn't relitigate them. Drafted 2026-07-30.
+> Status: **phase 1 in progress**. Schema, models and services are built and tested;
+> no UI yet. This doc captures the decisions taken during scoping so the build doesn't
+> relitigate them. Drafted 2026-07-30, last updated 2026-07-30.
 
 HACCP / food-safety labelling for raw materials, prep items and finished products.
 Chef stands at a laptop in the outlet, taps an item or a print set, and labels come
@@ -133,21 +134,34 @@ The storage-state matrix.
 | `company_id` | |
 | `ruleable_type`, `ruleable_id` | morph: `IngredientCategory`, `RecipeCategory`, `Ingredient`, `Recipe`, `ProductionRecipe` |
 | `storage_state` | enum — see §4 |
-| `value`, `unit` | `unit` enum `hours` \| `days` |
+| `value`, `unit` | `unit` is one of `Recipe::SHELF_LIFE_UNITS` — minutes, hours, days, weeks, months |
 
 Unique on `(ruleable_type, ruleable_id, storage_state)`.
 
-**Resolution order** for an item + storage state:
+**Resolution order** for an item + storage state, implemented in `ShelfLifeService`:
 
 1. Rule on the item itself
-2. Rule on the item's category
-3. Legacy `shelf_life_value` / `shelf_life_unit` on `recipes` / `production_recipes`,
-   treated as the `chilled` value
-4. Nothing — staff enters the use-by manually, and the label is flagged
-   `manual_expiry` in the log
+2. Rule on the **Recipe behind a prep Ingredient** — a prep item is both a `Recipe`
+   (where shelf life is edited today) and a mirrored `Ingredient`, so a label printed
+   against the mirror must still find the rule set on the recipe
+3. Rule on the item's category. `Ingredient` and `Recipe` both use `IngredientCategory`;
+   `ProductionRecipe.category` is a bare string with no FK, so it borrows its linked
+   `Ingredient`'s category
+4. Legacy `shelf_life_value` / `shelf_life_unit` on `recipes` / `production_recipes`
+5. Nothing — staff enters the use-by manually, and the row is flagged `manual_expiry`
+
+The legacy fallback is deliberately narrow: it applies **only when the state being asked
+about matches the item's own `storage_instruction`** (an unset instruction counts as
+`chill`). A 3-day chill life says nothing about frozen, and guessing would put a wrong
+date on a food-safety label.
+
+Each resolution returns a `source` (`item`, `prep_recipe`, `category`, `legacy`,
+`legacy_prep_recipe`) so the UI can show whether a life is inherited or set directly.
 
 Existing `recipes.shelf_life_value` and `production_recipes.shelf_life_value` migrate
-in as `chilled` rows. **Do not drop the legacy columns** — other screens read them.
+in against the item's stated storage instruction, defaulting to `chill`. **Do not drop
+the legacy columns** — other screens read them, and the prep item form still writes
+to them.
 
 ### `label_sets`
 Outlet-owned collections. "Chiller 1", "Sandwich Station", "Grill Station".
@@ -174,7 +188,7 @@ Outlet-owned collections. "Chiller 1", "Sandwich Station", "Grill Station".
 | `is_active` | |
 
 Per-line label type and storage state matter: "Chiller 1" is realistically twelve
-chilled use-by labels and two thawed ones. A uniform set is useless for the mixed case.
+chill use-by labels and two thawed ones. A uniform set is useless for the mixed case.
 
 Either `labelable_*` or `custom_name` must be set. Enforce in the model, not the DB.
 
@@ -213,13 +227,13 @@ item's shelf life will have changed by the time an auditor asks about it.
 
 ## 4. Enums
 
-**Storage states:** `ambient`, `chilled`, `frozen`, `thawed`, `opened`, `cooked`
+**Storage states:** `ambient`, `chill`, `frozen`, `thawed`, `opened`, `cooked`
 
 **Label types**, and the storage state each defaults to:
 
 | Label type | Caption | Default storage state |
 |---|---|---|
-| `prep` | USE BY | `chilled` |
+| `prep` | USE BY | `chill` |
 | `oof` | DEFROSTED | `thawed` |
 | `received` | RECEIVED | item's own default |
 | `opened` | OPENED | `opened` |
@@ -229,6 +243,11 @@ item's shelf life will have changed by the time an auditor asks about it.
 **Use-by computation:** `end_at = start_at + value/unit`. If `use_by_rounding = eod`,
 round `end_at` to 23:59 of the resulting day. `start_at` is the batch timestamp,
 resolved **once per batch**, never per line.
+
+> **Safety rule: end-of-day rounding is never applied to `minutes` or `hours`.**
+> Rounding a 4-hour life up to 23:59 *extends* it. On a food-safety label that is a
+> hazard, not a formatting nicety. `ShelfLifeService::useBy()` enforces this regardless
+> of the company's rounding setting, and it is covered by a test.
 
 ---
 
@@ -243,7 +262,7 @@ token walker rather than a per-template Blade file.
 {
   "fields": [
     { "token": "item.name",   "x": 2, "y": 2,  "w": 46, "h": 6,
-      "font_size": 10, "weight": "bold", "align": "left", "rotate": 0 },
+      "font_size": 10, "weight": "bold", "align": "left" },
     { "token": "label.caption", "x": 2, "y": 9, "w": 20, "h": 4, "font_size": 7 },
     { "token": "date.end",    "x": 2, "y": 14, "w": 46, "h": 5, "font_size": 9 },
     { "token": "static",      "x": 2, "y": 20, "text": "Keep refrigerated" }
@@ -359,10 +378,16 @@ Company admin gets all three.
 
 ## 8. Phasing
 
-**Phase 1 — foundation**
-Migrations, models, `LabelRenderService`, driver interface with `BrowserDriver`,
-shelf-life matrix + category defaults + bulk-edit grid, printer records, settings,
-permissions, and 5 hard-coded stock templates (one per label type).
+**Phase 1 — foundation** — *code landed 2026-07-30; UI screens still to build*
+
+Done: 6 migrations, 8 models, `ShelfLifeService`, `LabelRenderService`, `LabelDriver`
+interface + `BrowserDriver`, `LabelTemplateService`, and 6 stock templates at 50×25mm
+(one per label type, `custom` included — the plan originally said 5 before `custom` was
+added to the type list). Templates are seeded for existing companies by migration and
+lazily via `LabelTemplateService::ensureDefaults()` for new ones.
+
+Still to build in phase 1: the shelf-life bulk-edit grid, printer records screen, and
+settings screen.
 
 **Phase 2 — printing**
 Print screen, print sets with drag-sort, set review screen, staff picker, batch +
