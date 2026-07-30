@@ -5,6 +5,7 @@ namespace App\Livewire\Labels;
 use App\Models\LabelPrinter;
 use App\Models\LabelTemplate;
 use App\Models\Outlet;
+use App\Services\LabelRenderService;
 use App\Services\Labels\DefaultTemplates;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -35,6 +36,10 @@ class Printers extends Component
 
     public bool $is_active = true;
 
+    public string $offset_x_mm = '0';
+
+    public string $offset_y_mm = '0';
+
     protected function rules(): array
     {
         return [
@@ -43,7 +48,26 @@ class Printers extends Component
             'width_mm'            => 'required|numeric|min:10|max:300',
             'height_mm'           => 'required|numeric|min:10|max:300',
             'default_template_id' => 'nullable|integer|exists:label_templates,id',
+            // Bounded: an offset this large means the wrong stock size is
+            // configured, and shifting content won't save it.
+            'offset_x_mm'         => 'required|numeric|min:-20|max:20',
+            'offset_y_mm'         => 'required|numeric|min:-20|max:20',
         ];
+    }
+
+    /**
+     * Print the ruler. Sent to the browser exactly like a real label, so it
+     * exercises the same print path the chef will use.
+     */
+    public function printCalibration(int $id, LabelRenderService $renderer): void
+    {
+        $printer = LabelPrinter::findOrFail($id);
+
+        $this->dispatch('label-print', document: $renderer->calibration(
+            (float) $printer->width_mm,
+            (float) $printer->height_mm,
+            $printer->name,
+        ));
     }
 
     public function openCreate(): void
@@ -65,6 +89,8 @@ class Printers extends Component
         $this->height_mm           = (string) rtrim(rtrim((string) $printer->height_mm, '0'), '.');
         $this->default_template_id = $printer->default_template_id;
         $this->is_active           = $printer->is_active;
+        $this->offset_x_mm         = (string) (float) $printer->offset_x_mm;
+        $this->offset_y_mm         = (string) (float) $printer->offset_y_mm;
 
         $this->showModal = true;
     }
@@ -80,6 +106,8 @@ class Printers extends Component
             'height_mm'           => (float) $this->height_mm,
             'default_template_id' => $this->default_template_id ?: null,
             'is_active'           => $this->is_active,
+            'offset_x_mm'         => (float) $this->offset_x_mm,
+            'offset_y_mm'         => (float) $this->offset_y_mm,
         ];
 
         if ($this->editingId) {
@@ -127,6 +155,8 @@ class Printers extends Component
         $this->height_mm           = (string) (int) DefaultTemplates::HEIGHT_MM;
         $this->default_template_id = null;
         $this->is_active           = true;
+        $this->offset_x_mm         = '0';
+        $this->offset_y_mm         = '0';
         $this->resetValidation();
     }
 }

@@ -24,12 +24,15 @@ class LabelPrinter extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'name', 'driver', 'printnode_printer_id',
         'default_template_id', 'width_mm', 'height_mm', 'is_active',
+        'offset_x_mm', 'offset_y_mm',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'width_mm'  => 'decimal:2',
-        'height_mm' => 'decimal:2',
+        'is_active'   => 'boolean',
+        'width_mm'    => 'decimal:2',
+        'height_mm'   => 'decimal:2',
+        'offset_x_mm' => 'decimal:2',
+        'offset_y_mm' => 'decimal:2',
     ];
 
     protected static function booted(): void

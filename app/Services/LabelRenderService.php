@@ -30,11 +30,18 @@ class LabelRenderService
 
     /**
      * @param  array<int, array{template: LabelTemplate, values: array<string, string>, copies?: int}>  $labels
+     * @param  float  $offsetXMm  Shift every field right, correcting a clipped left edge
+     * @param  float  $offsetYMm  Shift every field down, correcting a clipped top edge
      */
-    public function html(array $labels, float $widthMm, float $heightMm): string
-    {
+    public function html(
+        array $labels,
+        float $widthMm,
+        float $heightMm,
+        float $offsetXMm = 0,
+        float $offsetYMm = 0
+    ): string {
         return View::make('labels.document', [
-            'pages'    => $this->pages($labels),
+            'pages'    => $this->pages($labels, $offsetXMm, $offsetYMm),
             'widthMm'  => $widthMm,
             'heightMm' => $heightMm,
         ])->render();
@@ -43,13 +50,33 @@ class LabelRenderService
     /**
      * @param  array<int, array{template: LabelTemplate, values: array<string, string>, copies?: int}>  $labels
      */
-    public function pdf(array $labels, float $widthMm, float $heightMm): string
-    {
+    public function pdf(
+        array $labels,
+        float $widthMm,
+        float $heightMm,
+        float $offsetXMm = 0,
+        float $offsetYMm = 0
+    ): string {
         $paper = [0, 0, $widthMm * self::PT_PER_MM, $heightMm * self::PT_PER_MM];
 
-        return Pdf::loadHTML($this->html($labels, $widthMm, $heightMm))
+        return Pdf::loadHTML($this->html($labels, $widthMm, $heightMm, $offsetXMm, $offsetYMm))
             ->setPaper($paper)
             ->output();
+    }
+
+    /**
+     * The calibration label: a ruler for measuring what a printer clips.
+     *
+     * Deliberately NOT offset — it measures the raw hardware, so applying a
+     * correction to it would hide the very thing being measured.
+     */
+    public function calibration(float $widthMm, float $heightMm, string $printerName): string
+    {
+        return View::make('labels.calibration', [
+            'widthMm'     => $widthMm,
+            'heightMm'    => $heightMm,
+            'printerName' => $printerName,
+        ])->render();
     }
 
     /**
@@ -61,7 +88,7 @@ class LabelRenderService
      *
      * @return array<int, array{fields: array, last: bool}>
      */
-    private function pages(array $labels): array
+    private function pages(array $labels, float $offsetXMm = 0, float $offsetYMm = 0): array
     {
         $pages = [];
 
@@ -70,7 +97,7 @@ class LabelRenderService
             $values   = $label['values'] ?? [];
             $copies   = max(1, (int) ($label['copies'] ?? 1));
 
-            $fields = $this->fields($template, $values);
+            $fields = $this->fields($template, $values, $offsetXMm, $offsetYMm);
 
             for ($i = 0; $i < $copies; $i++) {
                 $pages[] = ['fields' => $fields, 'last' => false];
@@ -94,8 +121,12 @@ class LabelRenderService
      * than rendered blank, so a template built before a token existed still
      * prints cleanly.
      */
-    private function fields(LabelTemplate $template, array $values): array
-    {
+    private function fields(
+        LabelTemplate $template,
+        array $values,
+        float $offsetXMm = 0,
+        float $offsetYMm = 0
+    ): array {
         $resolved = [];
 
         foreach ($template->fields() as $field) {
@@ -116,7 +147,7 @@ class LabelRenderService
             $resolved[] = [
                 'text'    => $text,
                 'is_image' => $token === 'company.logo',
-                'style'   => $this->style($field),
+                'style'   => $this->style($field, $offsetXMm, $offsetYMm),
             ];
         }
 
@@ -124,11 +155,11 @@ class LabelRenderService
     }
 
     /** Inline CSS for one field. Kept to properties dompdf implements. */
-    private function style(array $field): string
+    private function style(array $field, float $offsetXMm = 0, float $offsetYMm = 0): string
     {
         $rules = [
-            'left: ' . $this->mm($field['x'] ?? 0),
-            'top: '  . $this->mm($field['y'] ?? 0),
+            'left: ' . $this->mm(($field['x'] ?? 0) + $offsetXMm),
+            'top: '  . $this->mm(($field['y'] ?? 0) + $offsetYMm),
         ];
 
         if (isset($field['w'])) {

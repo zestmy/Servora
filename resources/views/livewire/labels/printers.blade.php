@@ -56,8 +56,11 @@
                                     {{ $printer->is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-center">
-                                <button wire:click="openEdit({{ $printer->id }})" class="text-indigo-600 hover:text-indigo-800 text-xs">Edit</button>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <button wire:click="printCalibration({{ $printer->id }})"
+                                        class="text-gray-500 hover:text-gray-700 text-xs"
+                                        title="Print a ruler to measure what this printer clips">Calibrate</button>
+                                <button wire:click="openEdit({{ $printer->id }})" class="ml-2 text-indigo-600 hover:text-indigo-800 text-xs">Edit</button>
                                 <button wire:click="delete({{ $printer->id }})"
                                         wire:confirm="Remove this printer?"
                                         class="ml-2 text-red-500 hover:text-red-700 text-xs">Remove</button>
@@ -74,6 +77,30 @@
             </table>
         </div>
     </div>
+
+    {{-- Calibration prints through the same path a real label uses, so it
+         exercises the driver exactly as the chef's prints will. --}}
+    <iframe id="label-print-frame" class="hidden" aria-hidden="true" tabindex="-1"></iframe>
+
+    @script
+    <script>
+        window.addEventListener('label-print', (event) => {
+            const html  = event.detail.document;
+            const frame = document.getElementById('label-print-frame');
+
+            if (! html || ! frame) {
+                return;
+            }
+
+            frame.onload = () => {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            };
+
+            frame.srcdoc = html;
+        });
+    </script>
+    @endscript
 
     <div x-data="{ open: @entangle('showModal') }">
         <template x-teleport="body">
@@ -121,6 +148,26 @@
                             <p class="text-xs text-gray-400">
                                 Must match the roll loaded in the printer and the size set in its Windows driver.
                             </p>
+
+                            <div class="pt-2 border-t border-gray-100">
+                                <p class="text-xs font-semibold text-gray-600">Print offset (mm)</p>
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    Leave at zero until you've printed a calibration label. If the printer clips
+                                    3mm off the left, put 3 in X and the content shifts right to compensate.
+                                </p>
+                                <div class="grid grid-cols-2 gap-3 mt-2">
+                                    <div>
+                                        <label class="text-xs text-gray-500">X (right +)</label>
+                                        <input type="number" step="0.5" wire:model="offset_x_mm" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                        <x-input-error :messages="$errors->get('offset_x_mm')" class="mt-1" />
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-500">Y (down +)</label>
+                                        <input type="number" step="0.5" wire:model="offset_y_mm" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                        <x-input-error :messages="$errors->get('offset_y_mm')" class="mt-1" />
+                                    </div>
+                                </div>
+                            </div>
                             <div>
                                 <label class="text-xs font-semibold text-gray-600">Default template</label>
                                 <select wire:model="default_template_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
