@@ -53,7 +53,10 @@
                             <td class="px-4 py-3 text-gray-600">
                                 {{ $printer->defaultTemplate?->name ?? '—' }}
                                 @if ($printer->driver === 'printnode')
-                                    <span class="block text-xs text-indigo-600">via PrintNode #{{ $printer->printnode_printer_id }}</span>
+                                    <span class="block text-xs text-indigo-600">
+                                        via PrintNode #{{ $printer->printnode_printer_id }}
+                                        @if ($printer->printnode_paper) · {{ $printer->printnode_paper }} @endif
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center">
@@ -165,7 +168,7 @@
                                         </p>
                                     @endif
 
-                                    <select wire:model="printnode_printer_id" class="w-full text-sm rounded-lg border-gray-300">
+                                    <select wire:model.live="printnode_printer_id" class="w-full text-sm rounded-lg border-gray-300">
                                         <option value="">— Select —</option>
                                         @foreach ($remotePrinters as $remote)
                                             <option value="{{ $remote['id'] }}">
@@ -181,6 +184,28 @@
                                         @endif
                                     </select>
                                     <x-input-error :messages="$errors->get('printnode_printer_id')" class="mt-1" />
+
+                                    <div class="pt-1">
+                                        <label class="text-xs font-semibold text-gray-600">Paper / form</label>
+                                        <select wire:model="printnode_paper" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                            <option value="">Driver default</option>
+                                            @foreach ($this->paperOptions as $paper)
+                                                <option value="{{ $paper['name'] }}">
+                                                    {{ $paper['name'] }}@if ($paper['size']) — {{ $paper['size'] }} @endif
+                                                </option>
+                                            @endforeach
+                                            {{-- Same reasoning as above: don't blank a saved paper just
+                                                 because the printer is offline right now. --}}
+                                            @if ($printnode_paper && ! collect($this->paperOptions)->contains('name', $printnode_paper))
+                                                <option value="{{ $printnode_paper }}">{{ $printnode_paper }} (not in current list)</option>
+                                            @endif
+                                        </select>
+                                        <p class="mt-1 text-xs text-gray-400">
+                                            Leave on driver default only if that default is already your label
+                                            stock. If it isn't, the driver rotates or shrinks the label to fit
+                                            its own paper — pick the {{ $width_mm }} × {{ $height_mm }} mm form here instead.
+                                        </p>
+                                    </div>
                                 </div>
                             @endif
 

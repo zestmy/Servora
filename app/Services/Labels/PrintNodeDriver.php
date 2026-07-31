@@ -55,6 +55,7 @@ class PrintNodeDriver implements LabelDriver
             $pdf,
             $this->title($labels, $printer),
             (bool) $printer->rotate_90,
+            $printer->printnode_paper,
         );
 
         return [

@@ -87,6 +87,19 @@ What changed above the driver: nothing, except three things that were latent gap
 transforms, so the `rotate_90` flag becomes `options.rotate = 90` on the job.
 `fit_to_page` is always false, for the same reason browser printing is 100% scale.
 
+**The job names its paper.** PrintNode has no renderer of its own — it hands the PDF
+to the Windows print driver on the client machine, and with no paper named that driver
+uses its own default form. If the default is not the label stock, the page is rotated
+or scaled to fit *before it ever reaches the printer*, and no amount of correct
+millimetres upstream survives it. This is the same trap as browser printing's "Paper
+size" dropdown (see Calibration below) and the same trap as the A6-vs-4×6 QR sheet:
+**never let a print path pick the paper for you.** So `label_printers.printnode_paper`
+holds a form name chosen from the ones that printer actually reports, sent as
+`options.paper`. Nullable, and null means "accept the driver default" — correct when
+the default is already the label stock, which is why it isn't forced. The choice is
+per printer because paper names belong to one driver, and it is cleared automatically
+when the remote printer changes for exactly that reason.
+
 **A printer set to `printnode` never falls back to the browser.** That printer is
 deliberately not attached to this PC, so falling back would send the label to whatever
 local printer is default — or silently nowhere. Only an *unrecognised* driver value

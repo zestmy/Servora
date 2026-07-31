@@ -22,7 +22,7 @@ class LabelPrinter extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'name', 'driver', 'printnode_printer_id',
+        'company_id', 'outlet_id', 'name', 'driver', 'printnode_printer_id', 'printnode_paper',
         'default_template_id', 'width_mm', 'height_mm', 'is_active',
         'offset_x_mm', 'offset_y_mm', 'rotate_90',
     ];

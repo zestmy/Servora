@@ -10,6 +10,7 @@ use App\Services\LabelRenderService;
 use App\Services\Labels\DefaultTemplates;
 use App\Services\Labels\PrintNodeClient;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 /**
@@ -48,6 +49,8 @@ class Printers extends Component
 
     public ?string $printnode_printer_id = null;
 
+    public ?string $printnode_paper = null;
+
     /** Populated on demand — one API call, not one per render. */
     public array $remotePrinters = [];
 
@@ -69,6 +72,8 @@ class Printers extends Component
             // Required for PrintNode: without it the driver throws at print
             // time, and the chef finds out at the printer instead of here.
             'printnode_printer_id' => 'nullable|required_if:driver,printnode|string|max:50',
+            // Optional: unset means "accept the driver default".
+            'printnode_paper'      => 'nullable|string|max:100',
         ];
     }
 
@@ -103,6 +108,34 @@ class Printers extends Component
         if ($value === 'printnode' && ! $this->remotePrinters) {
             $this->loadRemotePrinters();
         }
+    }
+
+    /**
+     * Paper names belong to one printer's driver, so a saved one means
+     * nothing once a different printer is chosen. Clearing it falls back to
+     * the driver default rather than sending a name that printer never had.
+     */
+    public function updatedPrintnodePrinterId(): void
+    {
+        $this->printnode_paper = null;
+    }
+
+    /**
+     * Papers the selected remote printer reports.
+     *
+     * @return array<int, array{name: string, size: string|null}>
+     */
+    #[Computed]
+    public function paperOptions(): array
+    {
+        if (! $this->printnode_printer_id) {
+            return [];
+        }
+
+        $remote = collect($this->remotePrinters)
+            ->firstWhere('id', (int) $this->printnode_printer_id);
+
+        return $remote['papers'] ?? [];
     }
 
     /**
@@ -145,6 +178,7 @@ class Printers extends Component
         $this->rotate_90           = (bool) $printer->rotate_90;
         $this->driver              = $printer->driver ?: 'browser';
         $this->printnode_printer_id = $printer->printnode_printer_id;
+        $this->printnode_paper      = $printer->printnode_paper;
 
         if ($this->driver === 'printnode') {
             $this->loadRemotePrinters();
@@ -172,6 +206,9 @@ class Printers extends Component
             // can't quietly come back into play later.
             'printnode_printer_id' => $this->driver === 'printnode'
                 ? $this->printnode_printer_id
+                : null,
+            'printnode_paper'      => $this->driver === 'printnode'
+                ? ($this->printnode_paper ?: null)
                 : null,
         ];
 
@@ -224,6 +261,7 @@ class Printers extends Component
         $this->rotate_90           = false;
         $this->driver              = 'browser';
         $this->printnode_printer_id = null;
+        $this->printnode_paper      = null;
         $this->remotePrinters      = [];
         $this->remoteError         = null;
         $this->resetValidation();

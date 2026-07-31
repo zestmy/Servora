@@ -53,10 +53,50 @@ class PrintNodeClient
                 'name'     => (string) ($p['name'] ?? 'Unnamed'),
                 'state'    => (string) ($p['state'] ?? 'unknown'),
                 'computer' => (string) ($p['computer']['name'] ?? ''),
+                // The driver's own paper/form names. Without naming one on
+                // the job, PrintNode falls back to the driver default — and
+                // if that default isn't the label stock, the page gets
+                // rotated or scaled to fit it.
+                'papers'   => $this->papers($p),
             ])
             ->filter(fn ($p) => $p['id'] > 0)
             ->values()
             ->all();
+    }
+
+    /**
+     * Paper names a printer offers, with size in mm where reported.
+     *
+     * PrintNode gives capabilities.papers as name => [width, height] in
+     * MICRONS, and sometimes null for sizes it can't measure. Parsed
+     * defensively: an odd shape here should cost the size hint, not the
+     * whole printer list.
+     *
+     * @return array<int, array{name: string, size: string|null}>
+     */
+    private function papers(array $printer): array
+    {
+        $papers = $printer['capabilities']['papers'] ?? null;
+
+        if (! is_array($papers)) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach ($papers as $name => $dims) {
+            $size = null;
+
+            if (is_array($dims) && isset($dims[0], $dims[1]) && $dims[0] && $dims[1]) {
+                $size = sprintf('%.0f × %.0f mm', $dims[0] / 1000, $dims[1] / 1000);
+            }
+
+            $out[] = ['name' => (string) $name, 'size' => $size];
+        }
+
+        usort($out, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $out;
     }
 
     /**
@@ -73,9 +113,18 @@ class PrintNodeClient
         int $printerId,
         string $pdf,
         string $title,
-        bool $rotate = false
+        bool $rotate = false,
+        ?string $paper = null
     ): string {
         $options = ['fit_to_page' => false];
+
+        // Name the paper rather than trusting the driver default. The job
+        // goes through the Windows driver on the client machine, and if its
+        // default form is not the label stock — 4x6 or A4, say — the page is
+        // rotated or scaled to fit it before it ever reaches the printer.
+        if ($paper) {
+            $options['paper'] = $paper;
+        }
 
         if ($rotate) {
             $options['rotate'] = 90;
