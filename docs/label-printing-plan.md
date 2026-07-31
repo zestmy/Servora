@@ -250,6 +250,21 @@ Error correction is level Q, because a sticker on stainless steel gets smudged a
 partly peeled. "Powered by Servora" appears on each A6 label and once at the foot of an
 A4 sheet, rather than repeated on every cut-out card.
 
+**Each card carries the target storage temperature**, boxed and heavy — the label lives
+on the unit door, so the useful fact is what that unit is supposed to be holding, read
+against the thermometer. An item count told nobody anything.
+
+States are **derived from the set's lines**, not stored on the set: a set *is* its
+items, and adding a frozen item to a chiller set should show up without a manager
+remembering a second field. A mixed set lists every state it contains, ordered by
+`ShelfLifeRule::STORAGE_STATES` so two sets never disagree about the order.
+
+Ranges live in `ShelfLifeRule::STORAGE_TEMPERATURES` — standard HACCP figures, and the
+one place to change them if a company works to different limits. They are not
+per-company configurable yet. `opened` deliberately has no range: an opened item might
+belong in a chiller or on a dry-store shelf, so it prints the state alone rather than
+inventing a temperature.
+
 Two things this depended on:
 
 - **The URL is built by hand, not with `route()`.** These are generated in the manager

@@ -44,10 +44,13 @@ class SetQrSheetController extends Controller
 
         abort_if($sets->isEmpty(), 404, 'No print sets to show for this outlet.');
 
+        $sets->load('lines:id,label_set_id,storage_state');
+
         $cards = $sets->map(fn (LabelSet $set) => [
-            'set'   => $set,
-            'image' => $qr->svgFor($set),
-            'url'   => $qr->urlFor($set),
+            'set'      => $set,
+            'image'    => $qr->svgFor($set),
+            'url'      => $qr->urlFor($set),
+            'storages' => $this->storagesFor($set),
         ]);
 
         // A6 by default: airway-bill label stock, peel and stick, no
@@ -59,5 +62,32 @@ class SetQrSheetController extends Controller
             'cards'  => $cards,
             'size'   => $size,
         ]);
+    }
+
+    /**
+     * The storage states this set actually contains, with their target
+     * temperatures — the thing a chef checks the unit against.
+     *
+     * Derived from the lines rather than stored on the set: a set IS its
+     * items, and a manager who adds a frozen item to a chiller set should
+     * see that reflected without having to remember a second field.
+     *
+     * Ordered by STORAGE_STATES so two sets never list the same pair of
+     * states in a different order.
+     *
+     * @return array<int, array{label: string, temperature: string|null}>
+     */
+    private function storagesFor(LabelSet $set): array
+    {
+        $present = $set->lines->pluck('storage_state')->filter()->unique();
+
+        return collect(array_keys(\App\Models\ShelfLifeRule::STORAGE_STATES))
+            ->filter(fn ($state) => $present->contains($state))
+            ->map(fn ($state) => [
+                'label'       => \App\Models\ShelfLifeRule::stateLabel($state),
+                'temperature' => \App\Models\ShelfLifeRule::temperatureFor($state),
+            ])
+            ->values()
+            ->all();
     }
 }

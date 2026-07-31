@@ -94,8 +94,11 @@
         .card img { width: 70mm; height: 70mm; }
         .name   { font-size: 20pt; }
         .outlet { font-size: 11pt; }
-        .count  { font-size: 9pt; }
         .hint   { font-size: 10pt; }
+
+        .storage       { border: 1.2mm solid #111827; padding: 2.5mm 2mm; margin: 2mm 0 3mm; }
+        .storage-state { font-size: 15pt; }
+        .storage-temp  { font-size: 22pt; }
 @else
         .grid {
             display: grid;
@@ -117,15 +120,28 @@
         .card img { width: 45mm; height: 45mm; }
         .name   { font-size: 13pt; }
         .outlet { font-size: 9pt; }
-        .count  { font-size: 8pt; }
         .hint   { font-size: 8pt; }
+
+        .storage       { border: 0.8mm solid #111827; padding: 1.5mm 1mm; margin: 1.5mm 0 2mm; }
+        .storage-state { font-size: 10pt; }
+        .storage-temp  { font-size: 14pt; }
 @endif
 
         .card img { display: block; margin: 0 auto 3mm; }
         .name    { font-weight: bold; margin: 0 0 1mm; }
         .outlet  { color: #6b7280; margin: 0 0 2mm; }
-        .count   { color: #9ca3af; margin: 0 0 2mm; }
         .hint    { color: #4b5563; margin: 0; }
+
+        /* Pure black and heavy: this is read across a kitchen, and it may
+           come off a monochrome printer onto matte label stock. */
+        .storage-state,
+        .storage-temp {
+            font-weight: bold;
+            color: #000;
+            margin: 0;
+            line-height: 1.15;
+            letter-spacing: .02em;
+        }
 
         .powered {
             font-size: 7pt;
@@ -184,9 +200,22 @@
             <img src="{{ $card['image'] }}" alt="QR code for {{ $card['set']->name }}">
             <p class="name">{{ $card['set']->name }}</p>
             <p class="outlet">{{ $outlet->name }}</p>
-            <p class="count">
-                {{ $card['set']->lines_count }} item{{ $card['set']->lines_count === 1 ? '' : 's' }}
-            </p>
+
+            {{-- The target temperature, not an item count. This label lives
+                 on the unit door, so the useful thing is what the unit is
+                 supposed to be holding — a chef reads it against the
+                 thermometer. Boxed and bold so it reads at a glance. --}}
+            @if (count($card['storages']))
+                <div class="storage">
+                    @foreach ($card['storages'] as $storage)
+                        <p class="storage-state">{{ strtoupper($storage['label']) }}</p>
+                        @if ($storage['temperature'])
+                            <p class="storage-temp">{{ $storage['temperature'] }}</p>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+
             <p class="hint">Scan to print this set</p>
             {{-- A6 is one label per page, so the credit belongs on the label
                  itself. On A4 it goes once at the foot of the sheet instead

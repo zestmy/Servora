@@ -39,6 +39,31 @@ class ShelfLifeRule extends Model
      */
     public const SUB_DAY_UNITS = ['minutes', 'hours'];
 
+    /**
+     * Target temperature for each storage state, printed on the QR labels
+     * that go on chiller doors so staff can check the unit against it.
+     *
+     * Standard HACCP figures. If a company works to different limits these
+     * are the single place to change them — they are not configurable per
+     * company yet.
+     *
+     * 'opened' is deliberately absent: an opened item might belong in a
+     * chiller or on a dry-store shelf, so stating a temperature would be
+     * inventing one. The state prints without a range instead.
+     */
+    public const STORAGE_TEMPERATURES = [
+        'ambient' => '10-25°C',
+        'chill'   => '0-4°C',
+        'frozen'  => '-18°C or below',
+        'thawed'  => '0-4°C',
+        'cooked'  => '63°C or above',
+    ];
+
+    public static function temperatureFor(?string $state): ?string
+    {
+        return self::STORAGE_TEMPERATURES[$state] ?? null;
+    }
+
     protected $fillable = [
         'company_id', 'ruleable_type', 'ruleable_id',
         'storage_state', 'value', 'unit',
