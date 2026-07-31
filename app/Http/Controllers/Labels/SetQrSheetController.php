@@ -46,13 +46,16 @@ class SetQrSheetController extends Controller
 
         $sets->load('lines:id,label_set_id,storage_state');
 
+        // Resolved once for the whole sheet rather than per card.
+        $temperatures = \App\Models\LabelSetting::temperaturesFor($outlet->company_id);
+
         $cards = $sets->map(fn (LabelSet $set) => [
             'set'      => $set,
             'image'    => $qr->svgFor($set),
             'url'      => $qr->urlFor($set),
             // Resolved on the model: an explicit per-set choice wins, and
             // falls back to whatever the set's own items say.
-            'storages' => $set->storageForLabel(),
+            'storages' => $set->storageForLabel($temperatures),
         ]);
 
         // A6 by default: airway-bill label stock, peel and stick, no

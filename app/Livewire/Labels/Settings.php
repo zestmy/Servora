@@ -4,6 +4,7 @@ namespace App\Livewire\Labels;
 
 use App\Models\LabelSetting;
 use App\Models\LabelTemplate;
+use App\Models\ShelfLifeRule;
 use App\Services\LabelTemplateService;
 use App\Services\Labels\PrintNodeClient;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,9 @@ class Settings extends Component
 
     public ?string $connectionResult = null;
 
+    /** [state => range]. Blank means "use the standard figure". */
+    public array $temperatures = [];
+
     public function mount(): void
     {
         // Seeding here means a company that has never opened the label
@@ -47,6 +51,15 @@ class Settings extends Component
 
         // Presence only. The key itself never leaves the server.
         $this->hasApiKey = filled($settings->printnode_api_key);
+
+        // Only this company's own overrides are bound to the form. Defaults
+        // show as placeholders, so an untouched field stays untouched rather
+        // than being saved back as a copy of today's default.
+        $stored = $settings->storage_temperatures ?? [];
+
+        foreach (array_keys(ShelfLifeRule::STORAGE_STATES) as $state) {
+            $this->temperatures[$state] = (string) ($stored[$state] ?? '');
+        }
     }
 
     protected function rules(): array
@@ -56,6 +69,7 @@ class Settings extends Component
             'footer_text'         => 'nullable|string|max:120',
             'default_template_id' => 'nullable|integer|exists:label_templates,id',
             'printnode_api_key'   => 'nullable|string|max:200',
+            'temperatures.*'      => 'nullable|string|max:40',
         ];
     }
 
@@ -64,9 +78,10 @@ class Settings extends Component
         $this->validate();
 
         $data = [
-            'use_by_rounding'     => $this->use_by_rounding,
-            'footer_text'         => $this->footer_text ?: null,
-            'default_template_id' => $this->default_template_id ?: null,
+            'use_by_rounding'      => $this->use_by_rounding,
+            'footer_text'          => $this->footer_text ?: null,
+            'default_template_id'  => $this->default_template_id ?: null,
+            'storage_temperatures' => $this->temperatureOverrides(),
         ];
 
         // Only touch the key when a new one was typed. An empty box means
@@ -82,6 +97,49 @@ class Settings extends Component
         $this->hasApiKey         = filled(LabelSetting::forCompany(Auth::user()->company_id)->printnode_api_key);
 
         session()->flash('success', 'Label settings saved.');
+    }
+
+    /**
+     * Keep only what genuinely differs from the standard figure.
+     *
+     * Storing a value identical to the default would freeze this company on
+     * today's wording — a later correction to the shared figure would never
+     * reach them, and nobody would know why.
+     *
+     * @return array<string, string>|null
+     */
+    private function temperatureOverrides(): ?array
+    {
+        $overrides = [];
+
+        foreach ($this->temperatures as $state => $value) {
+            if (! array_key_exists($state, ShelfLifeRule::STORAGE_STATES)) {
+                continue;
+            }
+
+            $value = trim((string) $value);
+
+            if ($value === '' || $value === (ShelfLifeRule::STORAGE_TEMPERATURES[$state] ?? null)) {
+                continue;
+            }
+
+            $overrides[$state] = $value;
+        }
+
+        return $overrides ?: null;
+    }
+
+    /** Drop every override and go back to the standard figures. */
+    public function resetTemperatures(): void
+    {
+        foreach (array_keys($this->temperatures) as $state) {
+            $this->temperatures[$state] = '';
+        }
+
+        LabelSetting::forCompany(Auth::user()->company_id)
+            ->update(['storage_temperatures' => null]);
+
+        session()->flash('success', 'Storage temperatures reset to the standard figures.');
     }
 
     /** Explicit removal, since an empty field deliberately means "keep". */
@@ -131,6 +189,8 @@ class Settings extends Component
         return view('livewire.labels.settings', [
             'roundingOptions' => LabelSetting::ROUNDING_OPTIONS,
             'templates'       => LabelTemplate::orderBy('label_type')->orderBy('name')->get(),
+            'states'          => ShelfLifeRule::STORAGE_STATES,
+            'defaults'        => ShelfLifeRule::STORAGE_TEMPERATURES,
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Label settings']);
     }
 }

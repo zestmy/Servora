@@ -267,11 +267,18 @@ which applies to the unit in front of them.
 Either way the list is ordered by `ShelfLifeRule::STORAGE_STATES`, so two sets never
 disagree about the order, and unrecognised states are dropped on save.
 
-Ranges live in `ShelfLifeRule::STORAGE_TEMPERATURES` — standard HACCP figures, and the
-one place to change them if a company works to different limits. They are not
-per-company configurable yet. `opened` deliberately has no range: an opened item might
-belong in a chiller or on a dry-store shelf, so it prints the state alone rather than
-inventing a temperature.
+Ranges start from `ShelfLifeRule::STORAGE_TEMPERATURES` — the standard HACCP figures —
+and each company can override any of them on the Label Settings screen. Free text, so
+it can be worded the way a given auditor expects.
+
+**Only genuine overrides are stored.** A field left blank, or typed back to match the
+standard, is not persisted: storing a copy would freeze that company on today's wording
+and a later correction to the shared figure would silently never reach them. There's a
+Reset all that clears every override.
+
+A company can also define a range for a state that has no standard one — `opened` ships
+without a figure, because an opened item might belong in a chiller or on a dry-store
+shelf and inventing one on a food-safety label would be worse than leaving it off.
 
 Two things this depended on:
 

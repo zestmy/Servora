@@ -57,6 +57,41 @@
                 </p>
                 <x-input-error :messages="$errors->get('default_template_id')" class="mt-1" />
             </div>
+
+            {{-- Printed on the QR label stuck to each unit, so staff can
+                 check the unit against it. --}}
+            <div class="pt-4 border-t border-gray-100">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Storage temperatures</label>
+                        <p class="mt-1 text-xs text-gray-500">
+                            Printed on print-set QR labels. Leave a box empty to use the standard figure
+                            shown in grey — that way a later correction to the standard still reaches you.
+                        </p>
+                    </div>
+                    <button wire:click="resetTemperatures"
+                            wire:confirm="Clear your own wording and go back to the standard figures?"
+                            class="shrink-0 text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap">
+                        Reset all
+                    </button>
+                </div>
+
+                <div class="mt-3 space-y-2">
+                    @foreach ($states as $state => $stateLabel)
+                        <div class="flex items-center gap-3">
+                            <span class="w-24 shrink-0 text-sm text-gray-700">{{ $stateLabel }}</span>
+                            <input type="text" wire:model="temperatures.{{ $state }}" maxlength="40"
+                                   placeholder="{{ $defaults[$state] ?? 'no standard figure' }}"
+                                   class="flex-1 rounded-lg border-gray-300 text-sm">
+                        </div>
+                        <x-input-error :messages="$errors->get('temperatures.' . $state)" class="mt-1" />
+                    @endforeach
+                </div>
+
+                <p class="mt-2 text-xs text-gray-400">
+                    Free text, so write it the way your auditor expects — “0-5°C”, “below -18°C”, and so on.
+                </p>
+            </div>
         </div>
 
         <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end">

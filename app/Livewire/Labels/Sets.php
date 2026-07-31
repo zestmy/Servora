@@ -266,7 +266,9 @@ class Sets extends Component
             'results'    => $this->searchResults(),
             'labelTypes' => LabelTemplate::LABEL_TYPES,
             'states'     => ShelfLifeRule::STORAGE_STATES,
-            'temperatures' => ShelfLifeRule::STORAGE_TEMPERATURES,
+            // This company's ranges, so the picker shows what will actually
+            // print rather than the built-in defaults.
+            'temperatures' => \App\Models\LabelSetting::temperaturesFor(Auth::user()->company_id),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Print sets']);
     }
 

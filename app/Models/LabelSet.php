@@ -97,11 +97,15 @@ class LabelSet extends Model
      *
      * @return array<int, array{state: string, label: string, temperature: string|null}>
      */
-    public function storageForLabel(): array
+    public function storageForLabel(?array $temperatures = null): array
     {
         if (! $this->show_storage) {
             return [];
         }
+
+        // Passed in when rendering many sets at once, so the company's
+        // ranges are looked up once rather than per set.
+        $temperatures ??= LabelSetting::temperaturesFor($this->company_id);
 
         $chosen = collect($this->storage_states ?? [])->filter();
 
@@ -114,7 +118,7 @@ class LabelSet extends Model
             ->map(fn ($state) => [
                 'state'       => $state,
                 'label'       => ShelfLifeRule::stateLabel($state),
-                'temperature' => ShelfLifeRule::temperatureFor($state),
+                'temperature' => $temperatures[$state] ?? null,
             ])
             ->values()
             ->all();
