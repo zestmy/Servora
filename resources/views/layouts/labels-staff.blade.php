@@ -7,6 +7,15 @@
     other hand occupied. Targets are deliberately large and spaced — this is
     used with wet or gloved fingers.
 --}}
+@php
+    // Same resolution the LMS layout uses, so a company that has branded its
+    // training portal is branded here too without setting anything up twice.
+    $brandCompany = app()->bound('currentCompany') ? app('currentCompany') : null;
+    $brandName    = $brandCompany?->brand_name ?? $brandCompany?->name ?? 'Labels';
+    $brandLogo    = $brandCompany?->logo
+        ? \Illuminate\Support\Facades\Storage::disk('public')->url($brandCompany->logo)
+        : null;
+@endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -24,15 +33,36 @@
     {{-- iOS ignores the manifest's icons and uses this one. --}}
     <link rel="apple-touch-icon" href="{{ asset('labels-app/apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('labels-app/icon-192.png') }}">
-    <title>{{ $title ?? 'Labels' }}</title>
+    <title>{{ $brandName }} — {{ $title ?? 'Labels' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     <style>
         /* Stop the pull-to-refresh bounce turning a mis-swipe into a page
            reload mid-print. */
         html, body { overscroll-behavior-y: contain; }
+
+        /*
+         * Safe areas. viewport-fit=cover plus a translucent status bar means
+         * the page starts at y=0 and runs UNDER the clock and battery — and
+         * Android 15 draws PWAs edge-to-edge regardless. The coloured header
+         * should fill that strip, but its CONTENT has to sit below it.
+         */
+        .safe-top {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+            padding-bottom: 0.75rem;
+        }
+
+        /* Screens with no header (the PIN screen) need the inset themselves. */
+        .safe-top-plain { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); }
+
         /* Respect the home-indicator area on phones. */
         .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem); }
+
+        /* Notches in landscape. Cheap insurance even though we lock portrait. */
+        .safe-x {
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
     </style>
 </head>
 <body class="h-full bg-gray-50 antialiased">
@@ -40,10 +70,19 @@
 <div class="min-h-full flex flex-col max-w-2xl mx-auto bg-gray-50">
 
     @isset($staff)
-        <header class="sticky top-0 z-20 bg-indigo-600 text-white px-4 py-3 flex items-center justify-between">
-            <div class="min-w-0">
-                <p class="text-[11px] uppercase tracking-wider text-indigo-200">{{ $outletName ?? '' }}</p>
-                <p class="text-sm font-semibold truncate">{{ $title ?? 'Labels' }}</p>
+        <header class="sticky top-0 z-20 bg-indigo-600 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
+            <div class="flex items-center gap-2.5 min-w-0">
+                @if ($brandLogo)
+                    {{-- White pill behind it: most logos are dark artwork and
+                         would disappear against the indigo header. --}}
+                    <span class="shrink-0 bg-white rounded-lg p-1 flex items-center justify-center">
+                        <img src="{{ $brandLogo }}" alt="{{ $brandName }}" class="h-6 w-auto max-w-[64px] object-contain">
+                    </span>
+                @endif
+                <div class="min-w-0">
+                    <p class="text-[11px] uppercase tracking-wider text-indigo-200 truncate">{{ $outletName ?? $brandName }}</p>
+                    <p class="text-sm font-semibold truncate">{{ $title ?? 'Labels' }}</p>
+                </div>
             </div>
             <a href="{{ route('labels.staff.pin') }}" wire:navigate
                class="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full bg-indigo-500/60 active:bg-indigo-500">
@@ -55,7 +94,9 @@
         </header>
     @endisset
 
-    <main class="flex-1 px-3 py-3 {{ isset($staff) ? 'pb-24' : '' }}">
+    {{-- Without a header there is nothing to hold the status bar off the
+         content, so the inset lands here instead. --}}
+    <main class="flex-1 px-3 pb-3 safe-x {{ isset($staff) ? 'pt-3 pb-24' : 'safe-top-plain' }}">
         {{ $slot }}
     </main>
 

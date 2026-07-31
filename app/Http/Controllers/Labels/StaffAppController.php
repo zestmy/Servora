@@ -20,10 +20,15 @@ class StaffAppController extends Controller
 {
     public function manifest(): Response
     {
-        $start = route('labels.staff.print', absolute: false);
+        $start   = route('labels.staff.print', absolute: false);
+        $company = app()->bound('currentCompany') ? app('currentCompany') : null;
+        $brand   = $company?->brand_name ?? $company?->name;
 
         $manifest = [
-            'name'             => 'Servora Labels',
+            // Branded in the install prompt, but short_name stays generic:
+            // a home screen truncates to roughly twelve characters, so
+            // "Dotty's Suria KLCC Labels" would read as "Dotty's Sur…".
+            'name'             => $brand ? $brand . ' Labels' : 'Servora Labels',
             'short_name'       => 'Labels',
             'description'      => 'Print food safety labels and check what is expiring.',
             'start_url'        => $start,
