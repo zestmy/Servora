@@ -58,6 +58,10 @@ class EnforceMainDomain
 
         if (
             str_starts_with($path, '/lms')
+            // Staff label app — same subdomain as the LMS so kitchen staff
+            // have one address to remember. Without this the PIN screen
+            // would be redirected to /lms/login and never reachable.
+            || str_starts_with($path, '/labels')
             || str_starts_with($path, '/v/')
             || str_starts_with($path, '/livewire/')
         ) {

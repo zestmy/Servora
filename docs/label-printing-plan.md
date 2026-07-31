@@ -139,6 +139,58 @@ are a separate piece of work — see open question 8.
 there is no PrintNode account to test against. The wire format is written to PrintNode's
 documented API but has never been exercised against the real service.
 
+### Staff app on the company subdomain — built 2026-07-31
+
+`https://{slug}.servora.com.my/labels` — a phone-shaped app kitchen staff reach with
+a PIN, no Servora login. Print, Sets and Expiring, with bottom-tab navigation.
+
+**One PIN per employee, not a shared door code.** Signing in identifies the person, so
+"Prepared by" fills itself — the mandatory attribution stops being something a chef can
+skip — and their outlet comes from their employee record, which is what makes the
+outlet-scoped screens work at all on a subdomain that only resolves a *company*.
+
+**Name first, then PIN.** PINs are bcrypt-hashed, so finding an employee from a PIN
+alone would mean hashing against every employee in the company on every attempt. That
+is slow by design and would push towards a fast hash instead — the wrong trade for a
+4–6 digit secret. Picking a name makes it one check, and it is how every POS works.
+
+**Sessions last until the PIN changes.** The session stores a fingerprint of the PIN
+hash and re-checks it on every request. Changing or revoking a PIN, or deactivating the
+employee, drops every session opened under the old one — no expiry needed. All four
+paths are tested.
+
+Attempts are throttled **per employee, not per IP**: a shared kitchen tablet is one IP
+for everyone, so IP throttling would lock out the whole kitchen because one person
+fumbled their PIN.
+
+**Two routing traps, both of which would have silently broken it:**
+
+1. `EnforceMainDomain` redirected every non-`/lms` path on a company subdomain to
+   `/lms/login`. `/labels` is now allowed through explicitly.
+2. The manager-facing `/labels` routes carry **no domain constraint**, so they match any
+   host. Laravel matches in registration order, so they would have swallowed every
+   subdomain request. `routes/labels-staff.php` is therefore `require`d at the **top of
+   `routes/web.php`** — registration order is the only thing separating the two. It
+   uses a `{companySlug}.<domain>` constraint in production and falls back to a
+   `/labels-staff` prefix locally, where `APP_DOMAIN` is unset. Route names are
+   identical either way.
+
+**No web user exists in this context**, which had knock-on effects worth remembering:
+
+- `CompanyScope` resolves via `app('currentCompany')` on a subdomain, so it happens to
+  work — but the staff components scope by hand anyway rather than depend on that.
+- `LabelPrintService` took the company from `Auth::user()`. It now takes it from the
+  **printer**, which always knows its own company and outlet.
+- `previewUseBy()` gained an explicit company argument for the same reason.
+- `label_prints.resolved_by` points at users. Staff have none, so
+  `resolved_by_employee_id` was added — otherwise "who binned it" would be blank for
+  precisely the people doing the binning.
+
+Managers administer access at `/labels/staff-access`: issue a random PIN (shown **once**,
+stored hashed, unrecoverable by design), set one manually, or revoke. Staff without an
+outlet cannot be given access, because there would be no printer, no sets and nothing
+to expire. Staff can change their own PIN in the app.
+
 ### Explicit non-goals for v1
 
 Allergens, nutrition, QR traceability pages, barcodes on labels, Production Order and

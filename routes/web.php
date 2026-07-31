@@ -1,5 +1,16 @@
 <?php
 
+/*
+ * Staff label app, loaded FIRST on purpose.
+ *
+ * It serves /labels on company subdomains. The manager-facing /labels
+ * routes below carry no domain constraint, so they match any host — if
+ * they were registered first they would swallow every subdomain request
+ * and staff would be bounced to the main-app login. Registration order is
+ * the only thing separating the two.
+ */
+require __DIR__ . '/labels-staff.php';
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Dashboard;
@@ -321,6 +332,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels/sets/{set}/print', \App\Livewire\Labels\SetPrint::class)->name('labels.sets.print')->middleware('can:labels.print');
     Route::get('/labels/expiring', \App\Livewire\Labels\Expiring::class)->name('labels.expiring')->middleware('can:labels.print');
     Route::get('/labels/log', \App\Livewire\Labels\PrintLog::class)->name('labels.log')->middleware('can:labels.view_log');
+    Route::get('/labels/staff-access', \App\Livewire\Labels\StaffAccess::class)->name('labels.staff-access')->middleware('can:labels.manage');
     Route::get('/labels/templates', \App\Livewire\Labels\Templates::class)->name('labels.templates')->middleware('can:labels.manage');
     Route::get('/labels/templates/{template}/design', \App\Livewire\Labels\TemplateDesigner::class)->name('labels.templates.design')->middleware('can:labels.manage');
     Route::get('/labels/shelf-life', \App\Livewire\Labels\ShelfLifeGrid::class)->name('labels.shelf-life')->middleware('can:labels.manage');

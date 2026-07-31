@@ -25,7 +25,8 @@ class LabelPrint extends Model
         'labelable_type', 'labelable_id', 'custom_name', 'label_type',
         'storage_state', 'start_at', 'end_at', 'manual_expiry', 'copies',
         'payload', 'status',
-        'resolved_at', 'resolved_by', 'resolution', 'wastage_record_id',
+        'resolved_at', 'resolved_by', 'resolved_by_employee_id',
+        'resolution', 'wastage_record_id',
     ];
 
     /** used = consumed; wasted = binned and costed; discarded = binned, not costable. */

@@ -80,7 +80,11 @@ class LabelPrintService
         // Resolved once, used by every line and every date on every label.
         $printedAt = Carbon::now();
 
-        $companyId = Auth::user()->company_id;
+        // From the printer, not the logged-in user. Staff on the subdomain
+        // app authenticate with a PIN and have no web user at all, so
+        // Auth::user() is null for them — the printer always knows which
+        // company and outlet it belongs to.
+        $companyId = $printer->company_id;
         $settings  = LabelSetting::forCompany($companyId);
         $employee  = $employeeId ? Employee::find($employeeId) : null;
 
@@ -302,13 +306,21 @@ class LabelPrintService
      *
      * @return array{end_at: CarbonInterface|null, manual: bool, source: ?string}
      */
-    public function previewUseBy(?Model $item, string $storageState, ?CarbonInterface $at = null): array
-    {
+    public function previewUseBy(
+        ?Model $item,
+        string $storageState,
+        ?CarbonInterface $at = null,
+        ?int $companyId = null
+    ): array {
+        // Falls back to the logged-in user, but PIN staff have none, so the
+        // caller passes the company explicitly there.
+        $companyId ??= Auth::user()?->company_id;
+
         $computed = $this->shelfLife->computeUseBy(
             $item,
             $storageState,
             $at ?? Carbon::now(),
-            Auth::user()->company_id
+            $companyId
         );
 
         return [

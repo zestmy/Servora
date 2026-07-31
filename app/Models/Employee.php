@@ -29,6 +29,49 @@ class Employee extends Model
     ];
 
     /**
+     * Never mass-assignable and never serialised. The label PIN is written
+     * only through setLabelPin(), which hashes it.
+     */
+    protected $hidden = ['label_pin'];
+
+    // ── Label staff PIN ───────────────────────────────────────────────────
+
+    /** Hash and store a PIN. Pass null to revoke access entirely. */
+    public function setLabelPin(?string $pin): void
+    {
+        $this->forceFill([
+            'label_pin'        => $pin === null ? null : \Illuminate\Support\Facades\Hash::make($pin),
+            'label_pin_set_at' => $pin === null ? null : now(),
+        ])->save();
+    }
+
+    public function hasLabelPin(): bool
+    {
+        return filled($this->label_pin);
+    }
+
+    public function verifyLabelPin(string $pin): bool
+    {
+        return $this->hasLabelPin()
+            && \Illuminate\Support\Facades\Hash::check($pin, $this->label_pin);
+    }
+
+    /**
+     * Identifies WHICH PIN a session was opened with.
+     *
+     * Stored in the session at sign-in and re-checked on every request, so
+     * changing or revoking a PIN drops every session opened under the old
+     * one. That is what makes a session last exactly "until the PIN changes"
+     * rather than needing an expiry.
+     *
+     * A hash of the hash — the stored bcrypt digest never reaches the session.
+     */
+    public function labelPinFingerprint(): ?string
+    {
+        return $this->hasLabelPin() ? hash('sha256', (string) $this->label_pin) : null;
+    }
+
+    /**
      * Phone dial codes for the form's country selector, keyed by ISO-2.
      * Dial values are unique so an edited number maps back to one entry.
      */
@@ -75,6 +118,7 @@ class Employee extends Model
         'halal_training_date'    => 'date',
         'service_points_entitlement' => 'decimal:2',
         'basic_salary'               => 'decimal:2',
+        'label_pin_set_at'           => 'datetime',
     ];
 
     protected static function booted(): void

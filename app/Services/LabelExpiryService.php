@@ -60,16 +60,22 @@ class LabelExpiryService
         return $costing && $costing['uom_id'] ? $costing : null;
     }
 
-    /** Consumed normally. Nothing to cost, nothing to record beyond the fact. */
-    public function markUsed(LabelPrint $print): void
+    /**
+     * Consumed normally. Nothing to cost, nothing to record beyond the fact.
+     *
+     * $employeeId is supplied by the staff app, whose users authenticate
+     * with a PIN and have no user account — without it the audit trail would
+     * be blank for exactly the people doing the work.
+     */
+    public function markUsed(LabelPrint $print, ?int $employeeId = null): void
     {
-        $this->resolve($print, 'used');
+        $this->resolve($print, 'used', null, $employeeId);
     }
 
     /** Binned, but nothing priceable behind it. Deliberately NOT costed. */
-    public function markDiscarded(LabelPrint $print): void
+    public function markDiscarded(LabelPrint $print, ?int $employeeId = null): void
     {
-        $this->resolve($print, 'discarded');
+        $this->resolve($print, 'discarded', null, $employeeId);
     }
 
     /**
@@ -80,19 +86,19 @@ class LabelExpiryService
      * otherwise produce fifteen separate records and make the wastage
      * report unreadable.
      */
-    public function markWasted(LabelPrint $print, float $quantity): ?WastageRecord
+    public function markWasted(LabelPrint $print, float $quantity, ?int $employeeId = null): ?WastageRecord
     {
         $costing = $this->costingFor($print);
 
         if (! $costing || $quantity <= 0) {
             // Refuse to guess. Better an uncosted 'discarded' than a wrong
             // number in the cost report.
-            $this->markDiscarded($print);
+            $this->markDiscarded($print, $employeeId);
 
             return null;
         }
 
-        return DB::transaction(function () use ($print, $quantity, $costing) {
+        return DB::transaction(function () use ($print, $quantity, $costing, $employeeId) {
             $record = $this->dailyRecordFor($print);
 
             $totalCost = round($quantity * $costing['unit_cost'], 4);
@@ -112,7 +118,7 @@ class LabelExpiryService
                 'total_cost' => (float) $record->lines()->sum('total_cost'),
             ]);
 
-            $this->resolve($print, 'wasted', $record->id);
+            $this->resolve($print, 'wasted', $record->id, $employeeId);
 
             return $record;
         });
@@ -151,13 +157,24 @@ class LabelExpiryService
         return sprintf('WST-LBL-%s-%d', $date->format('Ymd'), $outletId);
     }
 
-    private function resolve(LabelPrint $print, string $resolution, ?int $wastageRecordId = null): void
-    {
+    /**
+     * resolved_by and resolved_by_employee_id are both recorded because the
+     * two entry points have different notions of "who": a manager in the
+     * main app is a user, a chef on the staff app is an employee. Exactly
+     * one of them is set on any given row.
+     */
+    private function resolve(
+        LabelPrint $print,
+        string $resolution,
+        ?int $wastageRecordId = null,
+        ?int $employeeId = null
+    ): void {
         $print->update([
-            'resolved_at'       => Carbon::now(),
-            'resolved_by'       => Auth::id(),
-            'resolution'        => $resolution,
-            'wastage_record_id' => $wastageRecordId,
+            'resolved_at'             => Carbon::now(),
+            'resolved_by'             => Auth::id(),
+            'resolved_by_employee_id' => $employeeId,
+            'resolution'              => $resolution,
+            'wastage_record_id'       => $wastageRecordId,
         ]);
     }
 
