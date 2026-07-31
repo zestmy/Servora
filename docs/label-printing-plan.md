@@ -568,6 +568,18 @@ array of `[0, 0, W * 2.834645, H * 2.834645]` points and zero margins.
 positioning and basic fonts only, no flexbox or grid — or the two paths diverge.
 This is the price of a single source of truth and it is worth paying.
 
+**Text is shrunk to fit its field, not clipped.** A long value used to wrap past the
+bottom of its own box and land on top of the field below — a 27-character staff name
+needed 5.7mm in a 4mm box and collided with the footer, which is exactly what a real
+print showed. Neither renderer saves you: `overflow: hidden` needs honouring on an
+absolutely positioned box, and dompdf ignores it outright.
+
+Truncating was the alternative and is worse on a food-safety label — half an item name
+is a label nobody can act on — so `fitFontSize()` steps the size down until the wrapped
+height fits, with a 5pt floor below which 203dpi thermal stops being readable anyway.
+The metric estimates Helvetica's advance width and is deliberately pessimistic, erring
+towards slightly small rather than slightly overlapping.
+
 ### Browser print flow
 
 1. Livewire renders the batch to HTML

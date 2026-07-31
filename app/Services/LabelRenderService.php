@@ -28,6 +28,11 @@ class LabelRenderService
     /** Points per millimetre — dompdf wants a paper size in points. */
     private const PT_PER_MM = 2.834645669;
 
+    private const MM_PER_PT = 0.352777778;
+
+    /** Below this, thermal output at 203dpi stops being readable anyway. */
+    private const MIN_FONT_PT = 5.0;
+
     /**
      * @param  array<int, array{template: LabelTemplate, values: array<string, string>, copies?: int}>  $labels
      * @param  float  $offsetXMm  Shift every field right, correcting a clipped left edge
@@ -166,7 +171,12 @@ class LabelRenderService
             $resolved[] = [
                 'text'    => $text,
                 'is_image' => $token === 'company.logo',
-                'style'   => $this->style($field, $offsetXMm, $offsetYMm),
+                'style'   => $this->style(
+                    $field,
+                    $offsetXMm,
+                    $offsetYMm,
+                    $token === 'company.logo' ? null : $text,
+                ),
             ];
         }
 
@@ -174,8 +184,15 @@ class LabelRenderService
     }
 
     /** Inline CSS for one field. Kept to properties dompdf implements. */
-    private function style(array $field, float $offsetXMm = 0, float $offsetYMm = 0): string
-    {
+    private function style(
+        array $field,
+        float $offsetXMm = 0,
+        float $offsetYMm = 0,
+        ?string $text = null
+    ): string {
+        $bold     = ($field['weight'] ?? '') === 'bold';
+        $fontSize = $this->fitFontSize($field, $text, $bold);
+
         $rules = [
             'left: ' . $this->mm(($field['x'] ?? 0) + $offsetXMm),
             'top: '  . $this->mm(($field['y'] ?? 0) + $offsetYMm),
@@ -187,16 +204,69 @@ class LabelRenderService
 
         if (isset($field['h'])) {
             $rules[] = 'height: ' . $this->mm($field['h']);
+            // Belt and braces for the browser path. dompdf largely ignores
+            // this, which is why the size is computed rather than clipped.
+            $rules[] = 'overflow: hidden';
         }
 
-        $rules[] = 'font-size: ' . (float) ($field['font_size'] ?? 8) . 'pt';
+        $rules[] = 'font-size: ' . $fontSize . 'pt';
         $rules[] = 'text-align: ' . $this->align($field['align'] ?? 'left');
 
-        if (($field['weight'] ?? '') === 'bold') {
+        if ($bold) {
             $rules[] = 'font-weight: bold';
         }
 
         return implode('; ', $rules) . ';';
+    }
+
+    /**
+     * Shrink a field's text until it fits its box.
+     *
+     * A long value used to wrap past the bottom of its own field and land on
+     * top of the one below — a 27-character staff name needed 5.7mm in a 4mm
+     * box and collided with the footer. Neither renderer clips: the browser
+     * would need overflow:hidden honoured on an absolutely positioned box,
+     * and dompdf ignores it outright.
+     *
+     * Truncating was the alternative and is worse on a food-safety label:
+     * half an item name is a label nobody can act on. Smaller but complete
+     * beats larger but cut off.
+     *
+     * The metric is an estimate — Helvetica has no fixed advance width — but
+     * it is deliberately pessimistic, so it errs towards slightly small
+     * rather than slightly overlapping.
+     */
+    private function fitFontSize(array $field, ?string $text, bool $bold): float
+    {
+        $size = (float) ($field['font_size'] ?? 8);
+
+        $width  = (float) ($field['w'] ?? 0);
+        $height = (float) ($field['h'] ?? 0);
+
+        if ($text === null || $text === '' || $width <= 0 || $height <= 0) {
+            return $size;
+        }
+
+        // Average advance as a fraction of the em. Uppercase and bold run
+        // wider, and labels are largely uppercase.
+        $emRatio   = $bold ? 0.62 : 0.58;
+        $lineRatio = 1.15;   // matches .f line-height in the Blade
+        $length    = mb_strlen($text);
+
+        while ($size > self::MIN_FONT_PT) {
+            $charMm  = $size * $emRatio * self::MM_PER_PT;
+            $perLine = max(1, (int) floor($width / max($charMm, 0.01)));
+            $lines   = (int) ceil($length / $perLine);
+            $needed  = $lines * $size * $lineRatio * self::MM_PER_PT;
+
+            if ($needed <= $height) {
+                break;
+            }
+
+            $size -= 0.5;
+        }
+
+        return round(max($size, self::MIN_FONT_PT), 1);
     }
 
     private function mm($value): string
