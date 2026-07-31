@@ -18,8 +18,13 @@
             All sets
         </a>
         <div class="flex gap-3 text-xs">
-            <button wire:click="selectAll(true)" class="text-indigo-600">All</button>
-            <button wire:click="selectAll(false)" class="text-gray-500">None</button>
+            @unless ($editing)
+                <button wire:click="selectAll(true)" class="text-indigo-600">All</button>
+                <button wire:click="selectAll(false)" class="text-gray-500">None</button>
+            @endunless
+            <button wire:click="toggleEditing" class="{{ $editing ? 'text-indigo-600 font-semibold' : 'text-gray-500' }}">
+                {{ $editing ? 'Done' : 'Edit items' }}
+            </button>
         </div>
     </div>
 
@@ -40,15 +45,60 @@
         <p class="text-xs text-gray-400 mb-3 px-1">Printing to {{ $printers->first()->name }}</p>
     @endif
 
-    <p class="text-xs text-gray-500 mb-3 px-1">Untick anything you haven't prepped today.</p>
+    @if ($editing)
+        {{-- Editing changes the set for everyone at this outlet, not just
+             this shift. Say so before someone removes a colleague's line. --}}
+        <div class="mb-3 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl">
+            Changes here apply to this set for everyone at {{ $this->outletName() ?: 'this outlet' }}, not just today.
+        </div>
+
+        <div class="mb-3">
+            <input type="search" wire:model.live.debounce.350ms="search"
+                   placeholder="Search an item to add…" enterkeyhint="search"
+                   class="w-full rounded-xl border-gray-200 text-base py-3">
+
+            @if (count($results))
+                <div class="mt-2 bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
+                    @foreach ($results as $group => $items)
+                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">{{ $group }}</p>
+                        @foreach ($items as $item)
+                            <button type="button" wire:click="addItem('{{ $item['type'] }}', {{ $item['id'] }})"
+                                    class="w-full text-left px-4 py-3.5 text-sm text-gray-800 active:bg-indigo-50">
+                                {{ $item['name'] }}
+                            </button>
+                        @endforeach
+                    @endforeach
+                </div>
+            @elseif (strlen(trim($search)) >= 2)
+                <p class="text-center text-sm text-gray-400 py-3">Nothing found.</p>
+            @endif
+
+            <div class="flex gap-2 mt-2">
+                <input type="text" wire:model="customName" wire:keydown.enter="addCustomItem"
+                       placeholder="Or type any item name…"
+                       class="flex-1 rounded-xl border-gray-200 text-sm py-2.5">
+                <button wire:click="addCustomItem"
+                        class="px-4 rounded-xl border border-gray-200 text-sm text-gray-600 active:bg-gray-50">Add</button>
+            </div>
+        </div>
+    @else
+        <p class="text-xs text-gray-500 mb-3 px-1">Untick anything you haven't prepped today.</p>
+    @endif
 
     <div class="space-y-2">
         @forelse ($lines as $line)
             <label class="flex items-start gap-3 bg-white rounded-xl border border-gray-200 p-3 active:bg-gray-50"
                    wire:key="line-{{ $line->id }}">
-                {{-- Deliberately oversized: tapped with gloves on. --}}
-                <input type="checkbox" wire:model.live="selected.{{ $line->id }}"
-                       class="mt-0.5 w-6 h-6 rounded border-gray-300 text-indigo-600">
+                @if ($editing)
+                    <button type="button" wire:click="removeItem({{ $line->id }})"
+                            wire:confirm="Remove {{ $line->displayName() }} from this set?"
+                            class="mt-0.5 w-6 h-6 shrink-0 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-lg leading-none"
+                            aria-label="Remove {{ $line->displayName() }}">&minus;</button>
+                @else
+                    {{-- Deliberately oversized: tapped with gloves on. --}}
+                    <input type="checkbox" wire:model.live="selected.{{ $line->id }}"
+                           class="mt-0.5 w-6 h-6 rounded border-gray-300 text-indigo-600">
+                @endif
 
                 <span class="flex-1 min-w-0">
                     <span class="block text-sm font-medium text-gray-800">{{ $line->displayName() }}</span>
@@ -75,11 +125,14 @@
         @empty
             <div class="text-center py-14">
                 <p class="text-sm text-gray-400">This set is empty.</p>
+                @unless ($editing)
+                    <button wire:click="toggleEditing" class="mt-2 text-sm text-indigo-600">Add items</button>
+                @endunless
             </div>
         @endforelse
     </div>
 
-    @if ($lines->count() && $printers->isNotEmpty())
+    @if ($lines->count() && $printers->isNotEmpty() && ! $editing)
         {{-- Sticky within the scroll area, so it stays reachable while the
              checklist scrolls and never overlaps the nav. --}}
         <button wire:click="print" wire:loading.attr="disabled"

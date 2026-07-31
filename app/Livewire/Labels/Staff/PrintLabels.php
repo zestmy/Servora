@@ -20,6 +20,8 @@ use App\Services\LabelPrintService;
  */
 class PrintLabels extends StaffComponent
 {
+    use SearchesLabelItems;
+
     public string $search = '';
 
     public string $customName = '';
@@ -33,7 +35,7 @@ class PrintLabels extends StaffComponent
 
     public function addItem(string $type, int $id): void
     {
-        $item = $this->findItem($type, $id);
+        $item = $this->findLabelItem($type, $id);
 
         if (! $item) {
             return;
@@ -124,7 +126,7 @@ class PrintLabels extends StaffComponent
     public function render(LabelPrintService $service)
     {
         return view('livewire.labels.staff.print-labels', [
-            'results'    => $this->searchResults(),
+            'results'    => $this->labelSearchResults($this->search),
             'previews'   => $this->previews($service),
             'labelTypes' => LabelTemplate::LABEL_TYPES,
             'states'     => ShelfLifeRule::STORAGE_STATES,
@@ -147,52 +149,12 @@ class PrintLabels extends StaffComponent
         ];
     }
 
-    /** Company-scoped by hand — there is no authenticated web user here. */
-    private function findItem(string $type, int $id)
-    {
-        $companyId = $this->staff()->company_id;
-
-        $query = match ($type) {
-            'ingredient' => Ingredient::withoutGlobalScope(CompanyScope::class),
-            'recipe'     => Recipe::withoutGlobalScope(CompanyScope::class),
-            'production' => ProductionRecipe::withoutGlobalScope(CompanyScope::class),
-            default      => null,
-        };
-
-        return $query?->where('company_id', $companyId)->find($id);
-    }
-
-    private function searchResults(): array
-    {
-        if (strlen(trim($this->search)) < 2) {
-            return [];
-        }
-
-        $companyId = $this->staff()->company_id;
-        $term      = '%' . trim($this->search) . '%';
-
-        $scoped = fn ($class) => $class::withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $companyId)
-            ->where('name', 'like', $term)
-            ->orderBy('name')
-            ->limit(6);
-
-        return array_filter([
-            'Market List' => $scoped(Ingredient::class)->where('is_prep', false)->get()
-                ->map(fn ($i) => ['type' => 'ingredient', 'id' => $i->id, 'name' => $i->name])->all(),
-            'Recipes & Prep' => $scoped(Recipe::class)->get()
-                ->map(fn ($r) => ['type' => 'recipe', 'id' => $r->id, 'name' => $r->name])->all(),
-            'Production' => $scoped(ProductionRecipe::class)->get()
-                ->map(fn ($p) => ['type' => 'production', 'id' => $p->id, 'name' => $p->name])->all(),
-        ], fn ($group) => count($group) > 0);
-    }
-
     private function previews(LabelPrintService $service): array
     {
         $out = [];
 
         foreach ($this->tray as $index => $line) {
-            $item = $line['type'] ? $this->findItem($line['type'], (int) $line['id']) : null;
+            $item = $line['type'] ? $this->findLabelItem($line['type'], (int) $line['id']) : null;
 
             $out[$index] = $service->previewUseBy(
                 $item,

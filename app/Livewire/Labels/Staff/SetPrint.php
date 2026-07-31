@@ -3,6 +3,8 @@
 namespace App\Livewire\Labels\Staff;
 
 use App\Models\LabelSet;
+use App\Models\LabelSetLine;
+use App\Models\LabelTemplate;
 use App\Scopes\CompanyScope;
 use App\Services\LabelPrintService;
 
@@ -16,6 +18,8 @@ use App\Services\LabelPrintService;
  */
 class SetPrint extends StaffComponent
 {
+    use SearchesLabelItems;
+
     public int $setId;
 
     public array $selected = [];
@@ -24,6 +28,13 @@ class SetPrint extends StaffComponent
 
     /** Manual use-by, only where no shelf life rule resolves. */
     public array $endAt = [];
+
+    /** Editing is behind a toggle so a mis-tap can't reorganise a station. */
+    public bool $editing = false;
+
+    public string $search = '';
+
+    public string $customName = '';
 
     public function mount(int $set): void
     {
@@ -44,6 +55,93 @@ class SetPrint extends StaffComponent
         foreach (array_keys($this->selected) as $id) {
             $this->selected[$id] = $state;
         }
+    }
+
+    // ── Editing what's in the set ─────────────────────────────────────────
+
+    public function toggleEditing(): void
+    {
+        $this->editing = ! $this->editing;
+        $this->search  = '';
+        $this->resetValidation();
+    }
+
+    public function addItem(string $type, int $id): void
+    {
+        $item = $this->findLabelItem($type, $id);
+
+        if (! $item) {
+            return;
+        }
+
+        $this->appendLine($item::class, $item->getKey(), null);
+        $this->search = '';
+    }
+
+    public function addCustomItem(): void
+    {
+        $name = trim($this->customName);
+
+        if ($name === '') {
+            return;
+        }
+
+        $this->appendLine(null, null, $name);
+        $this->customName = '';
+    }
+
+    /**
+     * Remove a line from the set.
+     *
+     * This edits the set for the whole outlet, not just this shift — worth
+     * knowing, and why the UI says so before anyone taps it.
+     */
+    public function removeItem(int $lineId): void
+    {
+        $line = $this->line($lineId);
+
+        if (! $line) {
+            return;
+        }
+
+        $name = $line->displayName();
+        $line->delete();
+
+        // Keep the checklist state in step, or a deleted line's stale entry
+        // would linger and be counted on the next print.
+        unset($this->selected[$lineId], $this->copies[$lineId], $this->endAt[$lineId]);
+
+        session()->flash('success', $name . ' removed from this set.');
+    }
+
+    private function appendLine(?string $type, ?int $id, ?string $customName): void
+    {
+        $set       = $this->set($this->setId);
+        $labelType = 'prep';
+
+        $line = LabelSetLine::create([
+            'label_set_id'   => $set->id,
+            // Onto the end: order is physical, and a chef adding something
+            // mid-shift is adding it to the end of their walk.
+            'sort_order'     => (int) $set->lines()->max('sort_order') + 1,
+            'labelable_type' => $type,
+            'labelable_id'   => $id,
+            'custom_name'    => $customName,
+            'label_type'     => $labelType,
+            'storage_state'  => LabelTemplate::DEFAULT_STORAGE_STATE[$labelType] ?? 'chill',
+            'copies'         => 1,
+        ]);
+
+        $this->selected[$line->id] = true;
+        $this->copies[$line->id]   = 1;
+
+        session()->flash('success', $line->displayName() . ' added.');
+    }
+
+    /** A line belonging to THIS set, or nothing. */
+    private function line(int $lineId): ?LabelSetLine
+    {
+        return LabelSetLine::where('label_set_id', $this->setId)->find($lineId);
     }
 
     public function print(LabelPrintService $service): void
@@ -122,6 +220,7 @@ class SetPrint extends StaffComponent
             'lines'    => $lines,
             'previews' => $previews,
             'printers' => $this->printers(),
+            'results'  => $this->editing ? $this->labelSearchResults($this->search) : [],
         ])->layout('layouts.labels-staff', $this->shell($set->name));
     }
 

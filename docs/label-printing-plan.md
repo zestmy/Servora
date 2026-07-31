@@ -304,6 +304,22 @@ Two things this depended on:
   become an open redirect. Only GETs are remembered; replaying a bounced POST after
   sign-in would be a surprise.
 
+**Staff can add and remove items in a set** from the set screen, behind an "Edit items"
+toggle. Originally read-only on the reasoning that managers build sets and editing one
+on a phone mid-shift was nobody's idea of fun — but staff are the ones standing at the
+station when they notice something missing, so they now can.
+
+Editing is deliberately gated behind the toggle rather than always-on: a mis-tap on a
+list built for gloved fingers should not reorganise a station. The screen states
+plainly that changes apply to the whole outlet, not just today, and removal asks for
+confirmation. New lines append to the end, since order is physical and something added
+mid-shift is added to the end of the walk. Whole sets are still manager-only — this is
+items, not sets.
+
+Adding or removing a line keeps the checklist state in step. Without that, a removed
+line's stale entry would linger and be counted on the next print, and a newly added
+line would look ticked but be skipped.
+
 Four tabs: Print, Sets, Expiring, Log. The staff log is read-only and scoped to the
 member's own outlet — it shows the whole outlet's activity, not just their own, because
 the question being answered is usually about a label someone else printed.
