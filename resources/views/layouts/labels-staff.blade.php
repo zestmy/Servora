@@ -65,21 +65,25 @@
         }
 
         /*
-         * App shell: one fixed-height column that owns its own scrolling.
+         * App shell: pinned to all four edges, scrolling in the middle.
          *
-         * The nav used to be `fixed bottom-0`, which pins to the VISUAL
-         * viewport — and that is not the same height on a page that scrolls
-         * as on one that doesn't, so the bar sat at different heights on
-         * Print and Log. As a normal flex child of a fixed-height column it
-         * simply cannot drift.
+         * Deliberately NOT sized with a viewport unit. Both previous
+         * attempts here failed on a real phone — first a `fixed bottom-0`
+         * nav that sat at different heights depending on whether the page
+         * scrolled, then `100dvh`, which still left a strip of background
+         * below the bar. Anchoring to inset:0 asks the browser where its
+         * edges are instead of computing a height and hoping it agrees.
          *
-         * dvh rather than vh so mobile browser chrome is accounted for.
+         * max-width plus auto margins keeps it centred on a tablet, since
+         * inset:0 sets left and right to 0.
          */
         .app-shell {
+            position: fixed;
+            inset: 0;
+            margin: 0 auto;
+            max-width: 42rem;
             display: flex;
             flex-direction: column;
-            height: 100vh;   /* fallback for engines without dvh */
-            height: 100dvh;
         }
 
         .app-scroll {
@@ -92,7 +96,9 @@
 {{-- overflow-hidden on the body: the shell scrolls, the page never does. --}}
 <body class="h-full bg-gray-50 antialiased overflow-hidden">
 
-<div class="app-shell max-w-2xl mx-auto bg-gray-50">
+{{-- Width and centring live in .app-shell so they can't fight the fixed
+     positioning. --}}
+<div class="app-shell bg-gray-50">
 
     @isset($staff)
         <header class="shrink-0 z-20 bg-indigo-600 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
