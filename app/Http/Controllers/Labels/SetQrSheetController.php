@@ -50,9 +50,14 @@ class SetQrSheetController extends Controller
             'url'   => $qr->urlFor($set),
         ]);
 
+        // A6 by default: airway-bill label stock, peel and stick, no
+        // scissors. A4 stays available for setting up a whole outlet at once.
+        $size = $request->query('size') === 'a4' ? 'a4' : 'a6';
+
         return view('labels.qr-sheet', [
             'outlet' => $outlet,
             'cards'  => $cards,
+            'size'   => $size,
         ]);
     }
 }

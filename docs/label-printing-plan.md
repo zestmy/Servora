@@ -239,10 +239,16 @@ is branded for the install prompt, but `short_name` stays "Labels" — a home sc
 truncates at roughly twelve characters.
 
 **QR codes take a chef straight to a set.** Managers get a QR per set on
-`/labels/sets`, plus a printable cut-out sheet (`/labels/set-qr-sheet`) sized so four
-cards fit an A4 page with the code at roughly 45mm — big enough to scan off a chiller
-door under kitchen lighting. Error correction is level Q, because a sticker on
-stainless steel gets smudged and partly peeled.
+`/labels/sets`, plus a printable sheet at `/labels/set-qr-sheet` in two sizes:
+
+- **A6 (default)** — airway-bill label stock, one set per label, peel and stick. No
+  scissors, and the code renders at 70mm so it scans across a kitchen.
+- **A4** — four cut-out cards to a page, for setting up a whole outlet at once on
+  ordinary paper.
+
+Error correction is level Q, because a sticker on stainless steel gets smudged and
+partly peeled. "Powered by Servora" appears on each A6 label and once at the foot of an
+A4 sheet, rather than repeated on every cut-out card.
 
 Two things this depended on:
 
