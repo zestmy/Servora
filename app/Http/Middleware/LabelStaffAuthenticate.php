@@ -22,9 +22,7 @@ class LabelStaffAuthenticate
 
     public function handle(Request $request, Closure $next): Response
     {
-        $companyId = app()->bound('currentCompany') ? app('currentCompany')->id : null;
-
-        if (! $this->staff->check($companyId)) {
+        if (! $this->staff->check($this->staff->companyId())) {
             return redirect()->route('labels.staff.login');
         }
 

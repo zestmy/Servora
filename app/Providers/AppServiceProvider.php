@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +29,27 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        /*
+         * Resolve the subdomain company on Livewire's update endpoint too.
+         *
+         * Livewire posts every interaction to /livewire/update, a route it
+         * registers itself. That route does NOT inherit the middleware of
+         * the page's own route group, so on a company subdomain the initial
+         * GET resolved `currentCompany` and every subsequent tap did not —
+         * components looked like they were on the main domain and came back
+         * empty.
+         *
+         * This also matters for CompanyScope, which falls back to
+         * `currentCompany` when there is no authenticated user: without it,
+         * a Livewire request from the staff app would apply no company
+         * filter at all.
+         *
+         * A no-op on the main domain — ResolveCompanyFromSubdomain returns
+         * early when the host has no company subdomain.
+         */
+        Livewire::setUpdateRoute(fn ($handle) => Route::post('/livewire/update', $handle)
+            ->middleware(['web', 'company.subdomain']));
+
         // Keep prep-item costs in sync whenever an ingredient's cost changes.
         Ingredient::observe(IngredientObserver::class);
 

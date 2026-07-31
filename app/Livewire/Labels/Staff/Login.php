@@ -108,7 +108,7 @@ class Login extends Component
         return view('livewire.labels.staff.login', [
             'employees' => $this->staffWithPins(),
             'selected'  => $this->employee(),
-            'company'   => app()->bound('currentCompany') ? app('currentCompany') : null,
+            'company'   => \App\Models\Company::find(app(LabelStaffSession::class)->companyId()),
         ])->layout('layouts.labels-staff', ['title' => 'Sign in']);
     }
 
@@ -127,7 +127,7 @@ class Login extends Component
      */
     private function staffWithPins()
     {
-        $companyId = app()->bound('currentCompany') ? app('currentCompany')->id : null;
+        $companyId = app(LabelStaffSession::class)->companyId();
 
         if (! $companyId) {
             return collect();

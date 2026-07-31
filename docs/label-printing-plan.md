@@ -175,6 +175,20 @@ fumbled their PIN.
    `/labels-staff` prefix locally, where `APP_DOMAIN` is unset. Route names are
    identical either way.
 
+**Livewire's update endpoint needed the subdomain middleware too.** This was a live
+bug: the initial page load ran `company.subdomain` and bound `currentCompany`, but
+every subsequent tap posts to `/livewire/update` — a route Livewire registers itself,
+which does **not** inherit the page route group's middleware. So the second request
+looked like a main-domain request, the employee list came back empty, and tapping a
+name showed "Nobody has label access yet".
+
+Fixed globally in `AppServiceProvider` via `Livewire::setUpdateRoute()`. This matters
+beyond the staff app: `CompanyScope` falls back to `currentCompany` when there is no
+authenticated user, so without it a Livewire request from any subdomain page would
+apply **no company filter at all**. Components also fall back to the
+`subdomain_company_id` the middleware stores in the session, so neither mechanism is a
+single point of failure.
+
 **No web user exists in this context**, which had knock-on effects worth remembering:
 
 - `CompanyScope` resolves via `app('currentCompany')` on a subdomain, so it happens to

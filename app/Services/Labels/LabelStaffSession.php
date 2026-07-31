@@ -83,4 +83,23 @@ class LabelStaffSession
     {
         return $this->employee($expectedCompanyId) !== null;
     }
+
+    /**
+     * Which company this subdomain belongs to.
+     *
+     * Prefers the container binding, then falls back to what the subdomain
+     * middleware stashed in the session. Belt and braces: any request that
+     * somehow reaches a staff screen without that middleware having run
+     * would otherwise look like the main domain and quietly return nothing.
+     */
+    public function companyId(): ?int
+    {
+        if (app()->bound('currentCompany')) {
+            return (int) app('currentCompany')->id;
+        }
+
+        $fromSession = Session::get('subdomain_company_id');
+
+        return $fromSession ? (int) $fromSession : null;
+    }
 }

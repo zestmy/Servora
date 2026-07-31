@@ -41,7 +41,7 @@ abstract class StaffComponent extends Component
 
     public function companyId(): ?int
     {
-        return app()->bound('currentCompany') ? app('currentCompany')->id : null;
+        return app(LabelStaffSession::class)->companyId();
     }
 
     /** Labels are outlet-scoped; the staff member's outlet decides which. */
