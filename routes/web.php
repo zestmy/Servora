@@ -330,6 +330,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels', \App\Livewire\Labels\PrintScreen::class)->name('labels.print')->middleware('can:labels.print');
     Route::get('/labels/sets', \App\Livewire\Labels\Sets::class)->name('labels.sets')->middleware('can:labels.print');
     Route::get('/labels/sets/{set}/print', \App\Livewire\Labels\SetPrint::class)->name('labels.sets.print')->middleware('can:labels.print');
+    // Printable cut-out QR cards. Its own path rather than /labels/sets/qr
+    // so it can never be mistaken for a set id by the route above.
+    Route::get('/labels/set-qr-sheet', \App\Http\Controllers\Labels\SetQrSheetController::class)->name('labels.sets.qr-sheet')->middleware('can:labels.manage');
     Route::get('/labels/expiring', \App\Livewire\Labels\Expiring::class)->name('labels.expiring')->middleware('can:labels.print');
     Route::get('/labels/log', \App\Livewire\Labels\PrintLog::class)->name('labels.log')->middleware('can:labels.view_log');
     Route::get('/labels/staff-access', \App\Livewire\Labels\StaffAccess::class)->name('labels.staff-access')->middleware('can:labels.manage');

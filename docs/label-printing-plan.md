@@ -230,6 +230,24 @@ logos are dark artwork that would vanish against the indigo bar. The manifest's 
 is branded for the install prompt, but `short_name` stays "Labels" — a home screen
 truncates at roughly twelve characters.
 
+**QR codes take a chef straight to a set.** Managers get a QR per set on
+`/labels/sets`, plus a printable cut-out sheet (`/labels/set-qr-sheet`) sized so four
+cards fit an A4 page with the code at roughly 45mm — big enough to scan off a chiller
+door under kitchen lighting. Error correction is level Q, because a sticker on
+stainless steel gets smudged and partly peeled.
+
+Two things this depended on:
+
+- **The URL is built by hand, not with `route()`.** These are generated in the manager
+  app on the *main domain*, where the subdomain route defaults aren't bound — `route()`
+  would emit a main-domain link that sends staff to a login they cannot use.
+- **Scanning while signed out has to come back to the set.** The middleware stores the
+  intended URL and sign-in honours it, or the QR would be pointless: the chef would
+  land on the default screen and have to find the set by hand anyway. The stored URL is
+  validated on use — same host *and* inside the staff app's own path — so it can never
+  become an open redirect. Only GETs are remembered; replaying a bounced POST after
+  sign-in would be a surprise.
+
 Four tabs: Print, Sets, Expiring, Log. The staff log is read-only and scoped to the
 member's own outlet — it shows the whole outlet's activity, not just their own, because
 the question being answered is usually about a label someone else printed.

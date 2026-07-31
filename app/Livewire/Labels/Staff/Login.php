@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Labels\Staff;
 
+use App\Http\Middleware\LabelStaffAuthenticate;
 use App\Models\Employee;
 use App\Scopes\CompanyScope;
 use App\Services\Labels\LabelStaffSession;
@@ -100,7 +101,42 @@ class Login extends Component
         RateLimiter::clear($key);
         $session->signIn($employee);
 
-        return $this->redirectRoute('labels.staff.print', navigate: false);
+        return $this->redirect($this->destination(), navigate: false);
+    }
+
+    /**
+     * Where to land after signing in.
+     *
+     * Honours the page the person was originally heading for — scanning a
+     * set's QR while signed out should end up on that set. Validated rather
+     * than trusted: the URL must be on this same host and inside the staff
+     * app, so a stored value can never become an open redirect.
+     */
+    private function destination(): string
+    {
+        $intended = session()->pull(LabelStaffAuthenticate::INTENDED_KEY);
+        $fallback = route('labels.staff.print');
+
+        if (! $intended) {
+            return $fallback;
+        }
+
+        $target = parse_url($intended);
+        $here   = parse_url($fallback);
+
+        if (($target['host'] ?? null) !== ($here['host'] ?? null)) {
+            return $fallback;
+        }
+
+        $base = rtrim($here['path'] ?? '/', '/');
+        $path = $target['path'] ?? '';
+
+        // Must sit within the staff app's own path, not merely on the host.
+        if ($base !== '' && ! str_starts_with($path, $base)) {
+            return $fallback;
+        }
+
+        return $intended;
     }
 
     public function render()

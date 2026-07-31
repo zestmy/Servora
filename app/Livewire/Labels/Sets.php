@@ -11,6 +11,7 @@ use App\Models\ProductionRecipe;
 use App\Models\Recipe;
 use App\Models\ShelfLifeRule;
 use App\Services\LabelPrintService;
+use App\Services\Labels\LabelQrService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -41,6 +42,8 @@ class Sets extends Component
     public string $name = '';
 
     public string $description = '';
+
+    public ?int $qrSetId = null;
 
     public function mount(): void
     {
@@ -119,6 +122,19 @@ class Sets extends Component
     {
         $this->editingSetId = $id;
         $this->search = '';
+    }
+
+    // ── QR ────────────────────────────────────────────────────────────────
+
+    /** Show one set's QR so it can be printed and stuck on the station. */
+    public function showQr(int $id): void
+    {
+        $this->qrSetId = $id;
+    }
+
+    public function closeQr(): void
+    {
+        $this->qrSetId = null;
     }
 
     // ── Lines ─────────────────────────────────────────────────────────────
@@ -212,11 +228,16 @@ class Sets extends Component
         $line->update($update);
     }
 
-    public function render(LabelPrintService $service)
+    public function render(LabelPrintService $service, LabelQrService $qr)
     {
         $set = $this->editingSet();
 
+        $qrSet = $this->qrSetId ? LabelSet::find($this->qrSetId) : null;
+
         return view('livewire.labels.sets', [
+            'qrSet'    => $qrSet,
+            'qrImage'  => $qrSet ? $qr->svgFor($qrSet) : null,
+            'qrUrl'    => $qrSet ? $qr->urlFor($qrSet) : null,
             'sets'       => LabelSet::forOutlet((int) $this->outletId)->ordered()->withCount('lines')->get(),
             'outlets'    => Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get(),
             'set'        => $set,

@@ -16,9 +16,17 @@
                 <h2 class="text-lg font-semibold text-gray-700 mt-1">Print sets</h2>
             </div>
         </div>
-        <button wire:click="openCreate" class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-            + New set
-        </button>
+        <div class="flex items-center gap-2">
+            @if ($sets->count())
+                <a href="{{ route('labels.sets.qr-sheet', ['outlet' => $outletId]) }}" target="_blank"
+                   class="px-3 py-2 text-sm text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50">
+                    Print QR sheet
+                </a>
+            @endif
+            <button wire:click="openCreate" class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                + New set
+            </button>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -53,6 +61,7 @@
                                 <a href="{{ route('labels.sets.print', $row) }}"
                                    class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Print</a>
                                 <div class="flex gap-1 text-xs">
+                                    <button wire:click="showQr({{ $row->id }})" class="text-indigo-600 hover:underline">QR</button>
                                     <button wire:click="openRename({{ $row->id }})" class="text-gray-400 hover:text-gray-600">Rename</button>
                                     <button wire:click="deleteSet({{ $row->id }})" wire:confirm="Delete this set?"
                                             class="text-gray-400 hover:text-red-500">Delete</button>
@@ -155,6 +164,40 @@
                 </div>
             @endif
         </div>
+    </div>
+
+    {{-- One set's QR --}}
+    <div x-data="{ open: @entangle('qrSetId').live }">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak @keydown.escape.window="$wire.closeQr()"
+                 class="fixed inset-0 z-[100] overflow-y-auto">
+                <div class="fixed inset-0 bg-black/50" @click="$wire.closeQr()"></div>
+                <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm" @click.stop>
+                        <div class="px-5 py-3 border-b border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ $qrSet?->name }}</h3>
+                        </div>
+                        <div class="p-5 text-center">
+                            @if ($qrImage)
+                                <img src="{{ $qrImage }}" alt="QR for {{ $qrSet?->name }}"
+                                     class="w-52 h-52 mx-auto border border-gray-100 rounded-lg">
+                                <p class="mt-3 text-xs text-gray-500">
+                                    Staff scan this to open the set on their phone, ready to print.
+                                    They'll be asked for their PIN first if they aren't signed in.
+                                </p>
+                                <p class="mt-2 text-[11px] text-gray-400 break-all font-mono">{{ $qrUrl }}</p>
+                            @endif
+                        </div>
+                        <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100">
+                            <button wire:click="closeQr" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+                            <a href="{{ route('labels.sets.qr-sheet', ['outlet' => $outletId, 'set' => $qrSet?->id]) }}"
+                               target="_blank"
+                               class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Print</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 
     {{-- Create / rename --}}
