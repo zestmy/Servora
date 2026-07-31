@@ -6,15 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\LabelSet;
 use App\Models\Outlet;
 use App\Services\Labels\LabelQrService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 /**
- * A printable sheet of set QR codes, cut up and stuck on chiller doors.
+ * Set QR labels, stuck on chiller doors and stations.
  *
- * Plain HTML with a print stylesheet rather than a PDF: these are cut out
- * with scissors and taped to stainless steel, so what matters is that the
- * codes come out big and crisp on A4, not that the file is portable.
+ * Two outputs from the same data. The HTML page is for choosing a size and
+ * seeing what you'll get; the PDF is what should actually be printed.
+ *
+ * That split exists because browser printing kept losing the argument with
+ * the label driver — page size, orientation and scale all get renegotiated
+ * at print time, and the label came out rotated and a third of its size
+ * however precisely the page was declared. A PDF carries its own MediaBox,
+ * so "Actual size" means actual size.
  */
 class SetQrSheetController extends Controller
 {
@@ -59,13 +66,71 @@ class SetQrSheetController extends Controller
         ]);
 
         $size = $request->query('size', '4x6');
+        $size = array_key_exists($size, self::SIZES) ? $size : '4x6';
+        $page = self::SIZES[$size];
+
+        if ($request->query('format') === 'pdf') {
+            return $this->pdf($outlet, $sets, $qr, $temperatures, $page, $size);
+        }
 
         return view('labels.qr-sheet', [
             'outlet' => $outlet,
             'cards'  => $cards,
-            'size'   => array_key_exists($size, self::SIZES) ? $size : '4x6',
+            'size'   => $size,
             'sizes'  => self::SIZES,
         ]);
+    }
+
+    /**
+     * The reliable path.
+     *
+     * Browser printing kept renegotiating page size, orientation and scale
+     * with the driver, so an exactly-declared label still came out rotated
+     * and a third of its size. A PDF carries its own MediaBox: printed at
+     * "Actual size" it is the size it says it is. This is the same
+     * mechanism the 70x40 item labels use, and those print correctly.
+     */
+    private function pdf($outlet, $sets, LabelQrService $qr, array $temperatures, array $page, string $size)
+    {
+        $margin = $page['mode'] === 'single' ? 5.0 : 12.0;
+        $inner  = $page['w'] - ($margin * 2);
+
+        $cards = $sets->map(function (LabelSet $set) use ($qr, $temperatures, $inner) {
+            $storages = $set->storageForLabel($temperatures);
+
+            return [
+                'set' => $set,
+                // PNG, not the SVG the web page uses: dompdf's SVG handling
+                // is unreliable and a blank box would be worse than no label.
+                'png'      => $qr->pngFor($set),
+                'storages' => $storages,
+                // The QR yields to the temperature block. A set holding two
+                // storage states pushed a fixed-size QR past the bottom of
+                // the label and produced a blank second page for every one
+                // printed, so the code shrinks instead of the label growing.
+                'qr_size'  => round($inner * match (count($storages)) {
+                    0, 1    => 0.68,
+                    2       => 0.50,
+                    default => 0.38,
+                }, 1),
+            ];
+        })->all();
+
+        $pt = 2.834645669;   // points per millimetre
+
+        $pdf = Pdf::loadView('labels.qr-sheet-pdf', [
+            'outlet' => $outlet,
+            'cards'  => $cards,
+            'page'   => $page,
+            'margin' => $margin,
+            
+        ])->setPaper([0, 0, $page['w'] * $pt, $page['h'] * $pt]);
+
+        return $pdf->download(sprintf(
+            'set-qr-%s-%s.pdf',
+            Str::slug($outlet->name),
+            $size
+        ));
     }
 
     /**

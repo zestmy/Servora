@@ -161,10 +161,16 @@
                 cut along the dashed lines.
             @endif
         </p>
-        {{-- The two settings that silently ruin exact-size printing. --}}
+        {{-- Printing the browser page means negotiating page size and scale
+             with the driver, which is where this kept going wrong. The PDF
+             carries its own page box and sidesteps all of it. --}}
         <p style="color:#b45309">
-            In the print dialog set <strong>Paper size</strong> to your label stock,
-            <strong>Margins</strong> to None and <strong>Scale</strong> to 100.
+            <strong>Use Download PDF</strong> and print that at Actual size — it is
+            exactly {{ rtrim(rtrim(number_format($page['w'], 1), '0'), '.') }} ×
+            {{ rtrim(rtrim(number_format($page['h'], 1), '0'), '.') }}mm.
+            Printing this page from the browser instead means setting Paper size to
+            your stock, Margins to None and Scale to 100, and the driver may still
+            rescale it.
         </p>
     </div>
     <div style="display:flex; gap:8px; align-items:center;">
@@ -176,7 +182,13 @@
                     'size'   => $key,
                ])) }}">{{ $option['label'] }}</a>
         @endforeach
-        <button class="btn" onclick="window.print()">Print</button>
+        <a class="btn" href="{{ route('labels.sets.qr-sheet', array_filter([
+                'outlet' => $outlet->id,
+                'set'    => request()->query('set'),
+                'size'   => $size,
+                'format' => 'pdf',
+           ])) }}">Download PDF</a>
+        <button class="btn btn-ghost" onclick="window.print()">Print page</button>
     </div>
 </div>
 

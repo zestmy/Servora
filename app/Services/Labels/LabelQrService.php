@@ -46,6 +46,33 @@ class LabelQrService
         return $this->encode($this->urlFor($set));
     }
 
+    /**
+     * PNG data URI, for the PDF path.
+     *
+     * dompdf's SVG support is patchy, especially for data URIs, and a QR
+     * that renders as a blank box is worse than no label at all. A raster
+     * QR is unambiguous, and at scale 10 it is far finer than any label
+     * printer resolves.
+     */
+    public function pngFor(LabelSet $set): string
+    {
+        return $this->encodePng($this->urlFor($set));
+    }
+
+    public function encodePng(string $data): string
+    {
+        $options = new QROptions([
+            'outputInterface' => \chillerlan\QRCode\Output\QRGdImagePNG::class,
+            'version'         => Version::AUTO,
+            'eccLevel'        => EccLevel::Q,
+            'outputBase64'    => true,
+            'scale'           => 10,
+            'quietzoneSize'   => 2,
+        ]);
+
+        return (new QRCode($options))->render($data);
+    }
+
     public function encode(string $data): string
     {
         $options = new QROptions([
