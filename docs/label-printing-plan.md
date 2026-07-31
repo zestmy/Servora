@@ -804,6 +804,24 @@ Keeping `discarded` separate from `wasted` is what keeps the wastage figures hon
 everything counted as wasted has a real cost behind it, and uncosted bin events stay
 visible rather than being folded in at zero.
 
+**Grouping by print set** *(added 2026-07-31)*. Both expiring screens can restack the
+same rows under the set the labels were printed from — "Bar Chiller", "Grill Station" —
+because that is the station a chef physically walks to. No schema change: the batch has
+carried `label_set_id` since the print service was written.
+
+The set is read off the **batch**, not the item, and the distinction is the whole point.
+It answers *where was this labelled*, not *where does this item belong*. An item that
+also happens to be in the Bar Chiller set but was printed ad-hoc did not come off that
+run, so it appears under **Not from a set** rather than being claimed by a set it was
+never printed with. That group is ordered by urgency along with the rest instead of
+being parked at the bottom, because ad-hoc prints are the ones most easily forgotten.
+
+Both groupings are built from the *same* three bucket queries, so the toggle only
+restacks — it can never hide a row. On a food-safety screen that property is worth more
+than the tidier query a single ordered fetch would allow. The manager screen adds a set
+filter; the staff app deliberately does not, because on a phone the grouping already is
+the filter and a second control competes for the same thumb.
+
 **Costing is the awkward part.** `wastage_record_lines` requires `quantity`, `uom_id`,
 `unit_cost` and `total_cost`, all NOT NULL, and a label carries none of them. So:
 

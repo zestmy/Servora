@@ -61,6 +61,55 @@ class LabelExpiryService
     }
 
     /**
+     * Regroup expiring labels under the print set they were printed from.
+     *
+     * The set is read off the BATCH, not off the item, and that distinction
+     * matters: it answers "where was this labelled", which is where the chef
+     * has to walk to deal with it. An item that also happens to belong to
+     * "Bar Chiller" but was printed ad-hoc did not come off that run and is
+     * not claimed by it — it lands in "Not from a set" instead, which is
+     * honest about what the record actually says.
+     *
+     * Ordered by the most urgent row in each group, so the station with
+     * something already expired floats to the top. "Not from a set" takes
+     * part in that ordering rather than being parked at the bottom: burying
+     * it would bury whatever is oldest in the kitchen.
+     *
+     * @param  \Illuminate\Support\Collection<int, LabelPrint>  $prints
+     * @return array<int, array{key: string, name: string, rows: \Illuminate\Support\Collection, expired: int}>
+     */
+    public function groupBySet($prints, ?Carbon $now = null): array
+    {
+        $now ??= Carbon::now();
+
+        $groups = [];
+
+        foreach ($prints as $print) {
+            $set = $print->batch?->labelSet;
+            $key = $set ? (string) $set->id : 'none';
+
+            $groups[$key] ??= [
+                'key'     => $key,
+                'name'    => $set->name ?? 'Not from a set',
+                'rows'    => collect(),
+                'expired' => 0,
+            ];
+
+            $groups[$key]['rows']->push($print);
+
+            if ($print->end_at && $print->end_at->lt($now)) {
+                $groups[$key]['expired']++;
+            }
+        }
+
+        $groups = array_values($groups);
+
+        usort($groups, fn ($a, $b) => ($a['rows']->min('end_at') <=> $b['rows']->min('end_at')));
+
+        return $groups;
+    }
+
+    /**
      * Consumed normally. Nothing to cost, nothing to record beyond the fact.
      *
      * $employeeId is supplied by the staff app, whose users authenticate

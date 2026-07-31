@@ -11,20 +11,51 @@
             <p class="text-xs text-gray-400">Labels / Expiring</p>
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Expiring</h2>
         </div>
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Outlet</label>
-            <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm">
-                <option value="">All outlets</option>
-                @foreach ($outlets as $outlet)
-                    <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                @endforeach
-            </select>
+        <div class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Outlet</label>
+                <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm">
+                    <option value="">All outlets</option>
+                    @foreach ($outlets as $outlet)
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Print set</label>
+                <select wire:model.live="setFilter" class="rounded-lg border-gray-300 text-sm">
+                    <option value="">All sets</option>
+                    @foreach ($sets as $set)
+                        <option value="{{ $set->id }}">{{ $set->name }}</option>
+                    @endforeach
+                    {{-- Ad-hoc prints belong to no set, and they are exactly the
+                         ones most likely to be forgotten. --}}
+                    <option value="none">Not from a set</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Group by</label>
+                <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                    @foreach (['urgency' => 'Urgency', 'set' => 'Print set'] as $mode => $label)
+                        <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
+                                class="px-3 py-2 {{ $groupBy === $mode
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
         <p class="text-sm text-gray-600">
             Everything labelled and not yet accounted for, soonest first. Close each one off as you deal with it.
+            Group by <strong>Print set</strong> to walk one station at a time — the set shown is the run the label
+            was printed on, so anything printed ad-hoc appears under <em>Not from a set</em>.
         </p>
         <p class="text-xs text-gray-500 mt-2">
             <strong>Used</strong> means consumed as normal. <strong>Wasted</strong> bins it and writes a costed line
@@ -33,73 +64,80 @@
         </p>
     </div>
 
-    @php
-        $buckets = [
-            ['label' => 'Expired',   'rows' => $expired,  'tone' => 'red',   'note' => 'Past its use-by.'],
-            ['label' => 'Today',     'rows' => $today,    'tone' => 'amber', 'note' => 'Use before end of day.'],
-            ['label' => 'Tomorrow',  'rows' => $tomorrow, 'tone' => 'gray',  'note' => 'Coming up.'],
-        ];
-    @endphp
+    @if ($groupBy === 'set')
+        {{-- By print set: the station you'd walk to. Ordered by whichever set
+             holds the most urgent item, so an expired one can't hide behind a
+             quiet station. --}}
+        <div class="space-y-4">
+            @forelse ($groups as $group)
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+                     wire:key="grp-{{ $group['key'] }}">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100
+                                {{ $group['expired'] ? 'bg-red-50' : 'bg-gray-50' }}">
+                        <div>
+                            <h3 class="text-sm font-semibold {{ $group['expired'] ? 'text-red-700' : 'text-gray-700' }}">
+                                {{ $group['name'] }} ({{ $group['rows']->count() }})
+                            </h3>
+                            <p class="text-xs text-gray-500">
+                                @if ($group['expired'])
+                                    {{ $group['expired'] }} already past use-by.
+                                @else
+                                    Nothing expired yet.
+                                @endif
+                            </p>
+                        </div>
+                    </div>
 
-    <div class="space-y-4">
-        @foreach ($buckets as $b)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100
-                            {{ $b['tone'] === 'red' ? 'bg-red-50' : ($b['tone'] === 'amber' ? 'bg-amber-50' : 'bg-gray-50') }}">
-                    <div>
-                        <h3 class="text-sm font-semibold
-                                   {{ $b['tone'] === 'red' ? 'text-red-700' : ($b['tone'] === 'amber' ? 'text-amber-700' : 'text-gray-700') }}">
-                            {{ $b['label'] }} ({{ $b['rows']->count() }})
-                        </h3>
-                        <p class="text-xs text-gray-500">{{ $b['note'] }}</p>
+                    <div class="divide-y divide-gray-50">
+                        @foreach ($group['rows'] as $print)
+                            @include('livewire.labels.partials.expiring-row', [
+                                'print' => $print, 'showSet' => false, 'showDue' => true, 'now' => $now,
+                            ])
+                        @endforeach
                     </div>
                 </div>
-
-                <div class="divide-y divide-gray-50">
-                    @forelse ($b['rows'] as $print)
-                        <div class="px-4 py-3 flex flex-wrap items-center gap-3" wire:key="exp-{{ $print->id }}">
-                            <div class="flex-1 min-w-[180px]">
-                                <p class="text-sm font-medium text-gray-700">{{ $print->printedName() }}</p>
-                                <p class="text-xs text-gray-400 mt-0.5">
-                                    Use by {{ $print->end_at->format('d/m/Y H:i') }}
-                                    · {{ \App\Models\ShelfLifeRule::stateLabel($print->storage_state) }}
-                                    @if ($print->copies > 1)
-                                        · {{ $print->copies }} labels
-                                    @endif
-                                    @if ($print->batch?->employee)
-                                        · {{ $print->batch->employee->name }}
-                                    @endif
-                                </p>
-                            </div>
-
-                            <div class="flex items-center gap-2">
-                                <button wire:click="markUsed({{ $print->id }})"
-                                        class="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
-                                    Used
-                                </button>
-
-                                @if ($costable[$print->id] ?? null)
-                                    <button wire:click="openWaste({{ $print->id }})"
-                                            class="px-3 py-1.5 text-xs text-white bg-red-600 rounded-lg hover:bg-red-700">
-                                        Wasted
-                                    </button>
-                                @else
-                                    <button wire:click="markDiscarded({{ $print->id }})"
-                                            wire:confirm="Discard without costing? This item has nothing priceable behind it."
-                                            class="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-                                            title="No linked item to cost against">
-                                        Discard
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
-                    @empty
-                        <p class="px-4 py-6 text-center text-gray-400 text-sm">Nothing here.</p>
-                    @endforelse
+            @empty
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-10 text-center text-gray-400 text-sm">
+                    Nothing expiring.
                 </div>
-            </div>
-        @endforeach
-    </div>
+            @endforelse
+        </div>
+    @else
+        @php
+            $buckets = [
+                ['label' => 'Expired',   'rows' => $expired,  'tone' => 'red',   'note' => 'Past its use-by.'],
+                ['label' => 'Today',     'rows' => $today,    'tone' => 'amber', 'note' => 'Use before end of day.'],
+                ['label' => 'Tomorrow',  'rows' => $tomorrow, 'tone' => 'gray',  'note' => 'Coming up.'],
+            ];
+        @endphp
+
+        <div class="space-y-4">
+            @foreach ($buckets as $b)
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100
+                                {{ $b['tone'] === 'red' ? 'bg-red-50' : ($b['tone'] === 'amber' ? 'bg-amber-50' : 'bg-gray-50') }}">
+                        <div>
+                            <h3 class="text-sm font-semibold
+                                       {{ $b['tone'] === 'red' ? 'text-red-700' : ($b['tone'] === 'amber' ? 'text-amber-700' : 'text-gray-700') }}">
+                                {{ $b['label'] }} ({{ $b['rows']->count() }})
+                            </h3>
+                            <p class="text-xs text-gray-500">{{ $b['note'] }}</p>
+                        </div>
+                    </div>
+
+                    <div class="divide-y divide-gray-50">
+                        @forelse ($b['rows'] as $print)
+                            @include('livewire.labels.partials.expiring-row', [
+                                'print' => $print, 'showSet' => true, 'showDue' => false, 'now' => $now,
+                            ])
+                        @empty
+                            <p class="px-4 py-6 text-center text-gray-400 text-sm">Nothing here.</p>
+                        @endforelse
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
 
     {{-- Quantity prompt. A label carries no quantity, so wastage can't be
          costed without asking — inventing one would corrupt the cost report. --}}

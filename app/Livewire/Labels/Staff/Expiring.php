@@ -16,6 +16,14 @@ use Illuminate\Support\Carbon;
  */
 class Expiring extends StaffComponent
 {
+    /**
+     * 'urgency' — soonest first, or 'set' — grouped by the print set the
+     * labels came off, which is the station you walk to. No separate set
+     * filter on the phone: on this screen the grouping IS the filter, and
+     * two filtering controls on a 375px screen is one too many.
+     */
+    public string $groupBy = 'urgency';
+
     public ?int $wastingId = null;
 
     public string $wasteQuantity = '1';
@@ -89,15 +97,20 @@ class Expiring extends StaffComponent
             ->where('outlet_id', $this->outletId())
             ->whereNull('resolved_at')
             ->whereNotNull('end_at')
-            ->with('labelable')
+            // Safe to eager-load through the global scope: these rows are
+            // already constrained by company and outlet by hand above, and
+            // the relation only follows their own foreign keys.
+            ->with(['labelable', 'batch.labelSet'])
             ->orderBy('end_at');
 
         $expired  = $base()->where('end_at', '<', $now)->limit(60)->get();
         $today    = $base()->whereBetween('end_at', [$now, $endToday])->limit(60)->get();
         $tomorrow = $base()->whereBetween('end_at', [$endToday, $endTmrw])->limit(60)->get();
 
+        $all = $expired->concat($today)->concat($tomorrow);
+
         $costable = [];
-        foreach ($expired->concat($today)->concat($tomorrow) as $print) {
+        foreach ($all as $print) {
             $costable[$print->id] = $service->costingFor($print);
         }
 
@@ -105,7 +118,11 @@ class Expiring extends StaffComponent
             'expired'  => $expired,
             'today'    => $today,
             'tomorrow' => $tomorrow,
+            // Same rows either way — the toggle restacks them, it never
+            // hides any, which matters on a food-safety screen.
+            'groups'   => $this->groupBy === 'set' ? $service->groupBySet($all, $now) : [],
             'costable' => $costable,
+            'now'      => $now,
             'wasting'  => $this->wastingId ? $this->find($this->wastingId) : null,
         ])->layout('layouts.labels-staff', $this->shell('Expiring'));
     }

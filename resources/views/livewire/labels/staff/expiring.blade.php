@@ -6,58 +6,71 @@
         </div>
     @endif
 
-    @php
-        $buckets = [
-            ['label' => 'Expired',  'rows' => $expired,  'tone' => 'red'],
-            ['label' => 'Today',    'rows' => $today,    'tone' => 'amber'],
-            ['label' => 'Tomorrow', 'rows' => $tomorrow, 'tone' => 'gray'],
-        ];
-    @endphp
+    {{-- Restacks the same rows: by when they go off, or by the station they
+         were printed for. Nothing is hidden either way. --}}
+    <div class="grid grid-cols-2 gap-1 p-1 mb-4 bg-gray-100 rounded-xl">
+        @foreach (['urgency' => 'By time', 'set' => 'By set'] as $mode => $label)
+            <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
+                    class="py-2 rounded-lg text-sm font-medium
+                           {{ $groupBy === $mode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500' }}">
+                {{ $label }}
+            </button>
+        @endforeach
+    </div>
 
-    @foreach ($buckets as $b)
-        <div class="mb-4">
-            <div class="flex items-center gap-2 px-1 mb-2">
-                <span class="w-2 h-2 rounded-full
-                    {{ $b['tone'] === 'red' ? 'bg-red-500' : ($b['tone'] === 'amber' ? 'bg-amber-500' : 'bg-gray-300') }}"></span>
-                <p class="text-sm font-semibold text-gray-700">{{ $b['label'] }}</p>
-                <span class="text-xs text-gray-400">{{ $b['rows']->count() }}</span>
+    @if ($groupBy === 'set')
+        @forelse ($groups as $group)
+            <div class="mb-4" wire:key="grp-{{ $group['key'] }}">
+                <div class="flex items-center gap-2 px-1 mb-2">
+                    <span class="w-2 h-2 rounded-full {{ $group['expired'] ? 'bg-red-500' : 'bg-gray-300' }}"></span>
+                    <p class="text-sm font-semibold text-gray-700">{{ $group['name'] }}</p>
+                    <span class="text-xs text-gray-400">{{ $group['rows']->count() }}</span>
+                    @if ($group['expired'])
+                        <span class="text-xs text-red-600">· {{ $group['expired'] }} expired</span>
+                    @endif
+                </div>
+
+                <div class="space-y-2">
+                    @foreach ($group['rows'] as $print)
+                        @include('livewire.labels.staff.partials.expiring-card', [
+                            'print' => $print, 'showSet' => false, 'showDue' => true, 'now' => $now,
+                        ])
+                    @endforeach
+                </div>
             </div>
+        @empty
+            <p class="text-center text-sm text-gray-400 py-10">Nothing expiring.</p>
+        @endforelse
+    @else
+        @php
+            $buckets = [
+                ['label' => 'Expired',  'rows' => $expired,  'tone' => 'red'],
+                ['label' => 'Today',    'rows' => $today,    'tone' => 'amber'],
+                ['label' => 'Tomorrow', 'rows' => $tomorrow, 'tone' => 'gray'],
+            ];
+        @endphp
 
-            <div class="space-y-2">
-                @forelse ($b['rows'] as $print)
-                    <div class="bg-white rounded-xl border border-gray-200 p-3" wire:key="exp-{{ $print->id }}">
-                        <p class="text-sm font-medium text-gray-800">{{ $print->printedName() }}</p>
-                        <p class="text-xs text-gray-400 mt-0.5">
-                            Use by {{ $print->end_at->format('d/m H:i') }}
-                            · {{ \App\Models\ShelfLifeRule::stateLabel($print->storage_state) }}
-                            @if ($print->copies > 1) · {{ $print->copies }} labels @endif
-                        </p>
+        @foreach ($buckets as $b)
+            <div class="mb-4">
+                <div class="flex items-center gap-2 px-1 mb-2">
+                    <span class="w-2 h-2 rounded-full
+                        {{ $b['tone'] === 'red' ? 'bg-red-500' : ($b['tone'] === 'amber' ? 'bg-amber-500' : 'bg-gray-300') }}"></span>
+                    <p class="text-sm font-semibold text-gray-700">{{ $b['label'] }}</p>
+                    <span class="text-xs text-gray-400">{{ $b['rows']->count() }}</span>
+                </div>
 
-                        <div class="mt-2.5 grid grid-cols-2 gap-2">
-                            <button wire:click="markUsed({{ $print->id }})"
-                                    class="py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 active:bg-gray-50">
-                                Used
-                            </button>
-
-                            @if ($costable[$print->id] ?? null)
-                                <button wire:click="openWaste({{ $print->id }})"
-                                        class="py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium active:bg-red-700">
-                                    Wasted
-                                </button>
-                            @else
-                                <button wire:click="markDiscarded({{ $print->id }})"
-                                        class="py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 active:bg-gray-50">
-                                    Discard
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-                @empty
-                    <p class="text-center text-xs text-gray-400 py-4">Nothing here.</p>
-                @endforelse
+                <div class="space-y-2">
+                    @forelse ($b['rows'] as $print)
+                        @include('livewire.labels.staff.partials.expiring-card', [
+                            'print' => $print, 'showSet' => true, 'showDue' => false, 'now' => $now,
+                        ])
+                    @empty
+                        <p class="text-center text-xs text-gray-400 py-4">Nothing here.</p>
+                    @endforelse
+                </div>
             </div>
-        </div>
-    @endforeach
+        @endforeach
+    @endif
 
     {{-- Quantity sheet. A label carries no quantity, so wastage can't be
          costed without asking — inventing one corrupts the cost report. --}}
