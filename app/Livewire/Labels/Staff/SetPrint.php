@@ -121,6 +121,7 @@ class SetPrint extends StaffComponent
             'set'      => $set,
             'lines'    => $lines,
             'previews' => $previews,
+            'printers' => $this->printers(),
         ])->layout('layouts.labels-staff', $this->shell($set->name));
     }
 

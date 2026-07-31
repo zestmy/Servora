@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Labels\StaffAppController;
 use App\Livewire\Labels\Staff\Expiring as StaffExpiring;
+use App\Livewire\Labels\Staff\Log as StaffLog;
 use App\Livewire\Labels\Staff\Login as StaffLogin;
 use App\Livewire\Labels\Staff\Pin as StaffPin;
 use App\Livewire\Labels\Staff\PrintLabels as StaffPrint;
@@ -36,6 +38,13 @@ if ($domain) {
 }
 
 $group->group(function () {
+    // PWA plumbing. Outside the auth group: a browser fetches the manifest
+    // and registers the worker before anyone has signed in.
+    Route::get('/manifest.webmanifest', [StaffAppController::class, 'manifest'])
+        ->name('labels.staff.manifest');
+    Route::get('/sw.js', [StaffAppController::class, 'serviceWorker'])
+        ->name('labels.staff.sw');
+
     Route::get('/login', StaffLogin::class)->name('labels.staff.login');
 
     Route::middleware('labels.staff')->group(function () {
@@ -43,6 +52,7 @@ $group->group(function () {
         Route::get('/sets', StaffSets::class)->name('labels.staff.sets');
         Route::get('/sets/{set}', StaffSetPrint::class)->name('labels.staff.sets.print');
         Route::get('/expiring', StaffExpiring::class)->name('labels.staff.expiring');
+        Route::get('/log', StaffLog::class)->name('labels.staff.log');
         Route::get('/pin', StaffPin::class)->name('labels.staff.pin');
     });
 });

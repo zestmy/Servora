@@ -23,6 +23,23 @@
         </div>
     </div>
 
+    {{-- Printer. Without this the screen offered no way to choose one and no
+         explanation when there wasn't one — it simply couldn't print. --}}
+    @if ($printers->isEmpty())
+        <div class="mb-3 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl">
+            No label printer set up for {{ $this->outletName() ?: 'your outlet' }}.
+            Ask your manager to add one in Servora under Labels &rarr; Label Printers.
+        </div>
+    @elseif ($printers->count() > 1)
+        <select wire:model.live="printerId" class="w-full mb-3 rounded-xl border-gray-200 text-sm py-2.5">
+            @foreach ($printers as $p)
+                <option value="{{ $p->id }}">{{ $p->name }}</option>
+            @endforeach
+        </select>
+    @else
+        <p class="text-xs text-gray-400 mb-3 px-1">Printing to {{ $printers->first()->name }}</p>
+    @endif
+
     <p class="text-xs text-gray-500 mb-3 px-1">Untick anything you haven't prepped today.</p>
 
     <div class="space-y-2">
@@ -62,7 +79,7 @@
         @endforelse
     </div>
 
-    @if ($lines->count())
+    @if ($lines->count() && $printers->isNotEmpty())
         <button wire:click="print" wire:loading.attr="disabled"
                 class="fixed bottom-[4.5rem] inset-x-0 mx-auto max-w-2xl w-[calc(100%-1.5rem)] py-4 bg-indigo-600 text-white text-base font-semibold rounded-xl shadow-lg active:bg-indigo-700 disabled:opacity-50">
             <span wire:loading.remove wire:target="print">Print selected</span>

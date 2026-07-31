@@ -19,6 +19,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Labels">
+    <link rel="manifest" href="{{ route('labels.staff.manifest') }}">
+    {{-- iOS ignores the manifest's icons and uses this one. --}}
+    <link rel="apple-touch-icon" href="{{ asset('labels-app/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('labels-app/icon-192.png') }}">
     <title>{{ $title ?? 'Labels' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -63,10 +68,12 @@
                  'icon'  => 'M4 6h16M4 10h16M4 14h16M4 18h16'],
                 ['route' => 'labels.staff.expiring', 'label' => 'Expiring',
                  'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                ['route' => 'labels.staff.log',      'label' => 'Log',
+                 'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
             ];
         @endphp
         <nav class="fixed bottom-0 inset-x-0 z-20 max-w-2xl mx-auto bg-white border-t border-gray-200 safe-bottom">
-            <div class="grid grid-cols-3">
+            <div class="grid grid-cols-4">
                 @foreach ($tabs as $tab)
                     @php $active = request()->routeIs($tab['route']) || request()->routeIs($tab['route'] . '.*'); @endphp
                     <a href="{{ route($tab['route']) }}" wire:navigate
@@ -86,8 +93,54 @@
      app: separate jobs race under kiosk printing. --}}
 <iframe id="label-print-frame" class="hidden" aria-hidden="true" tabindex="-1"></iframe>
 
+{{-- Install banner. Chrome fires beforeinstallprompt only when the app is
+     installable, so this stays hidden otherwise — and once installed it
+     never fires again. --}}
+<div id="pwa-install" class="hidden fixed bottom-20 inset-x-0 z-30 max-w-2xl mx-auto px-3">
+    <div class="flex items-center gap-3 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-lg">
+        <span class="flex-1 text-sm">Add Labels to your home screen</span>
+        <button id="pwa-install-go" class="px-3 py-1.5 bg-white text-gray-900 text-xs font-semibold rounded-lg">Add</button>
+        <button id="pwa-install-no" class="text-gray-400 text-lg leading-none px-1" aria-label="Dismiss">&times;</button>
+    </div>
+</div>
+
 @livewireScripts
 <script>
+    // ---- PWA -------------------------------------------------------------
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker
+                .register(@js(route('labels.staff.sw')), { scope: @js(route('labels.staff.print', absolute: false)) })
+                .catch(() => { /* Registration failing must never break printing. */ });
+        });
+    }
+
+    let deferredPrompt = null;
+    const installBar = document.getElementById('pwa-install');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        if (installBar && localStorage.getItem('labels-install-dismissed') !== '1') {
+            installBar.classList.remove('hidden');
+        }
+    });
+
+    document.getElementById('pwa-install-go')?.addEventListener('click', async () => {
+        installBar?.classList.add('hidden');
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt = null;
+        }
+    });
+
+    document.getElementById('pwa-install-no')?.addEventListener('click', () => {
+        installBar?.classList.add('hidden');
+        localStorage.setItem('labels-install-dismissed', '1');
+    });
+
+    // ---- Printing --------------------------------------------------------
     window.addEventListener('label-print', (event) => {
         const html  = event.detail.document;
         const frame = document.getElementById('label-print-frame');

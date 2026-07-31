@@ -10,7 +10,14 @@
         <div class="mb-3 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{{ $message }}</div>
     @enderror
 
-    @if ($printers->count() > 1)
+    {{-- Say so up front rather than letting someone queue ten items and only
+         then discover there is nowhere to send them. --}}
+    @if ($printers->isEmpty())
+        <div class="mb-3 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl">
+            No label printer set up for {{ $this->outletName() ?: 'your outlet' }}.
+            Ask your manager to add one in Servora under Labels &rarr; Label Printers.
+        </div>
+    @elseif ($printers->count() > 1)
         <select wire:model.live="printerId" class="w-full mb-3 rounded-xl border-gray-200 text-sm py-2.5">
             @foreach ($printers as $p)
                 <option value="{{ $p->id }}">{{ $p->name }}</option>
