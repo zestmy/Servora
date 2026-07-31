@@ -58,15 +58,33 @@ class SetQrSheetController extends Controller
             'storages' => $set->storageForLabel($temperatures),
         ]);
 
-        // A6 by default: airway-bill label stock, peel and stick, no
-        // scissors. A4 stays available for setting up a whole outlet at once.
-        $size = $request->query('size') === 'a4' ? 'a4' : 'a6';
+        $size = $request->query('size', '4x6');
 
         return view('labels.qr-sheet', [
             'outlet' => $outlet,
             'cards'  => $cards,
-            'size'   => $size,
+            'size'   => array_key_exists($size, self::SIZES) ? $size : '4x6',
+            'sizes'  => self::SIZES,
         ]);
     }
+
+    /**
+     * Page sizes in EXPLICIT MILLIMETRES, not CSS keywords.
+     *
+     * "A6" and "4x6 inch" are both sold as airway-bill label stock and they
+     * are not the same: 105×148 against 101.6×152.4, a different size and a
+     * different aspect ratio. Asking for `size: A6` when the printer holds
+     * 4×6 makes the browser rotate and shrink the page to fit, which is
+     * exactly what it did — a postage-stamp label in the corner of a blank
+     * one.
+     *
+     * Naming the millimetres removes the guesswork: the page is declared as
+     * precisely the media loaded, so there is nothing to reconcile.
+     */
+    public const SIZES = [
+        '4x6' => ['w' => 101.6, 'h' => 152.4, 'label' => '4 × 6 in', 'mode' => 'single'],
+        'a6'  => ['w' => 105.0, 'h' => 148.0, 'label' => 'A6',       'mode' => 'single'],
+        'a4'  => ['w' => 210.0, 'h' => 297.0, 'label' => 'A4 sheet', 'mode' => 'grid'],
+    ];
 
 }

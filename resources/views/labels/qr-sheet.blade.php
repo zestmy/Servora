@@ -1,17 +1,23 @@
 {{--
-    Print-set QR codes.
+    Print-set QR labels.
 
-    Two sizes, because they serve different jobs:
+    The page is declared in EXPLICIT MILLIMETRES matching the media loaded in
+    the printer, never a CSS keyword. "A6" and "4x6 inch" are both sold as
+    airway-bill stock and they differ in both size and aspect ratio, so a
+    page declared as one and printed on the other gets rotated and shrunk to
+    fit — which produced a postage-stamp label in the corner of a blank one.
 
-    A6 (105 × 148mm) is the default — airway-bill label stock, one set per
-    label, peel and stick straight onto the chiller door. No scissors, and
-    the code comes out around 70mm so it scans across a kitchen.
-
-    A4 is the bulk option: four cut-out cards to a page for someone setting
-    up a whole outlet at once on ordinary paper.
+    Single-label sizes fill the page with one set. A4 falls back to a grid of
+    cut-out cards for setting up a whole outlet on ordinary paper.
 --}}
 @php
-    $isA6 = $size === 'a6';
+    $page   = $sizes[$size];
+    $single = $page['mode'] === 'single';
+
+    // Margin and QR scale to the page so a new size needs no new numbers.
+    $margin = $single ? 5.0 : 12.0;
+    $inner  = $page['w'] - ($margin * 2);
+    $qrSize = $single ? round($inner * 0.72, 1) : 45.0;
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -20,8 +26,8 @@
     <title>Label set QR codes — {{ $outlet->name }}</title>
     <style>
         @page {
-            size: {{ $isA6 ? 'A6' : 'A4' }};
-            margin: {{ $isA6 ? '5mm' : '12mm' }};
+            size: {{ $page['w'] }}mm {{ $page['h'] }}mm;
+            margin: 0;   /* the card supplies its own inset */
         }
 
         * { box-sizing: border-box; }
@@ -33,21 +39,14 @@
             background: #f3f4f6;
         }
 
-        .sheet {
-            max-width: {{ $isA6 ? '95mm' : '190mm' }};
-            margin: 0 auto;
-            padding: 8mm 0;
-        }
-
         .toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 8px;
-            margin-bottom: 6mm;
-            max-width: 190mm;
-            margin-left: auto;
-            margin-right: auto;
+            padding: 6mm;
+            max-width: 210mm;
+            margin: 0 auto;
         }
 
         .toolbar h1 { font-size: 14pt; margin: 0; }
@@ -65,33 +64,32 @@
             display: inline-block;
         }
 
-        .btn-ghost {
-            background: #fff;
-            color: #4f46e5;
-            border: 1px solid #c7d2fe;
-        }
+        .btn-ghost { background: #fff; color: #4f46e5; border: 1px solid #c7d2fe; }
+        .btn-ghost.on { background: #4f46e5; color: #fff; }
 
-@if ($isA6)
-        /* One label per page. No cut line — this is peel-and-stick stock. */
+        .sheet { margin: 0 auto; }
+
+@if ($single)
+        .sheet { width: {{ $page['w'] }}mm; }
+
         .card {
-            width: 95mm;
-            height: 138mm;
-            padding: 6mm;
+            width: {{ $page['w'] }}mm;
+            height: {{ $page['h'] }}mm;
+            padding: {{ $margin }}mm;
             text-align: center;
             background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 2mm;
-            margin: 0 auto 6mm;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            /* One label per page. */
             break-after: page;
             page-break-after: always;
+            overflow: hidden;
         }
 
         .card:last-child { break-after: auto; page-break-after: auto; }
 
-        .card img { width: 70mm; height: 70mm; }
+        .card img { width: {{ $qrSize }}mm; height: {{ $qrSize }}mm; }
         .name   { font-size: 20pt; }
         .outlet { font-size: 11pt; }
         .hint   { font-size: 10pt; }
@@ -100,11 +98,9 @@
         .storage-state { font-size: 15pt; }
         .storage-temp  { font-size: 22pt; }
 @else
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6mm;
-        }
+        .sheet { width: {{ $page['w'] }}mm; padding: {{ $margin }}mm; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
 
         .card {
             border: 1px dashed #9ca3af;   /* the cut line */
@@ -112,12 +108,12 @@
             padding: 6mm;
             text-align: center;
             background: #fff;
-            /* Never split a card across two pages — half a QR is useless. */
+            /* Half a QR code is useless. */
             break-inside: avoid;
             page-break-inside: avoid;
         }
 
-        .card img { width: 45mm; height: 45mm; }
+        .card img { width: {{ $qrSize }}mm; height: {{ $qrSize }}mm; }
         .name   { font-size: 13pt; }
         .outlet { font-size: 9pt; }
         .hint   { font-size: 8pt; }
@@ -132,8 +128,8 @@
         .outlet  { color: #6b7280; margin: 0 0 2mm; }
         .hint    { color: #4b5563; margin: 0; }
 
-        /* Pure black and heavy: this is read across a kitchen, and it may
-           come off a monochrome printer onto matte label stock. */
+        /* Pure black and heavy: read across a kitchen, and it may come off a
+           monochrome printer onto matte label stock. */
         .storage-state,
         .storage-temp {
             font-weight: bold;
@@ -143,28 +139,14 @@
             letter-spacing: .02em;
         }
 
-        .powered {
-            font-size: 7pt;
-            color: #9ca3af;
-            margin: 3mm 0 0;
-            letter-spacing: .02em;
-        }
-
-        .sheet-footer {
-            text-align: center;
-            margin-top: 6mm;
-        }
+        .powered { font-size: 7pt; color: #9ca3af; margin: 3mm 0 0; letter-spacing: .02em; }
+        .sheet-footer { text-align: center; margin-top: 6mm; }
 
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }
-            .sheet { max-width: none; padding: 0; }
-            .card {
-                background: #fff;
-                margin: 0 auto;
-                /* The page box already provides the margin. */
-                border: {{ $isA6 ? 'none' : '1px dashed #9ca3af' }};
-            }
+            .sheet { width: auto; margin: 0; @if (! $single) padding: {{ $margin }}mm; @endif }
+            .card { background: #fff; margin: 0; }
         }
     </style>
 </head>
@@ -172,28 +154,34 @@
 <div class="toolbar">
     <div>
         <h1>Print set QR codes</h1>
-        <p>
-            {{ $outlet->name }} —
-            @if ($isA6)
-                one per A6 airway-bill label. Peel and stick where the set is prepped.
+        <p>{{ $outlet->name }} —
+            @if ($single)
+                one set per label, peel and stick where it's prepped.
             @else
-                cut along the dashed lines and fix each one where the set is prepped.
+                cut along the dashed lines.
             @endif
+        </p>
+        {{-- The two settings that silently ruin exact-size printing. --}}
+        <p style="color:#b45309">
+            In the print dialog set <strong>Paper size</strong> to your label stock,
+            <strong>Margins</strong> to None and <strong>Scale</strong> to 100.
         </p>
     </div>
     <div style="display:flex; gap:8px; align-items:center;">
-        <a class="btn btn-ghost"
-           href="{{ route('labels.sets.qr-sheet', array_filter([
-                'outlet' => $outlet->id,
-                'set'    => request()->query('set'),
-                'size'   => $isA6 ? 'a4' : 'a6',
-           ])) }}">{{ $isA6 ? 'A4 sheet' : 'A6 labels' }}</a>
+        @foreach ($sizes as $key => $option)
+            <a class="btn btn-ghost {{ $key === $size ? 'on' : '' }}"
+               href="{{ route('labels.sets.qr-sheet', array_filter([
+                    'outlet' => $outlet->id,
+                    'set'    => request()->query('set'),
+                    'size'   => $key,
+               ])) }}">{{ $option['label'] }}</a>
+        @endforeach
         <button class="btn" onclick="window.print()">Print</button>
     </div>
 </div>
 
 <div class="sheet">
-    @unless ($isA6) <div class="grid"> @endunless
+    @unless ($single) <div class="grid"> @endunless
 
     @foreach ($cards as $card)
         <div class="card">
@@ -201,10 +189,6 @@
             <p class="name">{{ $card['set']->name }}</p>
             <p class="outlet">{{ $outlet->name }}</p>
 
-            {{-- The target temperature, not an item count. This label lives
-                 on the unit door, so the useful thing is what the unit is
-                 supposed to be holding — a chef reads it against the
-                 thermometer. Boxed and bold so it reads at a glance. --}}
             @if (count($card['storages']))
                 <div class="storage">
                     @foreach ($card['storages'] as $storage)
@@ -217,16 +201,13 @@
             @endif
 
             <p class="hint">Scan to print this set</p>
-            {{-- A6 is one label per page, so the credit belongs on the label
-                 itself. On A4 it goes once at the foot of the sheet instead
-                 of being repeated on every cut-out card. --}}
-            @if ($isA6)
+            @if ($single)
                 <p class="powered">Powered by Servora</p>
             @endif
         </div>
     @endforeach
 
-    @unless ($isA6)
+    @unless ($single)
         </div>
         <div class="sheet-footer">
             <p class="powered">Powered by Servora</p>

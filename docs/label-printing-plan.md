@@ -241,10 +241,22 @@ truncates at roughly twelve characters.
 **QR codes take a chef straight to a set.** Managers get a QR per set on
 `/labels/sets`, plus a printable sheet at `/labels/set-qr-sheet` in two sizes:
 
-- **A6 (default)** — airway-bill label stock, one set per label, peel and stick. No
-  scissors, and the code renders at 70mm so it scans across a kitchen.
-- **A4** — four cut-out cards to a page, for setting up a whole outlet at once on
-  ordinary paper.
+- **4 × 6 in (default)** — 101.6 × 152.4mm, the common airway-bill stock. One set per
+  label, peel and stick.
+- **A6** — 105 × 148mm. Also sold as airway-bill stock, and **not** the same as 4 × 6:
+  different size, different aspect ratio.
+- **A4** — four cut-out cards to a page for setting up a whole outlet at once.
+
+**Page sizes are declared in explicit millimetres, never a CSS keyword.** This was a
+live bug: the sheet asked for `size: A6` while the printer held 4 × 6 stock, so the
+browser rotated and shrank the page to fit and produced a postage-stamp label in the
+corner of a blank one. Naming the millimetres means the page is exactly the media and
+there is nothing to reconcile. The margin and QR size scale from the page dimensions,
+so adding a size needs no new numbers.
+
+The same trap as the 70 × 40 labels, in a different disguise — see the printer setup
+notes below. If output is scaled or rotated, the paper size in the print dialog is the
+first thing to check, then Margins (None) and Scale (100).
 
 Error correction is level Q, because a sticker on stainless steel gets smudged and
 partly peeled. "Powered by Servora" appears on each A6 label and once at the foot of an
