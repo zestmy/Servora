@@ -63,14 +63,39 @@
             padding-left: env(safe-area-inset-left, 0px);
             padding-right: env(safe-area-inset-right, 0px);
         }
+
+        /*
+         * App shell: one fixed-height column that owns its own scrolling.
+         *
+         * The nav used to be `fixed bottom-0`, which pins to the VISUAL
+         * viewport — and that is not the same height on a page that scrolls
+         * as on one that doesn't, so the bar sat at different heights on
+         * Print and Log. As a normal flex child of a fixed-height column it
+         * simply cannot drift.
+         *
+         * dvh rather than vh so mobile browser chrome is accounted for.
+         */
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;   /* fallback for engines without dvh */
+            height: 100dvh;
+        }
+
+        .app-scroll {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
 </head>
-<body class="h-full bg-gray-50 antialiased">
+{{-- overflow-hidden on the body: the shell scrolls, the page never does. --}}
+<body class="h-full bg-gray-50 antialiased overflow-hidden">
 
-<div class="min-h-full flex flex-col max-w-2xl mx-auto bg-gray-50">
+<div class="app-shell max-w-2xl mx-auto bg-gray-50">
 
     @isset($staff)
-        <header class="sticky top-0 z-20 bg-indigo-600 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
+        <header class="shrink-0 z-20 bg-indigo-600 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
             <div class="flex items-center gap-2.5 min-w-0">
                 @if ($brandLogo)
                     {{-- White pill behind it: most logos are dark artwork and
@@ -95,8 +120,9 @@
     @endisset
 
     {{-- Without a header there is nothing to hold the status bar off the
-         content, so the inset lands here instead. --}}
-    <main class="flex-1 px-3 pb-3 safe-x {{ isset($staff) ? 'pt-3 pb-24' : 'safe-top-plain' }}">
+         content, so the inset lands here instead. No bottom padding for the
+         nav any more: the nav is in the flow below, not floating over this. --}}
+    <main class="app-scroll px-3 pb-3 safe-x {{ isset($staff) ? 'pt-3' : 'safe-top-plain' }}">
         {{ $slot }}
     </main>
 
@@ -113,7 +139,7 @@
                  'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
             ];
         @endphp
-        <nav class="fixed bottom-0 inset-x-0 z-20 max-w-2xl mx-auto bg-white border-t border-gray-200 safe-bottom">
+        <nav class="shrink-0 z-20 bg-white border-t border-gray-200 safe-bottom safe-x">
             <div class="grid grid-cols-4">
                 @foreach ($tabs as $tab)
                     @php $active = request()->routeIs($tab['route']) || request()->routeIs($tab['route'] . '.*'); @endphp
@@ -128,22 +154,23 @@
             </div>
         </nav>
     @endisset
+
+    {{-- Install banner, in the flow directly above the nav rather than
+         floating over it. Chrome fires beforeinstallprompt only when the app
+         is installable, so this stays hidden otherwise — and once installed
+         it never fires again. --}}
+    <div id="pwa-install" class="hidden shrink-0 px-3 pb-3 safe-x">
+        <div class="flex items-center gap-3 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-lg">
+            <span class="flex-1 text-sm">Add Labels to your home screen</span>
+            <button id="pwa-install-go" class="px-3 py-1.5 bg-white text-gray-900 text-xs font-semibold rounded-lg">Add</button>
+            <button id="pwa-install-no" class="text-gray-400 text-lg leading-none px-1" aria-label="Dismiss">&times;</button>
+        </div>
+    </div>
 </div>
 
 {{-- The print target. Same one-document-one-print-call rule as the desktop
      app: separate jobs race under kiosk printing. --}}
 <iframe id="label-print-frame" class="hidden" aria-hidden="true" tabindex="-1"></iframe>
-
-{{-- Install banner. Chrome fires beforeinstallprompt only when the app is
-     installable, so this stays hidden otherwise — and once installed it
-     never fires again. --}}
-<div id="pwa-install" class="hidden fixed bottom-20 inset-x-0 z-30 max-w-2xl mx-auto px-3">
-    <div class="flex items-center gap-3 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-lg">
-        <span class="flex-1 text-sm">Add Labels to your home screen</span>
-        <button id="pwa-install-go" class="px-3 py-1.5 bg-white text-gray-900 text-xs font-semibold rounded-lg">Add</button>
-        <button id="pwa-install-no" class="text-gray-400 text-lg leading-none px-1" aria-label="Dismiss">&times;</button>
-    </div>
-</div>
 
 @livewireScripts
 <script>

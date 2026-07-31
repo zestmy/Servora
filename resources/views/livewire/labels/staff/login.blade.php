@@ -1,4 +1,6 @@
-<div class="min-h-[85vh] flex flex-col justify-center">
+{{-- min-h-full, not a vh value: the scroll area already has a definite
+     height, so a viewport unit here would overshoot it and scroll. --}}
+<div class="min-h-full flex flex-col justify-center">
 
     @php
         $logo = $company?->logo

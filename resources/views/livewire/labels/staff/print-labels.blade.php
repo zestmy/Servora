@@ -111,9 +111,11 @@
             @endforeach
         </div>
 
-        {{-- Sits above the bottom nav --}}
+        {{-- Sticky inside the scroll area rather than fixed to the viewport:
+             it can never collide with the nav, because the scroll area ends
+             where the nav begins. --}}
         <button wire:click="printTray" wire:loading.attr="disabled"
-                class="fixed bottom-[4.5rem] inset-x-0 mx-auto max-w-2xl w-[calc(100%-1.5rem)] py-4 bg-indigo-600 text-white text-base font-semibold rounded-xl shadow-lg active:bg-indigo-700 disabled:opacity-50">
+                class="sticky bottom-2 mt-3 w-full py-4 bg-indigo-600 text-white text-base font-semibold rounded-xl shadow-lg active:bg-indigo-700 disabled:opacity-50">
             <span wire:loading.remove wire:target="printTray">Print {{ count($tray) }} item{{ count($tray) === 1 ? '' : 's' }}</span>
             <span wire:loading wire:target="printTray">Printing…</span>
         </button>
