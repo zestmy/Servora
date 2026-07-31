@@ -254,10 +254,18 @@ A4 sheet, rather than repeated on every cut-out card.
 on the unit door, so the useful fact is what that unit is supposed to be holding, read
 against the thermometer. An item count told nobody anything.
 
-States are **derived from the set's lines**, not stored on the set: a set *is* its
-items, and adding a frozen item to a chiller set should show up without a manager
-remembering a second field. A mixed set lists every state it contains, ordered by
-`ShelfLifeRule::STORAGE_STATES` so two sets never disagree about the order.
+**Which temperature prints is set per set**, on the set edit dialog: a toggle to show
+it at all, plus a choice of states. Leaving every box unticked keeps the original
+behaviour — derive from whatever the set's items use — which is what every existing set
+does and what new ones default to.
+
+The explicit choice exists because deriving is a good default and a poor rule: a
+chiller door is a chiller door even when the set holds one frozen item, and the label
+on that door should say 0-4°C rather than listing both and leaving staff to work out
+which applies to the unit in front of them.
+
+Either way the list is ordered by `ShelfLifeRule::STORAGE_STATES`, so two sets never
+disagree about the order, and unrecognised states are dropped on save.
 
 Ranges live in `ShelfLifeRule::STORAGE_TEMPERATURES` — standard HACCP figures, and the
 one place to change them if a company works to different limits. They are not

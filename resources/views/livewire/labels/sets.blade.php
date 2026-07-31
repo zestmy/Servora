@@ -62,7 +62,7 @@
                                    class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Print</a>
                                 <div class="flex gap-1 text-xs">
                                     <button wire:click="showQr({{ $row->id }})" class="text-indigo-600 hover:underline">QR</button>
-                                    <button wire:click="openRename({{ $row->id }})" class="text-gray-400 hover:text-gray-600">Rename</button>
+                                    <button wire:click="openRename({{ $row->id }})" class="text-gray-400 hover:text-gray-600">Edit</button>
                                     <button wire:click="deleteSet({{ $row->id }})" wire:confirm="Delete this set?"
                                             class="text-gray-400 hover:text-red-500">Delete</button>
                                 </div>
@@ -208,7 +208,7 @@
                 <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
                     <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
                         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-800">{{ $modalSetId ? 'Rename set' : 'New print set' }}</h3>
+                            <h3 class="text-sm font-semibold text-gray-800">{{ $modalSetId ? 'Edit set' : 'New print set' }}</h3>
                             <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -224,6 +224,46 @@
                                 <label class="text-xs font-semibold text-gray-600">Description</label>
                                 <input type="text" wire:model="description" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                                 <x-input-error :messages="$errors->get('description')" class="mt-1" />
+                            </div>
+
+                            {{-- What the QR label prints on the unit door. --}}
+                            <div class="pt-3 border-t border-gray-100">
+                                <label class="inline-flex items-start gap-2">
+                                    <input type="checkbox" wire:model.live="showStorage"
+                                           class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <span>
+                                        <span class="text-sm text-gray-700">Show storage temperature on the QR label</span>
+                                        <span class="block text-xs text-gray-400">
+                                            Turn this off for sets where a temperature doesn't apply.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                @if ($showStorage)
+                                    <div class="mt-3 pl-6">
+                                        <p class="text-xs font-semibold text-gray-600">Which temperature?</p>
+                                        <p class="text-xs text-gray-400 mt-0.5 mb-2">
+                                            Leave all unticked to follow whatever the items in this set use.
+                                            Tick one to state it outright — a chiller door should say chilled
+                                            even if the set holds the odd frozen item.
+                                        </p>
+
+                                        <div class="space-y-1.5">
+                                            @foreach ($states as $state => $stateLabel)
+                                                <label class="flex items-center gap-2">
+                                                    <input type="checkbox" value="{{ $state }}" wire:model="storageStates"
+                                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                    <span class="text-sm text-gray-700">{{ $stateLabel }}</span>
+                                                    @if ($temperatures[$state] ?? null)
+                                                        <span class="text-xs text-gray-400">{{ $temperatures[$state] }}</span>
+                                                    @else
+                                                        <span class="text-xs text-gray-300">no fixed range</span>
+                                                    @endif
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                             <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                                 <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>

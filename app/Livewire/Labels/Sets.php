@@ -45,6 +45,11 @@ class Sets extends Component
 
     public ?int $qrSetId = null;
 
+    public bool $showStorage = true;
+
+    /** Empty means "work it out from the items in the set". */
+    public array $storageStates = [];
+
     public function mount(): void
     {
         $this->outletId = Auth::user()->activeOutletId()
@@ -60,9 +65,11 @@ class Sets extends Component
 
     public function openCreate(): void
     {
-        $this->modalSetId  = null;
-        $this->name        = '';
-        $this->description = '';
+        $this->modalSetId    = null;
+        $this->name          = '';
+        $this->description   = '';
+        $this->showStorage   = true;
+        $this->storageStates = [];
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -71,9 +78,11 @@ class Sets extends Component
     {
         $set = LabelSet::findOrFail($id);
 
-        $this->modalSetId  = $set->id;
-        $this->name        = $set->name;
-        $this->description = (string) $set->description;
+        $this->modalSetId    = $set->id;
+        $this->name          = $set->name;
+        $this->description   = (string) $set->description;
+        $this->showStorage   = (bool) $set->show_storage;
+        $this->storageStates = array_values(array_filter($set->storage_states ?? []));
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -86,12 +95,24 @@ class Sets extends Component
             'outletId'    => 'required|integer|exists:outlets,id',
         ]);
 
+        // Only states we actually know about, and null rather than an empty
+        // array so "automatic" is one representation instead of two.
+        $states = array_values(array_intersect(
+            $this->storageStates,
+            array_keys(ShelfLifeRule::STORAGE_STATES)
+        ));
+
+        $storage = [
+            'show_storage'   => $this->showStorage,
+            'storage_states' => $states ?: null,
+        ];
+
         if ($this->modalSetId) {
             LabelSet::findOrFail($this->modalSetId)->update([
                 'name'        => $this->name,
                 'description' => $this->description ?: null,
-            ]);
-            session()->flash('success', 'Set renamed.');
+            ] + $storage);
+            session()->flash('success', 'Set updated.');
         } else {
             $set = LabelSet::create([
                 'company_id'  => Auth::user()->company_id,
@@ -99,7 +120,7 @@ class Sets extends Component
                 'name'        => $this->name,
                 'description' => $this->description ?: null,
                 'created_by'  => Auth::id(),
-            ]);
+            ] + $storage);
             $this->editingSetId = $set->id;
             session()->flash('success', 'Set created. Add items to it below.');
         }
@@ -245,6 +266,7 @@ class Sets extends Component
             'results'    => $this->searchResults(),
             'labelTypes' => LabelTemplate::LABEL_TYPES,
             'states'     => ShelfLifeRule::STORAGE_STATES,
+            'temperatures' => ShelfLifeRule::STORAGE_TEMPERATURES,
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Print sets']);
     }
 

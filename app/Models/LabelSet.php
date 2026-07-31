@@ -19,11 +19,24 @@ class LabelSet extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'name', 'description',
         'sort_order', 'is_active', 'created_by',
+        'show_storage', 'storage_states',
     ];
 
     protected $casts = [
-        'is_active'  => 'boolean',
-        'sort_order' => 'integer',
+        'is_active'      => 'boolean',
+        'sort_order'     => 'integer',
+        'show_storage'   => 'boolean',
+        'storage_states' => 'array',
+    ];
+
+    /**
+     * Mirrors the column default. Eloquent does not read DB-side defaults
+     * back after an insert, so without this a just-created set has a null
+     * show_storage in memory and storageForLabel() returns nothing until
+     * the model is reloaded.
+     */
+    protected $attributes = [
+        'show_storage' => true,
     ];
 
     protected static function booted(): void
@@ -69,5 +82,47 @@ class LabelSet extends Model
     public function scopeOrdered(Builder $query): Builder
     {
         return $query->orderBy('sort_order')->orderBy('name');
+    }
+
+    /**
+     * Storage states to print on this set's QR label, with their ranges.
+     *
+     * An explicit choice wins. Otherwise they are derived from the set's
+     * own lines, which is right often enough to be the default but wrong
+     * whenever a unit holds an odd item that isn't representative of the
+     * door it's behind.
+     *
+     * Always ordered by STORAGE_STATES so two sets never list the same
+     * pair in a different order.
+     *
+     * @return array<int, array{state: string, label: string, temperature: string|null}>
+     */
+    public function storageForLabel(): array
+    {
+        if (! $this->show_storage) {
+            return [];
+        }
+
+        $chosen = collect($this->storage_states ?? [])->filter();
+
+        $states = $chosen->isNotEmpty()
+            ? $chosen
+            : $this->lines->pluck('storage_state')->filter()->unique();
+
+        return collect(array_keys(ShelfLifeRule::STORAGE_STATES))
+            ->filter(fn ($state) => $states->contains($state))
+            ->map(fn ($state) => [
+                'state'       => $state,
+                'label'       => ShelfLifeRule::stateLabel($state),
+                'temperature' => ShelfLifeRule::temperatureFor($state),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** True when the set is showing whatever its items happen to say. */
+    public function storageIsAutomatic(): bool
+    {
+        return empty(array_filter($this->storage_states ?? []));
     }
 }
