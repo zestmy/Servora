@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
 class Subscription extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'company_id', 'plan_id', 'status', 'billing_cycle',
@@ -17,6 +18,9 @@ class Subscription extends Model
     ];
 
     protected $casts = [
+        // Set by the Company delete/restore cascade only — deliberately not
+        // fillable, so nothing can mass-assign a row into the cascade.
+        'deleted_with_company' => 'boolean',
         'trial_ends_at'        => 'datetime',
         'current_period_start' => 'datetime',
         'current_period_end'   => 'datetime',

@@ -32,9 +32,14 @@ class Payment extends Model
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * withTrashed: a payment's subscription is history and must still resolve
+     * after that subscription follows its company into the bin — the ChipIn
+     * webhook and InvoiceService both dereference it without a null check.
+     */
     public function subscription(): BelongsTo
     {
-        return $this->belongsTo(Subscription::class);
+        return $this->belongsTo(Subscription::class)->withTrashed();
     }
 
     public function invoice(): HasOne

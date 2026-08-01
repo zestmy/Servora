@@ -37,6 +37,45 @@ class Company extends Model
         'trial_ends_at'          => 'datetime',
     ];
 
+    /**
+     * Subscriptions follow the company in and out of the bin. Without this a
+     * subscription outlives its soft-deleted company as an orphan row — those
+     * 500'd Admin > Subscriptions on 2026-08-02.
+     *
+     * Cascaded rows are marked with deleted_with_company, and restore brings
+     * back exactly those. A subscription deleted on its own beforehand is
+     * already trashed, so the cascade skips it and never marks it, and it
+     * correctly stays deleted when the company comes back.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (Company $company) {
+            if ($company->isForceDeleting()) {
+                Subscription::withTrashed()->where('company_id', $company->id)->forceDelete();
+
+                return;
+            }
+
+            // Query builder, not the model: skips events (no recursion) and
+            // writes the company's own timestamp rather than "now".
+            Subscription::where('company_id', $company->id)
+                ->update([
+                    'deleted_at'           => $company->deleted_at,
+                    'deleted_with_company' => true,
+                ]);
+        });
+
+        static::restored(function (Company $company) {
+            Subscription::onlyTrashed()
+                ->where('company_id', $company->id)
+                ->where('deleted_with_company', true)
+                ->update([
+                    'deleted_at'           => null,
+                    'deleted_with_company' => false,
+                ]);
+        });
+    }
+
     public function outlets(): HasMany
     {
         return $this->hasMany(Outlet::class);

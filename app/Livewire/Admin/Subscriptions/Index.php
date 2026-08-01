@@ -137,7 +137,10 @@ class Index extends Component
         $companyName = $sub->companyName();
 
         $wasLive = in_array($sub->status, [Subscription::STATUS_TRIALING, Subscription::STATUS_ACTIVE, Subscription::STATUS_PAST_DUE]);
-        $sub->delete();
+        // forceDelete, not delete: subscriptions became soft-deletable so they
+        // could follow a deleted company, but THIS button is the deliberate
+        // "remove the record" action and its confirm says it cannot be undone.
+        $sub->forceDelete();
 
         // No subscriptions left = grandfathered (unlimited); clear stale trial flag
         if ($wasLive) {

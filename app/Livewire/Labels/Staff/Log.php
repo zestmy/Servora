@@ -24,6 +24,9 @@ class Log extends StaffComponent
 
     public int $days = 3;
 
+    /** 'date' — newest run first, or 'set' — runs stacked under their set. */
+    public string $groupBy = 'date';
+
     public ?int $expandedId = null;
 
     public function mount(): void
@@ -40,6 +43,47 @@ class Log extends StaffComponent
     {
         $this->days       = $days;
         $this->expandedId = null;
+    }
+
+    /**
+     * Stack runs under the set they were printed from.
+     *
+     * Sets come out alphabetically with the ad-hoc runs last. Unlike the
+     * expiring screen there is nothing at risk in a log, so a predictable
+     * order beats an urgency one — you are looking for a name you already
+     * have in mind.
+     *
+     * @return array<int, array{key: string, name: string, rows: \Illuminate\Support\Collection, labels: int}>
+     */
+    private function bySet($batches): array
+    {
+        $groups = [];
+
+        foreach ($batches as $batch) {
+            $key = $batch->label_set_id ? (string) $batch->label_set_id : 'none';
+
+            $groups[$key] ??= [
+                'key'    => $key,
+                'name'   => $batch->labelSet?->name ?? 'Ad-hoc (no set)',
+                'rows'   => collect(),
+                'labels' => 0,
+            ];
+
+            $groups[$key]['rows']->push($batch);
+            $groups[$key]['labels'] += (int) $batch->label_count;
+        }
+
+        $groups = array_values($groups);
+
+        usort($groups, function ($a, $b) {
+            if (($a['key'] === 'none') !== ($b['key'] === 'none')) {
+                return $a['key'] === 'none' ? 1 : -1;
+            }
+
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return $groups;
     }
 
     public function render()
@@ -63,6 +107,9 @@ class Log extends StaffComponent
 
         return view('livewire.labels.staff.log', [
             'batches'  => $batches,
+            // Same batches either way — the toggle restacks them. Grouped in
+            // PHP because the list is already capped at LIMIT and in memory.
+            'groups'   => $this->groupBy === 'set' ? $this->bySet($batches) : [],
             'expanded' => $expanded,
         ])->layout('layouts.labels-staff', $this->shell('Print log'));
     }

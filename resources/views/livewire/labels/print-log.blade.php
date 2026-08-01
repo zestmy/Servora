@@ -38,6 +38,29 @@
                 <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
                 <input type="date" wire:model.live="to" class="rounded-lg border-gray-300 text-sm">
             </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Print set</label>
+                <select wire:model.live="setFilter" class="rounded-lg border-gray-300 text-sm">
+                    <option value="">All sets</option>
+                    @foreach ($sets as $set)
+                        <option value="{{ $set->id }}">{{ $set->name }}</option>
+                    @endforeach
+                    <option value="none">Ad-hoc (no set)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Group by</label>
+                <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                    @foreach (['date' => 'Date', 'set' => 'Print set'] as $mode => $label)
+                        <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
+                                class="px-3 py-2 {{ $groupBy === $mode
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
         </div>
     </div>
 
@@ -56,7 +79,21 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
+                    @php $lastSetKey = null; @endphp
                     @forelse ($batches as $batch)
+                        @if ($groupBy === 'set')
+                            @php $setKey = $batch->label_set_id ?? 'none'; @endphp
+                            @if ($setKey !== $lastSetKey)
+                                @php $lastSetKey = $setKey; @endphp
+                                {{-- Repeats at the top of a page when a group spans one. --}}
+                                <tr class="bg-gray-50">
+                                    <td colspan="7" class="px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        {{ $batch->labelSet?->name ?? 'Ad-hoc (no set)' }}
+                                    </td>
+                                </tr>
+                            @endif
+                        @endif
+
                         <tr class="hover:bg-gray-50" wire:key="batch-{{ $batch->id }}">
                             <td class="px-4 py-3 text-gray-700">{{ $batch->printed_at->format('d/m/Y H:i') }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $batch->labelSet?->name ?? 'Ad-hoc' }}</td>
