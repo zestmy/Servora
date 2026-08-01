@@ -91,6 +91,24 @@ Domain logic lives in `app/Services/`. Before writing new code, check here — m
 
 ---
 
+## Labels\LabelItemSearch
+**File:** [app/Services/Labels/LabelItemSearch.php](../app/Services/Labels/LabelItemSearch.php)
+**Purpose:** Item lookup for every screen that adds something to a label or a print set.
+**Public methods:**
+- `groups(?int $companyId, string $term, int $limit = 25): array` — `['Market List' => ['items' => [...], 'total' => int, 'truncated' => bool], ...]`.
+- `flat(...)`, `find(?int $companyId, ?string $type, ?int $id)`.
+**Used by:** [Labels/PrintScreen](../app/Livewire/Labels/PrintScreen.php), [Labels/Sets](../app/Livewire/Labels/Sets.php), [Labels/Staff/SearchesLabelItems](../app/Livewire/Labels/Staff/SearchesLabelItems.php).
+**Notes:** Company-scoped by hand — the staff app has no authenticated web user. Three groups kept separate so a search for "chicken" shows whether you're picking the raw ingredient or the prepped recipe; `is_prep` ingredients are excluded from Market List because a prep item is a Recipe *plus* a synced Ingredient and both would list it twice. **Truncation is reported, never silent** — the previous per-group cap of 6 was invisible and made items look absent until you typed enough to shrink the set below it. Ranking is exact → starts-with → contains → name. LIKE wildcards in the term are escaped.
+
+---
+
+## Labels\LabelName
+**File:** [app/Services/Labels/LabelName.php](../app/Services/Labels/LabelName.php)
+**Purpose:** Normalise a freeform item name for a label — collapse whitespace, uppercase.
+**Notes:** Ingredients and recipes uppercase on save, so a freeform name that didn't put "chicken stock" next to "CHICKEN STOCK" on the same shelf. Applied on `LabelSetLine`'s mutator, in `LabelPrintService`, and at each entry point so the tray shows what will print. `mb_strtoupper`, so accented and non-Latin names survive.
+
+---
+
 ## Branding\CompanyLogo
 **File:** [app/Services/Branding/CompanyLogo.php](../app/Services/Branding/CompanyLogo.php)
 **Purpose:** The company logo, plus what a surface needs to know to display it legibly.
