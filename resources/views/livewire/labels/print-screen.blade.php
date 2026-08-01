@@ -66,12 +66,15 @@
                    class="w-full rounded-lg border-gray-300 text-base py-2.5">
 
             <div class="mt-3 space-y-3 max-h-80 overflow-y-auto">
-                @forelse ($results as $group => $items)
-                    @if (count($items))
+                @forelse ($results as $group => $found)
+                    @if (count($found['items']))
                         <div>
-                            <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">{{ $group }}</p>
+                            <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                                {{ $group }}
+                                <span class="normal-case tracking-normal text-gray-300">{{ $found['total'] }}</span>
+                            </p>
                             <div class="space-y-1">
-                                @foreach ($items as $item)
+                                @foreach ($found['items'] as $item)
                                     <button type="button"
                                             wire:click="addItem('{{ $item['type'] }}', {{ $item['id'] }})"
                                             class="w-full text-left px-3 py-2.5 rounded-lg border border-gray-100 hover:bg-indigo-50 hover:border-indigo-200 text-sm text-gray-700">
@@ -79,6 +82,13 @@
                                     </button>
                                 @endforeach
                             </div>
+                            {{-- Said out loud. A silently capped list is why
+                                 items looked like they were missing. --}}
+                            @if ($found['truncated'])
+                                <p class="mt-1 text-xs text-amber-600">
+                                    Showing {{ count($found['items']) }} of {{ $found['total'] }} — type more to narrow it down.
+                                </p>
+                            @endif
                         </div>
                     @endif
                 @empty

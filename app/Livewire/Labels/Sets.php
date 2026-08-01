@@ -186,7 +186,7 @@ class Sets extends Component
     public function addCustomLine(): void
     {
         $set  = $this->editingSet();
-        $name = trim($this->customName);
+        $name = \App\Services\Labels\LabelName::normalise($this->customName);
 
         if (! $set || $name === '') {
             return;
@@ -227,7 +227,7 @@ class Sets extends Component
 
     public function updateLine(int $lineId, string $field, $value): void
     {
-        if (! in_array($field, ['label_type', 'storage_state', 'copies'], true)) {
+        if (! in_array($field, ['label_type', 'storage_state', 'copies', 'custom_name'], true)) {
             return;
         }
 
@@ -235,6 +235,15 @@ class Sets extends Component
 
         if ($field === 'copies') {
             $value = max(1, (int) $value);
+        }
+
+        // Only a freeform line has a name of its own to fix. A linked line
+        // takes its name from the item, and letting it be typed over here
+        // would silently detach the label from what it is labelling.
+        if ($field === 'custom_name') {
+            if ($line->labelable_type || \App\Services\Labels\LabelName::normalise($value) === '') {
+                return;
+            }
         }
 
         $update = [$field => $value];
@@ -293,24 +302,14 @@ class Sets extends Component
         ]);
     }
 
+    /** Delegated: one search implementation for every label screen. */
     private function searchResults(): array
     {
-        if (! $this->editingSetId || strlen(trim($this->search)) < 2) {
+        if (! $this->editingSetId) {
             return [];
         }
 
-        $term = '%' . trim($this->search) . '%';
-
-        return array_filter([
-            'Market List' => Ingredient::where('is_prep', false)->where('name', 'like', $term)
-                ->orderBy('name')->limit(6)->get()
-                ->map(fn ($i) => ['type' => 'ingredient', 'id' => $i->id, 'name' => $i->name])->all(),
-            'Recipes & Prep Items' => Recipe::where('name', 'like', $term)
-                ->orderBy('name')->limit(6)->get()
-                ->map(fn ($r) => ['type' => 'recipe', 'id' => $r->id, 'name' => $r->name])->all(),
-            'Production Recipes' => ProductionRecipe::where('name', 'like', $term)
-                ->orderBy('name')->limit(6)->get()
-                ->map(fn ($p) => ['type' => 'production', 'id' => $p->id, 'name' => $p->name])->all(),
-        ]);
+        return app(\App\Services\Labels\LabelItemSearch::class)
+            ->groups(Auth::user()->company_id, $this->search);
     }
 }

@@ -188,7 +188,10 @@ class LabelPrintService
             ? ['end_at' => $manualEnd, 'shelf_life' => null, 'manual' => true]
             : $this->shelfLife->computeUseBy($item, $storageState, $printedAt, $batch->company_id);
 
-        $name = $item?->name ?? (string) ($line['custom_name'] ?? '');
+        // A linked item is already uppercased by its own model; a freeform
+        // name has to be normalised here so that whichever screen it came
+        // from — tray, set line, or a future one — prints the same.
+        $name = $item?->name ?? \App\Services\Labels\LabelName::normalise($line['custom_name'] ?? '');
 
         $values = $this->tokenValues(
             $name,

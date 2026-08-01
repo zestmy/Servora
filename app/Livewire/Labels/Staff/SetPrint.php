@@ -80,7 +80,7 @@ class SetPrint extends StaffComponent
 
     public function addCustomItem(): void
     {
-        $name = trim($this->customName);
+        $name = \App\Services\Labels\LabelName::normalise($this->customName);
 
         if ($name === '') {
             return;

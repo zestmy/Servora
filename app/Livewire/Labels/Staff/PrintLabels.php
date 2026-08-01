@@ -47,7 +47,9 @@ class PrintLabels extends StaffComponent
 
     public function addCustom(): void
     {
-        $name = trim($this->customName);
+        // Normalised here as well as on the way to the printer, so the tray
+        // shows exactly what will be on the label rather than what was typed.
+        $name = \App\Services\Labels\LabelName::normalise($this->customName);
 
         if ($name === '') {
             return;

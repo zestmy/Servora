@@ -32,6 +32,18 @@ class LabelSetLine extends Model
         'is_active'  => 'boolean',
     ];
 
+    /**
+     * Freeform names are uppercased on the way in, the same as ingredients
+     * and recipes are. Done here rather than at each of the four screens
+     * that can create a line, so none of them can forget.
+     */
+    public function setCustomNameAttribute($value): void
+    {
+        $this->attributes['custom_name'] = $value === null || trim((string) $value) === ''
+            ? null
+            : \App\Services\Labels\LabelName::normalise($value);
+    }
+
     public function set(): BelongsTo
     {
         return $this->belongsTo(LabelSet::class, 'label_set_id');

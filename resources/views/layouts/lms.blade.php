@@ -79,8 +79,14 @@
     <aside :class="sidebarOpen ? 'w-72' : 'w-0 lg:w-16'"
            class="flex flex-col bg-gray-900 text-white flex-shrink-0 transition-[width] duration-300 ease-in-out overflow-hidden">
 
-        {{-- Logo + toggle --}}
-        <div class="flex items-center h-16 px-3 bg-gray-800 flex-shrink-0 gap-2">
+        {{-- Brand: a white band carrying the logo and nothing else.
+
+             The logo gets its own light surface rather than a chip on the dark
+             one. It only renders when there IS a logo — an empty white strip
+             above the nav would read as a rendering fault, not as branding.
+             Still <x-brand-mark surface="light">, because a company with light
+             artwork would now be the one that disappears. --}}
+        @if ($lmsCompany?->logo)
             <div x-show="sidebarOpen"
                  x-transition:enter="transition-opacity duration-200 delay-150"
                  x-transition:enter-start="opacity-0"
@@ -88,19 +94,35 @@
                  x-transition:leave="transition-opacity duration-75"
                  x-transition:leave-start="opacity-100"
                  x-transition:leave-end="opacity-0"
-                 class="flex-1 overflow-hidden whitespace-nowrap">
-                <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
-                    {{-- Dark artwork on this near-black band is the case that
-                         prompted all of this; the component puts it on a white
-                         chip and leaves a light logo alone. --}}
-                    <x-brand-mark :company="$lmsCompany" surface="dark"
-                                  size="h-12" width="max-w-[180px]" :alt="$brandName" />
-                    <span class="text-sm font-bold text-white truncate">{{ $brandName }}</span>
+                 class="flex items-center justify-center bg-white px-4 py-3 flex-shrink-0">
+                <a href="{{ route('lms.dashboard') }}" class="flex items-center justify-center">
+                    <x-brand-mark :company="$lmsCompany" surface="light"
+                                  size="h-12" width="max-w-[200px]" :alt="$brandName" />
+                </a>
+            </div>
+        @endif
+
+        {{-- Company name + toggle, on the dark band the header used to be. --}}
+        <div class="relative flex items-center h-11 px-3 bg-gray-800 flex-shrink-0">
+            <div x-show="sidebarOpen"
+                 x-transition:enter="transition-opacity duration-200 delay-150"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition-opacity duration-75"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="flex-1 min-w-0">
+                {{-- Centred under the logo, with px-10 so a long name truncates
+                     before it reaches the toggle rather than running under it. --}}
+                <a href="{{ route('lms.dashboard') }}" class="block px-10">
+                    <span class="block text-sm font-bold text-white truncate text-center">{{ $brandName }}</span>
                 </a>
             </div>
 
+            {{-- Absolute while open so it does not pull the name off centre;
+                 back in flow when collapsed, where it is the only thing here. --}}
             <button @click="toggleSidebar()"
-                    :class="sidebarOpen ? '' : 'mx-auto'"
+                    :class="sidebarOpen ? 'absolute right-3' : 'mx-auto'"
                     title="Toggle sidebar"
                     class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
                 <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

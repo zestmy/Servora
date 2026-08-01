@@ -77,7 +77,9 @@ class PrintScreen extends Component
     /** A freeform line — something not in the system, labelled anyway. */
     public function addCustom(): void
     {
-        $name = trim($this->customName);
+        // Normalised here as well as on the way to the printer, so the tray
+        // shows exactly what will be on the label rather than what was typed.
+        $name = \App\Services\Labels\LabelName::normalise($this->customName);
 
         if ($name === '') {
             return;
@@ -200,30 +202,11 @@ class PrintScreen extends Component
         ];
     }
 
-    /**
-     * Three groups, deliberately not merged: a chef looking for "chicken"
-     * wants to see whether they're grabbing the raw ingredient or the
-     * prepped recipe, and a flat list hides that.
-     */
+    /** Delegated: one search implementation for every label screen. */
     private function searchResults(): array
     {
-        if (strlen(trim($this->search)) < 2) {
-            return [];
-        }
-
-        $term = '%' . trim($this->search) . '%';
-
-        return array_filter([
-            'Market List' => Ingredient::where('is_prep', false)
-                ->where('name', 'like', $term)->orderBy('name')->limit(6)
-                ->get()->map(fn ($i) => ['type' => 'ingredient', 'id' => $i->id, 'name' => $i->name])->all(),
-            'Recipes & Prep Items' => Recipe::where('name', 'like', $term)
-                ->orderBy('name')->limit(6)
-                ->get()->map(fn ($r) => ['type' => 'recipe', 'id' => $r->id, 'name' => $r->name])->all(),
-            'Production Recipes' => ProductionRecipe::where('name', 'like', $term)
-                ->orderBy('name')->limit(6)
-                ->get()->map(fn ($p) => ['type' => 'production', 'id' => $p->id, 'name' => $p->name])->all(),
-        ]);
+        return app(\App\Services\Labels\LabelItemSearch::class)
+            ->groups(Auth::user()->company_id, $this->search);
     }
 
     private function employees(?LabelPrinter $printer)

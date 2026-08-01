@@ -77,30 +77,45 @@
             </div>
         </div>
 
-        {{-- Line editor --}}
-        <div class="lg:col-span-2">
+        {{-- Line editor.
+
+             On a wide screen this column is its own scroll container: the add
+             field stays put while the list of what is already in the set
+             scrolls under it. Building a twenty-item set otherwise meant
+             scrolling back to the top after every addition to reach the
+             search box. Below lg the height cap is dropped and it flows
+             normally — freezing a field on a phone just eats the screen. --}}
+        <div class="lg:col-span-2 flex flex-col gap-4 lg:h-[calc(100vh-9rem)]">
             @if (! $set)
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
                     <p class="text-sm text-gray-400">Pick a set on the left to edit what's in it.</p>
                 </div>
             @else
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex-shrink-0">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Add to “{{ $set->name }}”</label>
                     <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search items…"
                            class="w-full rounded-lg border-gray-300 text-sm">
 
                     @if (count($results))
                         <div class="mt-3 space-y-3 max-h-60 overflow-y-auto">
-                            @foreach ($results as $group => $items)
-                                @if (count($items))
+                            @foreach ($results as $group => $found)
+                                @if (count($found['items']))
                                     <div>
-                                        <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">{{ $group }}</p>
-                                        @foreach ($items as $item)
+                                        <p class="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                                            {{ $group }}
+                                            <span class="normal-case tracking-normal text-gray-300">{{ $found['total'] }}</span>
+                                        </p>
+                                        @foreach ($found['items'] as $item)
                                             <button type="button" wire:click="addLine('{{ $item['type'] }}', {{ $item['id'] }})"
                                                     class="w-full text-left px-3 py-2 rounded-lg border border-gray-100 hover:bg-indigo-50 text-sm text-gray-700 mb-1">
                                                 {{ $item['name'] }}
                                             </button>
                                         @endforeach
+                                        @if ($found['truncated'])
+                                            <p class="text-xs text-amber-600">
+                                                Showing {{ count($found['items']) }} of {{ $found['total'] }} — type more to narrow it down.
+                                            </p>
+                                        @endif
                                     </div>
                                 @endif
                             @endforeach
@@ -115,13 +130,14 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col lg:flex-1 lg:min-h-0">
+                    <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3 flex-shrink-0">
                         <p class="text-xs text-gray-500">
                             Order matters — labels come off the roll in this order, so match how you walk the shelf.
                         </p>
+                        <span class="text-xs text-gray-400 whitespace-nowrap">{{ $lines->count() }} item{{ $lines->count() === 1 ? '' : 's' }}</span>
                     </div>
-                    <div class="divide-y divide-gray-50">
+                    <div class="divide-y divide-gray-50 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
                         @forelse ($lines as $i => $line)
                             <div class="px-4 py-3" wire:key="setline-{{ $line->id }}">
                                 <div class="flex items-start gap-3">
@@ -133,7 +149,18 @@
                                     </div>
 
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-700">{{ $line->displayName() }}</p>
+                                        @if ($line->labelable_type)
+                                            <p class="text-sm font-medium text-gray-700">{{ $line->displayName() }}</p>
+                                        @else
+                                            {{-- Freeform lines are editable in place: a typo here is
+                                                 printed onto every label from this set until someone
+                                                 notices. Linked lines take their name from the item
+                                                 and stay read-only. --}}
+                                            <input type="text" value="{{ $line->custom_name }}"
+                                                   wire:change="updateLine({{ $line->id }}, 'custom_name', $event.target.value)"
+                                                   title="Freeform item — edit to fix a typo"
+                                                   class="w-full text-sm font-medium text-gray-700 border-0 border-b border-dashed border-gray-200 px-0 py-0.5 focus:ring-0 focus:border-indigo-400 bg-transparent">
+                                        @endif
                                         <div class="mt-2 grid grid-cols-3 gap-2">
                                             <select wire:change="updateLine({{ $line->id }}, 'label_type', $event.target.value)"
                                                     class="rounded border-gray-200 text-xs py-1">

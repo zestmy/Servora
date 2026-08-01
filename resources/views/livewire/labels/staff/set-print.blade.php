@@ -59,14 +59,21 @@
 
             @if (count($results))
                 <div class="mt-2 bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
-                    @foreach ($results as $group => $items)
-                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">{{ $group }}</p>
-                        @foreach ($items as $item)
+                    @foreach ($results as $group => $found)
+                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">
+                            {{ $group }} <span class="normal-case tracking-normal">{{ $found['total'] }}</span>
+                        </p>
+                        @foreach ($found['items'] as $item)
                             <button type="button" wire:click="addItem('{{ $item['type'] }}', {{ $item['id'] }})"
                                     class="w-full text-left px-4 py-3.5 text-sm text-gray-800 active:bg-indigo-50">
                                 {{ $item['name'] }}
                             </button>
                         @endforeach
+                        @if ($found['truncated'])
+                            <p class="px-4 py-2 text-xs text-amber-600 bg-amber-50">
+                                Showing {{ count($found['items']) }} of {{ $found['total'] }} — type more to narrow it down.
+                            </p>
+                        @endif
                     @endforeach
                 </div>
             @elseif (strlen(trim($search)) >= 2)
