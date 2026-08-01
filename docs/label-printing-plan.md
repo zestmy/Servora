@@ -561,10 +561,29 @@ Coordinates in **mm from the top-left of the label**.
 ### Tokens for v1
 
 `item.name`, `item.code`, `label.caption`, `date.start`, `date.start_date`,
-`date.start_time`, `date.end`, `date.end_date`, `date.end_time`, `staff.name`,
-`outlet.name`, `company.logo`, `storage.instruction`, `quantity`, `batch.ref`, `static`
+`date.start_time`, `date.start_day`, `date.end`, `date.end_date`, `date.end_time`,
+`date.end_day`, `staff.name`, `outlet.name`, `company.logo`, `storage.instruction`,
+`quantity`, `batch.ref`, `static`
 
 Deliberately absent: `allergens`, `nutrition`, `qr`, `barcode`.
+
+**Dates lead with the weekday** *(2026-08-02)* — `MON 03/08/2026 23:59`. In a kitchen
+the question is "is this still good today", and a three-letter day answers it without
+anyone working out today's date. `date.end_day` exists separately for layouts that want
+it positioned on its own. It costs the use-by a point (18 → 17) on the stock label, which
+is the trade being made knowingly; the time-only tokens are unchanged.
+
+**`company.logo` is a data URI, not a URL or a path** *(2026-08-02)*. One value has to
+satisfy both output paths: a URL would need dompdf's remote fetching enabled and the
+server able to reach its own public URL, and a local filesystem path renders in the PDF
+but breaks in the browser. `CompanyLogo` downscales to 200 px and re-encodes as PNG
+before base64 — not cosmetic, because the renderer repeats every field once per physical
+label, so an unscaled logo would be embedded thirty times in a thirty-label run. It is
+also stripped from the frozen `payload.values` on each print row: it is not part of what
+the label *said*, and storing it per row would put megabytes of duplicated image into
+`label_prints`. No logo uploaded means the field resolves empty and the renderer drops
+it, so the switch for "no logo on labels" is simply not having one — or deleting the
+field in the designer.
 
 ### Two output paths, one Blade
 

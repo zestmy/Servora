@@ -4,6 +4,7 @@ namespace App\Livewire\Labels;
 
 use App\Models\LabelTemplate;
 use App\Services\LabelRenderService;
+use App\Services\Labels\CompanyLogo;
 use Livewire\Component;
 
 /**
@@ -162,17 +163,24 @@ class TemplateDesigner extends Component
             'item.name'           => 'CHICKEN THIGH BONELESS',
             'item.code'           => 'ING-0412',
             'label.caption'       => $this->template->caption() ?: 'USE BY',
-            'date.start'          => '31/07/2026 14:30',
-            'date.start_date'     => '31/07/2026',
+            'date.start'          => 'FRI 31/07/2026 14:30',
+            'date.start_date'     => 'FRI 31/07/2026',
             'date.start_time'     => '14:30',
-            'date.end'            => '03/08/2026 23:59',
-            'date.end_date'       => '03/08/2026',
+            'date.start_day'      => 'FRI',
+            'date.end'            => 'MON 03/08/2026 23:59',
+            'date.end_date'       => 'MON 03/08/2026',
             'date.end_time'       => '23:59',
+            'date.end_day'        => 'MON',
             'staff.name'          => 'Aiman',
             'outlet.name'         => 'Main Kitchen',
             'storage.instruction' => 'Chilled',
             'quantity'            => '2.5 kg',
             'batch.ref'           => 'B-1042',
+            // The real logo, not a placeholder — this is the one field whose
+            // proportions can't be guessed from a stand-in, and the preview
+            // is only worth having if it shows what prints.
+            'company.logo'        => (string) app(CompanyLogo::class)
+                ->dataUri($this->template->company_id),
             'footer'              => 'Keep refrigerated below 4°C',
         ];
     }

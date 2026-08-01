@@ -56,12 +56,27 @@ class DefaultTemplates
      * The extra height over the old 50 × 25 stock buys three things the
      * small label had no room for: an item name that can run to two lines
      * without truncating, a use-by nearly twice the size, and a footer.
+     *
+     * The dates lead with the weekday. In a kitchen the question is "is this
+     * still good today", and MON answers it without anyone working out what
+     * today's date is. It costs the use-by a point — 18 down to 17 — which is
+     * the trade being made deliberately.
      */
     public const FIELDS = [
         [
+            // 51 rather than the full 64: the logo sits to its right. A
+            // company with no logo simply leaves that corner blank — the
+            // name is left-aligned, so it reads the same either way.
             'token' => 'item.name',
-            'x' => 3, 'y' => 3, 'w' => 64, 'h' => 9,
+            'x' => 3, 'y' => 3, 'w' => 51, 'h' => 9,
             'font_size' => 12, 'weight' => 'bold', 'align' => 'left',
+        ],
+        [
+            // Dropped at render time when the company has no logo set, so
+            // this costs nothing until someone uploads one.
+            'token' => 'company.logo',
+            'x' => 55.5, 'y' => 2.5, 'w' => 11.5, 'h' => 8.5,
+            'font_size' => 8, 'align' => 'right',
         ],
         [
             'token' => 'label.caption',

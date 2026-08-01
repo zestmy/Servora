@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LabelTemplate;
+use App\Services\Labels\HelveticaMetrics;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\View;
 
@@ -232,9 +233,11 @@ class LabelRenderService
      * half an item name is a label nobody can act on. Smaller but complete
      * beats larger but cut off.
      *
-     * The metric is an estimate — Helvetica has no fixed advance width — but
-     * it is deliberately pessimistic, so it errs towards slightly small
-     * rather than slightly overlapping.
+     * Widths come from Helvetica's real per-character metrics rather than one
+     * average for every character. The average was costing real size on the
+     * field that matters most: a use-by is nearly all digits, which are narrow
+     * (0.556 em) against the 0.62 the average assumed, so a date that fitted
+     * at 18pt was being shrunk to 14.5.
      */
     private function fitFontSize(array $field, ?string $text, bool $bold): float
     {
@@ -247,17 +250,12 @@ class LabelRenderService
             return $size;
         }
 
-        // Average advance as a fraction of the em. Uppercase and bold run
-        // wider, and labels are largely uppercase.
-        $emRatio   = $bold ? 0.62 : 0.58;
         $lineRatio = 1.15;   // matches .f line-height in the Blade
-        $length    = mb_strlen($text);
+        $widthPt   = $width / self::MM_PER_PT;
 
         while ($size > self::MIN_FONT_PT) {
-            $charMm  = $size * $emRatio * self::MM_PER_PT;
-            $perLine = max(1, (int) floor($width / max($charMm, 0.01)));
-            $lines   = (int) ceil($length / $perLine);
-            $needed  = $lines * $size * $lineRatio * self::MM_PER_PT;
+            $lines  = HelveticaMetrics::lineCount($text, $bold, $size, $widthPt);
+            $needed = $lines * $size * $lineRatio * self::MM_PER_PT;
 
             if ($needed <= $height) {
                 break;

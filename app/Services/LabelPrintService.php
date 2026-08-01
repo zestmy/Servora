@@ -14,6 +14,7 @@ use App\Models\Recipe;
 use App\Models\ShelfLifeRule;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,7 @@ class LabelPrintService
         private ShelfLifeService $shelfLife,
         private LabelTemplateService $templates,
         private \App\Services\Labels\DriverFactory $drivers,
+        private \App\Services\Labels\CompanyLogo $logo,
     ) {
     }
 
@@ -88,8 +90,12 @@ class LabelPrintService
         $settings  = LabelSetting::forCompany($companyId);
         $employee  = $employeeId ? Employee::find($employeeId) : null;
 
+        // Resolved once for the whole run, not per line: it is the same
+        // image on every label and encoding it is the expensive part.
+        $logo = $this->logo->dataUri($companyId);
+
         return DB::transaction(function () use (
-            $lines, $printer, $employee, $labelSetId, $printedAt, $companyId, $settings
+            $lines, $printer, $employee, $labelSetId, $printedAt, $companyId, $settings, $logo
         ) {
             $batch = LabelPrintBatch::create([
                 'company_id'   => $companyId,
@@ -106,7 +112,7 @@ class LabelPrintService
             $labelCount  = 0;
 
             foreach ($lines as $line) {
-                $prepared = $this->prepareLine($line, $printer, $employee, $printedAt, $settings, $batch);
+                $prepared = $this->prepareLine($line, $printer, $employee, $printedAt, $settings, $batch, $logo);
 
                 if (! $prepared) {
                     continue;
@@ -155,7 +161,8 @@ class LabelPrintService
         ?Employee $employee,
         CarbonInterface $printedAt,
         LabelSetting $settings,
-        LabelPrintBatch $batch
+        LabelPrintBatch $batch,
+        ?string $logo = null
     ): ?array {
         $labelType    = $line['label_type'] ?? 'prep';
         $storageState = $line['storage_state'] ?? 'chill';
@@ -195,6 +202,7 @@ class LabelPrintService
             $line,
             $settings,
             'B-' . $batch->id,
+            $logo,
         );
 
         LabelPrint::create([
@@ -215,7 +223,7 @@ class LabelPrintService
             // Frozen. Read this, never the live item.
             'payload'        => [
                 'item_name'  => $name,
-                'values'     => $values,
+                'values'     => Arr::except($values, ['company.logo']),
                 'shelf_life' => $computed['shelf_life'],
                 'template'   => ['id' => $template->id, 'name' => $template->name],
             ],
@@ -272,7 +280,8 @@ class LabelPrintService
         string $storageState,
         array $line,
         LabelSetting $settings,
-        string $batchRef
+        string $batchRef,
+        ?string $logo = null
     ): array {
         $quantity = '';
 
@@ -285,18 +294,30 @@ class LabelPrintService
             'item.name'           => $name,
             'item.code'           => (string) ($item->code ?? ''),
             'label.caption'       => $template->caption(),
-            'date.start'          => $start->format('d/m/Y H:i'),
-            'date.start_date'     => $start->format('d/m/Y'),
+            // The weekday leads every date. In a kitchen the question is
+            // "is this still good today?", and a three-letter day answers it
+            // without anyone working out what today's date is. Uppercase to
+            // match the rest of the label, and abbreviated because the
+            // use-by is set at 18pt and has one line to live on.
+            'date.start'          => strtoupper($start->format('D d/m/Y H:i')),
+            'date.start_date'     => strtoupper($start->format('D d/m/Y')),
             'date.start_time'     => $start->format('H:i'),
-            'date.end'            => $end?->format('d/m/Y H:i') ?? '',
-            'date.end_date'       => $end?->format('d/m/Y') ?? '',
+            'date.start_day'      => strtoupper($start->format('D')),
+            'date.end'            => $end ? strtoupper($end->format('D d/m/Y H:i')) : '',
+            'date.end_date'       => $end ? strtoupper($end->format('D d/m/Y')) : '',
             'date.end_time'       => $end?->format('H:i') ?? '',
+            'date.end_day'        => $end ? strtoupper($end->format('D')) : '',
             'staff.name'          => (string) ($employee->name ?? ''),
             'outlet.name'         => (string) ($printer->outlet->name ?? ''),
             'storage.instruction' => ShelfLifeRule::stateLabel($storageState),
             'quantity'            => $quantity,
             'batch.ref'           => $batchRef,
             'footer'              => (string) ($settings->footer_text ?? ''),
+            // A base64 image, not text. Kept out of the frozen payload below
+            // — storing it per print row would put megabytes of duplicated
+            // logo into label_prints for no gain, and the logo is not part of
+            // what the label SAID.
+            'company.logo'        => (string) $logo,
         ], fn ($v) => $v !== '');
     }
 
