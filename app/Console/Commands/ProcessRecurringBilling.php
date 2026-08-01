@@ -16,9 +16,12 @@ class ProcessRecurringBilling extends Command
     {
         $subscriptionService = app(SubscriptionService::class);
 
-        // Find subscriptions ending within 3 days
+        // Find subscriptions ending within 3 days. whereHas('company') skips
+        // rows whose company was soft-deleted — never bill a deleted company.
         $dueSoon = Subscription::where('status', Subscription::STATUS_ACTIVE)
             ->where('current_period_end', '<=', now()->addDays(3))
+            ->whereHas('company')
+            ->whereHas('plan')
             ->with(['company', 'plan'])
             ->get();
 
@@ -33,7 +36,7 @@ class ProcessRecurringBilling extends Command
                 continue;
             }
 
-            $this->line("  Processing: {$sub->company->name} — {$sub->plan->name} ({$sub->plan->currency} {$amount})");
+            $this->line("  Processing: {$sub->companyName()} — {$sub->plan->name} ({$sub->plan->currency} {$amount})");
 
             $result = app(ChipInService::class)->createPurchase(
                 $sub->company,
@@ -56,7 +59,7 @@ class ProcessRecurringBilling extends Command
 
         foreach ($pastDue as $sub) {
             $subscriptionService->markPastDue($sub);
-            $this->warn("  Marked past due: {$sub->company->name}");
+            $this->warn("  Marked past due: {$sub->companyName()}");
         }
 
         // Expire: subscriptions past due for 14+ days
@@ -66,7 +69,7 @@ class ProcessRecurringBilling extends Command
 
         foreach ($expired as $sub) {
             $subscriptionService->expire($sub);
-            $this->error("  Expired: {$sub->company->name}");
+            $this->error("  Expired: {$sub->companyName()}");
         }
 
         // Expire trials
@@ -76,7 +79,7 @@ class ProcessRecurringBilling extends Command
 
         foreach ($expiredTrials as $sub) {
             $subscriptionService->expire($sub);
-            $this->warn("  Trial expired: {$sub->company->name}");
+            $this->warn("  Trial expired: {$sub->companyName()}");
         }
 
         $this->info('Done.');

@@ -18,22 +18,22 @@ class TrialDashboard extends Component
 
         $newEnd = $sub->trial_ends_at->addDays($days);
         $sub->update(['trial_ends_at' => $newEnd, 'current_period_end' => $newEnd]);
-        $sub->company->update(['trial_ends_at' => $newEnd]);
-        session()->flash('success', "Trial extended by {$days} days for {$sub->company->name}.");
+        $sub->company?->update(['trial_ends_at' => $newEnd]);
+        session()->flash('success', "Trial extended by {$days} days for {$sub->companyName()}.");
     }
 
     public function convertToPaid(int $id): void
     {
         $sub = Subscription::findOrFail($id);
         app(SubscriptionService::class)->activate($sub);
-        session()->flash('success', "Converted {$sub->company->name} to active subscription.");
+        session()->flash('success', "Converted {$sub->companyName()} to active subscription.");
     }
 
     public function deactivate(int $id): void
     {
         $sub = Subscription::findOrFail($id);
         app(SubscriptionService::class)->expire($sub);
-        session()->flash('success', "Deactivated subscription for {$sub->company->name}.");
+        session()->flash('success', "Deactivated subscription for {$sub->companyName()}.");
     }
 
     public function render()

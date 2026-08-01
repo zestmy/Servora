@@ -39,6 +39,16 @@ class Subscription extends Model
         return $this->belongsTo(Plan::class);
     }
 
+    /**
+     * Companies are soft-deleted, so a subscription outlives its company and
+     * $sub->company resolves to null. Admin surfaces list those orphan rows
+     * (they are still deletable) — never dereference ->company for display.
+     */
+    public function companyName(): string
+    {
+        return $this->company?->name ?? 'Deleted company';
+    }
+
     public function isActive(): bool
     {
         return in_array($this->status, [self::STATUS_ACTIVE, self::STATUS_TRIALING]);

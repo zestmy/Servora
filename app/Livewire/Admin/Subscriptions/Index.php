@@ -106,10 +106,10 @@ class Index extends Component
                 $data['cancelled_at'] = $sub->cancelled_at;
             }
             $sub->update($data);
-            $msg = "Subscription updated for {$sub->company->name}.";
+            $msg = "Subscription updated for {$sub->companyName()}.";
         } else {
             $sub = Subscription::create($data);
-            $msg = "Subscription created for {$sub->company->name}.";
+            $msg = "Subscription created for {$sub->companyName()}.";
         }
 
         $this->syncCompanyTrial($sub->fresh());
@@ -128,13 +128,13 @@ class Index extends Component
         }
 
         app(SubscriptionService::class)->activate($sub);
-        session()->flash('success', "Subscription activated for {$sub->company->name} (period runs to {$sub->fresh()->current_period_end->format('d M Y')}).");
+        session()->flash('success', "Subscription activated for {$sub->companyName()} (period runs to {$sub->fresh()->current_period_end?->format('d M Y')}).");
     }
 
     public function deleteSubscription(int $id): void
     {
         $sub = Subscription::findOrFail($id);
-        $companyName = $sub->company->name ?? '—';
+        $companyName = $sub->companyName();
 
         $wasLive = in_array($sub->status, [Subscription::STATUS_TRIALING, Subscription::STATUS_ACTIVE, Subscription::STATUS_PAST_DUE]);
         $sub->delete();
@@ -161,16 +161,16 @@ class Index extends Component
             'trial_ends_at'      => $newEnd,
             'current_period_end' => $newEnd,
         ]);
-        $sub->company->update(['trial_ends_at' => $newEnd]);
+        $sub->company?->update(['trial_ends_at' => $newEnd]);
 
-        session()->flash('success', "Trial extended by {$days} days for {$sub->company->name}.");
+        session()->flash('success', "Trial extended by {$days} days for {$sub->companyName()}.");
     }
 
     public function cancelSubscription(int $id): void
     {
         $sub = Subscription::findOrFail($id);
         app(SubscriptionService::class)->cancel($sub);
-        session()->flash('success', "Subscription cancelled for {$sub->company->name}.");
+        session()->flash('success', "Subscription cancelled for {$sub->companyName()}.");
     }
 
     public function closeModal(): void

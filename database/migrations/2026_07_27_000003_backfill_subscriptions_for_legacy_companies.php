@@ -28,6 +28,7 @@ return new class extends Migration
         $maxEnd = \Carbon\Carbon::create(2037, 12, 31, 23, 59, 59);
 
         $companyIds = DB::table('companies')
+            ->whereNull('deleted_at') // companies are soft-deleted; a deleted one needs no subscription
             ->whereNotIn('id', DB::table('subscriptions')->select('company_id'))
             ->pluck('id');
 

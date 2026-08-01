@@ -50,10 +50,10 @@
                 @forelse ($trials as $sub)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
-                            <p class="font-medium text-gray-800">{{ $sub->company->name }}</p>
-                            <p class="text-xs text-gray-400">{{ $sub->company->email }}</p>
+                            <p class="font-medium text-gray-800">{{ $sub->companyName() }}</p>
+                            <p class="text-xs text-gray-400">{{ $sub->company?->email }}</p>
                         </td>
-                        <td class="px-4 py-3 text-gray-600">{{ $sub->plan->name }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $sub->plan?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-center">
                             <span class="font-bold {{ $sub->daysRemaining() <= 3 ? 'text-red-600' : ($sub->daysRemaining() <= 7 ? 'text-amber-600' : 'text-green-600') }}">
                                 {{ $sub->daysRemaining() }}d
@@ -95,8 +95,8 @@
                 <tbody class="divide-y divide-gray-50">
                     @foreach ($recentlyExpired as $sub)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 font-medium text-gray-800">{{ $sub->company->name }}</td>
-                            <td class="px-4 py-3 text-gray-600">{{ $sub->plan->name }}</td>
+                            <td class="px-4 py-3 font-medium text-gray-800">{{ $sub->companyName() }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ $sub->plan?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-xs text-gray-500">{{ $sub->updated_at->format('d M Y') }}</td>
                         </tr>
                     @endforeach

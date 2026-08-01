@@ -42,7 +42,8 @@ class SubscriptionService
             'current_period_end'   => $periodEnd,
         ]);
 
-        $subscription->company->update(['trial_ends_at' => null]);
+        // Company may be soft-deleted — the subscription row outlives it.
+        $subscription->company?->update(['trial_ends_at' => null]);
 
         return $subscription->fresh();
     }
