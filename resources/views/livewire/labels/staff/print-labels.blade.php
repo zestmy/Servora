@@ -10,6 +10,8 @@
         <div class="mb-3 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{{ $message }}</div>
     @enderror
 
+    <x-labels.guide class="mb-3" compact />
+
     {{-- Say so up front rather than letting someone queue ten items and only
          then discover there is nowhere to send them. --}}
     @if ($printers->isEmpty())

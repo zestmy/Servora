@@ -6,6 +6,10 @@
         </div>
     @endif
 
+    {{-- Collapsed by default: guidance should be one click away, not in the
+         way of someone who prints the same tray every morning. --}}
+    <x-labels.guide class="mb-4" />
+
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
             <p class="text-xs text-gray-400">Labels</p>

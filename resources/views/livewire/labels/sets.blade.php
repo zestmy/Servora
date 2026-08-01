@@ -6,6 +6,11 @@
         </div>
     @endif
 
+    {{-- Here as well as on the print screen: a set's label types are chosen
+         once and then printed unread for months, so this is the moment the
+         choice actually matters. --}}
+    <x-labels.guide class="mb-4" />
+
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div class="flex items-center gap-3">
             <a href="{{ route('labels.print') }}" class="text-gray-400 hover:text-gray-600 transition">

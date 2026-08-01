@@ -14,11 +14,12 @@ use App\Scopes\CompanyScope;
  * own copy of the query and the staff screens had another, and they had
  * already drifted on group names.
  *
- * Three groups, deliberately not merged: someone searching "chicken" needs to
- * see whether they are picking the raw ingredient or the prepped recipe, and
- * a flat list hides that. Ingredients with is_prep are excluded from Market
- * List on purpose — a prep item is a Recipe plus a synced Ingredient, so
- * including both would list every prep item twice.
+ * Groups are deliberately not merged: someone searching "chicken" needs to
+ * see whether they are picking the raw ingredient, the prep item or the
+ * finished recipe, and a flat list hides that. Ingredients with is_prep are
+ * excluded from Market List on purpose — a prep item is a Recipe plus a
+ * synced Ingredient, so including both would list every prep item twice, and
+ * the Recipe is the one that carries the shelf-life rule.
  *
  * TWO THINGS THIS FIXES over what it replaces:
  *
@@ -50,16 +51,29 @@ class LabelItemSearch
             return [];
         }
 
+        // Four groups, in the order a kitchen thinks about them. Prep items
+        // have their own: they are Recipe rows with is_prep, and while they
+        // were always findable, sharing a group with every other recipe meant
+        // a capped list buried them behind whatever sorted earlier — and prep
+        // items are the things most likely to need a label. Their own group
+        // gives them their own count and their own share of the limit.
+        //
+        // is_prep is NOT NULL DEFAULT 0 on both tables, so splitting on it
+        // cannot drop a row into neither group.
         $groups = [
-            'Market List'          => Ingredient::query()->where('is_prep', false),
-            'Recipes & Prep Items' => Recipe::query(),
-            'Production Recipes'   => ProductionRecipe::query(),
+            'Market List'        => Ingredient::query()->where('is_prep', false),
+            'Prep Items'         => Recipe::query()->where('is_prep', true),
+            'Recipes'            => Recipe::query()->where('is_prep', false),
+            'Production Recipes' => ProductionRecipe::query(),
         ];
 
+        // Prep items are Recipes, so they keep the 'recipe' key — everything
+        // downstream resolves them the same way it always did.
         $types = [
-            'Market List'          => 'ingredient',
-            'Recipes & Prep Items' => 'recipe',
-            'Production Recipes'   => 'production',
+            'Market List'        => 'ingredient',
+            'Prep Items'         => 'recipe',
+            'Recipes'            => 'recipe',
+            'Production Recipes' => 'production',
         ];
 
         $out = [];

@@ -10,6 +10,8 @@
         <div class="mb-3 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{{ $message }}</div>
     @enderror
 
+    <x-labels.guide class="mb-3" compact />
+
     <div class="flex items-center justify-between mb-2 px-1">
         <a href="{{ route('labels.staff.sets') }}" wire:navigate class="text-xs text-gray-400 flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
