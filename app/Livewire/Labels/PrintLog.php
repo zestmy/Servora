@@ -81,12 +81,15 @@ class PrintLog extends Component
         $batches = LabelPrintBatch::query()
             ->select('label_print_batches.*')
             ->with(['outlet', 'employee', 'labelSet', 'user'])
-            ->when($this->outletId, fn ($q) => $q->where('outlet_id', $this->outletId))
-            ->when($this->from !== '', fn ($q) => $q->whereDate('printed_at', '>=', $this->from))
-            ->when($this->to !== '', fn ($q) => $q->whereDate('printed_at', '<=', $this->to))
-            ->when($this->setFilter === 'none', fn ($q) => $q->whereNull('label_set_id'))
+            // Columns are table-qualified throughout: grouping by set joins
+            // label_sets, which also has outlet_id, and an unqualified
+            // reference is an ambiguous-column error the moment that join is on.
+            ->when($this->outletId, fn ($q) => $q->where('label_print_batches.outlet_id', $this->outletId))
+            ->when($this->from !== '', fn ($q) => $q->whereDate('label_print_batches.printed_at', '>=', $this->from))
+            ->when($this->to !== '', fn ($q) => $q->whereDate('label_print_batches.printed_at', '<=', $this->to))
+            ->when($this->setFilter === 'none', fn ($q) => $q->whereNull('label_print_batches.label_set_id'))
             ->when($this->setFilter !== '' && $this->setFilter !== 'none',
-                fn ($q) => $q->where('label_set_id', (int) $this->setFilter))
+                fn ($q) => $q->where('label_print_batches.label_set_id', (int) $this->setFilter))
             // Grouping by set keeps the pagination rather than pulling the
             // whole range into memory: an audit log is unbounded, so ordering
             // the query is what makes each page's groups contiguous. A group
@@ -99,7 +102,7 @@ class PrintLog extends Component
                 ->orderByRaw('label_sets.name IS NULL')
                 ->orderBy('label_sets.name')
                 ->orderByDesc('label_print_batches.printed_at'))
-            ->when($this->groupBy !== 'set', fn ($q) => $q->orderByDesc('printed_at'))
+            ->when($this->groupBy !== 'set', fn ($q) => $q->orderByDesc('label_print_batches.printed_at'))
             ->paginate(20);
 
         $expanded = $this->expandedId
