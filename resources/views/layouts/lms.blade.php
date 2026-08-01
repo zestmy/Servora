@@ -90,9 +90,11 @@
                  x-transition:leave-end="opacity-0"
                  class="flex-1 overflow-hidden whitespace-nowrap">
                 <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
-                    @if ($lmsCompany?->logo)
-                        <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-14 max-w-[180px] object-contain">
-                    @endif
+                    {{-- Dark artwork on this near-black band is the case that
+                         prompted all of this; the component puts it on a white
+                         chip and leaves a light logo alone. --}}
+                    <x-brand-mark :company="$lmsCompany" surface="dark"
+                                  size="h-12" width="max-w-[180px]" :alt="$brandName" />
                     <span class="text-sm font-bold text-white truncate">{{ $brandName }}</span>
                 </a>
             </div>
@@ -239,9 +241,9 @@
                 </svg>
             </button>
             <a href="{{ route('lms.dashboard') }}" class="flex items-center gap-2">
-                @if ($lmsCompany?->logo)
-                    <img src="{{ Storage::disk('public')->url($lmsCompany->logo) }}" alt="{{ $brandName }}" class="h-11 max-w-[140px] object-contain">
-                @endif
+                {{-- White bar, so here it is a LIGHT logo that would vanish. --}}
+                <x-brand-mark :company="$lmsCompany" surface="light"
+                              size="h-10" width="max-w-[140px]" :alt="$brandName" />
                 <span class="text-sm font-bold text-gray-900">{{ $brandName }}</span>
             </a>
         </header>

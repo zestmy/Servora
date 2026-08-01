@@ -4,7 +4,7 @@ namespace App\Livewire\Labels;
 
 use App\Models\LabelTemplate;
 use App\Services\LabelRenderService;
-use App\Services\Labels\CompanyLogo;
+use App\Services\Branding\CompanyLogo;
 use Livewire\Component;
 
 /**

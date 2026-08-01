@@ -46,7 +46,7 @@ class LabelPrintService
         private ShelfLifeService $shelfLife,
         private LabelTemplateService $templates,
         private \App\Services\Labels\DriverFactory $drivers,
-        private \App\Services\Labels\CompanyLogo $logo,
+        private \App\Services\Branding\CompanyLogo $logo,
     ) {
     }
 

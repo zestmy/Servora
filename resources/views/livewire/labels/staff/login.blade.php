@@ -10,8 +10,10 @@
 
     <div class="text-center mb-6">
         @if ($logo)
-            <img src="{{ $logo }}" alt="{{ $company?->brand_name ?? $company?->name }}"
-                 class="mx-auto h-16 max-w-[200px] object-contain mb-3">
+            <div class="flex justify-center mb-3">
+                <x-brand-mark :company="$company" surface="light"
+                              size="h-16" width="max-w-[200px]" />
+            </div>
         @else
             {{-- No brand set: fall back to the app's own mark. --}}
             <div class="mx-auto w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center mb-3">

@@ -12,9 +12,6 @@
     // training portal is branded here too without setting anything up twice.
     $brandCompany = app()->bound('currentCompany') ? app('currentCompany') : null;
     $brandName    = $brandCompany?->brand_name ?? $brandCompany?->name ?? 'Labels';
-    $brandLogo    = $brandCompany?->logo
-        ? \Illuminate\Support\Facades\Storage::disk('public')->url($brandCompany->logo)
-        : null;
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -103,13 +100,11 @@
     @isset($staff)
         <header class="shrink-0 z-20 bg-indigo-600 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
             <div class="flex items-center gap-2.5 min-w-0">
-                @if ($brandLogo)
-                    {{-- White pill behind it: most logos are dark artwork and
-                         would disappear against the indigo header. --}}
-                    <span class="shrink-0 bg-white rounded-lg p-1 flex items-center justify-center">
-                        <img src="{{ $brandLogo }}" alt="{{ $brandName }}" class="h-6 w-auto max-w-[64px] object-contain">
-                    </span>
-                @endif
+                {{-- The white pill used to be unconditional here. It is the
+                     right answer for dark artwork on this indigo header and
+                     the wrong one for a light logo, which reads fine bare. --}}
+                <x-brand-mark :company="$brandCompany" surface="dark"
+                              size="h-6" width="max-w-[64px]" :alt="$brandName" />
                 <div class="min-w-0">
                     <p class="text-[11px] uppercase tracking-wider text-indigo-200 truncate">{{ $outletName ?? $brandName }}</p>
                     <p class="text-sm font-semibold truncate">{{ $title ?? 'Labels' }}</p>

@@ -230,12 +230,29 @@
             <div class="space-y-6">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 class="text-sm font-semibold text-gray-700 mb-4">Company Logo</h3>
-                    <p class="text-xs text-gray-400 mb-4">This logo will appear on PO, DO and GRN PDF documents.</p>
+                    <p class="text-xs text-gray-400 mb-4">
+                        Used on PO, DO and GRN documents, on food-safety labels, and across the
+                        training portal and staff apps.
+                    </p>
 
                     @if ($currentLogo)
-                        <div class="mb-4">
-                            <img src="{{ asset('storage/' . $currentLogo) }}" alt="Company Logo" class="h-20 object-contain rounded border border-gray-200 p-2 bg-gray-50">
+                        {{-- Shown on both backgrounds, because that is where it
+                             has to work. Dark artwork disappears on the training
+                             portal's sidebar and light artwork disappears on a
+                             white login page; the apps put it on a contrasting
+                             chip automatically, and this is where you can see
+                             which case yours is. --}}
+                        <div class="mb-4 grid grid-cols-2 gap-2">
+                            <div class="rounded-lg border border-gray-200 bg-white p-2 flex items-center justify-center">
+                                <img src="{{ asset('storage/' . $currentLogo) }}" alt="Company Logo" class="h-16 object-contain">
+                            </div>
+                            <div class="rounded-lg border border-gray-800 bg-gray-900 p-2 flex items-center justify-center">
+                                <img src="{{ asset('storage/' . $currentLogo) }}" alt="Company Logo" class="h-16 object-contain">
+                            </div>
                         </div>
+                        <p class="text-xs text-gray-400 mb-4">
+                            On light and on dark.
+                        </p>
                     @endif
 
                     <div>

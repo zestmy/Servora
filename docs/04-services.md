@@ -91,6 +91,18 @@ Domain logic lives in `app/Services/`. Before writing new code, check here — m
 
 ---
 
+## Branding\CompanyLogo
+**File:** [app/Services/Branding/CompanyLogo.php](../app/Services/Branding/CompanyLogo.php)
+**Purpose:** The company logo, plus what a surface needs to know to display it legibly.
+**Public methods:**
+- `url(?int $companyId): ?string` — public URL, for screens.
+- `isDark(?int $companyId): ?bool` — is the artwork dark? `null` when there is no logo or it can't be read.
+- `dataUri(?int $companyId): ?string` — downscaled PNG as a data URI, for print documents.
+**Used by:** [components/brand-mark](../resources/views/components/brand-mark.blade.php), [LabelPrintService](../app/Services/LabelPrintService.php), [Labels/TemplateDesigner](../app/Livewire/Labels/TemplateDesigner.php), [video-share/show](../resources/views/video-share/show.blade.php).
+**Notes:** The app doesn't control the artwork, and one upload has to work on the LMS's near-black sidebar *and* on a white login page — so `isDark()` measures mean Rec.601 luminance of the **opaque** pixels (transparent areas excluded, or every logo averages towards nothing) on a 64×64 sample grid. Threshold 0.5, deliberately generous towards "dark": a needless white chip looks fine, an invisible logo is the bug. `dataUri()` exists separately because print needs one self-contained value — a URL would need dompdf remote fetching, a filesystem path breaks in the browser — and it downscales to 200 px first because the label renderer repeats every field once per physical label. All three cached on company + path + size + mtime, so replacing the logo invalidates everything without clearing a cache. Nothing throws: unreadable artwork degrades to "no special treatment".
+
+---
+
 ## CouponService
 **File:** [app/Services/CouponService.php](../app/Services/CouponService.php)
 **Purpose:** Validate and redeem subscription coupons.

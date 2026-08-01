@@ -15,10 +15,11 @@
         <div class="w-full max-w-md">
             {{-- Branding --}}
             <div class="text-center mb-8">
-                @if ($company->logo)
-                    <img src="{{ Storage::disk('public')->url($company->logo) }}" alt="{{ $company->brand_name ?? $company->name }}"
-                         class="h-24 max-w-[280px] mx-auto mb-5 object-contain">
-                @endif
+                {{-- White page: a light logo needs the dark chip here. --}}
+                <div class="flex justify-center mb-5">
+                    <x-brand-mark :company="$company" surface="light"
+                                  size="h-24" width="max-w-[280px]" />
+                </div>
                 <h1 class="text-2xl font-bold text-gray-900">{{ $company->brand_name ?? $company->name }}</h1>
                 <p class="text-sm text-gray-500 mt-1">Training Portal</p>
                 @if ($company->brand_name && $company->name !== $company->brand_name)
