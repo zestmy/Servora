@@ -33,7 +33,7 @@
                                    {{ $company->id === $activeCompanyId ? 'text-white bg-gray-700/60' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                         <span class="flex-1 truncate">{{ $company->name }}</span>
                         @if ($company->id === $activeCompanyId)
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                         @endif
@@ -42,7 +42,7 @@
 
                 @if ($canCreate)
                     <a href="{{ route('company.create') }}"
-                       class="flex items-center gap-2 w-full px-3 py-2 text-left text-xs text-indigo-300 hover:bg-gray-700 hover:text-indigo-200 transition border-t border-gray-700 mt-1">
+                       class="flex items-center gap-2 w-full px-3 py-2 text-left text-xs text-brand-300 hover:bg-gray-700 hover:text-brand-200 transition border-t border-gray-700 mt-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                         </svg>
@@ -59,7 +59,7 @@
             </span>
             @if ($canCreate)
                 <a href="{{ route('company.create') }}" title="Create a new company"
-                   class="p-0.5 rounded text-gray-500 hover:text-indigo-300 hover:bg-gray-800 transition flex-shrink-0">
+                   class="p-0.5 rounded text-gray-500 hover:text-brand-300 hover:bg-gray-800 transition flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
