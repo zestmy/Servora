@@ -2,12 +2,12 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
@@ -15,19 +15,19 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
-            <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+            <a href="{{ route('settings.index') }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <h2 class="text-lg font-semibold text-gray-700">Central Kitchens</h2>
+            <h2 class="page-title">Central Kitchens</h2>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
             + New Kitchen
         </button>
     </div>
 
     {{-- List --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         @if ($kitchens->count() > 0)
             <div class="divide-y divide-gray-100">
                 @foreach ($kitchens as $kitchen)
@@ -38,11 +38,11 @@
                                 @if ($kitchen->code)
                                     <span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded">{{ $kitchen->code }}</span>
                                 @endif
-                                <span class="px-2 py-0.5 text-xs rounded {{ $kitchen->is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600' }}">
+                                <span class="px-2 py-0.5 text-xs rounded {{ $kitchen->is_active ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600' }}">
                                     {{ $kitchen->is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </div>
-                            <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-400">
+                            <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-600">
                                 @if ($kitchen->outlet)
                                     <span class="flex items-center gap-1">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -64,32 +64,32 @@
                                     @foreach ($kitchen->users as $u)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-gray-100 text-gray-600">
                                             {{ $u->name }}
-                                            <span class="ml-1 text-gray-400">({{ $u->pivot->role }})</span>
+                                            <span class="ml-1 text-gray-600">({{ $u->pivot->role }})</span>
                                         </span>
                                     @endforeach
                                 </div>
                             @endif
                             @if ($kitchen->servedOutlets->count() > 0)
                                 <div class="flex flex-wrap items-center gap-1 mt-2">
-                                    <span class="text-[11px] text-gray-400 mr-0.5">Serves:</span>
+                                    <span class="text-[11px] text-gray-600 mr-0.5">Serves:</span>
                                     @foreach ($kitchen->servedOutlets as $so)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-indigo-50 text-indigo-600">{{ $so->name }}</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-brand-50 text-brand-600">{{ $so->name }}</span>
                                     @endforeach
                                 </div>
                             @endif
                         </div>
                         <div class="flex gap-2 ml-4">
                             <button wire:click="openEdit({{ $kitchen->id }})"
-                                    class="text-sm text-indigo-600 hover:text-indigo-800 transition">Edit</button>
+                                    class="text-sm text-brand-600 hover:text-brand-800 transition">Edit</button>
                             <button wire:click="delete({{ $kitchen->id }})"
                                     wire:confirm="Are you sure you want to delete this kitchen?"
-                                    class="text-sm text-red-500 hover:text-red-700 transition">Delete</button>
+                                    class="text-sm text-danger-500 hover:text-danger-700 transition">Delete</button>
                         </div>
                     </div>
                 @endforeach
             </div>
         @else
-            <div class="p-8 text-center text-gray-400 text-sm">
+            <div class="p-8 text-center text-gray-600 text-sm">
                 No Central Kitchens configured. Click "+ New Kitchen" to create one.
             </div>
         @endif
@@ -110,7 +110,7 @@
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Name *</label>
                         <input type="text" wire:model="name" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Main Kitchen" />
-                        @error('name') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        @error('name') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Code</label>
@@ -126,22 +126,22 @@
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">Where this kitchen operates. Assigned kitchen staff are added to this outlet so they can order ingredients, do stock takes, record wastage, and use all outlet features.</p>
+                    <p class="text-xs text-gray-600 mt-1">Where this kitchen operates. Assigned kitchen staff are added to this outlet so they can order ingredients, do stock takes, record wastage, and use all outlet features.</p>
                 </div>
 
                 {{-- Outlets served (routing) --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Outlets Served</label>
-                    <p class="text-xs text-gray-400 mb-2">Branches this kitchen fulfils prep items for — their prep requests route here automatically. Each branch is served by one kitchen; selecting a branch served elsewhere moves it here.</p>
+                    <p class="text-xs text-gray-600 mb-2">Branches this kitchen fulfils prep items for — their prep requests route here automatically. Each branch is served by one kitchen; selecting a branch served elsewhere moves it here.</p>
                     <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
                         @forelse ($outlets as $outlet)
                             <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" wire:model="servedOutletIds" value="{{ $outlet->id }}"
-                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                 <span class="text-sm text-gray-700">{{ $outlet->name }}</span>
                             </label>
                         @empty
-                            <p class="text-xs text-gray-400 px-2 py-1">No active branches.</p>
+                            <p class="text-xs text-gray-600 px-2 py-1">No active branches.</p>
                         @endforelse
                     </div>
                 </div>
@@ -169,7 +169,7 @@
 
                 <div>
                     <label class="flex items-center gap-2">
-                        <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                         <span class="text-sm text-gray-600">Active</span>
                     </label>
                 </div>
@@ -177,7 +177,7 @@
                 {{-- User assignment --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-2">Assigned Users</label>
-                    <p class="text-xs text-gray-400 mb-2">
+                    <p class="text-xs text-gray-600 mb-2">
                         Role decides what each member may do. Only Managers can approve or fulfil
                         prep requests — fulfilling moves stock out of the kitchen.
                     </p>
@@ -187,9 +187,9 @@
                             <div class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50">
                                 <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
                                     <input type="checkbox" wire:model.live="assignedUserIds" value="{{ $u->id }}"
-                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                     <span class="text-sm text-gray-700 truncate">{{ $u->name }}</span>
-                                    <span class="text-xs text-gray-400 truncate">({{ $u->email }})</span>
+                                    <span class="text-xs text-gray-600 truncate">({{ $u->email }})</span>
                                 </label>
                                 @if ($isAssigned)
                                     <select wire:model="userRoles.{{ $u->id }}"
@@ -202,7 +202,7 @@
                             </div>
                         @endforeach
                     </div>
-                    <ul class="mt-2 text-[11px] text-gray-400 space-y-0.5">
+                    <ul class="mt-2 text-[11px] text-gray-600 space-y-0.5">
                         @foreach (\App\Livewire\Settings\KitchenManagement::KITCHEN_ROLES as $roleDesc)
                             <li>{{ $roleDesc }}</li>
                         @endforeach
@@ -214,7 +214,7 @@
                 <button wire:click="$set('showForm', false)"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                 <button wire:click="save"
-                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     {{ $editId ? 'Update' : 'Create' }}
                 </button>
             </div>

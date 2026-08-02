@@ -2,7 +2,7 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
@@ -10,8 +10,8 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Sales Targets</h2>
-            <p class="text-sm text-gray-400 mt-0.5">Set monthly revenue and pax targets for your outlets</p>
+            <h2 class="page-title">Sales Targets</h2>
+            <p class="text-sm text-gray-600 mt-0.5">Set monthly revenue and pax targets for your outlets</p>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('sales.index') }}"
@@ -19,14 +19,14 @@
                 Back
             </a>
             <button wire:click="openCreate"
-                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 + New Target
             </button>
         </div>
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -52,13 +52,13 @@
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 <button wire:click="openEdit({{ $target->id }})" title="Edit"
-                                        class="text-indigo-500 hover:text-indigo-700 transition">
+                                        class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </button>
                                 <button wire:click="delete({{ $target->id }})"
                                         wire:confirm="Delete this sales target for {{ $periodLabel }}?"
                                         title="Delete"
-                                        class="text-red-400 hover:text-red-600 transition">
+                                        class="text-danger-400 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </div>
@@ -66,9 +66,9 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="6" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No sales targets set</p>
-                            <p class="text-xs mt-1">Click <button wire:click="openCreate" class="text-indigo-500 underline">+ New Target</button> to set your first monthly target</p>
+                            <p class="text-xs mt-1">Click <button wire:click="openCreate" class="text-brand-500 underline">+ New Target</button> to set your first monthly target</p>
                         </td>
                     </tr>
                 @endforelse
@@ -99,15 +99,15 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Period</label>
                             <input type="month" wire:model="period"
-                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            @error('period') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                            @error('period') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Outlet --}}
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Outlet</label>
                             <select wire:model="outlet_id"
-                                    class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">All Outlets</option>
                                 @foreach ($outlets as $outlet)
                                     <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
@@ -120,8 +120,8 @@
                             <label class="block text-xs font-medium text-gray-600 mb-1">Target Revenue (RM)</label>
                             <input type="number" wire:model="target_revenue" step="0.01" min="0"
                                    placeholder="e.g. 150000.00"
-                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            @error('target_revenue') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                            @error('target_revenue') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Target Pax --}}
@@ -129,8 +129,8 @@
                             <label class="block text-xs font-medium text-gray-600 mb-1">Target Pax (optional)</label>
                             <input type="number" wire:model="target_pax" min="0"
                                    placeholder="e.g. 5000"
-                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            @error('target_pax') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                            @error('target_pax') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Notes --}}
@@ -138,7 +138,7 @@
                             <label class="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
                             <textarea wire:model="notes" rows="2"
                                       placeholder="e.g. CNY month, expect higher traffic"
-                                      class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                      class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
                         </div>
                     </div>
                     <div class="px-6 py-3 bg-gray-50 rounded-b-xl flex items-center justify-end gap-2">
@@ -147,7 +147,7 @@
                             Cancel
                         </button>
                         <button wire:click="save"
-                                class="px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                                class="px-4 py-2 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
                             {{ $editingId ? 'Update Target' : 'Create Target' }}
                         </button>
                     </div>

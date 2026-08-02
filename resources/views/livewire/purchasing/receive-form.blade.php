@@ -1,20 +1,20 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('purchasing.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('purchasing.index') }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-gray-600">
                 <a href="{{ route('purchasing.index') }}" class="hover:underline">Purchasing</a>
                 / {{ $poId ? 'Receive: ' . $poNumber : 'Record Direct Purchase' }}
             </p>
@@ -25,14 +25,14 @@
             @endif
         </div>
         <button wire:click="confirm"
-                class="flex-shrink-0 px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                class="flex-shrink-0 px-5 py-2 bg-success-600 text-white text-sm font-medium rounded-lg hover:bg-success-700 transition">
             Confirm Receipt
         </button>
     </div>
 
     {{-- Validation errors --}}
     @if ($errors->any())
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             <p class="font-medium mb-1">Please fix the following:</p>
             <ul class="list-disc list-inside space-y-0.5">
                 @foreach ($errors->all() as $error)
@@ -46,7 +46,7 @@
 
         {{-- Header card (2/3) --}}
         <div class="lg:col-span-2">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div class="card p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700">Delivery Details</h3>
 
                 {{-- DO Number (read-only) --}}
@@ -73,9 +73,9 @@
                 {{-- Final delivery checkbox --}}
                 @if ($poId)
                     <label class="flex items-center gap-2">
-                        <input type="checkbox" wire:model="is_final_delivery" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <input type="checkbox" wire:model="is_final_delivery" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                         <span class="text-sm text-gray-600">Mark as final delivery</span>
-                        <span class="text-xs text-gray-400">(closes the PO even if not all items are fully received)</span>
+                        <span class="text-xs text-gray-600">(closes the PO even if not all items are fully received)</span>
                     </label>
                 @endif
 
@@ -84,7 +84,7 @@
                     <div>
                         <x-input-label for="do_supplier" value="Supplier *" />
                         <select id="do_supplier" wire:model="supplier_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— Select Supplier —</option>
                             @foreach ($suppliers as $s)
                                 <option value="{{ $s->id }}">{{ $s->name }}</option>
@@ -103,7 +103,7 @@
                     <div>
                         <x-input-label for="invoice_date" value="Invoice Date" />
                         <x-text-input id="invoice_date" wire:model="invoice_date" type="date" class="mt-1 block w-full" />
-                        <p class="text-[11px] text-gray-400 mt-1">Prices recorded as effective from this date; blank = delivery date.</p>
+                        <p class="text-[11px] text-gray-600 mt-1">Prices recorded as effective from this date; blank = delivery date.</p>
                         <x-input-error :messages="$errors->get('invoice_date')" class="mt-1" />
                     </div>
                     <div>
@@ -117,7 +117,7 @@
                 <div>
                     <x-input-label for="do_notes" value="Notes" />
                     <textarea id="do_notes" wire:model="notes" rows="2"
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                               placeholder="Delivery notes, discrepancies, etc."></textarea>
                 </div>
             </div>
@@ -125,7 +125,7 @@
 
         {{-- Summary card (1/3, sticky) --}}
         <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
+            <div class="card p-6 lg:sticky lg:top-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Receipt Summary</h3>
                 <dl class="space-y-3 text-sm">
                     <div class="flex justify-between">
@@ -137,7 +137,7 @@
                         $damagedCount  = collect($lines)->where('condition', 'damaged')->count();
                     @endphp
                     @if ($rejectedCount > 0)
-                        <div class="flex justify-between text-red-600">
+                        <div class="flex justify-between text-danger-600">
                             <dt>Rejected lines</dt>
                             <dd class="font-medium">{{ $rejectedCount }}</dd>
                         </div>
@@ -157,7 +157,7 @@
                 </dl>
 
                 <div class="mt-4 pt-4 border-t border-gray-100">
-                    <p class="text-xs text-gray-400 leading-relaxed">
+                    <p class="text-xs text-gray-600 leading-relaxed">
                         On confirmation:
                         <br>· Delivery order &amp; purchase record created
                         <br>· PO status updated automatically
@@ -170,11 +170,11 @@
     </div>
 
     {{-- Lines --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="mt-4 card">
 
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-sm font-semibold text-gray-700">Items to Receive</h3>
-            <p class="text-xs text-gray-400 mt-0.5">Adjust quantities and mark condition for each item.</p>
+            <p class="text-xs text-gray-600 mt-0.5">Adjust quantities and mark condition for each item.</p>
         </div>
 
         {{-- Ingredient search (standalone mode only) --}}
@@ -182,14 +182,14 @@
             <div class="px-6 py-4 border-b border-gray-100">
                 <div class="relative">
                     <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                         </svg>
                     </div>
                     <input type="text"
                            wire:model.live.debounce.300ms="ingredientSearch"
                            placeholder="Search ingredients to add…"
-                           class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                           class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                 </div>
 
                 @if ($searchResults->isNotEmpty())
@@ -197,24 +197,24 @@
                         @foreach ($searchResults as $ingredient)
                             <button type="button"
                                     wire:click="addIngredient({{ $ingredient->id }})"
-                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
                                 <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
-                                <span class="text-xs text-gray-400 ml-4 flex-shrink-0">
+                                <span class="text-xs text-gray-600 ml-4 flex-shrink-0">
                                     {{ $ingredient->baseUom?->abbreviation }}
                                     @if (floatval($ingredient->purchase_price) > 0)
                                         · RM {{ number_format($ingredient->purchase_price, 4) }}
                                     @endif
-                                    <span class="ml-1 text-indigo-400">+ Add</span>
+                                    <span class="ml-1 text-brand-400">+ Add</span>
                                 </span>
                             </button>
                         @endforeach
                     </div>
                 @elseif (strlen($ingredientSearch) >= 2)
-                    <p class="mt-2 text-sm text-gray-400 text-center py-2">No ingredients found.</p>
+                    <p class="mt-2 text-sm text-gray-600 text-center py-2">No ingredients found.</p>
                 @endif
-                <p class="mt-2 text-xs text-gray-400">
+                <p class="mt-2 text-xs text-gray-600">
                     Can't find it?
-                    <a href="{{ route('ingredients.index') }}" target="_blank" class="text-indigo-500 hover:underline">+ Add new ingredient</a>
+                    <a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>
                 </p>
 
                 <x-input-error :messages="$errors->get('lines')" class="mt-2" />
@@ -252,29 +252,29 @@
                                 $lineTotal = $line['condition'] !== 'rejected' ? $received * $cost : 0;
                                 $rowBg = match($line['condition']) {
                                     'damaged'  => 'bg-orange-50',
-                                    'rejected' => 'bg-red-50',
+                                    'rejected' => 'bg-danger-50',
                                     default    => '',
                                 };
                             @endphp
                             <tr class="transition {{ $rowBg }} hover:bg-gray-50">
-                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
                                 @if ($poId)
                                     <td class="px-4 py-2 text-right text-gray-500 tabular-nums">
                                         {{ number_format($line['ordered_qty'], 3) }}
-                                        <span class="text-gray-300 text-xs">{{ $line['uom_abbr'] }}</span>
+                                        <span class="text-gray-500 text-xs">{{ $line['uom_abbr'] }}</span>
                                     </td>
-                                    <td class="px-4 py-2 text-right tabular-nums {{ ($line['previously_received'] ?? 0) > 0 ? 'text-blue-600 font-medium' : 'text-gray-400' }}">
+                                    <td class="px-4 py-2 text-right tabular-nums {{ ($line['previously_received'] ?? 0) > 0 ? 'text-blue-600 font-medium' : 'text-gray-600' }}">
                                         {{ number_format($line['previously_received'] ?? 0, 3) }}
                                     </td>
-                                    <td class="px-4 py-2 text-right tabular-nums {{ ($line['remaining_qty'] ?? 0) > 0 ? 'text-amber-600 font-medium' : 'text-green-600' }}">
+                                    <td class="px-4 py-2 text-right tabular-nums {{ ($line['remaining_qty'] ?? 0) > 0 ? 'text-warning-600 font-medium' : 'text-success-600' }}">
                                         {{ number_format($line['remaining_qty'] ?? 0, 3) }}
                                     </td>
                                 @endif
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.001" min="0"
                                            wire:model.live.debounce.300ms="lines.{{ $idx }}.received_qty"
-                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.received_qty')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
@@ -282,7 +282,7 @@
                                         <span class="text-gray-500 text-xs">{{ $line['uom_abbr'] }}</span>
                                     @else
                                         <select wire:model.live="lines.{{ $idx }}.uom_id"
-                                                class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
                                             @foreach ($uoms as $uom)
                                                 <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
                                             @endforeach
@@ -292,16 +292,16 @@
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.0001" min="0"
                                            wire:model.live.debounce.300ms="lines.{{ $idx }}.unit_cost"
-                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.unit_cost')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
                                     <select wire:model.live="lines.{{ $idx }}.condition"
-                                            class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500
+                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500
                                                 {{ match($line['condition']) {
-                                                    'good'     => 'text-green-700',
+                                                    'good'     => 'text-success-700',
                                                     'damaged'  => 'text-orange-600',
-                                                    'rejected' => 'text-red-600',
+                                                    'rejected' => 'text-danger-600',
                                                     default    => '',
                                                 } }}">
                                         <option value="good">Good</option>
@@ -311,13 +311,13 @@
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.condition')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-medium
-                                    {{ $line['condition'] === 'rejected' ? 'text-red-400 line-through' : 'text-gray-700' }}">
+                                    {{ $line['condition'] === 'rejected' ? 'text-danger-400 line-through' : 'text-gray-700' }}">
                                     {{ number_format($lineTotal, 2) }}
                                 </td>
                                 @if (! $poId)
                                     <td class="px-4 py-2 text-center">
                                         <button type="button" wire:click="removeLine({{ $idx }})"
-                                                class="text-red-400 hover:text-red-600 transition">
+                                                class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                             </svg>
@@ -341,7 +341,7 @@
                 </table>
             </div>
         @else
-            <div class="px-6 py-12 text-center text-gray-400">
+            <div class="px-6 py-12 text-center text-gray-600">
                 <p class="text-3xl mb-2">📥</p>
                 <p class="font-medium">No items to receive</p>
                 @if (! $poId)
@@ -356,7 +356,7 @@
                 Cancel
             </a>
             <button wire:click="confirm"
-                    class="px-6 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                    class="px-6 py-2 bg-success-600 text-white text-sm font-medium rounded-lg hover:bg-success-700 transition">
                 Confirm Receipt
             </button>
         </div>

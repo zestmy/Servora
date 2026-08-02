@@ -2,27 +2,27 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Stock Card</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Full movement history for a single ingredient</p>
+            <h2 class="page-title">Stock Card</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Full movement history for a single ingredient</p>
         </div>
         <a href="{{ route('reports.hub') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
-            <select wire:model.live="ingredientFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 min-w-[200px]">
+            <select wire:model.live="ingredientFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 min-w-[200px]">
                 <option value="">Select Ingredient...</option>
                 @foreach ($ingredients as $ing)
                     <option value="{{ $ing->id }}">{{ $ing->name }}</option>
                 @endforeach
             </select>
             <div class="flex items-center gap-1">
-                <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                <span class="text-gray-400 text-xs">to</span>
-                <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                <span class="text-gray-600 text-xs">to</span>
+                <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
-            <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Outlets</option>
                 @foreach ($outlets as $o)
                     <option value="{{ $o->id }}">{{ $o->name }}</option>
@@ -38,28 +38,28 @@
 
     @if ($ingredient)
         {{-- Ingredient Info --}}
-        <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-4 mb-4">
+        <div class="bg-brand-50 rounded-xl border border-brand-200 p-4 mb-4">
             <div class="flex items-center gap-4">
                 <div>
-                    <h3 class="text-sm font-semibold text-indigo-800">{{ $ingredient->name }}</h3>
-                    <p class="text-xs text-indigo-500">{{ $ingredient->code ?? '' }} &middot; UOM: {{ $ingredient->baseUom?->abbreviation ?? '-' }}</p>
+                    <h3 class="text-sm font-semibold text-brand-800">{{ $ingredient->name }}</h3>
+                    <p class="text-xs text-brand-500">{{ $ingredient->code ?? '' }} &middot; UOM: {{ $ingredient->baseUom?->abbreviation ?? '-' }}</p>
                 </div>
                 <div class="ml-auto text-right">
-                    <p class="text-xs text-indigo-400">{{ $movements->count() }} movements</p>
+                    <p class="text-xs text-brand-400">{{ $movements->count() }} movements</p>
                 </div>
             </div>
         </div>
     @endif
 
     {{-- Movement Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         @if (!$ingredientFilter)
-            <div class="px-4 py-12 text-center text-gray-400">
+            <div class="px-4 py-12 text-center text-gray-600">
                 <p class="font-medium">Select an ingredient</p>
                 <p class="text-xs mt-1">Choose an ingredient above to view its stock card.</p>
             </div>
         @elseif ($movements->isEmpty())
-            <div class="px-4 py-12 text-center text-gray-400">
+            <div class="px-4 py-12 text-center text-gray-600">
                 <p class="font-medium">No movements found</p>
                 <p class="text-xs mt-1">No stock movements recorded for this ingredient in the selected period.</p>
             </div>
@@ -81,14 +81,14 @@
                             <td class="px-4 py-3 text-gray-600 text-xs">{{ $m['reference'] }}</td>
                             <td class="px-4 py-3 text-center">
                                 @if ($m['type'] === 'IN')
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">IN</span>
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-success-100 text-success-700">IN</span>
                                 @elseif ($m['type'] === 'OUT')
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">OUT</span>
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-danger-100 text-danger-700">OUT</span>
                                 @else
                                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">COUNT</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-right tabular-nums {{ $m['quantity'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                            <td class="px-4 py-3 text-right tabular-nums {{ $m['quantity'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                 {{ $m['quantity'] >= 0 ? '+' : '' }}{{ number_format($m['quantity'], 4) }}
                             </td>
                             <td class="px-4 py-3 text-right tabular-nums font-semibold text-gray-800">{{ number_format($m['balance'], 4) }}</td>

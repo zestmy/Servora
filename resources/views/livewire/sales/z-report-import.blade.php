@@ -13,7 +13,7 @@
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                 <div>
                     <h3 class="text-base font-semibold text-gray-800">Scan Zeoniq Z-Report</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">
+                    <p class="text-xs text-gray-600 mt-0.5">
                         @if ($step === 'upload')
                             Upload your Zeoniq Z-report — AI will extract dept breakdown and session totals
                         @else
@@ -21,7 +21,7 @@
                         @endif
                     </p>
                 </div>
-                <button wire:click="close" class="text-gray-400 hover:text-gray-600 transition">
+                <button wire:click="close" class="text-gray-600 hover:text-gray-900 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -36,15 +36,15 @@
                     <div>
                         <label class="block">
                             <span class="text-sm font-medium text-gray-700">Zeoniq Z-Report Image or PDF</span>
-                            <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-400 transition cursor-pointer">
+                            <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-400 transition cursor-pointer">
                                 <div class="space-y-1 text-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     <p class="text-sm text-gray-500">
-                                        <span class="font-medium text-indigo-600">Click to browse</span> or drag & drop
+                                        <span class="font-medium text-brand-600">Click to browse</span> or drag & drop
                                     </p>
-                                    <p class="text-xs text-gray-400">JPG, PNG, PDF up to 20 MB</p>
+                                    <p class="text-xs text-gray-600">JPG, PNG, PDF up to 20 MB</p>
                                 </div>
                             </div>
                             <input type="file" wire:model="importFile" accept="image/*,.pdf" class="sr-only" />
@@ -52,7 +52,7 @@
                         <x-input-error :messages="$errors->get('importFile')" class="mt-1" />
 
                         @if ($importFile)
-                            <div class="mt-2 flex items-center gap-2 text-sm text-green-600">
+                            <div class="mt-2 flex items-center gap-2 text-sm text-success-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -61,7 +61,7 @@
                         @endif
 
                         @if ($importError)
-                            <div class="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                            <div class="mt-3 px-4 py-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
                                 {{ $importError }}
                             </div>
                         @endif
@@ -87,13 +87,13 @@
                             <div class="flex-1">
                                 <x-input-label for="imp_outlet" value="Outlet *" />
                                 <select id="imp_outlet" wire:model="selectedOutletId"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm">
                                     @foreach ($outlets as $outlet)
                                         <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                                     @endforeach
                                 </select>
                                 @if ($detectedOutletName)
-                                    <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                    <p class="text-xs text-success-600 mt-1 flex items-center gap-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -116,8 +116,8 @@
 
                     {{-- ── SESSION SUPPRESSED BANNER ── --}}
                     @if ($this->hasSessionEntries())
-                        <div class="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <div class="flex items-start gap-3 px-4 py-3 bg-warning-50 border border-warning-200 rounded-xl text-sm text-warning-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-warning-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <div>
@@ -129,24 +129,24 @@
 
                     {{-- ── ALL DAY ENTRY ── --}}
                     <div class="border rounded-xl overflow-hidden {{ $this->hasSessionEntries() ? 'border-gray-100 opacity-40 pointer-events-none' : 'border-gray-200' }}">
-                        <div class="flex items-center justify-between px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+                        <div class="flex items-center justify-between px-4 py-3 bg-brand-50 border-b border-brand-100">
                             <div class="flex items-center gap-3">
                                 <input type="checkbox" wire:model.live="includeAllDay" id="inc_allday"
-                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                       class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500"
                                        {{ $this->hasSessionEntries() ? 'disabled' : '' }} />
-                                <label for="inc_allday" class="text-sm font-semibold text-indigo-800 cursor-pointer">
+                                <label for="inc_allday" class="text-sm font-semibold text-brand-800 cursor-pointer">
                                     All Day Entry — Dept Breakdown
                                 </label>
-                                <span class="text-xs text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">For food cost% tracking</span>
+                                <span class="text-xs text-brand-500 bg-brand-100 px-2 py-0.5 rounded-full">For food cost% tracking</span>
                                 @if ($this->hasSessionEntries())
-                                    <span class="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Suppressed</span>
+                                    <span class="text-xs text-warning-600 bg-warning-100 px-2 py-0.5 rounded-full">Suppressed</span>
                                 @endif
                             </div>
                             <div class="flex items-center gap-3">
                                 <div>
-                                    <label class="text-xs text-indigo-600">Total Bills / Pax</label>
+                                    <label class="text-xs text-brand-600">Total Bills / Pax</label>
                                     <input type="number" wire:model="allDayPax" min="1" step="1"
-                                           class="ml-2 w-16 text-center rounded border-indigo-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="ml-2 w-16 text-center rounded border-brand-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                 </div>
                             </div>
                         </div>
@@ -162,7 +162,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-50">
                                     @foreach ($allDayLines as $idx => $line)
-                                        <tr class="{{ $line['unmatched'] ? 'bg-amber-50' : '' }}">
+                                        <tr class="{{ $line['unmatched'] ? 'bg-warning-50' : '' }}">
                                             <td class="px-4 py-2">
                                                 <div class="flex items-center gap-2">
                                                     @if (!$line['unmatched'])
@@ -170,18 +170,18 @@
                                                              style="background-color: {{ $line['category_color'] }}"></div>
                                                         <span class="font-medium text-gray-800">{{ $line['category_name'] }}</span>
                                                     @else
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                                         </svg>
-                                                        <span class="font-medium text-amber-700">{{ $line['category_name'] }}</span>
-                                                        <span class="text-xs text-amber-500">unmatched</span>
+                                                        <span class="font-medium text-warning-700">{{ $line['category_name'] }}</span>
+                                                        <span class="text-xs text-warning-500">unmatched</span>
                                                     @endif
                                                 </div>
                                             </td>
                                             <td class="px-4 py-2">
                                                 <select wire:model.live="allDayLines.{{ $idx }}.ingredient_category_id"
-                                                        class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1
-                                                               {{ $line['unmatched'] ? 'border-amber-300 bg-amber-50' : '' }}">
+                                                        class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500 py-1
+                                                               {{ $line['unmatched'] ? 'border-warning-300 bg-warning-50' : '' }}">
                                                     <option value="">— Skip / Uncategorised —</option>
                                                     @foreach ($categories as $cat)
                                                         <option value="{{ $cat->id }}"
@@ -194,7 +194,7 @@
                                             <td class="px-4 py-2">
                                                 <input type="number" step="0.01" min="0"
                                                        wire:model.live.debounce.400ms="allDayLines.{{ $idx }}.revenue"
-                                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                                 <x-input-error :messages="$errors->get('allDayLines.'.$idx.'.revenue')" class="mt-0.5" />
                                             </td>
                                         </tr>
@@ -221,11 +221,11 @@
                             $summaryNet   = floatval($summary['net_sales']   ?? 0);
                             $netRatio     = ($summaryTotal > 0 && $summaryNet > 0) ? $summaryNet / $summaryTotal : 1.0;
                         @endphp
-                        <div class="border border-green-200 rounded-xl overflow-hidden">
-                            <div class="px-4 py-3 bg-green-50 border-b border-green-100 flex items-center justify-between">
+                        <div class="border border-success-200 rounded-xl overflow-hidden">
+                            <div class="px-4 py-3 bg-success-50 border-b border-success-100 flex items-center justify-between">
                                 <div>
-                                    <h4 class="text-sm font-semibold text-green-800">Session Entries</h4>
-                                    <p class="text-xs text-green-600 mt-0.5">
+                                    <h4 class="text-sm font-semibold text-success-800">Session Entries</h4>
+                                    <p class="text-xs text-success-600 mt-0.5">
                                         Session amounts are Total Sales (incl. tax &amp; charges).
                                         Nett revenue is back-calculated using the day's nett-to-total ratio
                                         @if ($summaryTotal > 0)
@@ -235,7 +235,7 @@
                                         @endif
                                     </p>
                                 </div>
-                                <div class="text-right text-xs text-green-700 bg-green-100 px-3 py-1.5 rounded-lg">
+                                <div class="text-right text-xs text-success-700 bg-success-100 px-3 py-1.5 rounded-lg">
                                     <span class="font-semibold">{{ collect($sessionEntries)->where('include', true)->count() }}</span> session(s) included
                                 </div>
                             </div>
@@ -251,15 +251,15 @@
                                     <div class="px-4 py-4 {{ empty($entry['include']) ? 'opacity-50' : '' }}">
                                         <div class="flex items-start gap-3">
                                             <input type="checkbox" wire:model.live="sessionEntries.{{ $idx }}.include"
-                                                   class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500 flex-shrink-0 mt-1" />
+                                                   class="rounded border-gray-300 text-success-600 shadow-sm focus:ring-success-500 flex-shrink-0 mt-1" />
 
                                             <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                 {{-- Meal Period --}}
                                                 <div>
                                                     <label class="text-xs text-gray-500 block mb-0.5">Meal Period *</label>
                                                     <select wire:model="sessionEntries.{{ $idx }}.meal_period"
-                                                            class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 py-1
-                                                                   {{ empty($entry['meal_period']) ? 'border-red-300 bg-red-50' : '' }}">
+                                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 py-1
+                                                                   {{ empty($entry['meal_period']) ? 'border-danger-300 bg-danger-50' : '' }}">
                                                         <option value="">— Select —</option>
                                                         @foreach ($mealPeriodOptions as $val => $label)
                                                             @if ($val !== 'all_day')
@@ -268,7 +268,7 @@
                                                         @endforeach
                                                     </select>
                                                     @if (empty($entry['meal_period']))
-                                                        <p class="text-xs text-red-500 mt-0.5">Required</p>
+                                                        <p class="text-xs text-danger-500 mt-0.5">Required</p>
                                                     @endif
                                                     <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.meal_period')" class="mt-0.5" />
                                                 </div>
@@ -277,11 +277,11 @@
                                                 <div>
                                                     <label class="text-xs text-gray-500 block mb-0.5">
                                                         Total Sales (RM)
-                                                        <span class="text-gray-400">incl. tax &amp; charges</span>
+                                                        <span class="text-gray-600">incl. tax &amp; charges</span>
                                                     </label>
                                                     <input type="number" step="0.01" min="0"
                                                            wire:model.live.debounce.300ms="sessionEntries.{{ $idx }}.gross_amount"
-                                                           class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                           class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                                     <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.gross_amount')" class="mt-0.5" />
                                                 </div>
 
@@ -290,7 +290,7 @@
                                                     <label class="text-xs text-gray-500 block mb-0.5">Pax</label>
                                                     <input type="number" step="1" min="1"
                                                            wire:model="sessionEntries.{{ $idx }}.pax"
-                                                           class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                           class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                                     <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.pax')" class="mt-0.5" />
                                                 </div>
 
@@ -298,7 +298,7 @@
                                                     <label class="text-xs text-gray-500 block mb-0.5">Transactions</label>
                                                     <input type="number" step="1" min="1"
                                                            wire:model="sessionEntries.{{ $idx }}.transactions"
-                                                           class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                           class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                                     <x-input-error :messages="$errors->get('sessionEntries.'.$idx.'.transactions')" class="mt-0.5" />
                                                 </div>
                                             </div>
@@ -309,15 +309,15 @@
                                             <div class="mt-2 ml-7 flex items-center gap-4 text-xs">
                                                 <div class="flex items-center gap-1.5 text-gray-500">
                                                     <span>Nett saved to DB:</span>
-                                                    <span class="font-semibold text-green-700">RM {{ number_format($sessNet, 2) }}</span>
+                                                    <span class="font-semibold text-success-700">RM {{ number_format($sessNet, 2) }}</span>
                                                 </div>
                                                 @if ($sessAvg)
                                                     <div class="flex items-center gap-1.5 text-gray-500">
                                                         <span>Avg/pax:</span>
-                                                        <span class="font-semibold text-indigo-600">RM {{ number_format($sessAvg, 2) }}</span>
+                                                        <span class="font-semibold text-brand-600">RM {{ number_format($sessAvg, 2) }}</span>
                                                     </div>
                                                 @endif
-                                                <div class="text-gray-400 italic">
+                                                <div class="text-gray-600 italic">
                                                     {{ $entry['label'] ?? '' }}
                                                 </div>
                                             </div>
@@ -335,12 +335,12 @@
                                 <span class="text-gray-600">Included sessions total</span>
                                 <div class="flex items-center gap-6 tabular-nums">
                                     <div class="text-right">
-                                        <span class="text-xs text-gray-400 block">Total Sales</span>
+                                        <span class="text-xs text-gray-600 block">Total Sales</span>
                                         <span class="font-semibold text-gray-700">RM {{ number_format($totalSessionTotal, 2) }}</span>
                                     </div>
                                     <div class="text-right">
-                                        <span class="text-xs text-gray-400 block">Nett (saved)</span>
-                                        <span class="font-bold text-green-700">RM {{ number_format($totalSessionNet, 2) }}</span>
+                                        <span class="text-xs text-gray-600 block">Nett (saved)</span>
+                                        <span class="font-bold text-success-700">RM {{ number_format($totalSessionNet, 2) }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -360,7 +360,7 @@
                             <span class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($importDate)->format('d M Y') }}</span>
                         </div>
                         @if ($hasSessions)
-                            <span class="text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-full">Session priority active</span>
+                            <span class="text-xs text-success-600 bg-success-50 border border-success-200 px-2 py-1 rounded-full">Session priority active</span>
                         @endif
                     </div>
 
@@ -379,7 +379,7 @@
                     <button type="button" wire:click="processZReport"
                             wire:loading.attr="disabled"
                             wire:target="processZReport,importFile"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                         <span wire:loading.remove wire:target="processZReport">Extract Data</span>
                         <span wire:loading wire:target="processZReport" class="flex items-center gap-1.5">
                             <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -397,7 +397,7 @@
                         </button>
                         <button type="button" wire:click="saveAll"
                                 wire:loading.attr="disabled"
-                                class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2">
+                                class="px-5 py-2 bg-success-600 text-white text-sm font-medium rounded-lg hover:bg-success-700 transition disabled:opacity-50 flex items-center gap-2">
                             @php
                                 $footerRecords = $this->hasSessionEntries()
                                     ? collect($sessionEntries)->where('include', true)->count()

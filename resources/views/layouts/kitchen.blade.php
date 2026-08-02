@@ -252,7 +252,7 @@
                 <form method="POST" action="{{ route('logout') }}" class="border-t border-gray-700 mt-1 pt-1">
                     @csrf
                     <button type="submit"
-                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition text-left">
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-danger-400 hover:bg-gray-700 hover:text-danger-300 transition text-left">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                         Sign Out
                     </button>

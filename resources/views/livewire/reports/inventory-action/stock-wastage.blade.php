@@ -2,8 +2,8 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Stock Wastage</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Wastage records with ingredient details and costs</p>
+            <h2 class="page-title">Stock Wastage</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Wastage records with ingredient details and costs</p>
         </div>
         <a href="{{ route('reports.hub') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
@@ -12,7 +12,7 @@
     @include('livewire.reports.partials.report-filters', ['showOutlet' => true, 'showSupplier' => false, 'exportAction' => 'exportCsv'])
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -36,11 +36,11 @@
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($line->quantity, 2) }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $line->uom?->abbreviation ?? '-' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $line->reason ?? '-' }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums text-red-600 font-medium">{{ number_format($line->total_cost, 2) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums text-danger-600 font-medium">{{ number_format($line->total_cost, 2) }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No wastage records</p>
                             <p class="text-xs mt-1">No wastage data found for the selected period.</p>
                         </td>

@@ -2,19 +2,19 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Stock Adjustment</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Order adjustment log entries showing field-level changes</p>
+            <h2 class="page-title">Stock Adjustment</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Order adjustment log entries showing field-level changes</p>
         </div>
         <a href="{{ route('reports.hub') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             <div class="flex items-center gap-1">
-                <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                <span class="text-gray-400 text-xs">to</span>
-                <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                <span class="text-gray-600 text-xs">to</span>
+                <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
             <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition ml-auto">
                 Export CSV
@@ -23,7 +23,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -48,14 +48,14 @@
                         </td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $log->adjustable?->reference_number ?? '#' . $log->adjustable_id }}</td>
                         <td class="px-4 py-3 font-medium text-gray-800 text-xs">{{ str_replace('_', ' ', ucfirst($log->field)) }}</td>
-                        <td class="px-4 py-3 text-red-600 text-xs tabular-nums">{{ $log->old_value ?? '-' }}</td>
-                        <td class="px-4 py-3 text-green-600 text-xs tabular-nums">{{ $log->new_value ?? '-' }}</td>
+                        <td class="px-4 py-3 text-danger-600 text-xs tabular-nums">{{ $log->old_value ?? '-' }}</td>
+                        <td class="px-4 py-3 text-success-600 text-xs tabular-nums">{{ $log->new_value ?? '-' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $log->reason ?? '-' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $log->adjustedBy?->name ?? '-' }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No adjustment records</p>
                             <p class="text-xs mt-1">No order adjustments found for the selected period.</p>
                         </td>

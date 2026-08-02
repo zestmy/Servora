@@ -7,13 +7,13 @@
     @foreach ($trendMonths as $m)
         <div class="flex-1 flex flex-col items-center gap-1">
             <div class="w-full flex gap-1 items-end" style="height: 160px">
-                <div class="flex-1 bg-indigo-500 rounded-t-md relative group"
+                <div class="flex-1 bg-brand-500 rounded-t-md relative group"
                      style="height: {{ $maxVal > 0 ? ($m['revenue'] / $maxVal * 100) : 0 }}%">
                     <div class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none">
                         {{ number_format($m['revenue'], 0) }}
                     </div>
                 </div>
-                <div class="flex-1 bg-red-400 rounded-t-md relative group"
+                <div class="flex-1 bg-danger-400 rounded-t-md relative group"
                      style="height: {{ $maxVal > 0 ? ($m['purchases'] / $maxVal * 100) : 0 }}%">
                     <div class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition pointer-events-none">
                         {{ number_format($m['purchases'], 0) }}
@@ -25,6 +25,6 @@
     @endforeach
 </div>
 <div class="flex items-center gap-4 mt-4 text-xs text-gray-500">
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-indigo-500 rounded"></span> Revenue</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-400 rounded"></span> Purchases</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-brand-500 rounded"></span> Revenue</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-danger-400 rounded"></span> Purchases</span>
 </div>

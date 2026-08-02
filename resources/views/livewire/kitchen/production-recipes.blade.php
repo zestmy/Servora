@@ -2,7 +2,7 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
@@ -10,8 +10,8 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Production Recipes</h2>
-            <p class="text-xs text-gray-400 mt-0.5">
+            <h2 class="page-title">Production Recipes</h2>
+            <p class="text-xs text-gray-600 mt-0.5">
                 <a href="{{ route('kitchen.index') }}" class="hover:underline">Kitchen</a> / Recipes
             </p>
         </div>
@@ -21,34 +21,34 @@
                 &larr; Back
             </a>
             <a href="{{ route('kitchen.recipes.create') }}"
-               class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+               class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 + New Production Recipe
             </a>
         </div>
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             <div class="relative flex-1 min-w-[200px]">
                 <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                     </svg>
                 </div>
                 <input type="text" wire:model.live.debounce.300ms="search"
                        placeholder="Search by name, code or category..."
-                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
             @if ($kitchens->count() > 1)
-                <select wire:model.live="kitchenFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <select wire:model.live="kitchenFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">All Kitchens</option>
                     @foreach ($kitchens as $k)
                         <option value="{{ $k->id }}">{{ $k->name }}</option>
                     @endforeach
                 </select>
             @endif
-            <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -57,7 +57,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         @if ($recipes->count() > 0)
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
@@ -82,7 +82,7 @@
                         @foreach ($recipes as $recipe)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3">
-                                    <a href="{{ route('kitchen.recipes.edit', $recipe->id) }}" class="font-medium text-indigo-600 hover:text-indigo-800">
+                                    <a href="{{ route('kitchen.recipes.edit', $recipe->id) }}" class="font-medium text-brand-600 hover:text-brand-800">
                                         {{ $recipe->name }}
                                     </a>
                                 </td>
@@ -91,7 +91,7 @@
                                 <td class="px-4 py-3 text-gray-600">{{ $recipe->kitchen?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums text-gray-700">
                                     {{ rtrim(rtrim(number_format(floatval($recipe->yield_quantity), 4), '0'), '.') }}
-                                    <span class="text-gray-400 text-xs ml-0.5">{{ $recipe->yieldUom?->abbreviation ?? '' }}</span>
+                                    <span class="text-gray-600 text-xs ml-0.5">{{ $recipe->yieldUom?->abbreviation ?? '' }}</span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600 text-xs">{{ $recipe->packaging_uom ?? '-' }}</td>
                                 @if ($seesCosting)
@@ -99,7 +99,7 @@
                                     <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format(floatval($recipe->selling_price_per_unit), 4) }}</td>
                                 @endif
                                 <td class="px-4 py-3 text-center">
-                                    <span class="px-2 py-0.5 text-xs rounded-full font-medium {{ $recipe->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                                    <span class="px-2 py-0.5 text-xs rounded-full font-medium {{ $recipe->is_active ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500' }}">
                                         {{ $recipe->is_active ? 'Active' : 'Inactive' }}
                                     </span>
                                 </td>
@@ -115,14 +115,14 @@
                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition">Produce</a>
                                         @endif
                                         <a href="{{ route('kitchen.recipes.edit', $recipe->id) }}"
-                                           class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-indigo-600 border border-indigo-200 text-xs font-semibold rounded-lg hover:bg-indigo-50 transition">Edit</a>
+                                           class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-brand-600 border border-brand-200 text-xs font-semibold rounded-lg hover:bg-brand-50 transition">Edit</a>
                                         <button wire:click="toggleActive({{ $recipe->id }})"
-                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 border text-xs font-semibold rounded-lg transition {{ $recipe->is_active ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' : 'text-green-600 border-green-200 hover:bg-green-50' }}">
+                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 border text-xs font-semibold rounded-lg transition {{ $recipe->is_active ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' : 'text-success-600 border-success-200 hover:bg-success-50' }}">
                                             {{ $recipe->is_active ? 'Deactivate' : 'Activate' }}
                                         </button>
                                         <button wire:click="deleteRecipe({{ $recipe->id }})"
                                                 wire:confirm="Delete this recipe? This cannot be undone."
-                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-red-500 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50 transition ml-3">Delete</button>
+                                                class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-danger-500 border border-danger-200 text-xs font-semibold rounded-lg hover:bg-danger-50 transition ml-3">Delete</button>
                                     </div>
                                 </td>
                             </tr>
@@ -134,7 +134,7 @@
                 {{ $recipes->links() }}
             </div>
         @else
-            <div class="p-8 text-center text-gray-400 text-sm">
+            <div class="p-8 text-center text-gray-600 text-sm">
                 No production recipes found.
             </div>
         @endif

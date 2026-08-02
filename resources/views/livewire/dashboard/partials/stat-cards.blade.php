@@ -3,10 +3,10 @@
     @foreach ($stats as $stat)
         @php
             $colorMap = [
-                'indigo' => 'text-indigo-600',
-                'green'  => 'text-green-600',
-                'red'    => 'text-red-600',
-                'amber'  => 'text-amber-600',
+                'indigo' => 'text-brand-600',
+                'green'  => 'text-success-600',
+                'red'    => 'text-danger-600',
+                'amber'  => 'text-warning-600',
                 'yellow' => 'text-yellow-600',
                 'blue'   => 'text-blue-600',
                 'purple' => 'text-purple-600',

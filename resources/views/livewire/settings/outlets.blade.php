@@ -2,12 +2,12 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
@@ -15,22 +15,22 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-            <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+            <a href="{{ route('settings.index') }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
-                <h2 class="text-lg font-semibold text-gray-700">Branches</h2>
-                <p class="text-xs text-gray-400 mt-0.5">Manage your outlet locations</p>
+                <h2 class="page-title">Branches</h2>
+                <p class="text-xs text-gray-600 mt-0.5">Manage your outlet locations</p>
             </div>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
             + Add Branch
         </button>
     </div>
 
     {{-- Table — horizontally scrollable on mobile. --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
@@ -63,14 +63,14 @@
                         <td class="px-4 py-3 text-center">
                             <button wire:click="toggleActive({{ $outlet->id }})" title="Toggle active"
                                     class="px-2 py-0.5 rounded-full text-xs font-medium transition
-                                        {{ $outlet->is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">
+                                        {{ $outlet->is_active ? 'bg-success-100 text-success-700 hover:bg-success-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">
                                 {{ $outlet->is_active ? 'Active' : 'Inactive' }}
                             </button>
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 <button wire:click="openEdit({{ $outlet->id }})" title="Edit"
-                                        class="text-indigo-500 hover:text-indigo-700 transition">
+                                        class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
@@ -78,7 +78,7 @@
                                 <button wire:click="delete({{ $outlet->id }})"
                                         wire:confirm="Delete branch '{{ $outlet->name }}'? This cannot be undone."
                                         title="Delete"
-                                        class="text-red-400 hover:text-red-600 transition">
+                                        class="text-danger-400 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
@@ -88,7 +88,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No branches yet</p>
                             <p class="text-sm mt-1">Create your first branch to get started.</p>
                         </td>
@@ -111,7 +111,7 @@
                 <h3 class="text-base font-semibold text-gray-800">
                     {{ $editingId ? 'Edit Branch' : 'New Branch' }}
                 </h3>
-                <button @click="$wire.closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <button @click="$wire.closeModal()" class="text-gray-600 hover:text-gray-900 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -129,7 +129,7 @@
                     <div>
                         <x-input-label for="o_code" value="Branch Code *" />
                         <x-text-input id="o_code" wire:model="code" type="text" class="mt-1 block w-full uppercase" placeholder="e.g. MAIN" />
-                        <p class="text-xs text-gray-400 mt-1">Short code used in document numbering (PO, DO, etc.)</p>
+                        <p class="text-xs text-gray-600 mt-1">Short code used in document numbering (PO, DO, etc.)</p>
                         <x-input-error :messages="$errors->get('code')" class="mt-1" />
                     </div>
 
@@ -142,7 +142,7 @@
                     <div>
                         <x-input-label for="o_address" value="Address" />
                         <textarea id="o_address" wire:model="address" rows="2"
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
                         <x-input-error :messages="$errors->get('address')" class="mt-1" />
                     </div>
 
@@ -158,7 +158,7 @@
                             <x-input-error :messages="$errors->get('state')" class="mt-1" />
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400 -mt-1">Used to generate location-specific public holidays for AI analytics.</p>
+                    <p class="text-xs text-gray-600 -mt-1">Used to generate location-specific public holidays for AI analytics.</p>
 
                     @if ($kitchens->isNotEmpty() || ($cpuMode && $cpus->isNotEmpty()))
                         <div class="pt-4 border-t border-gray-100 space-y-4">
@@ -168,13 +168,13 @@
                                 <div>
                                     <x-input-label for="o_kitchen" value="Central Kitchen" />
                                     <select id="o_kitchen" wire:model="default_kitchen_id"
-                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                         <option value="">— None —</option>
                                         @foreach ($kitchens as $k)
                                             <option value="{{ $k->id }}">{{ $k->name }}</option>
                                         @endforeach
                                     </select>
-                                    <p class="text-xs text-gray-400 mt-1">Kitchen that produces this branch's prep items.</p>
+                                    <p class="text-xs text-gray-600 mt-1">Kitchen that produces this branch's prep items.</p>
                                     <x-input-error :messages="$errors->get('default_kitchen_id')" class="mt-1" />
                                 </div>
                             @endif
@@ -183,13 +183,13 @@
                                 <div>
                                     <x-input-label for="o_cpu" value="Central Purchasing Unit" />
                                     <select id="o_cpu" wire:model="default_cpu_id"
-                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                         <option value="">— None —</option>
                                         @foreach ($cpus as $c)
                                             <option value="{{ $c->id }}">{{ $c->name }}</option>
                                         @endforeach
                                     </select>
-                                    <p class="text-xs text-gray-400 mt-1">Purchasing unit that consolidates this branch's requests.</p>
+                                    <p class="text-xs text-gray-600 mt-1">Purchasing unit that consolidates this branch's requests.</p>
                                     <x-input-error :messages="$errors->get('default_cpu_id')" class="mt-1" />
                                 </div>
                             @endif
@@ -199,7 +199,7 @@
                     @if ($editingId)
                         <div class="flex items-center gap-2">
                             <input type="checkbox" wire:model="is_active" id="o_active"
-                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                   class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                             <label for="o_active" class="text-sm text-gray-700">Active</label>
                         </div>
                     @endif
@@ -209,7 +209,7 @@
                     <button type="button" @click="$wire.closeModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                         {{ $editingId ? 'Update Branch' : 'Create Branch' }}
                     </button>
                 </div>

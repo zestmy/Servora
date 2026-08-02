@@ -1,20 +1,20 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Header --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-gray-600">
                 <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}" class="hover:underline">{{ $isPrep ? 'Prep Items' : 'Recipes' }}</a> / Import
             </p>
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Bulk Import {{ $isPrep ? 'Prep Items' : 'Recipes' }}</h2>
@@ -47,7 +47,7 @@
         </div>
 
         {{-- Column reference --}}
-        <div class="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="mb-6 card p-5">
             <h3 class="text-sm font-semibold text-gray-700 mb-3">Column Reference</h3>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-xs text-left">
@@ -60,28 +60,28 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50 text-gray-600">
-                        <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-red-500 font-semibold">Yes</span></td><td class="px-3 py-2">Recipe name</td><td class="px-3 py-2 font-mono">Nasi Lemak</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">code</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Internal code / SKU</td><td class="px-3 py-2 font-mono">NL-001</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">description</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Short description</td><td class="px-3 py-2 font-mono">Classic coconut rice set</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">yield_quantity</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">How many portions/units produced (default: 1)</td><td class="px-3 py-2 font-mono">1</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">yield_uom</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Yield unit (abbreviation or name)</td><td class="px-3 py-2 font-mono">portion</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">selling_price</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Selling price per yield unit (default: 0)</td><td class="px-3 py-2 font-mono">12.90</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">Main cost category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
-                        <tr><td class="px-3 py-2 font-mono font-medium">is_active</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2">yes / no (default: yes)</td><td class="px-3 py-2 font-mono">yes</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-danger-500 font-semibold">Yes</span></td><td class="px-3 py-2">Recipe name</td><td class="px-3 py-2 font-mono">Nasi Lemak</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">code</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Internal code / SKU</td><td class="px-3 py-2 font-mono">NL-001</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">description</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Short description</td><td class="px-3 py-2 font-mono">Classic coconut rice set</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">yield_quantity</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">How many portions/units produced (default: 1)</td><td class="px-3 py-2 font-mono">1</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">yield_uom</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Yield unit (abbreviation or name)</td><td class="px-3 py-2 font-mono">portion</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">selling_price</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Selling price per yield unit (default: 0)</td><td class="px-3 py-2 font-mono">12.90</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Main cost category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-medium">is_active</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">yes / no (default: yes)</td><td class="px-3 py-2 font-mono">yes</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         {{-- Upload dropzone --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="card p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Upload File</h3>
 
             <div x-data="{ dragging: false }"
                  @dragover.prevent="dragging = true"
                  @dragleave.prevent="dragging = false"
                  @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files; $refs.fileInput.dispatchEvent(new Event('change'))"
-                 :class="dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 bg-gray-50'"
+                 :class="dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-300 bg-gray-50'"
                  class="border-2 border-dashed rounded-xl p-10 text-center transition cursor-pointer"
                  @click="$refs.fileInput.click()">
 
@@ -90,16 +90,16 @@
                        accept=".csv,.xlsx,.txt"
                        class="hidden" />
 
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
 
                 @if ($file)
-                    <p class="text-sm font-medium text-indigo-700">{{ $file->getClientOriginalName() }}</p>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ number_format($file->getSize() / 1024, 1) }} KB · Click or drop to change</p>
+                    <p class="text-sm font-medium text-brand-700">{{ $file->getClientOriginalName() }}</p>
+                    <p class="text-xs text-gray-600 mt-0.5">{{ number_format($file->getSize() / 1024, 1) }} KB · Click or drop to change</p>
                 @else
                     <p class="text-sm font-medium text-gray-600">Click to browse or drag &amp; drop</p>
-                    <p class="text-xs text-gray-400 mt-1">CSV or Excel (.xlsx) · max 10 MB</p>
+                    <p class="text-xs text-gray-600 mt-1">CSV or Excel (.xlsx) · max 10 MB</p>
                 @endif
             </div>
 
@@ -108,7 +108,7 @@
             @if ($file)
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
                         <span wire:loading.remove wire:target="processUpload">Preview Import →</span>
                         <span wire:loading wire:target="processUpload">Parsing file…</span>
                     </button>
@@ -125,23 +125,23 @@
                 <span class="text-gray-500">Total rows:</span>
                 <span class="font-semibold text-gray-800">{{ $totalRows }}</span>
             </div>
-            <div class="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 text-sm">
-                <span class="text-green-600">Ready to import:</span>
-                <span class="font-semibold text-green-700">{{ $validRows }}</span>
+            <div class="flex items-center gap-2 px-4 py-2 bg-success-50 rounded-lg border border-success-200 text-sm">
+                <span class="text-success-600">Ready to import:</span>
+                <span class="font-semibold text-success-700">{{ $validRows }}</span>
             </div>
             @if ($totalRows - $validRows > 0)
-                <div class="flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg border border-red-200 text-sm">
-                    <span class="text-red-600">Rows with errors (will be skipped):</span>
-                    <span class="font-semibold text-red-700">{{ $totalRows - $validRows }}</span>
+                <div class="flex items-center gap-2 px-4 py-2 bg-danger-50 rounded-lg border border-danger-200 text-sm">
+                    <span class="text-danger-600">Rows with errors (will be skipped):</span>
+                    <span class="font-semibold text-danger-700">{{ $totalRows - $validRows }}</span>
                 </div>
             @endif
         </div>
 
         {{-- Preview table --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+        <div class="card overflow-hidden mb-4">
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700">Preview ({{ $totalRows }} rows)</h3>
-                <p class="text-xs text-gray-400">Rows highlighted in red have errors and will be skipped.</p>
+                <p class="text-xs text-gray-600">Rows highlighted in red have errors and will be skipped.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-xs">
@@ -161,9 +161,9 @@
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @foreach ($rows as $row)
-                            <tr class="{{ $row['skip'] ? 'bg-red-50' : 'hover:bg-gray-50' }} transition">
-                                <td class="px-3 py-2 text-gray-400">{{ $row['row'] }}</td>
-                                <td class="px-3 py-2 font-medium {{ $row['skip'] ? 'text-red-700' : 'text-gray-800' }}">
+                            <tr class="{{ $row['skip'] ? 'bg-danger-50' : 'hover:bg-gray-50' }} transition">
+                                <td class="px-3 py-2 text-gray-600">{{ $row['row'] }}</td>
+                                <td class="px-3 py-2 font-medium {{ $row['skip'] ? 'text-danger-700' : 'text-gray-800' }}">
                                     {{ $row['name'] ?: '—' }}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 font-mono">{{ $row['code'] ?? '—' }}</td>
@@ -176,23 +176,23 @@
                                 <td class="px-3 py-2 text-gray-600">{{ $row['category_label'] ?: '—' }}</td>
                                 <td class="px-3 py-2 text-center">
                                     @if ($row['is_active'])
-                                        <span class="text-green-600">Yes</span>
+                                        <span class="text-success-600">Yes</span>
                                     @else
-                                        <span class="text-gray-400">No</span>
+                                        <span class="text-gray-600">No</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">
                                     @if ($row['skip'])
                                         <ul class="space-y-0.5">
                                             @foreach ($row['errors'] as $err)
-                                                <li class="text-red-600 flex items-start gap-1">
+                                                <li class="text-danger-600 flex items-start gap-1">
                                                     <span class="mt-0.5">⚠</span>
                                                     <span>{{ $err }}</span>
                                                 </li>
                                             @endforeach
                                         </ul>
                                     @else
-                                        <span class="text-green-500">✓ OK</span>
+                                        <span class="text-success-500">✓ OK</span>
                                     @endif
                                 </td>
                             </tr>
@@ -212,31 +212,31 @@
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
                         wire:confirm="Import {{ $validRows }} {{ $isPrep ? 'prep item' : 'recipe' }}(s)? Rows with errors will be skipped."
-                        class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                        class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
                     <span wire:loading.remove wire:target="import">Import {{ $validRows }} {{ $isPrep ? 'Prep Item' : 'Recipe' }}{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing…</span>
                 </button>
             @else
-                <p class="text-sm text-red-600 font-medium">No valid rows to import. Fix the errors in your file and re-upload.</p>
+                <p class="text-sm text-danger-600 font-medium">No valid rows to import. Fix the errors in your file and re-upload.</p>
             @endif
         </div>
 
     {{-- ── STEP 3: Done ─────────────────────────────────────── --}}
     @elseif ($step === 'done')
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
+        <div class="card p-10 text-center">
             <div class="text-5xl mb-4">🎉</div>
             <h3 class="text-xl font-semibold text-gray-800 mb-2">Import Complete</h3>
             <p class="text-sm text-gray-500 mb-6">Open each {{ $isPrep ? 'prep item' : 'recipe' }} to add its ingredient lines.</p>
 
             <div class="flex items-center justify-center gap-6 mt-4 mb-6">
                 <div class="text-center">
-                    <p class="text-3xl font-bold text-green-600">{{ $importedCount }}</p>
+                    <p class="text-3xl font-bold text-success-600">{{ $importedCount }}</p>
                     <p class="text-sm text-gray-500 mt-0.5">Imported</p>
                 </div>
                 @if ($skippedCount > 0)
                     <div class="text-center">
-                        <p class="text-3xl font-bold text-red-500">{{ $skippedCount }}</p>
+                        <p class="text-3xl font-bold text-danger-500">{{ $skippedCount }}</p>
                         <p class="text-sm text-gray-500 mt-0.5">Skipped (errors)</p>
                     </div>
                 @endif
@@ -244,7 +244,7 @@
 
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}"
-                   class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                   class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     View {{ $isPrep ? 'Prep Items' : 'Recipes' }}
                 </a>
                 <button wire:click="restart"

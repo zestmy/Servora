@@ -13,7 +13,7 @@
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                 <div>
                     <h3 class="text-base font-semibold text-gray-800">Import Zeoniq Excel</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">
+                    <p class="text-xs text-gray-600 mt-0.5">
                         @if ($step === 'upload')
                             Upload the Zeoniq <strong>Daily Summary Listing</strong> report (Statistics + Session + Department)
                         @elseif ($step === 'mapping')
@@ -23,7 +23,7 @@
                         @endif
                     </p>
                 </div>
-                <button wire:click="close" class="text-gray-400 hover:text-gray-600 transition">
+                <button wire:click="close" class="text-gray-600 hover:text-gray-900 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -38,15 +38,15 @@
                     <div>
                         <label class="block">
                             <span class="text-sm font-medium text-gray-700">Zeoniq Export File (Excel/CSV)</span>
-                            <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-400 transition cursor-pointer">
+                            <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-brand-400 transition cursor-pointer">
                                 <div class="space-y-1 text-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     <p class="text-sm text-gray-500">
-                                        <span class="font-medium text-indigo-600">Click to browse</span> or drag & drop
+                                        <span class="font-medium text-brand-600">Click to browse</span> or drag & drop
                                     </p>
-                                    <p class="text-xs text-gray-400">XLSX, XLS, CSV up to 20 MB</p>
+                                    <p class="text-xs text-gray-600">XLSX, XLS, CSV up to 20 MB</p>
                                 </div>
                             </div>
                             <input type="file" wire:model="importFile" accept=".xlsx,.xls,.csv" class="sr-only" />
@@ -54,7 +54,7 @@
                         <x-input-error :messages="$errors->get('importFile')" class="mt-1" />
 
                         @if ($importFile)
-                            <div class="mt-2 flex items-center gap-2 text-sm text-green-600">
+                            <div class="mt-2 flex items-center gap-2 text-sm text-success-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -63,7 +63,7 @@
                         @endif
 
                         @if ($importError)
-                            <div class="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                            <div class="mt-3 px-4 py-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
                                 {{ $importError }}
                             </div>
                         @endif
@@ -110,44 +110,44 @@
 
                         {{-- AI Suggestions Panel (if available) --}}
                         @if ($aiSuggestionsLoaded && !empty($aiSuggestions))
-                        <div class="border border-green-200 rounded-xl overflow-hidden">
-                            <div class="px-4 py-3 bg-green-50 border-b border-green-200 flex items-center justify-between">
+                        <div class="border border-success-200 rounded-xl overflow-hidden">
+                            <div class="px-4 py-3 bg-success-50 border-b border-success-200 flex items-center justify-between">
                                 <div>
-                                    <h4 class="text-sm font-semibold text-green-800 flex items-center gap-2">
+                                    <h4 class="text-sm font-semibold text-success-800 flex items-center gap-2">
                                         <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                                         </svg>
                                         AI Suggested Mappings
                                     </h4>
-                                    <p class="text-xs text-green-600 mt-0.5">Claude analyzed your departments and suggested these matches</p>
+                                    <p class="text-xs text-success-600 mt-0.5">Claude analyzed your departments and suggested these matches</p>
                                 </div>
                                 <button wire:click="applyAllAiSuggestions"
-                                        class="text-xs px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
+                                        class="text-xs px-3 py-1 bg-success-600 text-white rounded-md hover:bg-success-700 transition">
                                     Apply High Confidence Matches
                                 </button>
                             </div>
                             <div class="p-4 space-y-2">
                                 @foreach ($aiSuggestions as $suggestion)
                                 <div class="flex items-center gap-3 p-2 rounded-lg
-                                    {{ $suggestion['confidence'] === 'high' ? 'bg-green-50' :
+                                    {{ $suggestion['confidence'] === 'high' ? 'bg-success-50' :
                                        ($suggestion['confidence'] === 'medium' ? 'bg-yellow-50' : 'bg-gray-50') }}">
                                     <span class="text-sm font-mono text-gray-700 min-w-[120px]">
                                         {{ $suggestion['zeoniq_department'] }}
                                     </span>
-                                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                     </svg>
                                     <span class="text-sm text-gray-600 flex-1">
                                         {{ $suggestion['category_name'] ?? 'No match' }}
                                     </span>
                                     <span class="text-xs px-2 py-1 rounded-full
-                                        {{ $suggestion['confidence'] === 'high' ? 'bg-green-100 text-green-700' :
+                                        {{ $suggestion['confidence'] === 'high' ? 'bg-success-100 text-success-700' :
                                            ($suggestion['confidence'] === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600') }}">
                                         {{ ucfirst($suggestion['confidence']) }}
                                     </span>
                                     @if ($suggestion['suggested_category_id'])
                                     <button wire:click="applyAiSuggestion('{{ $suggestion['zeoniq_department'] }}')"
-                                            class="text-xs text-indigo-600 hover:text-indigo-800">
+                                            class="text-xs text-brand-600 hover:text-brand-800">
                                         Apply
                                     </button>
                                     @endif
@@ -162,7 +162,7 @@
 
                         {{-- AI Error Message --}}
                         @if ($aiSuggestionsError)
-                        <div class="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                        <div class="px-4 py-3 bg-warning-50 border border-warning-200 rounded-lg text-sm text-warning-700">
                             {{ $aiErrorMessage }} — You can still map departments manually below.
                         </div>
                         @endif
@@ -176,7 +176,7 @@
                                 </div>
                                 <button wire:click="clearAllMappings"
                                         wire:loading.attr="disabled"
-                                        class="text-xs px-3 py-1 text-red-600 hover:text-red-800 border border-red-200 rounded-md hover:bg-red-50 transition">
+                                        class="text-xs px-3 py-1 text-danger-600 hover:text-danger-800 border border-danger-200 rounded-md hover:bg-danger-50 transition">
                                     Clear & Re-map All
                                 </button>
                             </div>
@@ -192,12 +192,12 @@
                                         <span class="text-sm font-mono text-gray-700 bg-gray-100 px-3 py-2 rounded min-w-[150px]">
                                             {{ $dept }}
                                         </span>
-                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                         </svg>
                                         <select wire:model.live="departmentMapping.{{ $dept }}"
-                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm
-                                                {{ !($departmentMapping[$dept] ?? null) ? 'border-red-300 bg-red-50' : '' }}">
+                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm
+                                                {{ !($departmentMapping[$dept] ?? null) ? 'border-danger-300 bg-danger-50' : '' }}">
                                             <option value="">— Select Sales Category —</option>
                                             @foreach ($salesCategories as $cat)
                                                 <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -205,7 +205,7 @@
                                         </select>
                                         @if ($confidence)
                                             <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap
-                                                {{ $confidence === 'high' ? 'bg-green-100 text-green-700' :
+                                                {{ $confidence === 'high' ? 'bg-success-100 text-success-700' :
                                                    ($confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600') }}"
                                                 title="{{ $reasoning }}">
                                                 AI: {{ ucfirst($confidence) }}
@@ -222,15 +222,15 @@
 
                         {{-- Validation Errors --}}
                         @if ($errors->has('mapping'))
-                        <div class="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                        <div class="px-4 py-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
                             {{ $errors->first('mapping') }}
                         </div>
                         @endif
 
                         {{-- Info Box --}}
-                        <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3 text-xs text-indigo-700">
+                        <div class="rounded-lg bg-brand-50 border border-brand-100 px-4 py-3 text-xs text-brand-700">
                             <p class="font-medium">About Department Mappings:</p>
-                            <ul class="list-disc list-inside space-y-0.5 mt-1 text-indigo-600">
+                            <ul class="list-disc list-inside space-y-0.5 mt-1 text-brand-600">
                                 <li>Mappings are saved and reused for future imports</li>
                                 <li>Each department will create a separate line item in the sales record</li>
                                 <li>You can update mappings anytime from Settings (future feature)</li>
@@ -248,12 +248,12 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             @if ($reportType === 'session_sales')
-                                <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                <span class="px-3 py-1 bg-success-100 text-success-700 text-xs font-medium rounded-full">
                                     Session Sales Listing
                                 </span>
                                 <span class="text-xs text-gray-500">Records will be created per meal period</span>
                             @else
-                                <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
+                                <span class="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-medium rounded-full">
                                     Daily Summary
                                 </span>
                                 <span class="text-xs text-gray-500">Records will be created per meal period (or All Day if no session data)</span>
@@ -275,11 +275,11 @@
                                 @foreach ($outletMapping as $code => $outletId)
                                     <div class="flex items-center gap-3">
                                         <span class="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded min-w-[120px]">{{ $code }}</span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                         </svg>
                                         <select wire:model.live="outletMapping.{{ $code }}"
-                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 text-sm">
                                             @foreach ($outlets as $outlet)
                                                 <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                                             @endforeach
@@ -292,7 +292,7 @@
 
                     {{-- Import Error --}}
                     @if ($errors->has('import'))
-                        <div class="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                        <div class="px-4 py-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
                             {{ $errors->first('import') }}
                         </div>
                     @endif
@@ -300,7 +300,7 @@
                     {{-- Duplicate Detection Warning --}}
                     @if ($this->duplicateCount > 0)
                         <div class="px-4 py-3 rounded-lg border text-sm flex items-start gap-2
-                            {{ $replaceExisting ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-amber-50 border-amber-200 text-amber-700' }}">
+                            {{ $replaceExisting ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-warning-50 border-warning-200 text-warning-700' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
@@ -312,7 +312,7 @@
                                     @else
                                         These records already exist in the database and have been automatically excluded.
                                         @if ($this->allDuplicates)
-                                            <strong class="text-amber-800">All records in this file are duplicates.</strong>
+                                            <strong class="text-warning-800">All records in this file are duplicates.</strong>
                                         @endif
                                     @endif
                                 </p>
@@ -321,7 +321,7 @@
                                 <label class="mt-2 inline-flex items-center gap-2 cursor-pointer select-none">
                                     <input type="checkbox" wire:model.live="replaceExisting"
                                            class="rounded border-gray-300 text-orange-600 shadow-sm focus:ring-orange-500" />
-                                    <span class="text-xs font-medium {{ $replaceExisting ? 'text-orange-800' : 'text-amber-800' }}">
+                                    <span class="text-xs font-medium {{ $replaceExisting ? 'text-orange-800' : 'text-warning-800' }}">
                                         Replace existing records (overwrite instead of skip)
                                     </span>
                                 </label>
@@ -335,8 +335,8 @@
                             <h4 class="text-sm font-semibold text-gray-700">Records to Import</h4>
                             <div class="flex items-center gap-2">
                                 <button type="button" wire:click="$set('includeRecords', {{ json_encode(array_fill(0, count($parsedRecords), true)) }})"
-                                        class="text-xs text-indigo-600 hover:text-indigo-800">Select All</button>
-                                <span class="text-gray-300">|</span>
+                                        class="text-xs text-brand-600 hover:text-brand-800">Select All</button>
+                                <span class="text-gray-500">|</span>
                                 <button type="button" wire:click="$set('includeRecords', {{ json_encode(array_fill(0, count($parsedRecords), false)) }})"
                                         class="text-xs text-gray-500 hover:text-gray-700">Clear All</button>
                             </div>
@@ -369,21 +369,21 @@
                                             $isDuplicate = isset($duplicateRecords[$idx]) && $duplicateRecords[$idx] === 'all';
                                             $hasPartialDuplicates = isset($duplicateRecords[$idx]) && is_array($duplicateRecords[$idx]);
                                         @endphp
-                                        <tr class="{{ $isDuplicate ? 'bg-red-50 opacity-60' : ($isIncluded ? '' : 'opacity-50 bg-gray-50') }}">
+                                        <tr class="{{ $isDuplicate ? 'bg-danger-50 opacity-60' : ($isIncluded ? '' : 'opacity-50 bg-gray-50') }}">
                                             <td class="px-4 py-3">
                                                 <input type="checkbox" wire:model.live="includeRecords.{{ $idx }}"
                                                        {{ $isDuplicate ? 'disabled' : '' }}
-                                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 {{ $isDuplicate ? 'cursor-not-allowed' : '' }}" />
+                                                       class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500 {{ $isDuplicate ? 'cursor-not-allowed' : '' }}" />
                                             </td>
                                             <td class="px-4 py-3 font-medium text-gray-800">
                                                 <div class="flex items-center gap-2">
                                                     {{ \Carbon\Carbon::parse($record['date'])->format('d M Y') }}
                                                     @if ($isDuplicate)
-                                                        <span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+                                                        <span class="text-xs px-2 py-0.5 bg-danger-100 text-danger-700 rounded-full font-medium">
                                                             DUPLICATE
                                                         </span>
                                                     @elseif ($hasPartialDuplicates)
-                                                        <span class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium" title="Some meal periods already exist">
+                                                        <span class="text-xs px-2 py-0.5 bg-warning-100 text-warning-700 rounded-full font-medium" title="Some meal periods already exist">
                                                             PARTIAL
                                                         </span>
                                                     @endif
@@ -401,7 +401,7 @@
                                                                 {{ $session['meal_period'] === 'lunch' ? 'bg-orange-100 text-orange-700' : '' }}
                                                                 {{ $session['meal_period'] === 'tea_time' ? 'bg-pink-100 text-pink-700' : '' }}
                                                                 {{ $session['meal_period'] === 'dinner' ? 'bg-purple-100 text-purple-700' : '' }}
-                                                                {{ $session['meal_period'] === 'supper' ? 'bg-indigo-100 text-indigo-700' : '' }}">
+                                                                {{ $session['meal_period'] === 'supper' ? 'bg-brand-100 text-brand-700' : '' }}">
                                                                 {{ $mealPeriodOptions[$session['meal_period']] ?? $session['meal_period'] }}
                                                             </span>
                                                         @endforeach
@@ -431,13 +431,13 @@
                                                 <td class="px-4 py-3 text-right tabular-nums text-gray-600">
                                                     {{ number_format($record['transactions'] ?? 0) }}
                                                 </td>
-                                                <td class="px-4 py-3 text-right tabular-nums text-indigo-600 font-medium">
+                                                <td class="px-4 py-3 text-right tabular-nums text-brand-600 font-medium">
                                                     {{ number_format($record['pax'] ?? 0) }}
                                                 </td>
                                                 <td class="px-4 py-3 text-right tabular-nums">
                                                     RM {{ number_format($record['gross_revenue'] ?? 0, 2) }}
                                                 </td>
-                                                <td class="px-4 py-3 text-right tabular-nums text-red-600">
+                                                <td class="px-4 py-3 text-right tabular-nums text-danger-600">
                                                     -RM {{ number_format($record['discount_amount'] ?? 0, 2) }}
                                                 </td>
                                                 <td class="px-4 py-3 text-right tabular-nums">
@@ -461,7 +461,7 @@
                                                                     <span class="font-medium">{{ $mealPeriodOptions[$session['meal_period']] ?? $session['meal_period'] }}</span>
                                                                     <div class="flex items-center gap-4">
                                                                         <span>{{ $session['transactions'] ?? 0 }} trans</span>
-                                                                        <span class="text-indigo-600">{{ $session['pax'] ?? $session['transactions'] ?? 0 }} pax</span>
+                                                                        <span class="text-brand-600">{{ $session['pax'] ?? $session['transactions'] ?? 0 }} pax</span>
                                                                         <span>Gross: RM {{ number_format($session['gross_revenue'] ?? 0, 2) }}</span>
                                                                         <span>Disc: RM {{ number_format($session['discount_amount'] ?? 0, 2) }}</span>
                                                                         <span>Net: RM {{ number_format($session['net_sales'] ?? 0, 2) }}</span>
@@ -473,12 +473,12 @@
                                                                 @if (!empty($session['departments']))
                                                                     @php $mergedDepts = $this->getMergedDepartments($session['departments']); @endphp
                                                                     <div class="pl-4 pt-1 flex flex-wrap gap-3">
-                                                                        <span class="text-gray-400">Categories:</span>
+                                                                        <span class="text-gray-600">Categories:</span>
                                                                         @foreach ($mergedDepts as $catData)
                                                                             <span class="px-2 py-0.5 bg-white border border-gray-200 rounded text-gray-600">
                                                                                 <span class="font-medium">{{ $catData['name'] }}</span>
-                                                                                <span class="text-gray-400 mx-1">·</span>
-                                                                                <span class="text-green-600">RM {{ number_format($catData['revenue'], 2) }}</span>
+                                                                                <span class="text-gray-600 mx-1">·</span>
+                                                                                <span class="text-success-600">RM {{ number_format($catData['revenue'], 2) }}</span>
                                                                             </span>
                                                                         @endforeach
                                                                     </div>
@@ -498,12 +498,12 @@
                                                 <td colspan="5" class="px-4 py-2">
                                                     <div class="text-xs text-gray-500">
                                                         <div class="flex flex-wrap gap-3">
-                                                            <span class="text-gray-400">Categories:</span>
+                                                            <span class="text-gray-600">Categories:</span>
                                                             @foreach ($mergedDepts as $catData)
                                                                 <span class="px-2 py-0.5 bg-white border border-gray-200 rounded text-gray-600">
                                                                     <span class="font-medium">{{ $catData['name'] }}</span>
-                                                                    <span class="text-gray-400 mx-1">·</span>
-                                                                    <span class="text-green-600">RM {{ number_format($catData['revenue'], 2) }}</span>
+                                                                    <span class="text-gray-600 mx-1">·</span>
+                                                                    <span class="text-success-600">RM {{ number_format($catData['revenue'], 2) }}</span>
                                                                 </span>
                                                             @endforeach
                                                         </div>
@@ -533,12 +533,12 @@
                             </span>
                             <div class="flex items-center gap-6 tabular-nums">
                                 <div class="text-right">
-                                    <span class="text-xs text-gray-400 block">Net Sales</span>
+                                    <span class="text-xs text-gray-600 block">Net Sales</span>
                                     <span class="font-semibold text-gray-700">RM {{ number_format($grandTotalNet, 2) }}</span>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-xs text-gray-400 block">Total Sales</span>
-                                    <span class="font-bold text-green-700">RM {{ number_format($grandTotalSales, 2) }}</span>
+                                    <span class="text-xs text-gray-600 block">Total Sales</span>
+                                    <span class="font-bold text-success-700">RM {{ number_format($grandTotalSales, 2) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -571,7 +571,7 @@
                     <button type="button" wire:click="processFile"
                             wire:loading.attr="disabled"
                             wire:target="processFile,importFile"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                         <span wire:loading.remove wire:target="processFile">Process File</span>
                         <span wire:loading wire:target="processFile" class="flex items-center gap-1.5">
                             <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -588,7 +588,7 @@
                             &larr; Re-upload
                         </button>
                         <button type="button" wire:click="proceedToReview"
-                                class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                                class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                             Continue to Review &rarr;
                         </button>
                     </div>
@@ -601,7 +601,7 @@
                         <button type="button" wire:click="saveAll"
                                 wire:loading.attr="disabled"
                                 {{ $this->totalRecordsToCreate === 0 ? 'disabled' : '' }}
-                                class="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                class="px-5 py-2 bg-success-600 text-white text-sm font-medium rounded-lg hover:bg-success-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                             @if ($this->totalRecordsToCreate === 0)
                                 <span>No Records to Import</span>
                             @else

@@ -1,4 +1,4 @@
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+<div class="card overflow-hidden">
 
     {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
     <div class="md:hidden divide-y divide-gray-100">
@@ -6,9 +6,9 @@
             @php
                 $mBadge = match($grn->status) {
                     'pending'  => 'bg-yellow-100 text-yellow-700',
-                    'received' => 'bg-green-100 text-green-700',
+                    'received' => 'bg-success-100 text-success-700',
                     'partial'  => 'bg-blue-100 text-blue-700',
-                    'rejected' => 'bg-red-100 text-red-600',
+                    'rejected' => 'bg-danger-100 text-danger-600',
                     default    => 'bg-gray-100 text-gray-500',
                 };
             @endphp
@@ -36,14 +36,14 @@
                     />
                     @if ($grn->status === 'pending')
                         <a href="{{ route('purchasing.grn.receive', $grn->id) }}"
-                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">
+                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-success-50 text-success-700 hover:bg-success-100">
                             Receive
                         </a>
                     @endif
                 </div>
             </div>
         @empty
-            <div class="p-8 text-center text-gray-400 text-sm">
+            <div class="p-8 text-center text-gray-600 text-sm">
                 <p class="font-medium">Nothing waiting to be received</p>
                 <p class="text-xs mt-1">A goods received note is created when a delivery is on its way — open it to confirm what actually arrived and in what condition.</p>
             </div>
@@ -72,9 +72,9 @@
                 @php
                     $badge = match($grn->status) {
                         'pending'  => 'bg-yellow-100 text-yellow-700',
-                        'received' => 'bg-green-100 text-green-700',
+                        'received' => 'bg-success-100 text-success-700',
                         'partial'  => 'bg-blue-100 text-blue-700',
-                        'rejected' => 'bg-red-100 text-red-600',
+                        'rejected' => 'bg-danger-100 text-danger-600',
                         default    => 'bg-gray-100 text-gray-500',
                     };
                 @endphp
@@ -103,7 +103,7 @@
                             />
                             @if ($grn->status === 'pending')
                                 <a href="{{ route('purchasing.grn.receive', $grn->id) }}" title="Receive"
-                                   class="text-green-500 hover:text-green-700 transition p-1">
+                                   class="text-success-500 hover:text-success-700 transition p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                                     </svg>
@@ -113,7 +113,7 @@
                                 <button wire:click="adminDeleteGrn({{ $grn->id }})"
                                         wire:confirm="Delete '{{ $grn->grn_number }}'? This action cannot be undone."
                                         title="Admin Delete"
-                                        class="text-red-400 hover:text-red-600 transition p-1">
+                                        class="text-danger-400 hover:text-danger-600 transition p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                     </svg>
@@ -124,7 +124,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $showPrice ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
+                    <td colspan="{{ $showPrice ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-600">
                         <p class="font-medium">Nothing waiting to be received</p>
                         <p class="text-xs mt-1">A goods received note is created when a delivery is on its way — open it to confirm what actually arrived and in what condition.</p>
                     </td>

@@ -1,4 +1,4 @@
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+<div class="card overflow-hidden">
     <table class="min-w-full divide-y divide-gray-100 text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
             <tr>
@@ -19,19 +19,19 @@
                     $badge = match($sto->status) {
                         'draft'     => 'bg-gray-100 text-gray-600',
                         'sent'      => 'bg-blue-100 text-blue-700',
-                        'received'  => 'bg-green-100 text-green-700',
-                        'cancelled' => 'bg-red-100 text-red-600',
+                        'received'  => 'bg-success-100 text-success-700',
+                        'cancelled' => 'bg-danger-100 text-danger-600',
                         default     => 'bg-gray-100 text-gray-500',
                     };
                 @endphp
                 <tr class="hover:bg-gray-50 transition">
-                    <td class="px-4 py-3 font-mono text-xs font-medium text-indigo-600">{{ $sto->sto_number }}</td>
+                    <td class="px-4 py-3 font-mono text-xs font-medium text-brand-600">{{ $sto->sto_number }}</td>
                     <td class="px-4 py-3 text-gray-600 text-xs">{{ $sto->cpu?->name ?? '—' }}</td>
                     <td class="px-4 py-3 text-gray-700 text-xs">{{ $sto->toOutlet?->name ?? '—' }}</td>
                     <td class="px-4 py-3 text-center text-gray-500">{{ $sto->transfer_date->format('d M Y') }}</td>
                     <td class="px-4 py-3 text-center text-gray-600">{{ $sto->lines_count }}</td>
                     <td class="px-4 py-3 text-center">
-                        <span class="px-2 py-0.5 rounded text-xs {{ $sto->is_chargeable ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600' }}">
+                        <span class="px-2 py-0.5 rounded text-xs {{ $sto->is_chargeable ? 'bg-warning-50 text-warning-600' : 'bg-success-50 text-success-600' }}">
                             {{ $sto->is_chargeable ? 'Chargeable' : 'Free' }}
                         </span>
                     </td>
@@ -53,7 +53,7 @@
                             />
                             @if ($sto->status === 'sent')
                                 <button wire:click="receiveSto({{ $sto->id }})" wire:confirm="Confirm receipt of this transfer?"
-                                        title="Receive" class="text-green-500 hover:text-green-700 transition p-1">
+                                        title="Receive" class="text-success-500 hover:text-success-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 </button>
                             @endif
@@ -63,7 +63,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
                                 <button wire:click="cancelSto({{ $sto->id }})" wire:confirm="Cancel this STO?"
-                                        title="Cancel" class="text-red-400 hover:text-red-600 transition p-1">
+                                        title="Cancel" class="text-danger-400 hover:text-danger-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             @endif
@@ -71,7 +71,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="9" class="px-4 py-10 text-center text-gray-400">
+                <tr><td colspan="9" class="px-4 py-10 text-center text-gray-600">
                     <p class="font-medium">No stock transfers yet</p>
                     <p class="text-xs mt-1">Transfers move goods from central purchasing to your outlets — they appear here once central stock is dispatched.</p>
                 </td></tr>

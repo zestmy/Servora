@@ -5,11 +5,11 @@
 <div>
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Reports</h2>
+        <h2 class="page-title">Reports</h2>
         @if (!empty($summary['categories']))
             <div class="flex items-center gap-2">
                 <button wire:click="exportPdf"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-danger-600 text-white rounded-lg text-sm font-medium hover:bg-danger-700 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     Export PDF
                 </button>
@@ -25,17 +25,17 @@
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <div class="card p-4 mb-6">
         <div class="flex flex-wrap items-center gap-4">
             @if ($activeTab === 'cost_summary')
                 {{-- Mode toggle (cost summary only) --}}
                 <div class="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
                     <button wire:click="$set('mode', 'monthly')"
-                            class="px-3 py-1.5 text-sm font-medium rounded-md transition {{ $mode === 'monthly' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-700' }}">
+                            class="px-3 py-1.5 text-sm font-medium rounded-md transition {{ $mode === 'monthly' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500 hover:text-gray-700' }}">
                         Monthly
                     </button>
                     <button wire:click="$set('mode', 'weekly')"
-                            class="px-3 py-1.5 text-sm font-medium rounded-md transition {{ $mode === 'weekly' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-700' }}">
+                            class="px-3 py-1.5 text-sm font-medium rounded-md transition {{ $mode === 'weekly' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500 hover:text-gray-700' }}">
                         Weekly
                     </button>
                 </div>
@@ -49,9 +49,9 @@
                     <div class="flex items-center gap-1.5">
                         <span class="text-sm font-medium text-gray-600">W</span>
                         <input type="number" wire:model.live.debounce.500ms="weekNumber" min="1" max="53"
-                               class="w-16 rounded-lg border-gray-300 text-sm text-center focus:ring-indigo-500 focus:border-indigo-500">
+                               class="w-16 rounded-lg border-gray-300 text-sm text-center focus:ring-brand-500 focus:border-brand-500">
                         <input type="number" wire:model.live.debounce.500ms="weekYear" min="2020" max="2099"
-                               class="w-20 rounded-lg border-gray-300 text-sm text-center focus:ring-indigo-500 focus:border-indigo-500">
+                               class="w-20 rounded-lg border-gray-300 text-sm text-center focus:ring-brand-500 focus:border-brand-500">
                     </div>
                     <button wire:click="nextWeek" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -64,7 +64,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
                     <input type="month" wire:model.live="period"
-                           class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                           class="rounded-lg border-gray-300 text-sm focus:ring-brand-500 focus:border-brand-500">
                     <button wire:click="nextMonth" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
@@ -74,7 +74,7 @@
             <div class="h-6 w-px bg-gray-200"></div>
 
             {{-- Outlet --}}
-            <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+            <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm focus:ring-brand-500 focus:border-brand-500">
                 <option value="">All Outlets</option>
                 @foreach ($outlets as $outlet)
                     <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
@@ -85,7 +85,7 @@
 
             {{-- Comparison toggle --}}
             <button wire:click="toggleCompare"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition {{ $compareMode ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200' }}">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition {{ $compareMode ? 'bg-brand-100 text-brand-700 ring-1 ring-brand-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
@@ -96,13 +96,13 @@
                 <div class="flex items-center gap-1.5">
                     <span class="text-xs text-gray-500">till</span>
                     <input type="date" wire:model.live="compareTillDate"
-                           class="rounded-lg border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500 py-1.5">
+                           class="rounded-lg border-gray-300 text-sm focus:ring-brand-500 focus:border-brand-500 py-1.5">
                 </div>
             @endif
         </div>
 
         @if ($mode === 'weekly' && $activeTab === 'cost_summary')
-            <p class="mt-2 text-xs text-gray-400">Weekly view shows revenue, purchases, and transfers only. Stock take values (opening/closing) are excluded as they are monthly.</p>
+            <p class="mt-2 text-xs text-gray-600">Weekly view shows revenue, purchases, and transfers only. Stock take values (opening/closing) are excluded as they are monthly.</p>
         @endif
     </div>
 
@@ -139,33 +139,33 @@
                 $varLy = $comparisonData['var_vs_ly'] ?? [];
             @endphp
             @if ($cur && $prev && $ly)
-                <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-6 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-brand-100 p-6 mb-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                             </svg>
                             {{ $mode === 'weekly' ? 'Week-over-Week Comparison' : 'MTD Period Comparison' }}
                         </h3>
-                        <div class="flex items-center gap-3 text-xs text-gray-400">
-                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> {{ $cur['period_label'] }}</span>
+                        <div class="flex items-center gap-3 text-xs text-gray-600">
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-500"></span> {{ $cur['period_label'] }}</span>
                             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-gray-400"></span> {{ $prev['period_label'] }}</span>
-                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> {{ $ly['period_label'] }}</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-warning-500"></span> {{ $ly['period_label'] }}</span>
                         </div>
                     </div>
 
                     {{-- Period date ranges --}}
                     <div class="grid grid-cols-3 gap-4 mb-5">
-                        <div class="text-center p-3 bg-indigo-50 rounded-lg">
-                            <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{{ $mode === 'weekly' ? 'This Week' : 'This Month MTD' }}</div>
+                        <div class="text-center p-3 bg-brand-50 rounded-lg">
+                            <div class="text-xs font-semibold text-brand-600 uppercase tracking-wide">{{ $mode === 'weekly' ? 'This Week' : 'This Month MTD' }}</div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ $cur['label'] }}</div>
                         </div>
                         <div class="text-center p-3 bg-gray-50 rounded-lg">
                             <div class="text-xs font-semibold text-gray-600 uppercase tracking-wide">{{ $mode === 'weekly' ? 'Previous Week' : 'Last Month MTD' }}</div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ $prev['label'] }}</div>
                         </div>
-                        <div class="text-center p-3 bg-amber-50 rounded-lg">
-                            <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide">{{ $mode === 'weekly' ? 'Same Week Last Year' : 'Last Year MTD' }}</div>
+                        <div class="text-center p-3 bg-warning-50 rounded-lg">
+                            <div class="text-xs font-semibold text-warning-700 uppercase tracking-wide">{{ $mode === 'weekly' ? 'Same Week Last Year' : 'Last Year MTD' }}</div>
                             <div class="text-xs text-gray-500 mt-0.5">{{ $ly['label'] }}</div>
                         </div>
                     </div>
@@ -177,7 +177,7 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">Revenue</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
+                                    <span class="text-xs text-brand-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
                                     <span class="text-sm font-bold text-gray-900">{{ number_format($cur['summary']['totals']['revenue'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
@@ -185,15 +185,15 @@
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($prev['summary']['totals']['revenue'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
+                                    <span class="text-xs text-warning-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($ly['summary']['totals']['revenue'], 0) }}</span>
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
-                                <span class="{{ $varPrev['revenue'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $varPrev['revenue'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $varPrev['revenue'] >= 0 ? '+' : '' }}{{ $varPrev['revenue'] }}%
                                 </span>
-                                <span class="{{ $varLy['revenue'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $varLy['revenue'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     vs LY: {{ $varLy['revenue'] >= 0 ? '+' : '' }}{{ $varLy['revenue'] }}%
                                 </span>
                             </div>
@@ -204,7 +204,7 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">COGS</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
+                                    <span class="text-xs text-brand-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
                                     <span class="text-sm font-bold text-gray-900">{{ number_format($cur['summary']['totals']['cogs'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
@@ -212,15 +212,15 @@
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($prev['summary']['totals']['cogs'], 0) }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
+                                    <span class="text-xs text-warning-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
                                     <span class="text-sm font-medium text-gray-600">{{ number_format($ly['summary']['totals']['cogs'], 0) }}</span>
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
-                                <span class="{{ $varPrev['cogs'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $varPrev['cogs'] <= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $varPrev['cogs'] >= 0 ? '+' : '' }}{{ $varPrev['cogs'] }}%
                                 </span>
-                                <span class="{{ $varLy['cogs'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $varLy['cogs'] <= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     vs LY: {{ $varLy['cogs'] >= 0 ? '+' : '' }}{{ $varLy['cogs'] }}%
                                 </span>
                             </div>
@@ -231,20 +231,20 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">Cost %</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
-                                    <span class="text-sm font-bold {{ $cur['summary']['totals']['cost_pct'] > 35 ? 'text-red-600' : ($cur['summary']['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                    <span class="text-xs text-brand-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
+                                    <span class="text-sm font-bold {{ $cur['summary']['totals']['cost_pct'] > 35 ? 'text-danger-600' : ($cur['summary']['totals']['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                         {{ $cur['summary']['totals']['cost_pct'] }}%
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs text-gray-500">{{ $mode === 'weekly' ? 'Prev Week' : 'Last Month' }}</span>
-                                    <span class="text-sm font-medium {{ $prev['summary']['totals']['cost_pct'] > 35 ? 'text-red-600' : ($prev['summary']['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                    <span class="text-sm font-medium {{ $prev['summary']['totals']['cost_pct'] > 35 ? 'text-danger-600' : ($prev['summary']['totals']['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                         {{ $prev['summary']['totals']['cost_pct'] }}%
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
-                                    <span class="text-sm font-medium {{ $ly['summary']['totals']['cost_pct'] > 35 ? 'text-red-600' : ($ly['summary']['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                    <span class="text-xs text-warning-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
+                                    <span class="text-sm font-medium {{ $ly['summary']['totals']['cost_pct'] > 35 ? 'text-danger-600' : ($ly['summary']['totals']['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                         {{ $ly['summary']['totals']['cost_pct'] }}%
                                     </span>
                                 </div>
@@ -254,10 +254,10 @@
                                 $costPctDiffLy = round($cur['summary']['totals']['cost_pct'] - $ly['summary']['totals']['cost_pct'], 1);
                             @endphp
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
-                                <span class="{{ $costPctDiffPrev <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $costPctDiffPrev <= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $costPctDiffPrev >= 0 ? '+' : '' }}{{ $costPctDiffPrev }}%
                                 </span>
-                                <span class="{{ $costPctDiffLy <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $costPctDiffLy <= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     vs LY: {{ $costPctDiffLy >= 0 ? '+' : '' }}{{ $costPctDiffLy }}%
                                 </span>
                             </div>
@@ -268,23 +268,23 @@
                             <div class="text-xs font-medium text-gray-500 mb-2">Pax / Avg Check</div>
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-indigo-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
-                                    <span class="text-sm font-bold text-gray-900">{{ number_format($cur['pax']) }} <span class="text-gray-400 font-normal">/ {{ number_format($cur['avg_check'], 2) }}</span></span>
+                                    <span class="text-xs text-brand-600 font-medium">{{ $mode === 'weekly' ? 'This Week' : 'This Month' }}</span>
+                                    <span class="text-sm font-bold text-gray-900">{{ number_format($cur['pax']) }} <span class="text-gray-600 font-normal">/ {{ number_format($cur['avg_check'], 2) }}</span></span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs text-gray-500">{{ $mode === 'weekly' ? 'Prev Week' : 'Last Month' }}</span>
-                                    <span class="text-sm font-medium text-gray-600">{{ number_format($prev['pax']) }} <span class="text-gray-400 font-normal">/ {{ number_format($prev['avg_check'], 2) }}</span></span>
+                                    <span class="text-sm font-medium text-gray-600">{{ number_format($prev['pax']) }} <span class="text-gray-600 font-normal">/ {{ number_format($prev['avg_check'], 2) }}</span></span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-amber-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
-                                    <span class="text-sm font-medium text-gray-600">{{ number_format($ly['pax']) }} <span class="text-gray-400 font-normal">/ {{ number_format($ly['avg_check'], 2) }}</span></span>
+                                    <span class="text-xs text-warning-600">{{ $mode === 'weekly' ? 'Same Wk LY' : 'Last Year' }}</span>
+                                    <span class="text-sm font-medium text-gray-600">{{ number_format($ly['pax']) }} <span class="text-gray-600 font-normal">/ {{ number_format($ly['avg_check'], 2) }}</span></span>
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-3 text-xs">
-                                <span class="{{ $varPrev['pax'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $varPrev['pax'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     {{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}: {{ $varPrev['pax'] >= 0 ? '+' : '' }}{{ $varPrev['pax'] }}%
                                 </span>
-                                <span class="{{ $varLy['pax'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <span class="{{ $varLy['pax'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                     vs LY: {{ $varLy['pax'] >= 0 ? '+' : '' }}{{ $varLy['pax'] }}%
                                 </span>
                             </div>
@@ -297,11 +297,11 @@
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-200">
                                     <th class="text-left py-2.5 px-4 font-semibold text-gray-600 w-40">Metric</th>
-                                    <th class="text-right py-2.5 px-4 font-semibold text-indigo-600 min-w-[120px]">{{ $cur['period_label'] }}</th>
+                                    <th class="text-right py-2.5 px-4 font-semibold text-brand-600 min-w-[120px]">{{ $cur['period_label'] }}</th>
                                     <th class="text-right py-2.5 px-4 font-semibold text-gray-500 min-w-[120px]">{{ $prev['period_label'] }}</th>
-                                    <th class="text-right py-2.5 px-4 font-semibold text-gray-400 text-xs min-w-[80px]">{{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}</th>
-                                    <th class="text-right py-2.5 px-4 font-semibold text-amber-600 min-w-[120px]">{{ $ly['period_label'] }}</th>
-                                    <th class="text-right py-2.5 px-4 font-semibold text-gray-400 text-xs min-w-[80px]">vs LY</th>
+                                    <th class="text-right py-2.5 px-4 font-semibold text-gray-600 text-xs min-w-[80px]">{{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}</th>
+                                    <th class="text-right py-2.5 px-4 font-semibold text-warning-600 min-w-[120px]">{{ $ly['period_label'] }}</th>
+                                    <th class="text-right py-2.5 px-4 font-semibold text-gray-600 text-xs min-w-[80px]">vs LY</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -336,7 +336,7 @@
                                         $prevGood = $row['good'] === 'up' ? $diffPrev >= 0 : $diffPrev <= 0;
                                         $lyGood = $row['good'] === 'up' ? $diffLy >= 0 : $diffLy <= 0;
                                     @endphp
-                                    <tr class="{{ $row['key'] === 'revenue' ? 'bg-blue-50/40' : '' }} {{ $row['key'] === 'cogs' ? 'bg-red-50/30' : '' }}">
+                                    <tr class="{{ $row['key'] === 'revenue' ? 'bg-blue-50/40' : '' }} {{ $row['key'] === 'cogs' ? 'bg-danger-50/30' : '' }}">
                                         <td class="py-2.5 px-4 font-medium text-gray-700">{{ $row['label'] }}</td>
                                         <td class="py-2.5 px-4 text-right font-bold text-gray-900">
                                             {{ $row['format'] === 'pct' ? $curVal . '%' : number_format($curVal, 2) }}
@@ -344,13 +344,13 @@
                                         <td class="py-2.5 px-4 text-right text-gray-600">
                                             {{ $row['format'] === 'pct' ? $prevVal . '%' : number_format($prevVal, 2) }}
                                         </td>
-                                        <td class="py-2.5 px-4 text-right text-xs font-medium {{ $prevGood ? 'text-green-600' : 'text-red-600' }}">
+                                        <td class="py-2.5 px-4 text-right text-xs font-medium {{ $prevGood ? 'text-success-600' : 'text-danger-600' }}">
                                             {{ $diffPrevLabel }}
                                         </td>
                                         <td class="py-2.5 px-4 text-right text-gray-600">
                                             {{ $row['format'] === 'pct' ? $lyVal . '%' : number_format($lyVal, 2) }}
                                         </td>
-                                        <td class="py-2.5 px-4 text-right text-xs font-medium {{ $lyGood ? 'text-green-600' : 'text-red-600' }}">
+                                        <td class="py-2.5 px-4 text-right text-xs font-medium {{ $lyGood ? 'text-success-600' : 'text-danger-600' }}">
                                             {{ $diffLyLabel }}
                                         </td>
                                     </tr>
@@ -368,11 +368,11 @@
                                     <thead>
                                         <tr class="bg-gray-50 border-b border-gray-100">
                                             <th class="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
-                                            <th class="text-right py-2 px-3 font-semibold text-indigo-600">{{ $cur['period_label'] }}</th>
+                                            <th class="text-right py-2 px-3 font-semibold text-brand-600">{{ $cur['period_label'] }}</th>
                                             <th class="text-right py-2 px-3 font-semibold text-gray-500">{{ $prev['period_label'] }}</th>
-                                            <th class="text-right py-2 px-3 font-semibold text-gray-400">{{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}</th>
-                                            <th class="text-right py-2 px-3 font-semibold text-amber-600">{{ $ly['period_label'] }}</th>
-                                            <th class="text-right py-2 px-3 font-semibold text-gray-400">vs LY</th>
+                                            <th class="text-right py-2 px-3 font-semibold text-gray-600">{{ $mode === 'weekly' ? 'vs PW' : 'vs LM' }}</th>
+                                            <th class="text-right py-2 px-3 font-semibold text-warning-600">{{ $ly['period_label'] }}</th>
+                                            <th class="text-right py-2 px-3 font-semibold text-gray-600">vs LY</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-50">
@@ -390,11 +390,11 @@
                                                 </td>
                                                 <td class="py-2 px-3 text-right font-bold text-gray-900 tabular-nums">{{ number_format($cat['revenue'], 2) }}</td>
                                                 <td class="py-2 px-3 text-right text-gray-600 tabular-nums">{{ number_format($prevCatRev, 2) }}</td>
-                                                <td class="py-2 px-3 text-right font-medium {{ $catDiffPrev >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                                <td class="py-2 px-3 text-right font-medium {{ $catDiffPrev >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                                     {{ $catDiffPrev >= 0 ? '+' : '' }}{{ $catDiffPrev }}%
                                                 </td>
                                                 <td class="py-2 px-3 text-right text-gray-600 tabular-nums">{{ number_format($lyCatRev, 2) }}</td>
-                                                <td class="py-2 px-3 text-right font-medium {{ $catDiffLy >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                                <td class="py-2 px-3 text-right font-medium {{ $catDiffLy >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                                     {{ $catDiffLy >= 0 ? '+' : '' }}{{ $catDiffLy }}%
                                                 </td>
                                             </tr>
@@ -405,7 +405,7 @@
                         </div>
                     @endif
 
-                    <p class="mt-4 text-xs text-gray-400">MTD = Month-to-Date. Comparing day 1–{{ $cur['mtd_day'] }} across periods. Stock values excluded in MTD view.</p>
+                    <p class="mt-4 text-xs text-gray-600">MTD = Month-to-Date. Comparing day 1–{{ $cur['mtd_day'] }} across periods. Stock values excluded in MTD view.</p>
                 </div>
             @endif
         @endif
@@ -413,34 +413,34 @@
         @if (!empty($summary['categories']))
             {{-- Summary cards --}}
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Total Revenue</div>
                     <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($summary['totals']['revenue'], 2) }}</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Total COGS</div>
-                    <div class="mt-1 text-2xl font-bold {{ $summary['totals']['cogs'] > 0 ? 'text-red-600' : 'text-gray-900' }}">
+                    <div class="mt-1 text-2xl font-bold {{ $summary['totals']['cogs'] > 0 ? 'text-danger-600' : 'text-gray-900' }}">
                         {{ number_format($summary['totals']['cogs'], 2) }}
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Overall Cost %</div>
-                    <div class="mt-1 text-2xl font-bold {{ $summary['totals']['cost_pct'] > 35 ? 'text-red-600' : ($summary['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                    <div class="mt-1 text-2xl font-bold {{ $summary['totals']['cost_pct'] > 35 ? 'text-danger-600' : ($summary['totals']['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                         {{ $summary['totals']['cost_pct'] }}%
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Total Wastage</div>
                     <div class="mt-1 text-2xl font-bold text-orange-600">{{ number_format($summary['totals']['wastage'], 2) }}</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Staff Meals</div>
                     <div class="mt-1 text-2xl font-bold text-purple-600">{{ number_format($summary['totals']['staff_meals'], 2) }}</div>
                 </div>
             </div>
 
             {{-- P&L Table --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead>
@@ -469,7 +469,7 @@
                             </tr>
                             <tr>
                                 <td colspan="{{ count($summary['categories']) + 2 }}" class="py-1 px-4 bg-gray-50">
-                                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Cost of Goods</span>
+                                    <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost of Goods</span>
                                 </td>
                             </tr>
                             @if ($mode === 'monthly')
@@ -513,7 +513,7 @@
                                     <td class="py-2.5 px-4 text-right font-medium text-gray-800 bg-gray-50">{{ number_format($summary['totals']['closing_stock'], 2) }}</td>
                                 </tr>
                             @endif
-                            <tr class="bg-red-50/50 border-t-2 border-gray-300">
+                            <tr class="bg-danger-50/50 border-t-2 border-gray-300">
                                 <td class="py-3 px-4 font-bold text-gray-800">= COGS</td>
                                 @foreach ($summary['categories'] as $cat)
                                     <td class="py-3 px-4 text-right font-bold text-gray-900">{{ number_format($cat['cogs'], 2) }}</td>
@@ -523,11 +523,11 @@
                             <tr class="border-t-2 border-gray-300">
                                 <td class="py-3 px-4 font-bold text-gray-800">Cost %</td>
                                 @foreach ($summary['categories'] as $cat)
-                                    <td class="py-3 px-4 text-right font-bold {{ $cat['cost_pct'] > 35 ? 'text-red-600' : ($cat['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                    <td class="py-3 px-4 text-right font-bold {{ $cat['cost_pct'] > 35 ? 'text-danger-600' : ($cat['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                         {{ $cat['cost_pct'] }}%
                                     </td>
                                 @endforeach
-                                <td class="py-3 px-4 text-right font-bold bg-gray-100 {{ $summary['totals']['cost_pct'] > 35 ? 'text-red-600' : ($summary['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                <td class="py-3 px-4 text-right font-bold bg-gray-100 {{ $summary['totals']['cost_pct'] > 35 ? 'text-danger-600' : ($summary['totals']['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                     {{ $summary['totals']['cost_pct'] }}%
                                 </td>
                             </tr>
@@ -537,7 +537,7 @@
             </div>
 
             {{-- Cost % bars --}}
-            <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="mt-6 card p-6">
                 <h3 class="text-sm font-semibold text-gray-600 mb-4">Cost % by Category</h3>
                 <div class="space-y-3">
                     @foreach ($summary['categories'] as $cat)
@@ -549,12 +549,12 @@
                                     @endif
                                     <span class="font-medium text-gray-700">{{ $cat['name'] }}</span>
                                 </span>
-                                <span class="font-semibold {{ $cat['cost_pct'] > 35 ? 'text-red-600' : ($cat['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                <span class="font-semibold {{ $cat['cost_pct'] > 35 ? 'text-danger-600' : ($cat['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                     {{ $cat['cost_pct'] }}%
                                 </span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2.5">
-                                <div class="h-2.5 rounded-full transition-all duration-500 {{ $cat['cost_pct'] > 35 ? 'bg-red-500' : ($cat['cost_pct'] > 30 ? 'bg-amber-500' : 'bg-green-500') }}"
+                                <div class="h-2.5 rounded-full transition-all duration-500 {{ $cat['cost_pct'] > 35 ? 'bg-danger-500' : ($cat['cost_pct'] > 30 ? 'bg-warning-500' : 'bg-success-500') }}"
                                      style="width: {{ min($cat['cost_pct'], 100) }}%"></div>
                             </div>
                         </div>
@@ -565,7 +565,7 @@
             @include('livewire.reports._wastage-table', ['detail' => $summary['wastage_detail'] ?? null, 'label' => 'Wastage', 'color' => 'orange'])
             @include('livewire.reports._wastage-table', ['detail' => $summary['staff_meals_detail'] ?? null, 'label' => 'Staff Meals', 'color' => 'purple'])
         @else
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+            <div class="card p-12 text-center text-gray-600">
                 <p class="font-medium">No data for {{ $periodLabel }}</p>
                 <p class="text-sm mt-1">Add cost categories in Settings, then record sales and purchases to see your cost summary.</p>
             </div>
@@ -586,10 +586,10 @@
                 $totals = $ds['cost_summary']['totals'];
             @endphp
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Revenue</div>
                     <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($totals['revenue'], 0) }}</div>
-                    <div class="mt-1 flex items-center gap-1 text-xs {{ $ds['rev_change'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                    <div class="mt-1 flex items-center gap-1 text-xs {{ $ds['rev_change'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             @if ($ds['rev_change'] >= 0)
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
@@ -600,17 +600,17 @@
                         {{ abs($ds['rev_change']) }}% MoM
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Total Pax</div>
                     <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($ds['total_pax']) }}</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Avg Check / Pax</div>
-                    <div class="mt-1 text-2xl font-bold text-indigo-600">{{ number_format($ds['avg_check'], 2) }}</div>
+                    <div class="mt-1 text-2xl font-bold text-brand-600">{{ number_format($ds['avg_check'], 2) }}</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Cost %</div>
-                    <div class="mt-1 text-2xl font-bold {{ $totals['cost_pct'] > 35 ? 'text-red-600' : ($totals['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                    <div class="mt-1 text-2xl font-bold {{ $totals['cost_pct'] > 35 ? 'text-danger-600' : ($totals['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                         {{ $totals['cost_pct'] }}%
                     </div>
                 </div>
@@ -618,13 +618,13 @@
 
             {{-- Charts --}}
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-                <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="xl:col-span-2 card p-5">
                     <h3 class="text-sm font-semibold text-gray-600 mb-3">Daily Revenue & Pax Trend</h3>
                     <div style="height: 280px;" wire:ignore>
                         <canvas id="perfRevenueChart"></canvas>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <h3 class="text-sm font-semibold text-gray-600 mb-3">Day-of-Week Performance</h3>
                     <div style="height: 280px;" wire:ignore>
                         <canvas id="perfDowChart"></canvas>
@@ -632,7 +632,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="card p-5">
                 <h3 class="text-sm font-semibold text-gray-600 mb-3">Average Check per Pax Trend</h3>
                 <div style="height: 260px;" wire:ignore>
                     <canvas id="perfAvgChart"></canvas>
@@ -645,10 +645,10 @@
                     $msy = $monthlySalesByYear;
                     $monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                 @endphp
-                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="mt-6 card overflow-hidden">
                     <div class="px-5 py-3 border-b border-gray-100">
                         <h3 class="text-sm font-semibold text-gray-600">Monthly Sales by Year</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">Revenue and pax for each month across all years</p>
+                        <p class="text-xs text-gray-600 mt-0.5">Revenue and pax for each month across all years</p>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-xs">
@@ -662,9 +662,9 @@
                                 <tr class="border-t border-gray-100">
                                     <th class="py-1 px-3 sticky left-0 bg-gray-50 z-10"></th>
                                     @foreach ($msy['years'] as $yr)
-                                        <th class="py-1 px-3 text-right text-gray-400 font-medium border-l border-gray-200">Revenue</th>
-                                        <th class="py-1 px-3 text-right text-gray-400 font-medium">Pax</th>
-                                        <th class="py-1 px-3 text-right text-gray-400 font-medium">Avg Check</th>
+                                        <th class="py-1 px-3 text-right text-gray-600 font-medium border-l border-gray-200">Revenue</th>
+                                        <th class="py-1 px-3 text-right text-gray-600 font-medium">Pax</th>
+                                        <th class="py-1 px-3 text-right text-gray-600 font-medium">Avg Check</th>
                                     @endforeach
                                 </tr>
                             </thead>
@@ -677,13 +677,13 @@
                                                 $cell = $msy['data'][$yr][$m];
                                                 $avgCheck = $cell['pax'] > 0 ? $cell['revenue'] / $cell['pax'] : 0;
                                             @endphp
-                                            <td class="py-2 px-3 text-right tabular-nums border-l border-gray-100 {{ $cell['revenue'] > 0 ? 'text-gray-700' : 'text-gray-300' }}">
+                                            <td class="py-2 px-3 text-right tabular-nums border-l border-gray-100 {{ $cell['revenue'] > 0 ? 'text-gray-700' : 'text-gray-500' }}">
                                                 {{ $cell['revenue'] > 0 ? number_format($cell['revenue'], 0) : '—' }}
                                             </td>
-                                            <td class="py-2 px-3 text-right tabular-nums {{ $cell['pax'] > 0 ? 'text-gray-600' : 'text-gray-300' }}">
+                                            <td class="py-2 px-3 text-right tabular-nums {{ $cell['pax'] > 0 ? 'text-gray-600' : 'text-gray-500' }}">
                                                 {{ $cell['pax'] > 0 ? number_format($cell['pax']) : '—' }}
                                             </td>
-                                            <td class="py-2 px-3 text-right tabular-nums {{ $avgCheck > 0 ? 'text-gray-600' : 'text-gray-300' }}">
+                                            <td class="py-2 px-3 text-right tabular-nums {{ $avgCheck > 0 ? 'text-gray-600' : 'text-gray-500' }}">
                                                 {{ $avgCheck > 0 ? number_format($avgCheck, 2) : '—' }}
                                             </td>
                                         @endforeach
@@ -742,60 +742,60 @@
 
             {{-- KPI Cards --}}
             <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="card p-4">
                     <div class="text-xs font-medium text-gray-500">Revenue</div>
                     <div class="mt-1 text-xl font-bold text-gray-900">{{ number_format($curTotals['revenue'], 0) }}</div>
-                    <div class="mt-1 flex items-center gap-1 text-xs {{ $ds['rev_change'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                    <div class="mt-1 flex items-center gap-1 text-xs {{ $ds['rev_change'] >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                         {{ $ds['rev_change'] >= 0 ? '+' : '' }}{{ $ds['rev_change'] }}% MoM
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="card p-4">
                     <div class="text-xs font-medium text-gray-500">COGS</div>
-                    <div class="mt-1 text-xl font-bold text-red-600">{{ number_format($curTotals['cogs'], 0) }}</div>
-                    <div class="mt-1 text-xs {{ $ds['cogs_change'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                    <div class="mt-1 text-xl font-bold text-danger-600">{{ number_format($curTotals['cogs'], 0) }}</div>
+                    <div class="mt-1 text-xs {{ $ds['cogs_change'] <= 0 ? 'text-success-600' : 'text-danger-600' }}">
                         {{ $ds['cogs_change'] >= 0 ? '+' : '' }}{{ $ds['cogs_change'] }}% MoM
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="card p-4">
                     <div class="text-xs font-medium text-gray-500">Cost %</div>
-                    <div class="mt-1 text-xl font-bold {{ $curTotals['cost_pct'] > 35 ? 'text-red-600' : ($curTotals['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                    <div class="mt-1 text-xl font-bold {{ $curTotals['cost_pct'] > 35 ? 'text-danger-600' : ($curTotals['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                         {{ $curTotals['cost_pct'] }}%
                     </div>
-                    <div class="mt-1 text-xs text-gray-400">Prev: {{ $prevTotals['cost_pct'] }}%</div>
+                    <div class="mt-1 text-xs text-gray-600">Prev: {{ $prevTotals['cost_pct'] }}%</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="card p-4">
                     <div class="text-xs font-medium text-gray-500">Wastage</div>
                     <div class="mt-1 text-xl font-bold text-orange-600">{{ number_format($curTotals['wastage'], 0) }}</div>
                     @if ($curTotals['revenue'] > 0)
-                        <div class="mt-1 text-xs text-gray-400">{{ round($curTotals['wastage'] / $curTotals['revenue'] * 100, 1) }}% of rev</div>
+                        <div class="mt-1 text-xs text-gray-600">{{ round($curTotals['wastage'] / $curTotals['revenue'] * 100, 1) }}% of rev</div>
                     @endif
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="card p-4">
                     <div class="text-xs font-medium text-gray-500">Staff Meals</div>
                     <div class="mt-1 text-xl font-bold text-purple-600">{{ number_format($curTotals['staff_meals'], 0) }}</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="card p-4">
                     <div class="text-xs font-medium text-gray-500">Avg Check</div>
-                    <div class="mt-1 text-xl font-bold text-indigo-600">{{ number_format($ds['avg_check'], 2) }}</div>
-                    <div class="mt-1 text-xs text-gray-400">{{ number_format($ds['total_pax']) }} pax</div>
+                    <div class="mt-1 text-xl font-bold text-brand-600">{{ number_format($ds['avg_check'], 2) }}</div>
+                    <div class="mt-1 text-xs text-gray-600">{{ number_format($ds['total_pax']) }} pax</div>
                 </div>
             </div>
 
             {{-- Charts --}}
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <h3 class="text-sm font-semibold text-gray-600 mb-3">Revenue by Category</h3>
                     <div style="height: 240px;" wire:ignore>
                         <canvas id="costRevCatChart"></canvas>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <h3 class="text-sm font-semibold text-gray-600 mb-3">Cost % by Category</h3>
                     <div style="height: 240px;" wire:ignore>
                         <canvas id="costPctChart"></canvas>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <h3 class="text-sm font-semibold text-gray-600 mb-3">Month-over-Month</h3>
                     <div style="height: 240px;" wire:ignore>
                         <canvas id="costMomChart"></canvas>
@@ -805,7 +805,7 @@
 
             {{-- Category P&L Table --}}
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="card overflow-hidden">
                     <div class="px-5 py-3 border-b border-gray-100">
                         <h3 class="text-sm font-semibold text-gray-600">Category P&L Summary</h3>
                     </div>
@@ -830,7 +830,7 @@
                                         <td class="py-2 px-3 text-right text-gray-700 tabular-nums">{{ number_format($cat['revenue'], 2) }}</td>
                                         <td class="py-2 px-3 text-right text-gray-700 tabular-nums">{{ number_format($cat['purchases'], 2) }}</td>
                                         <td class="py-2 px-3 text-right text-gray-700 tabular-nums">{{ number_format($cat['cogs'], 2) }}</td>
-                                        <td class="py-2 px-3 text-right font-semibold {{ $cat['cost_pct'] > 35 ? 'text-red-600' : ($cat['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                        <td class="py-2 px-3 text-right font-semibold {{ $cat['cost_pct'] > 35 ? 'text-danger-600' : ($cat['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                             {{ $cat['cost_pct'] }}%
                                         </td>
                                     </tr>
@@ -842,7 +842,7 @@
                                     <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums">{{ number_format($curTotals['revenue'], 2) }}</td>
                                     <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums">{{ number_format($curTotals['purchases'], 2) }}</td>
                                     <td class="py-2 px-3 text-right font-bold text-gray-800 tabular-nums">{{ number_format($curTotals['cogs'], 2) }}</td>
-                                    <td class="py-2 px-3 text-right font-bold {{ $curTotals['cost_pct'] > 35 ? 'text-red-600' : ($curTotals['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">
+                                    <td class="py-2 px-3 text-right font-bold {{ $curTotals['cost_pct'] > 35 ? 'text-danger-600' : ($curTotals['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                         {{ $curTotals['cost_pct'] }}%
                                     </td>
                                 </tr>
@@ -859,7 +859,7 @@
                     }
                 @endphp
                 @if ($hasStock)
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="card overflow-hidden">
                         <div class="px-5 py-3 border-b border-gray-100">
                             <h3 class="text-sm font-semibold text-gray-600">Inventory Position</h3>
                         </div>
@@ -881,7 +881,7 @@
                                                 <td class="py-2 px-3 font-medium text-gray-800">{{ $cat['name'] }}</td>
                                                 <td class="py-2 px-3 text-right tabular-nums">{{ number_format($cat['opening_stock'], 2) }}</td>
                                                 <td class="py-2 px-3 text-right tabular-nums">{{ number_format($cat['closing_stock'], 2) }}</td>
-                                                <td class="py-2 px-3 text-right font-medium tabular-nums {{ $stockChange >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                                <td class="py-2 px-3 text-right font-medium tabular-nums {{ $stockChange >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                                     {{ $stockChange >= 0 ? '+' : '' }}{{ number_format($stockChange, 2) }}
                                                 </td>
                                             </tr>
@@ -915,38 +915,38 @@
 
             {{-- KPI Cards --}}
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Total Wastage</div>
                     <div class="mt-1 text-2xl font-bold text-orange-600">{{ number_format($totals['wastage'], 2) }}</div>
-                    <div class="mt-1 text-xs text-gray-400">{{ $wastPct }}% of revenue</div>
+                    <div class="mt-1 text-xs text-gray-600">{{ $wastPct }}% of revenue</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Staff Meals</div>
                     <div class="mt-1 text-2xl font-bold text-purple-600">{{ number_format($totals['staff_meals'], 2) }}</div>
-                    <div class="mt-1 text-xs text-gray-400">{{ $smPct }}% of revenue</div>
+                    <div class="mt-1 text-xs text-gray-600">{{ $smPct }}% of revenue</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Revenue</div>
                     <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($totals['revenue'], 0) }}</div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <div class="text-sm font-medium text-gray-500">Top Item Cost</div>
                     <div class="mt-1 text-2xl font-bold text-orange-600">
                         {{ !empty($ds['top_wastage']) ? number_format($ds['top_wastage'][0]['total_cost'], 2) : '0.00' }}
                     </div>
-                    <div class="mt-1 text-xs text-gray-400 truncate">{{ !empty($ds['top_wastage']) ? $ds['top_wastage'][0]['name'] : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-600 truncate">{{ !empty($ds['top_wastage']) ? $ds['top_wastage'][0]['name'] : '—' }}</div>
                 </div>
             </div>
 
             {{-- Charts --}}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="card p-5">
                     <h3 class="text-sm font-semibold text-gray-600 mb-3">Wastage by Category</h3>
                     <div style="height: 260px;" wire:ignore>
                         <canvas id="wastWastageChart"></canvas>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="card overflow-hidden">
                     <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-gray-600">Top Wastage Items</h3>
                         @if ($totals['wastage'] > 0)
@@ -973,7 +973,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="py-6 text-center text-gray-400 text-xs">No wastage recorded this period</td>
+                                        <td colspan="4" class="py-6 text-center text-gray-600 text-xs">No wastage recorded this period</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -997,38 +997,38 @@
         @if (!empty($labourData['outlets']))
             {{-- Summary Cards --}}
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <p class="text-xs text-gray-400 uppercase tracking-wider">Total Revenue</p>
+                <div class="card p-5">
+                    <p class="text-xs text-gray-600 uppercase tracking-wider">Total Revenue</p>
                     <p class="text-xl font-bold text-gray-800 mt-1">{{ number_format($labourData['total_revenue'], 2) }}</p>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <p class="text-xs text-gray-400 uppercase tracking-wider">Total Labour Cost</p>
+                <div class="card p-5">
+                    <p class="text-xs text-gray-600 uppercase tracking-wider">Total Labour Cost</p>
                     <p class="text-xl font-bold text-gray-800 mt-1">{{ number_format($labourData['grand_total'], 2) }}</p>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-blue-100 p-5">
                     <p class="text-xs text-blue-500 uppercase tracking-wider">FOH</p>
                     <p class="text-xl font-bold text-blue-700 mt-1">{{ number_format($labourData['total_foh'], 2) }}</p>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-amber-100 p-5">
-                    <p class="text-xs text-amber-500 uppercase tracking-wider">BOH</p>
-                    <p class="text-xl font-bold text-amber-700 mt-1">{{ number_format($labourData['total_boh'], 2) }}</p>
+                <div class="bg-white rounded-xl shadow-sm border border-warning-100 p-5">
+                    <p class="text-xs text-warning-500 uppercase tracking-wider">BOH</p>
+                    <p class="text-xl font-bold text-warning-700 mt-1">{{ number_format($labourData['total_boh'], 2) }}</p>
                 </div>
             </div>
 
             {{-- Labour Cost % Gauge --}}
             @if ($labourData['total_revenue'] > 0)
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+                <div class="card p-5 mb-6">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-semibold text-gray-700">Labour Cost %</h3>
-                        <span class="text-2xl font-bold {{ $labourData['labour_pct'] > 35 ? 'text-red-600' : ($labourData['labour_pct'] > 25 ? 'text-amber-600' : 'text-green-600') }}">
+                        <span class="text-2xl font-bold {{ $labourData['labour_pct'] > 35 ? 'text-danger-600' : ($labourData['labour_pct'] > 25 ? 'text-warning-600' : 'text-success-600') }}">
                             {{ $labourData['labour_pct'] }}%
                         </span>
                     </div>
                     <div class="w-full bg-gray-100 rounded-full h-3">
-                        <div class="h-3 rounded-full transition-all {{ $labourData['labour_pct'] > 35 ? 'bg-red-500' : ($labourData['labour_pct'] > 25 ? 'bg-amber-500' : 'bg-green-500') }}"
+                        <div class="h-3 rounded-full transition-all {{ $labourData['labour_pct'] > 35 ? 'bg-danger-500' : ($labourData['labour_pct'] > 25 ? 'bg-warning-500' : 'bg-success-500') }}"
                              style="width: {{ min($labourData['labour_pct'], 100) }}%"></div>
                     </div>
-                    <div class="flex justify-between mt-1 text-xs text-gray-400">
+                    <div class="flex justify-between mt-1 text-xs text-gray-600">
                         <span>0%</span>
                         <span>Target: 20-23%</span>
                         <span>50%</span>
@@ -1038,17 +1038,17 @@
 
             {{-- Per-Outlet Breakdown --}}
             @foreach ($labourData['outlets'] as $outletId => $o)
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+                <div class="card mb-6 overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-4 bg-gray-50 border-b border-gray-100">
                         <div>
                             <h3 class="text-sm font-semibold text-gray-800">{{ $o['outlet_name'] }}</h3>
-                            <p class="text-xs text-gray-400 mt-0.5">Revenue: {{ number_format($o['revenue'], 2) }}</p>
+                            <p class="text-xs text-gray-600 mt-0.5">Revenue: {{ number_format($o['revenue'], 2) }}</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-lg font-bold {{ $o['labour_pct'] > 35 ? 'text-red-600' : ($o['labour_pct'] > 25 ? 'text-amber-600' : 'text-green-600') }}">
+                            <p class="text-lg font-bold {{ $o['labour_pct'] > 35 ? 'text-danger-600' : ($o['labour_pct'] > 25 ? 'text-warning-600' : 'text-success-600') }}">
                                 {{ $o['labour_pct'] }}%
                             </p>
-                            <p class="text-xs text-gray-400">Labour Cost %</p>
+                            <p class="text-xs text-gray-600">Labour Cost %</p>
                         </div>
                     </div>
 
@@ -1059,45 +1059,45 @@
                             @if ($o['foh'])
                                 @php $fohRev = $o['revenue'] > 0 ? $o['revenue'] : 0; @endphp
                                 <div class="space-y-1.5 text-sm">
-                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['foh']['basic_salary'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['basic_salary'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['foh']['service_point'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['service_point'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['foh']['basic_salary'], 2) }} @if($fohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['foh']['basic_salary'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['foh']['service_point'], 2) }} @if($fohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['foh']['service_point'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @foreach ($o['foh']['allowances'] as $a)
-                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($a['amount'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }} @if($fohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($a['amount'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @endforeach
-                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['foh']['epf'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['epf'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['foh']['eis'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['eis'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['foh']['socso'], 2) }} @if($fohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['foh']['socso'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['foh']['epf'], 2) }} @if($fohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['foh']['epf'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['foh']['eis'], 2) }} @if($fohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['foh']['eis'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['foh']['socso'], 2) }} @if($fohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['foh']['socso'] / $fohRev * 100, 1) }}%)</span>@endif</span></div>
                                     <div class="border-t border-gray-100 pt-1.5 flex justify-between font-semibold">
                                         <span class="text-gray-700">Subtotal</span>
-                                        <span class="text-blue-700">{{ number_format($o['foh']['total'], 2) }} @if($fohRev)<span class="text-xs font-normal text-gray-400 ml-1">({{ number_format($o['foh']['total'] / $fohRev * 100, 1) }}%)</span>@endif</span>
+                                        <span class="text-blue-700">{{ number_format($o['foh']['total'], 2) }} @if($fohRev)<span class="text-xs font-normal text-gray-600 ml-1">({{ number_format($o['foh']['total'] / $fohRev * 100, 1) }}%)</span>@endif</span>
                                     </div>
                                 </div>
                             @else
-                                <p class="text-sm text-gray-400">No data entered</p>
+                                <p class="text-sm text-gray-600">No data entered</p>
                             @endif
                         </div>
 
                         {{-- BOH --}}
                         <div class="p-5">
-                            <h4 class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-3">Back of House (BOH)</h4>
+                            <h4 class="text-xs font-semibold text-warning-600 uppercase tracking-wider mb-3">Back of House (BOH)</h4>
                             @if ($o['boh'])
                                 @php $bohRev = $o['revenue'] > 0 ? $o['revenue'] : 0; @endphp
                                 <div class="space-y-1.5 text-sm">
-                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['boh']['basic_salary'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['basic_salary'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['boh']['service_point'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['service_point'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Basic Salary</span><span class="font-medium">{{ number_format($o['boh']['basic_salary'], 2) }} @if($bohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['boh']['basic_salary'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Service Point</span><span class="font-medium">{{ number_format($o['boh']['service_point'], 2) }} @if($bohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['boh']['service_point'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @foreach ($o['boh']['allowances'] as $a)
-                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($a['amount'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                        <div class="flex justify-between"><span class="text-gray-500">{{ $a['label'] }}</span><span class="font-medium">{{ number_format($a['amount'], 2) }} @if($bohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($a['amount'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
                                     @endforeach
-                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['boh']['epf'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['epf'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['boh']['eis'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['eis'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
-                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['boh']['socso'], 2) }} @if($bohRev)<span class="text-xs text-gray-400 ml-1">({{ number_format($o['boh']['socso'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EPF</span><span class="font-medium">{{ number_format($o['boh']['epf'], 2) }} @if($bohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['boh']['epf'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">EIS</span><span class="font-medium">{{ number_format($o['boh']['eis'], 2) }} @if($bohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['boh']['eis'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">SOCSO</span><span class="font-medium">{{ number_format($o['boh']['socso'], 2) }} @if($bohRev)<span class="text-xs text-gray-600 ml-1">({{ number_format($o['boh']['socso'] / $bohRev * 100, 1) }}%)</span>@endif</span></div>
                                     <div class="border-t border-gray-100 pt-1.5 flex justify-between font-semibold">
                                         <span class="text-gray-700">Subtotal</span>
-                                        <span class="text-amber-700">{{ number_format($o['boh']['total'], 2) }} @if($bohRev)<span class="text-xs font-normal text-gray-400 ml-1">({{ number_format($o['boh']['total'] / $bohRev * 100, 1) }}%)</span>@endif</span>
+                                        <span class="text-warning-700">{{ number_format($o['boh']['total'], 2) }} @if($bohRev)<span class="text-xs font-normal text-gray-600 ml-1">({{ number_format($o['boh']['total'] / $bohRev * 100, 1) }}%)</span>@endif</span>
                                     </div>
                                 </div>
                             @else
-                                <p class="text-sm text-gray-400">No data entered</p>
+                                <p class="text-sm text-gray-600">No data entered</p>
                             @endif
                         </div>
                     </div>
@@ -1110,9 +1110,9 @@
                 </div>
             @endforeach
         @else
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+            <div class="card p-12 text-center text-gray-600">
                 <p class="font-medium">No labour cost data for {{ $periodLabel }}</p>
-                <p class="text-xs mt-1">Enter labour costs in <a href="{{ route('settings.labour-costs') }}" class="text-indigo-500 hover:underline">Settings &gt; Labour Costs</a></p>
+                <p class="text-xs mt-1">Enter labour costs in <a href="{{ route('settings.labour-costs') }}" class="text-brand-500 hover:underline">Settings &gt; Labour Costs</a></p>
             </div>
         @endif
     @endif
@@ -1251,7 +1251,7 @@
             if (el7) {
                 const wColors = ['#f97316','#ef4444','#eab308','#a855f7','#06b6d4','#ec4899','#84cc16','#22a19d'];
                 if (wastageByCat.length === 0) {
-                    el7.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm text-gray-400">No wastage recorded</div>';
+                    el7.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-sm text-gray-600">No wastage recorded</div>';
                 } else {
                     chartInstances.wastage = new Chart(el7.getContext('2d'), {
                         type: 'doughnut',

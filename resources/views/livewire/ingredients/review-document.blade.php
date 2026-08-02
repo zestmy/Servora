@@ -5,28 +5,28 @@
 
     @if (session()->has('success'))
         <div wire:key="flash-ok-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{{ session('error') }}</div>
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">{{ session('error') }}</div>
     @endif
 
     <div class="flex items-center gap-3 mb-4">
-        <a href="{{ route('ingredients.review-documents') }}" class="text-gray-400 hover:text-gray-600 transition">
+        <a href="{{ route('ingredients.review-documents') }}" class="text-gray-600 hover:text-gray-900 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Invoices / Review</p>
+            <p class="text-xs text-gray-600">Inventory &amp; Recipes / Review Invoices / Review</p>
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Invoice</h2>
         </div>
     </div>
 
     @if ($imported)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <div class="card p-8 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-success-100 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-success-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
             </div>
@@ -34,28 +34,28 @@
             <p class="text-sm text-gray-500 mb-4">Supplier: <strong>{{ $supplierName }}</strong> · Effective <strong>{{ $effectiveDate }}</strong></p>
             <div class="flex flex-wrap items-center justify-center gap-6 text-sm mb-6">
                 @if ($linkedCount > 0)
-                    <div><p class="text-2xl font-bold text-green-600">{{ $linkedCount }}</p><p class="text-xs text-gray-500">Links added / updated</p></div>
+                    <div><p class="text-2xl font-bold text-success-600">{{ $linkedCount }}</p><p class="text-xs text-gray-500">Links added / updated</p></div>
                 @endif
                 @if ($createdCount > 0)
-                    <div><p class="text-2xl font-bold text-indigo-600">{{ $createdCount }}</p><p class="text-xs text-gray-500">New products</p></div>
+                    <div><p class="text-2xl font-bold text-brand-600">{{ $createdCount }}</p><p class="text-xs text-gray-500">New products</p></div>
                 @endif
                 @if ($priceChangedCount > 0)
-                    <div><p class="text-2xl font-bold text-amber-600">{{ $priceChangedCount }}</p><p class="text-xs text-gray-500">Price changes logged</p></div>
+                    <div><p class="text-2xl font-bold text-warning-600">{{ $priceChangedCount }}</p><p class="text-xs text-gray-500">Price changes logged</p></div>
                 @endif
                 @if ($skippedCount > 0)
-                    <div><p class="text-2xl font-bold text-gray-400">{{ $skippedCount }}</p><p class="text-xs text-gray-500">Skipped</p></div>
+                    <div><p class="text-2xl font-bold text-gray-600">{{ $skippedCount }}</p><p class="text-xs text-gray-500">Skipped</p></div>
                 @endif
             </div>
             <div class="flex items-center justify-center gap-3">
-                <a href="{{ route('ingredients.review-documents') }}" class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">Back to Review</a>
+                <a href="{{ route('ingredients.review-documents') }}" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">Back to Review</a>
                 <a href="{{ route('ingredients.scan-document') }}" class="px-5 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Scan another</a>
             </div>
         </div>
     @else
         {{-- Supplier + effective date --}}
-        <div class="mb-4 px-4 py-4 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
+        <div class="mb-4 px-4 py-4 card space-y-3">
             @if ($detectedSupplierName)
-                <div class="px-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs rounded-lg">
+                <div class="px-3 py-2 bg-brand-50 border border-brand-200 text-brand-800 text-xs rounded-lg">
                     AI detected supplier: <strong>{{ $detectedSupplierName }}</strong>
                     @if ($supplierId && $supplierName)
                         — matched to your existing supplier <strong>{{ $supplierName }}</strong>.
@@ -70,12 +70,12 @@
                     <x-input-label value="Supplier" />
                     <div class="mt-1 flex items-center gap-2 text-xs">
                         <button type="button" wire:click="$set('supplierMode','existing')"
-                                class="px-2.5 py-1 rounded-md border {{ $supplierMode === 'existing' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50' }}">Use existing</button>
+                                class="px-2.5 py-1 rounded-md border {{ $supplierMode === 'existing' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50' }}">Use existing</button>
                         <button type="button" wire:click="$set('supplierMode','new')"
-                                class="px-2.5 py-1 rounded-md border {{ $supplierMode === 'new' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50' }}">Create new</button>
+                                class="px-2.5 py-1 rounded-md border {{ $supplierMode === 'new' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50' }}">Create new</button>
                     </div>
                     @if ($supplierMode === 'existing')
-                        <select wire:model.live="supplierId" class="mt-2 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select wire:model.live="supplierId" class="mt-2 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— Select Supplier —</option>
                             @foreach ($suppliers as $s)
                                 <option value="{{ $s->id }}">{{ $s->name }}</option>
@@ -84,9 +84,9 @@
                     @else
                         <div class="mt-2 flex items-center gap-2">
                             <input type="text" wire:model="newSupplierName" placeholder="New supplier name"
-                                   class="flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                   class="flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                             <button type="button" wire:click="createSupplier"
-                                    class="px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition whitespace-nowrap">
+                                    class="px-3 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition whitespace-nowrap">
                                 Create &amp; link
                             </button>
                         </div>
@@ -97,7 +97,7 @@
                 <div>
                     <x-input-label for="pw_date" value="Price effective date" />
                     <input id="pw_date" type="date" wire:model="effectiveDate"
-                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                           class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                 </div>
             </div>
         </div>
@@ -106,19 +106,19 @@
         @php
             $priceChangeCount = collect($items)->whereNotNull('price_change')->count();
         @endphp
-        <div class="mb-4 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="mb-4 px-4 py-3 card">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-4 text-sm">
                     <span class="text-gray-500">Items: <strong>{{ $totalItems }}</strong></span>
-                    <span class="text-green-600">Matched: <strong>{{ $matchedCount }}</strong></span>
-                    <span class="text-indigo-600">New: <strong>{{ $newCount }}</strong></span>
+                    <span class="text-success-600">Matched: <strong>{{ $matchedCount }}</strong></span>
+                    <span class="text-brand-600">New: <strong>{{ $newCount }}</strong></span>
                     @if ($priceChangeCount > 0)
-                        <span class="text-amber-600">Price changes: <strong>{{ $priceChangeCount }}</strong></span>
+                        <span class="text-warning-600">Price changes: <strong>{{ $priceChangeCount }}</strong></span>
                     @endif
                 </div>
                 @can('reports.view')
                     <a href="{{ route('reports.price-history') }}" target="_blank"
-                       class="text-xs text-indigo-600 hover:text-indigo-800 underline">
+                       class="text-xs text-brand-600 hover:text-brand-800 underline">
                         Price history report →
                     </a>
                 @endcan
@@ -126,7 +126,7 @@
         </div>
 
         {{-- Items table --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="card overflow-hidden mb-6">
             <table class="min-w-full text-xs">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
                     <tr>
@@ -143,32 +143,32 @@
                     @foreach ($items as $idx => $item)
                         @php
                             $bg = match($item['action']) {
-                                'link'   => 'bg-green-50/50',
-                                'create' => 'bg-indigo-50/50',
+                                'link'   => 'bg-success-50/50',
+                                'create' => 'bg-brand-50/50',
                                 default  => 'bg-gray-50/30',
                             };
                         @endphp
                         <tr class="{{ $bg }}" wire:key="pw-item-{{ $idx }}">
-                            <td class="px-4 py-2.5 text-gray-400">{{ $idx + 1 }}</td>
+                            <td class="px-4 py-2.5 text-gray-600">{{ $idx + 1 }}</td>
                             <td class="px-4 py-2.5">
                                 <div class="font-medium text-gray-800">{{ $item['name'] }}</div>
                                 @if ($item['category'])
-                                    <span class="text-[10px] text-gray-400">{{ $item['category'] }}</span>
+                                    <span class="text-[10px] text-gray-600">{{ $item['category'] }}</span>
                                 @endif
                                 @if ($item['pack_size'] > 0 && $item['recipe_uom_raw'])
-                                    <span class="text-[10px] text-gray-400 ml-1">· {{ rtrim(rtrim(number_format($item['pack_size'], 4, '.', ''), '0'), '.') }} {{ $item['recipe_uom_raw'] }} / {{ $item['uom_raw'] }}</span>
+                                    <span class="text-[10px] text-gray-600 ml-1">· {{ rtrim(rtrim(number_format($item['pack_size'], 4, '.', ''), '0'), '.') }} {{ $item['recipe_uom_raw'] }} / {{ $item['uom_raw'] }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2.5">
                                 @if ($item['ingredient_id'])
                                     <div class="flex items-center gap-1.5">
-                                        <span class="text-green-700 text-xs truncate max-w-[160px]">{{ $item['matched_name'] }}</span>
+                                        <span class="text-success-700 text-xs truncate max-w-[160px]">{{ $item['matched_name'] }}</span>
                                         @if ($item['confidence'] < 100)
-                                            <span class="text-[10px] text-amber-500">{{ $item['confidence'] }}%</span>
+                                            <span class="text-[10px] text-warning-500">{{ $item['confidence'] }}%</span>
                                         @endif
                                     </div>
                                 @else
-                                    <span class="text-red-500 text-[10px] font-semibold">NEW</span>
+                                    <span class="text-danger-500 text-[10px] font-semibold">NEW</span>
                                 @endif
                                 @include('livewire.ingredients.partials.pw-ingredient-picker', [
                                     'idx' => $idx,
@@ -182,28 +182,28 @@
                                 </div>
                                 @if ($item['uom_mismatch'] ?? false)
                                     @php $refAbbr = $uoms->firstWhere('id', $item['ref_uom_id'] ?? 0)?->abbreviation; @endphp
-                                    <div class="mt-0.5 text-[10px] text-amber-600 font-medium leading-tight"
+                                    <div class="mt-0.5 text-[10px] text-warning-600 font-medium leading-tight"
                                          title="The invoice unit doesn't match the unit this product's price is stored in — the prices can't be compared. Fix the unit (or the price) before importing, or the wrong per-unit price gets recorded.">
                                         ⚠ unit: {{ $item['uom_raw'] ?: '?' }} vs {{ $refAbbr ?? 'product unit' }}
                                     </div>
                                 @elseif ($item['old_price'] !== null)
                                     @if ($item['price_change'] !== null)
                                         <div class="mt-0.5 text-[10px] flex items-center justify-end gap-1 leading-tight
-                                                    {{ $item['price_change'] > 0 ? 'text-red-600' : 'text-green-600' }}">
+                                                    {{ $item['price_change'] > 0 ? 'text-danger-600' : 'text-success-600' }}">
                                             <span>{{ $item['price_change'] > 0 ? '▲' : '▼' }}</span>
                                             <span>{{ $item['price_change_pct'] > 0 ? '+' : '' }}{{ $item['price_change_pct'] }}%</span>
                                         </div>
-                                        <div class="text-[10px] text-gray-400 leading-tight">
+                                        <div class="text-[10px] text-gray-600 leading-tight">
                                             was {{ number_format($item['old_price'], 2) }}
                                             @if (($item['old_price_source'] ?? null) === 'ingredient')
-                                                <span class="text-gray-400" title="Compared against the product's saved purchase price — this supplier has no prior price yet.">(product)</span>
+                                                <span class="text-gray-600" title="Compared against the product's saved purchase price — this supplier has no prior price yet.">(product)</span>
                                             @endif
                                         </div>
                                     @else
-                                        <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">no change</div>
+                                        <div class="mt-0.5 text-[10px] text-gray-600 leading-tight">no change</div>
                                     @endif
                                 @elseif ($item['ingredient_id'])
-                                    <div class="mt-0.5 text-[10px] text-gray-400 leading-tight">no prior price</div>
+                                    <div class="mt-0.5 text-[10px] text-gray-600 leading-tight">no prior price</div>
                                 @endif
                             </td>
                             <td class="px-4 py-2.5">
@@ -235,7 +235,7 @@
         <div class="flex items-center justify-between">
             <a href="{{ route('ingredients.review-documents') }}" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">← Back</a>
             <button wire:click="import" wire:loading.attr="disabled"
-                    class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                    class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
                 <span wire:loading.remove wire:target="import">Import {{ $totalItems }} items</span>
                 <span wire:loading wire:target="import">Importing…</span>
             </button>
@@ -328,18 +328,18 @@
                            @keydown.arrow-up.prevent="move(-1)"
                            @keydown.enter.prevent="results.length && pick(results[highlightIdx] || results[0])"
                            placeholder="Search product…"
-                           class="w-full text-xs border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500" />
+                           class="w-full text-xs border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-brand-500 focus:border-brand-500" />
                 </div>
                 <ul x-show="results.length > 0" class="max-h-64 overflow-y-auto py-1">
                     <template x-for="(ing, i) in results" :key="ing.id">
                         <li @click.stop="pick(ing)"
                             @mouseenter="highlightIdx = i"
-                            :class="i === highlightIdx ? 'bg-indigo-100 text-indigo-900' : 'hover:bg-indigo-50'"
+                            :class="i === highlightIdx ? 'bg-brand-100 text-brand-900' : 'hover:bg-brand-50'"
                             class="px-3 py-1.5 text-xs cursor-pointer"
                             x-text="ing.name"></li>
                     </template>
                 </ul>
-                <div x-show="results.length === 0" x-cloak class="px-3 py-3 text-[11px] text-gray-400 italic text-center">
+                <div x-show="results.length === 0" x-cloak class="px-3 py-3 text-[11px] text-gray-600 italic text-center">
                     No product matches — leave as "Create" to add a new one.
                 </div>
             </div>

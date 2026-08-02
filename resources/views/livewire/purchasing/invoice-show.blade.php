@@ -1,26 +1,26 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
         <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
 
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('purchasing.invoices.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('purchasing.invoices.index') }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-gray-600">
                 <a href="{{ route('purchasing.invoices.index') }}" class="hover:underline">Invoices</a>
                 / {{ $invoice->invoice_number }}
             </p>
@@ -33,13 +33,13 @@
             </a>
             @if (in_array($invoice->status, ['issued', 'partial', 'overdue']))
                 <button wire:click="openPaymentModal"
-                        class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        class="px-3 py-1.5 text-sm bg-success-600 text-white rounded-lg hover:bg-success-700 transition">
                     Record Payment
                 </button>
             @endif
             @if ($invoice->status === 'issued')
                 <button wire:click="cancelInvoice" wire:confirm="Cancel this invoice?"
-                        class="px-3 py-1.5 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition">
+                        class="px-3 py-1.5 text-sm bg-danger-50 text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-100 transition">
                     Cancel
                 </button>
             @endif
@@ -47,24 +47,24 @@
     </div>
 
     {{-- Invoice Info Card --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+    <div class="card p-6 mb-4">
         <div class="flex items-start justify-between">
             <div>
-                <h2 class="text-lg font-semibold text-gray-800">{{ $invoice->invoice_number }}</h2>
+                <h2 class="page-title">{{ $invoice->invoice_number }}</h2>
                 @if ($invoice->supplier_invoice_number)
-                    <p class="text-xs text-gray-400 mt-0.5">Supplier Ref: {{ $invoice->supplier_invoice_number }}</p>
+                    <p class="text-xs text-gray-600 mt-0.5">Supplier Ref: {{ $invoice->supplier_invoice_number }}</p>
                 @endif
             </div>
             <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded text-xs {{ $invoice->type === 'supplier' ? 'bg-purple-50 text-purple-600' : 'bg-amber-50 text-amber-600' }}">
+                <span class="px-2 py-0.5 rounded text-xs {{ $invoice->type === 'supplier' ? 'bg-purple-50 text-purple-600' : 'bg-warning-50 text-warning-600' }}">
                     {{ $invoice->type === 'supplier' ? 'Supplier' : 'CPU → Outlet' }}
                 </span>
                 @php
                     $badge = match($invoice->status) {
                         'draft'     => 'bg-gray-100 text-gray-600',
                         'issued'    => 'bg-blue-100 text-blue-700',
-                        'paid'      => 'bg-green-100 text-green-700',
-                        'overdue'   => 'bg-red-100 text-red-600',
+                        'paid'      => 'bg-success-100 text-success-700',
+                        'overdue'   => 'bg-danger-100 text-danger-600',
                         'cancelled' => 'bg-gray-100 text-gray-500',
                         default     => 'bg-gray-100 text-gray-500',
                     };
@@ -77,43 +77,43 @@
 
         <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-                <p class="text-xs text-gray-400">Supplier</p>
+                <p class="text-xs text-gray-600">Supplier</p>
                 <p class="font-medium text-gray-700">{{ $invoice->supplier?->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400">Outlet</p>
+                <p class="text-xs text-gray-600">Outlet</p>
                 <p class="font-medium text-gray-700">{{ $invoice->outlet?->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400">Issued Date</p>
+                <p class="text-xs text-gray-600">Issued Date</p>
                 <p class="font-medium text-gray-700">{{ $invoice->issued_date?->format('d M Y') ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400">Due Date</p>
-                <p class="font-medium {{ $invoice->due_date?->isPast() && !in_array($invoice->status, ['paid', 'cancelled']) ? 'text-red-600' : 'text-gray-700' }}">
+                <p class="text-xs text-gray-600">Due Date</p>
+                <p class="font-medium {{ $invoice->due_date?->isPast() && !in_array($invoice->status, ['paid', 'cancelled']) ? 'text-danger-600' : 'text-gray-700' }}">
                     {{ $invoice->due_date?->format('d M Y') ?? '—' }}
                 </p>
             </div>
             @if ($invoice->purchaseOrder)
                 <div>
-                    <p class="text-xs text-gray-400">Purchase Order</p>
-                    <p class="font-mono text-xs font-medium text-indigo-600">{{ $invoice->purchaseOrder->po_number }}</p>
+                    <p class="text-xs text-gray-600">Purchase Order</p>
+                    <p class="font-mono text-xs font-medium text-brand-600">{{ $invoice->purchaseOrder->po_number }}</p>
                 </div>
             @endif
             @if ($invoice->goodsReceivedNote)
                 <div>
-                    <p class="text-xs text-gray-400">GRN</p>
-                    <p class="font-mono text-xs font-medium text-indigo-600">{{ $invoice->goodsReceivedNote->grn_number }}</p>
+                    <p class="text-xs text-gray-600">GRN</p>
+                    <p class="font-mono text-xs font-medium text-brand-600">{{ $invoice->goodsReceivedNote->grn_number }}</p>
                 </div>
             @endif
             @if ($invoice->stockTransferOrder)
                 <div>
-                    <p class="text-xs text-gray-400">Stock Transfer</p>
-                    <p class="font-mono text-xs font-medium text-indigo-600">{{ $invoice->stockTransferOrder->sto_number }}</p>
+                    <p class="text-xs text-gray-600">Stock Transfer</p>
+                    <p class="font-mono text-xs font-medium text-brand-600">{{ $invoice->stockTransferOrder->sto_number }}</p>
                 </div>
             @endif
             <div>
-                <p class="text-xs text-gray-400">Created By</p>
+                <p class="text-xs text-gray-600">Created By</p>
                 <p class="font-medium text-gray-700">{{ $invoice->createdBy?->name ?? '—' }}</p>
             </div>
         </div>
@@ -121,11 +121,11 @@
 
     {{-- Uploaded File --}}
     @if ($invoice->original_file_path)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-            <p class="text-xs text-gray-400 mb-2">Uploaded Invoice</p>
+        <div class="card p-4 mb-4">
+            <p class="text-xs text-gray-600 mb-2">Uploaded Invoice</p>
             @if (str_contains($invoice->original_file_path, '.pdf'))
                 <a href="{{ asset('storage/' . $invoice->original_file_path) }}" target="_blank"
-                   class="text-sm text-indigo-600 hover:underline inline-flex items-center gap-1">
+                   class="text-sm text-brand-600 hover:underline inline-flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                     View PDF
                 </a>
@@ -137,7 +137,7 @@
     @endif
 
     {{-- Line Items --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+    <div class="card overflow-hidden mb-4">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -153,7 +153,7 @@
             <tbody class="divide-y divide-gray-50">
                 @foreach ($invoice->lines as $i => $line)
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-gray-400">{{ $i + 1 }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
                         <td class="px-4 py-3 font-medium text-gray-700">{{ $line->ingredient?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-500">{{ $line->description ?? '' }}</td>
                         <td class="px-4 py-3 text-center tabular-nums">{{ floatval($line->quantity) }}</td>
@@ -167,7 +167,7 @@
     </div>
 
     {{-- Totals --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <div class="card p-6">
         <div class="max-w-xs ml-auto space-y-2 text-sm">
             <div class="flex justify-between">
                 <span class="text-gray-500">Subtotal</span>
@@ -190,20 +190,20 @@
                 <span class="tabular-nums">{{ number_format($invoice->total_amount, 2) }}</span>
             </div>
             @if (floatval($invoice->credit_applied) > 0)
-                <div class="flex justify-between text-green-600">
+                <div class="flex justify-between text-success-600">
                     <span>Credit Applied</span>
                     <span class="tabular-nums">-{{ number_format($invoice->credit_applied, 2) }}</span>
                 </div>
             @endif
             @php($paidTotal = $invoice->payments->sum('amount'))
             @if ($paidTotal > 0)
-                <div class="flex justify-between text-green-600">
+                <div class="flex justify-between text-success-600">
                     <span>Paid</span>
                     <span class="tabular-nums">-{{ number_format($paidTotal, 2) }}</span>
                 </div>
             @endif
             @if (! in_array($invoice->status, ['draft', 'cancelled']))
-                <div class="flex justify-between font-semibold {{ $invoice->outstanding() > 0 ? 'text-amber-700' : 'text-green-700' }}">
+                <div class="flex justify-between font-semibold {{ $invoice->outstanding() > 0 ? 'text-warning-700' : 'text-success-700' }}">
                     <span>Balance Due</span>
                     <span class="tabular-nums">{{ number_format($invoice->outstanding(), 2) }}</span>
                 </div>
@@ -212,7 +212,7 @@
 
         @if ($invoice->notes)
             <div class="mt-6 pt-4 border-t border-gray-100">
-                <p class="text-xs text-gray-400 mb-1">Notes</p>
+                <p class="text-xs text-gray-600 mb-1">Notes</p>
                 <p class="text-sm text-gray-600">{{ $invoice->notes }}</p>
             </div>
         @endif
@@ -220,18 +220,18 @@
 
     {{-- Payment History --}}
     @if (! in_array($invoice->status, ['draft', 'cancelled']) || $invoice->payments->isNotEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-4">
+        <div class="card overflow-hidden mt-4">
             <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <h3 class="text-sm font-semibold text-gray-700">Payments</h3>
                 @if (in_array($invoice->status, ['issued', 'partial', 'overdue']))
                     <button wire:click="openPaymentModal"
-                            class="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                            class="px-3 py-1.5 text-xs bg-success-600 text-white rounded-lg hover:bg-success-700 transition">
                         Record Payment
                     </button>
                 @endif
             </div>
             @if ($invoice->payments->isEmpty())
-                <p class="px-4 py-6 text-sm text-gray-400 text-center">No payments recorded yet.</p>
+                <p class="px-4 py-6 text-sm text-gray-600 text-center">No payments recorded yet.</p>
             @else
                 <table class="min-w-full divide-y divide-gray-100 text-sm">
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
@@ -254,13 +254,13 @@
                                 <td class="px-4 py-2.5 text-gray-500 text-xs">
                                     {{ $payment->recordedBy?->name ?? '—' }}
                                     @if ($payment->notes)
-                                        <span class="block text-gray-400">{{ $payment->notes }}</span>
+                                        <span class="block text-gray-600">{{ $payment->notes }}</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2.5 text-center">
                                     <button wire:click="deletePayment({{ $payment->id }})"
                                             wire:confirm="Remove this payment? The invoice balance will be restored."
-                                            class="text-xs text-red-500 hover:text-red-700 transition">
+                                            class="text-xs text-danger-500 hover:text-danger-700 transition">
                                         Remove
                                     </button>
                                 </td>
@@ -278,7 +278,7 @@
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showPaymentModal', false)">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                 <h3 class="text-base font-semibold text-gray-800 mb-1">Record Payment</h3>
-                <p class="text-xs text-gray-400 mb-4">
+                <p class="text-xs text-gray-600 mb-4">
                     {{ $invoice->invoice_number }} — outstanding RM {{ number_format($invoice->outstanding(), 2) }}
                 </p>
 
@@ -287,35 +287,35 @@
                         <div>
                             <x-input-label for="pay_date" value="Payment Date *" />
                             <input id="pay_date" type="date" wire:model="pay_date" max="{{ now()->toDateString() }}"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            @error('pay_date') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
+                            @error('pay_date') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <x-input-label for="pay_amount" value="Amount (RM) *" />
                             <input id="pay_amount" type="number" step="0.01" min="0.01" wire:model="pay_amount"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            @error('pay_amount') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
+                            @error('pay_amount') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                     </div>
                     <div>
                         <x-input-label for="pay_method" value="Payment Method *" />
                         <select id="pay_method" wire:model="pay_method"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             @foreach (\App\Models\ProcurementInvoicePayment::METHODS as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
-                        @error('pay_method') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        @error('pay_method') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <x-input-label for="pay_reference" value="Reference" />
                         <input id="pay_reference" type="text" wire:model="pay_reference" placeholder="e.g. bank transaction no., cheque no."
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
                     </div>
                     <div>
                         <x-input-label for="pay_notes" value="Notes" />
                         <textarea id="pay_notes" wire:model="pay_notes" rows="2"
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
                     </div>
                 </div>
 
@@ -325,7 +325,7 @@
                         Cancel
                     </button>
                     <button wire:click="recordPayment"
-                            class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                            class="px-4 py-2 bg-success-600 text-white text-sm font-medium rounded-lg hover:bg-success-700 transition">
                         Save Payment
                     </button>
                 </div>

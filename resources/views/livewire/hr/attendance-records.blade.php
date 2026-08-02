@@ -5,12 +5,12 @@
 
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
@@ -18,10 +18,10 @@
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400">HR / Attendance Record</p>
+            <p class="text-xs text-gray-600">HR / Attendance Record</p>
             <h2 class="text-lg font-semibold text-gray-700 mt-1 flex items-center gap-2">
                 Attendance Record
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-700">
                     {{ number_format($employees->count()) }}
                 </span>
             </h2>
@@ -29,7 +29,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'employment_status' => $employmentStatusFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'), 'service_charge' => $showServiceCharge ? 1 : 0])"
                     title="Export PDF"
-                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition flex items-center gap-1.5">
+                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
@@ -55,19 +55,19 @@
             @endif
             <button wire:click="fillPresent"
                     wire:confirm="Mark every empty day in the visible grid as Present?"
-                    class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 Fill Empty with ✓
             </button>
         </div>
     </div>
 
     {{-- Filter / period bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col lg:flex-row lg:items-center flex-wrap gap-3">
             <div class="flex-1 min-w-[170px]">
                 <input type="text" wire:model.live.debounce.300ms="search"
                        placeholder="Search name, staff ID, position…"
-                       class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
             <select wire:model.live="outletFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 @if ($canViewAll)
@@ -96,11 +96,11 @@
             <div class="flex items-center gap-2 lg:ml-auto">
                 <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
                     <button wire:click="$set('periodMode', 'month')"
-                            class="px-3 py-2 {{ $periodMode === 'month' ? 'bg-indigo-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                            class="px-3 py-2 {{ $periodMode === 'month' ? 'bg-brand-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
                         Month
                     </button>
                     <button wire:click="$set('periodMode', 'range')"
-                            class="px-3 py-2 border-l border-gray-300 {{ $periodMode === 'range' ? 'bg-indigo-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                            class="px-3 py-2 border-l border-gray-300 {{ $periodMode === 'range' ? 'bg-brand-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
                         Custom
                     </button>
                 </div>
@@ -113,7 +113,7 @@
                            class="text-sm rounded-lg border-gray-300 shadow-sm" />
                 @else
                     <input type="date" wire:model.live="rangeFrom" class="text-sm rounded-lg border-gray-300 shadow-sm" />
-                    <span class="text-gray-400 text-sm">–</span>
+                    <span class="text-gray-600 text-sm">–</span>
                     <input type="date" wire:model.live="rangeTo" class="text-sm rounded-lg border-gray-300 shadow-sm" />
                 @endif
                 <button wire:click="nextPeriod" title="Next period"
@@ -125,31 +125,31 @@
     </div>
 
     {{-- Paint palette: pick a code, then click day cells to apply it --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4">
+    <div class="card p-3 mb-4">
         <div class="flex flex-wrap items-center gap-1.5">
-            <span class="text-xs text-gray-400 uppercase tracking-wider mr-1.5">Mark as</span>
+            <span class="text-xs text-gray-600 uppercase tracking-wider mr-1.5">Mark as</span>
             @foreach ($activeCodes as $code)
                 @php $meta = $code->colorMeta(); @endphp
                 <button wire:key="palette-{{ $code->id }}"
                         wire:click="selectCode({{ $code->id }})"
                         title="{{ $code->label }}"
-                        class="px-2.5 py-1 rounded-md text-xs font-bold transition {{ $meta['tw'] }} {{ $selectedCodeId === $code->id ? 'ring-2 ring-indigo-500 ring-offset-1' : 'opacity-80 hover:opacity-100' }}">
+                        class="px-2.5 py-1 rounded-md text-xs font-bold transition {{ $meta['tw'] }} {{ $selectedCodeId === $code->id ? 'ring-2 ring-brand-500 ring-offset-1' : 'opacity-80 hover:opacity-100' }}">
                     {{ $code->code }}
                 </button>
             @endforeach
             <button wire:click="selectCode(null)"
                     title="Eraser — click a cell to clear it"
-                    class="px-2.5 py-1 rounded-md text-xs font-bold border border-dashed transition {{ $selectedCodeId === null ? 'ring-2 ring-indigo-500 ring-offset-1 border-gray-400 text-gray-600' : 'border-gray-300 text-gray-400 hover:text-gray-600' }}">
+                    class="px-2.5 py-1 rounded-md text-xs font-bold border border-dashed transition {{ $selectedCodeId === null ? 'ring-2 ring-brand-500 ring-offset-1 border-gray-400 text-gray-600' : 'border-gray-300 text-gray-600 hover:text-gray-900' }}">
                 ⌫ Clear
             </button>
-            <span class="text-xs text-gray-400 ml-auto hidden md:inline">
+            <span class="text-xs text-gray-600 ml-auto hidden md:inline">
                 {{ $from->format('d M Y') }} – {{ $to->format('d M Y') }} · click a cell to mark it
             </span>
         </div>
     </div>
 
     {{-- Grid --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4"
+    <div class="card overflow-hidden mb-4"
          wire:loading.class="opacity-60" wire:target="setCell, fillPresent, clearRange">
         <div class="overflow-x-auto">
             <table class="text-sm border-collapse w-full">
@@ -167,20 +167,20 @@
                         @endif
                         @foreach ($dates as $d)
                             <th wire:key="dh-{{ $d->format('Ymd') }}"
-                                class="px-0 py-1.5 text-center w-9 min-w-[34px] border-b border-l border-gray-200 {{ $d->isSunday() ? 'bg-red-50 text-red-500' : ($d->isSaturday() ? 'bg-amber-50/60 text-amber-600' : '') }} {{ $d->isToday() ? '!bg-indigo-50 !text-indigo-600' : '' }}">
+                                class="px-0 py-1.5 text-center w-9 min-w-[34px] border-b border-l border-gray-200 {{ $d->isSunday() ? 'bg-danger-50 text-danger-500' : ($d->isSaturday() ? 'bg-warning-50/60 text-warning-600' : '') }} {{ $d->isToday() ? '!bg-brand-50 !text-brand-600' : '' }}">
                                 <div class="text-[11px] font-bold leading-tight">{{ $d->day }}</div>
                                 <div class="text-[9px] font-normal leading-tight">{{ $d->format('D') }}</div>
                             </th>
                         @endforeach
                         <th class="px-2 py-2 text-center min-w-[44px] border-b border-l-2 border-gray-200" title="Days marked Present">✓</th>
-                        <th class="px-2 py-2 text-center min-w-[44px] border-b border-gray-200 text-red-500" title="Days marked Absent">ABS</th>
+                        <th class="px-2 py-2 text-center min-w-[44px] border-b border-gray-200 text-danger-500" title="Days marked Absent">ABS</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100"
                        x-data x-init="new Sortable($el, {
                            handle: '.row-drag-handle',
                            animation: 150,
-                           ghostClass: 'bg-indigo-50',
+                           ghostClass: 'bg-brand-50',
                            onEnd(e) {
                                const ids = Array.from(e.from.querySelectorAll('tr[data-employee-id]'))
                                    .map(row => parseInt(row.dataset.employeeId));
@@ -189,8 +189,8 @@
                        })">
                     @forelse ($employees as $emp)
                         <tr wire:key="row-{{ $emp->id }}" data-employee-id="{{ $emp->id }}" class="hover:bg-gray-50/70">
-                            <td class="px-2 py-1.5 text-gray-400 text-xs whitespace-nowrap">
-                                <span class="row-drag-handle inline-flex align-middle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                            <td class="px-2 py-1.5 text-gray-600 text-xs whitespace-nowrap">
+                                <span class="row-drag-handle inline-flex align-middle cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-900"
                                       title="Drag to reorder">
                                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16"/></svg>
                                 </span>
@@ -217,17 +217,17 @@
                                     <button wire:click="setCell({{ $emp->id }}, '{{ $d->format('Y-m-d') }}')"
                                             title="{{ $emp->name }} · {{ $d->format('D, d M Y') }}{{ $code ? ' · ' . $code->label : '' }}"
                                             class="w-full h-8 text-[11px] font-bold transition
-                                                   {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-red-50/40 hover:bg-indigo-50' : 'hover:bg-indigo-50') }}">
+                                                   {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-danger-50/40 hover:bg-brand-50' : 'hover:bg-brand-50') }}">
                                         {{ $code?->code }}
                                     </button>
                                 </td>
                             @endforeach
-                            <td class="px-2 py-1.5 text-center text-xs font-semibold text-green-700 border-l-2 border-gray-200">{{ $presentCounts[$emp->id] ?? 0 }}</td>
-                            <td class="px-2 py-1.5 text-center text-xs font-semibold {{ ($absentCounts[$emp->id] ?? 0) > 0 ? 'text-red-600' : 'text-gray-300' }}">{{ $absentCounts[$emp->id] ?? 0 }}</td>
+                            <td class="px-2 py-1.5 text-center text-xs font-semibold text-success-700 border-l-2 border-gray-200">{{ $presentCounts[$emp->id] ?? 0 }}</td>
+                            <td class="px-2 py-1.5 text-center text-xs font-semibold {{ ($absentCounts[$emp->id] ?? 0) > 0 ? 'text-danger-600' : 'text-gray-500' }}">{{ $absentCounts[$emp->id] ?? 0 }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ ($canViewPay ? 10 : 9) + count($dates) }}" class="px-4 py-10 text-center text-gray-400 text-sm">
+                            <td colspan="{{ ($canViewPay ? 10 : 9) + count($dates) }}" class="px-4 py-10 text-center text-gray-600 text-sm">
                                 No active employees match the selected filters.
                             </td>
                         </tr>
@@ -257,19 +257,19 @@
                     <label class="block text-xs text-gray-500 mb-1">Service Charge Pool (RM)</label>
                     <input type="number" step="0.01" min="0" wire:model="scAmount" placeholder="e.g. 12000.00"
                            class="w-40 text-sm rounded-lg border-gray-300 shadow-sm" />
-                    @error('scAmount') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    @error('scAmount') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">MC deduction % / day</label>
                     <input type="number" step="0.01" min="0" max="100" wire:model="scMcPercent"
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
-                    @error('scMcPercent') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    @error('scMcPercent') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Absent deduction % / day</label>
                     <input type="number" step="0.01" min="0" max="100" wire:model="scAbsPercent"
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
-                    @error('scAbsPercent') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                    @error('scAbsPercent') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <button wire:click="saveServiceCharge"
                         class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
@@ -310,13 +310,13 @@
                                 <tr wire:key="sc-{{ $scRow['employee']->id }}" class="hover:bg-gray-50/70 {{ $scRow['points'] <= 0 ? 'opacity-50' : '' }}">
                                     <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">{{ $scRow['employee']->name }}</td>
                                     <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
-                                    <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-amber-600 font-semibold' : 'text-gray-300' }}">{{ $scRow['mcDays'] }}</td>
-                                    <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-300' }}">{{ $scRow['absDays'] }}</td>
-                                    <td class="px-2 py-1.5 text-right {{ $scRow['dedPct'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
+                                    <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-warning-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['mcDays'] }}</td>
+                                    <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['absDays'] }}</td>
+                                    <td class="px-2 py-1.5 text-right {{ $scRow['dedPct'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-600' }}">
                                         {{ $scRow['dedPct'] > 0 ? rtrim(rtrim(number_format($scRow['dedPct'], 2, '.', ''), '0'), '.') . '%' : '—' }}
                                     </td>
                                     <td class="px-2 py-1.5 text-right text-gray-600 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['gross'], 2) : '—' }}</td>
-                                    <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['dedAmt'] > 0 ? 'text-red-600' : 'text-gray-300' }}">
+                                    <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['dedAmt'] > 0 ? 'text-danger-600' : 'text-gray-500' }}">
                                         {{ $scRow['dedAmt'] > 0 ? '-' . number_format($scRow['dedAmt'], 2) : '—' }}
                                     </td>
                                     <td class="px-2 py-1.5 text-right font-semibold text-teal-700 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
@@ -327,13 +327,13 @@
                             <tr>
                                 <td class="px-3 py-2 text-gray-700" colspan="5">Total</td>
                                 <td class="px-2 py-2 text-right text-gray-700 tabular-nums">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
-                                <td class="px-2 py-2 text-right text-red-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
+                                <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
                                 <td class="px-2 py-2 text-right text-teal-700 tabular-nums">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
-                <p class="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-100">
+                <p class="px-4 py-2 text-[11px] text-gray-600 border-t border-gray-100">
                     Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet, rounded down to the nearest RM — section, employment and search filters narrow this table but never change the RM/point value).
                     Deduction = MC days × {{ rtrim(rtrim(number_format($serviceCharge['mcPct'], 2, '.', ''), '0'), '.') }}%
                     + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
@@ -342,7 +342,7 @@
                     While this panel is open, the PDF export includes this table.
                 </p>
             @else
-                <p class="px-4 py-4 text-sm text-gray-400">
+                <p class="px-4 py-4 text-sm text-gray-600">
                     Enter the total service charge collected for this period and click <span class="font-medium text-gray-500">Save &amp; Calculate</span>.
                 </p>
             @endif
@@ -350,12 +350,12 @@
     @endif
 
     {{-- Legend --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+    <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Legend</h3>
             <button wire:click="clearRange"
                     wire:confirm="Remove EVERY attendance mark in the visible grid ({{ $from->format('d M Y') }} – {{ $to->format('d M Y') }})? This cannot be undone."
-                    class="text-xs text-red-500 hover:text-red-700 underline">
+                    class="text-xs text-danger-500 hover:text-danger-700 underline">
                 Clear all marks in this period
             </button>
         </div>
@@ -381,7 +381,7 @@
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl" @click.stop>
                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                     <h3 class="text-sm font-semibold text-gray-800">Attendance Codes</h3>
-                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                    <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -397,13 +397,13 @@
                                 <label class="block text-xs text-gray-500 mb-1">Code</label>
                                 <input type="text" wire:model="c_code" maxlength="10" placeholder="e.g. OT"
                                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm" />
-                                @error('c_code') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                @error('c_code') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div class="col-span-2 sm:col-span-1">
                                 <label class="block text-xs text-gray-500 mb-1">Label</label>
                                 <input type="text" wire:model="c_label" maxlength="100" placeholder="e.g. Overtime"
                                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm" />
-                                @error('c_label') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                                @error('c_label') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Color</label>
@@ -421,7 +421,7 @@
                         </div>
                         <div class="flex items-center justify-between mt-3">
                             <label class="flex items-center gap-2 text-sm text-gray-600">
-                                <input type="checkbox" wire:model="c_is_active" class="rounded border-gray-300 text-indigo-600" />
+                                <input type="checkbox" wire:model="c_is_active" class="rounded border-gray-300 text-brand-600" />
                                 Active
                             </label>
                             <div class="flex gap-2">
@@ -430,7 +430,7 @@
                                             class="px-3 py-1.5 text-xs text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
                                 @endif
                                 <button wire:click="saveCode"
-                                        class="px-4 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700">
+                                        class="px-4 py-1.5 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700">
                                     {{ $editingCodeId ? 'Update' : 'Add Code' }}
                                 </button>
                             </div>
@@ -447,24 +447,24 @@
                                 <span class="flex-1 text-sm text-gray-700 truncate">
                                     {{ $code->label }}
                                     @if ($code->system_key)
-                                        <span class="ml-1 text-[10px] uppercase tracking-wider text-gray-400">built-in</span>
+                                        <span class="ml-1 text-[10px] uppercase tracking-wider text-gray-600">built-in</span>
                                     @endif
                                 </span>
                                 <button wire:click="openCodeEdit({{ $code->id }})"
-                                        class="text-xs text-indigo-600 hover:text-indigo-800">Edit</button>
+                                        class="text-xs text-brand-600 hover:text-brand-800">Edit</button>
                                 @unless ($code->system_key)
                                     <button wire:click="toggleCodeActive({{ $code->id }})"
-                                            class="text-xs {{ $code->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-green-600 hover:text-green-800' }}">
+                                            class="text-xs {{ $code->is_active ? 'text-warning-600 hover:text-warning-800' : 'text-success-600 hover:text-success-800' }}">
                                         {{ $code->is_active ? 'Deactivate' : 'Activate' }}
                                     </button>
                                     <button wire:click="deleteCode({{ $code->id }})"
                                             wire:confirm="Delete code {{ $code->code }} ({{ $code->label }})?"
-                                            class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                                            class="text-xs text-danger-500 hover:text-danger-700">Delete</button>
                                 @endunless
                             </div>
                         @endforeach
                     </div>
-                    <p class="text-[11px] text-gray-400 mt-2">
+                    <p class="text-[11px] text-gray-600 mt-2">
                         Built-in codes (Present ✓, Day Off X, Absent ABS) can be relabelled and recoloured but not deleted.
                         Codes already used in records can only be deactivated.
                     </p>

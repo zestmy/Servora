@@ -1,20 +1,20 @@
 <div>
     <h1 class="text-lg font-bold text-gray-800 mb-1">Company Health</h1>
-    <p class="text-xs text-gray-400 mb-6">Monitor company engagement and identify at-risk accounts.</p>
+    <p class="text-xs text-gray-600 mb-6">Monitor company engagement and identify at-risk accounts.</p>
 
     {{-- Stats --}}
     <div class="grid grid-cols-3 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">Active / Healthy</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ $totalActive }}</p>
+            <p class="text-2xl font-bold text-success-600 mt-1">{{ $totalActive }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">At Risk (7-14d inactive)</p>
-            <p class="text-2xl font-bold text-amber-600 mt-1">{{ $totalAtRisk }}</p>
+            <p class="text-2xl font-bold text-warning-600 mt-1">{{ $totalAtRisk }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">Inactive (14d+)</p>
-            <p class="text-2xl font-bold text-red-600 mt-1">{{ $totalInactive }}</p>
+            <p class="text-2xl font-bold text-danger-600 mt-1">{{ $totalInactive }}</p>
         </div>
     </div>
 
@@ -22,10 +22,10 @@
     <div class="flex items-center gap-3 mb-4">
         <div class="flex-1">
             <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search company…"
-                   class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                   class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
         </div>
         <select wire:model.live="healthFilter"
-                class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                class="rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">All Status</option>
             <option value="active">Active (today)</option>
             <option value="healthy">Healthy (1-7d)</option>
@@ -35,7 +35,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -54,7 +54,7 @@
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
                             <p class="font-medium text-gray-800">{{ $company->name }}</p>
-                            <p class="text-xs text-gray-400">{{ $company->slug }}</p>
+                            <p class="text-xs text-gray-600">{{ $company->slug }}</p>
                         </td>
                         <td class="px-4 py-3 text-center text-gray-600">{{ $company->outlets_count }}</td>
                         <td class="px-4 py-3 text-center text-gray-600">{{ $company->users_count }}</td>
@@ -75,7 +75,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="px-4 py-12 text-center text-gray-400">No companies found.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-12 text-center text-gray-600">No companies found.</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -1,18 +1,18 @@
 <div>
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('admin.plans.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+        <a href="{{ route('admin.plans.index') }}" class="text-gray-600 hover:text-gray-900 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div>
-            <p class="text-xs text-gray-400"><a href="{{ route('admin.plans.index') }}" class="hover:underline">Plans</a> / {{ $planId ? 'Edit' : 'Create' }}</p>
+            <p class="text-xs text-gray-600"><a href="{{ route('admin.plans.index') }}" class="hover:underline">Plans</a> / {{ $planId ? 'Edit' : 'Create' }}</p>
         </div>
     </div>
 
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
@@ -20,7 +20,7 @@
     <form wire:submit="save" class="max-w-2xl space-y-6">
 
         {{-- Basic Info --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="card p-6">
             <h3 class="text-sm font-semibold text-gray-800 mb-4">Plan Details</h3>
 
             <div class="space-y-4">
@@ -40,7 +40,7 @@
                 <div>
                     <x-input-label for="plan_desc" value="Description" />
                     <textarea id="plan_desc" wire:model="description" rows="2"
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                               placeholder="Brief description shown on the pricing page…"></textarea>
                     <x-input-error :messages="$errors->get('description')" class="mt-1" />
                 </div>
@@ -57,12 +57,12 @@
                     <div class="flex items-end pb-1 gap-5">
                         <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="is_active"
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                             <span class="text-sm text-gray-700 font-medium">Active</span>
                         </label>
                         <label class="inline-flex items-center gap-2 cursor-pointer" title="Shown on the public pricing page and plan pickers. Hidden plans stay assignable by admins and reachable via direct checkout links (private offers).">
                             <input type="checkbox" wire:model="is_public"
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                             <span class="text-sm text-gray-700 font-medium">Show on public pricing</span>
                         </label>
                     </div>
@@ -71,14 +71,14 @@
         </div>
 
         {{-- Pricing --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="card p-6">
             <h3 class="text-sm font-semibold text-gray-800 mb-4">Pricing</h3>
 
             <div class="grid grid-cols-3 gap-4">
                 <div>
                     <x-input-label for="plan_currency" value="Currency" />
                     <select id="plan_currency" wire:model="currency"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="MYR">MYR</option>
                         <option value="USD">USD</option>
                         <option value="SGD">SGD</option>
@@ -98,9 +98,9 @@
         </div>
 
         {{-- Usage Limits --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="card p-6">
             <h3 class="text-sm font-semibold text-gray-800 mb-1">Usage Limits</h3>
-            <p class="text-xs text-gray-400 mb-4">Leave blank for unlimited.</p>
+            <p class="text-xs text-gray-600 mb-4">Leave blank for unlimited.</p>
 
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
@@ -127,41 +127,41 @@
         </div>
 
         {{-- Feature Flags --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="card p-6">
             <h3 class="text-sm font-semibold text-gray-800 mb-1">Feature Access</h3>
-            <p class="text-xs text-gray-400 mb-4">Toggle which modules are available on this plan.</p>
+            <p class="text-xs text-gray-600 mb-4">Toggle which modules are available on this plan.</p>
 
             <div class="grid grid-cols-2 gap-3">
                 <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50 transition">
                     <input type="checkbox" wire:model="flag_lms"
-                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                           class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                     <div>
                         <p class="text-sm font-medium text-gray-700">LMS / Training</p>
-                        <p class="text-xs text-gray-400">Staff training portal & SOPs</p>
+                        <p class="text-xs text-gray-600">Staff training portal & SOPs</p>
                     </div>
                 </label>
                 <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50 transition">
                     <input type="checkbox" wire:model="flag_reports"
-                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                           class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                     <div>
                         <p class="text-sm font-medium text-gray-700">Reports</p>
-                        <p class="text-xs text-gray-400">Cost summary & P&L reports</p>
+                        <p class="text-xs text-gray-600">Cost summary & P&L reports</p>
                     </div>
                 </label>
                 <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50 transition">
                     <input type="checkbox" wire:model="flag_analytics"
-                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                           class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                     <div>
                         <p class="text-sm font-medium text-gray-700">Analytics</p>
-                        <p class="text-xs text-gray-400">Advanced analytics dashboard</p>
+                        <p class="text-xs text-gray-600">Advanced analytics dashboard</p>
                     </div>
                 </label>
                 <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50 transition">
                     <input type="checkbox" wire:model="flag_ai_analysis"
-                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                           class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                     <div>
                         <p class="text-sm font-medium text-gray-700">AI Analysis</p>
-                        <p class="text-xs text-gray-400">AI-powered insights & suggestions</p>
+                        <p class="text-xs text-gray-600">AI-powered insights & suggestions</p>
                     </div>
                 </label>
             </div>
@@ -172,7 +172,7 @@
             <a href="{{ route('admin.plans.index') }}"
                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</a>
             <button type="submit"
-                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 {{ $planId ? 'Update Plan' : 'Create Plan' }}
             </button>
         </div>

@@ -1,7 +1,7 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
@@ -9,20 +9,20 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
-            <a href="{{ route('purchasing.index', ['tab' => 'sto']) }}" class="text-gray-400 hover:text-gray-600 transition">
+            <a href="{{ route('purchasing.index', ['tab' => 'sto']) }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <h2 class="text-lg font-semibold text-gray-700">New Stock Transfer Order</h2>
+            <h2 class="page-title">New Stock Transfer Order</h2>
         </div>
         <div class="flex gap-2">
             <button wire:click="save('draft')" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition">Save Draft</button>
-            <button wire:click="save('send')" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">Save & Send</button>
+            <button wire:click="save('send')" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">Save & Send</button>
         </div>
     </div>
 
     @if ($errors->any())
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
-            <ul class="list-disc list-inside text-sm text-red-600 space-y-1">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 rounded-lg">
+            <ul class="list-disc list-inside text-sm text-danger-600 space-y-1">
                 @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
             </ul>
         </div>
@@ -31,7 +31,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             {{-- Transfer Details --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="card p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Transfer Details</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -61,10 +61,10 @@
                 {{-- Chargeable toggle --}}
                 <div class="mt-4 p-3 bg-gray-50 rounded-lg">
                     <label class="flex items-center gap-2">
-                        <input type="checkbox" wire:model.live="is_chargeable" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <input type="checkbox" wire:model.live="is_chargeable" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                         <span class="text-sm font-medium text-gray-700">Chargeable transfer</span>
                     </label>
-                    <p class="text-xs text-gray-400 mt-1">If enabled, an invoice will be auto-generated for the outlet.</p>
+                    <p class="text-xs text-gray-600 mt-1">If enabled, an invoice will be auto-generated for the outlet.</p>
 
                     @if ($is_chargeable)
                         <div class="grid grid-cols-2 gap-4 mt-3">
@@ -92,7 +92,7 @@
             </div>
 
             {{-- Add Ingredients --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="card p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">Items</h3>
                 <div class="relative mb-4">
                     <input type="text" wire:model.live.debounce.300ms="ingredientSearch" placeholder="Search ingredients..."
@@ -101,9 +101,9 @@
                         <div class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                             @foreach ($searchResults as $item)
                                 <button wire:click="addIngredient({{ $item->id }})" type="button"
-                                        class="w-full text-left px-4 py-2.5 hover:bg-indigo-50 text-sm flex justify-between border-b border-gray-50 last:border-0">
+                                        class="w-full text-left px-4 py-2.5 hover:bg-brand-50 text-sm flex justify-between border-b border-gray-50 last:border-0">
                                     <span class="font-medium text-gray-700">{{ $item->name }}</span>
-                                    <span class="text-xs text-gray-400">{{ $item->baseUom?->abbreviation }}</span>
+                                    <span class="text-xs text-gray-600">{{ $item->baseUom?->abbreviation }}</span>
                                 </button>
                             @endforeach
                         </div>
@@ -128,7 +128,7 @@
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($lines as $i => $line)
                                 <tr wire:key="line-{{ $i }}">
-                                    <td class="px-4 py-3 text-gray-400">{{ $i + 1 }}</td>
+                                    <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
                                     <td class="px-4 py-3 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
                                     <td class="px-4 py-3">
                                         <input type="number" step="0.01" min="0" wire:model.live.debounce.500ms="lines.{{ $i }}.quantity"
@@ -151,13 +151,13 @@
                                         </td>
                                     @endif
                                     <td class="px-4 py-3 text-center">
-                                        <button wire:click="removeLine({{ $i }})" class="text-red-400 hover:text-red-600 transition">
+                                        <button wire:click="removeLine({{ $i }})" class="text-danger-400 hover:text-danger-600 transition">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         </button>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No items added.</td></tr>
+                                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-600">No items added.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -167,7 +167,7 @@
 
         {{-- Summary --}}
         <div>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-6">
+            <div class="card p-6 sticky top-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Summary</h3>
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
@@ -176,7 +176,7 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-500">Type</span>
-                        <span class="font-medium {{ $is_chargeable ? 'text-amber-600' : 'text-green-600' }}">
+                        <span class="font-medium {{ $is_chargeable ? 'text-warning-600' : 'text-success-600' }}">
                             {{ $is_chargeable ? 'Chargeable' : 'Free Transfer' }}
                         </span>
                     </div>

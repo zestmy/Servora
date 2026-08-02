@@ -33,7 +33,7 @@
                         @endphp
                         @foreach ($navItems as $item)
                             <a href="{{ route($item['route']) }}"
-                               class="text-sm font-medium transition {{ request()->routeIs($item['route']) ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-800' }}">
+                               class="text-sm font-medium transition {{ request()->routeIs($item['route']) ? 'text-brand-600' : 'text-gray-500 hover:text-gray-800' }}">
                                 {{ $item['label'] }}
                             </a>
                         @endforeach
@@ -43,7 +43,7 @@
                     <span class="text-sm text-gray-500">{{ $supplierUser->supplier?->name }}</span>
                     <form method="POST" action="{{ route('supplier.logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="text-sm text-gray-400 hover:text-gray-600 transition">Logout</button>
+                        <button type="submit" class="text-sm text-gray-600 hover:text-gray-900 transition">Logout</button>
                     </form>
                 </div>
             </div>

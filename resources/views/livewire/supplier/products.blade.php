@@ -1,24 +1,24 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">{{ session('success') }}</div>
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">{{ session('success') }}</div>
     @endif
 
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Product Catalog</h2>
+        <h2 class="page-title">Product Catalog</h2>
         <div class="flex gap-2">
-            <button wire:click="openCreate" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">+ Add Product</button>
+            <button wire:click="openCreate" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">+ Add Product</button>
         </div>
     </div>
 
     {{-- CSV Import --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex items-center gap-3">
             <input type="file" wire:model="csvFile" accept=".csv,.txt" class="text-sm" />
             @if ($csvFile)
-                <button wire:click="importCsv" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition">Import CSV</button>
+                <button wire:click="importCsv" class="px-3 py-1.5 bg-success-600 text-white text-sm rounded-lg hover:bg-success-700 transition">Import CSV</button>
             @endif
-            <span class="text-xs text-gray-400">Format: SKU, Name, Unit Price, Category, Pack Size</span>
+            <span class="text-xs text-gray-600">Format: SKU, Name, Unit Price, Category, Pack Size</span>
         </div>
     </div>
 
@@ -29,7 +29,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
@@ -50,23 +50,23 @@
                         <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">
                             {{ number_format($p->unit_price, 2) }}
                             @if ($p->price_change_percent)
-                                <span class="ml-1 text-xs {{ $p->price_change_percent > 0 ? 'text-red-500' : 'text-green-500' }}">
+                                <span class="ml-1 text-xs {{ $p->price_change_percent > 0 ? 'text-danger-500' : 'text-success-500' }}">
                                     {{ $p->price_change_percent > 0 ? '+' : '' }}{{ $p->price_change_percent }}%
                                 </span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <span class="px-2 py-0.5 rounded text-xs {{ $p->is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600' }}">
+                            <span class="px-2 py-0.5 rounded text-xs {{ $p->is_active ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600' }}">
                                 {{ $p->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <button wire:click="openEdit({{ $p->id }})" class="text-sm text-indigo-600 hover:text-indigo-800">Edit</button>
-                            <button wire:click="delete({{ $p->id }})" wire:confirm="Delete?" class="text-sm text-red-500 hover:text-red-700 ml-2">Delete</button>
+                            <button wire:click="openEdit({{ $p->id }})" class="text-sm text-brand-600 hover:text-brand-800">Edit</button>
+                            <button wire:click="delete({{ $p->id }})" wire:confirm="Delete?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">No products yet. Add your first product or import via CSV.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-600">No products yet. Add your first product or import via CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -131,13 +131,13 @@
                             </div>
                         </div>
                         <label class="flex items-center gap-2">
-                            <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-indigo-600" />
+                            <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-brand-600" />
                             <span class="text-sm text-gray-600">Active</span>
                         </label>
                     </div>
                     <div class="flex justify-end gap-3 mt-6">
                         <button wire:click="$set('showForm', false)" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                        <button wire:click="save" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">{{ $editId ? 'Update' : 'Create' }}</button>
+                        <button wire:click="save" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">{{ $editId ? 'Update' : 'Create' }}</button>
                     </div>
                 </div>
             </div>

@@ -2,8 +2,8 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Sales Menu & Ingredients</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Sales by menu item with ingredient cost breakdown</p>
+            <h2 class="page-title">Sales Menu & Ingredients</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Sales by menu item with ingredient cost breakdown</p>
         </div>
         <a href="{{ route('reports.hub') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
@@ -12,7 +12,7 @@
     @include('livewire.reports.partials.report-filters', ['showOutlet' => true, 'showSupplier' => false, 'exportAction' => 'exportCsv'])
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -35,19 +35,19 @@
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $item->category_name ?: '-' }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($item->units_sold, 0) }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($item->revenue, 2) }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums text-red-600">{{ number_format($item->ingredient_cost, 2) }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums font-medium {{ floatval($item->gross_profit) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                        <td class="px-4 py-3 text-right tabular-nums text-danger-600">{{ number_format($item->ingredient_cost, 2) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums font-medium {{ floatval($item->gross_profit) >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                             {{ number_format($item->gross_profit, 2) }}
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
-                            <span class="{{ $costPct > 35 ? 'text-red-600 font-medium' : ($costPct > 25 ? 'text-yellow-600' : 'text-green-600') }}">
+                            <span class="{{ $costPct > 35 ? 'text-danger-600 font-medium' : ($costPct > 25 ? 'text-yellow-600' : 'text-success-600') }}">
                                 {{ number_format($costPct, 1) }}%
                             </span>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="7" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No sales data</p>
                             <p class="text-xs mt-1">Record sales to see menu ingredient cost analysis.</p>
                         </td>

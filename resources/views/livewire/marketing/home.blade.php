@@ -2,11 +2,13 @@
     Servora marketing home.
 
     ── IMAGES ───────────────────────────────────────────────────────────────
-    Photography below points at picsum.photos with descriptive seeds. That is
-    a PLACEHOLDER service: the images are random and not licensed for
-    commercial use. Replace every `https://picsum.photos/seed/...` with real
-    photography (or real product screenshots) before this is treated as
-    finished. Each one is marked REPLACE.
+    All photography is now real and self-hosted from public/images/marketing,
+    served as WebP with a JPEG fallback. The picsum.photos placeholders are
+    gone — nothing here depends on a third-party image host any more.
+
+    A module card takes a photo by setting `'tone' => 'photo'` and
+    `'photo' => 'images/marketing/<name>'`, with `<name>.webp` and
+    `<name>.jpg` sitting in that directory. Card art is 1200x560 (15:7).
 
     ── CLAIMS ───────────────────────────────────────────────────────────────
     The three testimonials are carried over verbatim from the previous
@@ -57,13 +59,18 @@
                     </div>
                 </div>
 
-                {{-- REPLACE: real kitchen / pass photography, or a product screenshot. --}}
+                {{-- Real photography. Cropped 4:5 from a 3:2 original, framed right
+                     so the chef and the tablet carry the frame. WebP first, JPEG
+                     fallback; this is the LCP element, hence fetchpriority. --}}
                 <div class="lg:col-span-5">
                     <div class="relative overflow-hidden rounded-panel border border-gray-200 shadow-e4">
-                        <img src="https://picsum.photos/seed/servora-restaurant-kitchen-pass/960/1100"
-                             alt="Kitchen team working a service pass"
-                             width="960" height="1100" fetchpriority="high" decoding="async"
-                             class="aspect-[4/5] w-full object-cover">
+                        <picture>
+                            <source srcset="{{ asset('images/marketing/hero-kitchen.webp') }}" type="image/webp">
+                            <img src="{{ asset('images/marketing/hero-kitchen.jpg') }}"
+                                 alt="A head chef reviewing figures on a tablet during service"
+                                 width="853" height="1066" fetchpriority="high" decoding="async"
+                                 class="aspect-[4/5] w-full object-cover">
+                        </picture>
                     </div>
                 </div>
             </div>
@@ -193,7 +200,7 @@
             // Nine items, nine cells, no filler tile.
             $modules = [
                 ['icon' => 'clipboard',  'title' => 'Recipe costing',       'span' => 'lg:col-span-3', 'tone' => 'photo',
-                 'img'  => 'servora-chef-plating-dish', 'alt' => 'Chef plating a finished dish',
+                 'photo' => 'images/marketing/recipe-costing', 'alt' => 'A recipe and its quantities written out by hand on a notepad',
                  'desc' => 'Build a recipe once and watch its cost, yield and food-cost percentage update as ingredient prices move.'],
 
                 ['icon' => 'ingredient', 'title' => 'Ingredient management', 'span' => 'lg:col-span-3', 'tone' => 'brand',
@@ -209,7 +216,7 @@
                  'desc' => 'Daily sales by meal period, Z-report capture and CSV import from your POS.'],
 
                 ['icon' => 'chart',      'title' => 'Reports and P&L',       'span' => 'lg:col-span-3', 'tone' => 'photo',
-                 'img'  => 'servora-restaurant-counter-service', 'alt' => 'Counter service during a busy period',
+                 'photo' => 'images/marketing/reports-pnl', 'alt' => 'An income statement showing revenue, cost of goods and gross profit',
                  'desc' => 'Monthly cost summaries, COGS, labour cost and exports your accountant will accept without rework.'],
 
                 ['icon' => 'academic',   'title' => 'Staff training',        'span' => 'lg:col-span-3', 'tone' => 'plain',
@@ -230,10 +237,13 @@
                                 {{ $m['tone'] === 'brand' ? 'bg-brand-600 border-brand-700' : '' }}">
 
                     @if ($m['tone'] === 'photo')
-                        {{-- REPLACE: real photography. --}}
-                        <img src="https://picsum.photos/seed/{{ $m['img'] }}/900/440"
-                             alt="{{ $m['alt'] }}" width="900" height="440" loading="lazy" decoding="async"
-                             class="aspect-[15/7] w-full object-cover">
+                        {{-- WebP with a JPEG fallback. --}}
+                        <picture>
+                            <source srcset="{{ asset($m['photo'] . '.webp') }}" type="image/webp">
+                            <img src="{{ asset($m['photo'] . '.jpg') }}"
+                                 alt="{{ $m['alt'] }}" width="1200" height="560" loading="lazy" decoding="async"
+                                 class="aspect-[15/7] w-full object-cover">
+                        </picture>
                     @endif
 
                     <div class="flex flex-1 flex-col p-6">

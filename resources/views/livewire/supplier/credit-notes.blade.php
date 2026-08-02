@@ -1,17 +1,17 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Credit & Debit Notes</h2>
+        <h2 class="page-title">Credit & Debit Notes</h2>
         <div class="flex items-center gap-4">
             <div class="text-sm text-gray-500">Outstanding: <span class="font-bold text-gray-800">RM {{ number_format($totalOutstanding, 2) }}</span></div>
             <a href="{{ route('supplier.credit-notes.create') }}"
-               class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+               class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 Issue Credit Note
             </a>
         </div>
@@ -28,7 +28,7 @@
         </select>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
@@ -48,8 +48,8 @@
                             'draft'        => 'bg-gray-100 text-gray-600',
                             'issued'       => 'bg-blue-100 text-blue-700',
                             'acknowledged' => 'bg-teal-100 text-teal-700',
-                            'applied'      => 'bg-green-100 text-green-700',
-                            'cancelled'    => 'bg-red-100 text-red-600',
+                            'applied'      => 'bg-success-100 text-success-700',
+                            'cancelled'    => 'bg-danger-100 text-danger-600',
                             default        => 'bg-gray-100 text-gray-500',
                         };
                         $typeBadge = $cn->type === 'debit_note'
@@ -78,12 +78,12 @@
                                     Acknowledge
                                 </button>
                             @else
-                                <span class="text-gray-300">&mdash;</span>
+                                <span class="text-gray-500">&mdash;</span>
                             @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No credit/debit notes found.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-600">No credit/debit notes found.</td></tr>
                 @endforelse
             </tbody>
         </table>

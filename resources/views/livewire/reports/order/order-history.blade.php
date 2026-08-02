@@ -1,12 +1,12 @@
 <div>
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-            <a href="{{ route('reports.hub') }}" class="text-gray-400 hover:text-gray-600 transition">
+            <a href="{{ route('reports.hub') }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
             </a>
-            <h2 class="text-lg font-semibold text-gray-700">Order History</h2>
+            <h2 class="page-title">Order History</h2>
         </div>
     </div>
 
@@ -19,7 +19,7 @@
 
     {{-- Status filter --}}
     <div class="mb-4">
-        <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <select wire:model.live="statusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">All Statuses</option>
             <option value="draft">Draft</option>
             <option value="pending">Pending</option>
@@ -31,7 +31,7 @@
         </select>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50">
@@ -58,9 +58,9 @@
                                     'bg-gray-100 text-gray-600'    => $order->status === 'draft',
                                     'bg-yellow-100 text-yellow-700' => $order->status === 'pending',
                                     'bg-blue-100 text-blue-700'    => in_array($order->status, ['approved', 'sent']),
-                                    'bg-indigo-100 text-indigo-700' => $order->status === 'partial',
-                                    'bg-green-100 text-green-700'  => $order->status === 'received',
-                                    'bg-red-100 text-red-700'      => $order->status === 'cancelled',
+                                    'bg-brand-100 text-brand-700' => $order->status === 'partial',
+                                    'bg-success-100 text-success-700'  => $order->status === 'received',
+                                    'bg-danger-100 text-danger-700'      => $order->status === 'cancelled',
                                 ])>{{ ucfirst($order->status) }}</span>
                             </td>
                             <td class="px-4 py-3 text-right text-gray-600">{{ $order->lines_count }}</td>
@@ -68,7 +68,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-gray-400">No orders found for this period.</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-600">No orders found for this period.</td>
                         </tr>
                     @endforelse
                 </tbody>

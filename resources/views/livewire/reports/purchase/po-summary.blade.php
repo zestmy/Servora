@@ -2,8 +2,8 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">PO Summary</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Purchase order overview by status and period</p>
+            <h2 class="page-title">PO Summary</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Purchase order overview by status and period</p>
         </div>
         <a href="{{ route('reports.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
@@ -17,7 +17,7 @@
     ])
 
     {{-- By Status --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+    <div class="card overflow-hidden mb-4">
         <div class="px-4 py-3 border-b border-gray-100">
             <h3 class="text-sm font-semibold text-gray-600">By Status</h3>
         </div>
@@ -40,9 +40,9 @@
                                         'draft'     => 'bg-gray-100 text-gray-700',
                                         'pending'   => 'bg-yellow-100 text-yellow-700',
                                         'approved'  => 'bg-blue-100 text-blue-700',
-                                        'sent'      => 'bg-indigo-100 text-indigo-700',
-                                        'received'  => 'bg-green-100 text-green-700',
-                                        'cancelled' => 'bg-red-100 text-red-700',
+                                        'sent'      => 'bg-brand-100 text-brand-700',
+                                        'received'  => 'bg-success-100 text-success-700',
+                                        'cancelled' => 'bg-danger-100 text-danger-700',
                                         default     => 'bg-gray-100 text-gray-700',
                                     } }}">
                                     {{ ucfirst($row->status) }}
@@ -54,7 +54,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-gray-400">No purchase orders found for the selected filters.</td>
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-600">No purchase orders found for the selected filters.</td>
                         </tr>
                     @endforelse
 
@@ -80,7 +80,7 @@
     </div>
 
     {{-- By Period (Monthly) --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="px-4 py-3 border-b border-gray-100">
             <h3 class="text-sm font-semibold text-gray-600">By Period (Monthly)</h3>
         </div>
@@ -104,7 +104,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-gray-400">No data for the selected period.</td>
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-600">No data for the selected period.</td>
                         </tr>
                     @endforelse
                 </tbody>

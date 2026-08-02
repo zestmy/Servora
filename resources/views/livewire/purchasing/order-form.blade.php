@@ -5,20 +5,20 @@
     <x-desktop-hint storageKey="desktop-hint-po-form" message="Building purchase orders is easier on a desktop — line-item editing benefits from a wider screen." />
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('purchasing.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('purchasing.index') }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-gray-600">
                 <a href="{{ route('purchasing.index') }}" class="hover:underline">Purchasing</a>
                 / {{ $orderId ? $poNumber : 'New Purchase Order' }}
             </p>
@@ -30,7 +30,7 @@
                 {{ $requirePoApproval ? 'Save & Submit' : 'Save & Approve' }}
             </button>
             <button wire:click="save"
-                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 Save Draft
             </button>
         </div>
@@ -39,7 +39,7 @@
 
     {{-- Validation errors --}}
     @if ($errors->any())
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             <p class="font-medium mb-1">Please fix the following:</p>
             <ul class="list-disc list-inside space-y-0.5">
                 @foreach ($errors->all() as $error)
@@ -57,7 +57,7 @@
                 $poSteps = ['draft' => 'Draft', 'submitted' => 'Pending Approval', 'approved' => 'Approved', 'sent' => 'Processing', 'partial' => 'Partially Received', 'received' => 'Received'];
             }
         @endphp
-        <div class="mb-4 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3">
+        <div class="mb-4 card px-4 py-3">
             <x-doc-stepper :steps="$poSteps" :current="$status" :dead="$status === 'cancelled' ? 'Cancelled' : null" />
         </div>
     @endif
@@ -66,7 +66,7 @@
 
         {{-- Details card (2/3) --}}
         <div class="lg:col-span-2 space-y-4">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div class="card p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700">Order Details</h3>
 
                 {{-- PO Number (read-only) --}}
@@ -80,8 +80,8 @@
                                     'draft'     => 'bg-gray-100 text-gray-600',
                                     'sent'      => 'bg-blue-100 text-blue-700',
                                     'partial'   => 'bg-yellow-100 text-yellow-700',
-                                    'received'  => 'bg-green-100 text-green-700',
-                                    'cancelled' => 'bg-red-100 text-red-600',
+                                    'received'  => 'bg-success-100 text-success-700',
+                                    'cancelled' => 'bg-danger-100 text-danger-600',
                                     default     => 'bg-gray-100 text-gray-500',
                                 } }}">
                                 {{ ucfirst($status) }}
@@ -94,7 +94,7 @@
                 <div>
                     <x-input-label for="po_supplier" value="Supplier *" />
                     <select id="po_supplier" wire:model.live="supplier_id"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="">— Select Supplier —</option>
                         @foreach ($suppliers as $s)
                             <option value="{{ $s->id }}">{{ $s->name }}</option>
@@ -127,7 +127,7 @@
                     <div>
                         <x-input-label for="po_department" value="Department" />
                         <select id="po_department" wire:model="department_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— No Department —</option>
                             @foreach ($departments as $dept)
                                 <option value="{{ $dept->id }}">{{ $dept->name }}</option>
@@ -141,7 +141,7 @@
                 <div>
                     <x-input-label for="po_notes" value="Notes" />
                     <textarea id="po_notes" wire:model="notes" rows="2"
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                               placeholder="Special instructions, delivery address, etc."></textarea>
                 </div>
             </div>
@@ -149,7 +149,7 @@
 
         {{-- Summary card (1/3, sticky) --}}
         <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 lg:sticky lg:top-6">
+            <div class="card p-6 lg:sticky lg:top-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Order Summary</h3>
                 <dl class="space-y-3 text-sm">
                     <div class="flex justify-between">
@@ -197,16 +197,16 @@
     </div>
 
     {{-- Ingredient Lines --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="mt-4 card">
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700">Order Lines</h3>
-                <p class="text-xs text-gray-400 mt-0.5">{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }}</p>
+                <p class="text-xs text-gray-600 mt-0.5">{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }}</p>
             </div>
             @if ($isEditable && $availableTemplates->isNotEmpty())
                 <select wire:model.live="selectedTemplateId"
-                        class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1.5">
+                        class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-brand-500 focus:ring-brand-500 py-1.5">
                     <option value="">Load Template…</option>
                     @foreach ($availableTemplates as $t)
                         <option value="{{ $t->id }}">{{ $t->name }}</option>
@@ -220,14 +220,14 @@
         <div class="px-6 py-4 border-b border-gray-100">
             <div class="relative">
                 <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                     </svg>
                 </div>
                 <input type="text"
                        wire:model.live.debounce.300ms="ingredientSearch"
                        placeholder="Search ingredients to add… (type at least 2 characters)"
-                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
 
             @if ($searchResults->isNotEmpty())
@@ -235,30 +235,30 @@
                     @foreach ($searchResults as $ingredient)
                         <button type="button"
                                 wire:click="addIngredient({{ $ingredient->id }})"
-                                class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                                class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
                             <div>
                                 <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
                                 @if ($ingredient->code)
-                                    <span class="ml-2 text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                    <span class="ml-2 text-xs text-gray-600">{{ $ingredient->code }}</span>
                                 @endif
                             </div>
-                            <div class="text-right flex-shrink-0 ml-4 text-xs text-gray-400">
+                            <div class="text-right flex-shrink-0 ml-4 text-xs text-gray-600">
                                 <span>{{ $ingredient->baseUom?->abbreviation }}</span>
                                 @if (floatval($ingredient->purchase_price) > 0)
                                     <span class="ml-1">· RM {{ number_format($ingredient->purchase_price, 4) }}</span>
                                 @endif
-                                <span class="ml-2 text-indigo-400">+ Add</span>
+                                <span class="ml-2 text-brand-400">+ Add</span>
                             </div>
                         </button>
                     @endforeach
                 </div>
             @elseif (strlen($ingredientSearch) >= 2)
-                <p class="mt-2 text-sm text-gray-400 text-center py-2">No ingredients found for "{{ $ingredientSearch }}".</p>
+                <p class="mt-2 text-sm text-gray-600 text-center py-2">No ingredients found for "{{ $ingredientSearch }}".</p>
             @endif
 
-            <p class="mt-2 text-xs text-gray-400">
+            <p class="mt-2 text-xs text-gray-600">
                 Can't find it?
-                <a href="{{ route('ingredients.index') }}" target="_blank" class="text-indigo-500 hover:underline">+ Add new ingredient</a>
+                <a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>
             </p>
 
             <x-input-error :messages="$errors->get('lines')" class="mt-2" />
@@ -309,7 +309,7 @@
                             x-init="new Sortable($el, {
                                 handle: '.line-drag-handle',
                                 animation: 150,
-                                ghostClass: 'bg-indigo-50',
+                                ghostClass: 'bg-brand-50',
                                 onEnd: () => {
                                     const idxs = Array.from($el.querySelectorAll('tr[data-idx]')).map(tr => tr.dataset.idx);
                                     $wire.reorderLines(idxs);
@@ -320,21 +320,21 @@
                         @foreach ($lines as $idx => $line)
                             <tr wire:key="po-line-{{ $line['ingredient_id'] ?? $idx }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition">
                                 @if ($isEditable)
-                                    <td class="line-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
+                                    <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
                                         <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
                                     </td>
                                 @endif
-                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2">
                                     <div class="font-medium text-gray-800">
                                         {{ $line['ingredient_name'] }}
                                         @if (! empty($line['pack_info']))
-                                            <span class="text-indigo-600 font-semibold">{{ $line['pack_info'] }}</span>
+                                            <span class="text-brand-600 font-semibold">{{ $line['pack_info'] }}</span>
                                         @endif
                                     </div>
                                     @php $selectedSupplierObj = $suppliers->firstWhere('id', $supplier_id); @endphp
                                     @if ($selectedSupplierObj)
-                                        <p class="text-xs text-gray-400 mt-0.5">[{{ $selectedSupplierObj->name }}]</p>
+                                        <p class="text-xs text-gray-600 mt-0.5">[{{ $selectedSupplierObj->name }}]</p>
                                     @endif
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.ingredient_id')" class="mt-0.5" />
                                 </td>
@@ -342,7 +342,7 @@
                                     @if (floatval($line['par_level'] ?? 0) > 0)
                                         {{ rtrim(rtrim(number_format(floatval($line['par_level']), 4), '0'), '.') }}
                                     @else
-                                        <span class="text-gray-300">—</span>
+                                        <span class="text-gray-500">—</span>
                                     @endif
                                 </td>
                                 @if ($isEditable)
@@ -351,9 +351,9 @@
                                         <input type="number" step="0.01" min="0"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.balance"
                                                placeholder="0"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 bg-amber-50" />
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 bg-warning-50" />
                                     @else
-                                        <span class="text-gray-300 text-xs block text-right">—</span>
+                                        <span class="text-gray-500 text-xs block text-right">—</span>
                                     @endif
                                 </td>
                                 @endif
@@ -361,7 +361,7 @@
                                     @if ($isEditable)
                                         <input type="number" step="1" min="1"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                     @else
                                         <p class="text-right tabular-nums text-gray-700">{{ rtrim(rtrim(number_format(floatval($line['quantity']), 4), '0'), '.') }}</p>
@@ -376,7 +376,7 @@
                                     @if ($isEditable)
                                         <input type="number" step="0.0001" min="0"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.unit_cost"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         <x-input-error :messages="$errors->get('lines.'.$idx.'.unit_cost')" class="mt-0.5" />
                                     @else
                                         <p class="text-right tabular-nums text-gray-700">{{ number_format($line['unit_cost'], 4) }}</p>
@@ -389,7 +389,7 @@
                                             {{ $line['tax_label'] }}
                                         </span>
                                     @else
-                                        <span class="text-gray-300 text-xs">—</span>
+                                        <span class="text-gray-500 text-xs">—</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-medium text-gray-700">
@@ -398,7 +398,7 @@
                                 @if ($isEditable)
                                 <td class="px-4 py-2 text-center">
                                     <button type="button" wire:click="removeLine({{ $idx }})"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
@@ -433,7 +433,7 @@
             </div>
             </div>{{-- /simple-detailed toggle wrapper --}}
         @else
-            <div class="px-6 py-12 text-center text-gray-400">
+            <div class="px-6 py-12 text-center text-gray-600">
                 <p class="text-3xl mb-2">📦</p>
                 <p class="font-medium">No items added yet</p>
                 <p class="text-xs mt-1">Use the search above to add ingredients to this order.</p>
@@ -452,12 +452,12 @@
                         Save &amp; Send to Supplier
                     </button>
                     <button wire:click="save"
-                            class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                         Save Draft
                     </button>
                 </div>
             @else
-                <p class="text-xs text-gray-400 italic">This PO is read-only (status: {{ ucfirst($status) }}).</p>
+                <p class="text-xs text-gray-600 italic">This PO is read-only (status: {{ ucfirst($status) }}).</p>
             @endif
         </div>
 

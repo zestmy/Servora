@@ -2,28 +2,28 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Inventory</h2>
+        <h2 class="page-title">Inventory</h2>
         <div class="flex items-center gap-2">
             @if ($tab === 'stock-takes')
                 <a href="{{ route('inventory.stock-takes.create') }}"
-                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     + New Stock Take
                 </a>
             @elseif ($tab === 'wastage')
                 <a href="{{ route('inventory.wastage.create') }}"
-                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     + Record Wastage
                 </a>
             @elseif ($tab === 'staff-meals')
                 <a href="{{ route('inventory.staff-meals.create') }}"
-                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     + Record Staff Meal
                 </a>
             @elseif ($tab === 'transfers')
@@ -33,7 +33,7 @@
                 </a>
             @elseif ($tab === 'purchases')
                 <a href="{{ route('inventory.purchases.create') }}"
-                   class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     + Record Purchase
                 </a>
             @endif
@@ -42,56 +42,56 @@
 
     {{-- Stats --}}
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Stock Takes This Month</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Stock Takes This Month</p>
             <p class="text-2xl font-bold text-gray-800 mt-1">{{ $monthStockTakes }}</p>
-            <p class="text-xs {{ $draftStockTakes > 0 ? 'text-yellow-600 font-medium' : 'text-gray-400' }} mt-1">
+            <p class="text-xs {{ $draftStockTakes > 0 ? 'text-yellow-600 font-medium' : 'text-gray-600' }} mt-1">
                 {{ $draftStockTakes }} draft{{ $draftStockTakes !== 1 ? 's' : '' }} pending
             </p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Wastage This Month</p>
-            <p class="text-2xl font-bold text-red-600 mt-1 tabular-nums">RM {{ number_format($monthWastageCost, 2) }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ now()->format('M Y') }}</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Wastage This Month</p>
+            <p class="text-2xl font-bold text-danger-600 mt-1 tabular-nums">RM {{ number_format($monthWastageCost, 2) }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ now()->format('M Y') }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Staff Meals This Month</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Staff Meals This Month</p>
             <p class="text-2xl font-bold text-purple-600 mt-1 tabular-nums">RM {{ number_format($monthStaffMealCost, 2) }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ now()->format('M Y') }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ now()->format('M Y') }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Purchases This Month</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Purchases This Month</p>
             <p class="text-2xl font-bold text-emerald-600 mt-1 tabular-nums">RM {{ number_format($monthPurchaseAmount, 2) }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ now()->format('M Y') }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ now()->format('M Y') }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Latest Stock Value</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Latest Stock Value</p>
             @if ($latestStockTake)
-                <p class="text-2xl font-bold text-indigo-600 mt-1 tabular-nums">RM {{ number_format($latestStockTake->total_stock_cost, 2) }}</p>
-                <p class="text-xs text-gray-400 mt-1">{{ $latestStockTake->stock_take_date->format('d M Y') }}</p>
+                <p class="text-2xl font-bold text-brand-600 mt-1 tabular-nums">RM {{ number_format($latestStockTake->total_stock_cost, 2) }}</p>
+                <p class="text-xs text-gray-600 mt-1">{{ $latestStockTake->stock_take_date->format('d M Y') }}</p>
             @else
-                <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
-                <p class="text-xs text-gray-400 mt-1">No completed stock takes</p>
+                <p class="text-2xl font-bold text-gray-500 mt-1">—</p>
+                <p class="text-xs text-gray-600 mt-1">No completed stock takes</p>
             @endif
         </div>
     </div>
 
     {{-- Cost by Category Panel --}}
     @if ($categoryBreakdown)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6" x-data="{}">
+        <div class="card mb-6" x-data="{}">
             <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                 <div>
                     <h3 class="text-sm font-semibold text-gray-700">Cost by Category</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">
+                    <p class="text-xs text-gray-600 mt-0.5">
                         Based on stock take: {{ $categoryBreakdown['date']->format('d M Y') }}
                     </p>
                 </div>
-                <span class="text-sm font-bold text-indigo-700 tabular-nums">
+                <span class="text-sm font-bold text-brand-700 tabular-nums">
                     RM {{ number_format($categoryBreakdown['total'], 2) }} total
                 </span>
             </div>
             <table class="min-w-full text-sm divide-y divide-gray-50">
-                <thead class="bg-gray-50 text-gray-400 uppercase text-xs tracking-wider">
+                <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
                     <tr>
                         <th class="px-5 py-2 text-left">Category</th>
                         <th class="px-5 py-2 text-right">Stock Value (RM)</th>
@@ -112,7 +112,7 @@
                                 <div class="flex items-center gap-2">
                                     @if ($hasSubs)
                                         <button @click="open = !open"
-                                                class="text-gray-400 hover:text-gray-600 transition">
+                                                class="text-gray-600 hover:text-gray-900 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                             </svg>
@@ -138,7 +138,7 @@
                                     <td class="px-5 py-2 text-right tabular-nums text-gray-600">
                                         {{ number_format($sub['cost'], 2) }}
                                     </td>
-                                    <td class="px-5 py-2 text-right tabular-nums text-gray-400 text-xs">
+                                    <td class="px-5 py-2 text-right tabular-nums text-gray-600 text-xs">
                                         @php $subPct = $categoryBreakdown['total'] > 0 ? ($sub['cost'] / $categoryBreakdown['total']) * 100 : 0; @endphp
                                         {{ number_format($subPct, 1) }}%
                                     </td>
@@ -154,7 +154,7 @@
                         <td class="px-5 py-2.5 text-right tabular-nums font-bold text-gray-900">
                             {{ number_format($categoryBreakdown['total'], 2) }}
                         </td>
-                        <td class="px-5 py-2.5 text-right text-xs text-gray-400">100.0%</td>
+                        <td class="px-5 py-2.5 text-right text-xs text-gray-600">100.0%</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -166,12 +166,12 @@
     <div class="flex border-b border-gray-200 mb-4">
         <button wire:click="$set('tab', 'stock-takes')"
                 class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'stock-takes' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                       {{ $tab === 'stock-takes' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
             📋 Stock Takes
         </button>
         <button wire:click="$set('tab', 'wastage')"
                 class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'wastage' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                       {{ $tab === 'wastage' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
             🗑️ Wastage
         </button>
         <button wire:click="$set('tab', 'staff-meals')"
@@ -195,16 +195,16 @@
     </div>
 
     {{-- Filter bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-1">
                 <input type="text" wire:model.live.debounce.300ms="search"
                        placeholder="{{ $tab === 'transfers' ? 'Search transfer number…' : 'Search reference number…' }}"
-                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
                 @if ($filterOutlets->isNotEmpty())
                     <select wire:model.live="outletFilter"
-                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="">All Outlets</option>
                         @foreach ($filterOutlets as $o)
                             <option value="{{ $o->id }}">{{ $o->name }}</option>
@@ -213,7 +213,7 @@
                 @endif
                 @if ($tab === 'transfers')
                     <select wire:model.live="statusFilter"
-                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="">All Statuses</option>
                         <option value="draft">Draft</option>
                         <option value="in_transit">In Transit</option>
@@ -223,10 +223,10 @@
                 @endif
                 <div class="flex items-center gap-1">
                     <input type="date" wire:model.live="dateFrom"
-                           class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                    <span class="text-gray-400 text-xs">to</span>
+                           class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                    <span class="text-gray-600 text-xs">to</span>
                     <input type="date" wire:model.live="dateTo"
-                           class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                           class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                 </div>
         </div>
     </div>
@@ -235,7 +235,7 @@
 
     {{-- ── Stock Takes Tab ───────────────────────────────────────────────── --}}
     @if ($tab === 'stock-takes')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -254,7 +254,7 @@
                             $statusColor = match($record->status) {
                                 'draft'       => 'bg-gray-100 text-gray-600',
                                 'in_progress' => 'bg-yellow-100 text-yellow-700',
-                                'completed'   => 'bg-green-100 text-green-700',
+                                'completed'   => 'bg-success-100 text-success-700',
                                 default       => 'bg-gray-100 text-gray-500',
                             };
                             $varianceCost = floatval($record->total_variance_cost);
@@ -264,7 +264,7 @@
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->stock_take_date->format('d M Y') }}
                                 @if ($record->stock_take_date->isToday())
-                                    <span class="ml-1 text-xs text-indigo-400">Today</span>
+                                    <span class="ml-1 text-xs text-brand-400">Today</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-500">{{ $record->reference_number ?: '—' }}</td>
@@ -277,13 +277,13 @@
                             <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800">
                                 {{ $stockCost > 0 ? number_format($stockCost, 2) : '—' }}
                             </td>
-                            <td class="px-4 py-3 text-right tabular-nums font-medium {{ $varianceCost >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                            <td class="px-4 py-3 text-right tabular-nums font-medium {{ $varianceCost >= 0 ? 'text-success-600' : 'text-danger-600' }}">
                                 {{ $varianceCost >= 0 ? '+' : '' }}{{ number_format($varianceCost, 2) }}
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('inventory.stock-takes.show', $record->id) }}" title="View / Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition">
+                                       class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
@@ -292,7 +292,7 @@
                                         <button wire:click="deleteStockTake({{ $record->id }})"
                                                 wire:confirm="{{ $record->status === 'draft' ? 'Delete this stock take? This cannot be undone.' : 'Delete this COMPLETED stock take? This cannot be undone.' }}"
                                                 title="{{ $record->status === 'draft' ? 'Delete' : 'Delete completed stock take' }}"
-                                                class="text-red-400 hover:text-red-600 transition">
+                                                class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
@@ -303,11 +303,11 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                            <td colspan="7" class="px-4 py-12 text-center text-gray-600">
                                 <div class="text-3xl mb-2">📋</div>
                                 <p class="font-medium">No stock takes yet</p>
                                 <p class="text-xs mt-1">
-                                    <a href="{{ route('inventory.stock-takes.create') }}" class="text-indigo-500 underline">Start a new stock take</a>
+                                    <a href="{{ route('inventory.stock-takes.create') }}" class="text-brand-500 underline">Start a new stock take</a>
                                 </p>
                             </td>
                         </tr>
@@ -325,7 +325,7 @@
 
     {{-- ── Purchases Tab ─────────────────────────────────────────────────── --}}
     @if ($tab === 'purchases')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -343,7 +343,7 @@
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->purchase_date->format('d M Y') }}
                                 @if ($record->purchase_date->isToday())
-                                    <span class="ml-1 text-xs text-indigo-400">Today</span>
+                                    <span class="ml-1 text-xs text-brand-400">Today</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-600">{{ $record->department?->name ?? '—' }}</td>
@@ -355,7 +355,7 @@
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('inventory.purchases.show', $record->id) }}" title="View / Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition">
+                                       class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
@@ -363,7 +363,7 @@
                                     <button wire:click="deletePurchase({{ $record->id }})"
                                             wire:confirm="Delete this purchase record? This cannot be undone."
                                             title="Delete"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
@@ -373,11 +373,11 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+                            <td colspan="6" class="px-4 py-12 text-center text-gray-600">
                                 <div class="text-3xl mb-2">🧾</div>
                                 <p class="font-medium">No purchases recorded yet</p>
                                 <p class="text-xs mt-1">
-                                    <a href="{{ route('inventory.purchases.create') }}" class="text-indigo-500 underline">Record a purchase</a>
+                                    <a href="{{ route('inventory.purchases.create') }}" class="text-brand-500 underline">Record a purchase</a>
                                 </p>
                             </td>
                         </tr>
@@ -395,7 +395,7 @@
 
     {{-- ── Staff Meals Tab ──────────────────────────────────────────────── --}}
     @if ($tab === 'staff-meals')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -412,7 +412,7 @@
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->meal_date->format('d M Y') }}
                                 @if ($record->meal_date->isToday())
-                                    <span class="ml-1 text-xs text-indigo-400">Today</span>
+                                    <span class="ml-1 text-xs text-brand-400">Today</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-500">{{ $record->reference_number ?: '—' }}</td>
@@ -423,7 +423,7 @@
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('inventory.staff-meals.show', $record->id) }}" title="Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition">
+                                       class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
@@ -431,7 +431,7 @@
                                     <button wire:click="deleteStaffMeal({{ $record->id }})"
                                             wire:confirm="Delete this staff meal record? This cannot be undone."
                                             title="Delete"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
@@ -441,11 +441,11 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                            <td colspan="5" class="px-4 py-12 text-center text-gray-600">
                                 <div class="text-3xl mb-2">🍽️</div>
                                 <p class="font-medium">No staff meal records yet</p>
                                 <p class="text-xs mt-1">
-                                    <a href="{{ route('inventory.staff-meals.create') }}" class="text-indigo-500 underline">Record today's staff meals</a>
+                                    <a href="{{ route('inventory.staff-meals.create') }}" class="text-brand-500 underline">Record today's staff meals</a>
                                 </p>
                             </td>
                         </tr>
@@ -477,7 +477,7 @@
 
     {{-- ── Transfers Tab ─────────────────────────────────────────────────── --}}
     @if ($tab === 'transfers')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -496,8 +496,8 @@
                             $statusColor = match($transfer->status) {
                                 'draft'      => 'bg-gray-100 text-gray-600',
                                 'in_transit' => 'bg-yellow-100 text-yellow-700',
-                                'received'   => 'bg-green-100 text-green-700',
-                                'cancelled'  => 'bg-red-100 text-red-600',
+                                'received'   => 'bg-success-100 text-success-700',
+                                'cancelled'  => 'bg-danger-100 text-danger-600',
                                 default      => 'bg-gray-100 text-gray-500',
                             };
                         @endphp
@@ -505,7 +505,7 @@
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $transfer->transfer_date->format('d M Y') }}
                                 @if ($transfer->transfer_date->isToday())
-                                    <span class="ml-1 text-xs text-indigo-400">Today</span>
+                                    <span class="ml-1 text-xs text-brand-400">Today</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-500">{{ $transfer->transfer_number }}</td>
@@ -520,7 +520,7 @@
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('inventory.transfers.show', $transfer->id) }}" title="View / Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition">
+                                       class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
@@ -529,7 +529,7 @@
                                         <button wire:click="deleteTransfer({{ $transfer->id }})"
                                                 wire:confirm="{{ $transfer->status === 'draft' ? 'Delete this transfer? This cannot be undone.' : 'Delete this ' . str_replace('_', ' ', $transfer->status) . ' transfer? This cannot be undone.' }}"
                                                 title="{{ $transfer->status === 'draft' ? 'Delete' : 'Delete transfer' }}"
-                                                class="text-red-400 hover:text-red-600 transition">
+                                                class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
@@ -540,7 +540,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                            <td colspan="7" class="px-4 py-12 text-center text-gray-600">
                                 <div class="text-3xl mb-2">🔄</div>
                                 <p class="font-medium">No transfers yet</p>
                                 <p class="text-xs mt-1">
@@ -562,7 +562,7 @@
 
     {{-- ── Wastage Tab ───────────────────────────────────────────────────── --}}
     @if ($tab === 'wastage')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -579,18 +579,18 @@
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->wastage_date->format('d M Y') }}
                                 @if ($record->wastage_date->isToday())
-                                    <span class="ml-1 text-xs text-indigo-400">Today</span>
+                                    <span class="ml-1 text-xs text-brand-400">Today</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-500">{{ $record->reference_number ?: '—' }}</td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $record->lines_count }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums font-medium text-red-600">
+                            <td class="px-4 py-3 text-right tabular-nums font-medium text-danger-600">
                                 {{ number_format($record->total_cost, 2) }}
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('inventory.wastage.show', $record->id) }}" title="Edit"
-                                       class="text-indigo-500 hover:text-indigo-700 transition">
+                                       class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
@@ -598,7 +598,7 @@
                                     <button wire:click="deleteWastage({{ $record->id }})"
                                             wire:confirm="Delete this wastage record? This cannot be undone."
                                             title="Delete"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
@@ -608,11 +608,11 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                            <td colspan="5" class="px-4 py-12 text-center text-gray-600">
                                 <div class="text-3xl mb-2">🗑️</div>
                                 <p class="font-medium">No wastage records yet</p>
                                 <p class="text-xs mt-1">
-                                    <a href="{{ route('inventory.wastage.create') }}" class="text-indigo-500 underline">Record today's wastage</a>
+                                    <a href="{{ route('inventory.wastage.create') }}" class="text-brand-500 underline">Record today's wastage</a>
                                 </p>
                             </td>
                         </tr>
@@ -625,7 +625,7 @@
                             <td colspan="3" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
                                 Page total ({{ $wastageRecords->count() }} records)
                             </td>
-                            <td class="px-4 py-3 text-right tabular-nums text-red-600">
+                            <td class="px-4 py-3 text-right tabular-nums text-danger-600">
                                 {{ number_format($wastageRecords->sum('total_cost'), 2) }}
                             </td>
                             <td></td>

@@ -1,4 +1,4 @@
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+<div class="card overflow-hidden">
 
     {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
     <div class="md:hidden divide-y divide-gray-100">
@@ -7,9 +7,9 @@
                 $mBadge = match($pr->status) {
                     'draft'     => 'bg-gray-100 text-gray-600',
                     'submitted' => 'bg-yellow-100 text-yellow-700',
-                    'approved'  => 'bg-green-100 text-green-700',
-                    'rejected'  => 'bg-red-100 text-red-600',
-                    'converted' => 'bg-indigo-100 text-indigo-700',
+                    'approved'  => 'bg-success-100 text-success-700',
+                    'rejected'  => 'bg-danger-100 text-danger-600',
+                    'converted' => 'bg-brand-100 text-brand-700',
                     'cancelled' => 'bg-gray-100 text-gray-500',
                     default     => 'bg-gray-100 text-gray-500',
                 };
@@ -18,7 +18,7 @@
             @endphp
             <div class="p-3 space-y-2">
                 <div class="flex items-start justify-between gap-2">
-                    <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $pr->pr_number }}</a>
+                    <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-sm font-medium text-brand-600">{{ $pr->pr_number }}</a>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ \App\Helpers\PurchasingStatus::pr($pr->status) }}</span>
                 </div>
                 @if ($multiOutlet)
@@ -30,14 +30,14 @@
                         <span>{{ $pr->lines_count }} item{{ $pr->lines_count !== 1 ? 's' : '' }}</span>
                     </div>
                     @if ($pr->needed_by_date)
-                        <span class="{{ $mNeededRed ? 'text-red-500 font-medium' : 'text-gray-500' }}">
+                        <span class="{{ $mNeededRed ? 'text-danger-500 font-medium' : 'text-gray-500' }}">
                             Need {{ $pr->needed_by_date->format('d M') }}
                         </span>
                     @endif
                 </div>
-                <div class="text-xs text-gray-400 truncate">By {{ $pr->createdBy?->name ?? '—' }}</div>
+                <div class="text-xs text-gray-600 truncate">By {{ $pr->createdBy?->name ?? '—' }}</div>
                 @if ($pr->status === 'rejected' && $pr->rejected_reason)
-                    <div class="text-xs text-red-500 italic">{{ Str::limit($pr->rejected_reason, 80) }}</div>
+                    <div class="text-xs text-danger-500 italic">{{ Str::limit($pr->rejected_reason, 80) }}</div>
                 @endif
                 <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
                     <x-doc-action-menu
@@ -51,27 +51,27 @@
                                 class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">Submit</button>
                     @elseif ($mCanApprove)
                         <button wire:click="approvePr({{ $pr->id }})" wire:confirm="Approve '{{ $pr->pr_number }}'?"
-                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">Approve</button>
+                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-50 text-success-700 hover:bg-success-100">Approve</button>
                     @elseif ($pr->status === 'submitted')
                         <span class="flex-1 text-xs text-yellow-600 text-center">Awaiting approval</span>
                     @elseif ($pr->status === 'approved')
                         <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}"
-                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                           class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100">
                             Convert to PO
                         </a>
                     @endif
                     @if ($canDeleteRecords && in_array($pr->status, ['cancelled', 'rejected']))
                         <button wire:click="deletePr({{ $pr->id }})" wire:confirm="Permanently remove this {{ $pr->status }} request?"
-                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100">Delete</button>
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-danger-50 text-danger-700 hover:bg-danger-100">Delete</button>
                     @endif
                 </div>
             </div>
         @empty
-            <div class="p-8 text-center text-gray-400 text-sm">
+            <div class="p-8 text-center text-gray-600 text-sm">
                 <p class="font-medium">No purchase requests yet</p>
                 <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                 @if ($canCreatePr ?? false)
-                    <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first request</a>
+                    <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first request</a>
                 @endif
             </div>
         @endforelse
@@ -97,9 +97,9 @@
                     $badge = match($pr->status) {
                         'draft'     => 'bg-gray-100 text-gray-600',
                         'submitted' => 'bg-yellow-100 text-yellow-700',
-                        'approved'  => 'bg-green-100 text-green-700',
-                        'rejected'  => 'bg-red-100 text-red-600',
-                        'converted' => 'bg-indigo-100 text-indigo-700',
+                        'approved'  => 'bg-success-100 text-success-700',
+                        'rejected'  => 'bg-danger-100 text-danger-600',
+                        'converted' => 'bg-brand-100 text-brand-700',
                         'cancelled' => 'bg-gray-100 text-gray-500',
                         default     => 'bg-gray-100 text-gray-500',
                     };
@@ -107,7 +107,7 @@
                 @endphp
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3">
-                        <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-xs font-medium text-indigo-600 hover:underline">{{ $pr->pr_number }}</a>
+                        <a href="{{ route('purchasing.requests.edit', $pr->id) }}" class="font-mono text-xs font-medium text-brand-600 hover:underline">{{ $pr->pr_number }}</a>
                     </td>
                     @if ($multiOutlet)
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $pr->outlet?->name ?? '—' }}</td>
@@ -115,11 +115,11 @@
                     <td class="px-4 py-3 text-center text-gray-500">{{ $pr->requested_date->format('d M Y') }}</td>
                     <td class="px-4 py-3 text-center">
                         @if ($pr->needed_by_date)
-                            <span class="{{ $pr->needed_by_date->isPast() && ! in_array($pr->status, ['approved','converted','cancelled','rejected']) ? 'text-red-500 font-medium' : 'text-gray-500' }}">
+                            <span class="{{ $pr->needed_by_date->isPast() && ! in_array($pr->status, ['approved','converted','cancelled','rejected']) ? 'text-danger-500 font-medium' : 'text-gray-500' }}">
                                 {{ $pr->needed_by_date->format('d M Y') }}
                             </span>
                         @else
-                            <span class="text-gray-300">&mdash;</span>
+                            <span class="text-gray-500">&mdash;</span>
                         @endif
                     </td>
                     <td class="px-4 py-3 text-center text-gray-600">{{ $pr->lines_count }}</td>
@@ -142,11 +142,11 @@
                             {{-- Approver: Approve / Reject --}}
                             @if ($canApprovePr)
                                 <button wire:click="approvePr({{ $pr->id }})" wire:confirm="Approve '{{ $pr->pr_number }}'?"
-                                        title="Approve" class="text-green-500 hover:text-green-700 transition p-1">
+                                        title="Approve" class="text-success-500 hover:text-success-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                 </button>
                                 <div x-data="{ showReject: false }" class="relative inline-block">
-                                    <button @click="showReject = !showReject" title="Reject" class="text-red-400 hover:text-red-600 transition p-1">
+                                    <button @click="showReject = !showReject" title="Reject" class="text-danger-400 hover:text-danger-600 transition p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                                     </button>
                                     <div x-show="showReject" x-cloak @click.outside="showReject = false"
@@ -154,7 +154,7 @@
                                         <p class="text-xs font-medium text-gray-700 mb-2">Rejection Reason</p>
                                         <textarea wire:model="rejectReason" rows="2" class="w-full rounded-lg border-gray-300 text-xs mb-2" placeholder="Why is this being rejected?"></textarea>
                                         <button wire:click="rejectPr({{ $pr->id }})" @click="showReject = false"
-                                                class="w-full px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700">
+                                                class="w-full px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700">
                                             Reject PR
                                         </button>
                                     </div>
@@ -163,21 +163,21 @@
 
                             {{-- Show rejection reason --}}
                             @if ($pr->status === 'rejected' && $pr->rejected_reason)
-                                <span class="text-xs text-red-500 ml-1" title="{{ $pr->rejected_reason }}">{{ Str::limit($pr->rejected_reason, 25) }}</span>
+                                <span class="text-xs text-danger-500 ml-1" title="{{ $pr->rejected_reason }}">{{ Str::limit($pr->rejected_reason, 25) }}</span>
                             @endif
 
                             {{-- Draft: Edit / Submit / Delete --}}
                             @if ($pr->status === 'draft')
                                 <a href="{{ route('purchasing.requests.edit', $pr->id) }}" title="Edit"
-                                   class="text-gray-400 hover:text-indigo-600 transition p-1">
+                                   class="text-gray-600 hover:text-brand-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
                                 <button wire:click="submitPr({{ $pr->id }})" wire:confirm="Submit this purchase request?"
-                                        title="Submit for Approval" class="text-gray-400 hover:text-green-600 transition p-1">
+                                        title="Submit for Approval" class="text-gray-600 hover:text-success-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
                                 <button wire:click="deletePr({{ $pr->id }})" wire:confirm="Delete this draft?"
-                                        title="Delete" class="text-gray-400 hover:text-red-600 transition p-1">
+                                        title="Delete" class="text-gray-600 hover:text-danger-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             @endif
@@ -185,11 +185,11 @@
                             {{-- Approved: Convert to PO / Revert to Draft --}}
                             @if ($pr->status === 'approved')
                                 <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}" title="Turn this approved request into a purchase order to send to a supplier"
-                                   class="text-indigo-500 hover:text-indigo-700 transition p-1">
+                                   class="text-brand-500 hover:text-brand-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                 </a>
                                 <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
-                                        title="Revert to Draft" class="text-gray-400 hover:text-amber-600 transition p-1">
+                                        title="Revert to Draft" class="text-gray-600 hover:text-warning-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
                                 </button>
                             @endif
@@ -197,7 +197,7 @@
                             {{-- Rejected: revert to draft to fix and resubmit --}}
                             @if ($pr->status === 'rejected')
                                 <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
-                                        title="Revert to Draft" class="text-gray-400 hover:text-amber-600 transition p-1">
+                                        title="Revert to Draft" class="text-gray-600 hover:text-warning-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
                                 </button>
                             @endif
@@ -205,7 +205,7 @@
                             {{-- Cancelled / Rejected: permanent delete (delete capability) --}}
                             @if ($canDeleteRecords && in_array($pr->status, ['cancelled', 'rejected']))
                                 <button wire:click="deletePr({{ $pr->id }})" wire:confirm="Permanently remove this {{ $pr->status }} request?"
-                                        title="Delete" class="text-gray-400 hover:text-red-600 transition p-1">
+                                        title="Delete" class="text-gray-600 hover:text-danger-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             @endif
@@ -213,7 +213,7 @@
                             {{-- Cancel (draft or submitted) --}}
                             @if (in_array($pr->status, ['draft', 'submitted']) && $pr->status !== 'draft')
                                 <button wire:click="cancelPr({{ $pr->id }})" wire:confirm="Cancel this purchase request?"
-                                        title="Cancel" class="text-gray-400 hover:text-red-600 transition p-1">
+                                        title="Cancel" class="text-gray-600 hover:text-danger-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             @endif
@@ -227,11 +227,11 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $multiOutlet ? 8 : 7 }}" class="px-4 py-10 text-center text-gray-400">
+                    <td colspan="{{ $multiOutlet ? 8 : 7 }}" class="px-4 py-10 text-center text-gray-600">
                         <p class="font-medium">No purchase requests yet</p>
                         <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                         @if ($canCreatePr ?? false)
-                            <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first request</a>
+                            <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first request</a>
                         @endif
                     </td>
                 </tr>

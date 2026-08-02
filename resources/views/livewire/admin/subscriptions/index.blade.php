@@ -1,13 +1,13 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
         <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
@@ -15,10 +15,10 @@
     <div class="flex items-center gap-3 mb-4">
         <div class="flex-1">
             <h1 class="text-lg font-bold text-gray-800">Subscriptions</h1>
-            <p class="text-xs text-gray-400 mt-0.5">View and manage all company subscriptions.</p>
+            <p class="text-xs text-gray-600 mt-0.5">View and manage all company subscriptions.</p>
         </div>
         <button wire:click="openCreate"
-                class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                class="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -30,10 +30,10 @@
     <div class="flex items-center gap-3 mb-4">
         <div class="flex-1">
             <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search company…"
-                   class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                   class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
         </div>
         <select wire:model.live="statusFilter"
-                class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                class="rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">All Statuses</option>
             <option value="trialing">Trial</option>
             <option value="active">Active</option>
@@ -42,7 +42,7 @@
             <option value="expired">Expired</option>
         </select>
         <select wire:model.live="planFilter"
-                class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                class="rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">All Plans</option>
             @foreach ($plans as $plan)
                 <option value="{{ $plan->id }}">{{ $plan->name }}</option>
@@ -51,7 +51,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <table class="min-w-full divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -70,11 +70,11 @@
                         <td class="px-4 py-3">
                             @if ($sub->company)
                                 <p class="font-medium text-gray-800">{{ $sub->company->name }}</p>
-                                <p class="text-xs text-gray-400">{{ $sub->company->slug }}</p>
+                                <p class="text-xs text-gray-600">{{ $sub->company->slug }}</p>
                             @else
                                 {{-- Company soft-deleted; the row is kept so the stale record can be cleared. --}}
-                                <p class="font-medium text-gray-400 italic">{{ $sub->companyName() }}</p>
-                                <p class="text-xs text-gray-400">Company #{{ $sub->company_id }} was deleted</p>
+                                <p class="font-medium text-gray-600 italic">{{ $sub->companyName() }}</p>
+                                <p class="text-xs text-gray-600">Company #{{ $sub->company_id }} was deleted</p>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-gray-600">{{ $sub->plan->name ?? '—' }}</td>
@@ -87,11 +87,11 @@
                         <td class="px-4 py-3 text-center text-gray-600 capitalize">{{ $sub->billing_cycle }}</td>
                         <td class="px-4 py-3 text-center">
                             @if ($sub->isActive())
-                                <span class="font-medium {{ $sub->daysRemaining() <= 3 ? 'text-red-600' : 'text-gray-700' }}">
+                                <span class="font-medium {{ $sub->daysRemaining() <= 3 ? 'text-danger-600' : 'text-gray-700' }}">
                                     {{ $sub->daysRemaining() }}d
                                 </span>
                             @else
-                                <span class="text-gray-400">—</span>
+                                <span class="text-gray-600">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-gray-600 text-xs">
@@ -101,7 +101,7 @@
                             <div class="flex items-center justify-center gap-2">
                                 <button wire:click="openEdit({{ $sub->id }})"
                                         title="Edit subscription"
-                                        class="px-2 py-0.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded hover:bg-indigo-50 transition">
+                                        class="px-2 py-0.5 text-xs font-medium text-brand-600 border border-brand-200 rounded hover:bg-brand-50 transition">
                                     Edit
                                 </button>
                                 @if ($sub->isTrial())
@@ -116,7 +116,7 @@
                                     <button wire:click="activateSubscription({{ $sub->id }})"
                                             wire:confirm="Activate paid subscription for {{ $sub->companyName() }}? A new billing period starts today."
                                             title="Activate (start paid period today)"
-                                            class="text-green-600 hover:text-green-700 transition text-xs font-medium">
+                                            class="text-success-600 hover:text-success-700 transition text-xs font-medium">
                                         Activate
                                     </button>
                                 @endif
@@ -124,7 +124,7 @@
                                     <button wire:click="cancelSubscription({{ $sub->id }})"
                                             wire:confirm="Cancel subscription for {{ $sub->companyName() }}?"
                                             title="Cancel"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
@@ -133,7 +133,7 @@
                                 <button wire:click="deleteSubscription({{ $sub->id }})"
                                         wire:confirm="Delete this subscription record for {{ $sub->companyName() }}? With no subscription the company is treated as grandfathered (unlimited access). This cannot be undone."
                                         title="Delete subscription record"
-                                        class="text-gray-300 hover:text-red-600 transition">
+                                        class="text-gray-500 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
@@ -143,7 +143,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="7" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No subscriptions yet</p>
                             <p class="text-xs mt-1">Subscriptions will appear here when companies sign up.</p>
                         </td>
@@ -182,9 +182,9 @@
                                     <option value="{{ $company->id }}">{{ $company->name }}</option>
                                 @endforeach
                             </select>
-                            <p class="text-[11px] text-gray-400 mt-1">Only companies without a live subscription are listed.</p>
+                            <p class="text-[11px] text-gray-600 mt-1">Only companies without a live subscription are listed.</p>
                         @endif
-                        @error('sub_company_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                        @error('sub_company_id') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -196,7 +196,7 @@
                                     <option value="{{ $plan->id }}">{{ $plan->name }}</option>
                                 @endforeach
                             </select>
-                            @error('sub_plan_id') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            @error('sub_plan_id') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1">Billing Cycle *</label>
@@ -222,7 +222,7 @@
                             <label class="block text-xs font-medium text-gray-500 mb-1">Trial Ends</label>
                             <input type="date" wire:model="sub_trial_ends_at" class="w-full rounded-lg border-gray-300 text-sm"
                                    @if ($sub_status !== 'trialing') disabled @endif />
-                            @error('sub_trial_ends_at') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            @error('sub_trial_ends_at') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
@@ -230,12 +230,12 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1">Period Start</label>
                             <input type="date" wire:model="sub_period_start" class="w-full rounded-lg border-gray-300 text-sm" />
-                            @error('sub_period_start') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            @error('sub_period_start') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1">Period End</label>
                             <input type="date" wire:model="sub_period_end" class="w-full rounded-lg border-gray-300 text-sm" />
-                            @error('sub_period_end') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            @error('sub_period_end') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                     </div>
                 </div>
@@ -244,7 +244,7 @@
                     <button wire:click="closeModal"
                             class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
                     <button wire:click="saveSubscription"
-                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                         {{ $editingId ? 'Save Changes' : 'Create Subscription' }}
                     </button>
                 </div>

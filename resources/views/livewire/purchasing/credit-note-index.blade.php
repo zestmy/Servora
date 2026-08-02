@@ -1,20 +1,20 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
-            <a href="{{ route('purchasing.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+            <a href="{{ route('purchasing.index') }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <h2 class="text-lg font-semibold text-gray-700">Credit & Debit Notes</h2>
+            <h2 class="page-title">Credit & Debit Notes</h2>
         </div>
         <a href="{{ route('purchasing.credit-notes.create') }}"
-           class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+           class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
             + New
         </a>
     </div>
@@ -22,15 +22,15 @@
     {{-- Stats --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         @foreach ($stats as $stat)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <p class="text-xs text-gray-400 uppercase tracking-wider">{{ $stat['label'] }}</p>
+            <div class="card p-5">
+                <p class="text-xs text-gray-600 uppercase tracking-wider">{{ $stat['label'] }}</p>
                 <p class="text-2xl font-bold text-gray-800 mt-1">{{ $stat['value'] }}</p>
             </div>
         @endforeach
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             <div class="flex-1 min-w-48">
                 <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search note number..."
@@ -64,14 +64,14 @@
             @endif
             <div class="flex items-center gap-1">
                 <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm" />
-                <span class="text-gray-400 text-xs">to</span>
+                <span class="text-gray-600 text-xs">to</span>
                 <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm" />
             </div>
         </div>
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
 
         {{-- ── Mobile cards (md:hidden) ──────────────────────────────────── --}}
         <div class="md:hidden divide-y divide-gray-100">
@@ -80,16 +80,16 @@
                     $mStatus = match($cn->status) {
                         'draft'     => 'bg-gray-100 text-gray-600',
                         'issued'    => 'bg-blue-100 text-blue-700',
-                        'applied'   => 'bg-green-100 text-green-700',
+                        'applied'   => 'bg-success-100 text-success-700',
                         'acknowledged' => 'bg-teal-100 text-teal-700',
-                        'cancelled' => 'bg-red-100 text-red-600',
+                        'cancelled' => 'bg-danger-100 text-danger-600',
                         default     => 'bg-gray-100 text-gray-500',
                     };
                     $mType = $cn->type === 'debit_note' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600';
                 @endphp
                 <div class="p-3 space-y-2">
                     <div class="flex items-start justify-between gap-2">
-                        <a href="{{ route('purchasing.credit-notes.edit', $cn->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $cn->credit_note_number }}</a>
+                        <a href="{{ route('purchasing.credit-notes.edit', $cn->id) }}" class="font-mono text-sm font-medium text-brand-600">{{ $cn->credit_note_number }}</a>
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mStatus }}">{{ ucfirst($cn->status) }}</span>
                     </div>
                     <div class="flex items-center gap-2 text-xs">
@@ -114,12 +114,12 @@
                                     class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">Issue</button>
                         @elseif ($cn->status === 'issued')
                             <button wire:click="apply({{ $cn->id }})" wire:confirm="Apply this note to the linked invoice?"
-                                    class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">Apply</button>
+                                    class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-50 text-success-700 hover:bg-success-100">Apply</button>
                         @endif
                     </div>
                 </div>
             @empty
-                <div class="p-8 text-center text-gray-400 text-sm font-medium">No credit/debit notes found.</div>
+                <div class="p-8 text-center text-gray-600 text-sm font-medium">No credit/debit notes found.</div>
             @endforelse
         </div>
 
@@ -144,9 +144,9 @@
                         $statusBadge = match($cn->status) {
                             'draft'     => 'bg-gray-100 text-gray-600',
                             'issued'    => 'bg-blue-100 text-blue-700',
-                            'applied'   => 'bg-green-100 text-green-700',
+                            'applied'   => 'bg-success-100 text-success-700',
                             'acknowledged' => 'bg-teal-100 text-teal-700',
-                            'cancelled' => 'bg-red-100 text-red-600',
+                            'cancelled' => 'bg-danger-100 text-danger-600',
                             default     => 'bg-gray-100 text-gray-500',
                         };
                         $typeBadge = $cn->type === 'debit_note'
@@ -154,7 +154,7 @@
                             : 'bg-purple-50 text-purple-600';
                     @endphp
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="px-4 py-3 font-mono text-xs font-medium text-indigo-600">
+                        <td class="px-4 py-3 font-mono text-xs font-medium text-brand-600">
                             <a href="{{ route('purchasing.credit-notes.edit', $cn->id) }}" class="hover:underline">
                                 {{ $cn->credit_note_number }}
                             </a>
@@ -189,7 +189,7 @@
                                 {{-- Edit / View --}}
                                 <a href="{{ route('purchasing.credit-notes.edit', $cn->id) }}"
                                    title="{{ $cn->status === 'draft' ? 'Edit' : 'View' }}"
-                                   class="text-gray-400 hover:text-indigo-600 transition p-1">
+                                   class="text-gray-600 hover:text-brand-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
 
@@ -204,7 +204,7 @@
                                 {{-- Apply --}}
                                 @if ($cn->status === 'issued')
                                     <button wire:click="apply({{ $cn->id }})" wire:confirm="Apply this note to the linked invoice?"
-                                            title="Apply" class="text-green-500 hover:text-green-700 transition p-1">
+                                            title="Apply" class="text-success-500 hover:text-success-700 transition p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                     </button>
                                 @endif
@@ -212,7 +212,7 @@
                                 {{-- Cancel --}}
                                 @if (in_array($cn->status, ['draft', 'issued']))
                                     <button wire:click="cancel({{ $cn->id }})" wire:confirm="Cancel this note?"
-                                            title="Cancel" class="text-red-400 hover:text-red-600 transition p-1">
+                                            title="Cancel" class="text-danger-400 hover:text-danger-600 transition p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
                                 @endif
@@ -220,7 +220,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">No credit/debit notes found.</td></tr>
+                    <tr><td colspan="9" class="px-4 py-8 text-center text-gray-600">No credit/debit notes found.</td></tr>
                 @endforelse
             </tbody>
         </table>

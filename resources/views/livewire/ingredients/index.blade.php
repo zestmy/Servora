@@ -2,14 +2,14 @@
     {{-- Flash message --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Page Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 class="text-lg font-semibold text-gray-700">Market List</h2>
+        <h2 class="page-title">Market List</h2>
         <div class="flex flex-wrap items-center gap-2">
             @can('audit.view')
                 <button wire:click="$set('showActivityLog', true)"
@@ -57,7 +57,7 @@
                 <span class="hidden sm:inline">Find Duplicates</span>
             </button>
             @if ($this->locked)
-                <span class="inline-flex items-center gap-1.5 px-2.5 md:px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg" title="The company admin has locked this list. Read-only mode.">
+                <span class="inline-flex items-center gap-1.5 px-2.5 md:px-3 py-2 text-sm font-medium text-warning-700 bg-warning-50 border border-warning-200 rounded-lg" title="The company admin has locked this list. Read-only mode.">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                     Locked
                 </span>
@@ -87,7 +87,7 @@
                     <span class="hidden sm:inline">Import</span>
                 </a>
                 <button wire:click="openCreate"
-                        class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     <span class="sm:hidden">+ Add</span>
                     <span class="hidden sm:inline">+ Add Product</span>
                 </button>
@@ -102,17 +102,17 @@
     @endcan
 
     {{-- Filter Bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-1">
                 <input type="text"
                        wire:model.live.debounce.300ms="search"
                        placeholder="Search by name or code…"
-                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
             <div class="flex items-center gap-1.5">
                 <select wire:model.live="categoryFilter"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">All Categories</option>
                     @foreach ($categories as $main)
                         @if ($main->children->isNotEmpty())
@@ -127,7 +127,7 @@
                         @endif
                     @endforeach
                 </select>
-                <button wire:click="openCreateCategory" class="p-2 text-gray-400 hover:text-indigo-600 transition" title="Manage Categories">
+                <button wire:click="openCreateCategory" class="p-2 text-gray-600 hover:text-brand-600 transition" title="Manage Categories">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -136,7 +136,7 @@
             </div>
             <div>
                 <select wire:model.live="supplierFilter"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">All Suppliers</option>
                     <option value="none">No Supplier</option>
                     @foreach ($suppliers as $s)
@@ -147,14 +147,14 @@
             <div>
                 <select wire:model.live="factorFilter"
                         title="Filter products missing a UOM conversion factor"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">All Factors</option>
                     <option value="missing">Missing Factor</option>
                 </select>
             </div>
             <div>
                 <select wire:model.live="statusFilter"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="all">All Status</option>
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -162,7 +162,7 @@
             </div>
             <div>
                 <select wire:model.live="perPage"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="100">100 per page</option>
                     <option value="200">200 per page</option>
                     <option value="300">300 per page</option>
@@ -175,8 +175,8 @@
 
     {{-- Bulk Action Bar --}}
     @if (count($selectedIds) > 0 && ! $this->locked)
-        <div class="mb-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
-            <span class="text-sm font-medium text-indigo-700">
+        <div class="mb-3 px-4 py-3 bg-brand-50 border border-brand-200 rounded-xl flex items-center justify-between">
+            <span class="text-sm font-medium text-brand-700">
                 {{ count($selectedIds) }} product{{ count($selectedIds) > 1 ? 's' : '' }} selected
             </span>
             <div class="flex items-center gap-2">
@@ -186,7 +186,7 @@
                 </button>
                 <button wire:click="bulkDelete"
                         wire:confirm="Delete {{ count($selectedIds) }} selected product(s)? This cannot be undone."
-                        class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                        class="px-3 py-1.5 text-xs font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 transition">
                     Delete Selected
                 </button>
             </div>
@@ -241,7 +241,7 @@
                         @foreach ($editableRows as $ingId => $row)
                             @php $qn++; @endphp
                             <tr class="hover:bg-purple-50/30">
-                                <td class="px-2 py-1.5 text-gray-400">{{ $qn }}</td>
+                                <td class="px-2 py-1.5 text-gray-600">{{ $qn }}</td>
                                 <td class="px-2 py-1.5">
                                     <input type="text" wire:model.blur="editableRows.{{ $ingId }}.name"
                                            class="w-full text-xs rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
@@ -348,14 +348,14 @@
 
     {{-- Table — horizontally scrollable on mobile. --}}
     @if (! $quickEdit)
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
                     <th class="px-4 py-3 w-10">
                         <input type="checkbox" wire:model.live="selectAll"
-                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                               class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                     </th>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Category</th>
@@ -373,15 +373,15 @@
             </thead>
             <tbody class="divide-y divide-gray-50">
                 @forelse ($ingredients as $ingredient)
-                    <tr class="hover:bg-gray-50 transition {{ in_array($ingredient->id, $selectedIds) ? 'bg-indigo-50' : '' }}">
+                    <tr class="hover:bg-gray-50 transition {{ in_array($ingredient->id, $selectedIds) ? 'bg-brand-50' : '' }}">
                         <td class="px-4 py-3">
                             <input type="checkbox" value="{{ $ingredient->id }}" wire:model.live="selectedIds"
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                         </td>
                         <td class="px-4 py-3">
                             <div class="font-medium text-gray-800">{{ $ingredient->name }}</div>
                             @if ($ingredient->code)
-                                <div class="text-xs text-gray-400">{{ $ingredient->code }}</div>
+                                <div class="text-xs text-gray-600">{{ $ingredient->code }}</div>
                             @endif
                             @php
                                 $defaultSupplier = $ingredient->suppliers
@@ -389,7 +389,7 @@
                                     ->first();
                             @endphp
                             @if ($defaultSupplier)
-                                <div class="text-xs text-indigo-500 mt-0.5">{{ $defaultSupplier->name }}</div>
+                                <div class="text-xs text-brand-500 mt-0.5">{{ $defaultSupplier->name }}</div>
                             @endif
                         </td>
                         <td class="px-4 py-3">
@@ -399,7 +399,7 @@
                                     <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $ic->color }}"></div>
                                     <span class="text-gray-600 text-sm">
                                         @if ($ic->parent)
-                                            <span class="text-gray-400">{{ $ic->parent->name }} /</span>
+                                            <span class="text-gray-600">{{ $ic->parent->name }} /</span>
                                             {{ $ic->name }}
                                         @else
                                             {{ $ic->name }}
@@ -407,17 +407,17 @@
                                     </span>
                                 </div>
                             @else
-                                <span class="text-gray-300">—</span>
+                                <span class="text-gray-500">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-gray-600">
                             <span>{{ $ingredient->baseUom->abbreviation }}</span>
                             @if ($ingredient->base_uom_id !== $ingredient->recipe_uom_id)
-                                <span class="text-gray-300 mx-0.5">/</span>
-                                <span class="text-indigo-500">{{ $ingredient->recipeUom->abbreviation }}</span>
+                                <span class="text-gray-500 mx-0.5">/</span>
+                                <span class="text-brand-500">{{ $ingredient->recipeUom->abbreviation }}</span>
                             @endif
                             @if ($ingredient->secondary_recipe_uom_id)
-                                <span class="text-gray-300 mx-0.5">/</span>
+                                <span class="text-gray-500 mx-0.5">/</span>
                                 <span class="text-purple-500" title="Secondary recipe UOM">{{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
                             @endif
                         </td>
@@ -427,9 +427,9 @@
                         <td class="px-4 py-3 text-right tabular-nums">
                             @if (floatval($ingredient->pack_size) > 1)
                                 <span class="text-blue-600 font-medium">{{ rtrim(rtrim(number_format(floatval($ingredient->pack_size), 4), '0'), '.') }}</span>
-                                <span class="text-gray-400 text-xs">{{ $ingredient->baseUom->abbreviation }}</span>
+                                <span class="text-gray-600 text-xs">{{ $ingredient->baseUom->abbreviation }}</span>
                             @else
-                                <span class="text-gray-400">1</span>
+                                <span class="text-gray-600">1</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
@@ -438,39 +438,39 @@
                             @endphp
                             @if ($conv)
                                 <span class="text-purple-600 font-medium">{{ rtrim(rtrim(number_format(floatval($conv->factor), 4), '0'), '.') }}</span>
-                                <span class="text-gray-400 text-xs">{{ $ingredient->baseUom->abbreviation }}→{{ $ingredient->recipeUom->abbreviation }}</span>
+                                <span class="text-gray-600 text-xs">{{ $ingredient->baseUom->abbreviation }}→{{ $ingredient->recipeUom->abbreviation }}</span>
                             @else
-                                <span class="text-gray-300">—</span>
+                                <span class="text-gray-500">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
-                            <span class="{{ $ingredient->yield_percent < 100 ? 'text-red-600 font-medium' : 'text-gray-700' }}">
+                            <span class="{{ $ingredient->yield_percent < 100 ? 'text-danger-600 font-medium' : 'text-gray-700' }}">
                                 {{ number_format($ingredient->current_cost, 4) }}
                             </span>
-                            <span class="text-gray-400 text-xs">/ {{ $ingredient->baseUom->abbreviation }}</span>
+                            <span class="text-gray-600 text-xs">/ {{ $ingredient->baseUom->abbreviation }}</span>
                             @if ($ingredient->yield_percent < 100)
-                                <div class="text-xs text-amber-500">{{ number_format($ingredient->yield_percent, 0) }}% yield</div>
+                                <div class="text-xs text-warning-500">{{ number_format($ingredient->yield_percent, 0) }}% yield</div>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums">
                             @php $rc = $ingredient->recipeCost(); @endphp
                             @if ($rc !== null)
-                                <span class="font-semibold text-indigo-700">{{ number_format($rc, 4) }}</span>
-                                <span class="text-gray-400 text-xs">/ {{ $ingredient->recipeUom->abbreviation }}</span>
+                                <span class="font-semibold text-brand-700">{{ number_format($rc, 4) }}</span>
+                                <span class="text-gray-600 text-xs">/ {{ $ingredient->recipeUom->abbreviation }}</span>
                             @else
-                                <span class="text-xs text-gray-300 italic">no conversion</span>
+                                <span class="text-xs text-gray-500 italic">no conversion</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             @if ($ingredient->taxRate)
                                 <span class="px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600">{{ $ingredient->taxRate->name }} {{ rtrim(rtrim(number_format($ingredient->taxRate->rate, 2), '0'), '.') }}%</span>
                             @else
-                                <span class="text-xs text-gray-300">Default</span>
+                                <span class="text-xs text-gray-500">Default</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             @if ($ingredient->is_active)
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-700">
                                     Active
                                 </span>
                             @else
@@ -482,17 +482,17 @@
                         <td class="px-4 py-3 text-center">
                             @if ($ingredient->recipes_count > 0)
                                 <span title="Used in {{ $ingredient->recipes_count }} recipe(s) — deleting will affect them"
-                                      class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                      class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-700">
                                     {{ $ingredient->recipes_count }}
                                 </span>
                             @else
-                                <span class="text-xs text-gray-300">0</span>
+                                <span class="text-xs text-gray-500">0</span>
                             @endif
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 <button wire:click="openEdit({{ $ingredient->id }})" title="{{ $this->locked ? 'View' : 'Edit' }}"
-                                        class="text-indigo-500 hover:text-indigo-700 transition">
+                                        class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
@@ -500,7 +500,7 @@
                                 @if (! $this->locked)
                                 <button wire:click="toggleActive({{ $ingredient->id }})"
                                         title="{{ $ingredient->is_active ? 'Deactivate' : 'Activate' }}"
-                                        class="{{ $ingredient->is_active ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-gray-600' }} transition">
+                                        class="{{ $ingredient->is_active ? 'text-success-500 hover:text-success-700' : 'text-gray-600 hover:text-gray-900' }} transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
@@ -508,7 +508,7 @@
                                 <button wire:click="delete({{ $ingredient->id }})"
                                         wire:confirm="{{ $ingredient->recipes_count > 0 ? "'".$ingredient->name."' is used in ".$ingredient->recipes_count." recipe(s); deleting it will affect them. " : '' }}Delete '{{ $ingredient->name }}'? This cannot be undone."
                                         title="Delete"
-                                        class="text-red-400 hover:text-red-600 transition">
+                                        class="text-danger-400 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
@@ -519,7 +519,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="13" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="13" class="px-4 py-12 text-center text-gray-600">
                             <div class="text-3xl mb-2">🥕</div>
                             <p class="font-medium">No products found</p>
                             <p class="text-xs mt-1">Try adjusting your filters or add your first product.</p>
@@ -558,7 +558,7 @@
                 <h3 class="text-base font-semibold text-gray-800">
                     @if ($editingId) Edit: {{ $name }} @else New Product @endif
                 </h3>
-                <button @click="$wire.closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <button @click="$wire.closeModal()" class="text-gray-600 hover:text-gray-900 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -577,9 +577,9 @@
 
                         {{-- Live duplicate warning --}}
                         @if (! empty($nameDuplicateWarnings))
-                            <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            <div class="mt-2 rounded-lg border border-warning-200 bg-warning-50 px-3 py-2 text-xs text-warning-800">
                                 <div class="flex items-start gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5 flex-shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-2.99l-6.93-12a2 2 0 00-3.48 0l-6.93 12A2 2 0 005.07 19z" />
                                     </svg>
                                     <div class="flex-1">
@@ -590,17 +590,17 @@
                                                     <span>
                                                         <span class="font-medium">{{ $w['name'] }}</span>
                                                         @unless ($w['is_active'])
-                                                            <span class="text-amber-500">(inactive)</span>
+                                                            <span class="text-warning-500">(inactive)</span>
                                                         @endunless
                                                         @if ($w['recipes_count'] > 0)
-                                                            <span class="text-amber-600">· used in {{ $w['recipes_count'] }} recipe{{ $w['recipes_count'] !== 1 ? 's' : '' }}</span>
+                                                            <span class="text-warning-600">· used in {{ $w['recipes_count'] }} recipe{{ $w['recipes_count'] !== 1 ? 's' : '' }}</span>
                                                         @endif
                                                     </span>
-                                                    <span class="text-amber-500 tabular-nums">{{ $w['score'] }}%</span>
+                                                    <span class="text-warning-500 tabular-nums">{{ $w['score'] }}%</span>
                                                 </li>
                                             @endforeach
                                         </ul>
-                                        <p class="mt-1 text-amber-600">Re-using the existing product keeps recipe costs accurate. Only add a new one if it's genuinely different.</p>
+                                        <p class="mt-1 text-warning-600">Re-using the existing product keeps recipe costs accurate. Only add a new one if it's genuinely different.</p>
                                     </div>
                                 </div>
                             </div>
@@ -617,10 +617,10 @@
                         <div>
                             <div class="flex items-center justify-between">
                                 <x-input-label for="ingredient_category_id" value="Category" />
-                                <button type="button" wire:click="openCreateCategory" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">+ Add</button>
+                                <button type="button" wire:click="openCreateCategory" class="text-xs text-brand-600 hover:text-brand-800 font-medium">+ Add</button>
                             </div>
                             <select id="ingredient_category_id" wire:model="ingredient_category_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">— No Category —</option>
                                 @foreach ($categories as $main)
                                     @if ($main->children->isNotEmpty())
@@ -639,7 +639,7 @@
                         <div>
                             <x-input-label for="tax_rate_id" value="Tax Class" />
                             <select id="tax_rate_id" wire:model="tax_rate_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">— Default (Company Rate) —</option>
                                 @foreach ($taxRates as $tr)
                                     <option value="{{ $tr->id }}">{{ $tr->name }} {{ rtrim(rtrim(number_format($tr->rate, 2), '0'), '.') }}%{{ $tr->is_inclusive ? ' (Inclusive)' : '' }}</option>
@@ -654,39 +654,39 @@
                         <div>
                             <x-input-label for="base_uom_id" value="Base UOM *" />
                             <select id="base_uom_id" wire:model.live="base_uom_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">— select —</option>
                                 @foreach ($uoms as $uom)
                                     <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Purchase / stock unit (e.g. kg, L)</p>
+                            <p class="mt-0.5 text-xs text-gray-600">Purchase / stock unit (e.g. kg, L)</p>
                             <x-input-error :messages="$errors->get('base_uom_id')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="recipe_uom_id" value="Recipe UOM *" />
                             <select id="recipe_uom_id" wire:model.live="recipe_uom_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">— select —</option>
                                 @foreach ($uoms as $uom)
                                     <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Primary unit used in recipes (e.g. g, ml)</p>
+                            <p class="mt-0.5 text-xs text-gray-600">Primary unit used in recipes (e.g. g, ml)</p>
                             <x-input-error :messages="$errors->get('recipe_uom_id')" class="mt-1" />
                         </div>
                     </div>
 
                     {{-- Secondary Recipe UOM --}}
-                    <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+                    <div class="rounded-lg border border-brand-100 bg-brand-50/50 p-4 space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-indigo-800">Secondary Recipe UOM <span class="text-xs font-normal text-indigo-500">(optional)</span></p>
-                                <p class="text-xs text-indigo-500 mt-0.5">For products measured in a different unit in recipes — e.g. Calamansi bought in kg, stocked in g, but recipes use <strong>nos</strong></p>
+                                <p class="text-sm font-medium text-brand-800">Secondary Recipe UOM <span class="text-xs font-normal text-brand-500">(optional)</span></p>
+                                <p class="text-xs text-brand-500 mt-0.5">For products measured in a different unit in recipes — e.g. Calamansi bought in kg, stocked in g, but recipes use <strong>nos</strong></p>
                             </div>
                             @if ($secondary_recipe_uom_id)
                                 <button type="button" wire:click="$set('secondary_recipe_uom_id', null); $set('secondary_uom_factor', '')"
-                                        class="text-xs text-red-400 hover:text-red-600 transition">Clear</button>
+                                        class="text-xs text-danger-400 hover:text-danger-600 transition">Clear</button>
                             @endif
                         </div>
 
@@ -694,7 +694,7 @@
                             <div>
                                 <label class="text-xs font-medium text-gray-600 block mb-1">Secondary UOM</label>
                                 <select wire:model.live="secondary_recipe_uom_id"
-                                        class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                     <option value="">— none —</option>
                                     @foreach ($uoms as $uom)
                                         <option value="{{ $uom->id }}"
@@ -719,7 +719,7 @@
                                                   type="number" step="0.0001" min="0.0001"
                                                   placeholder="e.g. 27"
                                                   class="block w-full" />
-                                    <p class="mt-0.5 text-xs text-gray-400">
+                                    <p class="mt-0.5 text-xs text-gray-600">
                                         @if ($secondary_uom_factor && floatval($secondary_uom_factor) > 0)
                                             Cost per {{ $secAbbr }} = cost per {{ $recipeAbbr }} × {{ $secondary_uom_factor }}
                                         @else
@@ -730,7 +730,7 @@
                                 </div>
                             @else
                                 <div class="flex items-center">
-                                    <p class="text-xs text-indigo-400 italic">Select a secondary UOM to set conversion</p>
+                                    <p class="text-xs text-brand-400 italic">Select a secondary UOM to set conversion</p>
                                 </div>
                             @endif
                         </div>
@@ -743,7 +743,7 @@
                             <x-text-input id="purchase_price" wire:model.live="purchase_price"
                                           type="number" step="0.0001" min="0"
                                           class="mt-1 block w-full" />
-                            <p class="mt-0.5 text-xs text-gray-400">Price per pack/unit</p>
+                            <p class="mt-0.5 text-xs text-gray-600">Price per pack/unit</p>
                             <x-input-error :messages="$errors->get('purchase_price')" class="mt-1" />
                         </div>
                         <div>
@@ -751,7 +751,7 @@
                             <x-text-input id="pack_size" wire:model.live="pack_size"
                                           type="number" step="0.1" min="0.1"
                                           class="mt-1 block w-full" />
-                            <p class="mt-0.5 text-xs text-gray-400">{{ $baseUomAbbr ?? 'base UOM' }} per pack (1 = no pack)</p>
+                            <p class="mt-0.5 text-xs text-gray-600">{{ $baseUomAbbr ?? 'base UOM' }} per pack (1 = no pack)</p>
                             <x-input-error :messages="$errors->get('pack_size')" class="mt-1" />
                         </div>
                         <div>
@@ -760,9 +760,9 @@
                                 <x-text-input id="yield_percent" wire:model.live="yield_percent"
                                               type="number" step="0.01" min="0.01" max="100"
                                               class="block w-full pr-8" />
-                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">%</span>
                             </div>
-                            <p class="mt-0.5 text-xs text-gray-400">Usable after prep (100 = no loss)</p>
+                            <p class="mt-0.5 text-xs text-gray-600">Usable after prep (100 = no loss)</p>
                             <x-input-error :messages="$errors->get('yield_percent')" class="mt-1" />
                         </div>
                     </div>
@@ -776,29 +776,29 @@
                         <div>
                             <x-input-label for="default_supplier" value="Default Supplier" />
                             <select id="default_supplier" wire:model="supplier_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">— No Supplier —</option>
                                 @foreach ($suppliers as $sup)
                                     <option value="{{ $sup->id }}">{{ $sup->name }}</option>
                                 @endforeach
                             </select>
-                            <p class="mt-0.5 text-xs text-gray-400">Uses this product's price, UOM &amp; pack size</p>
+                            <p class="mt-0.5 text-xs text-gray-600">Uses this product's price, UOM &amp; pack size</p>
                         </div>
                     </div>
 
                     {{-- Outlet Visibility --}}
                     <div>
                         <x-input-label value="Outlet Visibility" />
-                        <label class="flex items-center gap-2 mt-1 px-2 py-1.5 bg-indigo-50 rounded-lg cursor-pointer">
-                            <input type="checkbox" wire:model.live="allOutletsVisible" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                            <span class="text-sm font-medium text-indigo-700">Visible at all outlets</span>
+                        <label class="flex items-center gap-2 mt-1 px-2 py-1.5 bg-brand-50 rounded-lg cursor-pointer">
+                            <input type="checkbox" wire:model.live="allOutletsVisible" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span class="text-sm font-medium text-brand-700">Visible at all outlets</span>
                         </label>
                         @if (! $allOutletsVisible)
                             <div class="mt-2 max-h-28 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
                                 @foreach ($outlets as $o)
                                     <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
                                         <input type="checkbox" wire:model="ingredientOutletIds" value="{{ $o->id }}"
-                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                         <span class="text-sm text-gray-700">{{ $o->name }}</span>
                                     </label>
                                 @endforeach
@@ -808,8 +808,8 @@
 
                     {{-- Cost Chain Summary --}}
                     @if (floatval($purchase_price) > 0)
-                        <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
-                            <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2">Cost Chain</p>
+                        <div class="rounded-lg bg-brand-50 border border-brand-100 px-4 py-3">
+                            <p class="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Cost Chain</p>
                             <div class="flex flex-wrap items-center gap-2 text-sm">
 
                                 {{-- Purchase price (per pack) --}}
@@ -827,7 +827,7 @@
                                         <span class="font-medium">÷ {{ rtrim(rtrim(number_format(floatval($pack_size), 4), '0'), '.') }}</span>
                                         <span class="text-xs">{{ $baseUomAbbr ?? '?' }}/pack</span>
                                     </div>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
                                     <div class="flex flex-col items-center">
@@ -840,17 +840,17 @@
                                 @endif
 
                                 @if (floatval($yield_percent) < 100)
-                                    <div class="flex flex-col items-center text-amber-500">
+                                    <div class="flex flex-col items-center text-warning-500">
                                         <span class="font-medium">÷ {{ number_format(floatval($yield_percent), 0) }}% yield</span>
                                         <span class="text-xs">loss applied</span>
                                     </div>
 
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
 
                                     <div class="flex flex-col items-center">
-                                        <span class="font-semibold text-red-600">
+                                        <span class="font-semibold text-danger-600">
                                             {{ number_format($effectiveCost, 4) }}
                                             <span class="text-gray-500 font-normal text-xs">/ {{ $baseUomAbbr ?? '?' }}</span>
                                         </span>
@@ -858,10 +858,10 @@
                                     </div>
                                 @else
                                     @if (floatval($pack_size) <= 1)
-                                        <div class="flex flex-col items-center text-gray-400">
+                                        <div class="flex flex-col items-center text-gray-600">
                                             <span class="text-xs">no yield loss</span>
                                         </div>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                         </svg>
                                         <div class="flex flex-col items-center">
@@ -876,21 +876,21 @@
 
                                 {{-- Recipe cost segment (only when conversion resolves) --}}
                                 @if ($recipeCost !== null && $recipeUomAbbr !== null && $recipeUomAbbr !== $baseUomAbbr)
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
                                     <div class="flex flex-col items-center">
-                                        <span class="font-semibold text-indigo-700">
+                                        <span class="font-semibold text-brand-700">
                                             {{ number_format($recipeCost, 4) }}
                                             <span class="text-gray-500 font-normal text-xs">/ {{ $recipeUomAbbr }}</span>
                                         </span>
                                         <span class="text-xs text-gray-500">recipe cost</span>
                                     </div>
                                 @elseif ($recipeCost === null && $base_uom_id && $recipe_uom_id && $base_uom_id != $recipe_uom_id && $editingId)
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
-                                    <div class="flex flex-col items-center text-gray-400">
+                                    <div class="flex flex-col items-center text-gray-600">
                                         <span class="text-xs italic">add {{ $baseUomAbbr }}→{{ $recipeUomAbbr }} custom conversion below</span>
                                     </div>
                                 @endif
@@ -902,7 +902,7 @@
                     <div>
                         <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="is_active"
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                             <span class="text-sm text-gray-700 font-medium">Active</span>
                         </label>
                     </div>
@@ -912,25 +912,25 @@
                             <div class="flex items-center justify-between mb-3">
                                 <div>
                                     <h4 class="text-sm font-semibold text-gray-700">UOM Conversions</h4>
-                                    <p class="text-xs text-gray-400 mt-0.5">
+                                    <p class="text-xs text-gray-600 mt-0.5">
                                         e.g. 1 {{ $baseUomAbbr ?? 'base' }} = 30 {{ $recipeUomAbbr ?? 'recipe' }}
                                         → factor: 30
                                     </p>
                                 </div>
                                 <button type="button" wire:click="addConversionRow"
-                                        class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition">
+                                        class="text-xs px-2.5 py-1 bg-brand-50 text-brand-600 rounded-md hover:bg-brand-100 transition">
                                     + Add Conversion
                                 </button>
                             </div>
 
-                            <div class="mb-3 px-3 py-2 bg-green-50 border border-green-100 rounded-md text-xs text-green-700">
+                            <div class="mb-3 px-3 py-2 bg-success-50 border border-success-100 rounded-md text-xs text-success-700">
                                 <strong>Built-in:</strong> kg&#8596;g&#8596;mg, L&#8596;mL&#8596;tsp&#8596;tbsp, lb&#8596;oz are auto-converted. Only add custom conversions for non-standard units (e.g. kg&#8594;pcs).
                             </div>
 
                             @if (count($conversions))
                                 <div class="overflow-x-auto">
                                     <table class="min-w-full text-xs">
-                                        <thead class="text-gray-400 uppercase tracking-wider">
+                                        <thead class="text-gray-600 uppercase tracking-wider">
                                             <tr>
                                                 <th class="pb-1 text-left font-medium">1 unit of</th>
                                                 <th class="pb-1 text-center font-medium">=</th>
@@ -944,7 +944,7 @@
                                                 <tr>
                                                     <td class="py-1 pr-2">
                                                         <select wire:model.live="conversions.{{ $idx }}.from_uom_id"
-                                                                class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                                                class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500">
                                                             <option value="">— from —</option>
                                                             @foreach ($uoms as $uom)
                                                                 <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
@@ -952,17 +952,17 @@
                                                         </select>
                                                         <x-input-error :messages="$errors->get('conversions.'.$idx.'.from_uom_id')" class="mt-0.5" />
                                                     </td>
-                                                    <td class="py-1 text-center text-gray-400 px-1">=</td>
+                                                    <td class="py-1 text-center text-gray-600 px-1">=</td>
                                                     <td class="py-1 pr-2">
                                                         <input type="number" step="0.1" min="0.1"
                                                                wire:model.live="conversions.{{ $idx }}.factor"
                                                                placeholder="e.g. 30"
-                                                               class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
+                                                               class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500" />
                                                         <x-input-error :messages="$errors->get('conversions.'.$idx.'.factor')" class="mt-0.5" />
                                                     </td>
                                                     <td class="py-1 pr-2">
                                                         <select wire:model.live="conversions.{{ $idx }}.to_uom_id"
-                                                                class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                                                class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500">
                                                             <option value="">— to —</option>
                                                             @foreach ($uoms as $uom)
                                                                 <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
@@ -972,7 +972,7 @@
                                                     </td>
                                                     <td class="py-1 text-center">
                                                         <button type="button" wire:click="removeConversionRow({{ $idx }})"
-                                                                class="text-red-400 hover:text-red-600 transition">
+                                                                class="text-danger-400 hover:text-danger-600 transition">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                                             </svg>
@@ -984,7 +984,7 @@
                                     </table>
                                 </div>
                             @else
-                                <p class="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-600 text-center py-3 bg-gray-50 rounded-lg">
                                     No custom conversions. Standard conversions (same type) are automatic.
                                 </p>
                             @endif
@@ -995,10 +995,10 @@
                         <div class="flex items-center justify-between mb-3">
                             <div>
                                 <h4 class="text-sm font-semibold text-gray-700">Additional Suppliers</h4>
-                                <p class="text-xs text-gray-400 mt-0.5">Add secondary suppliers with different pricing</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Add secondary suppliers with different pricing</p>
                             </div>
                             <button type="button" wire:click="addSupplierRow"
-                                    class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition">
+                                    class="text-xs px-2.5 py-1 bg-brand-50 text-brand-600 rounded-md hover:bg-brand-100 transition">
                                 + Add Supplier
                             </button>
                         </div>
@@ -1011,7 +1011,7 @@
                                                 {{-- Supplier select (spans 5 cols) --}}
                                                 <div class="col-span-5">
                                                     <select wire:model="supplierLinks.{{ $idx }}.supplier_id"
-                                                            class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                                            class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500">
                                                         <option value="">— supplier —</option>
                                                         @foreach ($suppliers as $sup)
                                                             <option value="{{ $sup->id }}">{{ $sup->name }}</option>
@@ -1024,20 +1024,20 @@
                                                     <input type="text"
                                                            wire:model="supplierLinks.{{ $idx }}.supplier_sku"
                                                            placeholder="SKU"
-                                                           class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
+                                                           class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500" />
                                                 </div>
                                                 {{-- Last Cost (spans 2 cols) --}}
                                                 <div class="col-span-2">
                                                     <input type="number" step="0.0001" min="0"
                                                            wire:model="supplierLinks.{{ $idx }}.last_cost"
                                                            placeholder="Cost/pack"
-                                                           class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
+                                                           class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500" />
                                                     <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.last_cost')" class="mt-0.5" />
                                                 </div>
                                                 {{-- UOM (spans 2 cols) --}}
                                                 <div class="col-span-2">
                                                     <select wire:model="supplierLinks.{{ $idx }}.uom_id"
-                                                            class="w-full rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500">
+                                                            class="w-full rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500">
                                                         <option value="">— UOM —</option>
                                                         @foreach ($uoms as $uom)
                                                             <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
@@ -1048,7 +1048,7 @@
                                                 {{-- Remove (spans 1 col) --}}
                                                 <div class="col-span-1 flex items-center justify-center pt-1">
                                                     <button type="button" wire:click="removeSupplierRow({{ $idx }})"
-                                                            class="text-red-400 hover:text-red-600 transition">
+                                                            class="text-danger-400 hover:text-danger-600 transition">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                                         </svg>
@@ -1057,19 +1057,19 @@
                                             </div>
                                             {{-- Pack Size row --}}
                                             <div class="flex items-center gap-2 pl-1">
-                                                <span class="text-xs text-gray-400 whitespace-nowrap">Pack size:</span>
+                                                <span class="text-xs text-gray-600 whitespace-nowrap">Pack size:</span>
                                                 <input type="number" step="0.1" min="0.1"
                                                        wire:model="supplierLinks.{{ $idx }}.pack_size"
                                                        placeholder="1"
-                                                       class="w-24 rounded border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500" />
-                                                <span class="text-xs text-gray-400">base UOM per 1 supplier UOM (e.g. 1.2 for a 1.2kg pack)</span>
+                                                       class="w-24 rounded border-gray-300 text-xs focus:border-brand-500 focus:ring-brand-500" />
+                                                <span class="text-xs text-gray-600">base UOM per 1 supplier UOM (e.g. 1.2 for a 1.2kg pack)</span>
                                                 <x-input-error :messages="$errors->get('supplierLinks.'.$idx.'.pack_size')" class="mt-0.5" />
                                             </div>
                                         </div>
                                     @endforeach
                                 </div>
                             @else
-                                <p class="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-600 text-center py-3 bg-gray-50 rounded-lg">
                                     No additional suppliers. Use "+ Add Supplier" for secondary sources with different pricing.
                                 </p>
                         @endif
@@ -1087,7 +1087,7 @@
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                         Save Product
                     </button>
                 </div>
@@ -1109,7 +1109,7 @@
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h3 class="text-base font-semibold text-gray-800">Bulk Update Products</h3>
-                <button @click="$wire.closeImport()" class="text-gray-400 hover:text-gray-600 transition">
+                <button @click="$wire.closeImport()" class="text-gray-600 hover:text-gray-900 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -1130,15 +1130,15 @@
                 </div>
 
                 @if (!empty($importResults))
-                    <div class="rounded-lg border px-4 py-3 text-sm {{ ($importResults['updated'] ?? 0) > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-600' }}">
+                    <div class="rounded-lg border px-4 py-3 text-sm {{ ($importResults['updated'] ?? 0) > 0 ? 'bg-success-50 border-success-200 text-success-700' : 'bg-gray-50 border-gray-200 text-gray-600' }}">
                         <p><strong>{{ $importResults['updated'] ?? 0 }}</strong> updated, <strong>{{ $importResults['skipped'] ?? 0 }}</strong> skipped</p>
                         @if (!empty($importResults['errors']))
                             <ul class="mt-1 text-xs space-y-0.5">
                                 @foreach (array_slice($importResults['errors'], 0, 5) as $err)
-                                    <li class="text-red-600">{{ $err }}</li>
+                                    <li class="text-danger-600">{{ $err }}</li>
                                 @endforeach
                                 @if (count($importResults['errors']) > 5)
-                                    <li class="text-gray-400">... and {{ count($importResults['errors']) - 5 }} more</li>
+                                    <li class="text-gray-600">... and {{ count($importResults['errors']) - 5 }} more</li>
                                 @endif
                             </ul>
                         @endif
@@ -1148,7 +1148,7 @@
                 <div>
                     <x-input-label value="Upload CSV File" />
                     <input type="file" wire:model="importFile" accept=".csv,.txt"
-                           class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
+                           class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-600 hover:file:bg-brand-100" />
                     <x-input-error :messages="$errors->get('importFile')" class="mt-1" />
                 </div>
             </div>
@@ -1157,7 +1157,7 @@
                 <button type="button" @click="$wire.closeImport()"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                 <button wire:click="processImport"
-                        class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
+                        class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition"
                         {{ !$importFile ? 'disabled' : '' }}>
                     Process Update
                 </button>
@@ -1181,7 +1181,7 @@
                 <h3 class="text-base font-semibold text-gray-800">
                     {{ $editingCategoryId ? 'Edit Category' : 'Add Category' }}
                 </h3>
-                <button @click="$wire.closeCategoryModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <button @click="$wire.closeCategoryModal()" class="text-gray-600 hover:text-gray-900 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -1215,7 +1215,7 @@
 
                     <div class="flex items-center gap-2">
                         <input type="checkbox" id="catIsActive" wire:model="catIsActive"
-                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                               class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                         <label for="catIsActive" class="text-sm text-gray-600">Active</label>
                     </div>
                 </div>
@@ -1224,7 +1224,7 @@
                     <button type="button" @click="$wire.closeCategoryModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                         {{ $editingCategoryId ? 'Update' : 'Create' }}
                     </button>
                 </div>
@@ -1239,19 +1239,19 @@
                             <div class="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-50 group">
                                 <div class="flex items-center gap-2">
                                     <div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: {{ $cat->color }}"></div>
-                                    <span class="text-sm text-gray-700 {{ !$cat->is_active ? 'line-through text-gray-400' : '' }}">{{ $cat->name }}</span>
-                                    <span class="text-xs text-gray-400">({{ $cat->ingredients_count ?? $cat->ingredients()->count() }})</span>
+                                    <span class="text-sm text-gray-700 {{ !$cat->is_active ? 'line-through text-gray-600' : '' }}">{{ $cat->name }}</span>
+                                    <span class="text-xs text-gray-600">({{ $cat->ingredients_count ?? $cat->ingredients()->count() }})</span>
                                 </div>
                                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                                     <button wire:click="openEditCategory({{ $cat->id }})"
-                                            class="p-1 text-gray-400 hover:text-indigo-600 transition" title="Edit">
+                                            class="p-1 text-gray-600 hover:text-brand-600 transition" title="Edit">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
                                     <button wire:click="deleteCategory({{ $cat->id }})"
                                             wire:confirm="Delete &quot;{{ $cat->name }}&quot;? Products in this category will become uncategorized."
-                                            class="p-1 text-gray-400 hover:text-red-600 transition" title="Delete">
+                                            class="p-1 text-gray-600 hover:text-danger-600 transition" title="Delete">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
@@ -1289,9 +1289,9 @@
                         </svg>
                         Find Duplicate Products
                     </h3>
-                    <p class="text-xs text-gray-400 mt-0.5">Duplicate products split price updates across copies, so recipe costs drift. Merge them to keep costing accurate.</p>
+                    <p class="text-xs text-gray-600 mt-0.5">Duplicate products split price updates across copies, so recipe costs drift. Merge them to keep costing accurate.</p>
                 </div>
-                <button @click="$wire.closeDuplicatesModal()" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+                <button @click="$wire.closeDuplicatesModal()" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -1307,7 +1307,7 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
                         <p class="mt-3 text-sm text-gray-600">Scanning your products…</p>
-                        <p class="text-xs text-gray-400 mt-1">Comparing names and checking with AI. This can take a few seconds.</p>
+                        <p class="text-xs text-gray-600 mt-1">Comparing names and checking with AI. This can take a few seconds.</p>
                     </div>
                 @elseif ($duplicateScanDone)
                     @if ($duplicateScanNote)
@@ -1341,7 +1341,7 @@
                         <div wire:key="dup-cluster-{{ $cluster['ids'][0] }}-{{ $ci }}" class="mb-4 rounded-xl border border-gray-200 overflow-hidden">
                             <div class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
                                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold
-                                    {{ $tone === 'red' ? 'bg-red-100 text-red-700' : ($tone === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600') }}">
+                                    {{ $tone === 'red' ? 'bg-danger-100 text-danger-700' : ($tone === 'amber' ? 'bg-warning-100 text-warning-700' : 'bg-gray-200 text-gray-600') }}">
                                     {{ $prob }}% likely duplicate
                                 </span>
                                 <span class="text-xs text-gray-500 italic truncate">{{ $cluster['reason'] }}</span>
@@ -1354,12 +1354,12 @@
                                         <input type="radio" wire:click="setDuplicateKeep({{ $ci }}, {{ $p['id'] }})"
                                                @checked($isKeep)
                                                title="Keep this as the main product"
-                                               class="text-indigo-600 focus:ring-indigo-500 flex-shrink-0 cursor-pointer" />
+                                               class="text-brand-600 focus:ring-brand-500 flex-shrink-0 cursor-pointer" />
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="font-medium text-sm {{ $isExcluded ? 'text-gray-500 line-through' : 'text-gray-800' }}">{{ $p['name'] }}</span>
                                                 @if ($isKeep)
-                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">KEEP</span>
+                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-success-100 text-success-700">KEEP</span>
                                                 @elseif ($isExcluded)
                                                     <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-600">SEPARATE</span>
                                                 @endif
@@ -1367,11 +1367,11 @@
                                                     <span class="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500">inactive</span>
                                                 @endunless
                                             </div>
-                                            <div class="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                            <div class="text-xs text-gray-600 mt-0.5 flex items-center gap-2 flex-wrap">
                                                 @if ($p['code'])<span>{{ $p['code'] }}</span>@endif
                                                 @if ($p['category'])<span>· {{ $p['category'] }}</span>@endif
                                                 @if ($p['price'] !== null)<span>· {{ number_format($p['price'], 2) }}{{ $p['uom'] ? ' / '.$p['uom'] : '' }}</span>@endif
-                                                <span class="{{ $p['recipes_count'] > 0 ? 'text-indigo-500 font-medium' : '' }}">· {{ $p['recipes_count'] }} recipe{{ $p['recipes_count'] !== 1 ? 's' : '' }}</span>
+                                                <span class="{{ $p['recipes_count'] > 0 ? 'text-brand-500 font-medium' : '' }}">· {{ $p['recipes_count'] }} recipe{{ $p['recipes_count'] !== 1 ? 's' : '' }}</span>
                                             </div>
                                         </div>
                                         @unless ($isKeep)
@@ -1379,7 +1379,7 @@
                                                     class="text-xs px-2 py-1 rounded border transition whitespace-nowrap flex-shrink-0
                                                         {{ $isExcluded
                                                             ? 'border-gray-300 text-gray-600 bg-white hover:bg-gray-50'
-                                                            : 'border-amber-300 text-amber-700 hover:bg-amber-50' }}"
+                                                            : 'border-warning-300 text-warning-700 hover:bg-warning-50' }}"
                                                     title="{{ $isExcluded ? 'Include this product in the merge' : 'This is a different product — leave it as its own item' }}">
                                                 {{ $isExcluded ? 'Include' : 'Keep separate' }}
                                             </button>
@@ -1395,15 +1395,15 @@
                                     Not duplicates
                                 </button>
                                 @if ($this->locked)
-                                    <span class="text-xs text-amber-600">List locked — unlock to merge.</span>
+                                    <span class="text-xs text-warning-600">List locked — unlock to merge.</span>
                                 @else
                                     <div class="flex items-center gap-2">
-                                        <span class="text-xs text-gray-400">{{ $mergeCount }} → KEEP</span>
+                                        <span class="text-xs text-gray-600">{{ $mergeCount }} → KEEP</span>
                                         <button type="button" wire:click="mergeCluster({{ $ci }})"
                                                 @disabled($mergeCount < 1)
                                                 wire:confirm="Merge {{ $mergeCount }} product(s) into the kept product? Recipe lines, supplier links and price history will be repointed and the duplicate{{ $mergeCount !== 1 ? 's' : '' }} removed. This cannot be undone."
                                                 class="px-3 py-1.5 text-xs font-medium text-white rounded-lg transition whitespace-nowrap
-                                                    {{ $mergeCount < 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700' }}">
+                                                    {{ $mergeCount < 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700' }}">
                                             Merge into KEEP
                                         </button>
                                     </div>
@@ -1414,7 +1414,7 @@
                         <div class="py-12 text-center">
                             <div class="text-3xl mb-2">✅</div>
                             <p class="font-medium text-gray-600">No likely duplicates found</p>
-                            <p class="text-xs text-gray-400 mt-1">Your product list looks clean.</p>
+                            <p class="text-xs text-gray-600 mt-1">Your product list looks clean.</p>
                         </div>
                     @endforelse
                 @endif

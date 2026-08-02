@@ -1,14 +1,14 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400">Inventory &amp; Recipes / Review Invoices</p>
+            <p class="text-xs text-gray-600">Inventory &amp; Recipes / Review Invoices</p>
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Review Invoices</h2>
             <p class="text-xs text-gray-500 mt-0.5">Scanned supplier invoices waiting for review. Open one to match the line items against your Market List and import.</p>
         </div>
@@ -20,7 +20,7 @@
                 </a>
             @endcan
             <a href="{{ route('ingredients.scan-document') }}"
-               class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+               class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 + Scan Invoice
             </a>
         </div>
@@ -29,9 +29,9 @@
     {{-- Status tabs --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-xs">
         @foreach ([
-            'extracted' => ['Pending Review', $counts['extracted'], 'text-indigo-700 border-indigo-300 bg-indigo-50'],
-            'failed'    => ['Failed',         $counts['failed'],    'text-red-700 border-red-200 bg-red-50'],
-            'imported'  => ['Imported',       $counts['imported'],  'text-green-700 border-green-200 bg-green-50'],
+            'extracted' => ['Pending Review', $counts['extracted'], 'text-brand-700 border-brand-300 bg-brand-50'],
+            'failed'    => ['Failed',         $counts['failed'],    'text-danger-700 border-danger-200 bg-danger-50'],
+            'imported'  => ['Imported',       $counts['imported'],  'text-success-700 border-success-200 bg-success-50'],
             'all'       => ['All',            null,                 'text-gray-700 border-gray-200 bg-gray-50'],
         ] as $k => $v)
             @php [$label, $count, $tone] = $v; @endphp
@@ -44,19 +44,19 @@
     </div>
 
     {{-- List --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="divide-y divide-gray-100">
             @forelse ($docs as $doc)
                 <div class="flex items-start gap-4 p-4">
                     {{-- Status dot --}}
                     <div class="flex-shrink-0 mt-1 w-2.5 h-2.5 rounded-full
-                                {{ $doc->status === 'extracted' ? 'bg-indigo-500' : ($doc->status === 'failed' ? 'bg-red-500' : ($doc->status === 'imported' ? 'bg-green-500' : 'bg-gray-300')) }}"></div>
+                                {{ $doc->status === 'extracted' ? 'bg-brand-500' : ($doc->status === 'failed' ? 'bg-danger-500' : ($doc->status === 'imported' ? 'bg-success-500' : 'bg-gray-300')) }}"></div>
 
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <p class="font-medium text-gray-800 truncate">{{ $doc->original_filename }}</p>
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium
-                                         {{ $doc->status === 'extracted' ? 'bg-indigo-100 text-indigo-700' : ($doc->status === 'failed' ? 'bg-red-100 text-red-700' : ($doc->status === 'imported' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')) }}">
+                                         {{ $doc->status === 'extracted' ? 'bg-brand-100 text-brand-700' : ($doc->status === 'failed' ? 'bg-danger-100 text-danger-700' : ($doc->status === 'imported' ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-600')) }}">
                                 {{ ucfirst($doc->status) }}
                             </span>
                         </div>
@@ -64,9 +64,9 @@
                             @if ($doc->supplier_name_detected)
                                 <span>Supplier: <strong class="text-gray-700">{{ $doc->supplier_name_detected }}</strong>
                                     @if ($doc->supplier_id)
-                                        <span class="text-green-600">· linked</span>
+                                        <span class="text-success-600">· linked</span>
                                     @else
-                                        <span class="text-amber-600">· not in DB</span>
+                                        <span class="text-warning-600">· not in DB</span>
                                     @endif
                                 </span>
                             @endif
@@ -76,37 +76,37 @@
                             @if ($doc->status === 'extracted')
                                 <span>{{ count($doc->extracted_items ?? []) }} items</span>
                             @endif
-                            <span class="text-gray-400">
+                            <span class="text-gray-600">
                                 Scanned {{ $doc->created_at->diffForHumans() }} by {{ $doc->uploader?->name ?? '—' }}
                             </span>
                         </div>
                         @if ($doc->status === 'failed' && $doc->error_message)
-                            <p class="text-xs text-red-600 mt-1 italic">{{ $doc->error_message }}</p>
+                            <p class="text-xs text-danger-600 mt-1 italic">{{ $doc->error_message }}</p>
                         @endif
                     </div>
 
                     <div class="flex items-center gap-2 flex-shrink-0">
                         @if ($doc->status === 'extracted')
                             <a href="{{ route('ingredients.review-documents.show', $doc->id) }}"
-                               class="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                               class="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
                                 Review
                             </a>
                             <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned invoice?"
-                                    class="text-gray-400 hover:text-red-600 text-xs">Discard</button>
+                                    class="text-gray-600 hover:text-danger-600 text-xs">Discard</button>
                         @elseif ($doc->status === 'failed')
                             <a href="{{ route('ingredients.scan-document') }}"
                                class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                                 Rescan
                             </a>
                             <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned invoice?"
-                                    class="text-gray-400 hover:text-red-600 text-xs">Discard</button>
+                                    class="text-gray-600 hover:text-danger-600 text-xs">Discard</button>
                         @elseif ($doc->status === 'imported')
-                            <span class="text-xs text-green-600">Imported {{ $doc->imported_at?->diffForHumans() }}</span>
+                            <span class="text-xs text-success-600">Imported {{ $doc->imported_at?->diffForHumans() }}</span>
                         @endif
                     </div>
                 </div>
             @empty
-                <div class="p-8 text-center text-gray-400 text-sm">No invoices in this list.</div>
+                <div class="p-8 text-center text-gray-600 text-sm">No invoices in this list.</div>
             @endforelse
         </div>
 

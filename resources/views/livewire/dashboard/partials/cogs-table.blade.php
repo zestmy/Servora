@@ -22,14 +22,14 @@
                     </td>
                     <td class="py-2 px-3 text-right text-gray-700">{{ number_format($cat['revenue'], 2) }}</td>
                     <td class="py-2 px-3 text-right text-gray-700">{{ number_format($cat['cogs'], 2) }}</td>
-                    <td class="py-2 px-3 text-right font-semibold {{ $cat['cost_pct'] > 35 ? 'text-red-600' : ($cat['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">{{ $cat['cost_pct'] }}%</td>
+                    <td class="py-2 px-3 text-right font-semibold {{ $cat['cost_pct'] > 35 ? 'text-danger-600' : ($cat['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">{{ $cat['cost_pct'] }}%</td>
                 </tr>
             @endforeach
             <tr class="bg-gray-50 font-semibold">
                 <td class="py-2 px-3 text-gray-800">Total</td>
                 <td class="py-2 px-3 text-right text-gray-800">{{ number_format($costSummary['totals']['revenue'], 2) }}</td>
                 <td class="py-2 px-3 text-right text-gray-800">{{ number_format($costSummary['totals']['cogs'], 2) }}</td>
-                <td class="py-2 px-3 text-right {{ $costSummary['totals']['cost_pct'] > 35 ? 'text-red-600' : ($costSummary['totals']['cost_pct'] > 30 ? 'text-amber-600' : 'text-green-600') }}">{{ $costSummary['totals']['cost_pct'] }}%</td>
+                <td class="py-2 px-3 text-right {{ $costSummary['totals']['cost_pct'] > 35 ? 'text-danger-600' : ($costSummary['totals']['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">{{ $costSummary['totals']['cost_pct'] }}%</td>
             </tr>
         </tbody>
     </table>

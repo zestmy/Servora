@@ -2,22 +2,22 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Stock Balance (Package)</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Current stock levels grouped by packaging and pack size</p>
+            <h2 class="page-title">Stock Balance (Package)</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Current stock levels grouped by packaging and pack size</p>
         </div>
         <a href="{{ route('reports.hub') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
-            <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <select wire:model.live="outletFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Outlets</option>
                 @foreach ($outlets as $o)
                     <option value="{{ $o->id }}">{{ $o->name }}</option>
                 @endforeach
             </select>
-            <select wire:model.live="categoryFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <select wire:model.live="categoryFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Categories</option>
                 @foreach ($categories as $cat)
                     @if ($cat->children->isNotEmpty())
@@ -39,7 +39,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                 <tr>
@@ -63,13 +63,13 @@
                         <td class="px-4 py-3 text-gray-600">{{ $item->uom ?? '-' }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($item->purchase_price, 4) }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($item->current_cost, 4) }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums font-medium {{ ($item->last_qty ?? 0) > 0 ? 'text-gray-800' : 'text-gray-400' }}">
+                        <td class="px-4 py-3 text-right tabular-nums font-medium {{ ($item->last_qty ?? 0) > 0 ? 'text-gray-800' : 'text-gray-600' }}">
                             {{ $item->last_qty !== null ? number_format($item->last_qty, 2) : '-' }}
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-600">
                             <p class="font-medium">No ingredients found</p>
                             <p class="text-xs mt-1">Adjust your filters or add ingredients to see stock balances.</p>
                         </td>

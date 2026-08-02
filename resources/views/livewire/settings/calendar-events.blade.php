@@ -1,12 +1,12 @@
 <div>
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('settings.index') }}" class="text-gray-400 hover:text-gray-600 transition">
+        <a href="{{ route('settings.index') }}" class="text-gray-600 hover:text-gray-900 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Calendar Events</p>
+            <p class="text-xs text-gray-600"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Calendar Events</p>
         </div>
         <div class="flex items-center gap-2">
             <button wire:click="openHolidays"
@@ -20,7 +20,7 @@
                 Import
             </button>
             <button wire:click="openCreate"
-                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 + Add Event
             </button>
         </div>
@@ -28,7 +28,7 @@
 
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
@@ -36,16 +36,16 @@
     {{-- Filters --}}
     <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search events..."
-               class="flex-1 rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+               class="flex-1 rounded-lg border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
         <select wire:model.live="categoryFilter"
-                class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                class="rounded-lg border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="all">All Categories</option>
             @foreach ($categoryOptions as $value => $label)
                 <option value="{{ $value }}">{{ $label }}</option>
             @endforeach
         </select>
         <select wire:model.live="outletFilter"
-                class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                class="rounded-lg border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="all">All Outlets</option>
             <option value="company">Company-wide (no outlet)</option>
             @foreach ($outlets as $outlet)
@@ -53,7 +53,7 @@
             @endforeach
         </select>
         <select wire:model.live="yearFilter"
-                class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                class="rounded-lg border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">All Years</option>
             @foreach ($years as $year)
                 <option value="{{ $year }}">{{ $year }}</option>
@@ -62,7 +62,7 @@
     </div>
 
     {{-- Events Table --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto"><table class="min-w-[720px] text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
@@ -80,20 +80,20 @@
                         <td class="px-4 py-3 whitespace-nowrap">
                             {{ $row['event_date']->format('d M Y') }}
                             @if ($row['end_date'])
-                                <span class="text-gray-400">— {{ $row['end_date']->format('d M Y') }}</span>
+                                <span class="text-gray-600">— {{ $row['end_date']->format('d M Y') }}</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 font-medium text-gray-800">
                             {{ $row['title'] }}
                             @if ($row['description'])
-                                <p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ $row['description'] }}</p>
+                                <p class="text-xs text-gray-600 mt-0.5 truncate max-w-xs">{{ $row['description'] }}</p>
                             @endif
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                 @switch($row['category'])
-                                    @case('holiday') bg-red-50 text-red-700 @break
-                                    @case('promotion') bg-green-50 text-green-700 @break
+                                    @case('holiday') bg-danger-50 text-danger-700 @break
+                                    @case('promotion') bg-success-50 text-success-700 @break
                                     @case('operational') bg-yellow-50 text-yellow-700 @break
                                     @case('menu_change') bg-blue-50 text-blue-700 @break
                                     @case('external') bg-purple-50 text-purple-700 @break
@@ -105,7 +105,7 @@
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center gap-1 text-xs font-medium
-                                {{ $row['impact'] === 'positive' ? 'text-green-600' : ($row['impact'] === 'negative' ? 'text-red-600' : 'text-gray-500') }}">
+                                {{ $row['impact'] === 'positive' ? 'text-success-600' : ($row['impact'] === 'negative' ? 'text-danger-600' : 'text-gray-500') }}">
                                 @if ($row['impact'] === 'positive')
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
                                 @elseif ($row['impact'] === 'negative')
@@ -119,27 +119,27 @@
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-1 max-w-xs">
                                 @if ($row['all_outlets'])
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">All Outlets</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700">All Outlets</span>
                                 @endif
                                 @forelse ($row['outlet_names'] as $name)
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{{ $name }}</span>
                                 @empty
                                     @unless ($row['all_outlets'])
-                                        <span class="text-gray-400 text-xs">—</span>
+                                        <span class="text-gray-600 text-xs">—</span>
                                     @endunless
                                 @endforelse
                             </div>
                         </td>
                         <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
-                            <button wire:click="openEditGroup({{ \Illuminate\Support\Js::from($row['ids']) }})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Edit</button>
+                            <button wire:click="openEditGroup({{ \Illuminate\Support\Js::from($row['ids']) }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium">Edit</button>
                             <button wire:click="deleteGroup({{ \Illuminate\Support\Js::from($row['ids']) }})"
                                     wire:confirm="Delete this event{{ $row['count'] > 1 ? ' for all ' . $row['count'] . ' outlets' : '' }}?"
-                                    class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                                    class="text-danger-500 hover:text-danger-700 text-xs font-medium">Delete</button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-400">No events found. Add your first event to start tracking.</td>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-600">No events found. Add your first event to start tracking.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -157,14 +157,14 @@
             <div class="flex min-h-full items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg z-10" @click.away="$wire.closeModal()">
                 <div class="px-6 py-4 border-b border-gray-100">
-                    <h3 class="text-lg font-semibold text-gray-800">{{ $editingId ? 'Edit Event' : 'Add Event' }}</h3>
+                    <h3 class="page-title">{{ $editingId ? 'Edit Event' : 'Add Event' }}</h3>
                 </div>
 
                 <div class="px-6 py-4 space-y-4">
                     {{-- Title --}}
                     <div>
                         <x-input-label for="title" value="Event Title" />
-                        <input wire:model="title" id="title" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. Chinese New Year" />
+                        <input wire:model="title" id="title" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" placeholder="e.g. Chinese New Year" />
                         <x-input-error :messages="$errors->get('title')" class="mt-1" />
                     </div>
 
@@ -172,12 +172,12 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <x-input-label for="event_date" value="Start Date" />
-                            <input wire:model="event_date" id="event_date" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <input wire:model="event_date" id="event_date" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
                             <x-input-error :messages="$errors->get('event_date')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="end_date" value="End Date (optional)" />
-                            <input wire:model="end_date" id="end_date" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <input wire:model="end_date" id="end_date" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
                             <x-input-error :messages="$errors->get('end_date')" class="mt-1" />
                         </div>
                     </div>
@@ -186,7 +186,7 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <x-input-label for="category" value="Category" />
-                            <select wire:model="category" id="category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <select wire:model="category" id="category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 @foreach ($categoryOptions as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
@@ -195,7 +195,7 @@
                         </div>
                         <div>
                             <x-input-label for="impact" value="Expected Impact" />
-                            <select wire:model="impact" id="impact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <select wire:model="impact" id="impact" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 @foreach ($impactOptions as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
@@ -209,39 +209,39 @@
                         <x-input-label value="Outlets" />
                         <label class="flex items-center gap-2 mt-1.5">
                             <input type="checkbox" wire:model.live="applyAllOutlets"
-                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                   class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                             <span class="text-sm text-gray-700">Apply to all outlets</span>
                         </label>
 
                         @if (! $applyAllOutlets)
-                            <p class="text-xs text-gray-400 mt-2">Select the outlets this event applies to:</p>
+                            <p class="text-xs text-gray-600 mt-2">Select the outlets this event applies to:</p>
                             <div class="mt-1 max-h-44 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
                                 @forelse ($outlets as $outlet)
                                     <label class="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-gray-50">
                                         <input type="checkbox" wire:model="selectedOutletIds" value="{{ $outlet->id }}"
-                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                                         <span class="text-sm text-gray-700">{{ $outlet->name }}</span>
                                     </label>
                                 @empty
-                                    <p class="text-xs text-gray-400 px-1.5 py-1">No outlets found.</p>
+                                    <p class="text-xs text-gray-600 px-1.5 py-1">No outlets found.</p>
                                 @endforelse
                             </div>
                             <x-input-error :messages="$errors->get('selectedOutletIds')" class="mt-1" />
-                            <p class="text-xs text-gray-400 mt-1">A separate event is stored per outlet, shown as one tagged row in the list.</p>
+                            <p class="text-xs text-gray-600 mt-1">A separate event is stored per outlet, shown as one tagged row in the list.</p>
                         @endif
                     </div>
 
                     {{-- Description --}}
                     <div>
                         <x-input-label for="description" value="Description (optional)" />
-                        <textarea wire:model="description" id="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Additional notes about this event..."></textarea>
+                        <textarea wire:model="description" id="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" placeholder="Additional notes about this event..."></textarea>
                         <x-input-error :messages="$errors->get('description')" class="mt-1" />
                     </div>
                 </div>
 
                 <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button wire:click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
-                    <button wire:click="save" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                    <button wire:click="save" class="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
                         {{ $editingId ? 'Update' : 'Create' }}
                     </button>
                 </div>
@@ -261,8 +261,8 @@
             <div class="flex min-h-full items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10" @click.away="$wire.closeImportModal()">
                 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-gray-800">Import Calendar Events</h3>
-                    <button wire:click="closeImportModal" class="text-gray-400 hover:text-gray-600">
+                    <h3 class="page-title">Import Calendar Events</h3>
+                    <button wire:click="closeImportModal" class="text-gray-600 hover:text-gray-900">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -273,7 +273,7 @@
                         <div class="flex items-center justify-between">
                             <x-input-label value="Excel or CSV File" />
                             <button type="button" wire:click="downloadTemplate"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition">
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-700 border border-brand-300 rounded-lg hover:bg-brand-50 transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12v6m0 0l-3-3m3 3l3-3M12 4v4" />
                                 </svg>
@@ -282,7 +282,7 @@
                         </div>
                         <div class="mt-1">
                             <input type="file" wire:model="importFile" accept=".csv,.txt,.xlsx,.xls"
-                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
                         </div>
                         <x-input-error :messages="$errors->get('importFile')" class="mt-1" />
 
@@ -321,9 +321,9 @@
 
                     {{-- Errors --}}
                     @if ($importErrors)
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div class="bg-danger-50 border border-danger-200 rounded-lg p-3">
                             @foreach ($importErrors as $err)
-                                <p class="text-sm text-red-700">{{ $err }}</p>
+                                <p class="text-sm text-danger-700">{{ $err }}</p>
                             @endforeach
                         </div>
                     @endif
@@ -338,7 +338,7 @@
                             <div class="flex items-center justify-between mb-2">
                                 <p class="text-sm font-medium text-gray-700">
                                     Preview
-                                    <span class="text-xs text-gray-400 ml-1">({{ $validCount }} valid{{ $errorCount ? ", {$errorCount} with errors" : '' }})</span>
+                                    <span class="text-xs text-gray-600 ml-1">({{ $validCount }} valid{{ $errorCount ? ", {$errorCount} with errors" : '' }})</span>
                                 </p>
                             </div>
                             <div class="border border-gray-200 rounded-lg overflow-x-auto max-h-64 overflow-y-auto">
@@ -356,18 +356,18 @@
                                     </thead>
                                     <tbody class="divide-y divide-gray-100">
                                         @foreach ($importPreview as $entry)
-                                            <tr class="{{ $entry['valid'] ? '' : 'bg-red-50' }}">
-                                                <td class="px-3 py-2 text-gray-400">{{ $entry['row'] }}</td>
+                                            <tr class="{{ $entry['valid'] ? '' : 'bg-danger-50' }}">
+                                                <td class="px-3 py-2 text-gray-600">{{ $entry['row'] }}</td>
                                                 <td class="px-3 py-2 font-medium text-gray-800">{{ $entry['title'] }}</td>
                                                 <td class="px-3 py-2">{{ $entry['event_date'] }}</td>
-                                                <td class="px-3 py-2 text-gray-400">{{ $entry['end_date'] ?: '—' }}</td>
+                                                <td class="px-3 py-2 text-gray-600">{{ $entry['end_date'] ?: '—' }}</td>
                                                 <td class="px-3 py-2">{{ $entry['category'] }}</td>
                                                 <td class="px-3 py-2">{{ $entry['impact'] }}</td>
                                                 <td class="px-3 py-2">
                                                     @if ($entry['valid'])
-                                                        <span class="text-green-600 font-medium">OK</span>
+                                                        <span class="text-success-600 font-medium">OK</span>
                                                     @else
-                                                        <span class="text-red-600" title="{{ implode(', ', $entry['errors']) }}">{{ implode(', ', $entry['errors']) }}</span>
+                                                        <span class="text-danger-600" title="{{ implode(', ', $entry['errors']) }}">{{ implode(', ', $entry['errors']) }}</span>
                                                     @endif
                                                 </td>
                                             </tr>
@@ -383,7 +383,7 @@
                     <button wire:click="closeImportModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                     @if ($importPreview && collect($importPreview)->where('valid', true)->count() > 0)
                         <button wire:click="confirmImport"
-                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition flex items-center gap-1.5">
+                                class="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Import {{ collect($importPreview)->where('valid', true)->count() }} Event(s)
                         </button>
@@ -406,10 +406,10 @@
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10" @click.away="$wire.closeHolidayModal()">
                 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <div>
-                        <h3 class="text-lg font-semibold text-gray-800">AI Public Holidays</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">Generate location-based public holidays as analytics factors.</p>
+                        <h3 class="page-title">AI Public Holidays</h3>
+                        <p class="text-xs text-gray-600 mt-0.5">Generate location-based public holidays as analytics factors.</p>
                     </div>
-                    <button wire:click="closeHolidayModal" class="text-gray-400 hover:text-gray-600">
+                    <button wire:click="closeHolidayModal" class="text-gray-600 hover:text-gray-900">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -420,7 +420,7 @@
                         <div>
                             <x-input-label for="h_outlet" value="Branch" />
                             <select wire:model="holidayOutletId" id="h_outlet"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">All active branches</option>
                                 @foreach ($outlets as $outlet)
                                     <option value="{{ $outlet->id }}">{{ $outlet->name }}{{ $outlet->state || $outlet->country ? ' — ' . trim(collect([$outlet->state, $outlet->country])->filter()->implode(', ')) : '' }}</option>
@@ -430,7 +430,7 @@
                         <div>
                             <x-input-label for="h_year" value="Year" />
                             <select wire:model="holidayYear" id="h_year"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 @for ($y = (int) now()->year - 1; $y <= (int) now()->year + 2; $y++)
                                     <option value="{{ $y }}">{{ $y }}</option>
                                 @endfor
@@ -458,14 +458,14 @@
 
                     {{-- Notice (skipped outlets) --}}
                     @if ($holidayNotice)
-                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">{{ $holidayNotice }}</div>
+                        <div class="bg-warning-50 border border-warning-200 rounded-lg p-3 text-sm text-warning-700">{{ $holidayNotice }}</div>
                     @endif
 
                     {{-- Errors --}}
                     @if ($holidayErrors)
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div class="bg-danger-50 border border-danger-200 rounded-lg p-3">
                             @foreach ($holidayErrors as $err)
-                                <p class="text-sm text-red-700">{{ $err }}</p>
+                                <p class="text-sm text-danger-700">{{ $err }}</p>
                             @endforeach
                         </div>
                     @endif
@@ -490,7 +490,7 @@
                             <div class="flex items-center justify-between mb-2">
                                 <p class="text-sm font-medium text-gray-700">
                                     Preview
-                                    <span class="text-xs text-gray-400 ml-1">({{ $newCount }} new{{ $existCount ? ", {$existCount} already exist" : '' }})</span>
+                                    <span class="text-xs text-gray-600 ml-1">({{ $newCount }} new{{ $existCount ? ", {$existCount} already exist" : '' }})</span>
                                 </p>
                             </div>
                             <div class="border border-gray-200 rounded-lg overflow-x-auto max-h-72 overflow-y-auto">
@@ -507,25 +507,25 @@
                                     </thead>
                                     <tbody class="divide-y divide-gray-100">
                                         @foreach ($holidayPreview as $i => $entry)
-                                            <tr class="{{ $entry['exists'] ? 'bg-gray-50 text-gray-400' : '' }}">
+                                            <tr class="{{ $entry['exists'] ? 'bg-gray-50 text-gray-600' : '' }}">
                                                 <td class="px-3 py-2 text-center">
                                                     <input type="checkbox" wire:model.live="holidayPreview.{{ $i }}.selected"
                                                            @disabled($entry['exists'])
-                                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-40">
+                                                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-40">
                                                 </td>
                                                 <td class="px-3 py-2">{{ $entry['outlet_name'] }}</td>
                                                 <td class="px-3 py-2 whitespace-nowrap">{{ \Carbon\Carbon::parse($entry['date'])->format('d M Y') }}</td>
                                                 <td class="px-3 py-2 font-medium {{ $entry['exists'] ? '' : 'text-gray-800' }}">{{ $entry['name'] }}</td>
                                                 <td class="px-3 py-2">
-                                                    <span class="{{ $entry['impact'] === 'positive' ? 'text-green-600' : ($entry['impact'] === 'negative' ? 'text-red-600' : 'text-gray-500') }}">
+                                                    <span class="{{ $entry['impact'] === 'positive' ? 'text-success-600' : ($entry['impact'] === 'negative' ? 'text-danger-600' : 'text-gray-500') }}">
                                                         {{ ucfirst($entry['impact']) }}
                                                     </span>
                                                 </td>
                                                 <td class="px-3 py-2">
                                                     @if ($entry['exists'])
-                                                        <span class="text-gray-400">Exists</span>
+                                                        <span class="text-gray-600">Exists</span>
                                                     @else
-                                                        <span class="text-green-600 font-medium">New</span>
+                                                        <span class="text-success-600 font-medium">New</span>
                                                     @endif
                                                 </td>
                                             </tr>
@@ -542,7 +542,7 @@
                     @if ($holidayPreview)
                         @php $selCount = collect($holidayPreview)->where('exists', false)->where('selected', true)->count(); @endphp
                         <button wire:click="confirmHolidays" @disabled($selCount === 0)
-                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition flex items-center gap-1.5 disabled:opacity-50">
+                                class="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition flex items-center gap-1.5 disabled:opacity-50">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Add {{ $selCount }} Holiday{{ $selCount === 1 ? '' : 's' }}
                         </button>

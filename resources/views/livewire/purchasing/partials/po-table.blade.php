@@ -1,4 +1,4 @@
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+<div class="card overflow-hidden">
 
     {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
     <div class="md:hidden divide-y divide-gray-100">
@@ -7,11 +7,11 @@
                 $mBadge = match($po->status) {
                     'draft'     => 'bg-gray-100 text-gray-600',
                     'submitted' => 'bg-yellow-100 text-yellow-700',
-                    'approved'  => 'bg-indigo-100 text-indigo-700',
+                    'approved'  => 'bg-brand-100 text-brand-700',
                     'sent'      => 'bg-blue-100 text-blue-700',
                     'partial'   => 'bg-orange-100 text-orange-700',
-                    'received'  => 'bg-green-100 text-green-700',
-                    'cancelled' => 'bg-red-100 text-red-600',
+                    'received'  => 'bg-success-100 text-success-700',
+                    'cancelled' => 'bg-danger-100 text-danger-600',
                     default     => 'bg-gray-100 text-gray-500',
                 };
                 $mStatus = \App\Helpers\PurchasingStatus::po($po->status);
@@ -23,7 +23,7 @@
             @endphp
             <div class="p-3 space-y-2">
                 <div class="flex items-start justify-between gap-2">
-                    <a href="{{ route('purchasing.orders.edit', $po->id) }}" class="font-mono text-sm font-medium text-indigo-600">{{ $po->po_number }}</a>
+                    <a href="{{ route('purchasing.orders.edit', $po->id) }}" class="font-mono text-sm font-medium text-brand-600">{{ $po->po_number }}</a>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 {{ $mBadge }}">{{ $mStatus }}</span>
                 </div>
                 <div class="text-sm text-gray-700 truncate">{{ $po->supplier?->name ?? '—' }}</div>
@@ -51,11 +51,11 @@
                         </button>
                     @elseif ($po->status === 'submitted' && $mCanApprove)
                         <button wire:click="approvePo({{ $po->id }})" wire:confirm="Approve '{{ $po->po_number }}'?"
-                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100">
+                                class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-success-50 text-success-700 hover:bg-success-100">
                             Approve
                         </button>
                         <button wire:click="rejectPo({{ $po->id }})" wire:confirm="Reject '{{ $po->po_number }}'?"
-                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 hover:bg-red-100">
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg bg-danger-50 text-danger-700 hover:bg-danger-100">
                             Reject
                         </button>
                     @elseif ($po->status === 'submitted')
@@ -69,11 +69,11 @@
                 </div>
             </div>
         @empty
-            <div class="p-8 text-center text-gray-400 text-sm">
+            <div class="p-8 text-center text-gray-600 text-sm">
                 <p class="font-medium">No purchase orders yet</p>
                 <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
                 @if ($canCreatePo ?? false)
-                    <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first order</a>
+                    <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first order</a>
                 @endif
             </div>
         @endforelse
@@ -100,11 +100,11 @@
                     $badge = match($po->status) {
                         'draft'     => 'bg-gray-100 text-gray-600',
                         'submitted' => 'bg-yellow-100 text-yellow-700',
-                        'approved'  => 'bg-indigo-100 text-indigo-700',
+                        'approved'  => 'bg-brand-100 text-brand-700',
                         'sent'      => 'bg-blue-100 text-blue-700',
                         'partial'   => 'bg-orange-100 text-orange-700',
-                        'received'  => 'bg-green-100 text-green-700',
-                        'cancelled' => 'bg-red-100 text-red-600',
+                        'received'  => 'bg-success-100 text-success-700',
+                        'cancelled' => 'bg-danger-100 text-danger-600',
                         default     => 'bg-gray-100 text-gray-500',
                     };
                     $statusLabel = \App\Helpers\PurchasingStatus::po($po->status);
@@ -117,7 +117,7 @@
                 @endphp
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3">
-                        <a href="{{ route('purchasing.orders.edit', $po->id) }}" class="font-mono text-xs font-medium text-indigo-600 hover:underline">{{ $po->po_number }}</a>
+                        <a href="{{ route('purchasing.orders.edit', $po->id) }}" class="font-mono text-xs font-medium text-brand-600 hover:underline">{{ $po->po_number }}</a>
                     </td>
                     @if ($multiOutlet)
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $po->outlet?->name ?? '—' }}</td>
@@ -126,11 +126,11 @@
                     <td class="px-4 py-3 text-center text-gray-500">{{ $po->order_date->format('d M Y') }}</td>
                     <td class="px-4 py-3 text-center">
                         @if ($po->expected_delivery_date)
-                            <span class="{{ $po->expected_delivery_date->isPast() && ! in_array($po->status, ['received','cancelled']) ? 'text-red-500 font-medium' : 'text-gray-500' }}">
+                            <span class="{{ $po->expected_delivery_date->isPast() && ! in_array($po->status, ['received','cancelled']) ? 'text-danger-500 font-medium' : 'text-gray-500' }}">
                                 {{ $po->expected_delivery_date->format('d M Y') }}
                             </span>
                         @else
-                            <span class="text-gray-300">&mdash;</span>
+                            <span class="text-gray-500">&mdash;</span>
                         @endif
                     </td>
                     <td class="px-4 py-3 text-center text-gray-600">{{ $po->lines_count }}</td>
@@ -148,7 +148,7 @@
                             <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
                                 <div class="bg-orange-500 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
                             </div>
-                            <span class="text-[10px] text-gray-400">{{ $pct }}% received</span>
+                            <span class="text-[10px] text-gray-600">{{ $pct }}% received</span>
                         @endif
                     </td>
                     <td class="px-4 py-3">
@@ -166,7 +166,7 @@
                             {{-- Draft: Edit, Submit, Delete --}}
                             @if ($po->status === 'draft')
                                 <a href="{{ route('purchasing.orders.edit', $po->id) }}" title="Edit"
-                                   class="text-indigo-500 hover:text-indigo-700 transition p-1">
+                                   class="text-brand-500 hover:text-brand-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
                                 <button wire:click="submitPo({{ $po->id }})"
@@ -176,7 +176,7 @@
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
                                 <button wire:click="delete({{ $po->id }})" wire:confirm="Delete '{{ $po->po_number }}'?"
-                                        title="Delete" class="text-red-400 hover:text-red-600 transition p-1">
+                                        title="Delete" class="text-danger-400 hover:text-danger-600 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             @endif
@@ -185,11 +185,11 @@
                             @if ($po->status === 'submitted')
                                 @if ($canApproveThis)
                                     <button wire:click="approvePo({{ $po->id }})" wire:confirm="Approve '{{ $po->po_number }}'?"
-                                            title="Approve" class="text-green-500 hover:text-green-700 transition p-1">
+                                            title="Approve" class="text-success-500 hover:text-success-700 transition p-1">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                     </button>
                                     <button wire:click="rejectPo({{ $po->id }})" wire:confirm="Reject '{{ $po->po_number }}'?"
-                                            title="Reject" class="text-red-400 hover:text-red-600 transition p-1">
+                                            title="Reject" class="text-danger-400 hover:text-danger-600 transition p-1">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                                     </button>
                                 @else
@@ -204,7 +204,7 @@
                             {{-- Approved: Convert to DO, Send to supplier, Receive directly --}}
                             @if (in_array($po->status, ['approved', 'sent', 'partial']))
                                 <a href="{{ route('purchasing.convert-to-do', $po->id) }}" title="Record a delivery for this order — creates a delivery order and a goods received note to confirm against"
-                                   class="text-green-500 hover:text-green-700 transition p-1">
+                                   class="text-success-500 hover:text-success-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                                 </a>
                                 <a href="{{ route('purchasing.orders.receive', $po->id) }}" title="Record what arrived — quantities, condition and costs"
@@ -218,7 +218,7 @@
                                 <button wire:click="rollbackPo({{ $po->id }})"
                                         wire:confirm="Roll back '{{ $po->po_number }}' to draft for amendment?"
                                         title="Rollback to Draft"
-                                        class="text-amber-500 hover:text-amber-700 transition p-1">
+                                        class="text-warning-500 hover:text-warning-700 transition p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 010 10H9m4-10l-4-4m4 4l-4 4"/>
                                     </svg>
@@ -230,7 +230,7 @@
                                 <button wire:click="adminDeletePo({{ $po->id }})"
                                         wire:confirm="Delete '{{ $po->po_number }}' and all related DO/GRN? This action cannot be undone."
                                         title="Admin Delete"
-                                        class="text-red-400 hover:text-red-600 transition p-1">
+                                        class="text-danger-400 hover:text-danger-600 transition p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                     </svg>
@@ -241,11 +241,11 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $multiOutlet ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-400">
+                    <td colspan="{{ $multiOutlet ? 9 : 8 }}" class="px-4 py-12 text-center text-gray-600">
                         <p class="font-medium">No purchase orders yet</p>
                         <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
                         @if ($canCreatePo ?? false)
-                            <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition">+ Create your first order</a>
+                            <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first order</a>
                         @endif
                     </td>
                 </tr>

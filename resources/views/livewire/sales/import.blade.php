@@ -1,20 +1,20 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Header --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('sales.index') }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('sales.index') }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1">
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-gray-600">
                 <a href="{{ route('sales.index') }}" class="hover:underline">Sales</a> / Import
             </p>
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Import Sales from CSV</h2>
@@ -22,14 +22,14 @@
     </div>
 
     {{-- Step indicator --}}
-    <div class="mb-6 flex items-center gap-2 text-xs text-gray-400">
-        <span class="{{ $step === 'upload' ? 'text-indigo-600 font-semibold' : ($step !== 'upload' ? 'text-green-600' : '') }}">1. Upload</span>
+    <div class="mb-6 flex items-center gap-2 text-xs text-gray-600">
+        <span class="{{ $step === 'upload' ? 'text-brand-600 font-semibold' : ($step !== 'upload' ? 'text-success-600' : '') }}">1. Upload</span>
         <span>&rarr;</span>
-        <span class="{{ $step === 'mapping' ? 'text-indigo-600 font-semibold' : (in_array($step, ['preview', 'done']) ? 'text-green-600' : '') }}">2. Map Columns</span>
+        <span class="{{ $step === 'mapping' ? 'text-brand-600 font-semibold' : (in_array($step, ['preview', 'done']) ? 'text-success-600' : '') }}">2. Map Columns</span>
         <span>&rarr;</span>
-        <span class="{{ $step === 'preview' ? 'text-indigo-600 font-semibold' : ($step === 'done' ? 'text-green-600' : '') }}">3. Preview</span>
+        <span class="{{ $step === 'preview' ? 'text-brand-600 font-semibold' : ($step === 'done' ? 'text-success-600' : '') }}">3. Preview</span>
         <span>&rarr;</span>
-        <span class="{{ $step === 'done' ? 'text-indigo-600 font-semibold' : '' }}">4. Import</span>
+        <span class="{{ $step === 'done' ? 'text-brand-600 font-semibold' : '' }}">4. Import</span>
     </div>
 
     {{-- STEP 1: Upload --}}
@@ -56,14 +56,14 @@
         </div>
 
         {{-- Upload dropzone --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="card p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-4">Upload File</h3>
 
             <div x-data="{ dragging: false }"
                  @dragover.prevent="dragging = true"
                  @dragleave.prevent="dragging = false"
                  @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files; $refs.fileInput.dispatchEvent(new Event('change'))"
-                 :class="dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 bg-gray-50'"
+                 :class="dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-300 bg-gray-50'"
                  class="border-2 border-dashed rounded-xl p-10 text-center transition cursor-pointer"
                  @click="$refs.fileInput.click()">
 
@@ -72,16 +72,16 @@
                        accept=".csv,.xlsx,.txt"
                        class="hidden" />
 
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
 
                 @if ($file)
-                    <p class="text-sm font-medium text-indigo-700">{{ $file->getClientOriginalName() }}</p>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ number_format($file->getSize() / 1024, 1) }} KB · Click or drop to change</p>
+                    <p class="text-sm font-medium text-brand-700">{{ $file->getClientOriginalName() }}</p>
+                    <p class="text-xs text-gray-600 mt-0.5">{{ number_format($file->getSize() / 1024, 1) }} KB · Click or drop to change</p>
                 @else
                     <p class="text-sm font-medium text-gray-600">Click to browse or drag & drop</p>
-                    <p class="text-xs text-gray-400 mt-1">CSV or Excel (.xlsx) · max 10 MB</p>
+                    <p class="text-xs text-gray-600 mt-1">CSV or Excel (.xlsx) · max 10 MB</p>
                 @endif
             </div>
 
@@ -90,7 +90,7 @@
             @if ($file)
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
                         <span wire:loading.remove wire:target="processUpload">Map Columns &rarr;</span>
                         <span wire:loading wire:target="processUpload">Parsing file...</span>
                     </button>
@@ -101,10 +101,10 @@
     {{-- STEP 2: Column Mapping --}}
     @elseif ($step === 'mapping')
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+        <div class="card overflow-hidden mb-4">
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50">
                 <h3 class="text-sm font-semibold text-gray-700">Map File Columns</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Choose what each column in your file represents. Columns set to "Ignore" will be skipped.</p>
+                <p class="text-xs text-gray-600 mt-0.5">Choose what each column in your file represents. Columns set to "Ignore" will be skipped.</p>
             </div>
 
             <div class="overflow-x-auto">
@@ -124,8 +124,8 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <select wire:model="columnMap.{{ $header }}"
-                                            class="w-full text-xs border-gray-200 rounded-lg shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50
-                                                   {{ ($columnMap[$header] ?? 'ignore') === 'ignore' ? 'text-gray-400' : 'text-gray-800 font-medium' }}">
+                                            class="w-full text-xs border-gray-200 rounded-lg shadow-sm focus:border-brand-300 focus:ring focus:ring-brand-200 focus:ring-opacity-50
+                                                   {{ ($columnMap[$header] ?? 'ignore') === 'ignore' ? 'text-gray-600' : 'text-gray-800 font-medium' }}">
                                         @foreach ($this->mappingOptions as $value => $label)
                                             <option value="{{ $value }}">{{ $label }}</option>
                                         @endforeach
@@ -138,7 +138,7 @@
                                     @foreach ($samples as $si => $sampleRow)
                                         <span class="inline-block mr-3">{{ \Illuminate\Support\Str::limit($sampleRow[$header] ?? '—', 30) }}</span>
                                         @if ($si < count($samples) - 1)
-                                            <span class="text-gray-300">|</span>
+                                            <span class="text-gray-500">|</span>
                                         @endif
                                     @endforeach
                                 </td>
@@ -150,7 +150,7 @@
         </div>
 
         {{-- Mapping info --}}
-        <div class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-warning-50 border border-warning-200 text-warning-800 text-xs rounded-lg">
             <strong>Tip:</strong> You must map at least one column to "Date" and one to a sales category. If no "Meal Period" column is mapped, all rows default to "All Day".
         </div>
 
@@ -164,7 +164,7 @@
             </button>
 
             <button wire:click="applyMapping" wire:loading.attr="disabled"
-                    class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
                 <span wire:loading.remove wire:target="applyMapping">Preview Import &rarr;</span>
                 <span wire:loading wire:target="applyMapping">Processing...</span>
             </button>
@@ -179,23 +179,23 @@
                 <span class="text-gray-500">Total rows:</span>
                 <span class="font-semibold text-gray-800">{{ $totalRows }}</span>
             </div>
-            <div class="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-lg border border-green-200 text-sm">
-                <span class="text-green-600">Ready to import:</span>
-                <span class="font-semibold text-green-700">{{ $validRows }}</span>
+            <div class="flex items-center gap-2 px-4 py-2 bg-success-50 rounded-lg border border-success-200 text-sm">
+                <span class="text-success-600">Ready to import:</span>
+                <span class="font-semibold text-success-700">{{ $validRows }}</span>
             </div>
             @if ($totalRows - $validRows > 0)
-                <div class="flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg border border-red-200 text-sm">
-                    <span class="text-red-600">Rows with errors:</span>
-                    <span class="font-semibold text-red-700">{{ $totalRows - $validRows }}</span>
+                <div class="flex items-center gap-2 px-4 py-2 bg-danger-50 rounded-lg border border-danger-200 text-sm">
+                    <span class="text-danger-600">Rows with errors:</span>
+                    <span class="font-semibold text-danger-700">{{ $totalRows - $validRows }}</span>
                 </div>
             @endif
         </div>
 
         {{-- Preview table --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+        <div class="card overflow-hidden mb-4">
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700">Preview ({{ $totalRows }} rows)</h3>
-                <p class="text-xs text-gray-400">Red rows have errors and will be skipped.</p>
+                <p class="text-xs text-gray-600">Red rows have errors and will be skipped.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-xs">
@@ -215,9 +215,9 @@
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @foreach ($rows as $row)
-                            <tr class="{{ $row['skip'] ? 'bg-red-50' : 'hover:bg-gray-50' }} transition">
-                                <td class="px-3 py-2 text-gray-400">{{ $row['row'] }}</td>
-                                <td class="px-3 py-2 font-medium {{ $row['skip'] ? 'text-red-700' : 'text-gray-800' }}">
+                            <tr class="{{ $row['skip'] ? 'bg-danger-50' : 'hover:bg-gray-50' }} transition">
+                                <td class="px-3 py-2 text-gray-600">{{ $row['row'] }}</td>
+                                <td class="px-3 py-2 font-medium {{ $row['skip'] ? 'text-danger-700' : 'text-gray-800' }}">
                                     {{ $row['date'] }}
                                 </td>
                                 <td class="px-3 py-2 text-gray-500 font-mono">{{ $row['reference'] ?: '—' }}</td>
@@ -230,7 +230,7 @@
                                 @endforeach
                                 @if (empty($row['category_revenues']))
                                     @foreach ($categoryNames as $_)
-                                        <td class="px-3 py-2 text-right text-gray-300">—</td>
+                                        <td class="px-3 py-2 text-right text-gray-500">—</td>
                                     @endforeach
                                 @endif
                                 <td class="px-3 py-2 text-right tabular-nums font-semibold text-gray-800">
@@ -240,14 +240,14 @@
                                     @if ($row['skip'])
                                         <ul class="space-y-0.5">
                                             @foreach ($row['errors'] as $err)
-                                                <li class="text-red-600 flex items-start gap-1">
+                                                <li class="text-danger-600 flex items-start gap-1">
                                                     <span class="mt-0.5">!</span>
                                                     <span>{{ $err }}</span>
                                                 </li>
                                             @endforeach
                                         </ul>
                                     @else
-                                        <span class="text-green-500">OK</span>
+                                        <span class="text-success-500">OK</span>
                                     @endif
                                 </td>
                             </tr>
@@ -267,21 +267,21 @@
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
                         wire:confirm="Import {{ $validRows }} sales record(s)? Rows with errors will be skipped."
-                        class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                        class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
                     <span wire:loading.remove wire:target="import">Import {{ $validRows }} Record{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing...</span>
                 </button>
             @else
-                <p class="text-sm text-red-600 font-medium">No valid rows to import. Go back and adjust mappings.</p>
+                <p class="text-sm text-danger-600 font-medium">No valid rows to import. Go back and adjust mappings.</p>
             @endif
         </div>
 
     {{-- STEP 4: Done --}}
     @elseif ($step === 'done')
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
-            <div class="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <div class="card p-10 text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-success-100 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-success-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
             </div>
@@ -289,12 +289,12 @@
 
             <div class="flex items-center justify-center gap-6 mt-4 mb-6">
                 <div class="text-center">
-                    <p class="text-3xl font-bold text-green-600">{{ $importedCount }}</p>
+                    <p class="text-3xl font-bold text-success-600">{{ $importedCount }}</p>
                     <p class="text-sm text-gray-500 mt-0.5">Imported</p>
                 </div>
                 @if ($skippedCount > 0)
                     <div class="text-center">
-                        <p class="text-3xl font-bold text-red-500">{{ $skippedCount }}</p>
+                        <p class="text-3xl font-bold text-danger-500">{{ $skippedCount }}</p>
                         <p class="text-sm text-gray-500 mt-0.5">Skipped (errors)</p>
                     </div>
                 @endif
@@ -302,7 +302,7 @@
 
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('sales.index') }}"
-                   class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                   class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     View Sales
                 </a>
                 <button wire:click="restart"

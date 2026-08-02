@@ -5,12 +5,12 @@
 
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
@@ -18,13 +18,13 @@
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400">HR / Duty Roster</p>
-            <h2 class="text-lg font-semibold text-gray-700 mt-1">Duty Roster</h2>
+            <p class="page-eyebrow">HR / Duty Roster</p>
+                <h1 class="page-title mt-1">Duty Roster</h1>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @can('roster.settings')
             <a href="{{ route('hr.roster-settings') }}"
-               class="px-3 py-2 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition">
+               class="px-3 py-2 text-sm font-medium text-brand-600 border border-brand-300 rounded-lg hover:bg-brand-50 transition">
                 Settings
             </a>
             <a href="{{ route('hr.roster-stations') }}"
@@ -44,7 +44,7 @@
     </div>
 
     {{-- Filter Bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-wrap items-center gap-4">
             {{-- Outlet --}}
             <div>
@@ -59,7 +59,7 @@
 
             {{-- Section Filter --}}
             <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Section <span class="text-red-500">*</span></label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Section <span class="text-danger-500">*</span></label>
                 <select wire:model.live="sectionId" class="text-sm rounded-lg border-gray-300 shadow-sm min-w-[120px]">
                     <option value="">Select section...</option>
                     @foreach ($sections as $section)
@@ -93,7 +93,7 @@
     @if ($outletId)
         @if ($roster)
             {{-- Status Bar --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div class="card p-4 mb-4">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-2">
@@ -101,8 +101,8 @@
                             <span class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full
                                 @if ($roster->isDraft()) bg-gray-100 text-gray-700
                                 @elseif ($roster->isSubmitted()) bg-yellow-100 text-yellow-700
-                                @elseif ($roster->isApproved()) bg-green-100 text-green-700
-                                @elseif ($roster->isRejected()) bg-red-100 text-red-700
+                                @elseif ($roster->isApproved()) bg-success-100 text-success-700
+                                @elseif ($roster->isRejected()) bg-danger-100 text-danger-700
                                 @endif">
                                 {{ $roster->status_label }}
                             </span>
@@ -116,12 +116,12 @@
                             </span>
                         @endif
                         @if ($roster->creator)
-                            <span class="text-xs text-gray-400">
+                            <span class="text-xs text-gray-600">
                                 Created by {{ $roster->creator->name }}
                             </span>
                         @endif
                         @if ($roster->lastEditor && $roster->last_edited_at)
-                            <span class="text-xs text-gray-400">
+                            <span class="text-xs text-gray-600">
                                 · Last edited by {{ $roster->lastEditor->name }}
                                 {{ $roster->last_edited_at->diffForHumans() }}
                             </span>
@@ -140,18 +140,18 @@
                                 Sort by staff order
                             </button>
                             <button wire:click="submitRoster"
-                                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                                 Submit for Approval
                             </button>
                         @endif
 
                         @if ($roster->isSubmitted() && $canApprove)
                             <button wire:click="approveRoster"
-                                    class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                                    class="px-4 py-2 bg-success-600 text-white text-sm font-medium rounded-lg hover:bg-success-700 transition">
                                 Approve
                             </button>
                             <button wire:click="openRejectModal"
-                                    class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition">
+                                    class="px-4 py-2 bg-danger-600 text-white text-sm font-medium rounded-lg hover:bg-danger-700 transition">
                                 Reject
                             </button>
                         @endif
@@ -182,7 +182,7 @@
                         @if ($canDelete)
                             <button wire:click="deleteRoster"
                                     wire:confirm="Are you sure you want to delete this roster? This action cannot be undone."
-                                    class="px-3 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition flex items-center gap-1">
+                                    class="px-3 py-2 text-sm font-medium text-danger-600 border border-danger-300 rounded-lg hover:bg-danger-50 transition flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
@@ -193,14 +193,14 @@
                 </div>
 
                 @if ($roster->isRejected() && $roster->rejection_reason)
-                    <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <div class="mt-3 p-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
                         <strong>Rejection reason:</strong> {{ $roster->rejection_reason }}
                     </div>
                 @endif
             </div>
 
             {{-- Color Legend --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div class="card p-4 mb-4">
                 <div class="flex flex-wrap items-center gap-6">
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Shifts:</div>
                     <div class="flex flex-wrap items-center gap-3">
@@ -225,7 +225,7 @@
                             <span class="text-xs text-gray-600">OFF</span>
                         </span>
                         <span class="inline-flex items-center gap-1.5">
-                            <span class="w-4 h-4 rounded bg-amber-100 border border-amber-200"></span>
+                            <span class="w-4 h-4 rounded bg-warning-100 border border-warning-200"></span>
                             <span class="text-xs text-gray-600">AL</span>
                         </span>
                         <span class="inline-flex items-center gap-1.5">
@@ -233,7 +233,7 @@
                             <span class="text-xs text-gray-600">RPH</span>
                         </span>
                         <span class="inline-flex items-center gap-1.5">
-                            <span class="w-4 h-4 rounded bg-red-100 border border-red-200"></span>
+                            <span class="w-4 h-4 rounded bg-danger-100 border border-danger-200"></span>
                             <span class="text-xs text-gray-600">MC</span>
                         </span>
                         <span class="inline-flex items-center gap-1.5">
@@ -249,7 +249,7 @@
             </div>
 
             {{-- Roster Grid --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-100 text-sm">
                         <thead class="bg-gray-50">
@@ -260,13 +260,13 @@
                                 @foreach ($weekDays as $day)
                                     <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                                         <div>{{ $day['dayName'] }}</div>
-                                        <div class="text-gray-400">{{ $day['dayNum'] }}</div>
+                                        <div class="text-gray-600">{{ $day['dayNum'] }}</div>
                                         @if (isset($dayRemarks[$day['date']]))
                                             @php $remark = $dayRemarks[$day['date']]; @endphp
                                             <div class="mt-1">
                                                 @if ($remark->remark_type !== 'custom')
                                                     <span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded
-                                                        @if ($remark->remark_type === 'public_holiday') bg-red-100 text-red-700
+                                                        @if ($remark->remark_type === 'public_holiday') bg-danger-100 text-danger-700
                                                         @elseif ($remark->remark_type === 'stocktake') bg-blue-100 text-blue-700
                                                         @elseif ($remark->remark_type === 'event') bg-purple-100 text-purple-700
                                                         @else bg-gray-100 text-gray-700 @endif">
@@ -283,7 +283,7 @@
                                         @endif
                                         @if ($roster->isDraft())
                                             <button wire:click="openRemarkForm('{{ $day['date'] }}')"
-                                                    class="mt-1 text-[10px] text-indigo-500 hover:text-indigo-700">
+                                                    class="mt-1 text-[10px] text-brand-500 hover:text-brand-700">
                                                 {{ isset($dayRemarks[$day['date']]) ? 'edit' : '+ remark' }}
                                             </button>
                                         @endif
@@ -308,7 +308,7 @@
                                            new Sortable(this.$refs.sortableBody, {
                                                animation: 150,
                                                handle: '.drag-handle',
-                                               ghostClass: 'bg-indigo-50',
+                                               ghostClass: 'bg-brand-50',
                                                onEnd: (evt) => {
                                                    const rows = [...evt.from.querySelectorAll('tr[data-employee-id]')];
                                                    const orderedIds = rows.map(row => parseInt(row.dataset.employeeId));
@@ -326,7 +326,7 @@
                                         <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                             {{ $sectionData['section_name'] }}
                                         </span>
-                                        <span class="text-xs text-gray-400 ml-2">({{ count($sectionData['employees']) }})</span>
+                                        <span class="text-xs text-gray-600 ml-2">({{ count($sectionData['employees']) }})</span>
                                     </td>
                                 </tr>
 
@@ -335,7 +335,7 @@
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-2">
                                                 @if ($roster->isDraft())
-                                                    <span class="drag-handle cursor-grab text-gray-300 hover:text-gray-500">
+                                                    <span class="drag-handle cursor-grab text-gray-500 hover:text-gray-900">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
                                                         </svg>
@@ -350,7 +350,7 @@
                                                 @if ($roster->isDraft() && $canEdit)
                                                     <button wire:click="removeEmployeeRow({{ $empId }})"
                                                             wire:confirm="Remove {{ $empData['employee']?->name }} from this roster?"
-                                                            class="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition"
+                                                            class="text-xs text-danger-500 hover:text-danger-700 font-medium px-2 py-1 rounded hover:bg-danger-50 transition"
                                                             title="Remove from roster">
                                                         Remove
                                                     </button>
@@ -368,9 +368,9 @@
                                                             // Different colors for different leave types
                                                             $cellClass = match($entry->leave_type) {
                                                                 'off' => 'bg-gray-200 text-gray-600',
-                                                                'al' => 'bg-amber-100 text-amber-700',
+                                                                'al' => 'bg-warning-100 text-warning-700',
                                                                 'rph' => 'bg-pink-100 text-pink-700',
-                                                                'mc' => 'bg-red-100 text-red-600',
+                                                                'mc' => 'bg-danger-100 text-danger-600',
                                                                 'rdo' => 'bg-orange-100 text-orange-700',
                                                                 'ch' => 'bg-cyan-100 text-cyan-700',
                                                                 default => 'bg-gray-200 text-gray-600',
@@ -399,11 +399,11 @@
                                                 @else
                                                     @if ($roster->isDraft() && $canEdit)
                                                         <button wire:click="openAddEntry('{{ $day['date'] }}', {{ $empId }})"
-                                                                class="w-full py-1 px-2 text-xs text-gray-400 hover:bg-gray-100 rounded">
+                                                                class="w-full py-1 px-2 text-xs text-gray-600 hover:bg-gray-100 rounded">
                                                             +
                                                         </button>
                                                     @else
-                                                        <span class="text-gray-300">-</span>
+                                                        <span class="text-gray-500">-</span>
                                                     @endif
                                                 @endif
                                             </td>
@@ -411,10 +411,10 @@
                                         <td class="px-2 py-3 text-center font-medium text-gray-700">
                                             {{ number_format($empData['regular_hours'], 1) }}h
                                         </td>
-                                        <td class="px-2 py-3 text-center font-medium {{ $empData['total_ot'] > 0 ? 'text-orange-600' : 'text-gray-400' }}">
+                                        <td class="px-2 py-3 text-center font-medium {{ $empData['total_ot'] > 0 ? 'text-orange-600' : 'text-gray-600' }}">
                                             {{ number_format($empData['total_ot'], 1) }}h
                                         </td>
-                                        <td class="px-2 py-3 text-center font-medium text-indigo-600">
+                                        <td class="px-2 py-3 text-center font-medium text-brand-600">
                                             {{ number_format($empData['total_hours'], 1) }}h
                                         </td>
                                     </tr>
@@ -435,7 +435,7 @@
                                 <tr class="bg-gray-50">
                                     <td colspan="{{ count($weekDays) + 4 }}" class="px-4 py-3">
                                         <button wire:click="openAddEntry('{{ $weekDays[0]['date'] ?? '' }}')"
-                                                class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                                                class="text-sm text-brand-600 hover:text-brand-800 font-medium">
                                             + Add Employee Entry
                                         </button>
                                     </td>
@@ -481,8 +481,8 @@
                                         }
                                     }
                                 @endphp
-                                <tr class="bg-indigo-50 border-t-2 border-indigo-200">
-                                    <td class="px-4 py-2 text-xs font-semibold text-indigo-700">Daily Summary</td>
+                                <tr class="bg-brand-50 border-t-2 border-brand-200">
+                                    <td class="px-4 py-2 text-xs font-semibold text-brand-700">Daily Summary</td>
                                     @foreach ($weekDays as $day)
                                         <td class="px-2 py-2 text-center">
                                             <div class="text-[10px] leading-tight space-y-0.5">
@@ -502,7 +502,7 @@
                                                     <div class="text-gray-500">Off: {{ $dailyStats[$day['date']]['off'] }}</div>
                                                 @endif
                                                 @if ($dailyStats[$day['date']]['leave'] > 0)
-                                                    <div class="text-amber-600">Leave: {{ $dailyStats[$day['date']]['leave'] }}</div>
+                                                    <div class="text-warning-600">Leave: {{ $dailyStats[$day['date']]['leave'] }}</div>
                                                 @endif
                                             </div>
                                         </td>
@@ -519,14 +519,14 @@
 
             {{-- Amendments History --}}
             @if ($roster->amendments->isNotEmpty())
-                <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="mt-4 card p-4">
                     <h3 class="text-sm font-medium text-gray-700 mb-3">Amendment History</h3>
                     <div class="space-y-2">
                         @foreach ($roster->amendments->sortByDesc('created_at')->take(5) as $amendment)
                             <div class="text-xs text-gray-600 p-2 bg-gray-50 rounded">
                                 <div class="flex justify-between">
                                     <span class="font-medium">{{ $amendment->entry->employee?->name ?? 'Unknown' }} - {{ $amendment->entry->day_date->format('D, M j') }}</span>
-                                    <span class="text-gray-400">{{ $amendment->created_at->format('M j, H:i') }}</span>
+                                    <span class="text-gray-600">{{ $amendment->created_at->format('M j, H:i') }}</span>
                                 </div>
                                 <div class="mt-1 text-gray-500">{{ $amendment->reason }}</div>
                             </div>
@@ -537,25 +537,25 @@
 
         @else
             {{-- No Roster --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+            <div class="card p-8 text-center">
                 @if (!$sectionId)
                     <div class="text-gray-500 mb-2">Please select a section (FOH/BOH) to view or create a roster.</div>
-                    <p class="text-sm text-gray-400">Each section has its own separate roster.</p>
+                    <p class="text-sm text-gray-600">Each section has its own separate roster.</p>
                 @else
                     <div class="text-gray-500 mb-4">No roster exists for this week and section.</div>
                     @if ($canCreate)
                         <button wire:click="createRoster"
-                                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                             Create Roster for {{ $periodLabel }}
                         </button>
                     @else
-                        <p class="text-sm text-gray-400">You do not have permission to create rosters.</p>
+                        <p class="text-sm text-gray-600">You do not have permission to create rosters.</p>
                     @endif
                 @endif
             </div>
         @endif
     @else
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-500">
+        <div class="card p-8 text-center text-gray-500">
             Please select an outlet to manage duty rosters.
         </div>
     @endif
@@ -576,7 +576,7 @@
                             <span class="text-gray-500 font-normal">— {{ \Carbon\Carbon::parse($f_day_date)->format('D, M j') }}</span>
                         @endif
                     </h3>
-                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                    <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -590,9 +590,9 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Amendment Reason *</label>
                             <textarea wire:model="amendment_reason" rows="3"
-                                      class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                      class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
                                       placeholder="e.g. Staff requested day change, operational requirement..."></textarea>
-                            @error('amendment_reason') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                            @error('amendment_reason') <span class="text-xs text-danger-500">{{ $message }}</span> @enderror
                         </div>
                         <div class="flex justify-end gap-3 mt-4">
                             <button type="button" @click="open = false"
@@ -600,7 +600,7 @@
                                 Cancel
                             </button>
                             <button wire:click="confirmAmendment"
-                                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
                                 Confirm Amendment
                             </button>
                         </div>
@@ -616,7 +616,7 @@
                                         <option value="{{ $emp->id }}">{{ $emp->name }}</option>
                                     @endforeach
                                 </select>
-                                @error('f_employee_id') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                                @error('f_employee_id') <span class="text-xs text-danger-500">{{ $message }}</span> @enderror
                             </div>
 
                             <div>
@@ -632,7 +632,7 @@
                             <div class="flex items-end">
                                 <label class="flex items-center cursor-pointer">
                                     <input type="checkbox" wire:model.live="f_is_off_day"
-                                           class="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                                           class="rounded border-gray-300 text-danger-600 focus:ring-danger-500" />
                                     <span class="ml-2 text-sm text-gray-700">Leave/Off</span>
                                 </label>
                             </div>
@@ -671,12 +671,12 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Regular Hours
-                                    <span class="font-normal text-gray-400">(empty = outlet default)</span>
+                                    <span class="font-normal text-gray-600">(empty = outlet default)</span>
                                 </label>
                                 <input type="number" wire:model="f_normal_hours" step="0.5" min="0" max="24"
                                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm"
                                        placeholder="e.g. 8 (leave empty for outlet default)" />
-                                @error('f_normal_hours') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                                @error('f_normal_hours') <span class="text-xs text-danger-500">{{ $message }}</span> @enderror
                             </div>
 
                             <div class="p-3 bg-gray-50 rounded-lg">
@@ -684,7 +684,7 @@
                                     <span class="text-sm text-gray-600">Planned OT</span>
                                     <label class="flex items-center cursor-pointer">
                                         <input type="checkbox" wire:model.live="f_planned_ot_manual"
-                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                         <span class="ml-2 text-xs text-gray-500">Manual override</span>
                                     </label>
                                 </div>
@@ -710,14 +710,14 @@
                             <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
                                 <span class="text-xs text-gray-500">Copy shift:</span>
                                 <button type="button" wire:click="copyEntryToNextDay({{ $editingEntryId }})"
-                                        class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition flex items-center gap-1">
+                                        class="px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                     </svg>
                                     Next Day
                                 </button>
                                 <button type="button" wire:click="copyEntryToRestOfWeek({{ $editingEntryId }})"
-                                        class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition flex items-center gap-1">
+                                        class="px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                                     </svg>
@@ -730,7 +730,7 @@
                             @if ($editingEntryId && $roster?->isDraft())
                                 <button type="button" wire:click="deleteEntry({{ $editingEntryId }})"
                                         wire:confirm="Remove this entry?"
-                                        class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800">
+                                        class="px-4 py-2 text-sm font-medium text-danger-600 hover:text-danger-800">
                                     Delete
                                 </button>
                             @else
@@ -742,7 +742,7 @@
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
                                     {{ $editingEntryId ? 'Update' : 'Add' }}
                                 </button>
                             </div>
@@ -768,7 +768,7 @@
                     <h3 class="text-sm font-semibold text-gray-800">
                         Day Remark — {{ \Carbon\Carbon::parse($remark_date)->format('D, M j') }}
                     </h3>
-                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                    <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -783,16 +783,16 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-xs font-semibold text-gray-600">Description <span class="text-red-500">*</span></label>
+                        <label class="text-xs font-semibold text-gray-600">Description <span class="text-danger-500">*</span></label>
                         <input type="text" wire:model="remark_text"
                                class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm"
                                placeholder="e.g. Christmas Day, Monthly Stocktake" />
-                        @error('remark_text') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+                        @error('remark_text') <span class="text-xs text-danger-500 mt-1">{{ $message }}</span> @enderror
                     </div>
                     <div class="flex justify-between pt-3 border-t border-gray-100">
                         @if (isset($dayRemarks[$remark_date]))
                             <button type="button" wire:click="deleteRemark('{{ $remark_date }}')"
-                                    class="px-4 py-2 text-sm text-red-600 hover:text-red-800">
+                                    class="px-4 py-2 text-sm text-danger-600 hover:text-danger-800">
                                 Delete
                             </button>
                         @else
@@ -800,7 +800,7 @@
                         @endif
                         <div class="flex gap-2">
                             <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Save</button>
+                            <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Save</button>
                         </div>
                     </div>
                 </form>
@@ -821,21 +821,21 @@
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                     <h3 class="text-sm font-semibold text-gray-800">Reject Roster</h3>
-                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                    <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
                 <form wire:submit.prevent="rejectRoster" class="p-5 space-y-3">
                     <div>
-                        <label class="text-xs font-semibold text-gray-600">Rejection Reason <span class="text-red-500">*</span></label>
+                        <label class="text-xs font-semibold text-gray-600">Rejection Reason <span class="text-danger-500">*</span></label>
                         <textarea wire:model="rejection_reason" rows="3"
-                                  class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  class="mt-1 w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
                                   placeholder="Please explain why this roster is being rejected..."></textarea>
-                        @error('rejection_reason') <span class="text-xs text-red-500 mt-1">{{ $message }}</span> @enderror
+                        @error('rejection_reason') <span class="text-xs text-danger-500 mt-1">{{ $message }}</span> @enderror
                     </div>
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">Reject Roster</button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-danger-600 rounded-lg hover:bg-danger-700">Reject Roster</button>
                     </div>
                 </form>
             </div>
@@ -855,7 +855,7 @@
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg" @click.stop>
                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                     <h3 class="text-sm font-semibold text-gray-800">Email Duty Roster</h3>
-                    <button @click="open = false" class="text-gray-400 hover:text-gray-600 p-1">
+                    <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -864,10 +864,10 @@
 
                     <label class="flex items-center cursor-pointer">
                         <input type="checkbox" wire:model="email_to_employees"
-                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                         <span class="ml-2 text-sm text-gray-700">
                             All assigned employees
-                            <span class="text-gray-400">({{ $roster?->entries->pluck('employee_id')->unique()->count() ?? 0 }} employees)</span>
+                            <span class="text-gray-600">({{ $roster?->entries->pluck('employee_id')->unique()->count() ?? 0 }} employees)</span>
                         </span>
                     </label>
 
@@ -878,11 +878,11 @@
                                 @foreach ($emailRecipients as $recipient)
                                     <label class="flex items-center cursor-pointer">
                                         <input type="checkbox" wire:model="email_recipient_ids" value="{{ $recipient->id }}"
-                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                         <span class="ml-2 text-sm text-gray-700">
                                             {{ $recipient->email }}
                                             @if ($recipient->role_label)
-                                                <span class="text-gray-400">({{ $recipient->role_label }})</span>
+                                                <span class="text-gray-600">({{ $recipient->role_label }})</span>
                                             @endif
                                         </span>
                                     </label>
@@ -901,7 +901,7 @@
 
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button wire:click="sendEmail" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Send Email</button>
+                        <button wire:click="sendEmail" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Send Email</button>
                     </div>
                 </div>
             </div>

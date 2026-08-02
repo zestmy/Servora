@@ -1,53 +1,67 @@
 @php
-    // Content carried over from the previous version. These are claims about
-    // shipped functionality, so treat them as a spec: do not add a bullet
-    // here that does not exist in the product.
+    // These are claims about shipped functionality, so treat them as a spec:
+    // do not add a bullet here that does not exist in the product. Every line
+    // below was checked against a live route or Livewire component; the map of
+    // what exists is docs/03-modules.md, which is the place to start when this
+    // needs updating again.
+    //
+    // The previous version described seven areas and stopped at the original
+    // costing product. Labels, HR, central kitchen, the supplier portal and
+    // most of the AI document capture had shipped since and were going
+    // unmentioned, so the page was undersell rather than overreach.
     $groups = [
         [
             'id'    => 'ingredients',
             'icon'  => 'ingredient',
-            'title' => 'Ingredients and recipes',
+            'title' => 'Ingredients and recipe costing',
             'desc'  => 'The foundation of food cost control. Every ingredient tracked, every recipe costed, food cost percentage current as prices move.',
             'items' => [
                 'Ingredient database with UOM conversions (kg, g, L, ml, pcs and more)',
-                'Purchase price tracking with supplier links and cost history',
-                'Recipe builder with automatic cost per serving',
-                'Food cost percentage tracking, with alerts for over-cost recipes',
-                'Yield percentage and wastage factor calculations',
-                'Ingredient categories with parent and sub-category hierarchy',
-                'Recipe images for dine-in and takeaway plating standards',
-                'Bulk CSV import and export',
+                'Pack size, yield percentage and wastage factor behind every cost',
+                'Recipe builder with cost per serving and food cost percentage',
+                'Ingredient and packaging lines costed on the same recipe',
+                'Tiered recipe pricing by price class',
+                'Cost history per ingredient, per supplier',
+                'Ingredient and recipe category trees',
+                'Per-outlet recipe tagging for menu customisation',
+                'Recipe images for dine-in and takeaway plating, plus training video',
+                'CSV and Excel import with AI-assisted ingredient and UOM matching',
+            ],
+        ],
+        [
+            'id'    => 'ai',
+            'icon'  => 'sparkles',
+            'title' => 'AI document capture and analysis',
+            'desc'  => 'The typing is the reason costing goes stale. Photograph the invoice and the numbers walk themselves in, with a review step before anything lands.',
+            'items' => [
+                'Supplier invoices and delivery orders read from a photo or PDF',
+                'Extracted lines staged in a review queue, never imported blind',
+                'Rows matched to your ingredients, with UOM corrected before import',
+                'Ingredient cost and price history updated on approval',
+                'Z-report and POS export captured from an image',
+                'Three-way matching of invoice against purchase order and GRN',
+                'Weekly and monthly written reviews of what moved and why',
+                'AI insights over the sales log',
             ],
         ],
         [
             'id'    => 'purchasing',
             'icon'  => 'cart',
-            'title' => 'Purchasing and receiving',
-            'desc'  => 'Purchase order through to goods received, fully tracked. Nothing lost between the order and the delivery.',
+            'title' => 'Purchasing, RFQ and receiving',
+            'desc'  => 'Request through to invoice, fully tracked. Nothing lost between the order, the delivery and what you were billed.',
             'items' => [
-                'Purchase order creation with par level auto-calculation',
-                'Optional approval workflow with configurable approvers',
-                'Convert a PO to a delivery order with line item adjustments',
-                'Goods received note with quantity verification',
-                'PDF generation for PO, DO and GRN',
-                'Email notifications to suppliers and approvers',
-                'Automatic ingredient cost updates on receipt',
-                'Department-based cost tracking for P&L',
-            ],
-        ],
-        [
-            'id'    => 'sales',
-            'icon'  => 'currency',
-            'title' => 'Sales and revenue',
-            'desc'  => 'Every ringgit from every outlet, with Z-report capture so the daily numbers do not have to be typed twice.',
-            'items' => [
-                'Daily sales entry with category breakdowns',
-                'Z-report image upload with AI extraction',
-                'CSV import for bulk sales data',
-                'Pax count and meal period tracking',
-                'Sales targets with monthly goal tracking',
-                'Revenue analytics and average check',
-                'Sales closure workflow for daily reconciliation',
+                'Purchase requests with an approval gate',
+                'Purchase orders with par-level auto-ordering and template pre-fill',
+                'One order split across several suppliers',
+                'RFQ out to suppliers, quotes compared, accepted straight into a PO',
+                'Convert a PO to a delivery order, then to a goods received note',
+                'Supplier invoices matched against the PO and the GRN',
+                'Credit notes against a supplier',
+                'Price comparison across suppliers over time',
+                'Price alert thresholds per ingredient and supplier',
+                'Ingredient costs updated automatically on receipt',
+                'PDF documents and supplier email at each step',
+                'Approved requests consolidated by supplier for a central purchasing unit',
             ],
         ],
         [
@@ -56,28 +70,95 @@
             'title' => 'Inventory and stock control',
             'desc'  => 'What you hold and where it went. Counts, wastage, transfers and staff meals all land in the same ledger.',
             'items' => [
-                'Physical stock takes with mobile-friendly count sheets',
-                'Summary entry method for a quick closing stock',
-                'Wastage recording with reason tracking',
-                'Inter-outlet transfers with send and receive workflow',
+                'Stock takes as a per-ingredient variance count or a single summary total',
+                'Count sheet templates and mobile-friendly entry',
+                'Wastage by ingredient or by recipe, costed automatically',
                 'Staff meal deductions from inventory',
-                'Prep item tracking linked to recipes',
-                'Par level management per outlet, per ingredient',
+                'Prep items with method steps and per-outlet availability',
+                'Inter-outlet transfers with a send and receive workflow',
+                'Chargeable transfers raise an invoice against the receiving outlet',
+                'Par levels per ingredient, per outlet',
+            ],
+        ],
+        [
+            'id'    => 'kitchen',
+            'icon'  => 'clipboard',
+            'title' => 'Central kitchen and production',
+            'desc'  => 'For operations that produce centrally and distribute. Batch production planned, executed and measured against what it should have yielded.',
+            'items' => [
+                'Batch production orders raised against target outlets',
+                'Execute an order: log actual yield and record production waste',
+                'Outlets raise prep requests to the central kitchen',
+                'Kitchen-only recipe library, separate from the menu',
+                'Production history and yield analysis reporting',
+                'Separate kitchen sign-in for production staff',
+            ],
+        ],
+        [
+            'id'    => 'labels',
+            'icon'  => 'printer',
+            'title' => 'Food safety labelling',
+            'desc'  => 'HACCP date labels printed at the bench, with the shelf life worked out for you and a record of every label that came off the printer.',
+            'items' => [
+                'Date labels printed to network label printers via PrintNode',
+                'Shelf life rules per item, driving use-by dates automatically',
+                'Label template designer with a visual layout and field tokens',
+                'Label sets for a station or a prep list, printed in one go',
+                'Staff app on your own subdomain, installable on a phone',
+                'PIN access per person, so the app is not a shared login',
+                'Prepared-by captured on every label',
+                'Expiring-soon view for the walk-in',
+                'Full print log by batch and by label',
+                'Printable QR cards so staff reach a set from the bench',
+            ],
+        ],
+        [
+            'id'    => 'sales',
+            'icon'  => 'currency',
+            'title' => 'Sales and revenue',
+            'desc'  => 'Every ringgit from every outlet, with Z-report capture so the daily numbers do not have to be typed twice.',
+            'items' => [
+                'Daily sales entry by meal period with pax counts',
+                'Revenue split across your own sales categories',
+                'Z-report image capture and CSV import from your POS',
+                'Monthly and daily revenue targets per outlet',
+                'Revenue analytics and average check',
+                'Attachments held against a day\'s takings',
             ],
         ],
         [
             'id'    => 'reports',
             'icon'  => 'chart',
             'title' => 'Reports and analytics',
-            'desc'  => 'Monthly P&L, cost breakdowns, and a written review of what actually moved and why.',
+            'desc'  => 'Monthly cost summary, stock movement, purchasing behaviour, and a written review of what actually moved and why.',
             'items' => [
-                'Monthly cost summary with COGS breakdown',
-                'P&L by cost category (opening + purchases + transfers - closing)',
-                'Labour cost tracking with front and back of house split',
-                'Weekly comparison and week-of-year navigation',
-                'Ingredient price history and trend analysis',
-                'CSV and PDF export on every report',
-                'AI analytics with operational recommendations',
+                'Cost summary with COGS and month-to-date comparison',
+                'Performance, cost analysis, wastage and labour cost views',
+                'Weekly and monthly periods throughout',
+                'Labour cost with front and back of house split',
+                'Ingredient price history and supplier trend',
+                'Stock balance by product and by package, plus stock cards',
+                'Stock count analysis, adjustments, transfers and inventory variance',
+                'Purchase and order summaries, invoice summary, GRN and DO reports',
+                'Menu ingredient usage read against sales',
+                'CSV and PDF export throughout',
+                'Scheduled report subscriptions by email',
+            ],
+        ],
+        [
+            'id'    => 'people',
+            'icon'  => 'clock',
+            'title' => 'People, attendance and claims',
+            'desc'  => 'The staff side of the cost line: who worked, who is owed, and the paperwork that comes with it.',
+            'items' => [
+                'Employee records filtered by outlet, section and status',
+                'Attendance recorded against configurable codes',
+                'Service charge periods distributed across the team',
+                'Duty roster with stations, approvers and email recipients',
+                'Overtime claims with approval routing',
+                'OT claim PDFs, per employee and as a summary',
+                'Employee document folders',
+                'Employee export to PDF and Excel',
             ],
         ],
         [
@@ -86,28 +167,45 @@
             'title' => 'Training portal',
             'desc'  => 'Standardise how a dish is made across every outlet, in a portal that carries your branding rather than ours.',
             'items' => [
-                'SOP builder per recipe',
-                'Step-by-step preparation instructions',
-                'Training video embedding (YouTube and Vimeo)',
-                'Dine-in and takeaway plating image galleries',
-                'Separate staff portal with company branding',
+                'SOP per recipe with step-by-step method',
+                'Dine-in and takeaway plating galleries',
+                'Training video embedding',
+                'Separate staff portal with your company branding',
                 'QR code access for printing in the kitchen',
-                'PDF export for offline reference',
+                'SOP PDF export, one recipe or the whole book',
                 'Staff registration with manager approval',
             ],
         ],
         [
-            'id'    => 'multi-outlet',
-            'icon'  => 'building',
-            'title' => 'Multi-outlet and team',
-            'desc'  => 'One outlet or twenty, on shared data with access scoped to the people who should see it.',
+            'id'    => 'suppliers',
+            'icon'  => 'device',
+            'title' => 'Supplier portal and marketplace',
+            'desc'  => 'Your suppliers get a login of their own, so quoting and acknowledging orders stops happening over WhatsApp.',
             'items' => [
-                'Shared ingredient and recipe databases across outlets',
-                'Outlet-scoped data with quick switching',
-                'Role-based access for admin, manager, staff and more',
-                'Per-outlet recipe tagging for menu customisation',
-                'Centralised settings with per-outlet overrides',
-                'All-outlets view for operations and business managers',
+                'Suppliers sign in separately from your team',
+                'They see and acknowledge the purchase orders you send',
+                'They respond to RFQs with a quote',
+                'Invoice and credit note history on their side',
+                'They maintain their own catalogue, profile and bank details',
+                'Supplier products mapped to your ingredients',
+                'A public marketplace to search supplier products by category and state',
+            ],
+        ],
+        [
+            'id'    => 'control',
+            'icon'  => 'shield',
+            'title' => 'Multi-outlet, roles and control',
+            'desc'  => 'One outlet or twenty, on shared data with access scoped to the people who should see it, and a record of who changed what.',
+            'items' => [
+                'Shared ingredient and recipe data across outlets',
+                'Outlet-scoped data with quick switching, plus an all-outlets view',
+                'Outlet groups for bulk operations',
+                'Role-based permissions, scoped per company',
+                'Guided onboarding for outlets, categories, suppliers and users',
+                'Company branding, registration details and feature toggles',
+                'Departments, sections and tax rates',
+                'Audit log with CSV and PDF export',
+                'API keys for integration',
             ],
         ],
     ];
@@ -123,7 +221,7 @@
         <div class="mx-auto max-w-3xl px-4 pb-14 pt-16 text-center sm:px-6 lg:px-8 lg:pt-24">
             <h1 class="display-1 text-gray-950">Built for how kitchens actually run</h1>
             <p class="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-gray-600">
-                Seven areas of the operation, on one set of numbers. Here is everything in each.
+                {{ count($groups) }} areas of the operation, on one set of numbers. Here is everything in each.
             </p>
         </div>
     </section>
@@ -151,8 +249,8 @@
 
     {{-- ── 3. Capabilities ─────────────────────────────────────────────────
          One consistent structure per group, separated by hairlines rather
-         than wrapped in seven identical cards. Bullets run two-up so a
-         seven-item list reads as a block instead of a column to scroll.
+         than wrapped in identical cards. Bullets run two-up so a long list
+         reads as a block instead of a column to scroll.
 
          scroll-mt clears both the site header and the sticky index above,
          otherwise an anchor jump lands with the heading hidden behind them.

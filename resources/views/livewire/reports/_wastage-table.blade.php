@@ -1,5 +1,5 @@
 @if (!empty($detail['groups']))
-    <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="mt-6 card overflow-hidden">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h3 class="text-sm font-semibold text-gray-600">{{ $label }} Breakdown</h3>
             <span class="text-sm font-bold text-{{ $color }}-600">RM {{ number_format($detail['total'], 2) }}</span>
@@ -27,13 +27,13 @@
                                     <div class="flex items-center gap-2">
                                         {{ $item['name'] }}
                                         @if ($item['is_prep'])
-                                            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                            <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded">PREP</span>
                                         @endif
                                     </div>
                                 </td>
                                 <td class="px-4 py-2">
                                     @if ($item['type'] === 'recipe')
-                                        <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded">Recipe</span>
+                                        <span class="px-1.5 py-0.5 bg-brand-100 text-brand-700 text-xs font-semibold rounded">Recipe</span>
                                     @else
                                         <span class="text-gray-500 text-xs">Ingredient</span>
                                     @endif

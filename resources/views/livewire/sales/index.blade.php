@@ -8,19 +8,19 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
         <div wire:key="flash-err-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
     @if (session()->has('warning'))
         <div wire:key="flash-warn-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             class="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-warning-50 border border-warning-200 text-warning-700 text-sm rounded-lg">
             {{ session('warning') }}
         </div>
     @endif
@@ -28,7 +28,7 @@
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Sales</h2>
+            <h2 class="page-title">Sales</h2>
             @if ($singleOutletName)
                 <p class="text-xs text-gray-500 mt-0.5">{{ $singleOutletName }}</p>
             @endif
@@ -37,7 +37,7 @@
             <button wire:click="exportPdf" wire:loading.attr="disabled"
                     title="Export PDF"
                     class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2 disabled:opacity-50">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-danger-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                 <span wire:loading.remove wire:target="exportPdf" class="hidden sm:inline">Export PDF</span>
                 <span wire:loading.remove wire:target="exportPdf" class="sm:hidden">PDF</span>
                 <span wire:loading wire:target="exportPdf">…</span>
@@ -45,21 +45,21 @@
             <button wire:click="exportCsv"
                     title="Export CSV"
                     class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 <span class="hidden sm:inline">Export CSV</span>
                 <span class="sm:hidden">CSV</span>
             </button>
             <button wire:click="$dispatch('open-zeoniq-excel-import')"
                     title="Import Zeoniq Excel"
                     class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span class="hidden sm:inline">Zeoniq Excel</span>
                 <span class="sm:hidden">Excel</span>
             </button>
             <a href="{{ route('sales.create') }}"
-               class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+               class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                 <span class="sm:hidden">+ New</span>
                 <span class="hidden sm:inline">+ New Entry</span>
             </a>
@@ -69,29 +69,29 @@
     {{-- Stats --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 transition-opacity duration-200"
          wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Revenue</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Revenue</p>
             <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">RM {{ number_format($filteredRevenue, 2) }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ $periodLabel }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ $periodLabel }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Pax</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Pax</p>
             <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ $filteredPax > 0 ? number_format($filteredPax) : '—' }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ $periodLabel }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ $periodLabel }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Avg Check</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Avg Check</p>
             @if ($filteredAvgCheck !== null)
-                <p class="text-2xl font-bold text-indigo-600 mt-1 tabular-nums">RM {{ number_format($filteredAvgCheck, 2) }}</p>
+                <p class="text-2xl font-bold text-brand-600 mt-1 tabular-nums">RM {{ number_format($filteredAvgCheck, 2) }}</p>
             @else
-                <p class="text-2xl font-bold text-gray-300 mt-1">—</p>
+                <p class="text-2xl font-bold text-gray-500 mt-1">—</p>
             @endif
-            <p class="text-xs text-gray-400 mt-1">per person</p>
+            <p class="text-xs text-gray-600 mt-1">per person</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Records</p>
+        <div class="card p-5">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Records</p>
             <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ number_format($filteredCount) }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ $periodLabel }}</p>
+            <p class="text-xs text-gray-600 mt-1">{{ $periodLabel }}</p>
         </div>
     </div>
 
@@ -112,7 +112,7 @@
             <button wire:click="setQuickRange('{{ $rangeKey }}')"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
                            {{ $quickRange === $rangeKey
-                               ? 'bg-indigo-600 text-white border-indigo-600'
+                               ? 'bg-brand-600 text-white border-brand-600'
                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
                 {{ $rangeLabel }}
             </button>
@@ -120,17 +120,17 @@
     </div>
 
     {{-- Filter Bar --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-1">
                 <input type="text" wire:model.live.debounce.300ms="search"
                        placeholder="Search reference number…"
-                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
             @if ($showOutletFilter)
                 <div>
                     <select wire:model.live="outletFilter"
-                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                         @foreach ($outlets as $outlet)
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                         @endforeach
@@ -139,7 +139,7 @@
             @endif
             <div>
                 <select wire:model.live="mealPeriodFilter"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">All Periods</option>
                     @foreach ($mealPeriodOptions as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -148,10 +148,10 @@
             </div>
             <div class="flex items-center gap-1">
                 <input type="date" wire:model.live="dateFrom"
-                       class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                <span class="text-gray-400 text-xs">to</span>
+                       class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                <span class="text-gray-600 text-xs">to</span>
                 <input type="date" wire:model.live="dateTo"
-                       class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
         </div>
     </div>
@@ -160,15 +160,15 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-4 transition-opacity duration-200"
          wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange">
         {{-- Sales by Category --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales by Category</h3>
+        <div class="card p-5">
+            <h3 class="text-xs text-gray-600 uppercase tracking-wider mb-3">Sales by Category</h3>
             @if (!empty($categoryRevenues))
                 <div class="space-y-2">
                     @foreach ($categoryRevenues as $catRev)
                         <div>
                             <div class="flex items-center justify-between text-sm mb-1">
                                 <span class="text-gray-700 font-medium">{{ $catRev['name'] }}</span>
-                                <span class="tabular-nums text-gray-600">RM {{ number_format($catRev['revenue'], 2) }} <span class="text-xs text-gray-400">({{ $catRev['pct'] }}%)</span></span>
+                                <span class="tabular-nums text-gray-600">RM {{ number_format($catRev['revenue'], 2) }} <span class="text-xs text-gray-600">({{ $catRev['pct'] }}%)</span></span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2">
                                 <div class="h-2 rounded-full" style="width: {{ $catRev['pct'] }}%; background-color: {{ $catRev['color'] }};"></div>
@@ -177,20 +177,20 @@
                     @endforeach
                 </div>
             @else
-                <p class="text-sm text-gray-300">No category data</p>
+                <p class="text-sm text-gray-500">No category data</p>
             @endif
         </div>
 
         {{-- Sales by Meal Period --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales by Meal Period</h3>
+        <div class="card p-5">
+            <h3 class="text-xs text-gray-600 uppercase tracking-wider mb-3">Sales by Meal Period</h3>
             @if (!empty($mealPeriodRevenues))
                 <div class="space-y-2">
                     @foreach ($mealPeriodRevenues as $mpRev)
                         <div>
                             <div class="flex items-center justify-between text-sm mb-1">
                                 <span class="text-gray-700 font-medium">{{ $mpRev['name'] }}</span>
-                                <span class="tabular-nums text-gray-600">RM {{ number_format($mpRev['revenue'], 2) }} <span class="text-xs text-gray-400">({{ $mpRev['pct'] }}%)</span></span>
+                                <span class="tabular-nums text-gray-600">RM {{ number_format($mpRev['revenue'], 2) }} <span class="text-xs text-gray-600">({{ $mpRev['pct'] }}%)</span></span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2 relative">
                                 <div class="h-2 rounded-full" style="width: {{ $mpRev['pct'] }}%; background-color: {{ $mpRev['color'] }};"></div>
@@ -198,7 +198,7 @@
                                     <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">{{ $mpRev['pct'] }}%</span>
                                 @endif
                             </div>
-                            <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                            <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-600">
                                 <span>{{ number_format($mpRev['pax']) }} pax</span>
                                 <span>·</span>
                                 <span>{{ $mpRev['count'] }} records</span>
@@ -207,25 +207,25 @@
                     @endforeach
                 </div>
             @else
-                <p class="text-sm text-gray-300">No meal period data</p>
+                <p class="text-sm text-gray-500">No meal period data</p>
             @endif
         </div>
 
         {{-- Calendar Events --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Events in Period</h3>
+        <div class="card p-5">
+            <h3 class="text-xs text-gray-600 uppercase tracking-wider mb-3">Events in Period</h3>
             @if (!empty($events))
                 <div class="space-y-2 max-h-48 overflow-y-auto">
                     @foreach ($events as $event)
                         @php
                             $impactColors = [
-                                'positive' => 'border-green-300 bg-green-50',
-                                'negative' => 'border-red-300 bg-red-50',
+                                'positive' => 'border-success-300 bg-success-50',
+                                'negative' => 'border-danger-300 bg-danger-50',
                                 'neutral'  => 'border-gray-200 bg-gray-50',
                             ];
                             $impactDot = [
-                                'positive' => 'bg-green-500',
-                                'negative' => 'bg-red-500',
+                                'positive' => 'bg-success-500',
+                                'negative' => 'bg-danger-500',
                                 'neutral'  => 'bg-gray-400',
                             ];
                         @endphp
@@ -241,23 +241,23 @@
                     @endforeach
                 </div>
             @else
-                <p class="text-sm text-gray-300">No events in this period</p>
+                <p class="text-sm text-gray-500">No events in this period</p>
             @endif
         </div>
 
         {{-- Missing Dates --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Missing Sales Dates</h3>
+        <div class="card p-5">
+            <h3 class="text-xs text-gray-600 uppercase tracking-wider mb-3">Missing Sales Dates</h3>
             @if (!empty($missingDatesData))
                 <div class="space-y-1.5 max-h-48 overflow-y-auto">
                     @foreach ($missingDatesData as $md)
                         <div class="flex items-start gap-2 text-xs group">
-                            <span class="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 {{ $md['reason'] ? 'bg-blue-400' : 'bg-amber-400' }}"></span>
+                            <span class="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 {{ $md['reason'] ? 'bg-blue-400' : 'bg-warning-400' }}"></span>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-gray-600">{{ $md['label'] }}</span>
                                     <button wire:click="openClosureModal('{{ $md['date'] }}')"
-                                            class="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-indigo-600 transition"
+                                            class="opacity-0 group-hover:opacity-100 text-brand-400 hover:text-brand-600 transition"
                                             title="{{ $md['reason'] ? 'Edit reason' : 'Add reason' }}">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                     </button>
@@ -265,7 +265,7 @@
                                 @if ($md['reason'])
                                     <span class="text-blue-600 font-medium">{{ $md['reason'] }}</span>
                                     @if ($md['notes'])
-                                        <span class="text-gray-400"> — {{ $md['notes'] }}</span>
+                                        <span class="text-gray-600"> — {{ $md['notes'] }}</span>
                                     @endif
                                 @endif
                             </div>
@@ -278,21 +278,21 @@
                 @endphp
                 <div class="flex items-center gap-3 mt-2 text-xs">
                     @if ($untagged > 0)
-                        <span class="text-amber-600 font-medium">{{ $untagged }} untagged</span>
+                        <span class="text-warning-600 font-medium">{{ $untagged }} untagged</span>
                     @endif
                     @if ($tagged > 0)
                         <span class="text-blue-600 font-medium">{{ $tagged }} tagged</span>
                     @endif
-                    <span class="text-gray-400">{{ count($missingDatesData) }} total missing</span>
+                    <span class="text-gray-600">{{ count($missingDatesData) }} total missing</span>
                 </div>
             @else
                 @if ($dateFrom && $dateTo)
-                    <div class="flex items-center gap-2 text-sm text-green-600">
+                    <div class="flex items-center gap-2 text-sm text-success-600">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                         All dates have sales data
                     </div>
                 @else
-                    <p class="text-sm text-gray-300">Select a date range to check</p>
+                    <p class="text-sm text-gray-500">Select a date range to check</p>
                 @endif
             @endif
         </div>
@@ -300,15 +300,15 @@
 
     {{-- Weekly Comparison --}}
     <div class="mb-4">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="card">
             <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                     Weekly Comparison
                 </h3>
-                <select wire:model.live="comparisonWeek" class="text-xs border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                <select wire:model.live="comparisonWeek" class="text-xs border-gray-200 rounded-md focus:ring-brand-500 focus:border-brand-500">
                     <option value="">Current Week</option>
                     @for ($i = 1; $i <= 8; $i++)
                         @php $w = now()->subWeeks($i); @endphp
@@ -325,15 +325,15 @@
                             <th class="text-left py-2 pr-4">Metric</th>
                             <th class="text-right py-2 px-3">
                                 <div class="font-semibold">{{ $weeklyComparison['current']['label'] }}</div>
-                                <div class="font-normal normal-case text-gray-400">{{ $weeklyComparison['current']['year'] }}</div>
+                                <div class="font-normal normal-case text-gray-600">{{ $weeklyComparison['current']['year'] }}</div>
                             </th>
                             <th class="text-right py-2 px-3">
                                 <div class="font-semibold">vs {{ $weeklyComparison['previous']['label'] }}</div>
-                                <div class="font-normal normal-case text-gray-400">Week-over-Week</div>
+                                <div class="font-normal normal-case text-gray-600">Week-over-Week</div>
                             </th>
                             <th class="text-right py-2 px-3">
                                 <div class="font-semibold">vs {{ $weeklyComparison['last_year']['label'] }} {{ $weeklyComparison['last_year']['year'] }}</div>
-                                <div class="font-normal normal-case text-gray-400">Year-over-Year</div>
+                                <div class="font-normal normal-case text-gray-600">Year-over-Year</div>
                             </th>
                         </tr>
                     </thead>
@@ -406,8 +406,8 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 transition-opacity duration-200"
          wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange">
         {{-- Sales Target Progress --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 class="text-xs text-gray-400 uppercase tracking-wider mb-3">Sales Target</h3>
+        <div class="card p-5">
+            <h3 class="text-xs text-gray-600 uppercase tracking-wider mb-3">Sales Target</h3>
             @if (!empty($targetData))
                 <div class="space-y-3">
                     {{-- Revenue Target --}}
@@ -415,15 +415,15 @@
                         <div class="flex items-center justify-between text-sm mb-1">
                             <span class="text-gray-600">Revenue</span>
                             <span class="tabular-nums font-medium">
-                                <span class="{{ $targetData['revenue_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">RM {{ number_format($targetData['actual'], 2) }}</span>
-                                <span class="text-gray-400"> / RM {{ number_format($targetData['revenue'], 2) }}</span>
+                                <span class="{{ $targetData['revenue_pct'] >= 100 ? 'text-success-600' : 'text-gray-800' }}">RM {{ number_format($targetData['actual'], 2) }}</span>
+                                <span class="text-gray-600"> / RM {{ number_format($targetData['revenue'], 2) }}</span>
                             </span>
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-3">
-                            <div class="h-3 rounded-full transition-all duration-500 {{ $targetData['revenue_pct'] >= 100 ? 'bg-green-500' : ($targetData['revenue_pct'] >= 75 ? 'bg-indigo-500' : ($targetData['revenue_pct'] >= 50 ? 'bg-amber-500' : 'bg-red-400')) }}"
+                            <div class="h-3 rounded-full transition-all duration-500 {{ $targetData['revenue_pct'] >= 100 ? 'bg-success-500' : ($targetData['revenue_pct'] >= 75 ? 'bg-brand-500' : ($targetData['revenue_pct'] >= 50 ? 'bg-warning-500' : 'bg-danger-400')) }}"
                                  style="width: {{ min($targetData['revenue_pct'], 100) }}%"></div>
                         </div>
-                        <p class="text-xs mt-1 {{ $targetData['revenue_pct'] >= 100 ? 'text-green-600 font-medium' : 'text-gray-400' }}">
+                        <p class="text-xs mt-1 {{ $targetData['revenue_pct'] >= 100 ? 'text-success-600 font-medium' : 'text-gray-600' }}">
                             {{ $targetData['revenue_pct'] }}% achieved
                             @if ($targetData['revenue_pct'] < 100)
                                 · RM {{ number_format($targetData['revenue'] - $targetData['actual'], 2) }} remaining
@@ -437,37 +437,37 @@
                             <div class="flex items-center justify-between text-sm mb-1">
                                 <span class="text-gray-600">Pax</span>
                                 <span class="tabular-nums font-medium">
-                                    <span class="{{ $targetData['pax_pct'] >= 100 ? 'text-green-600' : 'text-gray-800' }}">{{ number_format($targetData['actual_pax']) }}</span>
-                                    <span class="text-gray-400"> / {{ number_format($targetData['pax']) }}</span>
+                                    <span class="{{ $targetData['pax_pct'] >= 100 ? 'text-success-600' : 'text-gray-800' }}">{{ number_format($targetData['actual_pax']) }}</span>
+                                    <span class="text-gray-600"> / {{ number_format($targetData['pax']) }}</span>
                                 </span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2">
-                                <div class="h-2 rounded-full transition-all duration-500 {{ $targetData['pax_pct'] >= 100 ? 'bg-green-500' : 'bg-indigo-400' }}"
+                                <div class="h-2 rounded-full transition-all duration-500 {{ $targetData['pax_pct'] >= 100 ? 'bg-success-500' : 'bg-brand-400' }}"
                                      style="width: {{ min($targetData['pax_pct'], 100) }}%"></div>
                             </div>
-                            <p class="text-xs mt-1 text-gray-400">{{ $targetData['pax_pct'] }}% achieved</p>
+                            <p class="text-xs mt-1 text-gray-600">{{ $targetData['pax_pct'] }}% achieved</p>
                         </div>
                     @endif
 
                     @if ($targetData['notes'])
-                        <p class="text-xs text-gray-400 italic">{{ $targetData['notes'] }}</p>
+                        <p class="text-xs text-gray-600 italic">{{ $targetData['notes'] }}</p>
                     @endif
                 </div>
             @else
-                <div class="text-sm text-gray-300">
+                <div class="text-sm text-gray-500">
                     <p>No target set for this period</p>
-                    <a href="{{ route('settings.sales-targets') }}" class="text-xs text-indigo-400 hover:text-indigo-600 underline mt-1 inline-block">Set sales target</a>
+                    <a href="{{ route('settings.sales-targets') }}" class="text-xs text-brand-400 hover:text-brand-600 underline mt-1 inline-block">Set sales target</a>
                 </div>
             @endif
         </div>
 
         {{-- AI Predictive Sales --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="card p-5">
             <div class="flex items-center justify-between mb-3">
-                <h3 class="text-xs text-gray-400 uppercase tracking-wider">Predictive Sales</h3>
+                <h3 class="text-xs text-gray-600 uppercase tracking-wider">Predictive Sales</h3>
                 <button wire:click="generatePrediction" wire:loading.attr="disabled" wire:target="generatePrediction"
                         class="px-2.5 py-1 text-xs font-medium rounded-lg border transition
-                               {{ $prediction ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50' : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' }}
+                               {{ $prediction ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50' : 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700' }}
                                disabled:opacity-50">
                     <span wire:loading.remove wire:target="generatePrediction">{{ $prediction ? 'Refresh' : 'Generate' }}</span>
                     <span wire:loading wire:target="generatePrediction">Analyzing...</span>
@@ -475,21 +475,21 @@
             </div>
 
             @if ($loadingPrediction)
-                <div class="flex items-center gap-2 text-sm text-gray-400 py-4">
-                    <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                <div class="flex items-center gap-2 text-sm text-gray-600 py-4">
+                    <svg class="animate-spin h-4 w-4 text-brand-500" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     AI is analyzing historical data...
                 </div>
             @elseif ($predictionError)
-                <div class="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{{ $predictionError }}</div>
+                <div class="text-sm text-danger-500 bg-danger-50 rounded-lg px-3 py-2">{{ $predictionError }}</div>
             @elseif ($prediction)
                 <div>
-                    <p class="text-xs text-gray-400">
+                    <p class="text-xs text-gray-600">
                         Predicted total sales — {{ $prediction['month'] }}@if (!empty($prediction['outlet'])) · <span class="text-gray-500 font-medium">{{ $prediction['outlet'] }}</span>@endif
                     </p>
-                    <p class="text-3xl font-bold text-indigo-600 mt-1">RM {{ number_format($prediction['total']) }}</p>
+                    <p class="text-3xl font-bold text-brand-600 mt-1">RM {{ number_format($prediction['total']) }}</p>
                     <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                         <span>Range: RM {{ number_format($prediction['low']) }} – RM {{ number_format($prediction['high']) }}</span>
                         <span>Daily Avg: RM {{ number_format($prediction['daily_avg']) }}</span>
@@ -498,15 +498,15 @@
                         @endif
                     </div>
                 </div>
-                <div class="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
+                <div class="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
                     <span>Powered by Servora AI</span>
                     @if ($prediction['cached'])
-                        <span class="text-amber-500">Cached</span>
+                        <span class="text-warning-500">Cached</span>
                     @endif
                     <span>{{ $prediction['created_at'] }}</span>
                 </div>
             @else
-                <div class="text-sm text-gray-300 py-4">
+                <div class="text-sm text-gray-500 py-4">
                     <p>Click <span class="font-medium">Generate</span> to get AI-powered sales predictions based on your historical data</p>
                 </div>
             @endif
@@ -515,8 +515,8 @@
 
     {{-- Bulk Delete Bar --}}
     @if ($canDelete && count($selected) > 0)
-        <div class="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
-            <span class="text-sm text-red-700 font-medium">{{ count($selected) }} record{{ count($selected) !== 1 ? 's' : '' }} selected</span>
+        <div class="mb-3 px-4 py-3 bg-danger-50 border border-danger-200 rounded-xl flex items-center justify-between">
+            <span class="text-sm text-danger-700 font-medium">{{ count($selected) }} record{{ count($selected) !== 1 ? 's' : '' }} selected</span>
             <div class="flex items-center gap-2">
                 <button wire:click="$set('selected', [])"
                         class="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-white transition">
@@ -524,7 +524,7 @@
                 </button>
                 <button wire:click="bulkDelete"
                         wire:confirm="Delete {{ count($selected) }} selected sales record(s)? This cannot be undone."
-                        class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                        class="px-3 py-1.5 text-xs font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 transition">
                     Delete Selected
                 </button>
             </div>
@@ -532,7 +532,7 @@
     @endif
 
     {{-- Table — horizontally scrollable on mobile so all columns are reachable. --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-opacity duration-200"
+    <div class="card overflow-hidden transition-opacity duration-200"
          wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange, search">
       <div class="overflow-x-auto">
         <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
@@ -549,7 +549,7 @@
                                            cb.dispatchEvent(new Event('change'));
                                        });
                                    "
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                         </th>
                     @endif
                     <th class="px-4 py-3 text-left">Date</th>
@@ -573,7 +573,7 @@
                             'breakfast' => 'bg-yellow-100 text-yellow-700',
                             'lunch'     => 'bg-orange-100 text-orange-700',
                             'tea_time'  => 'bg-teal-100 text-teal-700',
-                            'dinner'    => 'bg-indigo-100 text-indigo-700',
+                            'dinner'    => 'bg-brand-100 text-brand-700',
                             'supper'    => 'bg-purple-100 text-purple-700',
                         ];
                         $periodColor = $periodColors[$record->meal_period ?? 'all_day'] ?? 'bg-gray-100 text-gray-600';
@@ -583,24 +583,24 @@
                             ->filter(fn ($l) => $l->sales_category_id !== null)
                             ->groupBy('sales_category_id');
                     @endphp
-                    <tr wire:key="sale-{{ $record->id }}" class="hover:bg-gray-50 transition {{ in_array($record->id, $selected) ? 'bg-indigo-50' : '' }}">
+                    <tr wire:key="sale-{{ $record->id }}" class="hover:bg-gray-50 transition {{ in_array($record->id, $selected) ? 'bg-brand-50' : '' }}">
                         @if ($canDelete)
                             <td class="px-3 py-3">
                                 <input type="checkbox" name="row-select"
                                        value="{{ $record->id }}"
                                        wire:model.live="selected"
-                                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                       class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                             </td>
                         @endif
                         <td class="px-4 py-3 text-gray-700 font-medium">
                             <div class="flex items-center gap-1.5">
                                 {{ $record->sale_date->format('d M Y') }}
                                 @if ($record->sale_date->isToday())
-                                    <span class="text-xs text-indigo-400">Today</span>
+                                    <span class="text-xs text-brand-400">Today</span>
                                 @endif
                                 @if ($record->attachments_count > 0)
                                     <button type="button" title="{{ $record->attachments_count }} attachment(s) — click to preview"
-                                            class="text-gray-400 hover:text-indigo-500 transition"
+                                            class="text-gray-600 hover:text-brand-500 transition"
                                             @click="attachments = {{ Js::from($record->attachments->map(fn ($a) => ['name' => $a->file_name, 'url' => $a->url(), 'is_image' => $a->isImage(), 'size' => $a->humanSize()])) }}; showAttachments = true">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                                     </button>
@@ -632,24 +632,24 @@
                                         </span>
                                     @endif
                                 @empty
-                                    <span class="text-xs text-gray-400">—</span>
+                                    <span class="text-xs text-gray-600">—</span>
                                 @endforelse
                             </div>
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums font-semibold text-gray-800">
                             RM {{ number_format($record->total_revenue, 2) }}
                         </td>
-                        <td class="px-4 py-3 text-right tabular-nums text-indigo-600 font-medium">
+                        <td class="px-4 py-3 text-right tabular-nums text-brand-600 font-medium">
                             @if ($avgCheck !== null)
                                 RM {{ number_format($avgCheck, 2) }}
                             @else
-                                <span class="text-gray-300">—</span>
+                                <span class="text-gray-500">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 <a href="{{ route('sales.edit', $record->id) }}" title="Edit"
-                                   class="text-indigo-500 hover:text-indigo-700 transition">
+                                   class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
@@ -658,7 +658,7 @@
                                     <button wire:click="delete({{ $record->id }})"
                                             wire:confirm="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
                                             title="Delete"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
@@ -669,11 +669,11 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $canDelete ? 8 : 7 }}" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="{{ $canDelete ? 8 : 7 }}" class="px-4 py-12 text-center text-gray-600">
                             <div class="text-3xl mb-2">💰</div>
                             <p class="font-medium">No sales records yet</p>
                             <p class="text-xs mt-1">
-                                <a href="{{ route('sales.create') }}" class="text-indigo-500 underline">Record today's sales</a>
+                                <a href="{{ route('sales.create') }}" class="text-brand-500 underline">Record today's sales</a>
                             </p>
                         </td>
                     </tr>
@@ -696,7 +696,7 @@
                         </td>
                         <td class="px-4 py-3"></td>
                         <td class="px-4 py-3 text-right tabular-nums">RM {{ number_format($sumRevenue, 2) }}</td>
-                        <td class="px-4 py-3 text-right tabular-nums text-indigo-600">
+                        <td class="px-4 py-3 text-right tabular-nums text-brand-600">
                             @if ($sumAvg !== null)
                                 RM {{ number_format($sumAvg, 2) }}
                             @endif
@@ -726,7 +726,7 @@
                         <h3 class="text-sm font-semibold text-gray-800">
                             {{ $editingClosureId ? 'Edit Closure Reason' : 'Tag Missing Date' }}
                         </h3>
-                        <p class="text-xs text-gray-400 mt-0.5">
+                        <p class="text-xs text-gray-600 mt-0.5">
                             @if ($closureDate)
                                 {{ \Carbon\Carbon::parse($closureDate)->format('d M Y (l)') }}
                             @endif
@@ -742,7 +742,7 @@
                                             wire:click="$set('closureReason', '{{ $reason }}')"
                                             class="px-2.5 py-1 text-xs rounded-lg border transition
                                                    {{ $closureReason === $reason
-                                                       ? 'bg-indigo-600 text-white border-indigo-600'
+                                                       ? 'bg-brand-600 text-white border-brand-600'
                                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
                                         {{ $reason }}
                                     </button>
@@ -751,7 +751,7 @@
                                         wire:click="$set('closureReason', 'custom')"
                                         class="px-2.5 py-1 text-xs rounded-lg border transition
                                                {{ $closureReason === 'custom'
-                                                   ? 'bg-indigo-600 text-white border-indigo-600'
+                                                   ? 'bg-brand-600 text-white border-brand-600'
                                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
                                     Custom...
                                 </button>
@@ -760,10 +760,10 @@
                             @if ($closureReason === 'custom')
                                 <input type="text" wire:model="closureCustom"
                                        placeholder="Enter custom reason..."
-                                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                             @endif
                             @error('closureReason')
-                                <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+                                <p class="text-xs text-danger-500 mt-1">{{ $message }}</p>
                             @enderror
                         </div>
 
@@ -772,14 +772,14 @@
                             <label class="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
                             <textarea wire:model="closureNotes" rows="2"
                                       placeholder="Additional context..."
-                                      class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                      class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
                         </div>
                     </div>
                     <div class="px-6 py-3 bg-gray-50 rounded-b-xl flex items-center justify-between">
                         <div>
                             @if ($editingClosureId)
                                 <button wire:click="removeClosure({{ $editingClosureId }})" wire:confirm="Remove this closure reason?"
-                                        class="text-xs text-red-500 hover:text-red-700 transition">
+                                        class="text-xs text-danger-500 hover:text-danger-700 transition">
                                     Remove Reason
                                 </button>
                             @endif
@@ -790,7 +790,7 @@
                                 Cancel
                             </button>
                             <button wire:click="saveClosure"
-                                    class="px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                                    class="px-4 py-2 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
                                 Save Reason
                             </button>
                         </div>
@@ -810,27 +810,27 @@
         <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden" x-show="!preview">
             <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
                 <h3 class="text-sm font-semibold text-gray-700">Attachments</h3>
-                <button type="button" @click="showAttachments = false" class="text-gray-400 hover:text-gray-600 transition p-1">
+                <button type="button" @click="showAttachments = false" class="text-gray-600 hover:text-gray-900 transition p-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
             <div class="flex-1 overflow-auto p-4 space-y-2">
                 <template x-for="(att, i) in attachments" :key="i">
-                    <div class="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition"
+                    <div class="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 cursor-pointer hover:bg-brand-50 hover:border-brand-200 transition"
                          @click="preview = att.url; previewType = att.is_image ? 'image' : 'pdf'; previewName = att.name">
                         <template x-if="att.is_image">
                             <img :src="att.url" :alt="att.name" class="w-10 h-10 object-cover rounded" />
                         </template>
                         <template x-if="!att.is_image">
-                            <div class="w-10 h-10 bg-red-50 rounded flex items-center justify-center flex-shrink-0">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            <div class="w-10 h-10 bg-danger-50 rounded flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-danger-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                             </div>
                         </template>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm text-gray-700 truncate" x-text="att.name"></p>
-                            <p class="text-xs text-gray-400" x-text="att.size"></p>
+                            <p class="text-xs text-gray-600" x-text="att.size"></p>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </div>
                 </template>
             </div>
@@ -840,16 +840,16 @@
         <div class="relative z-10 bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" x-show="preview" x-transition>
             <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
                 <div class="flex items-center gap-3 min-w-0">
-                    <button type="button" @click="preview = null" class="text-gray-400 hover:text-gray-600 transition p-1 flex-shrink-0">
+                    <button type="button" @click="preview = null" class="text-gray-600 hover:text-gray-900 transition p-1 flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
                     <p class="text-sm font-medium text-gray-700 truncate" x-text="previewName"></p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <a :href="preview" target="_blank" class="text-gray-400 hover:text-indigo-600 transition p-1" title="Open in new tab">
+                    <a :href="preview" target="_blank" class="text-gray-600 hover:text-brand-600 transition p-1" title="Open in new tab">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                     </a>
-                    <button type="button" @click="preview = null; showAttachments = false" class="text-gray-400 hover:text-gray-600 transition p-1">
+                    <button type="button" @click="preview = null; showAttachments = false" class="text-gray-600 hover:text-gray-900 transition p-1">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>

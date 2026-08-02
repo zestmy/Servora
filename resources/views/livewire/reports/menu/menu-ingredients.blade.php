@@ -2,16 +2,16 @@
     {{-- Page Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-lg font-semibold text-gray-700">Menu & Ingredients</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Recipe-to-ingredient mapping with quantities and costs</p>
+            <h2 class="page-title">Menu & Ingredients</h2>
+            <p class="text-xs text-gray-600 mt-0.5">Recipe-to-ingredient mapping with quantities and costs</p>
         </div>
         <a href="{{ route('reports.hub') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Back to Reports</a>
     </div>
 
     {{-- Filters --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
-            <select wire:model.live="categoryFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <select wire:model.live="categoryFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Categories</option>
                 @foreach ($categories as $cat)
                     @if ($cat->children->isNotEmpty())
@@ -35,11 +35,11 @@
     {{-- Recipe Cards --}}
     <div class="space-y-4">
         @forelse ($recipes as $recipe)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-800">{{ $recipe->name }}</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">
+                        <p class="text-xs text-gray-600 mt-0.5">
                             {{ $recipe->ingredientCategory?->name ?? '-' }}
                             &middot; {{ $recipe->lines->count() }} ingredient{{ $recipe->lines->count() !== 1 ? 's' : '' }}
                             &middot; Total Cost: {{ number_format($recipe->total_cost, 4) }}
@@ -47,7 +47,7 @@
                     </div>
                     @if ($recipe->selling_price)
                         <div class="text-right">
-                            <p class="text-xs text-gray-400">Selling Price</p>
+                            <p class="text-xs text-gray-600">Selling Price</p>
                             <p class="text-sm font-semibold text-gray-800">{{ number_format($recipe->selling_price, 2) }}</p>
                         </div>
                     @endif
@@ -75,11 +75,11 @@
                         </tbody>
                     </table></div>
                 @else
-                    <div class="px-4 py-6 text-center text-gray-400 text-xs">No ingredients defined</div>
+                    <div class="px-4 py-6 text-center text-gray-600 text-xs">No ingredients defined</div>
                 @endif
             </div>
         @empty
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+            <div class="card p-12 text-center text-gray-600">
                 <p class="font-medium">No recipes found</p>
                 <p class="text-xs mt-1">Create recipes with ingredient lines to see them here.</p>
             </div>

@@ -2,12 +2,12 @@
     {{-- Flash --}}
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
@@ -15,10 +15,10 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
-            <a href="{{ route('purchasing.index', ['tab' => 'pr']) }}" class="text-gray-400 hover:text-gray-600 transition">
+            <a href="{{ route('purchasing.index', ['tab' => 'pr']) }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <h2 class="text-lg font-semibold text-gray-700">Consolidate Purchase Requests</h2>
+            <h2 class="page-title">Consolidate Purchase Requests</h2>
         </div>
         <div class="flex gap-2">
             @if ($editMode)
@@ -27,20 +27,20 @@
                     Back to Summary
                 </button>
                 <select wire:model="cpuId" title="Central Purchasing Unit that places these orders"
-                        class="rounded-lg text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 {{ $cpuId ? 'border-gray-300' : 'border-amber-400 bg-amber-50' }}">
+                        class="rounded-lg text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 {{ $cpuId ? 'border-gray-300' : 'border-warning-400 bg-warning-50' }}">
                     <option value="">— Select CPU —</option>
                     @foreach ($cpus as $cpu)
                         <option value="{{ $cpu->id }}">{{ $cpu->name }}</option>
                     @endforeach
                 </select>
                 <button wire:click="consolidate" wire:loading.attr="disabled"
-                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     <span wire:loading.remove wire:target="consolidate">Create {{ count(collect($editablePreview)->filter(fn($g) => ((int) ($g['supplier_id'] ?? 0)) !== 0 && collect($g['lines'])->where('excluded', false)->isNotEmpty())) }} draft PO(s)</span>
                     <span wire:loading wire:target="consolidate">Creating...</span>
                 </button>
             @elseif (count($selectedPrIds) > 0 && !$showPreview)
                 <button wire:click="generatePreview"
-                        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                     Preview Consolidation ({{ count($selectedPrIds) }})
                 </button>
             @endif
@@ -49,11 +49,11 @@
 
     {{-- How it works (plain language) --}}
     @unless ($editMode)
-        <div class="mb-6 bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-indigo-900">
-            <span class="font-semibold uppercase tracking-wider text-indigo-500">How it works</span>
-            <span><span class="font-bold text-indigo-600">1.</span> Tick the approved outlet requests below</span>
-            <span><span class="font-bold text-indigo-600">2.</span> Preview — items are grouped into one order per supplier</span>
-            <span><span class="font-bold text-indigo-600">3.</span> Create the draft purchase orders, then review &amp; send them from the Orders (PO) tab</span>
+        <div class="mb-6 bg-brand-50/60 border border-brand-100 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-brand-900">
+            <span class="font-semibold uppercase tracking-wider text-brand-500">How it works</span>
+            <span><span class="font-bold text-brand-600">1.</span> Tick the approved outlet requests below</span>
+            <span><span class="font-bold text-brand-600">2.</span> Preview — items are grouped into one order per supplier</span>
+            <span><span class="font-bold text-brand-600">3.</span> Create the draft purchase orders, then review &amp; send them from the Orders (PO) tab</span>
         </div>
     @endunless
 
@@ -65,24 +65,24 @@
                     $activeLines = collect($group['lines'])->filter(fn($l) => !($l['excluded'] ?? false));
                 @endphp
                 @php $isNoSupplierGroup = (int) ($group['supplier_id'] ?? 0) === 0; @endphp
-                <div class="bg-white rounded-xl shadow-sm border {{ $isNoSupplierGroup ? 'border-amber-300' : 'border-gray-100' }} overflow-hidden" wire:key="group-{{ $group['supplier_id'] }}">
+                <div class="bg-white rounded-xl shadow-sm border {{ $isNoSupplierGroup ? 'border-warning-300' : 'border-gray-100' }} overflow-hidden" wire:key="group-{{ $group['supplier_id'] }}">
                     {{-- Group Header --}}
-                    <div class="flex items-center justify-between px-6 py-4 border-b {{ $isNoSupplierGroup ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50' }}">
+                    <div class="flex items-center justify-between px-6 py-4 border-b {{ $isNoSupplierGroup ? 'border-warning-200 bg-warning-50' : 'border-gray-100 bg-gray-50' }}">
                         <div>
-                            <h3 class="text-sm font-semibold {{ $isNoSupplierGroup ? 'text-amber-800' : 'text-gray-700' }}">
+                            <h3 class="text-sm font-semibold {{ $isNoSupplierGroup ? 'text-warning-800' : 'text-gray-700' }}">
                                 {{ $isNoSupplierGroup ? '⚠ No supplier assigned' : $group['supplier_name'] }}
                             </h3>
                             @if ($isNoSupplierGroup)
-                                <p class="text-xs text-amber-600 mt-0.5">These items will be SKIPPED unless you pick a supplier on each line below.</p>
+                                <p class="text-xs text-warning-600 mt-0.5">These items will be SKIPPED unless you pick a supplier on each line below.</p>
                             @else
-                                <p class="text-xs text-gray-400 mt-0.5">{{ $activeLines->count() }} active item(s) · {{ count($group['outlet_ids']) }} outlet(s)</p>
+                                <p class="text-xs text-gray-600 mt-0.5">{{ $activeLines->count() }} active item(s) · {{ count($group['outlet_ids']) }} outlet(s)</p>
                             @endif
                         </div>
                         <div class="text-right">
-                            <p class="text-xs text-gray-400">PO Total</p>
+                            <p class="text-xs text-gray-600">PO Total</p>
                             <p class="text-lg font-bold text-gray-800 tabular-nums">RM {{ number_format($group['po_total'] ?? 0, 2) }}</p>
                             @if (($group['tax_total'] ?? 0) > 0)
-                                <p class="text-xs text-gray-400">+ Tax: RM {{ number_format($group['tax_total'], 2) }}</p>
+                                <p class="text-xs text-gray-600">+ Tax: RM {{ number_format($group['tax_total'], 2) }}</p>
                             @endif
                         </div>
                     </div>
@@ -109,7 +109,7 @@
                                         <td class="px-4 py-2 text-center">
                                             <button wire:click="toggleLineExclusion({{ $gIdx }}, {{ $lIdx }})"
                                                     class="w-5 h-5 rounded border flex items-center justify-center
-                                                           {{ ($line['excluded'] ?? false) ? 'border-gray-300' : 'bg-indigo-600 border-indigo-600' }}">
+                                                           {{ ($line['excluded'] ?? false) ? 'border-gray-300' : 'bg-brand-600 border-brand-600' }}">
                                                 @if (!($line['excluded'] ?? false))
                                                     <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                                 @endif
@@ -120,13 +120,13 @@
                                             <input type="number" step="0.01" min="0.01"
                                                    wire:model.blur="editablePreview.{{ $gIdx }}.lines.{{ $lIdx }}.quantity"
                                                    wire:change="$call('recalcLinePublic', {{ $gIdx }}, {{ $lIdx }})"
-                                                   class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                   class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         </td>
                                         <td class="px-4 py-2 text-gray-600">{{ $line['uom'] }}</td>
                                         <td class="px-4 py-2">
                                             @php $lineNoSupplier = (int) ($line['supplier_id'] ?? 0) === 0; @endphp
                                             <select wire:change="updateLineSupplier({{ $gIdx }}, {{ $lIdx }}, $event.target.value)"
-                                                    class="w-full rounded text-sm focus:border-indigo-500 focus:ring-indigo-500 {{ $lineNoSupplier ? 'border-amber-400 bg-amber-50' : 'border-gray-300' }}">
+                                                    class="w-full rounded text-sm focus:border-brand-500 focus:ring-brand-500 {{ $lineNoSupplier ? 'border-warning-400 bg-warning-50' : 'border-gray-300' }}">
                                                 @if ($lineNoSupplier)
                                                     <option value="0" selected>— choose supplier —</option>
                                                 @endif
@@ -150,7 +150,7 @@
                                                     {{ $line['tax_label'] }}
                                                 </span>
                                             @else
-                                                <span class="text-gray-300 text-xs">—</span>
+                                                <span class="text-gray-500 text-xs">—</span>
                                             @endif
                                         </td>
                                         <td class="px-4 py-2 text-right tabular-nums font-medium text-gray-700">
@@ -165,7 +165,7 @@
             @endforeach
 
             {{-- Summary Footer --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="card p-6">
                 <div class="flex items-center justify-between">
                     <div class="text-sm text-gray-500">
                         @php
@@ -179,17 +179,17 @@
                     <div class="text-right">
                         <div class="flex gap-6">
                             <div>
-                                <p class="text-xs text-gray-400">Subtotal</p>
+                                <p class="text-xs text-gray-600">Subtotal</p>
                                 <p class="font-semibold text-gray-800 tabular-nums">RM {{ number_format($grandSubtotal, 2) }}</p>
                             </div>
                             @if ($grandTax > 0)
                             <div>
-                                <p class="text-xs text-gray-400">Tax</p>
+                                <p class="text-xs text-gray-600">Tax</p>
                                 <p class="font-semibold text-gray-800 tabular-nums">RM {{ number_format($grandTax, 2) }}</p>
                             </div>
                             @endif
                             <div>
-                                <p class="text-xs text-gray-400">Grand Total</p>
+                                <p class="text-xs text-gray-600">Grand Total</p>
                                 <p class="font-bold text-lg text-gray-900 tabular-nums">RM {{ number_format($grandSubtotal + $grandTax, 2) }}</p>
                             </div>
                         </div>
@@ -203,15 +203,15 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Left: Approved PRs --}}
         <div class="lg:col-span-2 space-y-4">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div class="card p-4">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-sm font-semibold text-gray-700">Approved Purchase Requests</h3>
                     <div class="flex gap-2">
                         @if ($approvedPrs->count() > 0)
                             <button wire:click="selectAll({{ json_encode($approvedPrs->pluck('id')->toArray()) }})"
-                                    class="text-xs text-indigo-600 hover:underline">Select All</button>
+                                    class="text-xs text-brand-600 hover:underline">Select All</button>
                             <button wire:click="deselectAll"
-                                    class="text-xs text-gray-400 hover:underline">Clear</button>
+                                    class="text-xs text-gray-600 hover:underline">Clear</button>
                         @endif
                     </div>
                 </div>
@@ -222,11 +222,11 @@
                             <div wire:click="togglePr({{ $pr->id }})"
                                  class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition
                                         {{ in_array($pr->id, $selectedPrIds)
-                                            ? 'border-indigo-300 bg-indigo-50'
+                                            ? 'border-brand-300 bg-brand-50'
                                             : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50' }}">
                                 <div class="pt-0.5">
                                     <div class="w-4 h-4 rounded border flex items-center justify-center
-                                                {{ in_array($pr->id, $selectedPrIds) ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300' }}">
+                                                {{ in_array($pr->id, $selectedPrIds) ? 'bg-brand-600 border-brand-600' : 'border-gray-300' }}">
                                         @if (in_array($pr->id, $selectedPrIds))
                                             <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                         @endif
@@ -235,13 +235,13 @@
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between">
                                         <span class="text-sm font-medium text-gray-700">{{ $pr->pr_number }}</span>
-                                        <span class="text-xs text-gray-400">{{ $pr->requested_date->format('d M Y') }}</span>
+                                        <span class="text-xs text-gray-600">{{ $pr->requested_date->format('d M Y') }}</span>
                                     </div>
                                     <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
                                         <span>{{ $pr->outlet?->name }}</span>
                                         <span>{{ $pr->lines->count() }} items</span>
                                         @if ($pr->needed_by_date)
-                                            <span class="text-amber-600">Need by {{ $pr->needed_by_date->format('d M') }}</span>
+                                            <span class="text-warning-600">Need by {{ $pr->needed_by_date->format('d M') }}</span>
                                         @endif
                                     </div>
                                     <div class="mt-2 flex flex-wrap gap-1">
@@ -251,7 +251,7 @@
                                             </span>
                                         @endforeach
                                         @if ($pr->lines->count() > 5)
-                                            <span class="text-[11px] text-gray-400">+{{ $pr->lines->count() - 5 }} more</span>
+                                            <span class="text-[11px] text-gray-600">+{{ $pr->lines->count() - 5 }} more</span>
                                         @endif
                                     </div>
                                 </div>
@@ -259,7 +259,7 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="text-center py-8 text-gray-400 text-sm">
+                    <div class="text-center py-8 text-gray-600 text-sm">
                         No approved purchase requests to consolidate.
                     </div>
                 @endif
@@ -269,16 +269,16 @@
         {{-- Right: Preview / Actions --}}
         <div class="space-y-4">
             {{-- CPU Selection --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="card p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Central Purchasing Unit (CPU)</h3>
-                <p class="text-[11px] text-gray-400 mb-3">The unit that will place these orders and receive the goods.</p>
+                <p class="text-[11px] text-gray-600 mb-3">The unit that will place these orders and receive the goods.</p>
                 @if (count($cpus) === 0)
-                    <div class="px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                    <div class="px-3 py-2.5 bg-warning-50 border border-warning-200 rounded-lg text-xs text-warning-700">
                         No CPU configured yet — orders can't be consolidated without one.
-                        <a href="{{ route('settings.cpu-management') }}" class="font-semibold underline hover:text-amber-900">Create a CPU</a>
+                        <a href="{{ route('settings.cpu-management') }}" class="font-semibold underline hover:text-warning-900">Create a CPU</a>
                     </div>
                 @else
-                    <select wire:model="cpuId" class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <select wire:model="cpuId" class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="">— Select CPU —</option>
                         @foreach ($cpus as $cpu)
                             <option value="{{ $cpu->id }}">{{ $cpu->name }}</option>
@@ -293,11 +293,11 @@
                     $noSupplierGroup = collect($preview)->first(fn ($p) => (int) ($p['supplier_id'] ?? 0) === 0);
                     $creatableCount  = collect($preview)->filter(fn ($p) => (int) ($p['supplier_id'] ?? 0) !== 0)->count();
                 @endphp
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="card p-6">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">PO Preview</h3>
 
                     @if ($noSupplierGroup)
-                        <div class="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                        <div class="mb-3 px-3 py-2 bg-warning-50 border border-warning-200 rounded-lg text-xs text-warning-700">
                             <span class="font-semibold">{{ count($noSupplierGroup['lines']) }} item(s) have no preferred supplier and will be skipped.</span>
                             Use "Customize &amp; Review" to assign a supplier so they get ordered.
                         </div>
@@ -308,7 +308,7 @@
                         </div>
                     @endif
 
-                    <p class="text-xs text-gray-400 mb-4">{{ $creatableCount }} Purchase Order(s) will be created:</p>
+                    <p class="text-xs text-gray-600 mb-4">{{ $creatableCount }} Purchase Order(s) will be created:</p>
 
                     <div class="space-y-4">
                         @foreach ($preview as $po)
@@ -326,7 +326,7 @@
                                     @endforeach
                                 </div>
                                 @if ($po['outlet_count'] > 1)
-                                    <p class="text-[11px] text-amber-600 mt-2">From {{ $po['outlet_count'] }} outlets</p>
+                                    <p class="text-[11px] text-warning-600 mt-2">From {{ $po['outlet_count'] }} outlets</p>
                                 @endif
                             </div>
                         @endforeach
@@ -336,24 +336,24 @@
                         {{-- Single commit path: creating happens in the editable
                              review, where quantities and suppliers can be fixed. --}}
                         <button wire:click="enterEditMode"
-                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                                class="w-full px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
                             Open Review &amp; Create
                         </button>
-                        <p class="text-[11px] text-gray-400 text-center">Orders are created as drafts from the review screen — then sent from the Orders (PO) tab.</p>
+                        <p class="text-[11px] text-gray-600 text-center">Orders are created as drafts from the review screen — then sent from the Orders (PO) tab.</p>
                     </div>
                 </div>
             @endif
 
             @if ($showPreview && count($preview) === 0)
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <div class="text-center py-4 text-amber-600 text-sm">
+                <div class="card p-6">
+                    <div class="text-center py-4 text-warning-600 text-sm">
                         No POs to create — ensure PR lines have preferred suppliers assigned.
                     </div>
                 </div>
             @endif
 
             {{-- Selection Summary --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="card p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">Selection</h3>
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">

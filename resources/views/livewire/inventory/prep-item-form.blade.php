@@ -3,20 +3,20 @@
 
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+        <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
         <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-gray-600">
                 <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="hover:underline">Prep Items</a>
                 / {{ $recipeId ? ($name ?: 'Edit') : 'New Prep Item' }}
             </p>
@@ -32,12 +32,12 @@
             </x-download-link>
         @endif
         <span wire:dirty wire:loading.remove wire:target="save"
-              class="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 text-xs font-medium rounded-full border border-amber-200">
-            <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+              class="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-warning-50 text-warning-600 text-xs font-medium rounded-full border border-warning-200">
+            <span class="w-1.5 h-1.5 bg-warning-400 rounded-full"></span>
             Unsaved changes
         </span>
         <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
-                class="flex-shrink-0 px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5">
+                class="flex-shrink-0 px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5">
             <svg wire:loading wire:target="save" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -49,7 +49,7 @@
 
     {{-- Validation errors --}}
     @if ($errors->any())
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             <p class="font-medium mb-1">Please fix the following:</p>
             <ul class="list-disc list-inside space-y-0.5">
                 @foreach ($errors->all() as $error)
@@ -66,10 +66,10 @@
         <div class="flex-1 min-w-0 space-y-4">
 
             {{-- Details card --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div class="card p-6 space-y-4">
                 <div class="flex items-center gap-2">
                     <h3 class="text-sm font-semibold text-gray-700">Prep Item Details</h3>
-                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">PREP</span>
+                    <span class="px-2 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded-full">PREP</span>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -87,12 +87,12 @@
                     <div class="flex items-center gap-5 mt-6">
                         <label class="inline-flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="is_active"
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                             <span class="text-sm text-gray-700 font-medium">Active</span>
                         </label>
                         <label class="inline-flex items-center gap-2 cursor-pointer" title="Hide this prep item from the LMS (training) portal">
                             <input type="checkbox" wire:model="exclude_from_lms"
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                             <span class="text-sm text-gray-700 font-medium">Exclude from LMS</span>
                         </label>
                     </div>
@@ -103,18 +103,18 @@
                     <div>
                         <x-input-label for="p_department" value="Department" />
                         <select id="p_department" wire:model="department_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— No Department —</option>
                             @foreach ($departments as $dept)
                                 <option value="{{ $dept->id }}">{{ $dept->name }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-0.5 text-xs text-gray-400">Assigns cost to a department.</p>
+                        <p class="mt-0.5 text-xs text-gray-600">Assigns cost to a department.</p>
                     </div>
                     <div>
                         <x-input-label for="p_category" value="Category" />
                         <select id="p_category" wire:model="category"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— No Category —</option>
                             @foreach ($recipeCategories as $cat)
                                 @if ($cat->children && $cat->children->count())
@@ -130,11 +130,11 @@
                             @endforeach
                         </select>
                         @if ($recipeCategories->isEmpty())
-                            <p class="mt-0.5 text-xs text-gray-400">
-                                <a href="{{ route('settings.recipe-categories') }}" class="text-indigo-500 hover:underline" target="_blank">Add recipe categories</a> in Settings.
+                            <p class="mt-0.5 text-xs text-gray-600">
+                                <a href="{{ route('settings.recipe-categories') }}" class="text-brand-500 hover:underline" target="_blank">Add recipe categories</a> in Settings.
                             </p>
                         @else
-                            <p class="mt-0.5 text-xs text-gray-400">Same categories as recipes.</p>
+                            <p class="mt-0.5 text-xs text-gray-600">Same categories as recipes.</p>
                         @endif
                         <x-input-error :messages="$errors->get('category')" class="mt-1" />
                     </div>
@@ -146,19 +146,19 @@
                         <x-input-label for="p_yield" value="Yield Quantity *" />
                         <x-text-input id="p_yield" wire:model.live="yield_quantity" type="number"
                                       min="0.1" step="0.1" class="mt-1 block w-full" />
-                        <p class="mt-0.5 text-xs text-gray-400">How many portions / units this batch produces</p>
+                        <p class="mt-0.5 text-xs text-gray-600">How many portions / units this batch produces</p>
                         <x-input-error :messages="$errors->get('yield_quantity')" class="mt-1" />
                     </div>
                     <div>
                         <x-input-label for="p_uom" value="Yield UOM *" />
                         <select id="p_uom" wire:model.live="yield_uom_id"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— Select UOM —</option>
                             @foreach ($uoms as $uom)
                                 <option value="{{ $uom->id }}">{{ $uom->name }} ({{ $uom->abbreviation }})</option>
                             @endforeach
                         </select>
-                        <p class="mt-0.5 text-xs text-gray-400">Unit used when counting in stock take</p>
+                        <p class="mt-0.5 text-xs text-gray-600">Unit used when counting in stock take</p>
                         <x-input-error :messages="$errors->get('yield_uom_id')" class="mt-1" />
                     </div>
                 </div>
@@ -171,40 +171,40 @@
                             <x-text-input id="p_shelf_life" wire:model="shelf_life_value" type="number"
                                           min="0.01" step="0.5" placeholder="e.g. 3" class="block w-24" />
                             <select wire:model="shelf_life_unit"
-                                    class="block flex-1 rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="block flex-1 rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 @foreach (\App\Models\Recipe::SHELF_LIFE_UNITS as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <p class="mt-0.5 text-xs text-gray-400">How long this prep item keeps. Shown in the LMS and SOP PDFs.</p>
+                        <p class="mt-0.5 text-xs text-gray-600">How long this prep item keeps. Shown in the LMS and SOP PDFs.</p>
                         <x-input-error :messages="$errors->get('shelf_life_value')" class="mt-1" />
                         <x-input-error :messages="$errors->get('shelf_life_unit')" class="mt-1" />
                     </div>
                     <div>
                         <x-input-label for="p_storage" value="Storing Instruction" />
                         <select id="p_storage" wire:model="storage_instruction"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— Not specified —</option>
                             @foreach (\App\Models\Recipe::STORAGE_OPTIONS as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-0.5 text-xs text-gray-400">Where to store it. Shown in the LMS and SOP PDFs.</p>
+                        <p class="mt-0.5 text-xs text-gray-600">Where to store it. Shown in the LMS and SOP PDFs.</p>
                         <x-input-error :messages="$errors->get('storage_instruction')" class="mt-1" />
                     </div>
                 </div>
 
                 {{-- Secondary Recipe UOM --}}
-                <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+                <div class="rounded-lg border border-brand-100 bg-brand-50/50 p-4 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-indigo-800">Secondary Recipe UOM <span class="text-xs font-normal text-indigo-500">(optional)</span></p>
-                            <p class="text-xs text-indigo-500 mt-0.5">Allows this prep item to be used in recipes with an alternative unit — e.g. yield in <strong>ml</strong> but recipe calls in <strong>bsp</strong></p>
+                            <p class="text-sm font-medium text-brand-800">Secondary Recipe UOM <span class="text-xs font-normal text-brand-500">(optional)</span></p>
+                            <p class="text-xs text-brand-500 mt-0.5">Allows this prep item to be used in recipes with an alternative unit — e.g. yield in <strong>ml</strong> but recipe calls in <strong>bsp</strong></p>
                         </div>
                         @if ($secondary_recipe_uom_id)
                             <button type="button" wire:click="$set('secondary_recipe_uom_id', null); $set('secondary_uom_factor', '')"
-                                    class="text-xs text-red-400 hover:text-red-600 transition">Clear</button>
+                                    class="text-xs text-danger-400 hover:text-danger-600 transition">Clear</button>
                         @endif
                     </div>
 
@@ -212,7 +212,7 @@
                         <div>
                             <label class="text-xs font-medium text-gray-600 block mb-1">Secondary UOM</label>
                             <select wire:model.live="secondary_recipe_uom_id"
-                                    class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">— none —</option>
                                 @foreach ($uoms as $uom)
                                     <option value="{{ $uom->id }}"
@@ -237,7 +237,7 @@
                                               type="number" step="0.0001" min="0.0001"
                                               placeholder="e.g. 27"
                                               class="block w-full" />
-                                <p class="mt-0.5 text-xs text-gray-400">
+                                <p class="mt-0.5 text-xs text-gray-600">
                                     @if ($secondary_uom_factor && floatval($secondary_uom_factor) > 0)
                                         Cost per {{ $secAbbr }} = cost per {{ $yieldAbbr }} × {{ $secondary_uom_factor }}
                                     @else
@@ -248,7 +248,7 @@
                             </div>
                         @else
                             <div class="flex items-center">
-                                <p class="text-xs text-indigo-400 italic">Select a secondary UOM to set conversion</p>
+                                <p class="text-xs text-brand-400 italic">Select a secondary UOM to set conversion</p>
                             </div>
                         @endif
                     </div>
@@ -258,7 +258,7 @@
                 <div>
                     <x-input-label for="p_notes" value="Notes" />
                     <textarea id="p_notes" wire:model="notes" rows="2"
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                               placeholder="Optional preparation notes…"></textarea>
                 </div>
 
@@ -266,18 +266,18 @@
                 @if ($outlets->count() > 1)
                     <div class="border-t border-gray-100 pt-4">
                         <x-input-label value="Available At" />
-                        <p class="text-xs text-gray-400 mt-0.5 mb-3">Tag this prep item to specific outlets, or leave as "All Outlets" to make it available everywhere.</p>
+                        <p class="text-xs text-gray-600 mt-0.5 mb-3">Tag this prep item to specific outlets, or leave as "All Outlets" to make it available everywhere.</p>
 
                         <div class="space-y-2">
                             <label class="inline-flex items-center gap-2 cursor-pointer">
                                 <input type="radio" wire:model.live="allOutlets" value="1"
-                                       class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                       class="text-brand-600 border-gray-300 focus:ring-brand-500" />
                                 <span class="text-sm text-gray-700 font-medium">All Outlets</span>
                             </label>
 
                             <label class="inline-flex items-center gap-2 cursor-pointer">
                                 <input type="radio" wire:model.live="allOutlets" value=""
-                                       class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                       class="text-brand-600 border-gray-300 focus:ring-brand-500" />
                                 <span class="text-sm text-gray-700 font-medium">Selected Outlets</span>
                             </label>
                         </div>
@@ -289,14 +289,14 @@
                                     @foreach ($outletGroups as $group)
                                         <button type="button"
                                                 wire:click="applyGroup({{ $group->id }})"
-                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition">
+                                                class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-brand-200 bg-white text-brand-600 text-xs font-medium hover:bg-brand-50 transition">
                                             + {{ $group->name }}
-                                            <span class="text-[10px] text-gray-400">({{ count($group->outlet_ids) }})</span>
+                                            <span class="text-[10px] text-gray-600">({{ count($group->outlet_ids) }})</span>
                                         </button>
                                     @endforeach
                                     @if (! empty($outletIds))
                                         <button type="button" wire:click="clearOutletSelection"
-                                                class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
+                                                class="text-xs text-gray-600 hover:text-gray-900 underline">Clear</button>
                                     @endif
                                 </div>
                             @endif
@@ -305,11 +305,11 @@
                                 @foreach ($outlets as $outlet)
                                     @php $isCentralKitchen = in_array($outlet->id, $centralKitchenOutletIds); @endphp
                                     <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition
-                                        {{ in_array($outlet->id, $outletIds) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                        {{ in_array($outlet->id, $outletIds) ? 'border-brand-300 bg-brand-50' : 'border-gray-200 hover:border-gray-300' }}">
                                         <input type="checkbox"
                                                value="{{ $outlet->id }}"
                                                wire:model.live="outletIds"
-                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                               class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
                                         <div class="min-w-0">
                                             <span class="text-sm font-medium text-gray-700 block truncate">
                                                 {{ $outlet->name }}
@@ -318,14 +318,14 @@
                                                 @endif
                                             </span>
                                             @if ($outlet->code)
-                                                <span class="text-xs text-gray-400">{{ $outlet->code }}</span>
+                                                <span class="text-xs text-gray-600">{{ $outlet->code }}</span>
                                             @endif
                                         </div>
                                     </label>
                                 @endforeach
                             </div>
                             @if (empty($outletIds))
-                                <p class="mt-1 text-xs text-amber-500">Select at least one outlet, or switch to "All Outlets".</p>
+                                <p class="mt-1 text-xs text-warning-500">Select at least one outlet, or switch to "All Outlets".</p>
                             @endif
                         @endif
                     </div>
@@ -333,12 +333,12 @@
             </div>
 
             {{-- Ingredients section --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="mt-4 card">
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700">Ingredients Used</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Raw ingredients that go into making this prep item</p>
+                <p class="text-xs text-gray-600 mt-0.5">Raw ingredients that go into making this prep item</p>
             </div>
         </div>
 
@@ -346,14 +346,14 @@
         <div class="px-6 py-4 border-b border-gray-100">
             <div class="relative">
                 <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                     </svg>
                 </div>
                 <input type="text"
                        wire:model.live.debounce.300ms="ingredientSearch"
                        placeholder="Search ingredients &amp; prep items…"
-                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                       class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
 
             @if ($searchResults->isNotEmpty())
@@ -362,42 +362,42 @@
                         @php $isOutputIngredient = $outputIngredientId && $ingredient->id === $outputIngredientId; @endphp
                         @if ($isOutputIngredient)
                             {{-- This ingredient is what this prep recipe produces — circular reference --}}
-                            <div class="w-full flex items-center justify-between px-4 py-2.5 bg-amber-50 opacity-70 cursor-not-allowed text-left"
+                            <div class="w-full flex items-center justify-between px-4 py-2.5 bg-warning-50 opacity-70 cursor-not-allowed text-left"
                                  title="This is the output of this prep recipe. An ingredient cannot be an input of its own recipe.">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="font-medium text-gray-600 text-sm">{{ $ingredient->name }}</span>
-                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">OUTPUT</span>
-                                    <span class="text-xs text-amber-600">This is what this recipe produces</span>
+                                    <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded">OUTPUT</span>
+                                    <span class="text-xs text-warning-600">This is what this recipe produces</span>
                                 </div>
-                                <div class="text-right text-xs text-amber-500 flex-shrink-0 ml-4">Cannot add</div>
+                                <div class="text-right text-xs text-warning-500 flex-shrink-0 ml-4">Cannot add</div>
                             </div>
                         @elseif ($ingredient->is_active)
                             <button type="button" wire:click="addIngredient({{ $ingredient->id }})"
-                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50 transition text-left">
+                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
                                     @if ($ingredient->is_prep)
-                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                        <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded">PREP</span>
                                     @endif
                                     @if ($ingredient->code)
-                                        <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                        <span class="text-xs text-gray-600">{{ $ingredient->code }}</span>
                                     @endif
                                     @if ($ingredient->category)
-                                        <span class="text-xs text-gray-400">· {{ $ingredient->category }}</span>
+                                        <span class="text-xs text-gray-600">· {{ $ingredient->category }}</span>
                                     @endif
                                 </div>
                                 <div class="text-right text-xs flex-shrink-0 ml-4">
-                                    <span class="text-indigo-600 font-medium">
+                                    <span class="text-brand-600 font-medium">
                                         {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
                                         @if ($ingredient->secondaryRecipeUom)
                                             <span class="text-purple-500">· {{ $ingredient->secondaryRecipeUom->abbreviation }}</span>
                                         @endif
                                     </span>
-                                    <span class="ml-2 text-gray-400">
+                                    <span class="ml-2 text-gray-600">
                                         RM {{ number_format($ingredient->current_cost, 4) }}
                                         / {{ $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation }}
                                     </span>
-                                    <span class="ml-2 text-indigo-400">+ Add</span>
+                                    <span class="ml-2 text-brand-400">+ Add</span>
                                 </div>
                             </button>
                         @else
@@ -405,26 +405,26 @@
                                  title="This ingredient is inactive. Activate it in the Market List to use it here.">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="font-medium text-gray-500 text-sm">{{ $ingredient->name }}</span>
-                                    <span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-semibold rounded">INACTIVE</span>
+                                    <span class="px-1.5 py-0.5 bg-danger-100 text-danger-600 text-xs font-semibold rounded">INACTIVE</span>
                                     @if ($ingredient->code)
-                                        <span class="text-xs text-gray-400">{{ $ingredient->code }}</span>
+                                        <span class="text-xs text-gray-600">{{ $ingredient->code }}</span>
                                     @endif
                                 </div>
                                 <div class="text-right text-xs flex-shrink-0 ml-4">
                                     <a href="{{ route('ingredients.index') }}" target="_blank"
-                                       class="text-red-400 hover:text-red-600 hover:underline pointer-events-auto">Activate →</a>
+                                       class="text-danger-400 hover:text-danger-600 hover:underline pointer-events-auto">Activate →</a>
                                 </div>
                             </div>
                         @endif
                     @endforeach
                 </div>
             @elseif (strlen($ingredientSearch) >= 2)
-                <p class="mt-2 text-sm text-gray-400 text-center py-2">No ingredients found.</p>
+                <p class="mt-2 text-sm text-gray-600 text-center py-2">No ingredients found.</p>
             @endif
 
-            <p class="mt-2 text-xs text-gray-400">
+            <p class="mt-2 text-xs text-gray-600">
                 Can't find it?
-                <a href="{{ route('ingredients.index') }}" target="_blank" class="text-indigo-500 hover:underline">+ Add new ingredient</a>
+                <a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>
             </p>
 
             <x-input-error :messages="$errors->get('lines')" class="mt-2" />
@@ -451,7 +451,7 @@
                            x-init="new Sortable($el, {
                                handle: '.line-drag-handle',
                                animation: 150,
-                               ghostClass: 'bg-indigo-50',
+                               ghostClass: 'bg-brand-50',
                                onEnd: () => {
                                    const idxs = Array.from($el.querySelectorAll('tr[data-idx]')).map(tr => tr.dataset.idx);
                                    $wire.reorderLines(idxs);
@@ -459,22 +459,22 @@
                            })">
                         @foreach ($lines as $idx => $line)
                             <tr wire:key="pi-line-{{ $idx }}-{{ $line['ingredient_id'] }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
-                                <td class="line-drag-handle px-2 py-2 text-center text-gray-300 hover:text-gray-500 cursor-grab select-none" title="Drag to reorder">
+                                <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
                                     <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
                                 </td>
-                                <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2">
                                     <div class="flex items-center gap-2">
                                         <span class="font-medium text-gray-800">{{ $line['ingredient_name'] }}</span>
                                         @if ($line['is_prep'] ?? false)
-                                            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">PREP</span>
+                                            <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded">PREP</span>
                                         @endif
                                     </div>
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.1" min="0.0001"
                                            wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
-                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
                                 <td class="px-4 py-2">
@@ -488,7 +488,7 @@
                                             : $uoms;
                                     @endphp
                                     <select wire:model.live="lines.{{ $idx }}.uom_id"
-                                            class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
                                         @if (count($piUomIds))
                                             @foreach ($piValidUoms as $uom)
                                                 <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
@@ -505,20 +505,20 @@
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
                                                wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 pr-7" />
-                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 pr-7" />
+                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600">%</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-medium text-gray-800">
                                     @if (isset($lineCosts[$idx]) && $lineCosts[$idx] !== null)
                                         {{ number_format($lineCosts[$idx], 4) }}
                                     @else
-                                        <span class="text-gray-300">—</span>
+                                        <span class="text-gray-500">—</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 transition">
                                     <button type="button" wire:click="removeLine({{ $idx }})"
-                                            class="text-red-400 hover:text-red-600 transition">
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
@@ -535,12 +535,12 @@
                             </td>
                             <td></td>
                         </tr>
-                        <tr class="bg-indigo-50">
-                            <td colspan="5" class="px-4 py-3 text-right text-indigo-700 font-semibold">
+                        <tr class="bg-brand-50">
+                            <td colspan="5" class="px-4 py-3 text-right text-brand-700 font-semibold">
                                 Cost per {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'unit' }}
                                 (÷ {{ $yield_quantity }})
                             </td>
-                            <td class="px-4 py-3 text-right tabular-nums font-bold text-indigo-700">
+                            <td class="px-4 py-3 text-right tabular-nums font-bold text-brand-700">
                                 {{ number_format($costPerYieldUnit, 4) }}
                             </td>
                             <td></td>
@@ -549,7 +549,7 @@
                 </table>
             </div>
         @else
-            <div class="px-6 py-12 text-center text-gray-400">
+            <div class="px-6 py-12 text-center text-gray-600">
                 <p class="text-3xl mb-2">🍳</p>
                 <p class="font-medium">No ingredients added yet</p>
                 <p class="text-xs mt-1">Search for the raw ingredients that make up this prep item.</p>
@@ -559,7 +559,7 @@
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
             <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Cancel</a>
             <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
-                    class="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
                 <span wire:loading.remove wire:target="save">Save Prep Item</span>
                 <span wire:loading wire:target="save">Saving…</span>
             </button>
@@ -567,10 +567,10 @@
     </div>
 
     {{-- ── Batch Scaling (recipe multiples) ── --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="mt-4 card">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-sm font-semibold text-gray-700">Batch Scaling</h3>
-            <p class="text-xs text-gray-400 mt-0.5">
+            <p class="text-xs text-gray-600 mt-0.5">
                 1 Recipe = {{ $yield_quantity ?: '1' }} {{ collect($uoms)->firstWhere('id', $yield_uom_id)?->abbreviation ?? 'unit' }}.
                 Add extra batch sizes (e.g. 0.5 or 1.5 Recipe) — ingredient quantities are scaled and shown side by side here and in the LMS SOP.
             </p>
@@ -585,7 +585,7 @@
                                       placeholder="e.g. 0.5" class="w-28" />
                         <span class="text-sm text-gray-500">Recipe</span>
                         <button type="button" wire:click="addMultiplier"
-                                class="px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                                class="px-3 py-2 text-xs font-medium text-brand-600 bg-brand-50 rounded-lg hover:bg-brand-100 transition">
                             + Add Batch Size
                         </button>
                     </div>
@@ -597,10 +597,10 @@
                         1 Recipe
                     </span>
                     @foreach ($batchMultipliers as $idx => $m)
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium" wire:key="bm-{{ $idx }}">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-xs font-medium" wire:key="bm-{{ $idx }}">
                             {{ \App\Models\Recipe::fmtMultiplier((float) $m) }} Recipe
                             <button type="button" wire:click="removeMultiplier({{ $idx }})"
-                                    class="text-indigo-300 hover:text-red-500 transition" title="Remove">×</button>
+                                    class="text-brand-300 hover:text-danger-500 transition" title="Remove">×</button>
                         </span>
                     @endforeach
                 </div>
@@ -619,9 +619,9 @@
                             <tr>
                                 <th class="px-4 py-2 text-left">Ingredient</th>
                                 @foreach ($batchCols as $m)
-                                    <th class="px-4 py-2 text-right {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50 text-indigo-600' : '' }}">
+                                    <th class="px-4 py-2 text-right {{ abs($m - 1.0) < 0.0001 ? 'bg-brand-50 text-brand-600' : '' }}">
                                         {{ \App\Models\Recipe::fmtMultiplier($m) }} Recipe
-                                        <span class="block normal-case font-normal text-[10px] text-gray-400">
+                                        <span class="block normal-case font-normal text-[10px] text-gray-600">
                                             {{ $fmtBatchQty(floatval($yield_quantity ?: 1) * $m) }} {{ $yieldAbbrBatch }}
                                         </span>
                                     </th>
@@ -633,9 +633,9 @@
                                 <tr wire:key="batch-row-{{ $line['ingredient_id'] }}">
                                     <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
                                     @foreach ($batchCols as $m)
-                                        <td class="px-4 py-2 text-right tabular-nums {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50/50 font-medium text-gray-800' : 'text-gray-600' }}">
+                                        <td class="px-4 py-2 text-right tabular-nums {{ abs($m - 1.0) < 0.0001 ? 'bg-brand-50/50 font-medium text-gray-800' : 'text-gray-600' }}">
                                             {{ $fmtBatchQty(floatval($line['quantity'] ?: 0) * $m) }}
-                                            <span class="text-xs text-gray-400">{{ $uomById->get((int) ($line['uom_id'] ?? 0))?->abbreviation ?? '' }}</span>
+                                            <span class="text-xs text-gray-600">{{ $uomById->get((int) ($line['uom_id'] ?? 0))?->abbreviation ?? '' }}</span>
                                         </td>
                                     @endforeach
                                 </tr>
@@ -643,18 +643,18 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="text-xs text-gray-400">Waste % is not shown here — batch quantities are the raw recipe amounts × the multiple.</p>
+                <p class="text-xs text-gray-600">Waste % is not shown here — batch quantities are the raw recipe amounts × the multiple.</p>
             @elseif (count($batchMultipliers))
-                <p class="text-xs text-gray-400">Add ingredients above to see the scaled batch table.</p>
+                <p class="text-xs text-gray-600">Add ingredients above to see the scaled batch table.</p>
             @endif
         </div>
     </div>
 
     {{-- ── Presentation Photos ── --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <div class="mt-4 card p-6">
         <div class="mb-4">
             <h3 class="text-sm font-semibold text-gray-700">Presentation Photos</h3>
-            <p class="text-xs text-gray-400 mt-0.5">Upload final product photos for plating / presentation reference. Max 5MB per image.</p>
+            <p class="text-xs text-gray-600 mt-0.5">Upload final product photos for plating / presentation reference. Max 5MB per image.</p>
         </div>
 
         @if (count($existingPresentationImages))
@@ -666,7 +666,7 @@
                         <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                             <button type="button" wire:click="removeExistingPresentationImage({{ $img['id'] }})"
                                     wire:confirm="Remove this photo?"
-                                    class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                    class="px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700 transition">
                                 Remove
                             </button>
                         </div>
@@ -678,9 +678,9 @@
 
         <div>
             <label class="block">
-                <div class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition">
+                <div class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition">
                     <div class="text-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-7 w-7 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <p class="mt-1 text-xs text-gray-500">Upload presentation photos</p>
@@ -694,16 +694,16 @@
         @if (count($newPresentationImages))
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3">
                 @foreach ($newPresentationImages as $idx => $file)
-                    <div class="relative group rounded-lg overflow-hidden border border-indigo-200 bg-indigo-50" wire:key="pres-new-{{ $idx }}">
+                    <div class="relative group rounded-lg overflow-hidden border border-brand-200 bg-brand-50" wire:key="pres-new-{{ $idx }}">
                         <img src="{{ $file->temporaryUrl() }}" alt="New upload"
                              class="w-full h-32 object-cover" />
                         <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                             <button type="button" wire:click="removeNewPresentationImage({{ $idx }})"
-                                    class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition">
+                                    class="px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700 transition">
                                 Remove
                             </button>
                         </div>
-                        <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded font-medium">New</div>
+                        <div class="absolute top-1 right-1 px-1.5 py-0.5 bg-brand-600 text-white text-xs rounded font-medium">New</div>
                         <div class="px-2 py-1.5 text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</div>
                     </div>
                 @endforeach
@@ -712,14 +712,14 @@
     </div>
 
     {{-- ── Training / SOP ── --}}
-    <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100" x-data="{ sopOpen: {{ count($steps) || $video_url ? 'true' : 'false' }} }">
+    <div class="mt-4 card" x-data="{ sopOpen: {{ count($steps) || $video_url ? 'true' : 'false' }} }">
         <button type="button" @click="sopOpen = !sopOpen"
                 class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
             <div class="text-left">
                 <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Preparation steps, video & training content</p>
+                <p class="text-xs text-gray-600 mt-0.5">Preparation steps, video & training content</p>
             </div>
-            <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg :class="sopOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
         </button>
@@ -731,7 +731,7 @@
                 <x-text-input id="p_video_url" wire:model="video_url" type="url"
                               class="mt-1 block w-full text-sm"
                               placeholder="https://www.youtube.com/watch?v=..." />
-                <p class="text-xs text-gray-400 mt-1">YouTube or Vimeo link for the training video</p>
+                <p class="text-xs text-gray-600 mt-1">YouTube or Vimeo link for the training video</p>
                 <x-input-error :messages="$errors->get('video_url')" class="mt-1" />
             </div>
 
@@ -740,7 +740,7 @@
                 <div class="flex items-center justify-between mb-3">
                     <div>
                         <h4 class="text-sm font-semibold text-gray-700">Preparation Steps</h4>
-                        <p class="text-xs text-gray-400 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
+                        <p class="text-xs text-gray-600 mt-0.5">{{ count($steps) }} step{{ count($steps) !== 1 ? 's' : '' }}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <div class="relative" x-data="{ aiOpen: false }" wire:loading.class="opacity-50 pointer-events-none" wire:target="suggestPreparationSteps">
@@ -793,23 +793,23 @@
                             </button>
                         @endif
                         <button type="button" wire:click="addStep"
-                                class="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                                class="px-3 py-1.5 text-xs font-medium text-brand-600 bg-brand-50 rounded-lg hover:bg-brand-100 transition">
                             + Add Step
                         </button>
                     </div>
                 </div>
 
                 @if (session('ai_steps_success'))
-                    <div class="mb-3 px-3 py-2 bg-green-50 border border-green-200 text-green-700 text-xs rounded-lg">
+                    <div class="mb-3 px-3 py-2 bg-success-50 border border-success-200 text-success-700 text-xs rounded-lg">
                         {{ session('ai_steps_success') }}
                     </div>
                 @endif
                 @if (session('ai_steps_error'))
-                    <div class="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+                    <div class="mb-3 px-3 py-2 bg-danger-50 border border-danger-200 text-danger-700 text-xs rounded-lg">
                         {{ session('ai_steps_error') }}
                     </div>
                 @endif
-                <p class="mb-3 text-xs text-gray-400">
+                <p class="mb-3 text-xs text-gray-600">
                     ✨ AI analyses the prep item name, ingredients, and presentation photos to draft steps. Review and edit before saving.
                 </p>
 
@@ -818,16 +818,16 @@
                         @foreach ($steps as $idx => $step)
                             <div class="relative bg-gray-50 rounded-lg p-4 border border-gray-200" wire:key="prep-step-{{ $idx }}">
                                 <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $idx + 1 }}</span>
+                                    <span class="flex-shrink-0 w-7 h-7 bg-brand-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-1">{{ $idx + 1 }}</span>
                                     <div class="flex-1 space-y-2">
                                         <input type="text"
                                                wire:model.blur="steps.{{ $idx }}.title"
                                                placeholder="Step title (optional, e.g. Preparation)"
-                                               class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                               class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         <textarea wire:model.blur="steps.{{ $idx }}.instruction"
                                                   rows="3"
                                                   placeholder="Describe the preparation step..."
-                                                  class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                                  class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
                                         <x-input-error :messages="$errors->get('steps.'.$idx.'.instruction')" class="mt-0.5" />
 
                                         {{-- Image upload --}}
@@ -835,19 +835,19 @@
                                             <div class="flex-shrink-0">
                                                 @if (!empty($step['new_image']))
                                                     <div class="relative">
-                                                        <img src="{{ $step['new_image']->temporaryUrl() }}" class="w-20 h-20 object-cover rounded border border-indigo-300" />
+                                                        <img src="{{ $step['new_image']->temporaryUrl() }}" class="w-20 h-20 object-cover rounded border border-brand-300" />
                                                         <button type="button" wire:click="clearStepNewImage({{ $idx }})"
-                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                                                                class="absolute -top-1 -right-1 bg-danger-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-danger-600">×</button>
                                                     </div>
                                                 @elseif (!empty($step['image_url']) && empty($step['remove_image']))
                                                     <div class="relative">
                                                         <img src="{{ $step['image_url'] }}" class="w-20 h-20 object-cover rounded border border-gray-300" />
                                                         <button type="button" wire:click="removeStepImage({{ $idx }})"
-                                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600" title="Remove image">×</button>
+                                                                class="absolute -top-1 -right-1 bg-danger-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-danger-600" title="Remove image">×</button>
                                                     </div>
                                                 @else
-                                                    <label class="cursor-pointer inline-flex flex-col items-center justify-center w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <label class="cursor-pointer inline-flex flex-col items-center justify-center w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-white hover:border-brand-400 hover:bg-brand-50 transition">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                         </svg>
                                                         <span class="text-[10px] text-gray-500 mt-1">Add photo</span>
@@ -858,7 +858,7 @@
                                             <div class="flex-1">
                                                 <p class="text-xs text-gray-500 pt-1">Optional step photo (max 5MB). Images enhance training visuals in the LMS and SOP PDFs.</p>
                                                 <x-input-error :messages="$errors->get('steps.'.$idx.'.new_image')" class="mt-1" />
-                                                <div wire:loading wire:target="steps.{{ $idx }}.new_image" class="text-xs text-indigo-500 mt-1">Uploading…</div>
+                                                <div wire:loading wire:target="steps.{{ $idx }}.new_image" class="text-xs text-brand-500 mt-1">Uploading…</div>
                                             </div>
                                         </div>
                                     </div>
@@ -876,7 +876,7 @@
                                             </svg>
                                         </button>
                                         <button type="button" wire:click="removeStep({{ $idx }})"
-                                                class="text-red-400 hover:text-red-600 transition">
+                                                class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                             </svg>
@@ -887,7 +887,7 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="text-center py-6 text-gray-400">
+                    <div class="text-center py-6 text-gray-600">
                         <p class="text-sm">No preparation steps added yet.</p>
                         <p class="text-xs mt-1">Add steps to create training content for this prep item.</p>
                     </div>
@@ -904,10 +904,10 @@
         {{-- ── Cost Summary (sticky right column) ── --}}
         <div class="hidden lg:block lg:w-80 flex-shrink-0">
             <div class="sticky top-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="card p-6">
                     <div class="flex items-center gap-2 mb-4">
                         <h3 class="text-sm font-semibold text-gray-700">Cost Summary</h3>
-                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">PREP</span>
+                        <span class="px-2 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded-full">PREP</span>
                     </div>
 
                     <dl class="space-y-3 text-sm">
@@ -925,15 +925,15 @@
                         </div>
                         <div class="flex justify-between border-t border-gray-100 pt-3">
                             <dt class="font-semibold text-gray-700">Cost per Unit</dt>
-                            <dd class="font-bold text-lg text-indigo-600 tabular-nums">
+                            <dd class="font-bold text-lg text-brand-600 tabular-nums">
                                 RM {{ number_format($costPerYieldUnit, 4) }}
                             </dd>
                         </div>
                     </dl>
 
-                    <div class="mt-4 pt-4 border-t border-gray-100 rounded-lg bg-amber-50 px-3 py-2.5">
-                        <p class="text-xs text-amber-700 font-medium mb-1">How this works</p>
-                        <p class="text-xs text-amber-600 leading-relaxed">
+                    <div class="mt-4 pt-4 border-t border-gray-100 rounded-lg bg-warning-50 px-3 py-2.5">
+                        <p class="text-xs text-warning-700 font-medium mb-1">How this works</p>
+                        <p class="text-xs text-warning-600 leading-relaxed">
                             Saving this prep item will create/update a corresponding <strong>ingredient</strong> with cost = RM {{ number_format($costPerYieldUnit, 4) }} per unit.
                         </p>
                     </div>
@@ -941,7 +941,7 @@
                     {{-- Save Button --}}
                     <div class="mt-6 pt-4 border-t border-gray-100">
                         <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
-                                class="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                class="w-full px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                             <svg wire:loading.remove wire:target="save" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                             </svg>

@@ -1,13 +1,13 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">{{ session('success') }}</div>
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">{{ session('success') }}</div>
     @endif
 
     <div class="flex items-center gap-3 mb-4">
         <div class="flex-1">
             <h1 class="text-lg font-bold text-gray-800">Referral Dashboard</h1>
-            <p class="text-xs text-gray-400 mt-0.5">Track referrals, conversions, and commissions.</p>
+            <p class="text-xs text-gray-600 mt-0.5">Track referrals, conversions, and commissions.</p>
         </div>
         <a href="{{ route('admin.referrals.programs') }}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
             Manage Programs
@@ -16,34 +16,34 @@
 
     {{-- Stats --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">Total Referrals</p>
             <p class="text-2xl font-bold text-gray-900 mt-1">{{ number_format($totalReferrals) }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">Conversions</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ number_format($totalConversions) }}</p>
+            <p class="text-2xl font-bold text-success-600 mt-1">{{ number_format($totalConversions) }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">Pending Commission</p>
-            <p class="text-2xl font-bold text-amber-600 mt-1">RM {{ number_format($totalPending, 2) }}</p>
+            <p class="text-2xl font-bold text-warning-600 mt-1">RM {{ number_format($totalPending, 2) }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="card p-4">
             <p class="text-xs text-gray-500 font-medium">Total Paid</p>
-            <p class="text-2xl font-bold text-indigo-600 mt-1">RM {{ number_format($totalPaid, 2) }}</p>
+            <p class="text-2xl font-bold text-brand-600 mt-1">RM {{ number_format($totalPaid, 2) }}</p>
         </div>
     </div>
 
     {{-- Tabs --}}
     <div class="flex gap-4 border-b border-gray-200 mb-4">
-        <button wire:click="$set('tab', 'referrals')" class="pb-2 text-sm font-medium border-b-2 transition {{ $tab === 'referrals' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">Referrals</button>
-        <button wire:click="$set('tab', 'commissions')" class="pb-2 text-sm font-medium border-b-2 transition {{ $tab === 'commissions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">Commissions</button>
-        <button wire:click="$set('tab', 'codes')" class="pb-2 text-sm font-medium border-b-2 transition {{ $tab === 'codes' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">Referral Codes</button>
+        <button wire:click="$set('tab', 'referrals')" class="pb-2 text-sm font-medium border-b-2 transition {{ $tab === 'referrals' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">Referrals</button>
+        <button wire:click="$set('tab', 'commissions')" class="pb-2 text-sm font-medium border-b-2 transition {{ $tab === 'commissions' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">Commissions</button>
+        <button wire:click="$set('tab', 'codes')" class="pb-2 text-sm font-medium border-b-2 transition {{ $tab === 'codes' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">Referral Codes</button>
     </div>
 
     {{-- Referrals Tab --}}
     @if ($tab === 'referrals')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -60,14 +60,14 @@
                             <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $ref->referralCode?->code ?? '—' }}</td>
                             <td class="px-4 py-3 text-center">
                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                                    {{ $ref->status === 'paid' ? 'bg-green-100 text-green-700' : ($ref->status === 'converted' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
+                                    {{ $ref->status === 'paid' ? 'bg-success-100 text-success-700' : ($ref->status === 'converted' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
                                     {{ ucfirst(str_replace('_', ' ', $ref->status)) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-500">{{ $ref->created_at->format('d M Y') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="px-4 py-12 text-center text-gray-400">No referrals yet.</td></tr>
+                        <tr><td colspan="4" class="px-4 py-12 text-center text-gray-600">No referrals yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -77,7 +77,7 @@
 
     {{-- Commissions Tab --}}
     @if ($tab === 'commissions')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -96,25 +96,25 @@
                             <td class="px-4 py-3 text-right font-medium text-gray-900">RM {{ number_format($comm->amount, 2) }}</td>
                             <td class="px-4 py-3 text-center">
                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                                    {{ $comm->status === 'paid' ? 'bg-green-100 text-green-700' : ($comm->status === 'approved' ? 'bg-blue-100 text-blue-700' : ($comm->status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')) }}">
+                                    {{ $comm->status === 'paid' ? 'bg-success-100 text-success-700' : ($comm->status === 'approved' ? 'bg-blue-100 text-blue-700' : ($comm->status === 'rejected' ? 'bg-danger-100 text-danger-700' : 'bg-warning-100 text-warning-700')) }}">
                                     {{ ucfirst($comm->status) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
                                     @if ($comm->status === 'pending')
-                                        <button wire:click="approveCommission({{ $comm->id }})" class="text-green-500 hover:text-green-700 text-xs font-medium">Approve</button>
-                                        <button wire:click="rejectCommission({{ $comm->id }})" class="text-red-400 hover:text-red-600 text-xs font-medium">Reject</button>
+                                        <button wire:click="approveCommission({{ $comm->id }})" class="text-success-500 hover:text-success-700 text-xs font-medium">Approve</button>
+                                        <button wire:click="rejectCommission({{ $comm->id }})" class="text-danger-400 hover:text-danger-600 text-xs font-medium">Reject</button>
                                     @elseif ($comm->status === 'approved')
-                                        <button wire:click="markPaid({{ $comm->id }})" class="text-indigo-500 hover:text-indigo-700 text-xs font-medium">Mark Paid</button>
+                                        <button wire:click="markPaid({{ $comm->id }})" class="text-brand-500 hover:text-brand-700 text-xs font-medium">Mark Paid</button>
                                     @else
-                                        <span class="text-xs text-gray-400">—</span>
+                                        <span class="text-xs text-gray-600">—</span>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-12 text-center text-gray-400">No commissions yet.</td></tr>
+                        <tr><td colspan="5" class="px-4 py-12 text-center text-gray-600">No commissions yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -124,7 +124,7 @@
 
     {{-- Codes Tab --}}
     @if ($tab === 'codes')
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="card overflow-hidden">
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
                     <tr>
@@ -147,13 +147,13 @@
                                 {{ $code->total_clicks > 0 ? round($code->total_conversions / $code->total_clicks * 100, 1) . '%' : '—' }}
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $code->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $code->is_active ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500' }}">
                                     {{ $code->is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-4 py-12 text-center text-gray-400">No referral codes yet.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-12 text-center text-gray-600">No referral codes yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

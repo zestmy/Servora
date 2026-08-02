@@ -155,7 +155,7 @@
                 <a href="{{ route('sales.index') }}?import=zeoniq-excel"
                    title="Import Zeoniq Excel"
                    class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
-                          {{ request()->routeIs('sales.index') && request()->query('import') === 'zeoniq-excel' ? 'bg-indigo-700 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-400' }}"
+                          {{ request()->routeIs('sales.index') && request()->query('import') === 'zeoniq-excel' ? 'bg-brand-700 text-white' : 'bg-brand-500 text-white hover:bg-brand-400' }}"
                    :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center p-2'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -346,7 +346,7 @@
                         @php $groupSlug = Str::slug($group['label']); @endphp
                         <div class="mt-2" x-show="sidebarExpanded" x-collapse>
                             <button @click="toggle('{{ $groupSlug }}')"
-                                    class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
+                                    class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-400 font-semibold hover:text-white transition">
                                 <span class="flex items-center gap-2">
                                     @if (isset($gicons[$group['label']]))
                                         <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">{!! $gicons[$group['label']] !!}</svg>
@@ -358,9 +358,9 @@
                             <div x-show="activeGroup === '{{ $groupSlug }}'">
                                 @foreach ($visibleItems as $item)
                                     @if (!empty($item['comingSoon']))
-                                        <span class="block rounded-lg text-sm font-medium px-4 py-1.5 ml-1 text-gray-500 cursor-default flex items-center justify-between">
+                                        <span class="block rounded-lg text-sm font-medium px-4 py-1.5 ml-1 text-gray-400 cursor-default flex items-center justify-between">
                                             {{ $item['label'] }}
-                                            <span class="text-[9px] uppercase tracking-wider bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">Soon</span>
+                                            <span class="text-[9px] uppercase tracking-wider bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">Soon</span>
                                         </span>
                                     @else
                                     @php
@@ -379,7 +379,7 @@
                                     <a href="{{ $itemUrl }}"
                                        title="{{ $item['label'] }}"
                                        class="block rounded-lg text-sm font-medium transition-colors px-4 py-1.5 ml-1
-                                              {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                              {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                                         {{ $item['label'] }}
                                     </a>
                                     @endif
@@ -395,7 +395,7 @@
                             <a href="{{ route($item['route']) }}"
                                title="{{ $item['label'] }}"
                                class="flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2
-                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
+                                      {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
                                :class="sidebarExpanded ? 'px-4' : 'px-2 justify-center'">
                                 @if (!empty($item['svg']))
                                     <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['svg'] }}"/></svg>
@@ -417,7 +417,7 @@
                      x-data="{ open: {{ request()->routeIs('admin.*') ? 'true' : 'false' }} }"
                      x-init="let s = localStorage.getItem('nav_admin'); if (s !== null) open = s === '1'">
                     <button @click="open = !open; localStorage.setItem('nav_admin', open ? '1' : '0')"
-                            class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-500 font-semibold hover:text-gray-300 transition">
+                            class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-400 font-semibold hover:text-white transition">
                         <span>Admin</span>
                         <svg :class="open ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
@@ -427,7 +427,7 @@
                             <a href="{{ route($item['route']) }}"
                                title="{{ $item['label'] }}"
                                class="block rounded-lg text-sm font-medium transition-colors px-4 py-1.5 ml-1
-                                      {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                      {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                                 {{ $item['label'] }}
                             </a>
                         @endforeach
@@ -452,7 +452,7 @@
                         <img src="{{ \Illuminate\Support\Facades\Storage::url(Auth::user()->avatar) }}" alt=""
                              class="flex-shrink-0 w-8 h-8 rounded-full object-cover" />
                     @else
-                        <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                        <div class="flex-shrink-0 w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
                             {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
                         </div>
                     @endif
@@ -465,7 +465,7 @@
                          x-transition:leave-end="opacity-0"
                          class="flex-1 text-left overflow-hidden">
                         <p class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</p>
-                        <p class="text-xs text-indigo-300 truncate">{{ Auth::user()->displayDesignation() }}</p>
+                        <p class="text-xs text-brand-200 truncate">{{ Auth::user()->displayDesignation() }}</p>
                     </div>
                     <svg x-show="sidebarExpanded" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
@@ -497,23 +497,23 @@
         {{-- Subscription banner --}}
         @if (!empty($subscriptionBanner))
             <div class="mb-4 px-4 py-3 rounded-lg flex items-center justify-between
-                {{ $subscriptionBanner['type'] === 'expired' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200' }}">
+                {{ $subscriptionBanner['type'] === 'expired' ? 'bg-danger-50 border border-danger-200' : 'bg-warning-50 border border-warning-200' }}">
                 <div class="flex items-center gap-2">
                     @if ($subscriptionBanner['type'] === 'expired')
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-danger-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        <p class="text-sm text-red-700">{{ $subscriptionBanner['message'] }}</p>
+                        <p class="text-sm text-danger-800">{{ $subscriptionBanner['message'] }}</p>
                     @else
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-warning-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <p class="text-sm text-amber-700">{{ $subscriptionBanner['message'] }}</p>
+                        <p class="text-sm text-warning-800">{{ $subscriptionBanner['message'] }}</p>
                     @endif
                 </div>
                 <a href="{{ $subscriptionBanner['action'] }}"
                    class="px-4 py-1.5 text-sm font-medium rounded-lg flex-shrink-0 transition
-                       {{ $subscriptionBanner['type'] === 'expired' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-amber-600 text-white hover:bg-amber-700' }}">
+                       {{ $subscriptionBanner['type'] === 'expired' ? 'bg-danger-600 text-white hover:bg-danger-700' : 'bg-warning-600 text-white hover:bg-warning-700' }}">
                     {{ $subscriptionBanner['label'] }}
                 </a>
             </div>
@@ -546,7 +546,7 @@
                     <img src="{{ \Illuminate\Support\Facades\Storage::url(Auth::user()->avatar) }}" alt=""
                          class="w-9 h-9 rounded-full object-cover flex-shrink-0" />
                 @else
-                    <div class="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                    <div class="w-9 h-9 bg-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                         {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
                     </div>
                 @endif
@@ -568,7 +568,7 @@
 
                 @if (Auth::user()->isKitchenUser())
                     <a href="{{ route('workspace.switch', 'kitchen') }}"
-                       class="flex items-center gap-2.5 px-4 py-2 text-sm text-purple-300 hover:bg-gray-700 hover:text-purple-200 transition">
+                       class="flex items-center gap-2.5 px-4 py-2 text-sm text-brand-200 hover:bg-gray-700 hover:text-white transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
@@ -592,7 +592,7 @@
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit"
-                            class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition text-left">
+                            class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-danger-400 hover:bg-gray-700 hover:text-danger-300 transition text-left">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -618,7 +618,7 @@
         <p class="text-sm font-semibold">Install Servora</p>
         <p class="text-[11px] text-gray-300 leading-tight">Add to home screen for quick access.</p>
     </div>
-    <button id="pwa-install-btn" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500">Install</button>
+    <button id="pwa-install-btn" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600 hover:bg-brand-500">Install</button>
     <button id="pwa-install-dismiss" class="p-1 text-gray-400 hover:text-white" aria-label="Dismiss">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

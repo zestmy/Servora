@@ -4,7 +4,7 @@
         <p class="text-sm text-gray-500 mt-2">No credit card required. Get started in under 2 minutes.</p>
     </div>
 
-    <form wire:submit="register" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+    <form wire:submit="register" class="card p-6 space-y-5">
 
         {{-- Company Name --}}
         <div>
@@ -51,15 +51,15 @@
                     <label class="relative cursor-pointer">
                         <input type="radio" wire:model="plan_id" value="{{ $plan->id }}" class="peer sr-only" />
                         <div class="border-2 rounded-xl p-3 text-center transition
-                                    peer-checked:border-indigo-500 peer-checked:bg-indigo-50
+                                    peer-checked:border-brand-500 peer-checked:bg-brand-50
                                     border-gray-200 hover:border-gray-300">
                             <p class="text-sm font-bold text-gray-800">{{ $plan->name }}</p>
-                            <p class="text-lg font-bold text-indigo-600 mt-1">
+                            <p class="text-lg font-bold text-brand-600 mt-1">
                                 {{ $plan->currency }} {{ number_format($billing_cycle === 'yearly' ? $plan->price_yearly / 12 : $plan->price_monthly, 0) }}
                             </p>
-                            <p class="text-[10px] text-gray-400">/month</p>
+                            <p class="text-[10px] text-gray-600">/month</p>
                             @if ($plan->trial_days > 0)
-                                <p class="text-[10px] text-green-600 font-medium mt-1">{{ $plan->trial_days }}-day free trial</p>
+                                <p class="text-[10px] text-success-600 font-medium mt-1">{{ $plan->trial_days }}-day free trial</p>
                             @endif
                         </div>
                     </label>
@@ -73,20 +73,20 @@
             <div class="flex items-center gap-4">
                 <label class="inline-flex items-center gap-2 cursor-pointer">
                     <input type="radio" wire:model.live="billing_cycle" value="monthly"
-                           class="text-indigo-600 focus:ring-indigo-500" />
+                           class="text-brand-600 focus:ring-brand-500" />
                     <span class="text-sm text-gray-700">Monthly</span>
                 </label>
                 <label class="inline-flex items-center gap-2 cursor-pointer">
                     <input type="radio" wire:model.live="billing_cycle" value="yearly"
-                           class="text-indigo-600 focus:ring-indigo-500" />
-                    <span class="text-sm text-gray-700">Yearly <span class="text-green-600 font-medium">(save up to 17%)</span></span>
+                           class="text-brand-600 focus:ring-brand-500" />
+                    <span class="text-sm text-gray-700">Yearly <span class="text-success-600 font-medium">(save up to 17%)</span></span>
                 </label>
             </div>
         </div>
 
         {{-- Coupon code (optional) --}}
         <div x-data="{ open: {{ $coupon_code ? 'true' : 'false' }} }">
-            <button type="button" @click="open = !open" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+            <button type="button" @click="open = !open" class="text-xs text-brand-600 hover:text-brand-700 font-medium">
                 <span x-show="!open">+ Have a coupon code?</span>
                 <span x-show="open" x-cloak>− Hide coupon</span>
             </button>
@@ -94,7 +94,7 @@
                 <x-text-input wire:model="coupon_code" type="text"
                               placeholder="ENTER COUPON CODE"
                               class="block w-full font-mono uppercase" />
-                <p class="mt-1 text-xs text-gray-400">Get free subscription with a valid promo code.</p>
+                <p class="mt-1 text-xs text-gray-600">Get free subscription with a valid promo code.</p>
                 <x-input-error :messages="$errors->get('coupon_code')" class="mt-1" />
             </div>
         </div>
@@ -102,13 +102,13 @@
         {{-- Submit --}}
         <button type="submit"
                 wire:loading.attr="disabled"
-                class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                class="w-full py-3 bg-brand-600 text-white font-semibold rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
             <span wire:loading.remove>Start Free Trial</span>
             <span wire:loading>Creating your account…</span>
         </button>
 
-        <p class="text-xs text-center text-gray-400">
-            Already have an account? <a href="{{ route('login') }}" class="text-indigo-600 hover:underline">Log in</a>
+        <p class="text-xs text-center text-gray-600">
+            Already have an account? <a href="{{ route('login') }}" class="text-brand-600 hover:underline">Log in</a>
         </p>
     </form>
 </div>
