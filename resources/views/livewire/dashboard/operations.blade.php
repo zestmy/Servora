@@ -2,51 +2,28 @@
 
 {{-- Approver scope --}}
 @if (!empty($approverOutletNames))
-    <div class="mb-4 px-4 py-2.5 bg-brand-50 border border-brand-100 text-brand-700 text-xs rounded-lg">
-        PO Approver for: <strong>{{ implode(', ', $approverOutletNames) }}</strong>
-    </div>
+    <p class="alert-info mb-4 text-xs">
+        <x-icon name="info" size="h-4 w-4" stroke="1.8" class="mt-px flex-none" />
+        <span>PO approver for <strong class="font-semibold">{{ implode(', ', $approverOutletNames) }}</strong></span>
+    </p>
 @endif
 
-{{-- Alerts --}}
-@if (count($alerts) > 0)
-    <div class="mb-6 space-y-2">
-        @foreach ($alerts as $alert)
-            <div class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
-                {{ $alert['type'] === 'warning' ? 'bg-warning-50 text-warning-800 border border-warning-200' : '' }}
-                {{ $alert['type'] === 'info' ? 'bg-blue-50 text-blue-800 border border-blue-200' : '' }}
-                {{ $alert['type'] === 'alert' ? 'bg-danger-50 text-danger-800 border border-danger-200' : '' }}">
-                @if ($alert['type'] === 'warning')
-                    <svg class="w-5 h-5 text-warning-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                @elseif ($alert['type'] === 'alert')
-                    <svg class="w-5 h-5 text-danger-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                @else
-                    <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                @endif
-                {{ $alert['message'] }}
-            </div>
-        @endforeach
-    </div>
-@endif
+{{-- Third copy of the alert markup, now the shared partial. --}}
+@include('livewire.dashboard.partials.alerts')
 
-{{-- Purchasing Pipeline Stats --}}
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-xl shadow-sm p-5 border {{ $awaitingApproval > 0 ? 'border-warning-200 bg-warning-50' : 'border-gray-100' }}">
-        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Awaiting Approval</div>
-        <div class="mt-1 text-2xl font-bold {{ $awaitingApproval > 0 ? 'text-warning-600' : 'text-gray-600' }}">{{ $awaitingApproval }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Approved</div>
-        <div class="mt-1 text-2xl font-bold text-brand-600">{{ $approvedPOs }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Processing (DO)</div>
-        <div class="mt-1 text-2xl font-bold text-blue-600">{{ $sentPOs }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Pending Receipt</div>
-        <div class="mt-1 text-2xl font-bold {{ $pendingGrns > 0 ? 'text-success-600' : 'text-gray-600' }}">{{ $pendingGrns }}</div>
-    </div>
-</div>
+{{-- These four are a pipeline: awaiting → approved → processing → pending
+     receipt. They were coloured amber / brand / blue / green, which reads as
+     four unrelated states rather than four stages of one queue, and blue is
+     not in the palette.
+
+     Only the two ends carry a tone, and only when they are non-zero: a queue
+     with work in it, and goods sitting unreceived. The middle two are counts. --}}
+@include('livewire.dashboard.partials.stat-cards', ['stats' => [
+    ['label' => 'Awaiting approval', 'value' => $awaitingApproval, 'color' => $awaitingApproval > 0 ? 'amber' : null],
+    ['label' => 'Approved',          'value' => $approvedPOs],
+    ['label' => 'Processing (DO)',   'value' => $sentPOs],
+    ['label' => 'Pending receipt',   'value' => $pendingGrns, 'color' => $pendingGrns > 0 ? 'amber' : null],
+]])
 
 {{-- Quick Approval Panel + Operational Stats --}}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -76,29 +53,33 @@
                             </div>
                             <div class="mt-1 text-sm font-semibold text-gray-800">RM {{ number_format($po->total_amount, 2) }}</div>
                         </div>
-                        <div class="flex items-center gap-2 ml-4">
+                        {{-- These three were 32px targets with the label only in
+                             a `title`, which a touch user never sees and a
+                             screen reader may not announce. .icon-btn keeps the
+                             small look but pushes the hit area to 44px, and the
+                             name is now a real accessible name.
+
+                             The reject glyph was danger-400 on danger-50:
+                             2.53:1, under the 3:1 floor for a meaningful icon.
+                             danger-700 on the same tint is 6.2:1. --}}
+                        <div class="ml-4 flex items-center gap-1">
                             <a href="{{ route('purchasing.pdf', ['type' => 'po', 'id' => $po->id]) }}" target="_blank"
-                               title="View PDF"
-                               class="p-2 text-gray-600 hover:text-gray-900 transition rounded-lg hover:bg-gray-100">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
+                               class="icon-btn" aria-label="View PDF for {{ $po->po_number }}">
+                                <x-icon name="inbox" size="h-4 w-4" stroke="2" />
                             </a>
-                            <button wire:click="approvePo({{ $po->id }})"
+                            <button type="button"
+                                    wire:click="approvePo({{ $po->id }})"
                                     wire:confirm="Approve '{{ $po->po_number }}'?"
-                                    title="Approve"
-                                    class="p-2 bg-success-50 text-success-600 hover:bg-success-100 hover:text-success-700 transition rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                                </svg>
+                                    class="icon-btn text-success-700 hover:bg-success-50 hover:text-success-800"
+                                    aria-label="Approve {{ $po->po_number }}">
+                                <x-icon name="check" size="h-4 w-4" stroke="2.4" />
                             </button>
-                            <button wire:click="rejectPo({{ $po->id }})"
+                            <button type="button"
+                                    wire:click="rejectPo({{ $po->id }})"
                                     wire:confirm="Reject '{{ $po->po_number }}'? This will cancel the PO."
-                                    title="Reject"
-                                    class="p-2 bg-danger-50 text-danger-400 hover:bg-danger-100 hover:text-danger-600 transition rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
+                                    class="icon-btn icon-btn-danger text-danger-700"
+                                    aria-label="Reject {{ $po->po_number }}">
+                                <x-icon name="alert" size="h-4 w-4" stroke="2" />
                             </button>
                         </div>
                     </div>
@@ -139,11 +120,11 @@
                 </div>
                 <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-600">Month Purchases</span>
-                    <span class="text-sm font-bold text-danger-600">{{ number_format($monthPurchases, 0) }}</span>
+                    <span class="text-sm font-semibold tabular-nums text-gray-900">{{ number_format($monthPurchases, 0) }}</span>
                 </div>
                 <div class="flex items-center justify-between">
                     <span class="text-sm text-gray-600">Month Wastage</span>
-                    <span class="text-sm font-bold text-orange-600">{{ number_format($monthWastage, 0) }}</span>
+                    <span class="text-sm font-semibold tabular-nums text-gray-900">{{ number_format($monthWastage, 0) }}</span>
                 </div>
             </div>
         </div>

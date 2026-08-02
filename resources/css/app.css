@@ -157,7 +157,13 @@
        column headers, and flattened the `text-gray-800` cells that exist to
        carry emphasis. Per-cell decisions stay in the markup where they can
        be seen; only the things that should never vary live here. */
-    .table-surface { @apply w-full text-sm; }
+    /* Colour goes on the TABLE, not the cell. A cell that names its own
+       colour still wins — an inherited value only applies where the element
+       has no cascaded value of its own — so this sets the floor without
+       fighting the markup. Cells that name nothing were previously falling
+       through to the browser default, i.e. pure black, which is not a step
+       on this scale and reads heavier than everything around it. */
+    .table-surface { @apply w-full text-sm text-gray-900; }
     .table-surface thead th {
         @apply text-xs font-semibold uppercase tracking-wide
                text-gray-600 bg-gray-50 border-b border-gray-200;

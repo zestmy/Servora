@@ -1,9 +1,17 @@
 {{-- System Admin / Super Admin Dashboard --}}
 @php
+    /**
+     * Dashboard.php hands each tile a colour name (indigo, blue, sky, purple,
+     * teal, …). Those were mapped straight through, so eight platform counts
+     * arrived in eight hues — half of them not in the palette at all.
+     *
+     * Only genuine state keeps a tone. Companies, users and outlets are counts
+     * and read in ink like every other figure in the product.
+     */
     $valueColors = [
-        'indigo' => 'text-brand-600', 'blue' => 'text-blue-600', 'sky' => 'text-sky-600',
-        'green'  => 'text-success-600',  'amber' => 'text-warning-600', 'purple' => 'text-purple-600',
-        'teal'   => 'text-teal-600',   'gray' => 'text-gray-700',
+        'green' => 'text-success-700',
+        'amber' => 'text-warning-700',
+        'red'   => 'text-danger-700',
     ];
 @endphp
 
@@ -46,16 +54,19 @@
                         <td class="px-4 py-2.5">
                             @if ($company->subscription)
                                 @php
+                                    // 'blue' was the only off-palette tone here.
+                                    // A trialing subscription is informational,
+                                    // which is what badge-brand already means.
                                     $badge = match ($company->subscription->statusColor()) {
-                                        'green' => 'bg-success-100 text-success-700',
-                                        'blue'  => 'bg-blue-100 text-blue-700',
-                                        'amber' => 'bg-warning-100 text-warning-700',
-                                        'red'   => 'bg-danger-100 text-danger-700',
-                                        default => 'bg-gray-100 text-gray-600',
+                                        'green' => 'badge-success',
+                                        'blue'  => 'badge-brand',
+                                        'amber' => 'badge-warning',
+                                        'red'   => 'badge-danger',
+                                        default => 'badge-neutral',
                                     };
                                 @endphp
                                 <span class="text-xs text-gray-600">{{ $company->subscription->plan?->name ?? '—' }}</span>
-                                <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium {{ $badge }}">
+                                <span class="ml-1 {{ $badge }}">
                                     {{ $company->subscription->statusLabel() }}
                                 </span>
                             @else

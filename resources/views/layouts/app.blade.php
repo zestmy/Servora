@@ -618,7 +618,7 @@
         <p class="text-sm font-semibold">Install Servora</p>
         <p class="text-[11px] text-gray-300 leading-tight">Add to home screen for quick access.</p>
     </div>
-    <button id="pwa-install-btn" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600 hover:bg-brand-500">Install</button>
+    <button id="pwa-install-btn" class="btn-primary btn-sm">Install</button>
     <button id="pwa-install-dismiss" class="p-1 text-gray-400 hover:text-white" aria-label="Dismiss">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

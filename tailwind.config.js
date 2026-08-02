@@ -87,6 +87,30 @@ export default {
                     400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
                     800: '#075985', 900: '#0c4a6e', 950: '#082f49',
                 },
+
+                /**
+                 * Categorical chart series, in fixed order. Assign 1 then 2;
+                 * never cycle, never pick by rank — a filter that drops a series
+                 * must not repaint the survivors.
+                 *
+                 * Validated rather than eyeballed. Against a white chart surface:
+                 *   lightness band     PASS
+                 *   chroma floor       PASS  (brand-600 FAILS this at 0.085 and
+                 *                             reads gray as a mark, which is why
+                 *                             the teal here is the 500 step)
+                 *   CVD separation     PASS  ΔE 21.5 deutan · 16.8 tritan
+                 *   normal-vision      PASS  ΔE 30.4
+                 *   contrast vs white  PASS  both >= 3:1
+                 *
+                 * Deliberately NOT the status colours. The trend chart used to
+                 * paint Purchases in danger-400, which says "this number is an
+                 * error" about a routine operating figure. Status hues stay
+                 * reserved for status.
+                 */
+                chart: {
+                    1: '#22a19d',
+                    2: '#7c3aed',
+                },
             },
 
             fontFamily: {

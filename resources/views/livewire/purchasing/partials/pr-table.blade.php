@@ -71,7 +71,7 @@
                 <p class="font-medium">No purchase requests yet</p>
                 <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                 @if ($canCreatePr ?? false)
-                    <a href="{{ route('purchasing.requests.create') }}" class="btn-primary btn-sm mt-3">+ Create your first request</a>
+                    <a href="{{ route('purchasing.requests.create') }}" class="btn-primary mt-3">+ Create your first request</a>
                 @endif
             </div>
         @endforelse
@@ -231,7 +231,7 @@
                         <p class="font-medium">No purchase requests yet</p>
                         <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                         @if ($canCreatePr ?? false)
-                            <a href="{{ route('purchasing.requests.create') }}" class="btn-primary btn-sm mt-3">+ Create your first request</a>
+                            <a href="{{ route('purchasing.requests.create') }}" class="btn-primary mt-3">+ Create your first request</a>
                         @endif
                     </td>
                 </tr>

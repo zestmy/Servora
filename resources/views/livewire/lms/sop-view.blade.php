@@ -25,28 +25,28 @@
                 @if ($recipe->description)
                     <p class="text-sm text-gray-600 mt-2">{{ $recipe->description }}</p>
                 @endif
+                {{-- Shelf life and storage are FACTS about the item, not states
+                     it is in. They were styled as though they were states:
+                     shelf life in success-green, and storage in sky for chill
+                     against blue for frozen.
+
+                     Two problems. Green says "good" about a number that is
+                     neither good nor bad. And sky-700 beside blue-700 is a hue
+                     step most people cannot separate and a colourblind reader
+                     certainly cannot — while the chip already spells out which
+                     one it is, so the colour was carrying no information at
+                     all. Neutral chips, with the icon distinguishing them. --}}
                 @if ($recipe->shelfLifeLabel() || $recipe->storageLabel())
-                    <div class="flex flex-wrap items-center gap-2 mt-3">
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
                         @if ($recipe->shelfLifeLabel())
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Shelf Life: {{ $recipe->shelfLifeLabel() }}
+                            <span class="badge-neutral">
+                                <x-icon name="clock" size="h-3.5 w-3.5" stroke="2" />
+                                Shelf life: {{ $recipe->shelfLifeLabel() }}
                             </span>
                         @endif
                         @if ($recipe->storageLabel())
-                            @php
-                                $storageChip = match ($recipe->storage_instruction) {
-                                    'chill'   => 'bg-sky-50 border-sky-200 text-sky-700',
-                                    'frozen'  => 'bg-blue-50 border-blue-200 text-blue-700',
-                                    default   => 'bg-warning-50 border-warning-200 text-warning-700',
-                                };
-                            @endphp
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium {{ $storageChip }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                </svg>
+                            <span class="badge-neutral">
+                                <x-icon name="cube" size="h-3.5 w-3.5" stroke="2" />
                                 Storage: {{ $recipe->storageLabel() }}
                             </span>
                         @endif
