@@ -54,13 +54,17 @@
             Changes here apply to this set for everyone at {{ $this->outletName() ?: 'this outlet' }}, not just today.
         </div>
 
-        <div class="mb-3">
+        {{-- Pinned while editing, so the set list scrolls under it and an
+             item can be added without scrolling back up each time. Same
+             -mx-3 px-3 trick as the print screen: the scroll area is padded
+             and the background has to cover its full width. --}}
+        <div class="sticky top-0 z-20 -mx-3 px-3 pb-3 bg-gray-50">
             <input type="search" wire:model.live.debounce.350ms="search"
                    placeholder="Search an item to add…" enterkeyhint="search"
                    class="w-full rounded-xl border-gray-200 text-base py-3">
 
             @if (count($results))
-                <div class="mt-2 bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
+                <div class="mt-2 bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-y-auto max-h-[45vh]">
                     @foreach ($results as $group => $found)
                         <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">
                             {{ $group }} <span class="normal-case tracking-normal">{{ $found['total'] }}</span>

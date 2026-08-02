@@ -27,6 +27,14 @@
         </select>
     @endif
 
+    {{-- Add-an-item block, pinned.
+
+         .app-scroll is the scroll container, and the header sits outside it,
+         so top-0 lands directly under the header. -mx-3 px-3 lets the opaque
+         background span the full width of the scroll area, which is padded —
+         without it the queue would show through at the edges as it passes
+         behind. --}}
+    <div class="sticky top-0 z-20 -mx-3 px-3 pb-3 bg-gray-50">
     {{-- Search --}}
     <div class="relative mb-3">
         <input type="search" wire:model.live.debounce.350ms="search"
@@ -37,8 +45,10 @@
         </svg>
     </div>
 
+    {{-- Capped and scrolled in its own right: four groups of 25 would
+         otherwise pin the whole screen and leave nothing to scroll to. --}}
     @if (count($results))
-        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 mb-3 overflow-hidden">
+        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 mb-3 overflow-y-auto max-h-[45vh]">
             @foreach ($results as $group => $found)
                 <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">
                     {{ $group }} <span class="normal-case tracking-normal">{{ $found['total'] }}</span>
@@ -61,11 +71,14 @@
     @endif
 
     {{-- Freeform --}}
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2">
         <input type="text" wire:model="customName" placeholder="Or type any item name…"
                class="flex-1 rounded-xl border-gray-200 text-sm py-2.5">
         <button wire:click="addCustom" class="px-4 rounded-xl border border-gray-200 text-sm text-gray-600 active:bg-gray-50">Add</button>
     </div>
+    </div>
+    {{-- end pinned block --}}
+
 
     {{-- Queue --}}
     @if (count($tray))
