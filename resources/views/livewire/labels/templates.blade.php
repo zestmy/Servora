@@ -1,27 +1,27 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             {{ session('error') }}
         </div>
     @endif
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400">Labels / Templates</p>
-            <h2 class="text-lg font-semibold text-gray-700 mt-1">Label templates</h2>
+            <p class="page-eyebrow">Labels / Templates</p>
+            <h1 class="page-title mt-1">Label templates</h1>
         </div>
-        <button wire:click="openCreate" class="px-3 md:px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+        <button wire:click="openCreate" class="btn-primary">
             + New template
         </button>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+    <div class="card p-5 mb-4">
         <p class="text-sm text-gray-600">
             One default template per label type decides what prints. Everything else is a spare.
         </p>
@@ -34,11 +34,11 @@
 
     @foreach ($labelTypes as $type => $caption)
         <div class="mb-4">
-            <h3 class="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                {{ $caption ?: 'Custom' }} <span class="text-gray-300">· {{ $type }}</span>
+            <h3 class="text-xs uppercase tracking-wider text-gray-600 mb-2">
+                {{ $caption ?: 'Custom' }} <span class="text-gray-500">· {{ $type }}</span>
             </h3>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="divide-y divide-gray-50">
                     @forelse ($templates[$type] ?? [] as $template)
                         <div class="px-4 py-3 flex flex-wrap items-center gap-3" wire:key="tpl-{{ $template->id }}">
@@ -46,29 +46,29 @@
                                 <p class="text-sm font-medium text-gray-700">
                                     {{ $template->name }}
                                     @if ($template->is_default)
-                                        <span class="ml-1 px-1.5 py-0.5 rounded bg-green-50 text-green-700 text-[10px] align-middle">Default</span>
+                                        <span class="ml-1 px-1.5 py-0.5 rounded bg-success-50 text-success-700 text-[10px] align-middle">Default</span>
                                     @endif
                                 </p>
-                                <p class="text-xs text-gray-400 mt-0.5">
+                                <p class="text-xs text-gray-600 mt-0.5">
                                     {{ rtrim(rtrim($template->width_mm, '0'), '.') }}×{{ rtrim(rtrim($template->height_mm, '0'), '.') }}mm
                                     · {{ count($template->fields()) }} fields
                                 </p>
                             </div>
                             <div class="flex items-center gap-2">
                                 <a href="{{ route('labels.templates.design', $template) }}" wire:navigate
-                                   class="px-3 py-1.5 text-xs text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Design</a>
+                                   class="px-3 py-1.5 text-xs text-white bg-brand-600 rounded-lg hover:bg-brand-700">Design</a>
                                 <button wire:click="duplicate({{ $template->id }})"
-                                        class="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Duplicate</button>
+                                        class="btn-secondary btn-sm">Duplicate</button>
                                 @unless ($template->is_default)
                                     <button wire:click="makeDefault({{ $template->id }})"
-                                            class="text-xs text-indigo-600 hover:underline">Make default</button>
+                                            class="text-xs text-brand-600 hover:underline">Make default</button>
                                     <button wire:click="delete({{ $template->id }})" wire:confirm="Delete this template?"
-                                            class="text-xs text-red-500 hover:underline">Delete</button>
+                                            class="text-xs text-danger-500 hover:underline">Delete</button>
                                 @endunless
                             </div>
                         </div>
                     @empty
-                        <p class="px-4 py-6 text-center text-gray-400 text-sm">No template for this type.</p>
+                        <p class="px-4 py-6 text-center text-gray-600 text-sm">No template for this type.</p>
                     @endforelse
                 </div>
             </div>
@@ -86,7 +86,7 @@
                         </div>
                         <form wire:submit.prevent="create" class="p-5 space-y-3">
                             <div>
-                                <label class="text-xs font-semibold text-gray-600">Name <span class="text-red-500">*</span></label>
+                                <label class="text-xs font-semibold text-gray-600">Name <span class="text-danger-500">*</span></label>
                                 <input type="text" wire:model="name" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                                 <x-input-error :messages="$errors->get('name')" class="mt-1" />
                             </div>
@@ -110,10 +110,10 @@
                                     <x-input-error :messages="$errors->get('height_mm')" class="mt-1" />
                                 </div>
                             </div>
-                            <p class="text-xs text-gray-400">Starts from the standard arrangement, which you can then rearrange.</p>
+                            <p class="text-xs text-gray-600">Starts from the standard arrangement, which you can then rearrange.</p>
                             <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                                <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                                <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Create &amp; design</button>
+                                <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                                <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Create &amp; design</button>
                             </div>
                         </form>
                     </div>

@@ -1,17 +1,17 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     <div class="mb-6">
-        <p class="text-xs text-gray-400">Labels / Settings</p>
-        <h2 class="text-lg font-semibold text-gray-700 mt-1">Label settings</h2>
+        <p class="page-eyebrow">Labels / Settings</p>
+        <h1 class="page-title mt-1">Label settings</h1>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 max-w-2xl">
+    <div class="card p-5 max-w-2xl">
         <div class="space-y-5">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Use-by rounding</label>
@@ -24,7 +24,7 @@
                     How a use-by date is rounded once the shelf life is added on. End of day is the usual choice —
                     prepped at 14:30 with a 3-day life gives 23:59 on day three.
                 </p>
-                <p class="mt-1 text-xs text-amber-600">
+                <p class="mt-1 text-xs text-warning-600">
                     Shelf lives measured in minutes or hours are never rounded, whichever option you pick.
                     Rounding a 4-hour life up to 23:59 would extend it.
                 </p>
@@ -71,7 +71,7 @@
                     </div>
                     <button wire:click="resetTemperatures"
                             wire:confirm="Clear your own wording and go back to the standard figures?"
-                            class="shrink-0 text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap">
+                            class="shrink-0 text-xs text-gray-600 hover:text-gray-900 whitespace-nowrap">
                         Reset all
                     </button>
                 </div>
@@ -88,7 +88,7 @@
                     @endforeach
                 </div>
 
-                <p class="mt-2 text-xs text-gray-400">
+                <p class="mt-2 text-xs text-gray-600">
                     Free text, so write it the way your auditor expects — “0-5°C”, “below -18°C”, and so on.
                 </p>
             </div>
@@ -96,13 +96,13 @@
 
         <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end">
             <button wire:click="save"
-                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
+                    class="btn-primary">
                 Save settings
             </button>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 max-w-2xl mt-4">
+    <div class="card p-5 max-w-2xl mt-4">
         <h3 class="text-sm font-semibold text-gray-700">PrintNode (optional)</h3>
         <p class="mt-2 text-xs text-gray-500">
             Only needed for printers that aren't attached to the PC doing the printing — a tablet in the kitchen,
@@ -116,7 +116,7 @@
                        placeholder="{{ $hasApiKey ? '•••••••• (a key is set — type to replace it)' : 'Paste your PrintNode API key' }}"
                        class="flex-1 rounded-lg border-gray-300 text-sm">
                 <button wire:click="testConnection"
-                        class="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 whitespace-nowrap">
+                        class="btn-secondary whitespace-nowrap">
                     Test
                 </button>
             </div>
@@ -128,18 +128,18 @@
 
             @if ($hasApiKey)
                 <button wire:click="clearApiKey" wire:confirm="Remove the stored PrintNode key?"
-                        class="mt-1 text-xs text-red-500 hover:underline">Remove stored key</button>
+                        class="mt-1 text-xs text-danger-500 hover:underline">Remove stored key</button>
             @endif
 
             @if ($connectionResult)
-                <p class="mt-2 px-3 py-2 rounded-lg text-xs {{ str_starts_with($connectionResult, 'Connected') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
+                <p class="mt-2 px-3 py-2 rounded-lg text-xs {{ str_starts_with($connectionResult, 'Connected') ? 'bg-success-50 text-success-700 border border-success-200' : 'bg-warning-50 text-warning-700 border border-warning-200' }}">
                     {{ $connectionResult }}
                 </p>
             @endif
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 max-w-2xl mt-4">
+    <div class="card p-5 max-w-2xl mt-4">
         <h3 class="text-sm font-semibold text-gray-700">Printing from the outlet PC</h3>
         <p class="mt-2 text-xs text-gray-500">
             Labels print through the browser straight to the label printer attached to the outlet PC.

@@ -18,18 +18,18 @@
                 {{-- Where it was printed, so you know which station to walk to. --}}
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-medium
                              {{ $print->batch?->labelSet
-                                ? 'bg-indigo-50 text-indigo-700'
+                                ? 'bg-brand-50 text-brand-700'
                                 : 'bg-gray-100 text-gray-500' }}">
                     {{ $print->batch?->labelSet?->name ?? 'No set' }}
                 </span>
             @endif
 
             @if ($showDue && $overdue)
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700">Expired</span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-danger-50 text-danger-700">Expired</span>
             @endif
         </div>
 
-        <p class="text-xs text-gray-400 mt-0.5">
+        <p class="text-xs text-gray-600 mt-0.5">
             Use by {{ $print->end_at->format('d/m/Y H:i') }}
             · {{ \App\Models\ShelfLifeRule::stateLabel($print->storage_state) }}
             @if ($print->copies > 1)
@@ -43,19 +43,19 @@
 
     <div class="flex items-center gap-2">
         <button wire:click="markUsed({{ $print->id }})"
-                class="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                class="btn-secondary btn-sm">
             Used
         </button>
 
         @if ($costable[$print->id] ?? null)
             <button wire:click="openWaste({{ $print->id }})"
-                    class="px-3 py-1.5 text-xs text-white bg-red-600 rounded-lg hover:bg-red-700">
+                    class="px-3 py-1.5 text-xs text-white bg-danger-600 rounded-lg hover:bg-danger-700">
                 Wasted
             </button>
         @else
             <button wire:click="markDiscarded({{ $print->id }})"
                     wire:confirm="Discard without costing? This item has nothing priceable behind it."
-                    class="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                    class="btn-secondary btn-sm"
                     title="No linked item to cost against">
                 Discard
             </button>

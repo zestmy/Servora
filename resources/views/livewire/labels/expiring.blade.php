@@ -1,15 +1,15 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <p class="text-xs text-gray-400">Labels / Expiring</p>
-            <h2 class="text-lg font-semibold text-gray-700 mt-1">Expiring</h2>
+            <p class="page-eyebrow">Labels / Expiring</p>
+            <h1 class="page-title mt-1">Expiring</h1>
         </div>
         <div class="flex flex-wrap items-end gap-3">
             <div>
@@ -41,7 +41,7 @@
                     @foreach (['urgency' => 'Urgency', 'set' => 'Print set'] as $mode => $label)
                         <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
                                 class="px-3 py-2 {{ $groupBy === $mode
-                                    ? 'bg-indigo-600 text-white'
+                                    ? 'bg-brand-600 text-white'
                                     : 'bg-white text-gray-600 hover:bg-gray-50' }}">
                             {{ $label }}
                         </button>
@@ -51,7 +51,7 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+    <div class="card p-5 mb-4">
         <p class="text-sm text-gray-600">
             Everything labelled and not yet accounted for, soonest first. Close each one off as you deal with it.
             Group by <strong>Print set</strong> to walk one station at a time — the set shown is the run the label
@@ -70,12 +70,12 @@
              quiet station. --}}
         <div class="space-y-4">
             @forelse ($groups as $group)
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+                <div class="card overflow-hidden"
                      wire:key="grp-{{ $group['key'] }}">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100
-                                {{ $group['expired'] ? 'bg-red-50' : 'bg-gray-50' }}">
+                                {{ $group['expired'] ? 'bg-danger-50' : 'bg-gray-50' }}">
                         <div>
-                            <h3 class="text-sm font-semibold {{ $group['expired'] ? 'text-red-700' : 'text-gray-700' }}">
+                            <h3 class="text-sm font-semibold {{ $group['expired'] ? 'text-danger-700' : 'text-gray-700' }}">
                                 {{ $group['name'] }} ({{ $group['rows']->count() }})
                             </h3>
                             <p class="text-xs text-gray-500">
@@ -97,7 +97,7 @@
                     </div>
                 </div>
             @empty
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-10 text-center text-gray-400 text-sm">
+                <div class="card px-4 py-10 text-center text-gray-600 text-sm">
                     Nothing expiring.
                 </div>
             @endforelse
@@ -113,12 +113,12 @@
 
         <div class="space-y-4">
             @foreach ($buckets as $b)
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="card overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100
-                                {{ $b['tone'] === 'red' ? 'bg-red-50' : ($b['tone'] === 'amber' ? 'bg-amber-50' : 'bg-gray-50') }}">
+                                {{ $b['tone'] === 'red' ? 'bg-danger-50' : ($b['tone'] === 'amber' ? 'bg-warning-50' : 'bg-gray-50') }}">
                         <div>
                             <h3 class="text-sm font-semibold
-                                       {{ $b['tone'] === 'red' ? 'text-red-700' : ($b['tone'] === 'amber' ? 'text-amber-700' : 'text-gray-700') }}">
+                                       {{ $b['tone'] === 'red' ? 'text-danger-700' : ($b['tone'] === 'amber' ? 'text-warning-700' : 'text-gray-700') }}">
                                 {{ $b['label'] }} ({{ $b['rows']->count() }})
                             </h3>
                             <p class="text-xs text-gray-500">{{ $b['note'] }}</p>
@@ -131,7 +131,7 @@
                                 'print' => $print, 'showSet' => true, 'showDue' => false, 'now' => $now,
                             ])
                         @empty
-                            <p class="px-4 py-6 text-center text-gray-400 text-sm">Nothing here.</p>
+                            <p class="px-4 py-6 text-center text-gray-600 text-sm">Nothing here.</p>
                         @endforelse
                     </div>
                 </div>
@@ -163,7 +163,7 @@
                                            class="mt-1 w-full text-sm rounded-lg border-gray-300">
                                     <x-input-error :messages="$errors->get('wasteQuantity')" class="mt-1" />
                                     @if ($c)
-                                        <p class="mt-1 text-xs text-gray-400">
+                                        <p class="mt-1 text-xs text-gray-600">
                                             At {{ number_format($c['unit_cost'], 4) }} per {{ $c['uom_abbr'] ?: 'unit' }}.
                                         </p>
                                     @endif
@@ -174,8 +174,8 @@
                             @endif
                         </div>
                         <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100">
-                            <button wire:click="closeWaste" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button wire:click="confirmWaste" class="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">Record wastage</button>
+                            <button wire:click="closeWaste" class="btn-secondary">Cancel</button>
+                            <button wire:click="confirmWaste" class="px-4 py-2 text-sm text-white bg-danger-600 rounded-lg hover:bg-danger-700">Record wastage</button>
                         </div>
                     </div>
                 </div>

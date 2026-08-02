@@ -9,28 +9,28 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 2500)"
-             class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
+             class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
             {{ session('success') }}
         </div>
     @endif
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div class="flex items-center gap-3">
-            <a href="{{ route('labels.templates') }}" wire:navigate class="text-gray-400 hover:text-gray-600">
+            <a href="{{ route('labels.templates') }}" wire:navigate class="text-gray-600 hover:text-gray-900">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
-                <p class="text-xs text-gray-400">Labels / Templates / Design</p>
-                <h2 class="text-lg font-semibold text-gray-700 mt-1">{{ $template->name }}</h2>
+                <p class="page-eyebrow">Labels / Templates / Design</p>
+                <h1 class="page-title mt-1">{{ $template->name }}</h1>
             </div>
         </div>
-        <button wire:click="save" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+        <button wire:click="save" class="btn-primary">
             Save template
         </button>
     </div>
 
     @if (count($overflow))
-        <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
             <strong>{{ count($overflow) }} field{{ count($overflow) === 1 ? '' : 's' }} hang off the label.</strong>
             Anything past the edge makes the printer paginate, and every extra page is a wasted label.
             Fix these before saving.
@@ -40,7 +40,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {{-- Canvas --}}
         <div class="lg:col-span-2 space-y-4">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="card p-5">
                 <div class="flex flex-wrap items-end gap-3 mb-4">
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
@@ -56,7 +56,7 @@
                     </div>
                 </div>
 
-                <p class="text-xs text-gray-400 mb-2">Click a field to select it. Grid lines are 5mm.</p>
+                <p class="text-xs text-gray-600 mb-2">Click a field to select it. Grid lines are 5mm.</p>
 
                 <div class="overflow-x-auto">
                     <div class="relative border border-gray-800 bg-white"
@@ -68,7 +68,7 @@
                             @php $bad = isset($overflow[$i]); @endphp
                             <button type="button" wire:click="selectField({{ $i }})"
                                     wire:key="canvas-{{ $i }}"
-                                    class="absolute text-left overflow-hidden {{ $selected === $i ? 'ring-2 ring-indigo-500 bg-indigo-50/60' : ($bad ? 'bg-red-100' : 'hover:bg-gray-50') }}"
+                                    class="absolute text-left overflow-hidden {{ $selected === $i ? 'ring-2 ring-brand-500 bg-brand-50/60' : ($bad ? 'bg-danger-100' : 'hover:bg-gray-50') }}"
                                     style="left: {{ $f['x'] * $px }}px; top: {{ $f['y'] * $px }}px;
                                            width: {{ $f['w'] * $px }}px; height: {{ $f['h'] * $px }}px;
                                            border: 1px dashed {{ $bad ? '#dc2626' : '#cbd5e1' }};
@@ -83,9 +83,9 @@
             </div>
 
             {{-- Live preview: the actual renderer, not a mock-up --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="card p-5">
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Preview</h3>
-                <p class="text-xs text-gray-400 mb-3">
+                <p class="text-xs text-gray-600 mb-3">
                     Rendered by the same code that prints, with sample data. This is what comes off the roll.
                 </p>
                 <div class="inline-block border border-gray-300 shadow-sm">
@@ -98,7 +98,7 @@
 
         {{-- Field list + editor --}}
         <div class="space-y-4">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div class="card p-4">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Add a field</label>
                 <div class="flex gap-2">
                     <select wire:model="newToken" class="flex-1 rounded-lg border-gray-300 text-sm">
@@ -106,11 +106,11 @@
                             <option value="{{ $token }}">{{ $label }}</option>
                         @endforeach
                     </select>
-                    <button wire:click="addField" class="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Add</button>
+                    <button wire:click="addField" class="btn-secondary">Add</button>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="card overflow-hidden">
                 <div class="px-4 py-2 bg-gray-50 border-b border-gray-100">
                     <p class="text-xs text-gray-500">{{ count($fields) }} fields</p>
                 </div>
@@ -118,10 +118,10 @@
                     @foreach ($fields as $i => $f)
                         <button type="button" wire:click="selectField({{ $i }})" wire:key="list-{{ $i }}"
                                 class="w-full text-left px-4 py-2 text-sm flex items-center justify-between
-                                       {{ $selected === $i ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-600' }}">
+                                       {{ $selected === $i ? 'bg-brand-50 text-brand-700' : 'hover:bg-gray-50 text-gray-600' }}">
                             <span>{{ $tokens[$f['token']] ?? $f['token'] }}</span>
                             @if (isset($overflow[$i]))
-                                <span class="text-[10px] text-red-600">off label</span>
+                                <span class="text-[10px] text-danger-600">off label</span>
                             @endif
                         </button>
                     @endforeach
@@ -130,14 +130,14 @@
 
             @if ($selected !== null && isset($fields[$selected]))
                 @php $f = $fields[$selected]; @endphp
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
+                <div class="card p-4 space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-gray-700">{{ $tokens[$f['token']] ?? $f['token'] }}</h3>
-                        <button wire:click="removeField({{ $selected }})" class="text-xs text-red-500 hover:underline">Remove</button>
+                        <button wire:click="removeField({{ $selected }})" class="text-xs text-danger-500 hover:underline">Remove</button>
                     </div>
 
                     @if (isset($overflow[$selected]))
-                        <p class="text-xs text-red-600">Off the label — {{ $overflow[$selected] }}.</p>
+                        <p class="text-xs text-danger-600">Off the label — {{ $overflow[$selected] }}.</p>
                     @endif
 
                     @if ($f['token'] === 'static')
@@ -161,11 +161,11 @@
                     <div>
                         <label class="text-xs text-gray-500">Nudge</label>
                         <div class="mt-1 flex items-center gap-1">
-                            <button wire:click="nudge({{ $selected }}, -1, 0)" class="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">←</button>
-                            <button wire:click="nudge({{ $selected }}, 1, 0)" class="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">→</button>
-                            <button wire:click="nudge({{ $selected }}, 0, -1)" class="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">↑</button>
-                            <button wire:click="nudge({{ $selected }}, 0, 1)" class="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50">↓</button>
-                            <span class="ml-1 text-xs text-gray-400">1mm</span>
+                            <button wire:click="nudge({{ $selected }}, -1, 0)" class="btn-secondary btn-sm">←</button>
+                            <button wire:click="nudge({{ $selected }}, 1, 0)" class="btn-secondary btn-sm">→</button>
+                            <button wire:click="nudge({{ $selected }}, 0, -1)" class="btn-secondary btn-sm">↑</button>
+                            <button wire:click="nudge({{ $selected }}, 0, 1)" class="btn-secondary btn-sm">↓</button>
+                            <span class="ml-1 text-xs text-gray-600">1mm</span>
                         </div>
                     </div>
 
@@ -192,13 +192,13 @@
                         </div>
                     </div>
 
-                    <p class="text-xs text-gray-400">
+                    <p class="text-xs text-gray-600">
                         At 203dpi anything under 7pt prints ragged on thermal stock.
                     </p>
                 </div>
             @else
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-                    <p class="text-sm text-gray-400">Select a field to edit it.</p>
+                <div class="card p-6 text-center">
+                    <p class="text-sm text-gray-600">Select a field to edit it.</p>
                 </div>
             @endif
         </div>

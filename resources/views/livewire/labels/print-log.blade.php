@@ -1,10 +1,10 @@
 <div>
     <div class="mb-6">
-        <p class="text-xs text-gray-400">Labels / Print log</p>
-        <h2 class="text-lg font-semibold text-gray-700 mt-1">Print log</h2>
+        <p class="page-eyebrow">Labels / Print log</p>
+        <h1 class="page-title mt-1">Print log</h1>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+    <div class="card p-5 mb-4">
         <p class="text-sm text-gray-600">
             Every label printed, grouped by print run. This is the record to show an auditor.
         </p>
@@ -19,7 +19,7 @@
         </p>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="card p-4 mb-4">
         <div class="flex flex-wrap items-end gap-3">
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Outlet</label>
@@ -54,7 +54,7 @@
                     @foreach (['date' => 'Date', 'set' => 'Print set'] as $mode => $label)
                         <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
                                 class="px-3 py-2 {{ $groupBy === $mode
-                                    ? 'bg-indigo-600 text-white'
+                                    ? 'bg-brand-600 text-white'
                                     : 'bg-white text-gray-600 hover:bg-gray-50' }}">
                             {{ $label }}
                         </button>
@@ -64,7 +64,7 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="card overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-[760px] divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
@@ -101,13 +101,13 @@
                             <td class="px-4 py-3 text-gray-600">
                                 {{ $batch->employee?->name ?? '—' }}
                                 @if ($batch->user && $batch->employee?->name !== $batch->user->name)
-                                    <span class="text-xs text-gray-400 block">login: {{ $batch->user->name }}</span>
+                                    <span class="text-xs text-gray-600 block">login: {{ $batch->user->name }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $batch->item_count }}</td>
                             <td class="px-4 py-3 text-center font-medium text-gray-700">{{ $batch->label_count }}</td>
                             <td class="px-4 py-3 text-center">
-                                <button wire:click="toggle({{ $batch->id }})" class="text-xs text-indigo-600 hover:underline">
+                                <button wire:click="toggle({{ $batch->id }})" class="text-xs text-brand-600 hover:underline">
                                     {{ $expandedId === $batch->id ? 'Hide' : 'View' }}
                                 </button>
                             </td>
@@ -117,7 +117,7 @@
                             <tr class="bg-gray-50/60">
                                 <td colspan="7" class="px-4 py-3">
                                     <table class="w-full text-xs">
-                                        <thead class="text-gray-400 uppercase tracking-wider">
+                                        <thead class="text-gray-600 uppercase tracking-wider">
                                             <tr>
                                                 <th class="py-1 text-left">Item</th>
                                                 <th class="py-1 text-left">Label</th>
@@ -138,16 +138,16 @@
                                                     <td class="py-1">
                                                         {{ $print->end_at?->format('d/m/Y H:i') ?? '—' }}
                                                         @if ($print->manual_expiry)
-                                                            <span class="ml-1 px-1 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px]">manual</span>
+                                                            <span class="ml-1 px-1 py-0.5 rounded bg-warning-50 text-warning-700 text-[10px]">manual</span>
                                                         @endif
                                                     </td>
                                                     <td class="py-1 text-center">{{ $print->copies }}</td>
                                                     <td class="py-1 text-center">
                                                         @php
                                                             $tone = match ($print->status) {
-                                                                'done'             => 'bg-green-50 text-green-700',
-                                                                'error', 'expired' => 'bg-red-50 text-red-700',
-                                                                'queued'           => 'bg-amber-50 text-amber-700',
+                                                                'done'             => 'bg-success-50 text-success-700',
+                                                                'error', 'expired' => 'bg-danger-50 text-danger-700',
+                                                                'queued'           => 'bg-warning-50 text-warning-700',
                                                                 default            => 'bg-gray-100 text-gray-500',
                                                             };
                                                         @endphp
@@ -164,7 +164,7 @@
                         @endif
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-10 text-center text-gray-400 text-sm">
+                            <td colspan="7" class="px-4 py-10 text-center text-gray-600 text-sm">
                                 No labels printed in this range.
                             </td>
                         </tr>
