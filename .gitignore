@@ -25,5 +25,6 @@ Thumbs.db
 /Servora
 CLAUDE.md
 .claude/
+.agents/
 .ssh_key
 servora-google-drive-key.json
