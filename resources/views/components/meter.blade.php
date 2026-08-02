@@ -5,7 +5,10 @@
     // The use-by. Required — with nothing to count down to there is nothing
     // to draw.
     'end' => null,
-    // Set false on dense rows where the date is already shown alongside.
+    // The two halves can be rendered separately — bar full-width across a
+    // card, readout inline on a row with the absolute date. Turning one off
+    // is how you place them apart without nesting the component in itself.
+    'bar'  => true,
     'time' => true,
 ])
 
@@ -95,8 +98,10 @@
         $width = $isOver ? 100 : ($fraction !== null ? round($fraction * 100, 1) : null);
     @endphp
 
+    @php $showBar = $bar && $width !== null; @endphp
+
     <div {{ $attributes->merge(['class' => 'meter-' . $state]) }}>
-        @if ($width !== null)
+        @if ($showBar)
             <span class="meter" role="img"
                   aria-label="{{ $isOver ? 'Expired ' . $span . ' ago' : $span . ' of shelf life remaining' }}">
                 <span class="meter-fill" style="width: {{ $width }}%"></span>
@@ -104,7 +109,7 @@
         @endif
 
         @if ($time)
-            <span class="meter-time {{ $width !== null ? 'mt-1.5 block' : '' }}">{{ $readout }}</span>
+            <span class="meter-time {{ $showBar ? 'mt-1.5 block' : '' }}">{{ $readout }}</span>
         @endif
     </div>
 @endif
