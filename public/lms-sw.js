@@ -1,6 +1,6 @@
 // Bump the cache name whenever this file changes so activated clients
 // drop stale caches (old login HTML with stale CSRF tokens, etc.).
-const CACHE_NAME = 'lms-v2';
+const CACHE_NAME = 'lms-v3';
 const OFFLINE_URL = '/lms/';
 
 self.addEventListener('install', (event) => {

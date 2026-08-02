@@ -81,7 +81,11 @@ class StaffAppController extends Controller
     public function serviceWorker(): Response
     {
         $scope   = $this->scope();
-        $version = 'v1';
+        // Bumped when the cached assets change. The worker caches the
+        // icons outright, so an installed app keeps serving the old ones
+        // until the cache name moves and `activate` deletes the previous key.
+        // v2: icons redrawn in brand teal (they were pre-rebrand indigo).
+        $version = 'v2';
         $icons   = json_encode([
             asset('labels-app/icon-192.png'),
             asset('labels-app/icon-512.png'),

@@ -11,9 +11,15 @@
     "icons": [
         {
             "src": "/favicon.png",
-            "sizes": "192x192",
+            "sizes": "300x300",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "/servora-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
         }
     ]
 }

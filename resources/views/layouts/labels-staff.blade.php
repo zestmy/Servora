@@ -100,27 +100,78 @@
 <div class="app-shell bg-gray-50">
 
     @isset($staff)
+        @php
+            // Four of the six screens pass a title that repeats the bottom-nav
+            // tab it is already sitting on ("Print labels" over a marked
+            // "Print" tab). Saying it twice costs the only line in this bar
+            // that could carry something the nav cannot, so the title only
+            // appears where it is genuinely new: a named set, or the PIN
+            // screen, neither of which is a tab.
+            $onTab = collect(['labels.staff.print', 'labels.staff.sets',
+                              'labels.staff.expiring', 'labels.staff.log'])
+                ->contains(fn ($r) => request()->routeIs($r));
+
+            // Initials for the account control. mb_* because staff names here
+            // are not all ASCII.
+            $initials = collect(preg_split('/\s+/', trim($staff->name)))
+                ->filter()->take(2)
+                ->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))
+                ->implode('');
+        @endphp
+
         {{-- brand-700 rather than 600: white sits at 7.43:1 on it and the
              secondary line still clears AA at brand-100 (6.42:1), which it
              did not on the old indigo-200-on-indigo-600 pairing. --}}
-        <header class="shrink-0 z-20 bg-brand-700 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
-            <div class="flex items-center gap-2.5 min-w-0">
+        <header class="shrink-0 z-20 bg-brand-700 text-white px-3 safe-top safe-x flex items-center gap-2">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
                 {{-- The white pill used to be unconditional here. It is the
                      right answer for dark artwork on this header and the
                      wrong one for a light logo, which reads fine bare. --}}
                 <x-brand-mark :company="$brandCompany" surface="dark"
                               size="h-6" width="max-w-[64px]" :alt="$brandName" />
                 <div class="min-w-0">
-                    <p class="text-[11px] uppercase tracking-wider text-brand-100 truncate">{{ $outletName ?? $brandName }}</p>
-                    <p class="text-sm font-semibold truncate">{{ $title ?? 'Labels' }}</p>
+                    {{-- The outlet leads. It decides which printer the job
+                         goes to and which outlet the label is recorded
+                         against, and it is the one thing here that is
+                         expensive to get wrong. --}}
+                    <p class="text-sm font-semibold leading-tight truncate">{{ $outletName ?: $brandName }}</p>
+                    @unless ($onTab)
+                        <p class="text-[11px] leading-tight text-brand-100 truncate">{{ $title }}</p>
+                    @endunless
                 </div>
             </div>
-            {{-- White-alpha rather than a brand shade: this pill has to hold
-                 up if the header fill is ever re-tinted per company. --}}
+
+            {{-- Offline notice. The app cannot print without a connection, and
+                 without this the first sign of trouble was a failed print
+                 after ten items had already been queued. Hidden until the
+                 browser says otherwise. --}}
+            <span id="net-offline" hidden
+                  class="shrink-0 inline-flex items-center gap-1 rounded-full bg-warning-400 px-2 py-1 text-[11px] font-semibold text-warning-900">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636L5.636 18.364M12 20h.01M8.111 16.111a5.5 5.5 0 017.778 0"/>
+                </svg>
+                Offline
+            </span>
+
+            {{-- The account control. It was a name in a translucent pill,
+                 which read as a label rather than something you could press —
+                 and the name it carries is stamped on every label these
+                 tablets print, so it is worth being able to check and change
+                 at a glance. White-alpha rather than a brand shade, so it
+                 survives the header fill being re-tinted per company. --}}
             <a href="{{ route('labels.staff.pin') }}" wire:navigate
-               class="flex min-h-[2.75rem] items-center gap-2 pl-3 pr-2 rounded-full bg-white/15 active:bg-white/25">
-                <span class="text-xs font-medium truncate max-w-[8rem]">{{ $staff->name }}</span>
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+               aria-label="Signed in as {{ $staff->name }} — change PIN or sign out"
+               class="shrink-0 flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white/15 pl-1 pr-2 active:bg-white/25">
+                <span aria-hidden="true"
+                      class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
+                    {{ $initials }}
+                </span>
+                {{-- Initials only on a phone, where this bar is tight and the
+                     full name would truncate to nothing useful anyway; the
+                     name returns on a kitchen tablet. Not an `xs:` variant —
+                     there is no such breakpoint in this config. --}}
+                <span class="hidden sm:block max-w-[7rem] truncate text-xs font-medium">{{ $staff->name }}</span>
+                <svg class="w-4 h-4 shrink-0 text-brand-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                 </svg>
             </a>
@@ -225,6 +276,23 @@
         installBar?.classList.add('hidden');
         localStorage.setItem('labels-install-dismissed', '1');
     });
+
+    // ---- Connection ------------------------------------------------------
+    // Printing needs the network. Without this the first sign of trouble was
+    // a failed print after a tray had already been filled.
+    (() => {
+        const badge = document.getElementById('net-offline');
+        if (! badge) return;
+        const sync = () => { badge.hidden = navigator.onLine; };
+        window.addEventListener('online', sync);
+        window.addEventListener('offline', sync);
+        // wire:navigate swaps the body, so re-bind after each navigation.
+        document.addEventListener('livewire:navigated', () => {
+            const b = document.getElementById('net-offline');
+            if (b) b.hidden = navigator.onLine;
+        });
+        sync();
+    })();
 
     // ---- Printing --------------------------------------------------------
     window.addEventListener('label-print', (event) => {
