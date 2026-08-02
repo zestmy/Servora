@@ -19,7 +19,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#0b7677">
+    {{-- Matches the header fill exactly. brand-600 left a visible seam between
+         the OS status bar and the header on Android. --}}
+    <meta name="theme-color" content="#0d5f61">
     {{-- Full-screen when saved to a home screen, which is how this is meant
          to be used day to day. --}}
     <meta name="mobile-web-app-capable" content="yes">
@@ -98,20 +100,25 @@
 <div class="app-shell bg-gray-50">
 
     @isset($staff)
-        <header class="shrink-0 z-20 bg-indigo-600 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
+        {{-- brand-700 rather than 600: white sits at 7.43:1 on it and the
+             secondary line still clears AA at brand-100 (6.42:1), which it
+             did not on the old indigo-200-on-indigo-600 pairing. --}}
+        <header class="shrink-0 z-20 bg-brand-700 text-white px-4 safe-top safe-x flex items-center gap-3 justify-between">
             <div class="flex items-center gap-2.5 min-w-0">
                 {{-- The white pill used to be unconditional here. It is the
-                     right answer for dark artwork on this indigo header and
-                     the wrong one for a light logo, which reads fine bare. --}}
+                     right answer for dark artwork on this header and the
+                     wrong one for a light logo, which reads fine bare. --}}
                 <x-brand-mark :company="$brandCompany" surface="dark"
                               size="h-6" width="max-w-[64px]" :alt="$brandName" />
                 <div class="min-w-0">
-                    <p class="text-[11px] uppercase tracking-wider text-indigo-200 truncate">{{ $outletName ?? $brandName }}</p>
+                    <p class="text-[11px] uppercase tracking-wider text-brand-100 truncate">{{ $outletName ?? $brandName }}</p>
                     <p class="text-sm font-semibold truncate">{{ $title ?? 'Labels' }}</p>
                 </div>
             </div>
+            {{-- White-alpha rather than a brand shade: this pill has to hold
+                 up if the header fill is ever re-tinted per company. --}}
             <a href="{{ route('labels.staff.pin') }}" wire:navigate
-               class="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full bg-indigo-500/60 active:bg-indigo-500">
+               class="flex min-h-[2.75rem] items-center gap-2 pl-3 pr-2 rounded-full bg-white/15 active:bg-white/25">
                 <span class="text-xs font-medium truncate max-w-[8rem]">{{ $staff->name }}</span>
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
@@ -140,16 +147,26 @@
                  'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
             ];
         @endphp
+        {{-- The active tab is marked three ways — a rule above it, a heavier
+             stroke, and colour — because colour alone is the one signal a
+             third of kitchen staff on a glare-washed screen will not catch,
+             and it is also WCAG 1.4.1. Inactive moves off gray-400, which
+             was 2.54:1 on this surface. --}}
         <nav class="shrink-0 z-20 bg-white border-t border-gray-200 safe-bottom safe-x">
             <div class="grid grid-cols-4">
                 @foreach ($tabs as $tab)
                     @php $active = request()->routeIs($tab['route']) || request()->routeIs($tab['route'] . '.*'); @endphp
                     <a href="{{ route($tab['route']) }}" wire:navigate
-                       class="flex flex-col items-center gap-0.5 py-2.5 {{ $active ? 'text-indigo-600' : 'text-gray-400' }} active:bg-gray-50">
+                       @if ($active) aria-current="page" @endif
+                       class="relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 py-2
+                              {{ $active ? 'text-brand-700' : 'text-gray-500' }} active:bg-gray-50">
+                        @if ($active)
+                            <span aria-hidden="true" class="absolute inset-x-5 top-0 h-0.5 rounded-full bg-brand-700"></span>
+                        @endif
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ $active ? '2.2' : '1.8' }}">
                             <path stroke-linecap="round" stroke-linejoin="round" d="{{ $tab['icon'] }}"/>
                         </svg>
-                        <span class="text-[11px] {{ $active ? 'font-semibold' : '' }}">{{ $tab['label'] }}</span>
+                        <span class="text-[11px] {{ $active ? 'font-semibold' : 'font-medium' }}">{{ $tab['label'] }}</span>
                     </a>
                 @endforeach
             </div>

@@ -7,47 +7,48 @@
     $overdue   = $print->end_at && $print->end_at->lt($now);
 @endphp
 
-<div class="bg-white rounded-xl border border-gray-200 p-3" wire:key="exp-{{ $print->id }}">
+<div class="card p-3.5 {{ $overdue ? 'border-danger-200' : '' }}" wire:key="exp-{{ $print->id }}">
     <div class="flex items-start justify-between gap-2">
-        <p class="text-sm font-medium text-gray-800">{{ $print->printedName() }}</p>
+        <p class="flex-1 text-[15px] font-medium leading-snug text-gray-900">{{ $print->printedName() }}</p>
 
-        @if ($showDue && $overdue)
-            <span class="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700">
-                Expired
+        @if ($showSet)
+            {{-- Which station it came off, so nobody has to guess where to look. --}}
+            <span class="shrink-0 {{ $print->batch?->labelSet ? 'badge-brand' : 'badge-neutral' }}">
+                {{ $print->batch?->labelSet?->name ?? 'No set' }}
             </span>
         @endif
     </div>
 
-    <p class="text-xs text-gray-400 mt-0.5">
-        Use by {{ $print->end_at->format('d/m H:i') }}
-        · {{ \App\Models\ShelfLifeRule::stateLabel($print->storage_state) }}
+    <p class="mt-0.5 text-xs text-gray-600">
+        {{ \App\Models\ShelfLifeRule::stateLabel($print->storage_state) }}
         @if ($print->copies > 1) · {{ $print->copies }} labels @endif
     </p>
 
-    @if ($showSet)
-        {{-- Which station it came off, so nobody has to guess where to look. --}}
-        <span class="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium
-                     {{ $print->batch?->labelSet
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'bg-gray-100 text-gray-500' }}">
-            {{ $print->batch?->labelSet?->name ?? 'No set' }}
-        </span>
-    @endif
+    {{-- The meter replaces the old "Expired" pill: it carries the same state
+         in the same place for every row, expired or not, instead of a badge
+         that only appears in one of the two groupings. The absolute date
+         stays beside it — the meter answers "how urgent", the date answers
+         "which batch is this". --}}
+    <x-meter :start="$print->start_at" :end="$print->end_at" :time="false" class="mt-3" />
 
-    <div class="mt-2.5 grid grid-cols-2 gap-2">
-        <button wire:click="markUsed({{ $print->id }})"
-                class="py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 active:bg-gray-50">
+    <div class="mt-1.5 flex items-baseline justify-between gap-2">
+        <x-meter :start="$print->start_at" :end="$print->end_at" :bar="false" />
+        <p class="text-xs tabular-nums text-gray-600">
+            {{ $overdue ? 'Was due' : 'Use by' }} {{ $print->end_at->format('d/m H:i') }}
+        </p>
+    </div>
+
+    <div class="mt-3 grid grid-cols-2 gap-2">
+        <button wire:click="markUsed({{ $print->id }})" class="btn-secondary min-h-[2.75rem]">
             Used
         </button>
 
         @if ($costable[$print->id] ?? null)
-            <button wire:click="openWaste({{ $print->id }})"
-                    class="py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium active:bg-red-700">
+            <button wire:click="openWaste({{ $print->id }})" class="btn-danger min-h-[2.75rem]">
                 Wasted
             </button>
         @else
-            <button wire:click="markDiscarded({{ $print->id }})"
-                    class="py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 active:bg-gray-50">
+            <button wire:click="markDiscarded({{ $print->id }})" class="btn-secondary min-h-[2.75rem]">
                 Discard
             </button>
         @endif

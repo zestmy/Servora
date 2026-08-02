@@ -16,39 +16,39 @@
             </div>
         @else
             {{-- No brand set: fall back to the app's own mark. --}}
-            <div class="mx-auto w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center mb-3">
+            <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center mb-3">
                 <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.997 1.997 0 013 12V7a4 4 0 014-4z"/>
                 </svg>
             </div>
         @endif
-        <h1 class="text-lg font-semibold text-gray-800">
+        <h1 class="text-xl font-semibold tracking-tight text-gray-900">
             {{ $company?->brand_name ?? $company?->name ?? 'Labels' }}
         </h1>
-        <p class="text-sm text-gray-500">Food safety labels</p>
+        <p class="mt-0.5 text-sm text-gray-600">Food safety labels</p>
     </div>
 
     @if (! $selected)
         {{-- Step one: who are you --}}
-        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div class="panel overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-100">
-                <p class="text-sm font-medium text-gray-700">Tap your name</p>
+                <p class="text-sm font-semibold text-gray-900">Tap your name</p>
             </div>
 
-            <div class="divide-y divide-gray-50 max-h-[55vh] overflow-y-auto">
+            <div class="divide-y divide-gray-100 max-h-[55vh] overflow-y-auto">
                 @forelse ($employees as $employee)
                     <button type="button" wire:click="selectEmployee({{ $employee->id }})"
                             wire:key="emp-{{ $employee->id }}"
-                            class="w-full text-left px-4 py-4 active:bg-indigo-50 flex items-center gap-3">
-                        <span class="w-9 h-9 shrink-0 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold">
+                            class="list-row min-h-[3.75rem]">
+                        <span class="w-9 h-9 shrink-0 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-sm font-semibold">
                             {{ strtoupper(mb_substr($employee->name, 0, 1)) }}
                         </span>
-                        <span class="text-base text-gray-800">{{ $employee->name }}</span>
+                        <span class="text-base font-medium text-gray-900">{{ $employee->name }}</span>
                     </button>
                 @empty
                     <div class="px-4 py-10 text-center">
-                        <p class="text-sm text-gray-500">Nobody has label access yet.</p>
-                        <p class="text-xs text-gray-400 mt-1">
+                        <p class="text-sm font-medium text-gray-900">Nobody has label access yet.</p>
+                        <p class="mt-1 text-sm text-gray-600">
                             A manager sets up PINs in Servora under Labels &rarr; Staff Access.
                         </p>
                     </div>
@@ -57,52 +57,54 @@
         </div>
     @else
         {{-- Step two: PIN --}}
-        <div class="bg-white rounded-2xl border border-gray-200 p-5">
+        <div class="panel p-5">
             <button type="button" wire:click="back"
-                    class="text-xs text-gray-400 active:text-gray-600 mb-3 flex items-center gap-1">
+                    class="-ml-2 mb-2 flex min-h-[2.75rem] items-center gap-1 rounded-control px-2 text-xs font-medium text-gray-600 active:bg-gray-100">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                 </svg>
                 Not you?
             </button>
 
-            <p class="text-center text-base font-semibold text-gray-800">{{ $selected->name }}</p>
-            <p class="text-center text-xs text-gray-400 mt-0.5">Enter your PIN</p>
+            <p class="text-center text-lg font-semibold text-gray-900">{{ $selected->name }}</p>
+            <p class="mt-0.5 text-center text-sm text-gray-600">Enter your PIN</p>
 
             {{-- Dots rather than digits: kitchens are overlooked. --}}
-            <div class="flex justify-center gap-3 my-5" wire:key="pin-dots-{{ strlen($pin) }}">
+            <div class="my-5 flex justify-center gap-3" role="img"
+                 aria-label="{{ strlen($pin) }} of 6 digits entered"
+                 wire:key="pin-dots-{{ strlen($pin) }}">
                 @for ($i = 0; $i < 6; $i++)
-                    <span class="w-3 h-3 rounded-full {{ $i < strlen($pin) ? 'bg-indigo-600' : 'bg-gray-200' }}"></span>
+                    <span class="h-3 w-3 rounded-full {{ $i < strlen($pin) ? 'bg-brand-600' : 'bg-gray-300' }}"></span>
                 @endfor
             </div>
 
             @if ($error)
-                <p class="text-center text-sm text-red-600 mb-3">{{ $error }}</p>
+                <p class="mb-3 text-center text-sm font-medium text-danger-700" role="alert" aria-live="assertive">{{ $error }}</p>
             @endif
 
             <div class="grid grid-cols-3 gap-2">
                 @foreach ([1,2,3,4,5,6,7,8,9] as $digit)
                     <button type="button" wire:click="press('{{ $digit }}')"
-                            class="py-4 rounded-xl bg-gray-50 border border-gray-200 text-xl font-semibold text-gray-800 active:bg-indigo-50">
+                            class="rounded-control border border-gray-200 bg-gray-50 py-4 text-xl font-semibold tabular-nums text-gray-900 active:bg-brand-50">
                         {{ $digit }}
                     </button>
                 @endforeach
 
-                <button type="button" wire:click="backspace"
-                        class="py-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-500 active:bg-gray-100 flex items-center justify-center">
+                <button type="button" wire:click="backspace" aria-label="Delete last digit"
+                        class="flex items-center justify-center rounded-control border border-gray-200 bg-gray-50 py-4 text-gray-600 active:bg-gray-100">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"/>
                     </svg>
                 </button>
 
                 <button type="button" wire:click="press('0')"
-                        class="py-4 rounded-xl bg-gray-50 border border-gray-200 text-xl font-semibold text-gray-800 active:bg-indigo-50">
+                        class="rounded-control border border-gray-200 bg-gray-50 py-4 text-xl font-semibold tabular-nums text-gray-900 active:bg-brand-50">
                     0
                 </button>
 
-                <button type="button" wire:click="submit" wire:loading.attr="disabled"
+                <button type="button" wire:click="submit" wire:loading.attr="disabled" aria-label="Sign in"
                         @disabled(strlen($pin) < 4)
-                        class="py-4 rounded-xl bg-indigo-600 text-white font-semibold active:bg-indigo-700 disabled:opacity-40 flex items-center justify-center">
+                        class="btn-primary flex items-center justify-center py-4 disabled:opacity-40">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                     </svg>

@@ -1,18 +1,19 @@
 <div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
-             class="mb-3 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl">
+             class="alert-success mb-3">
             {{ session('success') }}
         </div>
     @endif
 
     {{-- Restacks the same rows: by when they go off, or by the station they
          were printed for. Nothing is hidden either way. --}}
-    <div class="grid grid-cols-2 gap-1 p-1 mb-4 bg-gray-100 rounded-xl">
+    <div class="seg mb-4 grid grid-cols-2" role="tablist">
         @foreach (['urgency' => 'By time', 'set' => 'By set'] as $mode => $label)
             <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
-                    class="py-2 rounded-lg text-sm font-medium
-                           {{ $groupBy === $mode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500' }}">
+                    role="tab" aria-selected="{{ $groupBy === $mode ? 'true' : 'false' }}"
+                    class="seg-item flex min-h-[2.75rem] items-center justify-center
+                           {{ $groupBy === $mode ? 'seg-item-on' : '' }}">
                 {{ $label }}
             </button>
         @endforeach
@@ -22,11 +23,11 @@
         @forelse ($groups as $group)
             <div class="mb-4" wire:key="grp-{{ $group['key'] }}">
                 <div class="flex items-center gap-2 px-1 mb-2">
-                    <span class="w-2 h-2 rounded-full {{ $group['expired'] ? 'bg-red-500' : 'bg-gray-300' }}"></span>
-                    <p class="text-sm font-semibold text-gray-700">{{ $group['name'] }}</p>
-                    <span class="text-xs text-gray-400">{{ $group['rows']->count() }}</span>
+                    <span aria-hidden="true" class="w-2 h-2 rounded-full {{ $group['expired'] ? 'bg-danger-600' : 'bg-gray-300' }}"></span>
+                    <p class="text-sm font-semibold text-gray-900">{{ $group['name'] }}</p>
+                    <span class="text-xs tabular-nums text-gray-600">{{ $group['rows']->count() }}</span>
                     @if ($group['expired'])
-                        <span class="text-xs text-red-600">· {{ $group['expired'] }} expired</span>
+                        <span class="text-xs font-medium text-danger-700">· {{ $group['expired'] }} expired</span>
                     @endif
                 </div>
 
@@ -39,7 +40,10 @@
                 </div>
             </div>
         @empty
-            <p class="text-center text-sm text-gray-400 py-10">Nothing expiring.</p>
+            <div class="py-12 text-center">
+                <p class="text-sm font-medium text-gray-900">Nothing expiring</p>
+                <p class="mt-1 text-sm text-gray-600">Everything printed for this outlet is still in date.</p>
+            </div>
         @endforelse
     @else
         @php
@@ -53,10 +57,10 @@
         @foreach ($buckets as $b)
             <div class="mb-4">
                 <div class="flex items-center gap-2 px-1 mb-2">
-                    <span class="w-2 h-2 rounded-full
-                        {{ $b['tone'] === 'red' ? 'bg-red-500' : ($b['tone'] === 'amber' ? 'bg-amber-500' : 'bg-gray-300') }}"></span>
-                    <p class="text-sm font-semibold text-gray-700">{{ $b['label'] }}</p>
-                    <span class="text-xs text-gray-400">{{ $b['rows']->count() }}</span>
+                    <span aria-hidden="true" class="w-2 h-2 rounded-full
+                        {{ $b['tone'] === 'red' ? 'bg-danger-600' : ($b['tone'] === 'amber' ? 'bg-warning-600' : 'bg-gray-300') }}"></span>
+                    <p class="text-sm font-semibold text-gray-900">{{ $b['label'] }}</p>
+                    <span class="text-xs tabular-nums text-gray-600">{{ $b['rows']->count() }}</span>
                 </div>
 
                 <div class="space-y-2">
@@ -65,7 +69,7 @@
                             'print' => $print, 'showSet' => true, 'showDue' => false, 'now' => $now,
                         ])
                     @empty
-                        <p class="text-center text-xs text-gray-400 py-4">Nothing here.</p>
+                        <p class="py-4 text-center text-xs text-gray-600">Nothing here.</p>
                     @endforelse
                 </div>
             </div>
@@ -86,26 +90,24 @@
 
                     @if ($wasting)
                         @php $c = $costable[$wasting->id] ?? null; @endphp
-                        <p class="text-base font-semibold text-gray-800">{{ $wasting->printedName() }}</p>
-                        <p class="text-xs text-gray-400 mt-0.5">How much are you throwing away?</p>
+                        <p class="text-base font-semibold text-gray-900">{{ $wasting->printedName() }}</p>
+                        <p class="mt-0.5 text-sm text-gray-600">How much are you throwing away?</p>
 
-                        <div class="mt-4">
-                            <label class="text-xs font-medium text-gray-600">
+                        <div class="field mt-4">
+                            <label class="label" for="waste-qty">
                                 Quantity {{ $c && $c['uom_abbr'] ? '(' . $c['uom_abbr'] . ')' : '' }}
                             </label>
-                            <input type="number" step="0.001" min="0" inputmode="decimal"
+                            <input id="waste-qty" type="number" step="0.001" min="0" inputmode="decimal"
                                    wire:model="wasteQuantity"
-                                   class="mt-1 w-full rounded-xl border-gray-300 text-lg py-3">
+                                   class="input py-3 text-lg @error('wasteQuantity') input-error @enderror">
                             @error('wasteQuantity')
-                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                <p class="error-text">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div class="mt-4 grid grid-cols-2 gap-2">
-                            <button wire:click="closeWaste"
-                                    class="py-3 rounded-xl border border-gray-200 text-sm text-gray-600">Cancel</button>
-                            <button wire:click="confirmWaste"
-                                    class="py-3 rounded-xl bg-red-600 text-white text-sm font-semibold active:bg-red-700">
+                            <button wire:click="closeWaste" class="btn-secondary min-h-[2.75rem]">Cancel</button>
+                            <button wire:click="confirmWaste" class="btn-danger min-h-[2.75rem]">
                                 Record wastage
                             </button>
                         </div>

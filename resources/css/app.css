@@ -238,12 +238,16 @@
 
        Width comes from the <x-meter> component, which is also where the
        fraction and the state are worked out — see that file for the rules. */
-    .meter      { @apply h-[3px] w-full overflow-hidden rounded-full bg-gray-200; }
+    /* `block` is load-bearing, not tidiness: the track is a <span>, and an
+       inline box ignores both height and width — the bar rendered at 0×0. */
+    .meter      { @apply block h-[3px] w-full overflow-hidden rounded-full bg-gray-200; }
     .meter-fill { @apply block h-full rounded-full transition-[width] duration-500 ease-out; }
     .meter-fresh .meter-fill { @apply bg-success-600; }
     .meter-soon  .meter-fill { @apply bg-warning-600; }
-    .meter-over  { @apply bg-danger-200; }
-    .meter-over .meter-fill  { @apply bg-danger-600; }
+    /* Scoped to the track, not the state wrapper — the wrapper also carries
+       the readout, and tinting it puts a red block behind the text. */
+    .meter-over  .meter      { @apply bg-danger-200; }
+    .meter-over  .meter-fill { @apply bg-danger-600; }
     /* The remaining-time readout that sits with the meter. Tabular, because
        these get scanned down a column. */
     .meter-time { @apply text-xs font-medium tabular-nums; }
