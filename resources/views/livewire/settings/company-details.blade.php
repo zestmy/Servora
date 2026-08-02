@@ -276,7 +276,7 @@
         </div>
 
         <div class="mt-6 flex justify-end">
-            <button type="submit" class="px-6 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+            <button type="submit" class="btn-primary">
                 Save Company Details
             </button>
         </div>

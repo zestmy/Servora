@@ -26,7 +26,7 @@
             {{ $setCount }} / {{ $totalIngredients }} set
         </span>
         <button wire:click="exportCsv"
-                class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                class="btn-secondary">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Export
         </button>
@@ -180,8 +180,8 @@
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Product</th>
                         <th class="px-4 py-3 text-left w-24">Code</th>
@@ -191,7 +191,7 @@
                         <th class="px-4 py-3 text-right w-48">Par Level</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($ingredients as $ingredient)
                         @php
                             $par = floatval($parLevels[$ingredient->id] ?? 0);
@@ -255,7 +255,7 @@
     {{-- Footer save (edits already auto-save; this is an explicit fallback) --}}
     <div class="flex justify-end mt-4">
         <button wire:click="saveAll"
-                class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             Save All
         </button>
     </div>

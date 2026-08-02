@@ -59,8 +59,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-[900px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left sticky left-0 bg-gray-50 z-10">Name</th>
                         @foreach ($states as $state => $stateLabel)
@@ -90,7 +90,7 @@
                         @endforeach
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($rows as $row)
                         <tr class="hover:bg-gray-50" wire:key="row-{{ $scope }}-{{ $row->id }}">
                             <td class="px-4 py-2 sticky left-0 bg-white z-10 font-medium text-gray-700">

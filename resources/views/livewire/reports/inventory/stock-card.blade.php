@@ -29,7 +29,7 @@
                 @endforeach
             </select>
             @if ($ingredientFilter)
-                <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition ml-auto">
+                <button wire:click="exportCsv" class="btn-secondary ml-auto">
                     Export CSV
                 </button>
             @endif
@@ -64,8 +64,8 @@
                 <p class="text-xs mt-1">No stock movements recorded for this ingredient in the selected period.</p>
             </div>
         @else
-            <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Reference</th>
@@ -74,7 +74,7 @@
                         <th class="px-4 py-3 text-right">Running Balance</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($movements as $m)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 text-gray-700">{{ \Carbon\Carbon::parse($m['date'])->format('d M Y') }}</td>

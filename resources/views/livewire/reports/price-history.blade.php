@@ -7,7 +7,7 @@
         </div>
         <div class="flex items-center gap-3">
             <button wire:click="exportPdf" wire:loading.attr="disabled"
-                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5 disabled:opacity-50">
+                    class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-danger-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                 <span wire:loading.remove wire:target="exportPdf">Export PDF</span>
                 <span wire:loading wire:target="exportPdf">Generating…</span>
@@ -20,10 +20,10 @@
     <div class="card p-4 mb-4">
         <div class="flex flex-col lg:flex-row gap-3">
             {{-- Period Presets --}}
-            <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+            <div class="seg">
                 @foreach (['weekly' => 'Week', 'monthly' => 'Month', 'yearly' => 'Year', 'custom' => 'Custom'] as $val => $label)
                     <button type="button" wire:click="$set('period', '{{ $val }}')"
-                            class="px-3 py-1.5 font-medium transition {{ $period === $val ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }} {{ !$loop->first ? 'border-l border-gray-200' : '' }}">
+                            class="seg-item {{ $period === $val ? 'seg-item-on' : '' }}">
                         {{ $label }}
                     </button>
                 @endforeach
@@ -184,8 +184,8 @@
 
             {{-- History Table --}}
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-2 text-left">Date</th>
                             <th class="px-4 py-2 text-right">Price</th>
@@ -195,7 +195,7 @@
                             <th class="px-4 py-2 text-left">Source</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($detailData['history'] as $h)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-2 text-gray-700">{{ $h['date'] }}</td>
@@ -250,8 +250,8 @@
         </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-left">Category</th>
@@ -264,7 +264,7 @@
                     <th class="px-4 py-3 text-center">Detail</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($changes as $row)
                     @php
                         $changePct = ($row->first_cost && $row->first_cost > 0)

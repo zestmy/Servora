@@ -13,8 +13,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Date</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
@@ -26,7 +26,7 @@
                     <th class="px-4 py-3 text-right">Cost</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($lines as $line)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 text-gray-700">{{ $line->wastageRecord->wastage_date->format('d M Y') }}</td>

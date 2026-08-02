@@ -22,8 +22,8 @@
             <h3 class="text-sm font-semibold text-gray-600">By Status</h3>
         </div>
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3">Status</th>
                         <th class="px-4 py-3 text-right">Count</th>
@@ -31,7 +31,7 @@
                         <th class="px-4 py-3 text-right">Avg Value</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($byStatus as $row)
                         <tr class="odd:bg-white even:bg-gray-50/50 hover:bg-gray-50 transition">
                             <td class="px-4 py-2.5">
@@ -85,8 +85,8 @@
             <h3 class="text-sm font-semibold text-gray-600">By Period (Monthly)</h3>
         </div>
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3">Month</th>
                         <th class="px-4 py-3 text-right">Count</th>
@@ -94,7 +94,7 @@
                         <th class="px-4 py-3 text-right">Avg Value</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($byPeriod as $row)
                         <tr class="odd:bg-white even:bg-gray-50/50 hover:bg-gray-50 transition">
                             <td class="px-4 py-2.5 font-medium text-gray-800">{{ $row->period }}</td>

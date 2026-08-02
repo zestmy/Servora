@@ -11,12 +11,12 @@
                 <h1 class="text-lg font-bold text-gray-800">Pages</h1>
                 <p class="text-xs text-gray-600 mt-0.5">Manage About, Privacy Policy, Terms of Use, and other content pages.</p>
             </div>
-            <button wire:click="create" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">+ New Page</button>
+            <button wire:click="create" class="btn-primary">+ New Page</button>
         </div>
 
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Page</th>
                         <th class="px-4 py-3 text-left">Slug</th>
@@ -25,7 +25,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($pages as $page)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
@@ -96,7 +96,7 @@
                         <p class="text-xs text-gray-600 mt-1">Supports HTML. Use <code>&amp;copy;</code> for the copyright symbol.</p>
                     </div>
                     <button wire:click="saveSiteSettings"
-                            class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition flex-shrink-0">
+                            class="btn-primary flex-shrink-0">
                         Save
                     </button>
                 </div>
@@ -230,7 +230,7 @@
             {{-- Submit --}}
             <div class="flex items-center justify-end gap-3">
                 <button type="button" wire:click="cancel" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
-                <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                <button type="submit" class="btn-primary">
                     {{ $editingId ? 'Update Page' : 'Create Page' }}
                 </button>
             </div>

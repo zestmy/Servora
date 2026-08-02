@@ -30,7 +30,7 @@
                 {{ $requirePoApproval ? 'Save & Submit' : 'Save & Approve' }}
             </button>
             <button wire:click="save"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Save Draft
             </button>
         </div>
@@ -275,14 +275,14 @@
                  }">
                 <div class="flex justify-end mb-2">
                     <button type="button" @click="toggleView()"
-                            class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                            class="btn-secondary btn-sm text-[11px] text-gray-500">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         <span x-text="detailed ? 'Simple view' : 'Show costs & details'"></span>
                     </button>
                 </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             @if ($isEditable)
                                 <th class="px-2 py-2 w-6"></th>
@@ -303,7 +303,7 @@
                             @endif
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50"
+                    <tbody
                         @if ($isEditable)
                             x-data
                             x-init="new Sortable($el, {
@@ -452,7 +452,7 @@
                         Save &amp; Send to Supplier
                     </button>
                     <button wire:click="save"
-                            class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Draft
                     </button>
                 </div>

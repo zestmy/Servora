@@ -29,8 +29,8 @@
 
     @if ($supplierId && $products->count() > 0)
         <div class="card overflow-hidden">
-            <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+            <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">SKU</th>
                         <th class="px-4 py-3 text-left">Supplier Product</th>
@@ -39,7 +39,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($products as $p)
                         @php $mapping = $mappings->get($p->id); @endphp
                         <tr class="hover:bg-gray-50">

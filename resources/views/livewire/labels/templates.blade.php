@@ -56,7 +56,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <a href="{{ route('labels.templates.design', $template) }}" wire:navigate
-                                   class="px-3 py-1.5 text-xs text-white bg-brand-600 rounded-lg hover:bg-brand-700">Design</a>
+                                   class="btn-primary btn-sm">Design</a>
                                 <button wire:click="duplicate({{ $template->id }})"
                                         class="btn-secondary btn-sm">Duplicate</button>
                                 @unless ($template->is_default)
@@ -113,7 +113,7 @@
                             <p class="text-xs text-gray-600">Starts from the standard arrangement, which you can then rearrange.</p>
                             <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                                 <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
-                                <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Create &amp; design</button>
+                                <button type="submit" class="btn-primary">Create &amp; design</button>
                             </div>
                         </form>
                     </div>

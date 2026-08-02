@@ -15,12 +15,12 @@
                 AI Public Holidays
             </button>
             <button wire:click="openImport"
-                    class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1.5">
+                    class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                 Import
             </button>
             <button wire:click="openCreate"
-                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 + Add Event
             </button>
         </div>
@@ -63,8 +63,8 @@
 
     {{-- Events Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[720px] text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[720px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Date</th>
                     <th class="px-4 py-3 text-left">Event</th>
@@ -74,7 +74,7 @@
                     <th class="px-4 py-3 text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody>
                 @forelse ($events as $row)
                     <tr class="hover:bg-gray-50 transition" wire:key="evt-{{ implode('-', $row['ids']) }}">
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -241,7 +241,7 @@
 
                 <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button wire:click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
-                    <button wire:click="save" class="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                    <button wire:click="save" class="btn-primary">
                         {{ $editingId ? 'Update' : 'Create' }}
                     </button>
                 </div>
@@ -342,8 +342,8 @@
                                 </p>
                             </div>
                             <div class="border border-gray-200 rounded-lg overflow-x-auto max-h-64 overflow-y-auto">
-                                <table class="w-full text-xs">
-                                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider sticky top-0">
+                                <table class="table-surface text-xs">
+                                    <thead class="sticky top-0">
                                         <tr>
                                             <th class="px-3 py-2 text-left">Row</th>
                                             <th class="px-3 py-2 text-left">Title</th>
@@ -354,7 +354,7 @@
                                             <th class="px-3 py-2 text-left">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-100">
+                                    <tbody>
                                         @foreach ($importPreview as $entry)
                                             <tr class="{{ $entry['valid'] ? '' : 'bg-danger-50' }}">
                                                 <td class="px-3 py-2 text-gray-600">{{ $entry['row'] }}</td>
@@ -383,7 +383,7 @@
                     <button wire:click="closeImportModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                     @if ($importPreview && collect($importPreview)->where('valid', true)->count() > 0)
                         <button wire:click="confirmImport"
-                                class="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition flex items-center gap-1.5">
+                                class="btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Import {{ collect($importPreview)->where('valid', true)->count() }} Event(s)
                         </button>
@@ -494,8 +494,8 @@
                                 </p>
                             </div>
                             <div class="border border-gray-200 rounded-lg overflow-x-auto max-h-72 overflow-y-auto">
-                                <table class="w-full text-xs">
-                                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider sticky top-0">
+                                <table class="table-surface text-xs">
+                                    <thead class="sticky top-0">
                                         <tr>
                                             <th class="px-3 py-2 text-center w-8"></th>
                                             <th class="px-3 py-2 text-left">Branch</th>
@@ -505,7 +505,7 @@
                                             <th class="px-3 py-2 text-left">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-100">
+                                    <tbody>
                                         @foreach ($holidayPreview as $i => $entry)
                                             <tr class="{{ $entry['exists'] ? 'bg-gray-50 text-gray-600' : '' }}">
                                                 <td class="px-3 py-2 text-center">
@@ -542,7 +542,7 @@
                     @if ($holidayPreview)
                         @php $selCount = collect($holidayPreview)->where('exists', false)->where('selected', true)->count(); @endphp
                         <button wire:click="confirmHolidays" @disabled($selCount === 0)
-                                class="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition flex items-center gap-1.5 disabled:opacity-50">
+                                class="btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             Add {{ $selCount }} Holiday{{ $selCount === 1 ? '' : 's' }}
                         </button>

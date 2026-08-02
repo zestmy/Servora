@@ -83,7 +83,7 @@
                 <input type="number" step="0.1" min="0.1" max="100" wire:model="threshold"
                        class="w-20 rounded-lg border-gray-300 text-sm text-right" />
                 <span class="text-sm text-gray-500">%</span>
-                <button wire:click="saveThreshold" class="px-3 py-1.5 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">Save</button>
+                <button wire:click="saveThreshold" class="btn-primary btn-sm">Save</button>
             </div>
         </div>
     </div>
@@ -191,8 +191,8 @@
 
     {{-- Price movement timeline, straight from ingredient_price_history --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[900px] w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Effective Date</th>
                     <th class="px-4 py-3 text-left">Product</th>
@@ -203,7 +203,7 @@
                     <th class="px-4 py-3 text-center">Source</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($history as $h)
                     @php
                         $prev = (float) $h->prev_cost;
@@ -253,8 +253,8 @@
     @else
     {{-- Notifications Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-left">Supplier</th>
@@ -265,7 +265,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($notifications as $n)
                     <tr class="{{ $n->is_read ? '' : 'bg-warning-50/40' }} hover:bg-gray-50 transition">
                         <td class="px-4 py-3">

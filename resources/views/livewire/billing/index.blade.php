@@ -32,7 +32,7 @@
                        placeholder="ENTER CODE"
                        class="flex-1 md:w-56 rounded-lg border-brand-200 text-sm font-mono uppercase shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                 <button wire:click="redeemCoupon" wire:loading.attr="disabled"
-                        class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                        class="btn-primary">
                     <span wire:loading.remove wire:target="redeemCoupon">Redeem</span>
                     <span wire:loading wire:target="redeemCoupon">Redeeming…</span>
                 </button>

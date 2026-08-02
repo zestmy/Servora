@@ -36,7 +36,7 @@
                         </div>
                         <button wire:click="save({{ $role->id }})"
                                 wire:confirm="Save this template? Access changes apply immediately to every user holding this role, in all companies."
-                                class="px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary btn-sm">
                             Save Template
                         </button>
                     </div>

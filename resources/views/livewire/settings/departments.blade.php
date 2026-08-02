@@ -24,7 +24,7 @@
             <p class="text-xs text-gray-600"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Departments</p>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + Add Department
         </button>
     </div>
@@ -34,8 +34,8 @@
     {{-- List — horizontally scrollable on mobile. --}}
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[820px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-[820px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Department</th>
                     <th class="px-4 py-3 text-left">Sales Category</th>
@@ -45,7 +45,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($departments as $dept)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $dept->name }}</td>
@@ -172,7 +172,7 @@
                     <button type="button" @click="$wire.closeModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Department
                     </button>
                 </div>

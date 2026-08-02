@@ -25,7 +25,7 @@
             <h2 class="text-lg font-semibold text-gray-800 mt-0.5">Form Templates</h2>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + New Template
         </button>
     </div>
@@ -37,11 +37,10 @@
     </div>
 
     {{-- Type filter tabs --}}
-    <div class="flex gap-2 mb-4">
+    <div class="seg mb-4">
         @foreach (['' => 'All', 'stock_take' => 'Stock Take', 'purchase_order' => 'Purchase Order', 'wastage' => 'Wastage'] as $val => $label)
             <button wire:click="$set('typeFilter', '{{ $val }}')"
-                    class="px-3 py-1.5 text-sm font-medium rounded-lg transition
-                        {{ $typeFilter === $val ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-brand-300' }}">
+                    class="seg-item {{ $typeFilter === $val ? 'seg-item-on' : '' }}">
                 {{ $label }}
             </button>
         @endforeach
@@ -51,8 +50,8 @@
     <div class="card overflow-hidden">
         @if ($templates->isNotEmpty())
           <div class="overflow-x-auto">
-            <table class="min-w-[900px] text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-100">
+            <table class="table-surface min-w-[900px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Template Name</th>
                         <th class="px-4 py-3 text-left w-36">Type</th>
@@ -62,7 +61,7 @@
                         <th class="px-4 py-3 text-right w-32">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($templates as $t)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-800">
@@ -127,7 +126,7 @@
                 <p class="font-medium text-gray-500">No templates yet</p>
                 <p class="text-xs mt-1">Create a template to pre-define item lists for stock takes, orders, or wastage entries.</p>
                 <button wire:click="openCreate"
-                        class="mt-4 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary mt-4">
                     Create First Template
                 </button>
             </div>
@@ -206,11 +205,11 @@
 
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
                     <button wire:click="closeModal"
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                            class="btn-secondary">
                         Cancel
                     </button>
                     <button wire:click="save"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         {{ $editingId ? 'Save Changes' : 'Create Template' }}
                     </button>
                 </div>

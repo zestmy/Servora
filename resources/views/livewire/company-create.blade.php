@@ -72,7 +72,7 @@
         <a href="{{ route('dashboard') }}"
            class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</a>
         <button wire:click="create" wire:loading.attr="disabled"
-                class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60">
+                class="btn-primary">
             <span wire:loading.remove wire:target="create">Create Company</span>
             <span wire:loading wire:target="create">Creating…</span>
         </button>

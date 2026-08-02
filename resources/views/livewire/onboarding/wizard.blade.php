@@ -67,7 +67,7 @@
 
                 <div class="flex items-center justify-between pt-4">
                     <button type="button" wire:click="skipStep" class="text-sm text-gray-600 hover:text-gray-900 transition">Skip</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    <button type="submit" class="btn-primary">
                         Continue
                     </button>
                 </div>
@@ -104,7 +104,7 @@
 
                 <div class="flex items-center justify-between pt-4">
                     <button type="button" wire:click="skipStep" class="text-sm text-gray-600 hover:text-gray-900 transition">Skip</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    <button type="submit" class="btn-primary">
                         Continue
                     </button>
                 </div>
@@ -157,7 +157,7 @@
 
                 <div class="flex items-center justify-between pt-4">
                     <button type="button" wire:click="skipStep" class="text-sm text-gray-600 hover:text-gray-900 transition">Skip</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    <button type="submit" class="btn-primary">
                         {{ empty($invites) ? 'Skip' : 'Invite & Continue' }}
                     </button>
                 </div>
@@ -190,7 +190,7 @@
             </div>
 
             <button wire:click="finishOnboarding"
-                    class="w-full py-3 bg-brand-600 text-white font-semibold rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary w-full py-3">
                 Go to Dashboard
             </button>
         @endif

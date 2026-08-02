@@ -23,7 +23,7 @@
             </select>
         @endif
         @if (isset($exportAction))
-            <button wire:click="{{ $exportAction }}" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition ml-auto">
+            <button wire:click="{{ $exportAction }}" class="btn-secondary ml-auto">
                 Export CSV
             </button>
         @endif

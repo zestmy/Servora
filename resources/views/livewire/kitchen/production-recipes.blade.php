@@ -17,11 +17,11 @@
         </div>
         <div class="flex gap-2">
             <a href="{{ route('kitchen.index') }}"
-               class="px-4 py-2 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition">
+               class="btn-secondary">
                 &larr; Back
             </a>
             <a href="{{ route('kitchen.recipes.create') }}"
-               class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+               class="btn-primary">
                 + New Production Recipe
             </a>
         </div>
@@ -60,8 +60,8 @@
     <div class="card overflow-hidden">
         @if ($recipes->count() > 0)
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-3 text-left">Name</th>
                             <th class="px-4 py-3 text-left">Code</th>
@@ -78,7 +78,7 @@
                             <th class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($recipes as $recipe)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3">

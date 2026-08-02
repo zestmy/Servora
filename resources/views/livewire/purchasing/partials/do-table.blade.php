@@ -1,6 +1,6 @@
 <div class="card overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-100 text-sm">
-        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+    <table class="table-surface min-w-full">
+        <thead>
             <tr>
                 <th class="px-4 py-3 text-left">DO Number</th>
                 <th class="px-4 py-3 text-left">PO Reference</th>
@@ -12,7 +12,7 @@
                 <th class="px-4 py-3 text-center">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50">
+        <tbody>
             @forelse ($deliveryOrders as $do)
                 @php
                     $badge = match($do->status) {

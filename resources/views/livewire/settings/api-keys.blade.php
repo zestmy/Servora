@@ -114,7 +114,7 @@
             </div>
 
             <button wire:click="saveOpenRouter"
-                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Save OpenRouter Settings
             </button>
 
@@ -186,13 +186,13 @@
 
             <div class="flex items-center gap-3">
                 <button wire:click="saveEngineMailer"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     Save EngineMailer Settings
                 </button>
                 @if ($enginemailer_key && $enginemailer_sender_email)
                     <button wire:click="testEngineMailer"
                             wire:loading.attr="disabled"
-                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+                            class="btn-secondary">
                         <span wire:loading.remove wire:target="testEngineMailer">Test Connection</span>
                         <span wire:loading wire:target="testEngineMailer">Sending test email…</span>
                     </button>

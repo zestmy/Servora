@@ -43,7 +43,7 @@
             @endif
             @if ($canCreatePo)
                 <a href="{{ route('purchasing.orders.create') }}"
-                   class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     <span class="sm:hidden">+ PO</span>
                     <span class="hidden sm:inline">+ New Purchase Order</span>
                 </a>
@@ -220,7 +220,7 @@
             </div>
 
             @if ($tab === 'po')
-                <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                <button wire:click="exportCsv" class="btn-secondary">
                     Export CSV
                 </button>
             @endif

@@ -47,8 +47,8 @@
                 @endif
             </div>
             <div class="flex items-center justify-center gap-3">
-                <a href="{{ route('ingredients.review-documents') }}" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">Back to Review</a>
-                <a href="{{ route('ingredients.scan-document') }}" class="px-5 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Scan another</a>
+                <a href="{{ route('ingredients.review-documents') }}" class="btn-primary">Back to Review</a>
+                <a href="{{ route('ingredients.scan-document') }}" class="btn-secondary">Scan another</a>
             </div>
         </div>
     @else
@@ -86,7 +86,7 @@
                             <input type="text" wire:model="newSupplierName" placeholder="New supplier name"
                                    class="flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                             <button type="button" wire:click="createSupplier"
-                                    class="px-3 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition whitespace-nowrap">
+                                    class="btn-primary btn-sm">
                                 Create &amp; link
                             </button>
                         </div>
@@ -127,8 +127,8 @@
 
         {{-- Items table --}}
         <div class="card overflow-hidden mb-6">
-            <table class="min-w-full text-xs">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
+            <table class="table-surface min-w-full text-xs">
+                <thead>
                     <tr>
                         <th class="px-4 py-2 text-left w-8">#</th>
                         <th class="px-4 py-2 text-left">Item (from invoice)</th>
@@ -139,7 +139,7 @@
                         <th class="px-4 py-2 text-center w-28">Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($items as $idx => $item)
                         @php
                             $bg = match($item['action']) {
@@ -233,9 +233,9 @@
 
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
-            <a href="{{ route('ingredients.review-documents') }}" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">← Back</a>
+            <a href="{{ route('ingredients.review-documents') }}" class="btn-secondary">← Back</a>
             <button wire:click="import" wire:loading.attr="disabled"
-                    class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="import">Import {{ $totalItems }} items</span>
                 <span wire:loading wire:target="import">Importing…</span>
             </button>

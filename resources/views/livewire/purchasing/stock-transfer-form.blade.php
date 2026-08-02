@@ -16,7 +16,7 @@
         </div>
         <div class="flex gap-2">
             <button wire:click="save('draft')" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition">Save Draft</button>
-            <button wire:click="save('send')" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">Save & Send</button>
+            <button wire:click="save('send')" class="btn-primary">Save & Send</button>
         </div>
     </div>
 
@@ -111,8 +111,8 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <table class="table-surface">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left">#</th>
                                 <th class="px-4 py-3 text-left">Product</th>
@@ -125,7 +125,7 @@
                                 <th class="px-4 py-3 w-12"></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             @forelse ($lines as $i => $line)
                                 <tr wire:key="line-{{ $i }}">
                                     <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>

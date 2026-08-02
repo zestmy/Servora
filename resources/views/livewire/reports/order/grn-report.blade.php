@@ -31,8 +31,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left font-medium text-gray-500">GRN Number</th>
                         <th class="px-4 py-3 text-left font-medium text-gray-500">PO Number</th>
@@ -45,7 +45,7 @@
                         <th class="px-4 py-3 text-center font-medium text-gray-500">Variance</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($grns as $grn)
                         @php
                             $hasVariance = $grn->lines->contains(fn ($l) => floatval($l->received_quantity) != floatval($l->expected_quantity));

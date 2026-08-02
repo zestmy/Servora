@@ -26,7 +26,7 @@
                 Save & Schedule
             </button>
             <button wire:click="save"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Save Draft
             </button>
         </div>
@@ -197,8 +197,8 @@
         {{-- Lines table --}}
         @if (count($lines))
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Item</th>
@@ -211,7 +211,7 @@
                             @endif
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($lines as $idx => $line)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
@@ -292,7 +292,7 @@
                         Save & Schedule
                     </button>
                     <button wire:click="save"
-                            class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Draft
                     </button>
                 </div>

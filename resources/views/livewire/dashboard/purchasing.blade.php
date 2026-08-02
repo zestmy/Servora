@@ -6,26 +6,14 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     {{-- Quick Actions --}}
     <div class="card p-6">
-        <h3 class="text-sm font-semibold text-gray-600 mb-4">Quick Actions</h3>
-        <div class="space-y-3">
-            <a href="{{ route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']) }}" class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-sm">
-                <div class="flex items-center gap-3">
-                    <span class="text-lg">📥</span>
-                    <span class="font-medium text-gray-700">Review Submitted POs</span>
-                </div>
-                @if (($stats[0]['value'] ?? 0) > 0)
-                    <span class="px-2 py-0.5 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">{{ $stats[0]['value'] }}</span>
-                @endif
-            </a>
-            <a href="{{ route('purchasing.index', ['tab' => 'do']) }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-sm">
-                <span class="text-lg">🚚</span>
-                <span class="font-medium text-gray-700">View Delivery Orders</span>
-            </a>
-            <a href="{{ route('purchasing.index', ['tab' => 'grn']) }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-sm">
-                <span class="text-lg">📋</span>
-                <span class="font-medium text-gray-700">View Goods Received</span>
-            </a>
-        </div>
+        @include('livewire.dashboard.partials.quick-actions', ['actions' => [
+            ['route' => 'purchasing.index', 'params' => ['tab' => 'po', 'statusFilter' => 'submitted'],
+             'icon'  => 'inbox',     'label' => 'Review submitted POs', 'count' => $stats[0]['value'] ?? null],
+            ['route' => 'purchasing.index', 'params' => ['tab' => 'do'],
+             'icon'  => 'truck',     'label' => 'View delivery orders'],
+            ['route' => 'purchasing.index', 'params' => ['tab' => 'grn'],
+             'icon'  => 'clipboard', 'label' => 'View goods received'],
+        ]])
     </div>
 
     {{-- Workflow Summary --}}

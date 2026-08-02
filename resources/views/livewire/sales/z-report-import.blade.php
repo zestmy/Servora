@@ -152,15 +152,15 @@
                         </div>
 
                         @if ($includeAllDay)
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                            <table class="table-surface min-w-full">
+                                <thead>
                                     <tr>
                                         <th class="px-4 py-2 text-left">Dept (from Z-Report)</th>
                                         <th class="px-4 py-2 text-left w-48">Map to Category</th>
                                         <th class="px-4 py-2 text-right w-40">Net Revenue (RM)</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-50">
+                                <tbody>
                                     @foreach ($allDayLines as $idx => $line)
                                         <tr class="{{ $line['unmatched'] ? 'bg-warning-50' : '' }}">
                                             <td class="px-4 py-2">
@@ -379,7 +379,7 @@
                     <button type="button" wire:click="processZReport"
                             wire:loading.attr="disabled"
                             wire:target="processZReport,importFile"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="processZReport">Extract Data</span>
                         <span wire:loading wire:target="processZReport" class="flex items-center gap-1.5">
                             <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

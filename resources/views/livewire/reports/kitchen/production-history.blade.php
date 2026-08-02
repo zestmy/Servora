@@ -26,13 +26,13 @@
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
             </select>
-            <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 ml-auto">Export CSV</button>
+            <button wire:click="exportCsv" class="btn-secondary ml-auto">Export CSV</button>
         </div>
     </div>
 
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Order #</th>
                     <th class="px-4 py-3 text-left">Kitchen</th>
@@ -41,7 +41,7 @@
                     <th class="px-4 py-3 text-center">Status</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($orders as $o)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 font-mono text-xs font-medium text-brand-600">{{ $o->order_number }}</td>

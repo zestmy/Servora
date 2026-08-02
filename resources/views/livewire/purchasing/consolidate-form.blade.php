@@ -23,7 +23,7 @@
         <div class="flex gap-2">
             @if ($editMode)
                 <button wire:click="exitEditMode"
-                        class="px-4 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Back to Summary
                 </button>
                 <select wire:model="cpuId" title="Central Purchasing Unit that places these orders"
@@ -34,13 +34,13 @@
                     @endforeach
                 </select>
                 <button wire:click="consolidate" wire:loading.attr="disabled"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     <span wire:loading.remove wire:target="consolidate">Create {{ count(collect($editablePreview)->filter(fn($g) => ((int) ($g['supplier_id'] ?? 0)) !== 0 && collect($g['lines'])->where('excluded', false)->isNotEmpty())) }} draft PO(s)</span>
                     <span wire:loading wire:target="consolidate">Creating...</span>
                 </button>
             @elseif (count($selectedPrIds) > 0 && !$showPreview)
                 <button wire:click="generatePreview"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     Preview Consolidation ({{ count($selectedPrIds) }})
                 </button>
             @endif
@@ -89,8 +89,8 @@
 
                     {{-- Lines Table --}}
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                        <table class="table-surface">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-2 w-10 text-center">Inc.</th>
                                     <th class="px-4 py-2 text-left">Product</th>
@@ -102,7 +102,7 @@
                                     <th class="px-4 py-2 text-right w-28">Total</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($group['lines'] as $lIdx => $line)
                                     <tr wire:key="line-{{ $gIdx }}-{{ $lIdx }}"
                                         class="{{ ($line['excluded'] ?? false) ? 'opacity-40 bg-gray-50' : 'hover:bg-gray-50' }} transition">
@@ -336,7 +336,7 @@
                         {{-- Single commit path: creating happens in the editable
                              review, where quantities and suppliers can be fixed. --}}
                         <button wire:click="enterEditMode"
-                                class="w-full px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary w-full">
                             Open Review &amp; Create
                         </button>
                         <p class="text-[11px] text-gray-600 text-center">Orders are created as drafts from the review screen — then sent from the Orders (PO) tab.</p>

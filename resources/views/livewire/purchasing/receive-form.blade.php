@@ -224,8 +224,8 @@
         {{-- Lines table --}}
         @if (count($lines))
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-2 text-left">#</th>
                             <th class="px-4 py-2 text-left">Product</th>
@@ -244,7 +244,7 @@
                             @endif
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($lines as $idx => $line)
                             @php
                                 $received = floatval($line['received_qty'] ?? 0);

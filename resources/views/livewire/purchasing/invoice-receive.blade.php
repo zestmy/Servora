@@ -71,7 +71,7 @@
                     @endif
 
                     <button type="submit" @disabled(!$invoiceFile || $processing)
-                            class="w-full px-4 py-3 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2">
+                            class="btn-primary w-full py-3">
                         @if ($processing)
                             <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                             Scanning & Extracting...
@@ -158,8 +158,8 @@
                         <h3 class="text-sm font-semibold text-gray-700">Line Items</h3>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-100 text-sm">
-                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <table class="table-surface min-w-full">
+                            <thead>
                                 <tr>
                                     <th class="px-3 py-2 text-left w-8">#</th>
                                     <th class="px-3 py-2 text-left">Matched Ingredient</th>
@@ -172,7 +172,7 @@
                                     <th class="px-3 py-2 text-center w-8"></th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($lines as $i => $line)
                                     @php
                                         $lineExceptions = collect($exceptions)->where('line_index', $i);
@@ -282,7 +282,7 @@
                         Approve & Create Invoice
                     </button>
                     <button wire:click="reject" wire:confirm="Discard this scan?"
-                            class="px-4 py-2.5 text-gray-600 bg-white border border-gray-300 font-medium rounded-lg hover:bg-gray-50 transition">
+                            class="btn-secondary">
                         Reject
                     </button>
                     <a href="{{ route('purchasing.invoices.index') }}"

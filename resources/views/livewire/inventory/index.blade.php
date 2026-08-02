@@ -13,17 +13,17 @@
         <div class="flex items-center gap-2">
             @if ($tab === 'stock-takes')
                 <a href="{{ route('inventory.stock-takes.create') }}"
-                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     + New Stock Take
                 </a>
             @elseif ($tab === 'wastage')
                 <a href="{{ route('inventory.wastage.create') }}"
-                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     + Record Wastage
                 </a>
             @elseif ($tab === 'staff-meals')
                 <a href="{{ route('inventory.staff-meals.create') }}"
-                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     + Record Staff Meal
                 </a>
             @elseif ($tab === 'transfers')
@@ -33,7 +33,7 @@
                 </a>
             @elseif ($tab === 'purchases')
                 <a href="{{ route('inventory.purchases.create') }}"
-                   class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     + Record Purchase
                 </a>
             @endif
@@ -90,8 +90,8 @@
                     RM {{ number_format($categoryBreakdown['total'], 2) }} total
                 </span>
             </div>
-            <table class="min-w-full text-sm divide-y divide-gray-50">
-                <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-5 py-2 text-left">Category</th>
                         <th class="px-5 py-2 text-right">Stock Value (RM)</th>
@@ -236,8 +236,8 @@
     {{-- ── Stock Takes Tab ───────────────────────────────────────────────── --}}
     @if ($tab === 'stock-takes')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Reference</th>
@@ -248,7 +248,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($stockTakes as $record)
                         @php
                             $statusColor = match($record->status) {
@@ -326,8 +326,8 @@
     {{-- ── Purchases Tab ─────────────────────────────────────────────────── --}}
     @if ($tab === 'purchases')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Department</th>
@@ -337,7 +337,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($purchases as $record)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-700">
@@ -396,8 +396,8 @@
     {{-- ── Staff Meals Tab ──────────────────────────────────────────────── --}}
     @if ($tab === 'staff-meals')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Reference</th>
@@ -406,7 +406,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($staffMealRecords as $record)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-700">
@@ -478,8 +478,8 @@
     {{-- ── Transfers Tab ─────────────────────────────────────────────────── --}}
     @if ($tab === 'transfers')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Transfer #</th>
@@ -490,7 +490,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($transfers as $transfer)
                         @php
                             $statusColor = match($transfer->status) {
@@ -563,8 +563,8 @@
     {{-- ── Wastage Tab ───────────────────────────────────────────────────── --}}
     @if ($tab === 'wastage')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Reference</th>
@@ -573,7 +573,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($wastageRecords as $record)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-700">

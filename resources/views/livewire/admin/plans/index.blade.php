@@ -18,7 +18,7 @@
             <p class="text-xs text-gray-600 mt-0.5">Manage plans that customers can subscribe to.</p>
         </div>
         <a href="{{ route('admin.plans.create') }}"
-           class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+           class="btn-primary">
             + New Plan
         </a>
     </div>

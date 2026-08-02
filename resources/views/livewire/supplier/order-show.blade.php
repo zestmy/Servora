@@ -42,8 +42,8 @@
 
     {{-- Line Items --}}
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">#</th>
                     <th class="px-4 py-3 text-left">Item</th>
@@ -53,7 +53,7 @@
                     <th class="px-4 py-3 text-right">Total</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @foreach ($order->lines as $i => $line)
                     <tr>
                         <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>

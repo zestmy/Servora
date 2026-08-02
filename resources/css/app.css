@@ -61,9 +61,15 @@
         @apply translate-y-px;
     }
 
+    /* The borderless variants carry a TRANSPARENT border so every variant
+       boxes to the same height. Without it .btn-secondary is 2px taller than
+       .btn-primary — its border is inside the box — and the two sit visibly
+       misaligned wherever a toolbar puts them side by side, which is most
+       screens in here. */
+
     /* white on brand-600 = 5.42:1 ✓ */
     .btn-primary {
-        @apply btn bg-brand-600 text-white shadow-btn
+        @apply btn bg-brand-600 text-white border border-transparent shadow-btn
                hover:bg-brand-700 hover:shadow-btn-hover active:bg-brand-800;
     }
     .btn-secondary {
@@ -71,12 +77,12 @@
                hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100;
     }
     .btn-ghost {
-        @apply btn bg-transparent text-gray-600
+        @apply btn bg-transparent text-gray-600 border border-transparent
                hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200;
     }
     /* white on danger-600 = 4.83:1 ✓ */
     .btn-danger {
-        @apply btn bg-danger-600 text-white shadow-e2
+        @apply btn bg-danger-600 text-white border border-transparent shadow-e2
                hover:bg-danger-700 active:bg-danger-800;
     }
     /* For placing over photography or a coloured panel. Never a bare
@@ -139,17 +145,28 @@
     .badge-danger  { @apply badge bg-danger-50  text-danger-800; }
 
     /* ── Tables ───────────────────────────────────────────────────────────
-       Hairline between rows only. No border-t AND border-b on every row. */
-    .table-surface   { @apply w-full text-sm; }
+       Hairline between rows only. No border-t AND border-b on every row.
+
+       Deliberately styles ONLY the chrome — header treatment, row rule, row
+       hover — and sets no padding, alignment or text colour on cells.
+
+       These are descendant selectors, so they carry more specificity than a
+       utility class and would silently win over anything in the markup. An
+       earlier version set `text-left` on th and `text-gray-700` on td, which
+       would have left-aligned 265 deliberately centred and right-aligned
+       column headers, and flattened the `text-gray-800` cells that exist to
+       carry emphasis. Per-cell decisions stay in the markup where they can
+       be seen; only the things that should never vary live here. */
+    .table-surface { @apply w-full text-sm; }
     .table-surface thead th {
-        @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide
+        @apply text-xs font-semibold uppercase tracking-wide
                text-gray-600 bg-gray-50 border-b border-gray-200;
     }
-    .table-surface tbody td {
-        @apply px-4 py-3 text-gray-700 border-b border-gray-100;
+    /* Rule on the row, not the cell, for the same reason. */
+    .table-surface tbody tr {
+        @apply border-b border-gray-100 transition-colors hover:bg-brand-50/40;
     }
-    .table-surface tbody tr:last-child td { @apply border-b-0; }
-    .table-surface tbody tr { @apply transition-colors hover:bg-brand-50/40; }
+    .table-surface tbody tr:last-child { @apply border-b-0; }
 
     /* Any wide table scrolls inside its own box. The page body must never
        scroll sideways. */

@@ -14,7 +14,7 @@
             @can('audit.view')
                 <button wire:click="$set('showActivityLog', true)"
                         title="Recent activity — who added, updated or deleted products"
-                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                        class="btn-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -32,7 +32,7 @@
                 </button>
             @endif
             <a href="{{ route('ingredients.export') }}"
-               class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
+               class="btn-secondary"
                title="Export to CSV">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 12l-4 4-4-4M12 4v12" />
@@ -41,7 +41,7 @@
             </a>
             <a href="{{ route('ingredients.pdf', ['search' => $search, 'category' => $categoryFilter, 'status' => $statusFilter, 'supplier' => $supplierFilter, 'factor' => $factorFilter]) }}"
                target="_blank"
-               class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
+               class="btn-secondary"
                title="Export filtered list as PDF">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -63,7 +63,7 @@
                 </span>
             @else
                 <button wire:click="openImport"
-                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
+                        class="btn-secondary"
                         title="Bulk update from CSV">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
@@ -71,7 +71,7 @@
                     <span class="hidden sm:inline">Bulk Update</span>
                 </button>
                 <a href="{{ route('ingredients.scan-document') }}"
-                   class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5"
+                   class="btn-secondary"
                    title="Price Watcher — scan supplier documents (invoice / quotation / price list)">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 14l4-4 4 4 6-6" />
@@ -80,14 +80,14 @@
                 </a>
                 <a href="{{ route('ingredients.import') }}"
                    title="Import"
-                   class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                   class="btn-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <span class="hidden sm:inline">Import</span>
                 </a>
                 <button wire:click="openCreate"
-                        class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     <span class="sm:hidden">+ Add</span>
                     <span class="hidden sm:inline">+ Add Product</span>
                 </button>
@@ -181,12 +181,12 @@
             </span>
             <div class="flex items-center gap-2">
                 <button wire:click="$set('selectedIds', [])"
-                        class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary btn-sm">
                     Clear
                 </button>
                 <button wire:click="bulkDelete"
                         wire:confirm="Delete {{ count($selectedIds) }} selected product(s)? This cannot be undone."
-                        class="px-3 py-1.5 text-xs font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 transition">
+                        class="btn-danger btn-sm">
                     Delete Selected
                 </button>
             </div>
@@ -205,7 +205,7 @@
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
                 <button wire:click="exitQuickEdit"
-                        class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary btn-sm">
                     Cancel
                 </button>
                 <button wire:click="saveQuickEdit" wire:loading.attr="disabled"
@@ -218,8 +218,8 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden mb-4">
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                    <thead class="bg-purple-50 text-purple-700 uppercase text-[10px] tracking-wider">
+                <table class="table-surface min-w-full text-xs">
+                    <thead class="bg-purple-50 text-purple-700">
                         <tr>
                             <th class="px-2 py-2 text-left w-8">#</th>
                             <th class="px-2 py-2 text-left" style="min-width:180px;">Name</th>
@@ -236,7 +236,7 @@
                             <th class="px-2 py-2 text-center" style="min-width:50px;">Active</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @php $qn = 0; @endphp
                         @foreach ($editableRows as $ingId => $row)
                             @php $qn++; @endphp
@@ -334,7 +334,7 @@
             <span class="text-sm text-gray-500">{{ count($editableRows) }} products</span>
             <div class="flex items-center gap-2">
                 <button wire:click="exitQuickEdit"
-                        class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Cancel
                 </button>
                 <button wire:click="saveQuickEdit" wire:loading.attr="disabled"
@@ -350,8 +350,8 @@
     @if (! $quickEdit)
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 w-10">
                         <input type="checkbox" wire:model.live="selectAll"
@@ -371,7 +371,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($ingredients as $ingredient)
                     <tr class="hover:bg-gray-50 transition {{ in_array($ingredient->id, $selectedIds) ? 'bg-brand-50' : '' }}">
                         <td class="px-4 py-3">
@@ -929,8 +929,8 @@
 
                             @if (count($conversions))
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full text-xs">
-                                        <thead class="text-gray-600 uppercase tracking-wider">
+                                    <table class="table-surface min-w-full text-xs">
+                                        <thead>
                                             <tr>
                                                 <th class="pb-1 text-left font-medium">1 unit of</th>
                                                 <th class="pb-1 text-center font-medium">=</th>
@@ -939,7 +939,7 @@
                                                 <th class="pb-1"></th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-50">
+                                        <tbody>
                                             @foreach ($conversions as $idx => $row)
                                                 <tr>
                                                     <td class="py-1 pr-2">
@@ -1087,7 +1087,7 @@
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Product
                     </button>
                 </div>
@@ -1157,7 +1157,7 @@
                 <button type="button" @click="$wire.closeImport()"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                 <button wire:click="processImport"
-                        class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition"
+                        class="btn-primary"
                         {{ !$importFile ? 'disabled' : '' }}>
                     Process Update
                 </button>
@@ -1224,7 +1224,7 @@
                     <button type="button" @click="$wire.closeCategoryModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         {{ $editingCategoryId ? 'Update' : 'Create' }}
                     </button>
                 </div>
@@ -1421,7 +1421,7 @@
             </div>
 
             <div class="flex items-center justify-end gap-2 px-6 py-3 border-t border-gray-100">
-                <button @click="$wire.closeDuplicatesModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Close</button>
+                <button @click="$wire.closeDuplicatesModal()" class="btn-secondary">Close</button>
             </div>
         </div>
         </div>

@@ -33,8 +33,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left font-medium text-gray-500">PO Number</th>
                         <th class="px-4 py-3 text-left font-medium text-gray-500">Outlet</th>
@@ -45,7 +45,7 @@
                         <th class="px-4 py-3 text-right font-medium text-gray-500">Total Amount</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($orders as $order)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $order->po_number }}</td>

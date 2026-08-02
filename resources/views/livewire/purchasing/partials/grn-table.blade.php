@@ -51,8 +51,8 @@
     </div>
 
     {{-- ── Desktop table (md+) ───────────────────────────────────────────── --}}
-    <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
-        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+    <table class="table-surface hidden md:table min-w-full">
+        <thead>
             <tr>
                 <th class="px-4 py-3 text-left">GRN Number</th>
                 <th class="px-4 py-3 text-left">DO Reference</th>
@@ -67,7 +67,7 @@
                 <th class="px-4 py-3 text-center">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50">
+        <tbody>
             @forelse ($grns as $grn)
                 @php
                     $badge = match($grn->status) {

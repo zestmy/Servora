@@ -26,8 +26,8 @@
             <h3 class="text-sm font-semibold text-gray-600">Recently Created Companies</h3>
             <a href="{{ route('admin.company-health') }}" class="text-xs text-brand-600 hover:text-brand-800 font-medium">View all →</a>
         </div>
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-2.5 text-left">Company</th>
                     <th class="px-4 py-2.5 text-left">Plan</th>
@@ -36,7 +36,7 @@
                     <th class="px-4 py-2.5 text-left">Created</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($recentCompanies as $company)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-2.5">

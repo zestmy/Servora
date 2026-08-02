@@ -15,8 +15,8 @@
     </div>
 
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Invoice #</th>
                     <th class="px-4 py-3 text-center">Issued</th>
@@ -26,7 +26,7 @@
                     <th class="px-4 py-3 text-center">Status</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($invoices as $inv)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 font-mono text-xs font-medium text-gray-700">{{ $inv->invoice_number }}</td>

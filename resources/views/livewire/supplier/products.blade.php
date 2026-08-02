@@ -7,7 +7,7 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="page-title">Product Catalog</h2>
         <div class="flex gap-2">
-            <button wire:click="openCreate" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">+ Add Product</button>
+            <button wire:click="openCreate" class="btn-primary">+ Add Product</button>
         </div>
     </div>
 
@@ -30,8 +30,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">SKU</th>
                     <th class="px-4 py-3 text-left">Name</th>
@@ -41,7 +41,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($products as $p)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ $p->sku }}</td>
@@ -137,7 +137,7 @@
                     </div>
                     <div class="flex justify-end gap-3 mt-6">
                         <button wire:click="$set('showForm', false)" class="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                        <button wire:click="save" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">{{ $editId ? 'Update' : 'Create' }}</button>
+                        <button wire:click="save" class="btn-primary">{{ $editId ? 'Update' : 'Create' }}</button>
                     </div>
                 </div>
             </div>

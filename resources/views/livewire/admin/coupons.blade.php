@@ -9,7 +9,7 @@
     <div class="flex items-center justify-between mb-6">
         <h2 class="page-title">Coupons</h2>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + New Coupon
         </button>
     </div>
@@ -21,8 +21,8 @@
     </div>
 
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-5 py-3 text-left">Code</th>
                     <th class="px-5 py-3 text-left">Plan</th>
@@ -33,7 +33,7 @@
                     <th class="px-5 py-3 text-center w-28">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($coupons as $c)
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3">
@@ -98,7 +98,7 @@
                     <label class="text-sm font-medium text-gray-700">Coupon Code *</label>
                     <div class="flex gap-2 mt-1">
                         <input type="text" wire:model="code" class="flex-1 rounded-lg border-gray-300 text-sm font-mono uppercase shadow-sm focus:border-brand-500 focus:ring-brand-500" />
-                        <button type="button" wire:click="generateCode" class="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Generate</button>
+                        <button type="button" wire:click="generateCode" class="btn-secondary btn-sm">Generate</button>
                     </div>
                     <x-input-error :messages="$errors->get('code')" class="mt-1" />
                 </div>
@@ -165,8 +165,8 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-                <button wire:click="closeModal" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                <button wire:click="save" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
+                <button wire:click="closeModal" class="btn-secondary">Cancel</button>
+                <button wire:click="save" class="btn-primary">
                     {{ $editingId ? 'Update' : 'Create' }} Coupon
                 </button>
             </div>

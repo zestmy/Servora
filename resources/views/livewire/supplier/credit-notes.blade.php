@@ -11,7 +11,7 @@
         <div class="flex items-center gap-4">
             <div class="text-sm text-gray-500">Outstanding: <span class="font-bold text-gray-800">RM {{ number_format($totalOutstanding, 2) }}</span></div>
             <a href="{{ route('supplier.credit-notes.create') }}"
-               class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+               class="btn-primary">
                 Issue Credit Note
             </a>
         </div>
@@ -29,8 +29,8 @@
     </div>
 
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Number</th>
                     <th class="px-4 py-3 text-left">Type</th>
@@ -41,7 +41,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($creditNotes as $cn)
                     @php
                         $statusBadge = match($cn->status) {

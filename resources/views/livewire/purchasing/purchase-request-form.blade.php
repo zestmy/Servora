@@ -26,7 +26,7 @@
                     Save Draft
                 </button>
                 <button wire:click="save('submit')" wire:loading.attr="disabled"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     Save & Submit
                 </button>
             </div>
@@ -141,8 +141,8 @@
             {{-- Lines Table --}}
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <table class="table-surface">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left">#</th>
                                 <th class="px-4 py-3 text-left">Product</th>
@@ -156,7 +156,7 @@
                                 @endif
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             @forelse ($lines as $i => $line)
                                 <tr wire:key="line-{{ $i }}">
                                     <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>

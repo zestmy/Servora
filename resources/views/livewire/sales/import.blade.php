@@ -90,7 +90,7 @@
             @if ($file)
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="processUpload">Map Columns &rarr;</span>
                         <span wire:loading wire:target="processUpload">Parsing file...</span>
                     </button>
@@ -108,15 +108,15 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                <table class="table-surface min-w-full text-xs">
+                    <thead>
                         <tr>
                             <th class="px-4 py-2 text-left w-48">File Column</th>
                             <th class="px-4 py-2 text-left w-56">Map To</th>
                             <th class="px-4 py-2 text-left">Sample Data (first 3 rows)</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($fileHeaders as $idx => $header)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3">
@@ -159,12 +159,12 @@
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
             <button wire:click="restart"
-                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 &larr; Upload Different File
             </button>
 
             <button wire:click="applyMapping" wire:loading.attr="disabled"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="applyMapping">Preview Import &rarr;</span>
                 <span wire:loading wire:target="applyMapping">Processing...</span>
             </button>
@@ -198,8 +198,8 @@
                 <p class="text-xs text-gray-600">Red rows have errors and will be skipped.</p>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                <table class="table-surface min-w-full text-xs">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2 text-left w-10">#</th>
                             <th class="px-3 py-2 text-left w-28">Date</th>
@@ -213,7 +213,7 @@
                             <th class="px-3 py-2 text-left">Issues</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($rows as $row)
                             <tr class="{{ $row['skip'] ? 'bg-danger-50' : 'hover:bg-gray-50' }} transition">
                                 <td class="px-3 py-2 text-gray-600">{{ $row['row'] }}</td>
@@ -260,14 +260,14 @@
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
             <button wire:click="backToMapping"
-                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 &larr; Back to Mapping
             </button>
 
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
                         wire:confirm="Import {{ $validRows }} sales record(s)? Rows with errors will be skipped."
-                        class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                        class="btn-primary">
                     <span wire:loading.remove wire:target="import">Import {{ $validRows }} Record{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing...</span>
                 </button>
@@ -302,11 +302,11 @@
 
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('sales.index') }}"
-                   class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     View Sales
                 </a>
                 <button wire:click="restart"
-                        class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Import Another File
                 </button>
             </div>

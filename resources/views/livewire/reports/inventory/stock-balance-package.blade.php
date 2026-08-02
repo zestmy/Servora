@@ -32,7 +32,7 @@
                     @endif
                 @endforeach
             </select>
-            <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition ml-auto">
+            <button wire:click="exportCsv" class="btn-secondary ml-auto">
                 Export CSV
             </button>
         </div>
@@ -40,8 +40,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-left">Code</th>
@@ -53,7 +53,7 @@
                     <th class="px-4 py-3 text-right">Last ST Qty</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($items as $item)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $item->name }}</td>

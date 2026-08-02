@@ -35,25 +35,13 @@
 
     {{-- Quick Actions --}}
     <div class="card p-6">
-        <h3 class="text-sm font-semibold text-gray-600 mb-4">Quick Actions</h3>
-        <div class="space-y-3">
-            <a href="{{ route('recipes.index') }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-sm">
-                <span class="text-lg">📋</span>
-                <span class="font-medium text-gray-700">View Recipes</span>
-            </a>
-            <a href="{{ route('inventory.stock-takes.create') }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-sm">
-                <span class="text-lg">📦</span>
-                <span class="font-medium text-gray-700">New Stock Take</span>
-            </a>
-            <a href="{{ route('inventory.wastage.create') }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-sm">
-                <span class="text-lg">🗑️</span>
-                <span class="font-medium text-gray-700">Record Wastage</span>
-            </a>
-            <a href="{{ route('purchasing.index', ['tab' => 'grn']) }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-success-300 hover:bg-success-50 transition text-sm">
-                <span class="text-lg">📥</span>
-                <span class="font-medium text-gray-700">Receive Goods (GRN)</span>
-            </a>
-        </div>
+        @include('livewire.dashboard.partials.quick-actions', ['actions' => [
+            ['route' => 'recipes.index',                 'icon' => 'clipboard', 'label' => 'View recipes'],
+            ['route' => 'inventory.stock-takes.create',  'icon' => 'database',  'label' => 'New stock take'],
+            ['route' => 'inventory.wastage.create',      'icon' => 'trash',     'label' => 'Record wastage'],
+            ['route' => 'purchasing.index', 'params' => ['tab' => 'grn'],
+             'icon'  => 'inbox',                         'label' => 'Receive goods (GRN)'],
+        ]])
     </div>
 
     {{-- Over-cost Recipes Alert --}}

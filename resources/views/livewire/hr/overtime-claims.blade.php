@@ -34,23 +34,23 @@
         </div>
         <div class="flex items-center gap-2">
             <button wire:click="openPdfModal"
-                    class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 Print PDF
             </button>
             <button wire:click="openSummaryModal"
-                    class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 Summary Report
             </button>
             <a href="{{ route('hr.employees') }}"
-               class="px-3 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 Employee List
             </a>
             <button wire:click="openAddEmployee"
-                    class="px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 + Add Employee
             </button>
             <button wire:click="openCreate"
-                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 + New OT Claim
             </button>
         </div>
@@ -383,7 +383,7 @@
                     Approve Selected
                 </button>
                 <button wire:click="openBulkReject"
-                        class="px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700 transition">
+                        class="btn-danger btn-sm">
                     Reject Selected
                 </button>
                 <button wire:click="$set('selected', [])"
@@ -397,8 +397,8 @@
     {{-- Table — horizontally scrollable on mobile so every column stays reachable. --}}
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-[960px] w-full text-sm">
-                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+            <table class="table-surface min-w-[960px]">
+                <thead>
                     <tr>
                         @if ($isApprover)
                             <th class="px-3 py-3 text-center w-8">
@@ -436,7 +436,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($claims as $claim)
                         <tr wire:key="claim-{{ $claim->id }}" class="hover:bg-gray-50 transition">
                             @if ($isApprover)
@@ -625,7 +625,7 @@
                         Save & Submit
                     </button>
                     <button wire:click="save"
-                            class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Draft
                     </button>
                 </div>
@@ -653,7 +653,7 @@
                         Cancel
                     </button>
                     <button wire:click="rejectClaim"
-                            class="px-4 py-2 bg-danger-600 text-white text-sm font-medium rounded-lg hover:bg-danger-700 transition">
+                            class="btn-danger">
                         Reject Claim
                     </button>
                 </div>
@@ -681,7 +681,7 @@
                         Cancel
                     </button>
                     <button wire:click="bulkReject"
-                            class="px-4 py-2 bg-danger-600 text-white text-sm font-medium rounded-lg hover:bg-danger-700 transition">
+                            class="btn-danger">
                         Reject All Selected
                     </button>
                 </div>
@@ -732,7 +732,7 @@
                         Cancel
                     </button>
                     <button wire:click="saveEmployee"
-                            class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         {{ $editingEmployeeId ? 'Update' : 'Add Employee' }}
                     </button>
                 </div>
@@ -782,7 +782,7 @@
                     </button>
                     <a x-bind:href="'{{ url('/hr/overtime-claims/pdf') }}/' + (empId || 'all') + '?from=' + fromDate + '&to=' + toDate + (outletId ? '&outlet=' + outletId : '')"
                        target="_blank"
-                       class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition inline-flex items-center">
+                       class="btn-primary">
                         Download PDF
                     </a>
                 </div>
@@ -845,7 +845,7 @@
                         Cancel
                     </button>
                     <a :href="summaryUrl" target="_blank"
-                       class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition inline-flex items-center gap-1.5">
+                       class="btn-primary">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

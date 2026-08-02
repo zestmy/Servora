@@ -20,7 +20,7 @@
             @endif
             @can('reports.view')
                 <a href="{{ route('reports.price-history') }}"
-                   class="px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition whitespace-nowrap">
+                   class="btn-secondary btn-sm">
                     Price History Report
                 </a>
             @endcan
@@ -82,7 +82,7 @@
             <button wire:click="processUpload"
                     wire:loading.attr="disabled"
                     @disabled(! $file)
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="processUpload">Scan Invoice →</span>
                 <span wire:loading wire:target="processUpload">Reading with AI…</span>
             </button>
@@ -142,12 +142,12 @@
                     <div class="mt-3 flex flex-wrap items-center gap-2">
                         @if ($lastScan->status === 'extracted')
                             <a href="{{ route('ingredients.review-documents.show', $lastScan->id) }}"
-                               class="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                               class="btn-primary btn-sm">
                                 Review & Import →
                             </a>
                         @endif
                         <button wire:click="scanAnother"
-                                class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                                class="btn-secondary btn-sm">
                             Scan another
                         </button>
                     </div>

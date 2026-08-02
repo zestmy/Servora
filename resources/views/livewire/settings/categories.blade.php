@@ -24,7 +24,7 @@
             <p class="text-xs text-gray-600"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Categories</p>
         </div>
         <button wire:click="openCreateMain"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + Add Main Category
         </button>
     </div>
@@ -73,8 +73,8 @@
 
     {{-- Category List --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-center">Sub-cats</th>
@@ -83,7 +83,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($categories as $cat)
                     @php
                         $totalItems  = ($cat->ingredients_count + $cat->recipes_count)
@@ -309,7 +309,7 @@
                     <button type="button" @click="$wire.closeModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Category
                     </button>
                 </div>

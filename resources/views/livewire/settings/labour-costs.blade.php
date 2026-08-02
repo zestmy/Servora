@@ -296,7 +296,7 @@
                     <button type="button" @click="$wire.closeModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save
                     </button>
                 </div>

@@ -46,8 +46,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-[680px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-[680px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Staff</th>
                         <th class="px-4 py-3 text-left">Outlet</th>
@@ -55,7 +55,7 @@
                         <th class="px-4 py-3 text-center w-64">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($employees as $employee)
                         <tr class="hover:bg-gray-50" wire:key="emp-{{ $employee->id }}">
                             <td class="px-4 py-3 font-medium text-gray-700">{{ $employee->name }}</td>
@@ -84,7 +84,7 @@
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 @if ($employee->outlet_id)
                                     <button wire:click="issuePin({{ $employee->id }})"
-                                            class="px-2.5 py-1.5 text-xs text-white bg-brand-600 rounded-lg hover:bg-brand-700">
+                                            class="btn-primary btn-sm">
                                         {{ $employee->hasLabelPin() ? 'Reset PIN' : 'Issue PIN' }}
                                     </button>
                                     <button wire:click="openManual({{ $employee->id }})"
@@ -134,7 +134,7 @@
                             <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                                 <button type="button" @click="$wire.closeManual()"
                                         class="btn-secondary">Cancel</button>
-                                <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Save</button>
+                                <button type="submit" class="btn-primary">Save</button>
                             </div>
                         </form>
                     </div>

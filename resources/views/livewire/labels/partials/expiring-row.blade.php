@@ -49,7 +49,7 @@
 
         @if ($costable[$print->id] ?? null)
             <button wire:click="openWaste({{ $print->id }})"
-                    class="px-3 py-1.5 text-xs text-white bg-danger-600 rounded-lg hover:bg-danger-700">
+                    class="btn-danger btn-sm">
                 Wasted
             </button>
         @else

@@ -21,7 +21,7 @@
                         </div>
                         <button type="button"
                                 x-on:click="navigator.clipboard.writeText(document.getElementById('referral-url').textContent.trim()); copied = true; setTimeout(() => copied = false, 2000); $wire.markCopied()"
-                                class="px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition flex-shrink-0">
+                                class="btn-primary flex-shrink-0">
                             <span x-show="!copied">Copy Link</span>
                             <span x-show="copied" x-cloak>Copied!</span>
                         </button>
@@ -88,7 +88,7 @@
                             Get your unique referral link and earn commission when other F&B businesses sign up for Servora.
                         </p>
                         <button wire:click="generateReferralCode"
-                                class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary">
                             Generate My Referral Link
                         </button>
                     </div>

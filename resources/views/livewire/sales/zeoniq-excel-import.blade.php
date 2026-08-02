@@ -343,8 +343,8 @@
                         </div>
 
                         <div class="max-h-96 overflow-y-auto">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider sticky top-0">
+                            <table class="table-surface min-w-full">
+                                <thead class="sticky top-0">
                                     <tr>
                                         <th class="px-4 py-2 text-left w-12"></th>
                                         <th class="px-4 py-2 text-left">Date</th>
@@ -362,7 +362,7 @@
                                         <th class="px-4 py-2 text-right">Total Sales</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-100">
+                                <tbody>
                                     @foreach ($parsedRecords as $idx => $record)
                                         @php
                                             $isIncluded = $includeRecords[$idx] ?? false;
@@ -571,7 +571,7 @@
                     <button type="button" wire:click="processFile"
                             wire:loading.attr="disabled"
                             wire:target="processFile,importFile"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="processFile">Process File</span>
                         <span wire:loading wire:target="processFile" class="flex items-center gap-1.5">
                             <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -588,7 +588,7 @@
                             &larr; Re-upload
                         </button>
                         <button type="button" wire:click="proceedToReview"
-                                class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary">
                             Continue to Review &rarr;
                         </button>
                     </div>

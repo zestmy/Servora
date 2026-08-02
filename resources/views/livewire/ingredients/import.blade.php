@@ -60,8 +60,8 @@
             <h3 class="text-sm font-semibold text-gray-700 mb-3">Column Reference</h3>
             <p class="text-xs text-gray-500 mb-3">Your file doesn't need to use these exact column names — AI will automatically detect and map your columns.</p>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider">
+                <table class="table-surface min-w-full text-xs text-left">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2">Field</th>
                             <th class="px-3 py-2">Required</th>
@@ -69,7 +69,7 @@
                             <th class="px-3 py-2">Example</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50 text-gray-600">
+                    <tbody class="text-gray-600">
                         <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-danger-500 font-semibold">Yes</span></td><td class="px-3 py-2">Product name</td><td class="px-3 py-2 font-mono">Chicken Breast</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">code</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Internal code / SKU</td><td class="px-3 py-2 font-mono">CHK-001</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Main category name (must exist)</td><td class="px-3 py-2 font-mono">Food</td></tr>
@@ -121,7 +121,7 @@
             @if ($file)
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="processUpload">Upload & Map Columns →</span>
                         <span wire:loading wire:target="processUpload">
                             @if ($file && strtolower($file->getClientOriginalExtension()) === 'pdf')
@@ -213,15 +213,15 @@
                 <div class="mt-5 pt-4 border-t border-gray-100">
                     <h4 class="text-xs font-semibold text-gray-600 mb-2">Sample Data (first {{ min(3, count($fileDataRows)) }} rows)</h4>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-[11px]">
-                            <thead class="bg-gray-50 text-gray-500 uppercase">
+                        <table class="table-surface min-w-full text-[11px]">
+                            <thead>
                                 <tr>
                                     @foreach ($fileHeaders as $header)
                                         <th class="px-2 py-1.5 text-left whitespace-nowrap">{{ $header }}</th>
                                     @endforeach
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach (array_slice($fileDataRows, 0, 3) as $row)
                                     <tr>
                                         @foreach ($fileHeaders as $header)
@@ -239,11 +239,11 @@
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
             <button wire:click="restart"
-                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 ← Upload Different File
             </button>
             <button wire:click="confirmMapping" wire:loading.attr="disabled"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="confirmMapping">Preview Import →</span>
                 <span wire:loading wire:target="confirmMapping">Analyzing items…</span>
             </button>
@@ -313,8 +313,8 @@
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                <table class="table-surface min-w-full text-xs">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2 text-left w-10">#</th>
                             <th class="px-3 py-2 text-center w-20">Type</th>
@@ -330,7 +330,7 @@
                             <th class="px-3 py-2 text-left">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($rows as $idx => $row)
                             @php $hasOnlyUomIssue = !empty($row['base_uom_needsfix']) || !empty($row['recipe_uom_needsfix']); @endphp
                             <tr class="{{ $row['skip'] && !$hasOnlyUomIssue ? 'bg-danger-50' : ($hasOnlyUomIssue ? 'bg-warning-50' : ($row['is_prep'] ? 'bg-orange-50/50' : 'hover:bg-gray-50')) }} transition">
@@ -468,14 +468,14 @@
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
             <button wire:click="backToMapping"
-                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 ← Adjust Mapping
             </button>
 
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
                         wire:confirm="Import {{ $validRows }} item(s) ({{ $ingredientCount }} product{{ $ingredientCount !== 1 ? 's' : '' }}{{ $prepCount > 0 ? ', ' . $prepCount . ' prep placeholder' . ($prepCount !== 1 ? 's' : '') : '' }})? Rows with errors will be skipped."
-                        class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                        class="btn-primary">
                     <span wire:loading.remove wire:target="import">Import {{ $validRows }} Item{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing…</span>
                 </button>
@@ -519,7 +519,7 @@
 
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('ingredients.index') }}"
-                   class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     View Market List
                 </a>
                 @if ($prepCreatedCount > 0)
@@ -529,7 +529,7 @@
                     </a>
                 @endif
                 <button wire:click="restart"
-                        class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Import Another File
                 </button>
             </div>

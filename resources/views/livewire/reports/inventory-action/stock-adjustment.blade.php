@@ -16,7 +16,7 @@
                 <span class="text-gray-600 text-xs">to</span>
                 <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
-            <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition ml-auto">
+            <button wire:click="exportCsv" class="btn-secondary ml-auto">
                 Export CSV
             </button>
         </div>
@@ -24,8 +24,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Date</th>
                     <th class="px-4 py-3 text-left">Document Type</th>
@@ -37,7 +37,7 @@
                     <th class="px-4 py-3 text-left">Adjusted By</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($logs as $log)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 text-gray-700 text-xs">{{ $log->created_at->format('d M Y H:i') }}</td>

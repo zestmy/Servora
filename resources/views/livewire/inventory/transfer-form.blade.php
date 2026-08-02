@@ -14,7 +14,7 @@
         </div>
         @if ($isDraft)
             <button wire:click="save"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Save
             </button>
         @endif
@@ -224,8 +224,8 @@
         {{-- Lines table --}}
         @if (count($lines))
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Product</th>
@@ -238,7 +238,7 @@
                             @endif
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($lines as $idx => $line)
                             <tr class="hover:bg-gray-50 transition group">
                                 <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
@@ -309,7 +309,7 @@
             <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
                 <a href="{{ route('inventory.index', ['tab' => 'transfers']) }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Cancel</a>
                 <button wire:click="save"
-                        class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     Save Transfer
                 </button>
             </div>

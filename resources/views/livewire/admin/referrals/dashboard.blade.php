@@ -9,7 +9,7 @@
             <h1 class="text-lg font-bold text-gray-800">Referral Dashboard</h1>
             <p class="text-xs text-gray-600 mt-0.5">Track referrals, conversions, and commissions.</p>
         </div>
-        <a href="{{ route('admin.referrals.programs') }}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+        <a href="{{ route('admin.referrals.programs') }}" class="btn-secondary">
             Manage Programs
         </a>
     </div>
@@ -44,8 +44,8 @@
     {{-- Referrals Tab --}}
     @if ($tab === 'referrals')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Referred Company</th>
                         <th class="px-4 py-3 text-left">Referrer Code</th>
@@ -53,7 +53,7 @@
                         <th class="px-4 py-3 text-left">Date</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($referrals as $ref)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $ref->referredCompany?->name ?? '—' }}</td>
@@ -78,8 +78,8 @@
     {{-- Commissions Tab --}}
     @if ($tab === 'commissions')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Company</th>
                         <th class="px-4 py-3 text-left">Referrer</th>
@@ -88,7 +88,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($commissions as $comm)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $comm->referral?->referredCompany?->name ?? '—' }}</td>
@@ -125,8 +125,8 @@
     {{-- Codes Tab --}}
     @if ($tab === 'codes')
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Code</th>
                         <th class="px-4 py-3 text-center">Clicks</th>
@@ -136,7 +136,7 @@
                         <th class="px-4 py-3 text-center">Status</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($codes as $code)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-mono text-xs font-medium text-gray-800">{{ $code->code }}</td>

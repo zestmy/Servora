@@ -14,7 +14,7 @@
             <h2 class="text-lg font-semibold text-gray-700 truncate">Procurement Invoices</h2>
         </div>
         <a href="{{ route('purchasing.invoices.receive') }}"
-           class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition inline-flex items-center gap-2">
+           class="btn-primary">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span class="sm:hidden">AI Receive</span>
             <span class="hidden sm:inline">AI Receive Invoice</span>
@@ -135,8 +135,8 @@
         </div>
 
         {{-- ── Desktop table (md+) ───────────────────────────────────────── --}}
-        <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface hidden md:table min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Invoice #</th>
                     <th class="px-4 py-3 text-left">Type</th>
@@ -149,7 +149,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($invoices as $inv)
                     @php
                         $badge = match($inv->status) {

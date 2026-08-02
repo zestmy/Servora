@@ -16,10 +16,10 @@
         </div>
         <div class="flex items-center gap-2" x-data>
             <button @click="$dispatch('open-role-guide')"
-                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 Role Guide
             </button>
-            <button wire:click="openCreate" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">+ Add User</button>
+            <button wire:click="openCreate" class="btn-primary">+ Add User</button>
         </div>
     </div>
 
@@ -77,8 +77,8 @@
     {{-- User List — horizontally scrollable on mobile. --}}
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-[960px]">
+            <thead>
                 <tr>
                     <th class="px-5 py-3 text-left">Name</th>
                     <th class="px-5 py-3 text-left">Email</th>
@@ -91,7 +91,7 @@
                     <th class="px-5 py-3 text-center w-24">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($users as $u)
                     <tr class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-medium text-gray-800">{{ $u->name }}</td>
@@ -375,7 +375,7 @@
 
             <div class="flex justify-end gap-3 mt-6">
                 <button wire:click="closeModal" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-                <button wire:click="save" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
+                <button wire:click="save" class="btn-primary">
                     {{ $editingId ? 'Update' : 'Create' }}
                 </button>
             </div>

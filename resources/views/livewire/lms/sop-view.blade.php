@@ -55,7 +55,7 @@
             </div>
             <div class="flex gap-2 flex-shrink-0">
                 <x-download-link href="{{ route('lms.sop.pdf', $recipe->id) }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                   class="btn-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
@@ -78,15 +78,15 @@
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-semibold text-gray-900">Presentation</h2>
                 @if ($dineInImages->count() && $takeawayImages->count())
-                    <div class="flex rounded-lg overflow-hidden border border-gray-200">
+                    <div class="seg">
                         <button @click="tab = 'dine_in'"
-                                :class="tab === 'dine_in' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                                class="px-3 py-1 text-xs font-medium transition">
+                                :class="tab === 'dine_in' && 'seg-item-on'"
+                                class="seg-item">
                             Dine-In
                         </button>
                         <button @click="tab = 'takeaway'"
-                                :class="tab === 'takeaway' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-                                class="px-3 py-1 text-xs font-medium transition border-l border-gray-200">
+                                :class="tab === 'takeaway' && 'seg-item-on'"
+                                class="seg-item">
                             Takeaway
                         </button>
                     </div>
@@ -182,8 +182,8 @@
                         </span>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <table class="table-surface min-w-full">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-2 text-left w-8">#</th>
                                     <th class="px-4 py-2 text-left">Ingredient</th>
@@ -202,7 +202,7 @@
                                     @endif
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($sopIngredientLines as $idx => $line)
                                     <tr>
                                         <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
@@ -248,8 +248,8 @@
                         <h2 class="text-sm font-semibold text-gray-900">Packaging</h2>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <table class="table-surface min-w-full">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-2 text-left w-8">#</th>
                                     <th class="px-4 py-2 text-left">Item</th>
@@ -257,7 +257,7 @@
                                     <th class="px-4 py-2 text-left w-16">UOM</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($sopPackagingLines as $idx => $line)
                                     <tr>
                                         <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>

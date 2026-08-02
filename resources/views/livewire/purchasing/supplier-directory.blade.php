@@ -100,7 +100,7 @@
                     @if (! $alreadyAdded)
                         <button wire:click="addSupplier({{ $s->id }})"
                                 wire:confirm="Add {{ $s->name }} to your supplier list?"
-                                class="px-3 py-1.5 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary btn-sm">
                             + Add Supplier
                         </button>
                     @endif
@@ -109,8 +109,8 @@
                 {{-- Expanded product list --}}
                 @if ($viewingSupplierId === $s->id && $viewingProducts->isNotEmpty())
                     <div class="border-t border-gray-100 max-h-64 overflow-y-auto">
-                        <table class="min-w-full text-xs">
-                            <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider sticky top-0">
+                        <table class="table-surface min-w-full text-xs">
+                            <thead class="sticky top-0">
                                 <tr>
                                     <th class="px-4 py-2 text-left">Product</th>
                                     <th class="px-4 py-2 text-left">SKU</th>
@@ -118,7 +118,7 @@
                                     <th class="px-4 py-2 text-left">Category</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($viewingProducts as $p)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-2 font-medium text-gray-700">{{ $p->name }}</td>

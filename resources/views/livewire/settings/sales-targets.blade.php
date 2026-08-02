@@ -15,11 +15,11 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('sales.index') }}"
-               class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 Back
             </a>
             <button wire:click="openCreate"
-                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 + New Target
             </button>
         </div>
@@ -27,8 +27,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Period</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
@@ -38,7 +38,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($targets as $target)
                     @php
                         $periodLabel = \Carbon\Carbon::createFromFormat('!Y-m', $target->period)->format('M Y');
@@ -147,7 +147,7 @@
                             Cancel
                         </button>
                         <button wire:click="save"
-                                class="px-4 py-2 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary btn-sm">
                             {{ $editingId ? 'Update Target' : 'Create Target' }}
                         </button>
                     </div>

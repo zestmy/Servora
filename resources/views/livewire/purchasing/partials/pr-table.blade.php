@@ -71,15 +71,15 @@
                 <p class="font-medium">No purchase requests yet</p>
                 <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                 @if ($canCreatePr ?? false)
-                    <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first request</a>
+                    <a href="{{ route('purchasing.requests.create') }}" class="btn-primary btn-sm mt-3">+ Create your first request</a>
                 @endif
             </div>
         @endforelse
     </div>
 
     {{-- ── Desktop table (md+) ───────────────────────────────────────────── --}}
-    <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
-        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+    <table class="table-surface hidden md:table min-w-full">
+        <thead>
             <tr>
                 <th class="px-4 py-3 text-left">PR Number</th>
                 @if ($multiOutlet)<th class="px-4 py-3 text-left">Outlet</th>@endif
@@ -91,7 +91,7 @@
                 <th class="px-4 py-3 text-center">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50">
+        <tbody>
             @forelse ($purchaseRequests as $pr)
                 @php
                     $badge = match($pr->status) {
@@ -154,7 +154,7 @@
                                         <p class="text-xs font-medium text-gray-700 mb-2">Rejection Reason</p>
                                         <textarea wire:model="rejectReason" rows="2" class="w-full rounded-lg border-gray-300 text-xs mb-2" placeholder="Why is this being rejected?"></textarea>
                                         <button wire:click="rejectPr({{ $pr->id }})" @click="showReject = false"
-                                                class="w-full px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700">
+                                                class="btn-danger btn-sm w-full">
                                             Reject PR
                                         </button>
                                     </div>
@@ -231,7 +231,7 @@
                         <p class="font-medium">No purchase requests yet</p>
                         <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                         @if ($canCreatePr ?? false)
-                            <a href="{{ route('purchasing.requests.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first request</a>
+                            <a href="{{ route('purchasing.requests.create') }}" class="btn-primary btn-sm mt-3">+ Create your first request</a>
                         @endif
                     </td>
                 </tr>

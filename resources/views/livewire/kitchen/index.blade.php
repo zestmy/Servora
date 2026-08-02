@@ -26,7 +26,7 @@
                 + Send to Outlet
             </a>
             <a href="{{ route('kitchen.orders.create') }}"
-               class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+               class="btn-primary">
                 + Production Order
             </a>
         </div>
@@ -122,8 +122,8 @@
         <div class="card overflow-hidden">
             @if ($orders->count() > 0)
                 <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                    <table class="table-surface min-w-full">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left">Order #</th>
                                 <th class="px-4 py-3 text-left">Kitchen</th>
@@ -134,7 +134,7 @@
                                 <th class="px-4 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
+                        <tbody>
                             @foreach ($orders as $order)
                                 <tr class="hover:bg-gray-50 transition">
                                     <td class="px-4 py-3">
@@ -224,7 +224,7 @@
                         or prep items, schedule it, then record what actually came out.
                     </p>
                     <a href="{{ route('kitchen.orders.create') }}"
-                       class="inline-flex items-center mt-4 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                       class="btn-primary mt-4">
                         + Create your first production order
                     </a>
                 </div>
@@ -236,8 +236,8 @@
         <div class="card overflow-hidden">
             @if ($logs->count() > 0)
                 <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                    <table class="table-surface min-w-full">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left">Batch #</th>
                                 <th class="px-4 py-3 text-left">Recipe</th>
@@ -248,7 +248,7 @@
                                 <th class="px-4 py-3 text-left">Produced At</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
+                        <tbody>
                             @foreach ($logs as $log)
                                 @php
                                     $variance = floatval($log->yield_variance_pct);
@@ -284,8 +284,8 @@
         {{-- Kitchen Inventory --}}
         <div class="card overflow-hidden">
             @if (isset($inventory) && $inventory->count() > 0)
-                <table class="min-w-full divide-y divide-gray-100 text-sm">
-                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-3 text-left">Kitchen</th>
                             <th class="px-4 py-3 text-left">Prep Item</th>
@@ -295,7 +295,7 @@
                             <th class="px-4 py-3 text-right">Value</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($inventory as $inv)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-3 text-gray-600 text-xs">{{ $inv->kitchen?->name ?? '—' }}</td>

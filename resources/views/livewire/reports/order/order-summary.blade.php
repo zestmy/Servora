@@ -19,8 +19,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left font-medium text-gray-500">Month</th>
                         <th class="px-4 py-3 text-right font-medium text-gray-500">Order Count</th>
@@ -28,7 +28,7 @@
                         <th class="px-4 py-3 text-right font-medium text-gray-500">Average Value</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($summary as $row)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $row->month_label }}</td>

@@ -46,7 +46,7 @@ new #[Layout('layouts.guest')] class extends Component
                 </svg>
             </div>
             <p class="text-sm text-gray-700 mb-6">{{ session('status') }}</p>
-            <a href="{{ route('login') }}" class="inline-block px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+            <a href="{{ route('login') }}" class="btn-primary">
                 Back to Login
             </a>
         </div>

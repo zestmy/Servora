@@ -15,7 +15,7 @@
         </div>
     @endif
     <a href="{{ route('billing.index') }}"
-       class="inline-block mt-4 px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+       class="btn-primary mt-4">
         Upgrade Plan
     </a>
 </div>

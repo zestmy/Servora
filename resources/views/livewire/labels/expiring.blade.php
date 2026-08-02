@@ -37,12 +37,10 @@
 
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Group by</label>
-                <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <div class="seg">
                     @foreach (['urgency' => 'Urgency', 'set' => 'Print set'] as $mode => $label)
                         <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
-                                class="px-3 py-2 {{ $groupBy === $mode
-                                    ? 'bg-brand-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                                class="seg-item {{ $groupBy === $mode ? 'seg-item-on' : '' }}">
                             {{ $label }}
                         </button>
                     @endforeach
@@ -175,7 +173,7 @@
                         </div>
                         <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100">
                             <button wire:click="closeWaste" class="btn-secondary">Cancel</button>
-                            <button wire:click="confirmWaste" class="px-4 py-2 text-sm text-white bg-danger-600 rounded-lg hover:bg-danger-700">Record wastage</button>
+                            <button wire:click="confirmWaste" class="btn-danger">Record wastage</button>
                         </div>
                     </div>
                 </div>

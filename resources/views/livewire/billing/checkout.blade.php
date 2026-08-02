@@ -76,7 +76,7 @@
             {{-- New user — start free trial --}}
             <button wire:click="subscribe"
                     wire:loading.attr="disabled"
-                    class="w-full py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary w-full py-3">
                 <span wire:loading.remove wire:target="subscribe">Start {{ $selectedPlan->trial_days }}-Day Free Trial</span>
                 <span wire:loading wire:target="subscribe">Processing...</span>
             </button>
@@ -87,7 +87,7 @@
             @if ($chipInConfigured)
                 <button wire:click="payNow"
                         wire:loading.attr="disabled"
-                        class="w-full py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 transition disabled:opacity-50">
+                        class="btn-primary w-full py-3">
                     <span wire:loading.remove wire:target="payNow">Pay Now & Activate</span>
                     <span wire:loading wire:target="payNow">Redirecting to payment...</span>
                 </button>
@@ -95,7 +95,7 @@
             @else
                 <button wire:click="subscribe"
                         wire:loading.attr="disabled"
-                        class="w-full py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 transition disabled:opacity-50">
+                        class="btn-primary w-full py-3">
                     <span wire:loading.remove wire:target="subscribe">Select This Plan</span>
                     <span wire:loading wire:target="subscribe">Processing...</span>
                 </button>
@@ -109,7 +109,7 @@
             {{-- Active subscription — switch plan --}}
             <button wire:click="subscribe"
                     wire:loading.attr="disabled"
-                    class="w-full py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary w-full py-3">
                 <span wire:loading.remove wire:target="subscribe">Switch to {{ $selectedPlan->name }}</span>
                 <span wire:loading wire:target="subscribe">Processing...</span>
             </button>

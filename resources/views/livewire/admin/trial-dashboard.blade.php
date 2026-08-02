@@ -36,8 +36,8 @@
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
             <h2 class="text-sm font-semibold text-gray-700">Active Trials</h2>
         </div>
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Company</th>
                     <th class="px-4 py-3 text-left">Plan</th>
@@ -46,7 +46,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($trials as $sub)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
@@ -84,15 +84,15 @@
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
                 <h2 class="text-sm font-semibold text-gray-700">Recently Expired (last 7 days)</h2>
             </div>
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Company</th>
                         <th class="px-4 py-3 text-left">Plan</th>
                         <th class="px-4 py-3 text-left">Expired On</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($recentlyExpired as $sub)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-medium text-gray-800">{{ $sub->companyName() }}</td>

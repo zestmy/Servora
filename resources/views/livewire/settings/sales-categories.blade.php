@@ -18,7 +18,7 @@
             <p class="text-xs text-gray-600"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Sales Categories</p>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + Add Category
         </button>
     </div>
@@ -51,8 +51,8 @@
 
     {{-- List --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-center">Sort</th>
@@ -61,7 +61,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($categories as $cat)
                     <tr class="hover:bg-gray-50 transition {{ $cat->trashed() ? 'opacity-50' : '' }}">
                         <td class="px-4 py-3">
@@ -208,7 +208,7 @@
                     <button type="button" @click="$wire.closeModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button type="submit"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Category
                     </button>
                 </div>

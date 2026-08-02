@@ -27,7 +27,7 @@
                 Save & Issue
             </button>
             <button wire:click="save"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Save Draft
             </button>
         </div>
@@ -180,8 +180,8 @@
                 {{-- Lines table --}}
                 @if (count($lines))
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="text-xs text-gray-500 uppercase bg-gray-50">
+                        <table class="table-surface min-w-full">
+                            <thead>
                                 <tr>
                                     <th class="px-3 py-2 text-left">Item</th>
                                     <th class="px-3 py-2 text-center w-24">Qty</th>
@@ -194,7 +194,7 @@
                                     @endif
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @foreach ($lines as $idx => $line)
                                     <tr wire:key="line-{{ $idx }}">
                                         <td class="px-3 py-2 text-gray-700 text-xs font-medium">

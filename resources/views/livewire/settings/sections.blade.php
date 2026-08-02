@@ -21,7 +21,7 @@
                 <h1 class="page-title mt-1">Sections</h1>
             </div>
         </div>
-        <button wire:click="openCreate" class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+        <button wire:click="openCreate" class="btn-primary">
             <span class="sm:hidden">+ Add</span>
             <span class="hidden sm:inline">+ Add Section</span>
         </button>
@@ -40,8 +40,8 @@
 
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[640px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-[640px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-center w-24">Sort Order</th>
@@ -50,7 +50,7 @@
                     <th class="px-4 py-3 text-center w-32">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($sections as $section)
                     <tr class="hover:bg-gray-50 {{ ! $section->is_active ? 'opacity-60' : '' }}">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $section->name }}</td>
@@ -114,8 +114,8 @@
                             <span class="text-sm text-gray-700">Active</span>
                         </label>
                         <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                            <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Save</button>
+                            <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                            <button type="submit" class="btn-primary">Save</button>
                         </div>
                     </form>
                 </div>

@@ -73,15 +73,15 @@
                 <p class="font-medium">No purchase orders yet</p>
                 <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
                 @if ($canCreatePo ?? false)
-                    <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first order</a>
+                    <a href="{{ route('purchasing.orders.create') }}" class="btn-primary btn-sm mt-3">+ Create your first order</a>
                 @endif
             </div>
         @endforelse
     </div>
 
     {{-- ── Desktop table (md+) ───────────────────────────────────────────── --}}
-    <table class="hidden md:table min-w-full divide-y divide-gray-100 text-sm">
-        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+    <table class="table-surface hidden md:table min-w-full">
+        <thead>
             <tr>
                 <th class="px-4 py-3 text-left">PO Number</th>
                 @if ($multiOutlet)<th class="px-4 py-3 text-left">Outlet</th>@endif
@@ -94,7 +94,7 @@
                 <th class="px-4 py-3 text-center">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50">
+        <tbody>
             @forelse ($orders as $po)
                 @php
                     $badge = match($po->status) {
@@ -245,7 +245,7 @@
                         <p class="font-medium">No purchase orders yet</p>
                         <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
                         @if ($canCreatePo ?? false)
-                            <a href="{{ route('purchasing.orders.create') }}" class="inline-block mt-3 px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700 transition">+ Create your first order</a>
+                            <a href="{{ route('purchasing.orders.create') }}" class="btn-primary btn-sm mt-3">+ Create your first order</a>
                         @endif
                     </td>
                 </tr>

@@ -36,7 +36,7 @@
                 <span class="hidden sm:inline">PDF</span>
             </x-download-link>
             <button wire:click="openCodeCreate"
-                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                    class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -55,7 +55,7 @@
             @endif
             <button wire:click="fillPresent"
                     wire:confirm="Mark every empty day in the visible grid as Present?"
-                    class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Fill Empty with ✓
             </button>
         </div>
@@ -152,8 +152,8 @@
     <div class="card overflow-hidden mb-4"
          wire:loading.class="opacity-60" wire:target="setCell, fillPresent, clearRange">
         <div class="overflow-x-auto">
-            <table class="text-sm border-collapse w-full">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
+            <table class="table-surface border-collapse">
+                <thead>
                     <tr>
                         <th class="px-2 py-2 text-left w-8 border-b border-gray-200">#</th>
                         <th class="px-3 py-2 text-left min-w-[170px] border-b border-gray-200 sticky left-0 bg-gray-50 z-10">Name</th>
@@ -176,7 +176,7 @@
                         <th class="px-2 py-2 text-center min-w-[44px] border-b border-gray-200 text-danger-500" title="Days marked Absent">ABS</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100"
+                <tbody
                        x-data x-init="new Sortable($el, {
                            handle: '.row-drag-handle',
                            animation: 150,
@@ -292,8 +292,8 @@
 
             @if ($serviceCharge['row'])
                 <div class="overflow-x-auto">
-                    <table class="text-sm w-full">
-                        <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
+                    <table class="table-surface">
+                        <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Name</th>
                                 <th class="px-2 py-2 text-right">Svc Pts</th>
@@ -305,7 +305,7 @@
                                 <th class="px-2 py-2 text-right">Net (RM)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             @foreach ($serviceCharge['rows'] as $scRow)
                                 <tr wire:key="sc-{{ $scRow['employee']->id }}" class="hover:bg-gray-50/70 {{ $scRow['points'] <= 0 ? 'opacity-50' : '' }}">
                                     <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">{{ $scRow['employee']->name }}</td>
@@ -427,10 +427,10 @@
                             <div class="flex gap-2">
                                 @if ($editingCodeId)
                                     <button wire:click="openCodeCreate"
-                                            class="px-3 py-1.5 text-xs text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
+                                            class="btn-secondary btn-sm text-gray-500">Cancel</button>
                                 @endif
                                 <button wire:click="saveCode"
-                                        class="px-4 py-1.5 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-700">
+                                        class="btn-primary btn-sm">
                                     {{ $editingCodeId ? 'Update' : 'Add Code' }}
                                 </button>
                             </div>

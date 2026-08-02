@@ -7,12 +7,12 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('audit-logs.export.csv') }}{{ !empty($exportParams) ? '?' . http_build_query($exportParams) : '' }}"
-               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">
+               class="btn-secondary btn-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
                 CSV
             </a>
             <a href="{{ route('audit-logs.export.pdf') }}{{ !empty($exportParams) ? '?' . http_build_query($exportParams) : '' }}"
-               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition">
+               class="btn-secondary btn-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                 PDF
             </a>
@@ -88,8 +88,8 @@
     {{-- Table --}}
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-[900px] w-full text-sm">
-                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+            <table class="table-surface min-w-[900px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left w-44">When</th>
                         <th class="px-4 py-3 text-left">User</th>
@@ -100,7 +100,7 @@
                         <th class="px-4 py-3 text-right w-24">Details</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($logs as $log)
                         @php
                             $badge = match ($log->event) {
@@ -149,15 +149,15 @@
                             <tr x-show="open" x-cloak wire:key="log-detail-{{ $log->id }}" class="bg-gray-50/60">
                                 <td colspan="7" class="px-4 py-3">
                                     <div class="rounded-lg border border-gray-200 overflow-hidden">
-                                        <table class="w-full text-xs">
-                                            <thead class="bg-gray-100 text-gray-500 uppercase tracking-wider">
+                                        <table class="table-surface text-xs">
+                                            <thead class="bg-gray-100">
                                                 <tr>
                                                     <th class="px-3 py-2 text-left w-48">Field</th>
                                                     <th class="px-3 py-2 text-left">Before</th>
                                                     <th class="px-3 py-2 text-left">After</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="divide-y divide-gray-100">
+                                            <tbody>
                                                 @foreach ($keys as $k)
                                                     @php
                                                         $before = array_key_exists($k, $old) ? $old[$k] : null;

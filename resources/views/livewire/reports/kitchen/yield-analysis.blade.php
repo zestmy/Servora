@@ -15,8 +15,8 @@
     </div>
 
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Recipe</th>
                     <th class="px-4 py-3 text-center">Batches</th>
@@ -26,7 +26,7 @@
                     <th class="px-4 py-3 text-right">Total Cost</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($recipes as $r)
                     @php $variance = floatval($r->avg_variance); @endphp
                     <tr class="hover:bg-gray-50">

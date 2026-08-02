@@ -25,7 +25,7 @@
             </p>
         </div>
         <button wire:click="save"
-                class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition flex-shrink-0">
+                class="btn-primary flex-shrink-0">
             Save Recipe
         </button>
     </div>
@@ -290,8 +290,8 @@
                 {{-- Lines table --}}
                 @if (count($lines))
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <table class="table-surface min-w-full">
+                            <thead>
                                 <tr>
                                     <th class="px-2 py-2 w-6"></th>
                                     <th class="px-4 py-2 text-left w-8">#</th>
@@ -304,7 +304,7 @@
                                     <th class="px-4 py-2 w-10"></th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50"
+                            <tbody
                                    x-data
                                    x-init="new Sortable($el, {
                                        handle: '.line-drag-handle',
@@ -384,7 +384,7 @@
                         &larr; Back to Recipes
                     </a>
                     <button wire:click="save"
-                            class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Recipe
                     </button>
                 </div>

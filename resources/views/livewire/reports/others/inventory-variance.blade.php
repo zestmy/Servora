@@ -13,8 +13,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <div class="overflow-x-auto"><table class="min-w-[1100px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Product</th>
                     <th class="px-4 py-3 text-right">Expected Qty</th>
@@ -24,7 +24,7 @@
                     <th class="px-4 py-3 text-right">Value Impact</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($items as $item)
                     @php
                         $vqty = floatval($item->variance_qty);

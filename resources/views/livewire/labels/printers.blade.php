@@ -31,8 +31,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-[720px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-[720px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Printer</th>
                         <th class="px-4 py-3 text-left">Outlet</th>
@@ -42,7 +42,7 @@
                         <th class="px-4 py-3 text-center w-28">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($printers as $printer)
                         <tr class="hover:bg-gray-50 {{ ! $printer->is_active ? 'opacity-60' : '' }}" wire:key="printer-{{ $printer->id }}">
                             <td class="px-4 py-3 font-medium text-gray-700">{{ $printer->name }}</td>
@@ -275,7 +275,7 @@
                             </label>
                             <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                                 <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
-                                <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Save</button>
+                                <button type="submit" class="btn-primary">Save</button>
                             </div>
                         </form>
                     </div>

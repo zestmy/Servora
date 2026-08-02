@@ -26,18 +26,18 @@
             @if ($recordId)
                 <a href="{{ route('inventory.stock-takes.count-sheet', $recordId) }}"
                    target="_blank"
-                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                   class="btn-secondary">
                     Print Count Sheet
                 </a>
             @endif
             @if (! $isCompleted)
                 <button wire:click="save('save')"
-                        class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Save Draft
                 </button>
                 <button wire:click="save('complete')"
                         wire:confirm="Mark this stock take as completed? This finalises the count."
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     Complete
                 </button>
             @else
@@ -75,13 +75,13 @@
                 @if (! $isCompleted && ! $recordId)
                     <div>
                         <x-input-label value="Method" />
-                        <div class="mt-1 flex rounded-lg border border-gray-300 overflow-hidden w-fit">
+                        <div class="seg mt-1 w-fit">
                             <button type="button" wire:click="$set('method', 'detailed')"
-                                    class="px-4 py-2 text-sm font-medium transition {{ $method === 'detailed' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                                    class="seg-item {{ $method === 'detailed' ? 'seg-item-on' : '' }}">
                                 Detailed Count
                             </button>
                             <button type="button" wire:click="$set('method', 'summary')"
-                                    class="px-4 py-2 text-sm font-medium transition {{ $method === 'summary' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                                    class="seg-item {{ $method === 'summary' ? 'seg-item-on' : '' }}">
                                 Summary Amount
                             </button>
                         </div>
@@ -314,8 +314,8 @@
                 $grouped       = $categorized->merge($uncategorized);
             @endphp
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             @if (! $isCompleted)
                                 <th class="px-2 py-2 w-6"></th>
@@ -497,12 +497,12 @@
                 <a href="{{ route('inventory.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Cancel</a>
                 <div class="flex gap-2">
                     <button wire:click="save('save')"
-                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                            class="btn-secondary">
                         Save Draft
                     </button>
                     <button wire:click="save('complete')"
                             wire:confirm="Mark this stock take as completed? This finalises the count."
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Complete Stock Take
                     </button>
                 </div>

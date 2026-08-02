@@ -15,7 +15,7 @@
             @if ($sopCategories->count())
                 <div class="relative" x-data="{ open: false }">
                     <button type="button" @click="open = !open" @click.outside="open = false"
-                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                            class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -73,7 +73,7 @@
                 </div>
             @endif
             <x-download-link href="{{ route('training.sop.pdf-all') }}"
-               class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+               class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -235,10 +235,10 @@
 
     {{-- Filters --}}
     <div class="flex flex-col sm:flex-row gap-3 mb-4">
-        <div class="flex rounded-lg overflow-hidden border border-gray-200 bg-white text-sm">
+        <div class="seg">
             @foreach (['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $val => $label)
                 <button wire:click="$set('statusFilter', '{{ $val }}')"
-                        class="px-4 py-2 font-medium transition {{ $statusFilter === $val ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-50' }}">
+                        class="seg-item {{ $statusFilter === $val ? 'seg-item-on' : '' }}">
                     {{ $label }}
                 </button>
             @endforeach
@@ -253,8 +253,8 @@
     <div class="card overflow-hidden">
         @if ($users->count())
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-3 text-left">Name</th>
                             <th class="px-4 py-3 text-left">Email</th>
@@ -265,7 +265,7 @@
                             <th class="px-4 py-3 text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($users as $user)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3 font-medium text-gray-800">{{ $user->name }}</td>
@@ -311,7 +311,7 @@
                                             </button>
                                             <button wire:click="reject({{ $user->id }})"
                                                     wire:confirm="Reject {{ $user->name }}?"
-                                                    class="px-3 py-1 text-xs font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 transition">
+                                                    class="btn-danger btn-sm">
                                                 Reject
                                             </button>
                                         @elseif ($user->status === 'rejected')
@@ -396,7 +396,7 @@
                             class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition">Cancel</button>
                     <button type="button" wire:click="saveAccess"
                             wire:loading.attr="disabled" wire:target="saveAccess"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="saveAccess">Save Access</span>
                         <span wire:loading wire:target="saveAccess">Saving…</span>
                     </button>

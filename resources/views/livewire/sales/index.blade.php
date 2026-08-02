@@ -36,7 +36,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <button wire:click="exportPdf" wire:loading.attr="disabled"
                     title="Export PDF"
-                    class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2 disabled:opacity-50">
+                    class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-danger-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                 <span wire:loading.remove wire:target="exportPdf" class="hidden sm:inline">Export PDF</span>
                 <span wire:loading.remove wire:target="exportPdf" class="sm:hidden">PDF</span>
@@ -44,14 +44,14 @@
             </button>
             <button wire:click="exportCsv"
                     title="Export CSV"
-                    class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                    class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 <span class="hidden sm:inline">Export CSV</span>
                 <span class="sm:hidden">CSV</span>
             </button>
             <button wire:click="$dispatch('open-zeoniq-excel-import')"
                     title="Import Zeoniq Excel"
-                    class="px-2.5 md:px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                    class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -59,7 +59,7 @@
                 <span class="sm:hidden">Excel</span>
             </button>
             <a href="{{ route('sales.create') }}"
-               class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+               class="btn-primary">
                 <span class="sm:hidden">+ New</span>
                 <span class="hidden sm:inline">+ New Entry</span>
             </a>
@@ -319,7 +319,7 @@
                 </select>
             </div>
             <div class="p-4 overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="table-surface">
                     <thead>
                         <tr class="text-xs text-gray-500 uppercase tracking-wider">
                             <th class="text-left py-2 pr-4">Metric</th>
@@ -337,7 +337,7 @@
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         {{-- Revenue --}}
                         <tr>
                             <td class="py-3 pr-4 font-medium text-gray-700">Revenue</td>
@@ -524,7 +524,7 @@
                 </button>
                 <button wire:click="bulkDelete"
                         wire:confirm="Delete {{ count($selected) }} selected sales record(s)? This cannot be undone."
-                        class="px-3 py-1.5 text-xs font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 transition">
+                        class="btn-danger btn-sm">
                     Delete Selected
                 </button>
             </div>
@@ -535,8 +535,8 @@
     <div class="card overflow-hidden transition-opacity duration-200"
          wire:loading.class="opacity-40" wire:target="outletFilter, dateFrom, dateTo, mealPeriodFilter, setQuickRange, search">
       <div class="overflow-x-auto">
-        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-[960px]">
+            <thead>
                 <tr>
                     @if ($canDelete)
                         <th class="px-3 py-3 w-10">
@@ -561,7 +561,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($records as $record)
                     @php
                         $avgCheck = ($record->pax > 0 && floatval($record->total_revenue) > 0)
@@ -790,7 +790,7 @@
                                 Cancel
                             </button>
                             <button wire:click="saveClosure"
-                                    class="px-4 py-2 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                                    class="btn-primary btn-sm">
                                 Save Reason
                             </button>
                         </div>

@@ -19,7 +19,7 @@
             <p class="text-xs text-gray-500 mt-1">Configure users who can approve duty rosters for each outlet.</p>
         </div>
         <a href="{{ route('hr.duty-roster') }}"
-           class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+           class="btn-secondary">
             Back to Roster
         </a>
     </div>
@@ -51,7 +51,7 @@
                     </select>
                 </div>
                 <button wire:click="addApprover"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50"
+                        class="btn-primary"
                         {{ !$selectedUserId ? 'disabled' : '' }}>
                     Add Approver
                 </button>
@@ -60,8 +60,8 @@
 
         {{-- Approvers List --}}
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">User</th>
                         <th class="px-4 py-3 text-left">Email</th>
@@ -69,7 +69,7 @@
                         <th class="px-4 py-3 text-center w-24">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($approvers as $approver)
                         <tr>
                             <td class="px-4 py-3 font-medium">{{ $approver->user->name ?? 'Unknown' }}</td>

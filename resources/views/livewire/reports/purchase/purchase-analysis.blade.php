@@ -19,8 +19,8 @@
     {{-- Data Table --}}
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3">Supplier</th>
                         <th class="px-4 py-3">Category</th>
@@ -29,7 +29,7 @@
                         <th class="px-4 py-3 text-right">Avg Cost/Item</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody>
                     @forelse ($rows as $row)
                         <tr class="odd:bg-white even:bg-gray-50/50 hover:bg-gray-50 transition">
                             <td class="px-4 py-2.5 font-medium text-gray-800">{{ $row->supplier_name }}</td>

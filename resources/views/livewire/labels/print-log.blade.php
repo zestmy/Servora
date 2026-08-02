@@ -50,12 +50,10 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Group by</label>
-                <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <div class="seg">
                     @foreach (['date' => 'Date', 'set' => 'Print set'] as $mode => $label)
                         <button type="button" wire:click="$set('groupBy', '{{ $mode }}')"
-                                class="px-3 py-2 {{ $groupBy === $mode
-                                    ? 'bg-brand-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50' }}">
+                                class="seg-item {{ $groupBy === $mode ? 'seg-item-on' : '' }}">
                             {{ $label }}
                         </button>
                     @endforeach
@@ -66,8 +64,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-[760px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-[760px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Printed</th>
                         <th class="px-4 py-3 text-left">Set</th>
@@ -78,7 +76,7 @@
                         <th class="px-4 py-3 text-center w-20"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @php $lastSetKey = null; @endphp
                     @forelse ($batches as $batch)
                         @if ($groupBy === 'set')
@@ -116,8 +114,8 @@
                         @if ($expandedId === $batch->id && $expanded)
                             <tr class="bg-gray-50/60">
                                 <td colspan="7" class="px-4 py-3">
-                                    <table class="w-full text-xs">
-                                        <thead class="text-gray-600 uppercase tracking-wider">
+                                    <table class="table-surface text-xs">
+                                        <thead>
                                             <tr>
                                                 <th class="py-1 text-left">Item</th>
                                                 <th class="py-1 text-left">Label</th>

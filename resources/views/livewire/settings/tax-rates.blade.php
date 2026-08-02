@@ -13,15 +13,15 @@
             </a>
             <h2 class="page-title">Tax Rates</h2>
         </div>
-        <button wire:click="openCreate" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+        <button wire:click="openCreate" class="btn-primary">
             + New Tax Rate
         </button>
     </div>
 
     <div class="card overflow-hidden">
         @if ($taxRates->count() > 0)
-            <div class="overflow-x-auto"><table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <div class="overflow-x-auto"><table class="table-surface min-w-[900px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Country</th>
                         <th class="px-4 py-3 text-left">Name</th>
@@ -32,7 +32,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($taxRates as $tr)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-medium text-gray-700">{{ $tr->country_code }}</td>
@@ -106,7 +106,7 @@
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button wire:click="$set('showForm', false)" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-                    <button wire:click="save" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
+                    <button wire:click="save" class="btn-primary">
                         {{ $editId ? 'Update' : 'Create' }}
                     </button>
                 </div>

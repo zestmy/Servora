@@ -36,8 +36,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Company</th>
                     <th class="px-4 py-3 text-center">Outlets</th>
@@ -48,7 +48,7 @@
                     <th class="px-4 py-3 text-center">Health</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($companies as $company)
                     @php $health = $healthData[$company->id] ?? []; @endphp
                     <tr class="hover:bg-gray-50 transition">

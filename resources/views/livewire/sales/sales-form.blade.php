@@ -297,14 +297,14 @@
                     </div>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                        <table class="table-surface min-w-full">
+                            <thead>
                                 <tr>
                                     <th class="px-6 py-3 text-left">Category</th>
                                     <th class="px-6 py-3 text-right w-48">Revenue (RM)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($lines as $idx => $line)
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="px-6 py-3">
@@ -340,7 +340,7 @@
                         Cancel
                     </a>
                     <button wire:click="save"
-                            class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Sales Entry
                     </button>
                 </div>
@@ -453,7 +453,7 @@
 
                 {{-- Save button --}}
                 <button wire:click="save"
-                        class="mt-5 w-full px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary mt-5 w-full">
                     Save Sales Entry
                 </button>
                 <a href="{{ route('sales.index') }}"

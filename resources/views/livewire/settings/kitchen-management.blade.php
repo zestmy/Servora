@@ -21,7 +21,7 @@
             <h2 class="page-title">Central Kitchens</h2>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + New Kitchen
         </button>
     </div>
@@ -214,7 +214,7 @@
                 <button wire:click="$set('showForm', false)"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                 <button wire:click="save"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     {{ $editId ? 'Update' : 'Create' }}
                 </button>
             </div>

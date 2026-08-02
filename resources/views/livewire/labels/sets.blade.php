@@ -224,7 +224,7 @@
                             <button wire:click="closeQr" class="btn-secondary">Close</button>
                             <a href="{{ route('labels.sets.qr-sheet', ['outlet' => $outletId, 'set' => $qrSet?->id]) }}"
                                target="_blank"
-                               class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Print</a>
+                               class="btn-primary">Print</a>
                         </div>
                     </div>
                 </div>
@@ -299,7 +299,7 @@
                             </div>
                             <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                                 <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
-                                <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Save</button>
+                                <button type="submit" class="btn-primary">Save</button>
                             </div>
                         </form>
                     </div>

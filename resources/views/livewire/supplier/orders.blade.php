@@ -13,8 +13,8 @@
     </div>
 
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">PO Number</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
@@ -24,7 +24,7 @@
                     <th class="px-4 py-3 text-center">Status</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($orders as $po)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3">

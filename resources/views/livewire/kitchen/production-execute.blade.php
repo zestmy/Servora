@@ -20,7 +20,7 @@
         </div>
         <div class="flex gap-2">
             <button wire:click="saveProgress" wire:loading.attr="disabled"
-                    class="px-5 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 Save Progress
             </button>
             <button wire:click="complete"
@@ -137,8 +137,8 @@
 
         {{-- Wide screens: the table --}}
         <div class="hidden md:block overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-2 text-left w-8">#</th>
                         <th class="px-4 py-2 text-left">Recipe</th>
@@ -148,7 +148,7 @@
                         <th class="px-4 py-2 text-left">Destination</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($order->lines as $idx => $line)
                         <tr class="hover:bg-gray-50 transition" wire:key="xline-d-{{ $line->id }}">
                             <td class="px-4 py-3 text-gray-600 text-xs">{{ $idx + 1 }}</td>
@@ -176,7 +176,7 @@
             </a>
             <div class="flex gap-2">
                 <button wire:click="saveProgress" wire:loading.attr="disabled"
-                        class="px-5 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Save Progress
                 </button>
                 <button wire:click="complete"

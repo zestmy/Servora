@@ -9,12 +9,12 @@
             <h1 class="text-lg font-bold text-gray-800">Referral Programs</h1>
             <p class="text-xs text-gray-600 mt-0.5">Set commission rates for referrals per plan.</p>
         </div>
-        <button wire:click="openCreate" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">+ Add Program</button>
+        <button wire:click="openCreate" class="btn-primary">+ Add Program</button>
     </div>
 
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Plan</th>
                     <th class="px-4 py-3 text-left">Commission</th>
@@ -24,7 +24,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($programs as $program)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $program->plan?->name ?? 'All Plans' }}</td>
@@ -117,7 +117,7 @@
                 </div>
                 <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
                     <button type="button" @click="$wire.closeModal()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">Save</button>
+                    <button type="submit" class="btn-primary">Save</button>
                 </div>
             </form>
         </div>

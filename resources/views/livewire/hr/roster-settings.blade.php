@@ -14,7 +14,7 @@
         </div>
         <div>
             <a href="{{ route('hr.duty-roster') }}"
-               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 &larr; Back to Roster
             </a>
         </div>
@@ -87,7 +87,7 @@
                 {{-- Save Button --}}
                 <div class="pt-4 border-t">
                     <button type="submit"
-                            class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         Save Settings
                     </button>
                 </div>

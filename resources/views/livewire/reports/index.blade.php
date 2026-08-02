@@ -9,13 +9,13 @@
         @if (!empty($summary['categories']))
             <div class="flex items-center gap-2">
                 <button wire:click="exportPdf"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-danger-600 text-white rounded-lg text-sm font-medium hover:bg-danger-700 transition">
+                        class="btn-danger">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     Export PDF
                 </button>
                 @if ($activeTab === 'cost_summary')
                     <button wire:click="exportCsv"
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                            class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         CSV
                     </button>
@@ -293,7 +293,7 @@
 
                     {{-- Detailed Comparison Table --}}
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
+                        <table class="table-surface min-w-full">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-200">
                                     <th class="text-left py-2.5 px-4 font-semibold text-gray-600 w-40">Metric</th>
@@ -304,7 +304,7 @@
                                     <th class="text-right py-2.5 px-4 font-semibold text-gray-600 text-xs min-w-[80px]">vs LY</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @php
                                     $compRows = [
                                         ['label' => 'Revenue', 'key' => 'revenue', 'format' => 'number', 'good' => 'up'],
@@ -364,7 +364,7 @@
                         <div class="mt-5 pt-5 border-t border-gray-100">
                             <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Revenue by Category</h4>
                             <div class="overflow-x-auto">
-                                <table class="min-w-full text-xs">
+                                <table class="table-surface min-w-full text-xs">
                                     <thead>
                                         <tr class="bg-gray-50 border-b border-gray-100">
                                             <th class="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
@@ -375,7 +375,7 @@
                                             <th class="text-right py-2 px-3 font-semibold text-gray-600">vs LY</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-50">
+                                    <tbody>
                                         @foreach ($cur['summary']['categories'] as $idx => $cat)
                                             @php
                                                 $prevCatRev = $prev['summary']['categories'][$idx]['revenue'] ?? 0;
@@ -442,7 +442,7 @@
             {{-- P&L Table --}}
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
+                    <table class="table-surface min-w-full">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="text-left py-3 px-4 font-semibold text-gray-600 w-48">Metric</th>
@@ -459,7 +459,7 @@
                                 <th class="text-right py-3 px-4 font-bold text-gray-800 min-w-[120px] bg-gray-100">Total</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             <tr class="bg-blue-50/40">
                                 <td class="py-2.5 px-4 font-semibold text-gray-700">Revenue</td>
                                 @foreach ($summary['categories'] as $cat)
@@ -651,8 +651,8 @@
                         <p class="text-xs text-gray-600 mt-0.5">Revenue and pax for each month across all years</p>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-xs">
-                            <thead class="bg-gray-50">
+                        <table class="table-surface min-w-full text-xs">
+                            <thead>
                                 <tr>
                                     <th class="py-2 px-3 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 z-10">Month</th>
                                     @foreach ($msy['years'] as $yr)
@@ -668,7 +668,7 @@
                                     @endforeach
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @for ($m = 1; $m <= 12; $m++)
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="py-2 px-3 font-medium text-gray-700 sticky left-0 bg-white z-10">{{ $monthNames[$m - 1] }}</td>
@@ -810,8 +810,8 @@
                         <h3 class="text-sm font-semibold text-gray-600">Category P&L Summary</h3>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-xs">
-                            <thead class="bg-gray-50">
+                        <table class="table-surface min-w-full text-xs">
+                            <thead>
                                 <tr>
                                     <th class="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
                                     <th class="text-right py-2 px-3 font-semibold text-gray-600">Revenue</th>
@@ -820,7 +820,7 @@
                                     <th class="text-right py-2 px-3 font-semibold text-gray-600">Cost %</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach ($ds['cost_summary']['categories'] as $cat)
                                     <tr class="hover:bg-gray-50">
                                         <td class="py-2 px-3 font-medium text-gray-800">
@@ -864,8 +864,8 @@
                             <h3 class="text-sm font-semibold text-gray-600">Inventory Position</h3>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full text-xs">
-                                <thead class="bg-gray-50">
+                            <table class="table-surface min-w-full text-xs">
+                                <thead>
                                     <tr>
                                         <th class="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
                                         <th class="text-right py-2 px-3 font-semibold text-gray-600">Opening</th>
@@ -873,7 +873,7 @@
                                         <th class="text-right py-2 px-3 font-semibold text-gray-600">Change</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-50">
+                                <tbody>
                                     @foreach ($ds['cost_summary']['categories'] as $cat)
                                         @if ($cat['opening_stock'] > 0 || $cat['closing_stock'] > 0)
                                             @php $stockChange = $cat['closing_stock'] - $cat['opening_stock']; @endphp
@@ -954,8 +954,8 @@
                         @endif
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-xs">
-                            <thead class="bg-gray-50">
+                        <table class="table-surface min-w-full text-xs">
+                            <thead>
                                 <tr>
                                     <th class="text-left py-2 px-3 font-semibold text-gray-600">Item</th>
                                     <th class="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
@@ -963,7 +963,7 @@
                                     <th class="text-right py-2 px-3 font-semibold text-gray-600">Cost (RM)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @forelse ($ds['top_wastage'] as $item)
                                     <tr class="hover:bg-gray-50">
                                         <td class="py-2 px-3 font-medium text-gray-800">{{ $item['name'] }}</td>

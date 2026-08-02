@@ -15,7 +15,7 @@
             <h2 class="page-title">Outlet Groups</h2>
         </div>
         <button wire:click="create"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + New Group
         </button>
     </div>
@@ -122,7 +122,7 @@
                 <button type="button" wire:click="cancel"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                 <button type="button" wire:click="save"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     {{ $editingId ? 'Update' : 'Create' }}
                 </button>
             </div>

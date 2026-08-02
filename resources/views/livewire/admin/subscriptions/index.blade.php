@@ -18,7 +18,7 @@
             <p class="text-xs text-gray-600 mt-0.5">View and manage all company subscriptions.</p>
         </div>
         <button wire:click="openCreate"
-                class="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -52,8 +52,8 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">Company</th>
                     <th class="px-4 py-3 text-left">Plan</th>
@@ -64,7 +64,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @forelse ($subscriptions as $sub)
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
@@ -244,7 +244,7 @@
                     <button wire:click="closeModal"
                             class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
                     <button wire:click="saveSubscription"
-                            class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         {{ $editingId ? 'Save Changes' : 'Create Subscription' }}
                     </button>
                 </div>

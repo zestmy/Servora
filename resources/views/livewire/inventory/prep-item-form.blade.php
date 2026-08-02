@@ -24,7 +24,7 @@
         @if ($recipeId)
             <x-download-link href="{{ route('recipes.cost-pdf', $recipeId) }}"
                title="Export this prep item's costing as a PDF"
-               class="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">
+               class="btn-secondary flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -37,7 +37,7 @@
             Unsaved changes
         </span>
         <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
-                class="flex-shrink-0 px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5">
+                class="btn-primary flex-shrink-0">
             <svg wire:loading wire:target="save" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -433,8 +433,8 @@
         {{-- Lines table --}}
         @if (count($lines))
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-2 py-2 text-left w-6"></th>
                             <th class="px-4 py-2 text-left w-8">#</th>
@@ -446,7 +446,7 @@
                             <th class="px-4 py-2 w-10"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50"
+                    <tbody
                            x-data
                            x-init="new Sortable($el, {
                                handle: '.line-drag-handle',
@@ -559,7 +559,7 @@
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
             <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Cancel</a>
             <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
-                    class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="save">Save Prep Item</span>
                 <span wire:loading wire:target="save">Saving…</span>
             </button>
@@ -614,8 +614,8 @@
                     $fmtBatchQty = fn ($q) => rtrim(rtrim(number_format((float) $q, 4), '0'), '.') ?: '0';
                 @endphp
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                    <table class="table-surface min-w-full">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-2 text-left">Ingredient</th>
                                 @foreach ($batchCols as $m)
@@ -628,7 +628,7 @@
                                 @endforeach
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
+                        <tbody>
                             @foreach ($lines as $line)
                                 <tr wire:key="batch-row-{{ $line['ingredient_id'] }}">
                                     <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
@@ -666,7 +666,7 @@
                         <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                             <button type="button" wire:click="removeExistingPresentationImage({{ $img['id'] }})"
                                     wire:confirm="Remove this photo?"
-                                    class="px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700 transition">
+                                    class="btn-danger btn-sm">
                                 Remove
                             </button>
                         </div>
@@ -699,7 +699,7 @@
                              class="w-full h-32 object-cover" />
                         <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                             <button type="button" wire:click="removeNewPresentationImage({{ $idx }})"
-                                    class="px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700 transition">
+                                    class="btn-danger btn-sm">
                                 Remove
                             </button>
                         </div>
@@ -941,7 +941,7 @@
                     {{-- Save Button --}}
                     <div class="mt-6 pt-4 border-t border-gray-100">
                         <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
-                                class="w-full px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                class="btn-primary w-full">
                             <svg wire:loading.remove wire:target="save" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                             </svg>

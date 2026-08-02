@@ -26,11 +26,11 @@
         </div>
         <div class="flex items-center gap-2">
             <button wire:click="openTestModal"
-                    class="px-4 py-2 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 Send Test Report
             </button>
             <button wire:click="openCreate"
-                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 + New Subscription
             </button>
         </div>
@@ -39,8 +39,8 @@
     {{-- Subscriptions Table --}}
     <div class="card overflow-hidden mb-8">
         <div class="overflow-x-auto">
-            <table class="min-w-[900px] divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-[900px]">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Report Type</th>
                         <th class="px-4 py-3 text-left">Outlet</th>
@@ -52,7 +52,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($subscriptions as $subscription)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
@@ -146,8 +146,8 @@
             <h3 class="text-sm font-semibold text-gray-700">Recent Report History</h3>
         </div>
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-2 text-left">Date</th>
                         <th class="px-4 py-2 text-left">Report</th>
@@ -157,7 +157,7 @@
                         <th class="px-4 py-2 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach($recentLogs as $log)
                     <tr wire:key="report-log-{{ $log->id }}">
                         <td class="px-4 py-2 text-gray-600">{{ $log->created_at->format('d M Y H:i') }}</td>
@@ -184,7 +184,7 @@
                                 @if($log->delivery_status !== 'pending')
                                     <x-download-link href="{{ route('settings.reports.log-pdf', $log->id) }}"
                                         title="Download this report as PDF (same content as the email)"
-                                        class="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                        class="btn-secondary btn-sm">
                                         PDF
                                     </x-download-link>
                                 @endif
@@ -320,7 +320,7 @@
                             Cancel
                         </button>
                         <button wire:click="save"
-                                class="px-4 py-2 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary btn-sm">
                             {{ $editingId ? 'Update Subscription' : 'Create Subscription' }}
                         </button>
                     </div>
@@ -393,7 +393,7 @@
                         <button wire:click="sendTestReport"
                                 wire:loading.attr="disabled"
                                 wire:loading.class="opacity-50"
-                                class="px-4 py-2 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition flex items-center gap-2">
+                                class="btn-primary btn-sm">
                             <span wire:loading wire:target="sendTestReport">
                                 <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

@@ -20,7 +20,7 @@
         @endif
 
         <div class="space-y-2">
-            <label class="inline-flex items-center px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition cursor-pointer">
+            <label class="btn-primary cursor-pointer">
                 <input type="file" wire:model="photo" accept="image/*" class="hidden" />
                 <span wire:loading.remove wire:target="photo">{{ auth()->user()->avatar ? 'Change picture' : 'Upload picture' }}</span>
                 <span wire:loading wire:target="photo">Uploading…</span>

@@ -76,8 +76,8 @@
             <div class="card p-5">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">Items</h3>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="text-gray-500 text-xs uppercase border-b">
+                    <table class="table-surface min-w-full">
+                        <thead>
                             <tr>
                                 <th class="text-left py-2 px-2">Product</th>
                                 <th class="text-center py-2 px-2 w-20">Expected</th>

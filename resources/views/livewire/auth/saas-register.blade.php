@@ -102,7 +102,7 @@
         {{-- Submit --}}
         <button type="submit"
                 wire:loading.attr="disabled"
-                class="w-full py-3 bg-brand-600 text-white font-semibold rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                class="btn-primary w-full py-3">
             <span wire:loading.remove>Start Free Trial</span>
             <span wire:loading>Creating your account…</span>
         </button>

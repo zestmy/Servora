@@ -66,8 +66,8 @@
     {{-- Table --}}
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">User</th>
                         <th class="px-4 py-3 text-left">Companies</th>
@@ -78,7 +78,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($users as $u)
                         <tr wire:key="au-{{ $u->id }}" class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
@@ -140,7 +140,7 @@
                                 <div class="flex items-center justify-center gap-1.5 whitespace-nowrap">
                                     <button wire:click="openEdit({{ $u->id }})"
                                             title="Edit account (name, email, password, verification)"
-                                            class="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                            class="btn-secondary btn-sm">
                                         Edit
                                     </button>
                                     @if (! $isSystemAccount && $u->id !== auth()->id())
@@ -220,7 +220,7 @@
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button wire:click="closeEdit" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-                    <button wire:click="saveEdit" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">Save</button>
+                    <button wire:click="saveEdit" class="btn-primary">Save</button>
                 </div>
             </div>
         </div>

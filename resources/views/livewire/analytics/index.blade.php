@@ -93,7 +93,7 @@
                         wire:loading.attr="disabled"
                         wire:target="runAnalysis"
                         @disabled(!$hasApiKey)
-                        class="w-full px-4 py-3 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        class="btn-primary w-full py-3">
                     <span wire:loading.remove wire:target="runAnalysis">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     </span>
@@ -335,7 +335,7 @@
                                     <div class="flex items-center gap-3">
                                         <div class="text-xs text-gray-600">Powered by Servora AI</div>
                                         <button wire:click="exportPdf"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-danger-600 text-white text-xs font-medium rounded-lg hover:bg-danger-700 transition">
+                                                class="btn-danger btn-sm">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                             PDF
                                         </button>
@@ -402,7 +402,7 @@
                                             Performance by Outlet
                                         </div>
                                         <div class="overflow-x-auto">
-                                            <table class="w-full text-sm">
+                                            <table class="table-surface">
                                                 <thead>
                                                     <tr class="border-b border-gray-100">
                                                         <th class="text-left py-2 pr-4 font-medium text-gray-500">Outlet</th>
@@ -411,7 +411,7 @@
                                                         <th class="text-left py-2 pl-4 font-medium text-gray-500">Note</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody class="divide-y divide-gray-50">
+                                                <tbody>
                                                     @foreach ($insights['outlets_summary'] as $outlet)
                                                         <tr class="hover:bg-gray-50">
                                                             <td class="py-2.5 pr-4 font-medium text-gray-800">{{ $outlet['name'] ?? '-' }}</td>

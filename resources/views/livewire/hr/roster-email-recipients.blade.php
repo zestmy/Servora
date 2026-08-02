@@ -20,12 +20,12 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('hr.duty-roster') }}"
-               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 Back to Roster
             </a>
             @if ($outletId)
                 <button wire:click="openCreate"
-                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                        class="btn-primary">
                     + Add Recipient
                 </button>
             @endif
@@ -48,8 +48,8 @@
     @if ($outletId)
         {{-- Recipients List --}}
         <div class="card overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Email</th>
                         <th class="px-4 py-3 text-left">Name</th>
@@ -58,7 +58,7 @@
                         <th class="px-4 py-3 text-center w-32">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($recipients as $recipient)
                         <tr class="{{ !$recipient->is_active ? 'bg-gray-50 text-gray-600' : '' }}">
                             <td class="px-4 py-3 font-medium">{{ $recipient->email }}</td>
@@ -153,8 +153,8 @@
                         <span class="text-sm text-gray-700">Active</span>
                     </label>
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">
+                        <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                        <button type="submit" class="btn-primary">
                             {{ $editingId ? 'Update' : 'Add' }}
                         </button>
                     </div>

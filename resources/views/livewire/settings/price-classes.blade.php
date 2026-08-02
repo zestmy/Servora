@@ -20,7 +20,7 @@
             <p class="text-sm text-gray-500 mt-0.5">Define selling price tiers for different outlet locations or sales channels.</p>
         </div>
         <button wire:click="openCreate"
-                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                class="btn-primary">
             + Add Price Class
         </button>
     </div>
@@ -28,8 +28,8 @@
     {{-- Table --}}
     <div class="card overflow-hidden">
         @if ($priceClasses->count())
-            <div class="overflow-x-auto"><table class="min-w-[780px] text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <div class="overflow-x-auto"><table class="table-surface min-w-[780px]">
+                <thead>
                     <tr>
                         <th class="px-6 py-3 text-left">Name</th>
                         <th class="px-6 py-3 text-center w-24">Order</th>
@@ -38,7 +38,7 @@
                         <th class="px-6 py-3 text-right w-32">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @foreach ($priceClasses as $pc)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-6 py-3 font-medium text-gray-800">{{ $pc->name }}</td>
@@ -102,7 +102,7 @@
                     <button wire:click="closeModal"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
                     <button wire:click="save"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                            class="btn-primary">
                         {{ $editingId ? 'Update' : 'Create' }}
                     </button>
                 </div>

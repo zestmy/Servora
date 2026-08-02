@@ -1,19 +1,38 @@
-{{-- Alerts --}}
-@if (!empty($alerts))
+@php
+    /**
+     * Dashboard alert strip.
+     *
+     * Was three hand-pasted solid 20px SVGs from a different icon family, and
+     * used blue-50 / blue-800 for the info tone — an off-palette hue that
+     * exists nowhere else in the product. Both now come from the design
+     * system: .alert-* for the surface, <x-icon> for the glyph.
+     *
+     * The icon is decorative here (aria-hidden inside <x-icon>), so the tone
+     * gets a visually-hidden word instead. Colour alone never carries the
+     * severity.
+     *
+     * role="status" rather than role="alert": these render on page load and
+     * describe standing conditions, so they should be announced when the user
+     * arrives at them, not interrupt whatever they are doing.
+     */
+    $tones = [
+        'warning' => ['class' => 'alert-warning', 'icon' => 'warning', 'label' => 'Warning'],
+        'alert'   => ['class' => 'alert-danger',  'icon' => 'alert',   'label' => 'Needs attention'],
+        'info'    => ['class' => 'alert-info',    'icon' => 'info',    'label' => 'Note'],
+    ];
+@endphp
+
+@if (! empty($alerts))
     <div class="mb-6 space-y-2">
         @foreach ($alerts as $alert)
-            <div class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
-                {{ $alert['type'] === 'warning' ? 'bg-warning-50 text-warning-800 border border-warning-200' : '' }}
-                {{ $alert['type'] === 'info' ? 'bg-blue-50 text-blue-800 border border-blue-200' : '' }}
-                {{ $alert['type'] === 'alert' ? 'bg-danger-50 text-danger-800 border border-danger-200' : '' }}">
-                @if ($alert['type'] === 'warning')
-                    <svg class="w-5 h-5 text-warning-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                @elseif ($alert['type'] === 'alert')
-                    <svg class="w-5 h-5 text-danger-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                @else
-                    <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                @endif
-                {{ $alert['message'] }}
+            @php $tone = $tones[$alert['type'] ?? 'info'] ?? $tones['info']; @endphp
+
+            <div class="{{ $tone['class'] }}" role="status">
+                <x-icon :name="$tone['icon']" size="h-5 w-5" stroke="1.8" class="mt-px flex-none" />
+                <p class="font-medium">
+                    <span class="sr-only">{{ $tone['label'] }}:</span>
+                    {{ $alert['message'] }}
+                </p>
             </div>
         @endforeach
     </div>

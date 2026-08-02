@@ -28,15 +28,15 @@
                 Settings
             </a>
             <a href="{{ route('hr.roster-stations') }}"
-               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 Stations
             </a>
             <a href="{{ route('hr.roster-approvers') }}"
-               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 Approvers
             </a>
             <a href="{{ route('hr.roster-email-recipients') }}"
-               class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+               class="btn-secondary">
                 Email Recipients
             </a>
             @endcan
@@ -135,12 +135,12 @@
                             <button wire:click="resetToStaffOrder"
                                     wire:confirm="Reorder this roster to match the Employees list? Any manual row order here will be replaced."
                                     title="Match the order used by the Employees list and Attendance Record"
-                                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                                    class="btn-secondary">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/></svg>
                                 Sort by staff order
                             </button>
                             <button wire:click="submitRoster"
-                                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                                    class="btn-primary">
                                 Submit for Approval
                             </button>
                         @endif
@@ -151,20 +151,20 @@
                                 Approve
                             </button>
                             <button wire:click="openRejectModal"
-                                    class="px-4 py-2 bg-danger-600 text-white text-sm font-medium rounded-lg hover:bg-danger-700 transition">
+                                    class="btn-danger">
                                 Reject
                             </button>
                         @endif
 
                         @if (($roster->isSubmitted() || $roster->isRejected()) && $canEdit)
                             <button wire:click="revertToDraft"
-                                    class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    class="btn-secondary">
                                 Revert to Draft
                             </button>
                         @endif
 
                         <button wire:click="exportPdf"
-                                class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1">
+                                class="btn-secondary">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
@@ -172,7 +172,7 @@
                         </button>
 
                         <button wire:click="openEmailModal"
-                                class="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1">
+                                class="btn-secondary">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
@@ -251,8 +251,8 @@
             {{-- Roster Grid --}}
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-100 text-sm">
-                        <thead class="bg-gray-50">
+                    <table class="table-surface min-w-full">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
                                     Employee / Designation
@@ -300,7 +300,7 @@
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50"
+                        <tbody
                                x-data="{
                                    dragging: false,
                                    init() {
@@ -545,7 +545,7 @@
                     <div class="text-gray-500 mb-4">No roster exists for this week and section.</div>
                     @if ($canCreate)
                         <button wire:click="createRoster"
-                                class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                                class="btn-primary">
                             Create Roster for {{ $periodLabel }}
                         </button>
                     @else
@@ -596,11 +596,11 @@
                         </div>
                         <div class="flex justify-end gap-3 mt-4">
                             <button type="button" @click="open = false"
-                                    class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                    class="btn-secondary">
                                 Cancel
                             </button>
                             <button wire:click="confirmAmendment"
-                                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
+                                    class="btn-primary">
                                 Confirm Amendment
                             </button>
                         </div>
@@ -738,11 +738,11 @@
                             @endif
                             <div class="flex gap-3">
                                 <button type="button" wire:click="closeEntryForm"
-                                        class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                        class="btn-secondary">
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                        class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
+                                        class="btn-primary">
                                     {{ $editingEntryId ? 'Update' : 'Add' }}
                                 </button>
                             </div>
@@ -799,8 +799,8 @@
                             <div></div>
                         @endif
                         <div class="flex gap-2">
-                            <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button type="submit" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Save</button>
+                            <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                            <button type="submit" class="btn-primary">Save</button>
                         </div>
                     </div>
                 </form>
@@ -834,8 +834,8 @@
                         @error('rejection_reason') <span class="text-xs text-danger-500 mt-1">{{ $message }}</span> @enderror
                     </div>
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button type="submit" class="px-4 py-2 text-sm text-white bg-danger-600 rounded-lg hover:bg-danger-700">Reject Roster</button>
+                        <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                        <button type="submit" class="btn-danger">Reject Roster</button>
                     </div>
                 </form>
             </div>
@@ -900,8 +900,8 @@
                     </div>
 
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                        <button type="button" @click="open = false" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button wire:click="sendEmail" class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700">Send Email</button>
+                        <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                        <button wire:click="sendEmail" class="btn-primary">Send Email</button>
                     </div>
                 </div>
             </div>

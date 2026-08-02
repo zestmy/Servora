@@ -50,8 +50,8 @@
         <div class="mb-6 card p-5">
             <h3 class="text-sm font-semibold text-gray-700 mb-3">Column Reference</h3>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider">
+                <table class="table-surface min-w-full text-xs text-left">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2">Column</th>
                             <th class="px-3 py-2">Required</th>
@@ -59,7 +59,7 @@
                             <th class="px-3 py-2">Example</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50 text-gray-600">
+                    <tbody class="text-gray-600">
                         <tr><td class="px-3 py-2 font-mono font-medium">name</td><td class="px-3 py-2"><span class="text-danger-500 font-semibold">Yes</span></td><td class="px-3 py-2">Recipe name</td><td class="px-3 py-2 font-mono">Nasi Lemak</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">code</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Internal code / SKU</td><td class="px-3 py-2 font-mono">NL-001</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">description</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Short description</td><td class="px-3 py-2 font-mono">Classic coconut rice set</td></tr>
@@ -108,7 +108,7 @@
             @if ($file)
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="processUpload">Preview Import →</span>
                         <span wire:loading wire:target="processUpload">Parsing file…</span>
                     </button>
@@ -144,8 +144,8 @@
                 <p class="text-xs text-gray-600">Rows highlighted in red have errors and will be skipped.</p>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                <table class="table-surface min-w-full text-xs">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2 text-left w-10">#</th>
                             <th class="px-3 py-2 text-left">Name</th>
@@ -159,7 +159,7 @@
                             <th class="px-3 py-2 text-left">Issues</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody>
                         @foreach ($rows as $row)
                             <tr class="{{ $row['skip'] ? 'bg-danger-50' : 'hover:bg-gray-50' }} transition">
                                 <td class="px-3 py-2 text-gray-600">{{ $row['row'] }}</td>
@@ -205,14 +205,14 @@
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
             <button wire:click="restart"
-                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    class="btn-secondary">
                 ← Upload Different File
             </button>
 
             @if ($validRows > 0)
                 <button wire:click="import" wire:loading.attr="disabled"
                         wire:confirm="Import {{ $validRows }} {{ $isPrep ? 'prep item' : 'recipe' }}(s)? Rows with errors will be skipped."
-                        class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                        class="btn-primary">
                     <span wire:loading.remove wire:target="import">Import {{ $validRows }} {{ $isPrep ? 'Prep Item' : 'Recipe' }}{{ $validRows !== 1 ? 's' : '' }}</span>
                     <span wire:loading wire:target="import">Importing…</span>
                 </button>
@@ -244,11 +244,11 @@
 
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}"
-                   class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     View {{ $isPrep ? 'Prep Items' : 'Recipes' }}
                 </a>
                 <button wire:click="restart"
-                        class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                        class="btn-secondary">
                     Import Another File
                 </button>
             </div>

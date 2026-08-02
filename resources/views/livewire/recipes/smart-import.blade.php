@@ -323,8 +323,8 @@
             <h3 class="text-sm font-semibold text-gray-700 mb-3">Expected Columns</h3>
             <p class="text-xs text-gray-500 mb-3">Your file doesn't need these exact names — AI will auto-detect and map your columns.</p>
             <div class="overflow-x-auto">
-                <table class="min-w-full text-xs text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider">
+                <table class="table-surface min-w-full text-xs text-left">
+                    <thead>
                         <tr>
                             <th class="px-3 py-2">Field</th>
                             <th class="px-3 py-2">Required</th>
@@ -332,7 +332,7 @@
                             <th class="px-3 py-2">Example</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50 text-gray-600">
+                    <tbody class="text-gray-600">
                         <tr><td class="px-3 py-2 font-mono font-medium">recipe_name</td><td class="px-3 py-2"><span class="text-danger-500 font-semibold">Yes</span></td><td class="px-3 py-2">Recipe / menu item name</td><td class="px-3 py-2 font-mono">Nasi Lemak</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">recipe_code</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Internal code</td><td class="px-3 py-2 font-mono">NL-001</td></tr>
                         <tr><td class="px-3 py-2 font-mono font-medium">category</td><td class="px-3 py-2 text-gray-600">No</td><td class="px-3 py-2">Menu category</td><td class="px-3 py-2 font-mono">Food</td></tr>
@@ -380,7 +380,7 @@
             @if ($file)
                 <div class="mt-4 flex justify-end">
                     <button wire:click="processUpload" wire:loading.attr="disabled"
-                            class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                            class="btn-primary">
                         <span wire:loading.remove wire:target="processUpload">Upload & Map Columns →</span>
                         <span wire:loading wire:target="processUpload">
                             @if ($file && strtolower($file->getClientOriginalExtension()) === 'pdf')
@@ -453,15 +453,15 @@
                 <div class="mt-5 pt-4 border-t border-gray-100">
                     <h4 class="text-xs font-semibold text-gray-600 mb-2">Sample Data (first {{ min(3, count($fileDataRows)) }} rows)</h4>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-[11px]">
-                            <thead class="bg-gray-50 text-gray-500 uppercase">
+                        <table class="table-surface min-w-full text-[11px]">
+                            <thead>
                                 <tr>
                                     @foreach ($fileHeaders as $header)
                                         <th class="px-2 py-1.5 text-left whitespace-nowrap">{{ $header }}</th>
                                     @endforeach
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
+                            <tbody>
                                 @foreach (array_slice($fileDataRows, 0, 3) as $row)
                                     <tr>
                                         @foreach ($fileHeaders as $header)
@@ -477,11 +477,11 @@
         </div>
 
         <div class="flex items-center justify-between">
-            <button wire:click="restart" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+            <button wire:click="restart" class="btn-secondary">
                 ← Upload Different File
             </button>
             <button wire:click="confirmMapping" wire:loading.attr="disabled"
-                    class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="confirmMapping">Preview Recipes →</span>
                 <span wire:loading wire:target="confirmMapping">Matching ingredients…</span>
             </button>
@@ -730,7 +730,7 @@
                                     </div>
                                     <button type="button"
                                             wire:click="createCategoryFromPreview({{ $rIdx }})"
-                                            class="px-3 py-1 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                                            class="btn-primary btn-sm">
                                         Create & Apply
                                     </button>
                                 </div>
@@ -757,8 +757,8 @@
                     {{-- Ingredient lines --}}
                     @if (count($recipe['lines']) > 0)
                         <div x-show="open" x-cloak class="border-t border-gray-100">
-                            <table class="min-w-full text-xs">
-                                <thead class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider">
+                            <table class="table-surface min-w-full text-xs">
+                                <thead>
                                     <tr>
                                         <th class="px-4 py-2 text-left w-8">#</th>
                                         <th class="px-4 py-2 text-left">Ingredient (file)</th>
@@ -768,7 +768,7 @@
                                         <th class="px-4 py-2 text-right w-20">Waste%</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-50">
+                                <tbody>
                                     @foreach ($recipe['lines'] as $lIdx => $line)
                                         <tr wire:key="smart-import-line-{{ $line['uid'] ?? ($rIdx.'-'.$lIdx) }}"
                                             class="{{ ! $line['ingredient_id'] || ! $line['uom_id'] ? 'bg-warning-50' : '' }}">
@@ -823,12 +823,12 @@
 
         {{-- Action bar --}}
         <div class="flex items-center justify-between">
-            <button wire:click="restart" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+            <button wire:click="restart" class="btn-secondary">
                 ← Start Over
             </button>
             <button wire:click="import" wire:loading.attr="disabled"
                     {{ $validRecipes === 0 ? 'disabled' : '' }}
-                    class="px-6 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+                    class="btn-primary">
                 <span wire:loading.remove wire:target="import">Import {{ $validRecipes }} {{ $validRecipes === 1 ? 'Recipe' : 'Recipes' }}</span>
                 <span wire:loading wire:target="import">Importing…</span>
             </button>
@@ -862,10 +862,10 @@
             </div>
             <div class="flex items-center justify-center gap-3">
                 <a href="{{ route('recipes.index', $isPrep ? ['tab' => 'prep-items'] : []) }}"
-                   class="px-5 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                   class="btn-primary">
                     View {{ $isPrep ? 'Prep Items' : 'Recipes' }}
                 </a>
-                <button wire:click="restart" class="px-5 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                <button wire:click="restart" class="btn-secondary">
                     Import More
                 </button>
             </div>
@@ -984,10 +984,10 @@
 
                         <div class="mt-5 flex items-center justify-end gap-2">
                             <button type="button" @click="close()" :disabled="submitting"
-                                    class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                                    class="btn-secondary">Cancel</button>
                             <button type="button" @click="submit()"
                                     :disabled="!name.trim() || !baseUomId || submitting"
-                                    class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50">
+                                    class="btn-primary">
                                 <span x-show="!submitting">Create & Use</span>
                                 <span x-show="submitting" x-cloak>Creating…</span>
                             </button>

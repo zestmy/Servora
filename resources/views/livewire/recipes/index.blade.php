@@ -23,7 +23,7 @@
             @can('audit.view')
                 <button wire:click="$set('showActivityLog', true)"
                         title="Recent activity — who added, updated or deleted {{ $isPrep ? 'prep items' : 'recipes' }}"
-                        class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                        class="btn-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -33,7 +33,7 @@
             @if (! $isPrep)
                 {{-- PDF dropdown --}}
                 <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1">
+                    <button @click="open = !open" class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                         PDF
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
@@ -74,14 +74,14 @@
                 @else
                     <a href="{{ route('recipes.import') }}"
                        title="Import"
-                       class="px-2.5 md:px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                       class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
                         </svg>
                         <span class="hidden sm:inline">Import</span>
                     </a>
                     <a href="{{ route('recipes.create') }}"
-                       class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                       class="btn-primary">
                         <span class="sm:hidden">+ New</span>
                         <span class="hidden sm:inline">+ New Recipe</span>
                     </a>
@@ -89,7 +89,7 @@
             @else
                 {{-- PDF dropdown for Prep Items --}}
                 <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" class="px-2.5 md:px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1">
+                    <button @click="open = !open" class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                         PDF
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
@@ -129,14 +129,14 @@
                 @else
                     <a href="{{ route('recipes.import', ['type' => 'prep']) }}"
                        title="Import"
-                       class="px-2.5 md:px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-1.5">
+                       class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M8 12l4 4 4-4M12 4v12" />
                         </svg>
                         <span class="hidden sm:inline">Import</span>
                     </a>
                     <a href="{{ route('inventory.prep-items.create') }}"
-                       class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                       class="btn-primary">
                         <span class="sm:hidden">+ New</span>
                         <span class="hidden sm:inline">+ New Prep Item</span>
                     </a>
@@ -299,7 +299,7 @@
                 </button>
                 <button wire:click="bulkDelete"
                         wire:confirm="Delete {{ count($selectedIds) }} selected {{ $isPrep ? 'prep item' : 'recipe' }}{{ count($selectedIds) > 1 ? 's' : '' }}? This cannot be undone."
-                        class="px-3 py-1.5 text-sm font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 transition">
+                        class="btn-danger btn-sm">
                     Delete Selected
                 </button>
             </div>
@@ -309,8 +309,8 @@
     {{-- Table — horizontally scrollable on mobile. --}}
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[960px] divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-[960px]">
+            <thead>
                 <tr>
                     @if (! $this->locked)
                         <th class="w-10 px-2 py-3 text-center">
@@ -356,7 +356,7 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50"
+            <tbody
                    x-data
                    x-init="new Sortable($el, {
                        handle: '.drag-handle',

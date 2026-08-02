@@ -26,7 +26,7 @@
                     @endif
                 @endforeach
             </select>
-            <button wire:click="exportCsv" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition ml-auto">
+            <button wire:click="exportCsv" class="btn-secondary ml-auto">
                 Export CSV
             </button>
         </div>
@@ -54,8 +54,8 @@
                 </div>
 
                 @if ($recipe->lines->isNotEmpty())
-                    <div class="overflow-x-auto"><table class="min-w-[1100px] text-sm">
-                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                    <div class="overflow-x-auto"><table class="table-surface min-w-[1100px]">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-2 text-left">Ingredient</th>
                                 <th class="px-4 py-2 text-right">Quantity</th>
@@ -63,7 +63,7 @@
                                 <th class="px-4 py-2 text-right">Cost</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
+                        <tbody>
                             @foreach ($recipe->lines as $line)
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-2 text-gray-700">{{ $line->ingredient?->name ?? '-' }}</td>

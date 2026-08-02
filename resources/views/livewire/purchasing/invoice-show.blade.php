@@ -27,7 +27,7 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('purchasing.pdf', ['type' => 'inv', 'id' => $invoice->id]) }}"
-               class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition inline-flex items-center gap-1.5">
+               class="btn-secondary btn-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 PDF
             </a>
@@ -138,8 +138,8 @@
 
     {{-- Line Items --}}
     <div class="card overflow-hidden mb-4">
-        <table class="min-w-full divide-y divide-gray-100 text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+        <table class="table-surface min-w-full">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left w-10">#</th>
                     <th class="px-4 py-3 text-left">Item</th>
@@ -150,7 +150,7 @@
                     <th class="px-4 py-3 text-right">Total</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody>
                 @foreach ($invoice->lines as $i => $line)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
@@ -233,8 +233,8 @@
             @if ($invoice->payments->isEmpty())
                 <p class="px-4 py-6 text-sm text-gray-600 text-center">No payments recorded yet.</p>
             @else
-                <table class="min-w-full divide-y divide-gray-100 text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+                <table class="table-surface min-w-full">
+                    <thead>
                         <tr>
                             <th class="px-4 py-2.5 text-left">Date</th>
                             <th class="px-4 py-2.5 text-right">Amount (RM)</th>
@@ -244,7 +244,7 @@
                             <th class="px-4 py-2.5 text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody>
                         @foreach ($invoice->payments->sortByDesc('payment_date')->values() as $payment)
                             <tr wire:key="pay-{{ $payment->id }}">
                                 <td class="px-4 py-2.5 text-gray-600">{{ $payment->payment_date->format('d M Y') }}</td>

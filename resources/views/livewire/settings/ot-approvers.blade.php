@@ -64,7 +64,7 @@
                 </p>
             </div>
             <button wire:click="addApprover"
-                    class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+                    class="btn-primary">
                 Add
             </button>
         </div>
@@ -73,8 +73,8 @@
     {{-- Approvers List — horizontally scrollable on mobile. --}}
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="min-w-[720px] text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+        <table class="table-surface min-w-[720px]">
+            <thead>
                 <tr>
                     <th class="px-4 py-3 text-left">User</th>
                     <th class="px-4 py-3 text-left">Outlet</th>
@@ -82,7 +82,7 @@
                     <th class="px-4 py-3 text-center w-20">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody>
                 @forelse ($approvers as $a)
                     <tr>
                         <td class="px-4 py-3 text-gray-700 font-medium">{{ $a->user?->name ?? '—' }}</td>

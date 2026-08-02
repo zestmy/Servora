@@ -15,12 +15,12 @@
         <div class="flex flex-wrap items-center gap-2">
             @can('reports.view')
                 <a href="{{ route('reports.price-history') }}"
-                   class="px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition whitespace-nowrap">
+                   class="btn-secondary btn-sm">
                     Price History Report
                 </a>
             @endcan
             <a href="{{ route('ingredients.scan-document') }}"
-               class="px-3 md:px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition">
+               class="btn-primary">
                 + Scan Invoice
             </a>
         </div>
@@ -88,14 +88,14 @@
                     <div class="flex items-center gap-2 flex-shrink-0">
                         @if ($doc->status === 'extracted')
                             <a href="{{ route('ingredients.review-documents.show', $doc->id) }}"
-                               class="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition">
+                               class="btn-primary btn-sm">
                                 Review
                             </a>
                             <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned invoice?"
                                     class="text-gray-600 hover:text-danger-600 text-xs">Discard</button>
                         @elseif ($doc->status === 'failed')
                             <a href="{{ route('ingredients.scan-document') }}"
-                               class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                               class="btn-secondary btn-sm">
                                 Rescan
                             </a>
                             <button wire:click="discard({{ $doc->id }})" wire:confirm="Discard this scanned invoice?"

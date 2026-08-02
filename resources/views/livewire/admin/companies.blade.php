@@ -35,8 +35,8 @@
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100 text-sm">
-                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider">
+            <table class="table-surface min-w-full">
+                <thead>
                     <tr>
                         <th class="px-4 py-3 text-left">Company</th>
                         <th class="px-4 py-3 text-center">Status</th>
@@ -47,7 +47,7 @@
                         <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody>
                     @forelse ($companies as $company)
                         @php $isProtected = in_array($company->id, $protectedIds, true); @endphp
                         <tr wire:key="co-{{ $company->id }}" class="hover:bg-gray-50 transition {{ ! $company->is_active ? 'bg-danger-50/40' : '' }}">
