@@ -537,9 +537,12 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span class="text-xs text-gray-600 tabular-nums w-20 flex-shrink-0 pt-0.5">{{ $log->created_at?->format('d M Y') }}</span>
-                        <span class="text-sm text-gray-700 flex-1">{{ $log->summary() }}</span>
-                        <span class="text-xs text-gray-600 flex-shrink-0 pt-0.5">{{ $log->actorName() }}</span>
+                        <span class="text-xs text-gray-600 tabular-nums w-20 flex-shrink-0 pt-0.5 whitespace-nowrap">{{ $log->created_at?->format('d M Y') }}</span>
+                        {{-- Stacks on narrow screens: a long actor name would otherwise run past the card. --}}
+                        <div class="min-w-0 flex-1 sm:flex sm:items-start sm:gap-3">
+                            <span class="block text-sm text-gray-700 break-words sm:min-w-0 sm:flex-1">{{ $log->summary() }}</span>
+                            <span class="mt-0.5 block text-xs text-gray-600 break-words sm:mt-0 sm:w-40 sm:flex-shrink-0 sm:pt-0.5 sm:text-right">{{ $log->actorName() }}</span>
+                        </div>
                     </div>
                 @endforeach
             </div>
