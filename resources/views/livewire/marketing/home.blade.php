@@ -182,8 +182,8 @@
     </section>
 
     {{-- ── 5. Modules ──────────────────────────────────────────────────────
-         Bento with real rhythm: nine features, nine cells, mixed spans, and
-         genuine visual variation rather than nine identical white boxes.
+         Bento with real rhythm: twelve features, twelve cells, mixed spans, and
+         genuine visual variation rather than twelve identical white boxes.
     --}}
     <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div class="max-w-2xl">
@@ -196,37 +196,52 @@
         </div>
 
         @php
-            // span = lg column span out of 6. Rows: 3+3 / 2+2+2 / 3+3 / 3+3.
-            // Nine items, nine cells, no filler tile.
+            // The twelve areas of the features page, in the same order, under the
+            // same titles and icons. They are a summary of that page, so when one
+            // list changes the other has to move with it — a card here with no
+            // matching section there is the bug to watch for.
+            //
+            // span = lg column span out of 6. Rows: 3+3 / 2+2+2 / 3+3 / 3+3 / 2+2+2.
+            // Twelve items, twelve cells, no filler tile. Photo and brand tones are
+            // spread across rows rather than stacked, so the grid keeps its rhythm.
             $modules = [
-                ['icon' => 'clipboard',  'title' => 'Recipe costing',       'span' => 'lg:col-span-3', 'tone' => 'photo',
+                ['icon' => 'ingredient', 'title' => 'Ingredients and recipe costing', 'span' => 'lg:col-span-3', 'tone' => 'photo',
                  'photo' => 'images/marketing/recipe-costing', 'alt' => 'A recipe and its quantities written out by hand on a notepad',
                  'desc' => 'Build a recipe once and watch its cost, yield and food-cost percentage update as ingredient prices move.'],
 
-                ['icon' => 'ingredient', 'title' => 'Ingredient management', 'span' => 'lg:col-span-3', 'tone' => 'brand',
-                 'desc' => 'UOM conversions, pack sizes, yield percentages and full cost history against every supplier you buy from.'],
+                ['icon' => 'sparkles',   'title' => 'AI document capture',            'span' => 'lg:col-span-3', 'tone' => 'brand',
+                 'desc' => 'Photograph a supplier invoice and the lines walk themselves in, matched to your ingredients, with a review step before anything lands.'],
 
-                ['icon' => 'cart',       'title' => 'Purchasing and GRN',    'span' => 'lg:col-span-2', 'tone' => 'plain',
-                 'desc' => 'Purchase order through delivery order to goods received, with approvals and PDF documents at each step.'],
+                ['icon' => 'cart',       'title' => 'Purchasing and RFQ',             'span' => 'lg:col-span-2', 'tone' => 'plain',
+                 'desc' => 'Request, quote, order, receive, then match the invoice against the order and the GRN.'],
 
-                ['icon' => 'database',   'title' => 'Inventory control',     'span' => 'lg:col-span-2', 'tone' => 'plain',
-                 'desc' => 'Stock takes, wastage, staff meals, par levels and transfers between outlets.'],
+                ['icon' => 'database',   'title' => 'Inventory and stock',            'span' => 'lg:col-span-2', 'tone' => 'plain',
+                 'desc' => 'Stock takes, wastage, staff meals, prep items, par levels and transfers between outlets.'],
 
-                ['icon' => 'currency',   'title' => 'Sales tracking',        'span' => 'lg:col-span-2', 'tone' => 'plain',
-                 'desc' => 'Daily sales by meal period, Z-report capture and CSV import from your POS.'],
+                ['icon' => 'clipboard',  'title' => 'Central kitchen',                'span' => 'lg:col-span-2', 'tone' => 'plain',
+                 'desc' => 'Plan batch production against your outlets, then log what it actually yielded.'],
 
-                ['icon' => 'chart',      'title' => 'Reports and P&L',       'span' => 'lg:col-span-3', 'tone' => 'photo',
+                ['icon' => 'printer',    'title' => 'Food safety labelling',          'span' => 'lg:col-span-3', 'tone' => 'brand',
+                 'desc' => 'HACCP date labels printed at the bench, shelf life worked out for you, and every label that came off the printer logged.'],
+
+                ['icon' => 'currency',   'title' => 'Sales and revenue',              'span' => 'lg:col-span-3', 'tone' => 'plain',
+                 'desc' => 'Daily takings by meal period, Z-report capture and CSV import from your POS.'],
+
+                ['icon' => 'chart',      'title' => 'Reports and analytics',          'span' => 'lg:col-span-3', 'tone' => 'photo',
                  'photo' => 'images/marketing/reports-pnl', 'alt' => 'An income statement showing revenue, cost of goods and gross profit',
                  'desc' => 'Monthly cost summaries, COGS, labour cost and exports your accountant will accept without rework.'],
 
-                ['icon' => 'academic',   'title' => 'Staff training',        'span' => 'lg:col-span-3', 'tone' => 'plain',
+                ['icon' => 'clock',      'title' => 'People and attendance',          'span' => 'lg:col-span-3', 'tone' => 'plain',
+                 'desc' => 'Employees, attendance, duty roster and overtime claims with approval routing.'],
+
+                ['icon' => 'academic',   'title' => 'Staff training',                 'span' => 'lg:col-span-2', 'tone' => 'plain',
                  'desc' => 'SOPs with step-by-step method, plating photos and training video, opened by QR code on any phone.'],
 
-                ['icon' => 'sparkles',   'title' => 'AI analytics',          'span' => 'lg:col-span-3', 'tone' => 'plain',
-                 'desc' => 'Weekly and monthly reviews written for you: what moved, what caused it, and what to do next.'],
+                ['icon' => 'device',     'title' => 'Supplier portal',                'span' => 'lg:col-span-2', 'tone' => 'plain',
+                 'desc' => 'Suppliers sign in to acknowledge orders, quote against RFQs and see their own invoices.'],
 
-                ['icon' => 'building',   'title' => 'Multi-outlet',          'span' => 'lg:col-span-3', 'tone' => 'plain',
-                 'desc' => 'Shared ingredients and recipes across sites, with data scoped per outlet and quick switching.'],
+                ['icon' => 'shield',     'title' => 'Multi-outlet and control',       'span' => 'lg:col-span-2', 'tone' => 'plain',
+                 'desc' => 'Shared data across sites, role-based access per company, and an audit log of who changed what.'],
             ];
         @endphp
 
