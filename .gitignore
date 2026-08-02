@@ -26,5 +26,6 @@ Thumbs.db
 CLAUDE.md
 .claude/
 .agents/
+skills-lock.json
 .ssh_key
 servora-google-drive-key.json

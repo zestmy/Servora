@@ -198,6 +198,102 @@
     /* Page header used across the product screens. */
     .page-title    { @apply text-xl font-semibold tracking-tight text-gray-900; }
     .page-subtitle { @apply text-sm text-gray-600 mt-1; }
+
+    /* ── Page head ────────────────────────────────────────────────────────
+       85 screens open with `<h2 class="text-lg font-semibold text-gray-700">`
+       and a right-aligned button or two. That heading is the same weight as
+       the card headings underneath it and sits two steps down in colour, so
+       nothing on those pages leads. This is that block, decided once:
+       eyebrow, title, actions — with the title actually winning. */
+    .page-head    { @apply flex flex-wrap items-start justify-between gap-3 mb-6; }
+    .page-eyebrow { @apply text-xs font-medium uppercase tracking-wider text-gray-500; }
+    .page-actions { @apply flex items-center gap-2 flex-shrink-0; }
+
+    /* ── Toolbar ──────────────────────────────────────────────────────────
+       The filter / control strip above a table. Lower elevation than a card
+       on purpose: it is chrome for the content below, not a peer of it. */
+    .toolbar { @apply flex flex-wrap items-center gap-3
+                      rounded-surface border border-gray-200/80 bg-white px-4 py-3 shadow-e1; }
+
+    /* ── Segmented control ────────────────────────────────────────────────
+       Two-to-four mutually exclusive views (Monthly | Weekly). The active
+       item is the one carrying elevation — the tray around it stays flat. */
+    .seg        { @apply inline-flex items-center gap-0.5 rounded-control bg-gray-100 p-0.5; }
+    .seg-item   { @apply rounded-[0.5rem] px-3 py-1.5 text-sm font-medium text-gray-600
+                         transition-colors hover:text-gray-900; }
+    .seg-item-on{ @apply bg-white text-brand-700 shadow-e1; }
+
+    /* ── Shelf-life meter ─────────────────────────────────────────────────
+       The one component that could only belong to this product. Every label,
+       prep item and batch in here has a life, and the single question a chef
+       asks of any of them is "how long has this got left?" — so the answer
+       gets its own component instead of being re-derived per screen.
+
+       Track is a 3px rule, not a bar. It reads as a measurement under the
+       item name rather than as a progress widget competing with it.
+
+       The state colours are the kitchen's own: the colour-coded chopping
+       board system is already green / amber / red, which is why these map
+       onto the semantic scale rather than needing a palette of their own.
+
+       Width comes from the <x-meter> component, which is also where the
+       fraction and the state are worked out — see that file for the rules. */
+    .meter      { @apply h-[3px] w-full overflow-hidden rounded-full bg-gray-200; }
+    .meter-fill { @apply block h-full rounded-full transition-[width] duration-500 ease-out; }
+    .meter-fresh .meter-fill { @apply bg-success-600; }
+    .meter-soon  .meter-fill { @apply bg-warning-600; }
+    .meter-over  { @apply bg-danger-200; }
+    .meter-over .meter-fill  { @apply bg-danger-600; }
+    /* The remaining-time readout that sits with the meter. Tabular, because
+       these get scanned down a column. */
+    .meter-time { @apply text-xs font-medium tabular-nums; }
+    .meter-fresh .meter-time { @apply text-success-700; }
+    .meter-soon  .meter-time { @apply text-warning-700; }
+    .meter-over  .meter-time { @apply text-danger-700; }
+
+    /* ── Stat ─────────────────────────────────────────────────────────────
+       Three tiers out of one type size plus weight and colour, rather than
+       three sizes. The figure is the only thing that grows. */
+    .stat        { @apply flex flex-col gap-1; }
+    .stat-label  { @apply text-xs font-medium uppercase tracking-wider text-gray-500; }
+    .stat-value  { @apply text-2xl font-semibold tabular-nums tracking-tight text-gray-900; }
+    .stat-meta   { @apply text-xs text-gray-600; }
+    .stat-up     { @apply text-xs font-medium text-success-700; }
+    .stat-down   { @apply text-xs font-medium text-danger-700; }
+
+    /* ── Icon button ──────────────────────────────────────────────────────
+       .btn-icon is p-2 around a 20px glyph — 36px, under the 44px WCAG
+       target. This one keeps the small visual footprint and pushes the hit
+       area out to 44 with a pseudo-element, so a row of them still looks
+       light but can be hit with a gloved thumb. */
+    .icon-btn {
+        @apply relative inline-flex h-9 w-9 items-center justify-center rounded-control
+               text-gray-500 transition-colors
+               hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200
+               disabled:pointer-events-none disabled:opacity-40;
+    }
+    .icon-btn::after {
+        content: '';
+        @apply absolute left-1/2 top-1/2 h-11 w-11 -translate-x-1/2 -translate-y-1/2;
+    }
+    .icon-btn-danger { @apply hover:bg-danger-50 hover:text-danger-700; }
+
+    /* ── Stepper ──────────────────────────────────────────────────────────
+       For copy counts. A number input puts a keyboard over the screen on a
+       phone, which is why the staff app already avoided one — this is that
+       control, at a size a wet finger can actually land on. */
+    .stepper     { @apply inline-flex items-center rounded-control border border-gray-300 bg-white; }
+    .stepper-btn { @apply flex h-11 w-11 items-center justify-center text-lg leading-none
+                          text-gray-600 transition-colors
+                          hover:bg-gray-50 active:bg-gray-100
+                          disabled:pointer-events-none disabled:opacity-40; }
+    .stepper-val { @apply w-8 text-center text-sm font-semibold tabular-nums text-gray-900; }
+
+    /* ── List row ─────────────────────────────────────────────────────────
+       Tap targets in the staff app. 56px min so the row itself is the
+       target and there is nothing small to aim at. */
+    .list-row { @apply flex min-h-[3.5rem] w-full items-center gap-3 px-4 py-3 text-left
+                       transition-colors active:bg-brand-50; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
