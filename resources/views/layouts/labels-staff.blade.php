@@ -158,10 +158,45 @@
                  and the name it carries is stamped on every label these
                  tablets print, so it is worth being able to check and change
                  at a glance. White-alpha rather than a brand shade, so it
-                 survives the header fill being re-tinted per company. --}}
-            <a href="{{ route('labels.staff.pin') }}" wire:navigate
-               aria-label="Signed in as {{ $staff->name }} — change PIN or sign out"
-               class="shrink-0 flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white/15 pl-1 pr-2 active:bg-white/25">
+                 survives the header fill being re-tinted per company.
+
+                 It TOGGLES. The chevron promises a thing that opens and
+                 closes, but underneath this is a link to a whole screen, so
+                 pressing it again on that screen was a no-op — it re-navigated
+                 to the page you were already on and nothing appeared to
+                 happen. On the account screen it points back to where you came
+                 from instead, and the chevron flips to match. --}}
+            @php
+                $accountOpen = request()->routeIs('labels.staff.pin');
+
+                // Back to the tab they left, so closing returns you where you
+                // were rather than dumping you on Print every time.
+                //
+                // Validated the same way the sign-in redirect validates its
+                // intended URL: same host AND inside the staff app's own path.
+                // Host alone is not enough — url()->previous() falls back to
+                // the app root when there is no referer, and "/" passes a
+                // host check while navigating clean out of the PWA into the
+                // manager-facing app.
+                $home     = route('labels.staff.print');
+                $back     = url()->previous();
+                $basePath = rtrim((string) parse_url($home, PHP_URL_PATH), '/');
+                $backPath = (string) parse_url((string) $back, PHP_URL_PATH);
+
+                $safeBack = (
+                    $back
+                    && parse_url($back, PHP_URL_HOST) === parse_url($home, PHP_URL_HOST)
+                    && ($basePath === '' || str_starts_with($backPath, $basePath))
+                    && ! str_ends_with(rtrim($backPath, '/'), '/pin')
+                ) ? $back : $home;
+            @endphp
+            <a href="{{ $accountOpen ? $safeBack : route('labels.staff.pin') }}" wire:navigate
+               aria-expanded="{{ $accountOpen ? 'true' : 'false' }}"
+               aria-label="{{ $accountOpen
+                   ? 'Close account — back to labels'
+                   : 'Signed in as ' . $staff->name . ' — change PIN or sign out' }}"
+               class="shrink-0 flex min-h-[2.75rem] items-center gap-2 rounded-full pl-1 pr-2 active:bg-white/25
+                      {{ $accountOpen ? 'bg-white/25' : 'bg-white/15' }}">
                 <span aria-hidden="true"
                       class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
                     {{ $initials }}
@@ -171,7 +206,8 @@
                      name returns on a kitchen tablet. Not an `xs:` variant —
                      there is no such breakpoint in this config. --}}
                 <span class="hidden sm:block max-w-[7rem] truncate text-xs font-medium">{{ $staff->name }}</span>
-                <svg class="w-4 h-4 shrink-0 text-brand-100" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+                <svg class="w-4 h-4 shrink-0 text-brand-100 transition-transform duration-200 {{ $accountOpen ? 'rotate-180' : '' }}"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                 </svg>
             </a>
