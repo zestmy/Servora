@@ -23,8 +23,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('subscriptions', function (Blueprint $table) {
-            $table->softDeletes();
-            $table->boolean('deleted_with_company')->default(false)->after('deleted_at');
+            if (! Schema::hasColumn('subscriptions', 'deleted_at')) {
+                $table->softDeletes();
+            }
+
+            if (! Schema::hasColumn('subscriptions', 'deleted_with_company')) {
+                $table->boolean('deleted_with_company')->default(false)->after('deleted_at');
+            }
         });
 
         // Existing orphans: adopt them into the cascade so they come back if
@@ -39,11 +44,26 @@ return new class extends Migration
             ]);
     }
 
+    /**
+     * Each dropColumn compiles to its own ALTER, so a down() that fails between
+     * the two leaves the table half-reverted while the ledger still records the
+     * migration as run — and every retry then dies on the column the first pass
+     * already dropped. Dropping only what is actually there makes the rollback
+     * re-runnable and lets it finish the job from a partial state.
+     */
     public function down(): void
     {
-        Schema::table('subscriptions', function (Blueprint $table) {
-            $table->dropColumn('deleted_with_company');
-            $table->dropSoftDeletes();
+        $columns = array_values(array_filter(
+            ['deleted_with_company', 'deleted_at'],
+            fn ($column) => Schema::hasColumn('subscriptions', $column)
+        ));
+
+        if (! $columns) {
+            return;
+        }
+
+        Schema::table('subscriptions', function (Blueprint $table) use ($columns) {
+            $table->dropColumn($columns);
         });
     }
 };
