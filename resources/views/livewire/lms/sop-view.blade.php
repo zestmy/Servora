@@ -10,17 +10,17 @@
     </div>
 
     {{-- ══ Row 1: Header (Name + Menu Category + PDF button) ═════════════════ --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+    <div class="card p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-2xl font-bold text-gray-900">{{ $recipe->name }}</h1>
                     @if ($recipe->category)
-                        <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">{{ $recipe->category }}</span>
+                        <span class="px-2 py-0.5 bg-brand-100 text-brand-700 text-xs font-semibold rounded-full">{{ $recipe->category }}</span>
                     @endif
                 </div>
                 @if ($recipe->code)
-                    <p class="text-sm text-gray-400 mt-1">Code: {{ $recipe->code }}</p>
+                    <p class="text-sm text-gray-600 mt-1">Code: {{ $recipe->code }}</p>
                 @endif
                 @if ($recipe->description)
                     <p class="text-sm text-gray-600 mt-2">{{ $recipe->description }}</p>
@@ -40,7 +40,7 @@
                                 $storageChip = match ($recipe->storage_instruction) {
                                     'chill'   => 'bg-sky-50 border-sky-200 text-sky-700',
                                     'frozen'  => 'bg-blue-50 border-blue-200 text-blue-700',
-                                    default   => 'bg-amber-50 border-amber-200 text-amber-700',
+                                    default   => 'bg-warning-50 border-warning-200 text-warning-700',
                                 };
                             @endphp
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium {{ $storageChip }}">
@@ -73,33 +73,33 @@
     {{-- ══ Row 2: Hero Image (left) + Ingredients (right) ════════════════════ --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {{-- Hero Image with Dine-In / Takeaway tabs --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
+        <div class="card p-5"
              x-data="{ tab: '{{ $dineInImages->count() ? 'dine_in' : 'takeaway' }}', lightbox: false, lightboxSrc: '', lightboxAlt: '' }">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-semibold text-gray-700">Presentation</h2>
+                <h2 class="text-sm font-semibold text-gray-900">Presentation</h2>
                 @if ($dineInImages->count() && $takeawayImages->count())
                     <div class="flex rounded-lg overflow-hidden border border-gray-200">
                         <button @click="tab = 'dine_in'"
-                                :class="tab === 'dine_in' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                :class="tab === 'dine_in' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
                                 class="px-3 py-1 text-xs font-medium transition">
                             Dine-In
                         </button>
                         <button @click="tab = 'takeaway'"
-                                :class="tab === 'takeaway' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                :class="tab === 'takeaway' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
                                 class="px-3 py-1 text-xs font-medium transition border-l border-gray-200">
                             Takeaway
                         </button>
                     </div>
                 @elseif ($dineInImages->count())
-                    <span class="text-xs text-gray-400">Dine-In</span>
+                    <span class="text-xs text-gray-600">Dine-In</span>
                 @elseif ($takeawayImages->count())
-                    <span class="text-xs text-gray-400">Takeaway</span>
+                    <span class="text-xs text-gray-600">Takeaway</span>
                 @endif
             </div>
 
             @if ($dineInImages->count())
                 <div x-show="tab === 'dine_in'">
-                    <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition bg-gray-50"
+                    <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-brand-300 transition bg-gray-50"
                          @click="lightboxSrc = '{{ $dineInImages->first()->url() }}'; lightboxAlt = '{{ $dineInImages->first()->file_name }}'; lightbox = true">
                         <img src="{{ $dineInImages->first()->url() }}" alt="{{ $dineInImages->first()->file_name }}"
                              class="w-full h-80 object-contain bg-gray-50" />
@@ -107,7 +107,7 @@
                     @if ($dineInImages->count() > 1)
                         <div class="grid grid-cols-4 gap-2 mt-2">
                             @foreach ($dineInImages->slice(1) as $img)
-                                <div class="rounded overflow-hidden border border-gray-200 cursor-pointer hover:border-indigo-300 transition"
+                                <div class="rounded overflow-hidden border border-gray-200 cursor-pointer hover:border-brand-300 transition"
                                      @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
                                     <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-16 object-cover" />
                                 </div>
@@ -119,7 +119,7 @@
 
             @if ($takeawayImages->count())
                 <div x-show="tab === 'takeaway'" x-cloak>
-                    <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition bg-gray-50"
+                    <div class="rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-brand-300 transition bg-gray-50"
                          @click="lightboxSrc = '{{ $takeawayImages->first()->url() }}'; lightboxAlt = '{{ $takeawayImages->first()->file_name }}'; lightbox = true">
                         <img src="{{ $takeawayImages->first()->url() }}" alt="{{ $takeawayImages->first()->file_name }}"
                              class="w-full h-80 object-contain bg-gray-50" />
@@ -127,7 +127,7 @@
                     @if ($takeawayImages->count() > 1)
                         <div class="grid grid-cols-4 gap-2 mt-2">
                             @foreach ($takeawayImages->slice(1) as $img)
-                                <div class="rounded overflow-hidden border border-gray-200 cursor-pointer hover:border-indigo-300 transition"
+                                <div class="rounded overflow-hidden border border-gray-200 cursor-pointer hover:border-brand-300 transition"
                                      @click="lightboxSrc = '{{ $img->url() }}'; lightboxAlt = '{{ $img->file_name }}'; lightbox = true">
                                     <img src="{{ $img->url() }}" alt="{{ $img->file_name }}" class="w-full h-16 object-cover" />
                                 </div>
@@ -138,7 +138,7 @@
             @endif
 
             @if (! $dineInImages->count() && ! $takeawayImages->count())
-                <div class="w-full h-80 bg-gray-50 rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                <div class="w-full h-80 bg-gray-50 rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-gray-500">
                     <div class="text-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -174,10 +174,10 @@
                     $sopHasBatches = $sopBatchCols->count() > 1;
                     $fmtSopQty = fn ($q) => rtrim(rtrim(number_format((float) $q, 4), '0'), '.') ?: '0';
                 @endphp
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="card overflow-hidden">
                     <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-gray-700">Ingredients</h2>
-                        <span class="text-xs text-gray-400">
+                        <h2 class="text-sm font-semibold text-gray-900">Ingredients</h2>
+                        <span class="text-xs text-gray-600">
                             Yield {{ rtrim(rtrim(number_format($recipe->yield_quantity, 4), '0'), '.') }} {{ $recipe->yieldUom?->abbreviation }}
                         </span>
                     </div>
@@ -189,9 +189,9 @@
                                     <th class="px-4 py-2 text-left">Ingredient</th>
                                     @if ($sopHasBatches)
                                         @foreach ($sopBatchCols as $m)
-                                            <th class="px-4 py-2 text-right {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50 text-indigo-600' : '' }}">
+                                            <th class="px-4 py-2 text-right {{ abs($m - 1.0) < 0.0001 ? 'bg-brand-50 text-brand-600' : '' }}">
                                                 {{ \App\Models\Recipe::fmtMultiplier($m) }} Recipe
-                                                <span class="block normal-case font-normal text-[10px] text-gray-400">
+                                                <span class="block normal-case font-normal text-[10px] text-gray-600">
                                                     {{ $fmtSopQty($recipe->yield_quantity * $m) }} {{ $recipe->yieldUom?->abbreviation }}
                                                 </span>
                                             </th>
@@ -205,22 +205,22 @@
                             <tbody class="divide-y divide-gray-50">
                                 @foreach ($sopIngredientLines as $idx => $line)
                                     <tr>
-                                        <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                        <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                         <td class="px-4 py-2">
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</span>
                                                 @if ($line->ingredient?->is_prep)
-                                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-semibold rounded uppercase tracking-wide">Prep</span>
+                                                    <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] font-semibold rounded uppercase tracking-wide">Prep</span>
                                                 @endif
                                             </div>
                                         </td>
                                         @if ($sopHasBatches)
                                             @foreach ($sopBatchCols as $m)
                                                 @php $disp = $line->sopUomDisplay($m); @endphp
-                                                <td class="px-4 py-2 text-right tabular-nums {{ abs($m - 1.0) < 0.0001 ? 'bg-indigo-50/50 font-medium text-gray-800' : 'text-gray-600' }}">
-                                                    {{ $disp['main_qty'] }} <span class="text-xs text-gray-400">{{ $disp['main_uom'] }}</span>
+                                                <td class="px-4 py-2 text-right tabular-nums {{ abs($m - 1.0) < 0.0001 ? 'bg-brand-50/50 font-medium text-gray-800' : 'text-gray-600' }}">
+                                                    {{ $disp['main_qty'] }} <span class="text-xs text-gray-600">{{ $disp['main_uom'] }}</span>
                                                     @if ($disp['ref_qty'] !== null)
-                                                        <span class="block text-xs text-gray-400 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
+                                                        <span class="block text-xs text-gray-600 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
                                                     @endif
                                                 </td>
                                             @endforeach
@@ -229,7 +229,7 @@
                                             <td class="px-4 py-2 text-right tabular-nums">
                                                 {{ $disp['main_qty'] }}
                                                 @if ($disp['ref_qty'] !== null)
-                                                    <span class="block text-xs text-gray-400 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
+                                                    <span class="block text-xs text-gray-600 font-normal">({{ $disp['ref_qty'] }} {{ $disp['ref_uom'] }})</span>
                                                 @endif
                                             </td>
                                             <td class="px-4 py-2 text-gray-600">{{ $disp['main_uom'] ?: '—' }}</td>
@@ -243,9 +243,9 @@
             @endif
 
             @if ($sopPackagingLines->count())
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="card overflow-hidden">
                     <div class="px-5 py-3 border-b border-gray-100">
-                        <h2 class="text-sm font-semibold text-gray-700">Packaging</h2>
+                        <h2 class="text-sm font-semibold text-gray-900">Packaging</h2>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
@@ -260,7 +260,7 @@
                             <tbody class="divide-y divide-gray-50">
                                 @foreach ($sopPackagingLines as $idx => $line)
                                     <tr>
-                                        <td class="px-4 py-2 text-gray-400 text-xs">{{ $idx + 1 }}</td>
+                                        <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                         <td class="px-4 py-2 font-medium text-gray-800">{{ $line->ingredient?->name ?? '—' }}</td>
                                         <td class="px-4 py-2 text-right tabular-nums">{{ rtrim(rtrim(number_format($line->quantity, 4), '0'), '.') }}</td>
                                         <td class="px-4 py-2 text-gray-600">{{ $line->uom?->abbreviation ?? '—' }}</td>
@@ -278,9 +278,9 @@
     @if ($recipe->steps->count())
         @php $hasStepImages = $recipe->steps->contains(fn($s) => !empty($s->image_path)); @endphp
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6"
+        <div class="card p-6 mb-6"
              @if ($hasStepImages) x-data="{ lightbox: false, lightboxSrc: '' }" @endif>
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Preparation Steps</h2>
+            <h2 class="text-sm font-semibold text-gray-900 mb-4">Preparation Steps</h2>
 
             @if ($hasStepImages)
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -291,7 +291,7 @@
                                      class="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition"
                                      @click="lightboxSrc = '{{ $step->imageUrl() }}'; lightbox = true" />
                             @else
-                                <div class="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-300">
+                                <div class="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
@@ -299,7 +299,7 @@
                             @endif
                             <div class="p-4 flex-1">
                                 <div class="flex items-start gap-3">
-                                    <div class="flex-shrink-0 w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                    <div class="flex-shrink-0 w-7 h-7 bg-brand-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                                         {{ $step->sort_order + 1 }}
                                     </div>
                                     <div class="flex-1">
@@ -329,7 +329,7 @@
                 <div class="space-y-4">
                     @foreach ($recipe->steps as $step)
                         <div class="flex gap-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                            <div class="flex-shrink-0 w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                                 {{ $step->sort_order + 1 }}
                             </div>
                             <div class="flex-1 pt-1">
@@ -350,9 +350,9 @@
         $videoData = $this->getVideoData($recipe->video_url);
     @endphp
     @if ($videoData)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div class="card overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-sm font-semibold text-gray-700">Training Video</h2>
+                <h2 class="text-sm font-semibold text-gray-900">Training Video</h2>
             </div>
             <div class="relative w-full" style="padding-bottom: 56.25%; background: #000;" id="lms-player-outer">
                 <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;" id="lms-loading">Loading video...</div>
@@ -529,17 +529,17 @@
 
     {{-- ══ Row 5: Latest update activity (bottom of the SOP) ═════════════════ --}}
     @if ($recentActivity->isNotEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 class="text-sm font-semibold text-gray-700 mb-4">Latest Update Activity</h2>
+        <div class="card p-6 mb-6">
+            <h2 class="text-sm font-semibold text-gray-900 mb-4">Latest Update Activity</h2>
             <div class="divide-y divide-gray-50">
                 @foreach ($recentActivity as $log)
                     <div class="flex items-start gap-3 py-2 first:pt-0 last:pb-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span class="text-xs text-gray-400 tabular-nums w-20 flex-shrink-0 pt-0.5">{{ $log->created_at?->format('d M Y') }}</span>
+                        <span class="text-xs text-gray-600 tabular-nums w-20 flex-shrink-0 pt-0.5">{{ $log->created_at?->format('d M Y') }}</span>
                         <span class="text-sm text-gray-700 flex-1">{{ $log->summary() }}</span>
-                        <span class="text-xs text-gray-400 flex-shrink-0 pt-0.5">{{ $log->actorName() }}</span>
+                        <span class="text-xs text-gray-600 flex-shrink-0 pt-0.5">{{ $log->actorName() }}</span>
                     </div>
                 @endforeach
             </div>

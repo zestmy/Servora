@@ -145,7 +145,7 @@
             {{-- All SOPs link --}}
             <a href="{{ route('lms.dashboard') }}" @click="closeMobile()"
                class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-3
-                      {{ request()->routeIs('lms.dashboard') ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                      {{ request()->routeIs('lms.dashboard') ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
@@ -180,8 +180,8 @@
                                 @php $isActive = $activeSopId === (int) $sop->id; @endphp
                                 <a href="{{ route('lms.sop.show', $sop->id) }}" @click="closeMobile()"
                                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors
-                                          {{ $isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 {{ $isActive ? 'text-white' : 'text-gray-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                          {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 {{ $isActive ? 'text-white' : 'text-gray-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     <span class="truncate">{{ $sop->name }}</span>
@@ -203,7 +203,7 @@
              class="hidden lg:flex flex-1 flex-col items-center py-4 px-2 overflow-y-auto">
             <a href="{{ route('lms.dashboard') }}" title="All SOPs"
                class="w-10 h-10 flex items-center justify-center rounded-lg mb-2 transition
-                      {{ request()->routeIs('lms.dashboard') ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
+                      {{ request()->routeIs('lms.dashboard') ? 'bg-brand-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
@@ -220,7 +220,7 @@
                 <div class="relative">
                     <button @click="userOpen = !userOpen"
                             class="flex items-center w-full gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 transition">
-                        <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                        <div class="flex-shrink-0 w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
                             {{ strtoupper(substr(Auth::guard('lms')->user()->name, 0, 2)) }}
                         </div>
                         <div class="flex-1 text-left overflow-hidden">
@@ -232,7 +232,7 @@
                          class="absolute bottom-full left-0 mb-1 w-full bg-gray-800 rounded-lg border border-gray-700 py-1 shadow-lg">
                         <form method="POST" action="{{ route('lms.logout') }}">
                             @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition">
+                            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-danger-400 hover:bg-gray-700 hover:text-danger-300 transition">
                                 Sign Out
                             </button>
                         </form>
@@ -243,7 +243,7 @@
                 <form method="POST" action="{{ route('lms.logout') }}">
                     @csrf
                     <button type="submit" title="Sign Out"
-                            class="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-red-400 transition">
+                            class="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-700 hover:text-danger-400 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -277,23 +277,41 @@
         {{-- Footer --}}
         <footer class="border-t border-gray-200 flex-shrink-0">
             <div class="px-6 py-4 text-center">
-                <p class="text-xs text-gray-400">&copy; {{ date('Y') }} {{ $lmsCompany?->name ?? 'Company' }}. Training Portal powered by Servora.</p>
+                <p class="text-xs text-gray-600">&copy; {{ date('Y') }} {{ $lmsCompany?->name ?? 'Company' }}. Training Portal powered by Servora.</p>
             </div>
         </footer>
     </div>
 </div>
 
-{{-- PWA Install Banner --}}
-<div id="pwa-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999; padding:16px; background:#1e1b4b; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-    <div style="max-width:480px; margin:0 auto; display:flex; align-items:flex-start; gap:12px;">
-        <div style="flex-shrink:0; width:44px; height:44px; background:#0b7677; border-radius:10px; display:flex; align-items:center; justify-content:center;">
-            <svg width="24" height="24" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+{{-- PWA Install Banner.
+
+     Was a block of inline hex, which is exactly the gap the indigo -> brand
+     alias cannot cover: it only rewrites Tailwind classes. So while the rest
+     of the app moved to teal, this banner stayed #1e1b4b — literally the
+     pre-rebrand indigo-950, still shipping on every LMS page. On classes now,
+     so the next accent change reaches it too.
+
+     `display` stays inline because the script toggles that property
+     directly. --}}
+<div id="pwa-banner" style="display:none;"
+     class="fixed inset-x-0 bottom-0 z-toast bg-gray-900 p-4 text-white">
+    <div class="mx-auto flex max-w-[480px] items-start gap-3">
+        <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-control bg-brand-600">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
         </div>
-        <div style="flex:1; min-width:0;">
-            <div style="font-weight:700; font-size:14px; margin-bottom:4px;">Install Training App</div>
-            <div id="pwa-instructions" style="font-size:12px; color:#aeeae4; line-height:1.5;"></div>
+        <div class="min-w-0 flex-1">
+            <div class="mb-1 text-sm font-semibold">Install Training App</div>
+            {{-- brand-100 on gray-900 is 15.34:1. --}}
+            <div id="pwa-instructions" class="text-xs leading-relaxed text-brand-100"></div>
         </div>
-        <button onclick="dismissPwaBanner()" style="flex-shrink:0; background:none; border:none; color:#43bdb8; font-size:20px; cursor:pointer; padding:4px; line-height:1;">&times;</button>
+        <button onclick="dismissPwaBanner()" aria-label="Dismiss"
+                class="icon-btn -mr-1 -mt-1 flex-shrink-0 text-gray-400 hover:bg-gray-800 hover:text-white">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
     </div>
 </div>
 
@@ -313,7 +331,9 @@ if ('serviceWorker' in navigator) {
     var isAndroid = /Android/.test(navigator.userAgent);
 
     if (isIos) {
-        instructions.innerHTML = 'Tap the <svg style="display:inline;vertical-align:middle;margin:0 2px;" width="18" height="18" fill="none" stroke="#43bdb8" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg> <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong>.';
+        // currentColor, so the glyph follows the container's token instead of
+        // pinning a brand shade that the next accent change would strand.
+        instructions.innerHTML = 'Tap the <svg style="display:inline;vertical-align:middle;margin:0 2px;" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg> <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong>.';
         banner.style.display = 'block';
     } else if (isAndroid) {
         var deferredPrompt = null;
@@ -323,7 +343,7 @@ if ('serviceWorker' in navigator) {
             instructions.innerHTML = 'Get quick access from your home screen.';
             var btn = document.createElement('button');
             btn.textContent = 'Install';
-            btn.style.cssText = 'margin-top:8px;padding:6px 20px;background:#0b7677;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+            btn.className = 'btn-primary btn-sm mt-2';
             btn.onclick = function() {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function() { banner.style.display = 'none'; });

@@ -1,21 +1,19 @@
 <div>
-    {{-- Hero --}}
-    <div class="mb-8">
-        <h1 class="text-2xl font-bold text-gray-900">Training SOPs</h1>
-        <p class="text-sm text-gray-500 mt-1">Standard Operating Procedures for recipe preparation</p>
-    </div>
+    <x-page-header title="Training SOPs"
+                   subtitle="Standard operating procedures for recipe preparation" />
 
     {{-- Filters --}}
-    <div class="flex flex-col sm:flex-row gap-3 mb-6">
-        <div class="flex-1">
-            <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search recipes..."
-                   class="w-full sm:max-w-sm rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+    <div class="toolbar mb-6">
+        <div class="min-w-0 flex-1">
+            <label class="sr-only" for="sop-search">Search recipes</label>
+            <input id="sop-search" type="search" wire:model.live.debounce.300ms="search"
+                   placeholder="Search recipes…" class="input sm:max-w-sm" />
         </div>
         <div>
-            <select wire:model.live="categoryFilter"
-                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="">All Categories</option>
-                <option value="prep">Prep Items (all)</option>
+            <label class="sr-only" for="sop-category">Filter by category</label>
+            <select id="sop-category" wire:model.live="categoryFilter" class="input">
+                <option value="">All categories</option>
+                <option value="prep">Prep items (all)</option>
                 @foreach ($categories as $cat)
                     @if ($cat->children->isNotEmpty())
                         <optgroup label="{{ $cat->name }}">
@@ -36,38 +34,44 @@
     @if ($grouped->count())
         @foreach ($grouped as $categoryName => $catRecipes)
             <div class="mb-8">
-                <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{{ $categoryName }}</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <h2 class="page-eyebrow mb-3">{{ $categoryName }}</h2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     @foreach ($catRecipes as $recipe)
                         <a href="{{ route('lms.sop.show', array_filter(['id' => $recipe->id, 'search' => $search, 'categoryFilter' => $categoryFilter], fn ($v) => $v !== '' && $v !== null)) }}"
-                           class="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md hover:border-indigo-300 transition">
+                           class="group card card-hover overflow-hidden">
                             @php $thumb = $recipe->images->whereIn('type', ['dine_in', 'presentation'])->first(); @endphp
                             @if ($thumb)
-                                <div class="h-40 bg-gray-100 overflow-hidden">
-                                    <img src="{{ $thumb->url() }}" alt="{{ $recipe->name }}"
-                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                <div class="h-40 overflow-hidden bg-gray-100">
+                                    <img src="{{ $thumb->url() }}" alt="{{ $recipe->name }}" loading="lazy"
+                                         class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                                 </div>
                             @else
-                                <div class="h-40 bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-indigo-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                                {{-- Flat brand tint, not the old brand-to-purple
+                                     gradient. A second accent hue on a
+                                     placeholder is decoration, and it read as a
+                                     status the card did not have. --}}
+                                <div class="flex h-40 items-center justify-center bg-brand-50">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-brand-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                 </div>
                             @endif
                             <div class="p-4">
                                 <div class="flex items-start justify-between gap-2">
-                                    <h3 class="font-semibold text-gray-800 text-sm group-hover:text-indigo-600 transition">{{ $recipe->name }}</h3>
+                                    <h3 class="text-sm font-semibold leading-snug text-gray-900 transition-colors group-hover:text-brand-700">{{ $recipe->name }}</h3>
                                     @if ($recipe->is_prep)
-                                        <span class="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full tracking-wider">PREP</span>
+                                        <span class="badge-warning flex-shrink-0">Prep</span>
                                     @endif
                                 </div>
                                 @if ($recipe->description)
-                                    <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ $recipe->description }}</p>
+                                    <p class="mt-1 line-clamp-2 text-xs text-gray-600">{{ $recipe->description }}</p>
                                 @endif
-                                <div class="flex items-center gap-2 mt-3">
-                                    <span class="text-xs text-gray-400">{{ $recipe->steps->count() }} step{{ $recipe->steps->count() !== 1 ? 's' : '' }}</span>
+                                <div class="mt-3 flex items-center gap-2">
+                                    <span class="text-xs tabular-nums text-gray-600">{{ $recipe->steps->count() }} step{{ $recipe->steps->count() !== 1 ? 's' : '' }}</span>
                                     @if ($recipe->video_url)
-                                        <span class="text-xs text-indigo-500 font-medium">Video</span>
+                                        {{-- brand-700, not brand-500: 500 is
+                                             3.16:1 and large-text only. --}}
+                                        <span class="text-xs font-medium text-brand-700">Video</span>
                                     @endif
                                 </div>
                             </div>
@@ -77,9 +81,9 @@
             </div>
         @endforeach
     @else
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
-            <p class="font-medium">No training SOPs available yet.</p>
-            <p class="text-xs mt-1">SOPs will appear here once your team adds preparation steps to recipes.</p>
+        <div class="empty-state">
+            <p class="empty-title">No training SOPs yet</p>
+            <p class="empty-body">They appear here once your team adds preparation steps to a recipe.</p>
         </div>
     @endif
 </div>
