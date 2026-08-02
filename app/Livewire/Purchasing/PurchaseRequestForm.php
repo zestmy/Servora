@@ -143,13 +143,7 @@ class PurchaseRequestForm extends Component
 
         // Auto-detect prep items → source from the central kitchen serving this outlet
         $isPrep = $ingredient->is_prep;
-        $kitchenId = null;
-        if ($isPrep) {
-            $kitchenId = ProcurementRoutingService::resolveKitchenId(
-                Auth::user()->activeOutletId(),
-                Auth::user()
-            );
-        }
+        $kitchenId = $isPrep ? $this->resolveKitchenForRequest() : null;
 
         $taxRate = $ingredient->effectiveTaxRate(Auth::user()->company);
 
@@ -175,6 +169,28 @@ class PurchaseRequestForm extends Component
     {
         unset($this->lines[$index]);
         $this->lines = array_values($this->lines);
+    }
+
+    /**
+     * Kitchen routing and par levels are both properties of the outlet, but the
+     * lines capture them when the item is added — which is often before the
+     * outlet is picked. Re-derive them so a line added first doesn't keep the
+     * kitchen (or par level) of the outlet that merely happened to be selected
+     * at the time.
+     */
+    public function updatedOutletId(): void
+    {
+        $kitchenId = $this->resolveKitchenForRequest();
+
+        foreach ($this->lines as $i => $line) {
+            if (($line['source'] ?? 'supplier') === 'kitchen') {
+                $this->lines[$i]['kitchen_id'] = $kitchenId;
+            }
+
+            if (! empty($line['ingredient_id'])) {
+                $this->lines[$i]['par_level'] = $this->getParLevel((int) $line['ingredient_id']);
+            }
+        }
     }
 
     public function save(string $action = 'save')
@@ -263,11 +279,30 @@ class PurchaseRequestForm extends Component
         return $this->redirect(route('purchasing.index', ['tab' => 'pr']), navigate: true);
     }
 
+    /**
+     * The outlet this request is being raised for. The picker wins; the active
+     * outlet is only a fallback for outlet-mode users who never see the picker.
+     * In Central Kitchen mode there is no active outlet at all, so reading it
+     * directly would route the request off whatever the fallbacks guessed.
+     */
+    private function requestOutletId(): ?int
+    {
+        return $this->outlet_id ?: Auth::user()->activeOutletId();
+    }
+
+    private function resolveKitchenForRequest(): ?int
+    {
+        return ProcurementRoutingService::resolveKitchenId(
+            $this->requestOutletId(),
+            Auth::user()
+        );
+    }
+
     private function getParLevel(int $ingredientId): float
     {
         // Par levels belong to the outlet the request is being raised for,
         // not whichever outlet the user happens to be assigned to.
-        $outletId = $this->outlet_id ?: Auth::user()->activeOutletId();
+        $outletId = $this->requestOutletId();
         if (! $outletId) return 0;
 
         return (float) (IngredientParLevel::where('ingredient_id', $ingredientId)
