@@ -137,9 +137,8 @@ class PurchaseRequestForm extends Component
         if (! $ingredient) return;
 
         // Find preferred supplier
-        $preferred = $ingredient->supplierIngredients()
-            ->where('is_preferred', true)
-            ->with('supplier')
+        $preferred = $ingredient->suppliers()
+            ->wherePivot('is_preferred', true)
             ->first();
 
         // Auto-detect prep items → source from the central kitchen serving this outlet
@@ -159,8 +158,8 @@ class PurchaseRequestForm extends Component
             'ingredient_name'      => $ingredient->name,
             'quantity'             => 0,
             'uom_id'              => $ingredient->base_uom_id,
-            'preferred_supplier_id' => $isPrep ? null : $preferred?->supplier_id,
-            'supplier_name'        => $isPrep ? '' : ($preferred?->supplier?->name ?? ''),
+            'preferred_supplier_id' => $isPrep ? null : $preferred?->id,
+            'supplier_name'        => $isPrep ? '' : ($preferred?->name ?? ''),
             'source'               => $isPrep ? 'kitchen' : 'supplier',
             'kitchen_id'           => $kitchenId,
             'par_level'            => $this->getParLevel($ingredient->id),
