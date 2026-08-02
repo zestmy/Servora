@@ -153,7 +153,7 @@
                 @foreach ($packagingData as $pd)
                     <tr class="sub">
                         <td colspan="3" class="r" style="color: #6b7280; font-style: italic;">
-                            <span style="font-size: 7px; background: #e0e7ff; color: #4338ca; padding: 1px 4px; border-radius: 2px; margin-right: 3px;">PKG</span>
+                            <span style="font-size: 7px; background: #d5f5f1; color: #0d5f61; padding: 1px 4px; border-radius: 2px; margin-right: 3px;">PKG</span>
                             {{ $pd['ingredient'] }}
                         </td>
                         <td class="r">{{ rtrim(rtrim(number_format($pd['quantity'], 4), '0'), '.') }} {{ $pd['uom'] }}</td>

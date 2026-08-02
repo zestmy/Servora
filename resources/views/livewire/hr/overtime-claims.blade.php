@@ -280,7 +280,7 @@
                                 {
                                     label: 'Normal Day',
                                     data: data.normal,
-                                    backgroundColor: 'rgba(99,102,241,0.75)',
+                                    backgroundColor: 'rgba(34,161,157,0.75)',
                                     borderRadius: 3,
                                     stack: 'ot',
                                 },

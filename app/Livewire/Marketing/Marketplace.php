@@ -94,6 +94,6 @@ class Marketplace extends Component
         return view('livewire.marketing.marketplace', compact(
             'products', 'productStats', 'categories', 'states',
             'totalProducts', 'totalSuppliers', 'totalCategories'
-        ))->layout('layouts.marketing');
+        ))->layout('layouts.marketing', ['title' => 'F&B Product Marketplace']);
     }
 }

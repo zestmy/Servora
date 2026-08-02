@@ -210,8 +210,8 @@
                         }
                     }
                 @endphp
-                <tr style="background: #e0e7ff; border-top: 2px solid #6366f1;">
-                    <td class="left" style="font-weight: bold; font-size: 7px; color: #4338ca;">Daily Summary</td>
+                <tr style="background: #d5f5f1; border-top: 2px solid #22a19d;">
+                    <td class="left" style="font-weight: bold; font-size: 7px; color: #0d5f61;">Daily Summary</td>
                     @foreach ($weekDays as $day)
                         <td style="font-size: 6px; line-height: 1.3; vertical-align: top; padding: 3px 2px;">
                             @if ($dailyStats[$day['date']]['ot'] > 0)

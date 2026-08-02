@@ -19,7 +19,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#0b7677">
     {{-- Full-screen when saved to a home screen, which is how this is meant
          to be used day to day. --}}
     <meta name="mobile-web-app-capable" content="yes">
@@ -30,7 +30,7 @@
     {{-- iOS ignores the manifest's icons and uses this one. --}}
     <link rel="apple-touch-icon" href="{{ asset('labels-app/apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('labels-app/icon-192.png') }}">
-    <title>{{ $brandName }} — {{ $title ?? 'Labels' }}</title>
+    <title>{{ $title ?? 'Labels' }} | {{ $brandName }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     <style>

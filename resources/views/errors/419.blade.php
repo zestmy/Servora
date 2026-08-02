@@ -36,7 +36,7 @@
         .spinner {
             width: 32px; height: 32px;
             border: 3px solid #e5e7eb;
-            border-top-color: #4f46e5;
+            border-top-color: #0b7677;
             border-radius: 50%;
             margin: 0 auto 1rem;
             animation: spin 0.8s linear infinite;
@@ -48,12 +48,12 @@
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
             font-weight: 500;
-            color: #4f46e5;
+            color: #0b7677;
             text-decoration: none;
-            border: 1px solid #c7d2fe;
+            border: 1px solid #aeeae4;
             border-radius: 8px;
         }
-        a.btn:hover { background: #eef2ff; }
+        a.btn:hover { background: #eefbf9; }
     </style>
 </head>
 <body>

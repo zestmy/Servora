@@ -1,140 +1,71 @@
+{{--
+    Audience here is SUPPLIERS, not restaurants. Different reader, different
+    job: they want distribution and to get paid, not food costing.
+
+    The figures in the numbers band are live counts from the database
+    (companies, ingredients, purchase orders). They are honest, but they will
+    read thin while the platform is small. If that becomes a problem the
+    answer is to drop the band, not to pad the numbers.
+--}}
 <div>
-    {{-- Hero --}}
-    <section class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white">
-        <div class="absolute inset-0 opacity-10">
-            <div class="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-            <div class="absolute bottom-10 right-20 w-96 h-96 bg-purple-300 rounded-full blur-3xl"></div>
-        </div>
-        <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-            <span class="inline-block px-4 py-1.5 bg-white/10 backdrop-blur rounded-full text-sm font-medium mb-6">For F&B Suppliers</span>
-            <h1 class="text-4xl sm:text-5xl font-bold leading-tight mb-6">
-                Grow Your Business with<br>
-                <span class="text-amber-300">Servora's F&B Network</span>
-            </h1>
-            <p class="text-lg text-indigo-100 max-w-2xl mx-auto mb-10">
-                List your products once and get discovered by restaurants, cafes, hotels, and food businesses across Malaysia. Receive digital purchase orders and track payments — all in one platform.
+    {{-- ── 1. Hero ─────────────────────────────────────────────────────── --}}
+    <section class="bg-gradient-to-b from-brand-50/70 to-white">
+        <div class="mx-auto max-w-3xl px-4 pb-14 pt-16 text-center sm:px-6 lg:px-8 lg:pt-24">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
+                For F&amp;B suppliers
             </p>
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="{{ route('supplier.register') }}"
-                   class="px-8 py-3.5 bg-white text-indigo-700 font-semibold rounded-xl hover:bg-gray-100 transition shadow-lg text-lg">
-                    Register as Supplier — Free
+
+            <h1 class="display-1 mt-4 text-gray-950">
+                Get found by the kitchens already buying
+            </h1>
+
+            <p class="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-gray-600">
+                List your products once. Receive purchase orders digitally and track what you are
+                owed, from one portal.
+            </p>
+
+            <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
+                <a href="{{ route('supplier.register') }}" class="btn-primary btn-lg">
+                    Register free
                 </a>
-                <a href="{{ route('supplier.login') }}"
-                   class="px-6 py-3 text-white/80 hover:text-white border border-white/30 rounded-xl transition font-medium">
-                    Already registered? Log In
+                <a href="{{ route('supplier.login') }}" class="btn-secondary btn-lg">
+                    Supplier log in
                 </a>
             </div>
         </div>
     </section>
 
-    {{-- Why Join --}}
-    <section class="py-20 bg-white">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-14">
-                <h2 class="text-3xl font-bold text-gray-900">Why Suppliers Choose Servora</h2>
-                <p class="text-gray-500 mt-3 max-w-2xl mx-auto">Join the platform that connects you directly with F&B decision-makers who are actively ordering ingredients and supplies.</p>
-            </div>
+    {{-- ── 2. Why join ─────────────────────────────────────────────────────
+         Four reasons, left-aligned in a grid. Previously four centred
+         columns with four differently-coloured icon tiles; one accent reads
+         as one product.
+    --}}
+    <section class="border-t border-gray-200 py-20 lg:py-24">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <h2 class="display-2 max-w-2xl text-gray-950">Why suppliers list with us</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <div class="text-center">
-                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                    </div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Get Discovered</h3>
-                    <p class="text-sm text-gray-500">Your products are visible to every F&B business on Servora. No cold calling needed — let them find you.</p>
-                </div>
-                <div class="text-center">
-                    <div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    </div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Digital Orders</h3>
-                    <p class="text-sm text-gray-500">Receive purchase orders digitally via email or your portal. No more phone calls, faxes, or handwritten notes.</p>
-                </div>
-                <div class="text-center">
-                    <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    </div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Track Payments</h3>
-                    <p class="text-sm text-gray-500">View invoices, track what's outstanding, and know exactly when you'll get paid — all from your dashboard.</p>
-                </div>
-                <div class="text-center">
-                    <div class="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                    </div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Build Relationships</h3>
-                    <p class="text-sm text-gray-500">Connect directly with F&B businesses who reorder from you regularly, and grow steady repeat business.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+            @php
+                $benefits = [
+                    ['cart',     'Get discovered',
+                     'Your catalogue is visible to every F&B business on the platform when they search for what you sell. No cold calling.'],
+                    ['clipboard','Digital purchase orders',
+                     'Orders arrive by email and in your portal, itemised and priced. No phone calls, no faxes, no handwriting to decipher.'],
+                    ['currency', 'Know what you are owed',
+                     'See invoices raised, what is still outstanding and when it is due, without chasing anyone for a statement.'],
+                    ['building', 'Repeat business',
+                     'Kitchens reorder from the same suppliers week after week. Being in the system where they order is how you stay in the rotation.'],
+                ];
+            @endphp
 
-    {{-- How It Works --}}
-    <section class="py-20 bg-gray-50">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-14">
-                <h2 class="text-3xl font-bold text-gray-900">How It Works</h2>
-                <p class="text-gray-500 mt-3">Get started in three simple steps — it's completely free.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="relative bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
-                    <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">1</div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Register Your Company</h3>
-                    <p class="text-sm text-gray-500">Create your free supplier account with your company details, contact info, and payment preferences.</p>
-                </div>
-                <div class="relative bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
-                    <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">2</div>
-                    <h3 class="font-semibold text-gray-900 mb-2">List Your Products</h3>
-                    <p class="text-sm text-gray-500">Upload your product catalog — individually or via CSV. Set your prices, pack sizes, and minimum order quantities.</p>
-                </div>
-                <div class="relative bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center">
-                    <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">3</div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Receive Orders</h3>
-                    <p class="text-sm text-gray-500">F&B businesses discover your products, send you purchase orders, and you fulfil orders digitally.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- Stats / Social Proof --}}
-    <section class="py-16 bg-indigo-700 text-white">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-                <div>
-                    <p class="text-4xl font-bold">{{ $stats['companies'] }}+</p>
-                    <p class="text-indigo-200 mt-1">F&B Businesses</p>
-                </div>
-                <div>
-                    <p class="text-4xl font-bold">{{ number_format($stats['ingredients']) }}+</p>
-                    <p class="text-indigo-200 mt-1">Products Listed</p>
-                </div>
-                <div>
-                    <p class="text-4xl font-bold">{{ number_format($stats['orders']) }}+</p>
-                    <p class="text-indigo-200 mt-1">Purchase Orders Processed</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- FAQ --}}
-    <section class="py-20 bg-white">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl font-bold text-gray-900 text-center mb-12">Frequently Asked Questions</h2>
-            <div x-data="{ open: null }" class="space-y-3">
-                @foreach ([
-                    ['Is it free to register?', 'Yes, completely free. There are no listing fees or subscription charges for suppliers. You only pay standard payment processing fees when receiving payments through the platform.'],
-                    ['Who can see my products?', 'Any F&B business using Servora can discover your products when they search for ingredients or suppliers. Your company profile and product catalog are visible to all active Servora users.'],
-                    ['How do I receive orders?', 'When a business creates a purchase order for your products, you receive an email notification and can view the full PO details in your supplier portal dashboard.'],
-                    ['What products can I list?', 'Any food & beverage ingredients, packaging materials, cleaning supplies, kitchen equipment, or other products that F&B businesses need. The more products you list, the more discoverable you become.'],
-                ] as $i => $faq)
-                    <div class="border border-gray-200 rounded-xl overflow-hidden">
-                        <button @click="open = open === {{ $i }} ? null : {{ $i }}"
-                                class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition">
-                            <span class="text-sm font-medium text-gray-800">{{ $faq[0] }}</span>
-                            <svg :class="open === {{ $i }} ? 'rotate-180' : ''" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </button>
-                        <div x-show="open === {{ $i }}" x-collapse class="px-6 pb-4 text-sm text-gray-500">
-                            {{ $faq[1] }}
+            <div class="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2">
+                @foreach ($benefits as $i => [$icon, $title, $body])
+                    <div data-reveal-index="{{ $i }}" class="reveal flex gap-5">
+                        <span class="flex h-11 w-11 flex-none items-center justify-center rounded-control bg-brand-50 text-brand-700">
+                            <x-icon :name="$icon" size="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h3 class="text-base font-semibold tracking-tight text-gray-950">{{ $title }}</h3>
+                            <p class="mt-2 max-w-prose text-sm leading-relaxed text-gray-600">{{ $body }}</p>
                         </div>
                     </div>
                 @endforeach
@@ -142,14 +73,118 @@
         </div>
     </section>
 
-    {{-- CTA Footer --}}
-    <section class="py-20 bg-gray-900 text-white text-center">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl font-bold mb-4">Ready to Reach More Customers?</h2>
-            <p class="text-gray-400 mb-8 text-lg">Join Servora's supplier network today. List your products, receive digital orders, and grow your F&B business.</p>
-            <a href="{{ route('supplier.register') }}"
-               class="inline-block px-8 py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition shadow-lg text-lg">
-                Register Now — It's Free
+    {{-- ── 3. How it works ─────────────────────────────────────────────────
+         Connected timeline. Deliberately not "Step 1 / Step 2 / Step 3"
+         cards: the action is the label.
+    --}}
+    <section class="border-y border-gray-200 bg-gray-50 py-20 lg:py-24">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div class="grid gap-12 lg:grid-cols-12 lg:gap-16">
+
+                <div class="lg:col-span-4">
+                    <h2 class="display-2 text-gray-950">Listing takes an afternoon</h2>
+                    <p class="body-base mt-5">
+                        No integration work and no fee to be listed.
+                    </p>
+                    <a href="{{ route('supplier.register') }}" class="btn-primary mt-7">Register free</a>
+                </div>
+
+                @php
+                    $steps = [
+                        ['Register your company', 'Company details, delivery areas and contact. Free, and there is no listing fee.'],
+                        ['List your products',    'Add products with pack sizes and prices, or upload the price list you already send out by email.'],
+                        ['Receive orders',        'Kitchens order against your catalogue. You get the PO by email and in the portal, then invoice from the same place.'],
+                    ];
+                @endphp
+
+                <ol class="relative lg:col-span-8">
+                    <span aria-hidden="true" class="absolute bottom-3 left-[15px] top-3 w-px bg-gray-300"></span>
+                    @foreach ($steps as $i => [$title, $desc])
+                        <li data-reveal-index="{{ $i }}" class="reveal relative flex gap-5 pb-10 last:pb-0">
+                            <span class="relative z-sticky mt-0.5 flex h-8 w-8 flex-none items-center justify-center
+                                         rounded-full bg-brand-600 text-white shadow-btn">
+                                <x-icon name="check" size="h-4 w-4" stroke="2.4" />
+                            </span>
+                            <div class="pt-1">
+                                <h3 class="text-base font-semibold tracking-tight text-gray-950">{{ $title }}</h3>
+                                <p class="mt-1.5 max-w-prose text-sm leading-relaxed text-gray-600">{{ $desc }}</p>
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    {{-- ── 4. Numbers ──────────────────────────────────────────────────────
+         Live counts. The trailing "+" was removed: these are exact figures,
+         and "+" implies a floor we are not measuring.
+    --}}
+    <section class="py-16 lg:py-20">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <dl class="grid gap-8 text-center sm:grid-cols-3">
+                @php
+                    $figures = [
+                        [number_format($stats['companies']),   'F&B businesses on the platform'],
+                        [number_format($stats['ingredients']), 'Products catalogued'],
+                        [number_format($stats['orders']),      'Purchase orders processed'],
+                    ];
+                @endphp
+                @foreach ($figures as [$value, $label])
+                    <div>
+                        <dt class="sr-only">{{ $label }}</dt>
+                        <dd>
+                            <span class="tabular block text-4xl font-bold tracking-tight text-brand-700">{{ $value }}</span>
+                            <span class="mt-2 block text-sm text-gray-600">{{ $label }}</span>
+                        </dd>
+                    </div>
+                @endforeach
+            </dl>
+        </div>
+    </section>
+
+    {{-- ── 5. FAQ ──────────────────────────────────────────────────────────
+         Native <details>: keyboard operable and screen-reader correct with
+         no JavaScript, and findable by in-page search.
+    --}}
+    <section class="border-t border-gray-200 py-20">
+        <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <h2 class="display-3 text-gray-950">Supplier questions</h2>
+
+            @php
+                $faqs = [
+                    ['Is it free to register?', 'Yes. There are no listing fees and no subscription for suppliers. You pay standard payment processing fees only when taking payment through the platform.'],
+                    ['Who can see my products?', 'Any F&B business using Servora can find your products when they search for ingredients or suppliers. Your company profile and catalogue are visible to active users.'],
+                    ['How do I receive orders?', 'When a business raises a purchase order against your products you get an email notification, and the full order appears in your supplier portal.'],
+                    ['What can I list?', 'Food and beverage ingredients, packaging, cleaning supplies, kitchen equipment, and anything else F&B businesses buy. More products listed means more ways to be found.'],
+                ];
+            @endphp
+
+            <div class="stack mt-8 border-t border-gray-200">
+                @foreach ($faqs as [$q, $a])
+                    <details class="group py-5">
+                        <summary class="flex cursor-pointer list-none items-center justify-between gap-4
+                                        text-sm font-semibold text-gray-950 marker:content-none">
+                            {{ $q }}
+                            <x-icon name="arrow-right" size="h-4 w-4"
+                                    class="flex-none text-gray-500 transition-transform duration-200 group-open:rotate-90" />
+                        </summary>
+                        <p class="mt-3 max-w-prose text-sm leading-relaxed text-gray-600">{{ $a }}</p>
+                    </details>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    {{-- ── 6. Close ────────────────────────────────────────────────────── --}}
+    <section class="bg-gray-950">
+        <div class="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 lg:px-8">
+            <h2 class="display-2 text-white">Put your price list where the orders are</h2>
+            <p class="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-gray-300">
+                Registering is free and takes a few minutes.
+            </p>
+            <a href="{{ route('supplier.register') }}" class="btn-primary btn-lg mt-8">
+                Register free
             </a>
         </div>
     </section>

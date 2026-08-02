@@ -38,7 +38,7 @@ class StaffAppController extends Controller
             // mid-print reflows the queue under the chef's thumb.
             'orientation'      => 'portrait',
             'background_color' => '#f9fafb',
-            'theme_color'      => '#4f46e5',
+            'theme_color'      => '#0b7677',
             'icons'            => [
                 [
                     'src'   => asset('labels-app/icon-192.png'),

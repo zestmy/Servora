@@ -23,7 +23,7 @@
     aside[data-nav-theme='light'] .text-purple-300 { color: #7c3aed !important; }
     aside[data-nav-theme='light'] .text-purple-200 { color: #6d28d9 !important; }
     aside[data-nav-theme='light'] .border-purple-700 { border-color: #ddd6fe !important; }
-    aside[data-nav-theme='light'] .bg-indigo-900\/40 { background-color: #eef2ff !important; }
-    aside[data-nav-theme='light'] .text-indigo-300 { color: #4f46e5 !important; }
-    aside[data-nav-theme='light'] .text-indigo-200 { color: #4338ca !important; }
+    aside[data-nav-theme='light'] .bg-indigo-900\/40 { background-color: #eefbf9 !important; }
+    aside[data-nav-theme='light'] .text-indigo-300 { color: #0b7677 !important; }
+    aside[data-nav-theme='light'] .text-indigo-200 { color: #0d5f61 !important; }
 </style>

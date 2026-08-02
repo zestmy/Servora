@@ -367,7 +367,7 @@
             .lms-overlay:hover .lms-play-icon, .lms-overlay.show-icon .lms-play-icon { opacity: 1; }
             .lms-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(255,255,255,0.2); z-index: 11; cursor: pointer; }
             .lms-progress:hover { height: 6px; }
-            .lms-progress-fill { height: 100%; background: #6366f1; width: 0%; transition: width 0.3s linear; }
+            .lms-progress-fill { height: 100%; background: #22a19d; width: 0%; transition: width 0.3s linear; }
             .lms-fs-btn {
                 position: absolute; bottom: 12px; right: 12px; z-index: 12;
                 background: rgba(0,0,0,0.5); border: none; color: #fff;
@@ -376,7 +376,7 @@
                 opacity: 0; transition: opacity 0.2s;
             }
             #lms-player-outer:hover .lms-fs-btn { opacity: 0.8; }
-            .lms-fs-btn:hover { opacity: 1 !important; background: rgba(99,102,241,0.7); }
+            .lms-fs-btn:hover { opacity: 1 !important; background: rgba(34,161,157,0.7); }
             .lms-fs-btn svg { width: 18px; height: 18px; }
             .lms-fs-close {
                 display: none;

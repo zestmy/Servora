@@ -43,7 +43,7 @@
                 : ($r->category ?? 'Uncategorised'));
     @endphp
 
-    <title>{{ $brandName }} — {{ $title ?? 'Training Portal' }}</title>
+    <title>{{ $title ?? 'Training Portal' }} | {{ $brandName }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="manifest" href="{{ asset('lms-manifest.json') }}">
     <meta name="theme-color" content="#111827">
@@ -286,14 +286,14 @@
 {{-- PWA Install Banner --}}
 <div id="pwa-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999; padding:16px; background:#1e1b4b; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
     <div style="max-width:480px; margin:0 auto; display:flex; align-items:flex-start; gap:12px;">
-        <div style="flex-shrink:0; width:44px; height:44px; background:#4f46e5; border-radius:10px; display:flex; align-items:center; justify-content:center;">
+        <div style="flex-shrink:0; width:44px; height:44px; background:#0b7677; border-radius:10px; display:flex; align-items:center; justify-content:center;">
             <svg width="24" height="24" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
         </div>
         <div style="flex:1; min-width:0;">
             <div style="font-weight:700; font-size:14px; margin-bottom:4px;">Install Training App</div>
-            <div id="pwa-instructions" style="font-size:12px; color:#c7d2fe; line-height:1.5;"></div>
+            <div id="pwa-instructions" style="font-size:12px; color:#aeeae4; line-height:1.5;"></div>
         </div>
-        <button onclick="dismissPwaBanner()" style="flex-shrink:0; background:none; border:none; color:#818cf8; font-size:20px; cursor:pointer; padding:4px; line-height:1;">&times;</button>
+        <button onclick="dismissPwaBanner()" style="flex-shrink:0; background:none; border:none; color:#43bdb8; font-size:20px; cursor:pointer; padding:4px; line-height:1;">&times;</button>
     </div>
 </div>
 
@@ -313,7 +313,7 @@ if ('serviceWorker' in navigator) {
     var isAndroid = /Android/.test(navigator.userAgent);
 
     if (isIos) {
-        instructions.innerHTML = 'Tap the <svg style="display:inline;vertical-align:middle;margin:0 2px;" width="18" height="18" fill="none" stroke="#818cf8" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg> <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong>.';
+        instructions.innerHTML = 'Tap the <svg style="display:inline;vertical-align:middle;margin:0 2px;" width="18" height="18" fill="none" stroke="#43bdb8" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg> <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong>.';
         banner.style.display = 'block';
     } else if (isAndroid) {
         var deferredPrompt = null;
@@ -323,7 +323,7 @@ if ('serviceWorker' in navigator) {
             instructions.innerHTML = 'Get quick access from your home screen.';
             var btn = document.createElement('button');
             btn.textContent = 'Install';
-            btn.style.cssText = 'margin-top:8px;padding:6px 20px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+            btn.style.cssText = 'margin-top:8px;padding:6px 20px;background:#0b7677;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
             btn.onclick = function() {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function() { banner.style.display = 'none'; });

@@ -18,7 +18,7 @@
     </div>
 
     @if (! empty($activeFilters))
-        <div style="background: #eef2ff; border-left: 3px solid #4f46e5; padding: 5px 10px; margin-bottom: 8px; font-size: 9pt; color: #4338ca;">
+        <div style="background: #eefbf9; border-left: 3px solid #0b7677; padding: 5px 10px; margin-bottom: 8px; font-size: 9pt; color: #0d5f61;">
             <strong style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 8pt;">Filtered:</strong>
             {{ implode('  ·  ', $activeFilters) }}
         </div>
@@ -72,7 +72,7 @@
                     </td>
                     <td style="font-size: 8px; color: #666;">{{ $row['category'] }}</td>
                     <td class="right">{{ number_format($row['ingredient_cost'] ?? 0, 2) }}</td>
-                    <td class="right" style="color: {{ ($row['packaging_cost'] ?? 0) > 0 ? '#4338ca' : '#ccc' }};">
+                    <td class="right" style="color: {{ ($row['packaging_cost'] ?? 0) > 0 ? '#0d5f61' : '#ccc' }};">
                         {{ ($row['packaging_cost'] ?? 0) > 0 ? number_format($row['packaging_cost'], 2) : '—' }}
                     </td>
                     <td class="right" style="color: {{ ($row['tax'] ?? 0) > 0 ? '#6b7280' : '#ccc' }};">

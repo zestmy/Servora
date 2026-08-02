@@ -1,3 +1,268 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE
+   Global defaults only. Anything that would restyle existing markup lives in
+   @layer components as an opt-in class instead, so the 300-odd views that
+   predate this file keep rendering exactly as they did.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+    }
+
+    body {
+        text-rendering: optimizeLegibility;
+    }
+
+    /* Keyboard focus only. Mouse users never see the ring, keyboard users
+       always do — the previous behaviour left several controls with no
+       visible focus at all. */
+    :where(a, button, [role="button"], summary):focus-visible,
+    :where(input, select, textarea):focus-visible {
+        outline: 2px solid theme('colors.brand.500');
+        outline-offset: 2px;
+        border-radius: theme('borderRadius.control');
+    }
+
+    ::selection {
+        background-color: theme('colors.brand.200');
+        color: theme('colors.brand.950');
+    }
+
+    /* Numbers in a cost-control app get compared down a column constantly.
+       Tabular figures stop the columns dancing. */
+    .tabular,
+    table :where(td, th).num {
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENTS
+   Opt-in primitives. Every one is safe to drop into an existing screen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+
+    /* ── Buttons ──────────────────────────────────────────────────────────
+       Every variant is contrast-checked against its own background, and every
+       variant gets the same 1px push on :active so the whole app feels
+       physically consistent. */
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 whitespace-nowrap
+               rounded-control px-4 py-2.5 text-sm font-semibold
+               transition-[background-color,color,box-shadow,transform] duration-150
+               disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none;
+    }
+    .btn:active:not(:disabled) {
+        @apply translate-y-px;
+    }
+
+    /* white on brand-600 = 5.42:1 ✓ */
+    .btn-primary {
+        @apply btn bg-brand-600 text-white shadow-btn
+               hover:bg-brand-700 hover:shadow-btn-hover active:bg-brand-800;
+    }
+    .btn-secondary {
+        @apply btn bg-white text-gray-700 border border-gray-200 shadow-e1
+               hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100;
+    }
+    .btn-ghost {
+        @apply btn bg-transparent text-gray-600
+               hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200;
+    }
+    /* white on danger-600 = 4.83:1 ✓ */
+    .btn-danger {
+        @apply btn bg-danger-600 text-white shadow-e2
+               hover:bg-danger-700 active:bg-danger-800;
+    }
+    /* For placing over photography or a coloured panel. Never a bare
+       transparent button on an unknown background — it needs the stroke. */
+    .btn-on-dark {
+        @apply btn bg-white/10 text-white border border-white/25 backdrop-blur-sm
+               hover:bg-white/20 active:bg-white/25;
+    }
+    .btn-sm  { @apply px-3 py-1.5 text-xs gap-1.5; }
+    .btn-lg  { @apply px-6 py-3 text-base gap-2.5; }
+    .btn-icon { @apply p-2 rounded-control; }
+
+    /* ── Surfaces ─────────────────────────────────────────────────────────
+       A card is for real elevation. Where grouping is all that is needed,
+       reach for .stack (hairline dividers) or plain spacing instead. */
+    .card {
+        @apply bg-white rounded-surface border border-gray-200/80 shadow-e1;
+    }
+    .card-pad     { @apply card p-5 sm:p-6; }
+    .card-hover   { @apply transition-[box-shadow,transform,border-color] duration-200
+                           hover:shadow-e3 hover:border-gray-300 hover:-translate-y-0.5; }
+    .panel        { @apply bg-white rounded-panel border border-gray-200/80 shadow-e2; }
+
+    /* Grouping without boxes. */
+    .stack        { @apply divide-y divide-gray-100; }
+    .section-rule { @apply border-t border-gray-200/80; }
+
+    /* ── Forms ────────────────────────────────────────────────────────────
+       Label ABOVE, helper below the label, error BELOW the input. Never a
+       placeholder standing in for a label. All four pass AA on white and on
+       gray-50 section backgrounds. */
+    .field       { @apply flex flex-col gap-2; }
+    .label       { @apply text-sm font-medium text-gray-700; }          /* 8.6:1  */
+    .label-req::after { content: '*'; @apply text-danger-600 ml-0.5; }
+    .help        { @apply text-xs text-gray-600; }                       /* 6.4:1  */
+    .error-text  { @apply text-xs font-medium text-danger-700; }         /* 6.2:1  */
+
+    .input {
+        @apply w-full rounded-control border-gray-300 bg-white text-sm text-gray-900
+               placeholder:text-gray-500
+               shadow-e1 transition-[border-color,box-shadow] duration-150
+               focus:border-brand-500 focus:ring-2 focus:ring-brand-500/25
+               disabled:bg-gray-50 disabled:text-gray-500;
+    }
+    .input-error {
+        @apply border-danger-400 focus:border-danger-500 focus:ring-danger-500/25;
+    }
+
+    /* ── Badges ───────────────────────────────────────────────────────────
+       Text-on-tint, all AA on their own tint. No decorative status dots —
+       the colour and the word already carry the state. */
+    .badge {
+        @apply inline-flex items-center gap-1.5 rounded-control
+               px-2 py-0.5 text-xs font-semibold;
+    }
+    .badge-neutral { @apply badge bg-gray-100  text-gray-700; }
+    .badge-brand   { @apply badge bg-brand-50   text-brand-800; }
+    .badge-success { @apply badge bg-success-50 text-success-800; }
+    .badge-warning { @apply badge bg-warning-50 text-warning-800; }
+    .badge-danger  { @apply badge bg-danger-50  text-danger-800; }
+
+    /* ── Tables ───────────────────────────────────────────────────────────
+       Hairline between rows only. No border-t AND border-b on every row. */
+    .table-surface   { @apply w-full text-sm; }
+    .table-surface thead th {
+        @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide
+               text-gray-600 bg-gray-50 border-b border-gray-200;
+    }
+    .table-surface tbody td {
+        @apply px-4 py-3 text-gray-700 border-b border-gray-100;
+    }
+    .table-surface tbody tr:last-child td { @apply border-b-0; }
+    .table-surface tbody tr { @apply transition-colors hover:bg-brand-50/40; }
+
+    /* Any wide table scrolls inside its own box. The page body must never
+       scroll sideways. */
+    .table-scroll { @apply -mx-4 sm:mx-0 overflow-x-auto; }
+
+    /* ── Loading / empty / error ──────────────────────────────────────────
+       The three states most screens in here are missing. */
+    .skeleton {
+        @apply relative overflow-hidden rounded-control bg-gray-100;
+    }
+    .skeleton::after {
+        content: '';
+        @apply absolute inset-0 -translate-x-full animate-shimmer;
+        background-image: linear-gradient(
+            90deg,
+            rgb(255 255 255 / 0) 0,
+            rgb(255 255 255 / 0.6) 50%,
+            rgb(255 255 255 / 0) 100%
+        );
+    }
+    .skeleton-text { @apply skeleton h-3.5 w-full; }
+    .skeleton-line { @apply skeleton h-3 w-2/3; }
+
+    .empty-state  { @apply flex flex-col items-center justify-center gap-3
+                           rounded-surface border border-dashed border-gray-300
+                           bg-gray-50/60 px-6 py-12 text-center; }
+    .empty-title  { @apply text-sm font-semibold text-gray-900; }
+    .empty-body   { @apply text-sm text-gray-600 max-w-prose; }
+
+    .alert         { @apply flex gap-3 rounded-surface border p-4 text-sm; }
+    .alert-danger  { @apply alert border-danger-200  bg-danger-50  text-danger-800; }
+    .alert-warning { @apply alert border-warning-200 bg-warning-50 text-warning-800; }
+    .alert-success { @apply alert border-success-200 bg-success-50 text-success-800; }
+    .alert-info    { @apply alert border-brand-200   bg-brand-50   text-brand-800; }
+
+    /* ── Typography helpers ───────────────────────────────────────────────
+       Display type gets negative tracking; body copy gets a measure cap.
+       (No `.font-display` class here — that name already belongs to the
+       fontFamily utility, and redefining it would be self-referential.) */
+    .display-1     { @apply font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter leading-[1.05]; }
+    .display-2     { @apply font-display text-3xl sm:text-4xl font-bold tracking-tight leading-[1.1]; }
+    .display-3     { @apply font-display text-2xl sm:text-3xl font-semibold tracking-tight leading-[1.15]; }
+    .body-lg       { @apply text-lg leading-relaxed text-gray-600 max-w-prose; }
+    .body-base     { @apply text-base leading-relaxed text-gray-600 max-w-prose; }
+
+    /* Page header used across the product screens. */
+    .page-title    { @apply text-xl font-semibold tracking-tight text-gray-900; }
+    .page-subtitle { @apply text-sm text-gray-600 mt-1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer utilities {
+    /* Scroll-reveal. Driven by the IntersectionObserver in app.js, never a
+       scroll event listener.
+
+       Visible by DEFAULT. The hidden state only applies once app.js has set
+       `js-reveal` on <html>, which it does at module-evaluation time before
+       first paint. If the bundle fails, 404s, or is blocked, the page still
+       renders fully readable instead of trapping content at opacity 0. */
+    .reveal { opacity: 1; }
+
+    .js-reveal .reveal {
+        opacity: 0;
+        transform: translateY(14px);
+        transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .js-reveal .reveal.is-in { opacity: 1; transform: none; }
+
+    /* Edge fade for horizontally scrolling strips. `mask-none` is the escape
+       hatch for the breakpoint where the strip stops scrolling and the fade
+       would just clip static content. */
+    .mask-edges {
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    }
+    .mask-none {
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION
+   Non-negotiable. Every entrance, marquee, shimmer and hover lift collapses
+   to a static end state — nothing is left mid-transform or invisible.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .reveal,
+    .js-reveal .reveal { opacity: 1 !important; transform: none !important; }
+    .skeleton::after { display: none; }
+    .card-hover:hover { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT
+   Labels and PDF documents render through these views. Chrome must not.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+}

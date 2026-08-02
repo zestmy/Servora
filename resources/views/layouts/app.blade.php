@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Servora') }} — {{ $title ?? 'Dashboard' }}</title>
+    <title>{{ $title ?? 'Dashboard' }} | {{ config('app.name', 'Servora') }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
     {{-- PWA: installable on mobile, offline fallback, no-cache for auth routes --}}
@@ -28,7 +28,7 @@
         /* ── Page transition: top progress bar ──────────────────────────── */
         #nav-progress {
             position: fixed; top: 0; left: 0; height: 3px; z-index: 9999;
-            background: linear-gradient(90deg, #6366f1, #818cf8);
+            background: linear-gradient(90deg, #22a19d, #43bdb8);
             width: 0; opacity: 0;
             transition: none;
             pointer-events: none;

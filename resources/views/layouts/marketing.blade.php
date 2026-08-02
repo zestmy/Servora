@@ -1,124 +1,213 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Servora' }} — Servora</title>
+
+    <title>{{ isset($title) ? $title . ' | Servora' : 'Servora' }}</title>
+    <meta name="description" content="{{ $description ?? 'Servora is AI-powered restaurant operations software for F&B: AI reads your supplier invoices and reviews your numbers weekly, alongside recipe costing, purchasing, inventory and staff training.' }}">
+
+    {{-- Social cards. Previously absent, so every shared link rendered bare. --}}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Servora">
+    <meta property="og:title" content="{{ $title ?? 'Servora' }}">
+    <meta property="og:description" content="{{ $description ?? 'AI-powered restaurant operations: costing, purchasing, inventory and training in one place.' }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ asset('images/servora-logo-black.png') }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="{{ url()->current() }}">
+
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
-<body class="bg-gray-50 text-gray-800 antialiased">
+<body class="bg-white text-gray-900 antialiased">
+
+    {{-- Keyboard users land here first and can jump the nav. --}}
+    <a href="#main"
+       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-toast
+              focus:inline-flex focus:items-center focus:rounded-control focus:bg-brand-600
+              focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-white focus:shadow-btn">
+        Skip to content
+    </a>
 
     @php
         $headerPages = \App\Models\Page::inHeader()->get();
         $footerPages = \App\Models\Page::inFooter()->get();
+
+        // Nav labels are deliberately unchanged. Muscle memory and analytics
+        // both key off them, so the one-line fix is the breakpoint and the
+        // type scale, not the wording.
+        $navLinks = [
+            ['route' => 'features',         'label' => 'Features'],
+            ['route' => 'pricing',          'label' => 'Pricing'],
+            ['route' => 'marketplace',      'label' => 'Marketplace'],
+            ['route' => 'for-suppliers',    'label' => 'For Suppliers'],
+            ['route' => 'referral.program', 'label' => 'Refer & Earn'],
+        ];
     @endphp
 
-    {{-- Top Nav --}}
-    <nav class="bg-white border-b border-gray-100">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <a href="{{ route('marketing.home') }}">
-                    <img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8">
-                </a>
+    {{-- ── Nav ──────────────────────────────────────────────────────────────
+         Sticky, 64px, single line from lg up. Below lg it is a sheet: the
+         full set plus any CMS header pages never fit a phone width, and the
+         old 192px dropdown truncated them.
+    --}}
+    <header class="sticky top-0 z-sticky border-b border-gray-200/70 bg-white/85 backdrop-blur-md"
+            x-data="{ open: false }">
+        <nav class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8"
+             aria-label="Primary">
 
-                <div class="hidden sm:flex items-center gap-6">
-                    <a href="{{ route('features') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Features</a>
-                    <a href="{{ route('pricing') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Pricing</a>
-                    <a href="{{ route('marketplace') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Marketplace</a>
-                    <a href="{{ route('for-suppliers') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">For Suppliers</a>
-                    <a href="{{ route('referral.program') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Refer & Earn</a>
-                    @foreach ($headerPages as $hp)
-                        <a href="{{ $hp->url() }}" target="{{ $hp->linkTarget() }}" class="text-sm text-gray-600 hover:text-gray-900 transition">{{ $hp->title }}</a>
+            <a href="{{ route('marketing.home') }}" class="flex-shrink-0" aria-label="Servora home">
+                <img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8 w-auto">
+            </a>
+
+            <div class="hidden items-center gap-7 lg:flex">
+                @foreach ($navLinks as $link)
+                    @php $isActive = request()->routeIs($link['route']); @endphp
+                    <a href="{{ route($link['route']) }}"
+                       @class([
+                           'text-[13px] font-medium transition-colors',
+                           'text-brand-700' => $isActive,
+                           'text-gray-600 hover:text-gray-900' => ! $isActive,
+                       ])
+                       @if ($isActive) aria-current="page" @endif>
+                        {{ $link['label'] }}
+                    </a>
+                @endforeach
+
+                @foreach ($headerPages as $hp)
+                    <a href="{{ $hp->url() }}" target="{{ $hp->linkTarget() }}"
+                       class="text-[13px] font-medium text-gray-600 transition-colors hover:text-gray-900">
+                        {{ $hp->title }}
+                    </a>
+                @endforeach
+            </div>
+
+            <div class="hidden items-center gap-3 lg:flex">
+                <a href="{{ route('login') }}"
+                   class="text-[13px] font-medium text-gray-600 transition-colors hover:text-gray-900">
+                    Log In
+                </a>
+                <a href="{{ route('saas.register') }}" class="btn-primary btn-sm">
+                    Start Free Trial
+                </a>
+            </div>
+
+            {{-- Mobile trigger --}}
+            <button type="button" @click="open = ! open"
+                    class="btn-ghost btn-icon lg:hidden"
+                    :aria-expanded="open ? 'true' : 'false'"
+                    aria-controls="mobile-nav"
+                    aria-label="Toggle navigation">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path x-show="! open" stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"/>
+                    <path x-show="open" x-cloak stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/>
+                </svg>
+            </button>
+        </nav>
+
+        {{-- Mobile sheet --}}
+        <div id="mobile-nav" x-show="open" x-cloak @click.away="open = false"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="border-t border-gray-200 bg-white lg:hidden">
+            <div class="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+                <div class="stack">
+                    @foreach ($navLinks as $link)
+                        <a href="{{ route($link['route']) }}"
+                           class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
+                            {{ $link['label'] }}
+                        </a>
                     @endforeach
-                    <a href="{{ route('login') }}" class="text-sm text-gray-600 hover:text-gray-900 transition">Log In</a>
-                    <a href="{{ route('saas.register') }}"
-                       class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                        Start Free Trial
+                    @foreach ($headerPages as $hp)
+                        <a href="{{ $hp->url() }}" target="{{ $hp->linkTarget() }}"
+                           class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
+                            {{ $hp->title }}
+                        </a>
+                    @endforeach
+                    <a href="{{ route('login') }}"
+                       class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
+                        Log In
                     </a>
                 </div>
-
-                {{-- Mobile menu --}}
-                <div class="sm:hidden" x-data="{ open: false }">
-                    <button @click="open = !open" class="text-gray-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                    <div x-show="open" @click.away="open = false" x-cloak
-                         class="absolute right-4 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-                        <a href="{{ route('features') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Features</a>
-                        <a href="{{ route('pricing') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Pricing</a>
-                        <a href="{{ route('referral.program') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Refer & Earn</a>
-                        @foreach ($headerPages as $hp)
-                            <a href="{{ $hp->url() }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ $hp->title }}</a>
-                        @endforeach
-                        <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Log In</a>
-                        <a href="{{ route('saas.register') }}" class="block px-4 py-2 text-sm text-indigo-600 font-medium hover:bg-gray-50">Start Free Trial</a>
-                    </div>
-                </div>
+                <a href="{{ route('saas.register') }}" class="btn-primary mt-4 w-full">
+                    Start Free Trial
+                </a>
             </div>
         </div>
-    </nav>
+    </header>
 
-    {{-- Main Content --}}
-    <main>
+    <main id="main">
         {{ $slot }}
     </main>
 
-    {{-- Footer --}}
-    <footer class="bg-gray-900 text-gray-400 mt-20">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div class="mb-8">
-                <img src="{{ asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8">
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+    {{-- ── Footer ───────────────────────────────────────────────────────── --}}
+    <footer class="mt-24 bg-gray-950 text-gray-400">
+        <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+            <div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+
+                <div class="max-w-xs">
+                    <img src="{{ asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8 w-auto">
+                    <p class="mt-4 text-sm leading-relaxed text-gray-400">
+                        Costing, purchasing, inventory and training for F&B operators who need to know
+                        their numbers before month end.
+                    </p>
+                </div>
+
                 <div>
-                    <h4 class="text-white font-semibold text-sm mb-3">Product</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="{{ route('features') }}" class="hover:text-white transition">Features</a></li>
-                        <li><a href="{{ route('pricing') }}" class="hover:text-white transition">Pricing</a></li>
-                        <li><a href="{{ route('referral.program') }}" class="hover:text-white transition">Refer & Earn</a></li>
+                    <h2 class="text-sm font-semibold text-white">Product</h2>
+                    <ul class="mt-4 space-y-3 text-sm">
+                        <li><a href="{{ route('features') }}" class="transition-colors hover:text-white">Features</a></li>
+                        <li><a href="{{ route('pricing') }}" class="transition-colors hover:text-white">Pricing</a></li>
+                        <li><a href="{{ route('marketplace') }}" class="transition-colors hover:text-white">Marketplace</a></li>
+                        <li><a href="{{ route('for-suppliers') }}" class="transition-colors hover:text-white">For Suppliers</a></li>
+                        <li><a href="{{ route('referral.program') }}" class="transition-colors hover:text-white">Refer &amp; Earn</a></li>
                     </ul>
                 </div>
+
                 <div>
-                    <h4 class="text-white font-semibold text-sm mb-3">Company</h4>
-                    <ul class="space-y-2 text-sm">
-                        @php $companyPages = $footerPages->filter(fn($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us'])); @endphp
+                    <h2 class="text-sm font-semibold text-white">Company</h2>
+                    <ul class="mt-4 space-y-3 text-sm">
+                        @php $companyPages = $footerPages->filter(fn ($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us'])); @endphp
                         @forelse ($companyPages as $cp)
-                            <li><a href="{{ $cp->url() }}" target="{{ $cp->linkTarget() }}" class="hover:text-white transition">{{ $cp->title }}</a></li>
+                            <li><a href="{{ $cp->url() }}" target="{{ $cp->linkTarget() }}" class="transition-colors hover:text-white">{{ $cp->title }}</a></li>
                         @empty
-                            <li><a href="#" class="hover:text-white transition">About</a></li>
+                            <li><a href="#" class="transition-colors hover:text-white">About</a></li>
                         @endforelse
                     </ul>
                 </div>
+
                 <div>
-                    <h4 class="text-white font-semibold text-sm mb-3">Legal</h4>
-                    <ul class="space-y-2 text-sm">
-                        @php $legalPages = $footerPages->filter(fn($p) => in_array($p->slug, ['privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
+                    <h2 class="text-sm font-semibold text-white">Legal</h2>
+                    <ul class="mt-4 space-y-3 text-sm">
+                        @php $legalPages = $footerPages->filter(fn ($p) => in_array($p->slug, ['privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
                         @forelse ($legalPages as $lp)
-                            <li><a href="{{ $lp->url() }}" target="{{ $lp->linkTarget() }}" class="hover:text-white transition">{{ $lp->title }}</a></li>
+                            <li><a href="{{ $lp->url() }}" target="{{ $lp->linkTarget() }}" class="transition-colors hover:text-white">{{ $lp->title }}</a></li>
                         @empty
-                            <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
-                            <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
+                            <li><a href="#" class="transition-colors hover:text-white">Privacy Policy</a></li>
+                            <li><a href="#" class="transition-colors hover:text-white">Terms of Service</a></li>
                         @endforelse
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-white font-semibold text-sm mb-3">Resources</h4>
-                    <ul class="space-y-2 text-sm">
-                        @php $otherPages = $footerPages->reject(fn($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us', 'privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
+
+                        @php $otherPages = $footerPages->reject(fn ($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us', 'privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
                         @foreach ($otherPages as $op)
-                            <li><a href="{{ $op->url() }}" target="{{ $op->linkTarget() }}" class="hover:text-white transition">{{ $op->title }}</a></li>
+                            <li><a href="{{ $op->url() }}" target="{{ $op->linkTarget() }}" class="transition-colors hover:text-white">{{ $op->title }}</a></li>
                         @endforeach
-                        <li><a href="{{ route('saas.register') }}" class="hover:text-white transition">Get Started</a></li>
                     </ul>
                 </div>
             </div>
-            <div class="mt-10 pt-6 border-t border-gray-800 text-sm text-center">
-                {!! \App\Models\AppSetting::get('footer_copyright', '&copy; ' . date('Y') . ' Servora. All rights reserved.') !!}
+
+            <div class="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p>{!! \App\Models\AppSetting::get('footer_copyright', '&copy; ' . date('Y') . ' Servora. All rights reserved.') !!}</p>
+                <a href="{{ route('saas.register') }}" class="font-medium text-brand-300 transition-colors hover:text-brand-200">
+                    Start your free trial
+                </a>
             </div>
         </div>
     </footer>
