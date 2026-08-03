@@ -60,9 +60,19 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <span class="px-2 py-0.5 rounded-full text-xs {{ $printer->is_active ? 'bg-success-50 text-success-700' : 'bg-gray-100 text-gray-500' }}">
+                                {{-- Two different questions, stacked. Active is
+                                     whether it is configured for use at all;
+                                     the line under it is whether we can
+                                     currently reach it. explainLocal is off —
+                                     "prints through this device" is copy for
+                                     the chef at the printer, not for an admin
+                                     reading a list. --}}
+                                <span class="{{ $printer->is_active ? 'badge-success' : 'badge-neutral' }}">
                                     {{ $printer->is_active ? 'Active' : 'Inactive' }}
                                 </span>
+                                <x-labels.printer-status :printer="$printer"
+                                                         :explain-local="false"
+                                                         class="mt-1 block w-fit mx-auto" />
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 <button wire:click="printCalibration({{ $printer->id }})"

@@ -45,14 +45,24 @@
             No label printer set up for {{ $this->outletName() ?: 'your outlet' }}.
             Ask your manager to add one in Servora under Labels &rarr; Label Printers.
         </div>
-    @elseif ($printers->count() > 1)
-        <select wire:model.live="printerId" class="input mb-3 py-3 text-base">
-            @foreach ($printers as $p)
-                <option value="{{ $p->id }}">{{ $p->name }}</option>
-            @endforeach
-        </select>
     @else
-        <p class="text-xs text-gray-600 mb-3 px-1">Printing to {{ $printers->first()->name }}</p>
+        @php $activePrinter = $printers->firstWhere('id', $printerId) ?? $printers->first(); @endphp
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+            @if ($printers->count() > 1)
+                <select wire:model.live="printerId" class="input flex-1 py-3 text-base">
+                    @foreach ($printers as $p)
+                        <option value="{{ $p->id }}">{{ $p->name }}</option>
+                    @endforeach
+                </select>
+            @else
+                <p class="flex-1 text-sm text-gray-600">Printing to
+                    <span class="font-medium text-gray-900">{{ $activePrinter->name }}</span>
+                </p>
+            @endif
+            @if ($activePrinter)
+                <x-labels.printer-status :printer="$activePrinter" class="shrink-0" />
+            @endif
+        </div>
     @endif
 
     @if ($editing)

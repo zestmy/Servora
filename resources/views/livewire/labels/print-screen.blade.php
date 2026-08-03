@@ -37,6 +37,12 @@
                         No printers set up.
                         <a href="{{ route('labels.printers') }}" class="underline">Add one</a> before printing.
                     </p>
+                @elseif ($selectedPrinter = $printers->firstWhere('id', $printerId))
+                    {{-- Only once a printer is chosen: a status for something
+                         nobody has picked yet is noise. --}}
+                    <p class="mt-1.5">
+                        <x-labels.printer-status :printer="$selectedPrinter" />
+                    </p>
                 @endif
             </div>
             <div>
