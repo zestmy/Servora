@@ -141,18 +141,6 @@
                 </div>
             </div>
 
-            {{-- Offline notice. The app cannot print without a connection, and
-                 without this the first sign of trouble was a failed print
-                 after ten items had already been queued. Hidden until the
-                 browser says otherwise. --}}
-            <span id="net-offline" hidden
-                  class="shrink-0 inline-flex items-center gap-1 rounded-full bg-warning-400 px-2 py-1 text-[11px] font-semibold text-warning-900">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636L5.636 18.364M12 20h.01M8.111 16.111a5.5 5.5 0 017.778 0"/>
-                </svg>
-                Offline
-            </span>
-
             {{-- The account control. It was a name in a translucent pill,
                  which read as a label rather than something you could press —
                  and the name it carries is stamped on every label these
@@ -312,23 +300,6 @@
         installBar?.classList.add('hidden');
         localStorage.setItem('labels-install-dismissed', '1');
     });
-
-    // ---- Connection ------------------------------------------------------
-    // Printing needs the network. Without this the first sign of trouble was
-    // a failed print after a tray had already been filled.
-    (() => {
-        const badge = document.getElementById('net-offline');
-        if (! badge) return;
-        const sync = () => { badge.hidden = navigator.onLine; };
-        window.addEventListener('online', sync);
-        window.addEventListener('offline', sync);
-        // wire:navigate swaps the body, so re-bind after each navigation.
-        document.addEventListener('livewire:navigated', () => {
-            const b = document.getElementById('net-offline');
-            if (b) b.hidden = navigator.onLine;
-        });
-        sync();
-    })();
 
     // ---- Printing --------------------------------------------------------
     window.addEventListener('label-print', (event) => {
