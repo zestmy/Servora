@@ -37,6 +37,10 @@
         td.info { text-align: left; padding-left: 3px; white-space: nowrap; }
         td.name { font-weight: bold; }
         td.num { text-align: center; color: #6b7280; }
+        /* Salary is too wide for the grid on one line, so the pay-type suffix
+           drops underneath the figure rather than being clipped. */
+        td.pay { text-align: right; padding-right: 3px; white-space: nowrap; color: #374151; }
+        td.pay .suffix { display: block; font-size: 5px; color: #6b7280; }
         td.day { text-align: center; font-weight: bold; font-size: 6px; padding: 1.5px 0; }
         td.sun-empty { background: #fef2f2; }
         td.total { text-align: center; font-weight: bold; background: #f8fafc; }
@@ -112,6 +116,7 @@
                 <th class="info" style="width: 5%;">Date Join</th>
                 @if ($canViewPay)
                     <th style="width: 3.5%;">Svc Pts</th>
+                    <th style="width: 6%;">Basic Salary</th>
                 @endif
                 @foreach ($dates as $d)
                     <th style="width: {{ $dayW }};" class="{{ $d->isSunday() ? 'sun' : ($d->isSaturday() ? 'sat' : '') }}">
@@ -126,7 +131,7 @@
             @php $n = 0; @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $groupName => $group)
                 <tr class="outlet-row">
-                    <td colspan="{{ ($canViewPay ? 9 : 8) + count($dates) }}">{{ $groupName }} ({{ $group->count() }})</td>
+                    <td colspan="{{ ($canViewPay ? 10 : 8) + count($dates) }}">{{ $groupName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -143,6 +148,11 @@
                         <td class="info">{{ $emp->join_date?->format('d/m/y') }}</td>
                         @if ($canViewPay)
                             <td class="num">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '' }}</td>
+                            <td class="pay">
+                                @if ($emp->basic_salary !== null)
+                                    {{ number_format((float) $emp->basic_salary, 2) }}<span class="suffix">{{ \App\Models\Employee::PAY_TYPE_SUFFIXES[$emp->pay_type] ?? '' }}</span>
+                                @endif
+                            </td>
                         @endif
                         @foreach ($dates as $d)
                             @php
@@ -164,7 +174,7 @@
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="{{ ($canViewPay ? 9 : 8) + count($dates) }}" style="text-align: center; color: #94a3b8; padding: 10px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="{{ ($canViewPay ? 10 : 8) + count($dates) }}" style="text-align: center; color: #94a3b8; padding: 10px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>

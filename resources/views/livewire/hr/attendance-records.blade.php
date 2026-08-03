@@ -164,6 +164,7 @@
                         <th class="px-2 py-2 text-left min-w-[76px] border-b border-gray-200">Date Join</th>
                         @if ($canViewPay)
                             <th class="px-2 py-2 text-right min-w-[54px] border-b border-gray-200">Svc Pts</th>
+                            <th class="px-2 py-2 text-right min-w-[86px] border-b border-gray-200">Basic Salary</th>
                         @endif
                         @foreach ($dates as $d)
                             <th wire:key="dh-{{ $d->format('Ymd') }}"
@@ -203,7 +204,14 @@
                             <td class="px-2 py-1.5 text-gray-500 text-xs">{{ $emp->section?->name ?? '—' }}</td>
                             <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->join_date?->format('d M y') ?? '—' }}</td>
                             @if ($canViewPay)
-                                <td class="px-2 py-1.5 text-gray-500 text-xs text-right">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 text-xs text-right tabular-nums">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 text-xs text-right tabular-nums whitespace-nowrap">
+                                    @if ($emp->basic_salary !== null)
+                                        {{ number_format((float) $emp->basic_salary, 2) }}<span class="text-[10px] text-gray-600 ml-0.5">{{ \App\Models\Employee::PAY_TYPE_SUFFIXES[$emp->pay_type] ?? '' }}</span>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                             @endif
                             @foreach ($dates as $d)
                                 @php
@@ -227,7 +235,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ ($canViewPay ? 10 : 9) + count($dates) }}" class="px-4 py-10 text-center text-gray-600 text-sm">
+                            <td colspan="{{ ($canViewPay ? 11 : 9) + count($dates) }}" class="px-4 py-10 text-center text-gray-600 text-sm">
                                 No active employees match the selected filters.
                             </td>
                         </tr>
