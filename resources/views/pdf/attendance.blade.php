@@ -193,18 +193,34 @@
                 · Absent deduction {{ $fmtPct($serviceCharge['absPct']) }}% / day
             </div>
             <table class="sc-table">
+                @php
+                    // The lateness pair only appears when there is lateness to
+                    // show, so the usual month keeps the wider name column.
+                    // dompdf honours these widths literally — they have to add
+                    // up to 100 in both shapes or the table overflows the page.
+                    $hasLate = $serviceCharge['hasLate'] ?? false;
+                    $w = $hasLate
+                        ? ['n' => 17, 'o' => 11, 'p' => 7, 'd' => 6, 'pct' => 8, 'm' => 9]
+                        : ['n' => 22, 'o' => 13, 'p' => 8, 'd' => 8, 'pct' => 9, 'm' => 10];
+                @endphp
                 <thead>
                     <tr>
                         <th style="width: 3%;">#</th>
-                        <th style="width: 22%;">Name</th>
-                        <th style="width: 13%;">Outlet</th>
-                        <th style="width: 8%;">Svc Pts</th>
-                        <th style="width: 8%;">MC Days</th>
-                        <th style="width: 8%;">ABS Days</th>
-                        <th style="width: 9%;">Deduction %</th>
-                        <th style="width: 10%;">Gross (RM)</th>
+                        <th style="width: {{ $w['n'] }}%;">Name</th>
+                        <th style="width: {{ $w['o'] }}%;">Outlet</th>
+                        <th style="width: {{ $w['p'] }}%;">Svc Pts</th>
+                        <th style="width: {{ $w['d'] }}%;">MC Days</th>
+                        <th style="width: {{ $w['d'] }}%;">ABS Days</th>
+                        @if ($hasLate)
+                            <th style="width: 6%;">Late (min)</th>
+                        @endif
+                        <th style="width: {{ $w['pct'] }}%;">Deduction %</th>
+                        <th style="width: {{ $w['m'] }}%;">Gross (RM)</th>
                         <th style="width: 9%;">Deduction (RM)</th>
-                        <th style="width: 10%;">Net (RM)</th>
+                        @if ($hasLate)
+                            <th style="width: 9%;">Late (RM)</th>
+                        @endif
+                        <th style="width: {{ $w['m'] }}%;">Net (RM)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -216,16 +232,25 @@
                             <td class="r">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
                             <td class="c" style="{{ $scRow['mcDays'] > 0 ? 'color: #92400e; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['mcDays'] ?: '—' }}</td>
                             <td class="c" style="{{ $scRow['absDays'] > 0 ? 'color: #b91c1c; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['absDays'] ?: '—' }}</td>
+                            @if ($hasLate)
+                                <td class="c" style="{{ $scRow['lateMins'] > 0 ? 'color: #b91c1c; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['lateMins'] ?: '—' }}</td>
+                            @endif
                             <td class="r" style="{{ $scRow['dedPct'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">{{ $scRow['dedPct'] > 0 ? $fmtPct($scRow['dedPct']) . '%' : '—' }}</td>
                             <td class="r">{{ $scRow['points'] > 0 ? number_format($scRow['gross'], 2) : '—' }}</td>
                             <td class="r" style="{{ $scRow['dedAmt'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">{{ $scRow['dedAmt'] > 0 ? '-' . number_format($scRow['dedAmt'], 2) : '—' }}</td>
+                            @if ($hasLate)
+                                <td class="r" style="{{ $scRow['lateAmt'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">{{ $scRow['lateAmt'] > 0 ? '-' . number_format($scRow['lateAmt'], 2) : '—' }}</td>
+                            @endif
                             <td class="r" style="font-weight: bold; color: #0f766e;">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
                         </tr>
                     @endforeach
                     <tr class="sc-total">
-                        <td class="l" colspan="7">Total</td>
+                        <td class="l" colspan="{{ $hasLate ? 8 : 7 }}">Total</td>
                         <td class="r">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                         <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
+                        @if ($hasLate)
+                            <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['lateAmt'], 2) }}</td>
+                        @endif
                         <td class="r" style="color: #0f766e;">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
                     </tr>
                 </tbody>
@@ -234,6 +259,9 @@
                 Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet, rounded down to the nearest RM). Deduction = MC days × {{ $fmtPct($serviceCharge['mcPct']) }}%
                 + Absent days × {{ $fmtPct($serviceCharge['absPct']) }}% of gross, capped at 100%.
                 MC days count codes named MC or SL, or labelled "Sick"; ABS uses the built-in Absent code.
+                @if ($hasLate)
+                    Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift, taken after the percentage deduction and never below a net of zero.
+                @endif
                 Employees without Service Points are excluded from the split.
             </div>
         </div>

@@ -307,9 +307,15 @@
                                 <th class="px-2 py-2 text-right">Svc Pts</th>
                                 <th class="px-2 py-2 text-center">MC Days</th>
                                 <th class="px-2 py-2 text-center">ABS Days</th>
+                                @if ($serviceCharge['hasLate'])
+                                    <th class="px-2 py-2 text-center">Late (min)</th>
+                                @endif
                                 <th class="px-2 py-2 text-right">Deduction %</th>
                                 <th class="px-2 py-2 text-right">Gross (RM)</th>
                                 <th class="px-2 py-2 text-right">Deduction (RM)</th>
+                                @if ($serviceCharge['hasLate'])
+                                    <th class="px-2 py-2 text-right">Late (RM)</th>
+                                @endif
                                 <th class="px-2 py-2 text-right">Net (RM)</th>
                             </tr>
                         </thead>
@@ -320,6 +326,9 @@
                                     <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-warning-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['mcDays'] }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['absDays'] }}</td>
+                                    @if ($serviceCharge['hasLate'])
+                                        <td class="px-2 py-1.5 text-center {{ $scRow['lateMins'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['lateMins'] > 0 ? $scRow['lateMins'] : '—' }}</td>
+                                    @endif
                                     <td class="px-2 py-1.5 text-right {{ $scRow['dedPct'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-600' }}">
                                         {{ $scRow['dedPct'] > 0 ? rtrim(rtrim(number_format($scRow['dedPct'], 2, '.', ''), '0'), '.') . '%' : '—' }}
                                     </td>
@@ -327,15 +336,23 @@
                                     <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['dedAmt'] > 0 ? 'text-danger-600' : 'text-gray-500' }}">
                                         {{ $scRow['dedAmt'] > 0 ? '-' . number_format($scRow['dedAmt'], 2) : '—' }}
                                     </td>
+                                    @if ($serviceCharge['hasLate'])
+                                        <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['lateAmt'] > 0 ? 'text-danger-600' : 'text-gray-500' }}">
+                                            {{ $scRow['lateAmt'] > 0 ? '-' . number_format($scRow['lateAmt'], 2) : '—' }}
+                                        </td>
+                                    @endif
                                     <td class="px-2 py-1.5 text-right font-semibold text-teal-700 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                         <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold">
                             <tr>
-                                <td class="px-3 py-2 text-gray-700" colspan="5">Total</td>
+                                <td class="px-3 py-2 text-gray-700" colspan="{{ $serviceCharge['hasLate'] ? 6 : 5 }}">Total</td>
                                 <td class="px-2 py-2 text-right text-gray-700 tabular-nums">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                                 <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
+                                @if ($serviceCharge['hasLate'])
+                                    <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['lateAmt'], 2) }}</td>
+                                @endif
                                 <td class="px-2 py-2 text-right text-teal-700 tabular-nums">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
                             </tr>
                         </tfoot>
@@ -346,6 +363,9 @@
                     Deduction = MC days × {{ rtrim(rtrim(number_format($serviceCharge['mcPct'], 2, '.', ''), '0'), '.') }}%
                     + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
                     MC days count cells marked with a code named MC or SL, or labelled “Sick”; ABS uses the built-in Absent code.
+                    @if ($serviceCharge['hasLate'])
+                        Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift, taken after the percentage deduction and never below a net of zero.
+                    @endif
                     Employees without Service Points are excluded from the split.
                     While this panel is open, the PDF export includes this table.
                 </p>

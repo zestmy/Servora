@@ -135,6 +135,8 @@ Applied on routes as `middleware('can:permission.name')`:
 | `settings.view` | `/settings`, `/settings/categories`, `/settings/recipe-categories`, `/settings/price-classes`, `/settings/sales-categories`, `/settings/outlets`, `/settings/po-approvers`, `/settings/calendar-events`, `/settings/departments`, `/settings/sections`, `/settings/par-levels`, `/settings/outlet-groups`, `/settings/cpu-management`, `/settings/kitchen-management`, `/settings/tax-rates`, `/settings/ot-approvers` |
 | `users.manage` | `/settings/users`, `/settings/company-details` |
 | `hr.view` | `/hr/*`, `/settings/labour-costs`, `/settings/lms-users`, `/training/sop/*` |
+| `hr.clock` | `/hr/clock-ins` — review and approve/reject clock-in punches. Inherited from `hr.attendance` on migration. |
+| `hr.clock.manage` | `/hr/clock-settings`, `/hr/face-enrolment` — the lateness rate, the outlet geofence, and biometric enrolment. Granted to money-and-people roles only; never inherited. |
 
 Role-specific middleware:
 - `role:System Admin` — `/admin/*` (via `\Spatie\Permission\Middleware\RoleMiddleware`).

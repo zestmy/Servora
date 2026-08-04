@@ -62,6 +62,8 @@ class EnforceMainDomain
             // have one address to remember. Without this the PIN screen
             // would be redirected to /lms/login and never reachable.
             || str_starts_with($path, '/labels')
+            // Staff clock-in app, on the same subdomain for the same reason.
+            || str_starts_with($path, '/clock')
             || str_starts_with($path, '/v/')
             || str_starts_with($path, '/livewire/')
         ) {

@@ -334,6 +334,70 @@ Domain logic lives in `app/Services/`. Before writing new code, check here — m
 
 ---
 
+## Hr\ClockInService
+**File:** [app/Services/Hr/ClockInService.php](../app/Services/Hr/ClockInService.php)
+**Purpose:** Records a web clock-in / clock-out punch and every check run on it. The only writer of `clock_events`.
+**Public methods:**
+- `punch(Employee, string $type, array $input): ClockEvent` — `$input` is raw device observations (`latitude`, `longitude`, `accuracy`, `descriptor`, `selfie`, `reason`); throws `ClockInException` when the punch is refused outright.
+**Used by:** [Clock/Staff/Punch](../app/Livewire/Clock/Staff/Punch.php).
+**Notes:** Nothing computed by the browser is trusted as a verdict — the device sends observations, this service compares them against `ClockSetting`. A failed *check* (face mismatch, off-site) flags the punch; only a missing *input* (no camera, no location when required) refuses it, so a new beard never costs somebody a day's attendance. Optionally fills a blank Present cell on the attendance grid, never overwrites one.
+
+---
+
+## Hr\ShiftResolver
+**File:** [app/Services/Hr/ShiftResolver.php](../app/Services/Hr/ShiftResolver.php)
+**Purpose:** Works out which rostered shift a punch belongs to.
+**Public methods:**
+- `resolve(Employee, Carbon $at, string $type): ?array` — `{entry, start, end}`, nearest shift by proximity.
+- `windowFor(RosterEntry): ?array` — absolute `[start, end]`, rolling the end to the next day for overnight shifts.
+**Used by:** `ClockInService`, [Clock/Staff/Punch](../app/Livewire/Clock/Staff/Punch.php).
+**Notes:** Only **approved** rosters are consulted — a lateness charge computed against a start time a manager then edits is indefensible. The shift's own start date is the business day, so a 1am finish belongs to yesterday.
+
+---
+
+## Hr\LatenessCharge
+**File:** [app/Services/Hr/LatenessCharge.php](../app/Services/Hr/LatenessCharge.php)
+**Purpose:** The money formula — minutes late → RM, after grace and the per-shift cap. Pure, no dependencies.
+**Public methods:**
+- `compute(Carbon $start, Carbon $punchedAt, int $grace, float $rate, ?float $cap): array` — `{minutes, chargeable, amount}`.
+**Used by:** `ClockInService`.
+**Notes:** Part-minutes floor, never round up. Covered by [LatenessChargeTest](../tests/Unit/Hr/LatenessChargeTest.php).
+
+---
+
+## Hr\LatePenalties
+**File:** [app/Services/Hr/LatePenalties.php](../app/Services/Hr/LatePenalties.php)
+**Purpose:** Per-employee lateness totals for a period, for the service charge split to deduct.
+**Public methods:**
+- `forPeriod(int $companyId, ?int $outletId, Carbon $from, Carbon $to): array` — keyed by `employee_id`.
+- `reduce(iterable $events): array` — the pure fold, separated so the rule is testable.
+**Used by:** [Hr/AttendanceRecords](../app/Livewire/Hr/AttendanceRecords.php), [AttendanceExportController](../app/Http/Controllers/AttendanceExportController.php) → `ServiceChargePeriod::distribute()`.
+**Notes:** One charge per shift — the first punch that still counts on each work date wins, so rejecting a punch in review promotes the next one.
+
+---
+
+## Hr\FaceMatcher & Hr\Geo
+**Files:** [FaceMatcher](../app/Services/Hr/FaceMatcher.php), [Geo](../app/Services/Hr/Geo.php)
+**Purpose:** Face descriptor comparison, and haversine distance for the geofence.
+**Public methods:**
+- `FaceMatcher::bestDistance(Employee, array $descriptor): ?float` — lowest euclidean distance to any enrolment (lower is a better match).
+- `FaceMatcher::euclidean(array, array): float`, `hasEnrolment(Employee): bool`
+- `Geo::distanceMetres(float, float, float, float): float`, `Geo::isValidCoordinate(mixed, mixed): bool`
+**Used by:** `ClockInService`.
+**Notes:** The descriptor is computed in the browser so the photograph never has to be uploaded to be checked, but the *comparison* runs server-side — a client that reports its own verdict can report "matched" without a camera. Descriptors from a different `model_version` are ignored rather than compared.
+
+---
+
+## Staff\StaffSession
+**File:** [app/Services/Staff/StaffSession.php](../app/Services/Staff/StaffSession.php)
+**Purpose:** The shared staff PIN session behind every staff-facing PWA (labels, clock-in).
+**Public methods:**
+- `signIn(Employee): void`, `signOut(): void`, `employee(?int $companyId): ?Employee`, `check(?int): bool`, `companyId(): ?int`
+**Used by:** [LabelStaffAuthenticate](../app/Http/Middleware/LabelStaffAuthenticate.php), [ClockStaffAuthenticate](../app/Http/Middleware/ClockStaffAuthenticate.php), both staff apps.
+**Notes:** Not a Laravel guard — an employee is not a login. Invalidated by the PIN changing, not by time. `LabelStaffSession` is now a thin subclass; the session key keeps its labels-era name so a deploy does not sign out every kitchen tablet in the field.
+
+---
+
 ## Patterns
 
 - **Static vs instance** — mixed. Most are static with DB-only dependencies; a few (`UomService`) are instance-based for Ioc.

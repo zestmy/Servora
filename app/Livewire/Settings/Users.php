@@ -61,6 +61,8 @@ class Users extends Component
         'hr.view'              => 'HR — Employees & Labour',
         'hr.attendance'        => 'HR — Attendance & Service Charge',
         'hr.claims'            => 'HR — Overtime Claims',
+        'hr.clock'             => 'HR — Clock-In Review',
+        'hr.clock.manage'      => 'HR — Clock-In Settings & Face Enrolment',
         'hr.compensation'      => 'HR — Salary & Service Points (sensitive)',
         'hr.documents.view'    => 'HR Documents (View)',
         'hr.documents.manage'  => 'HR Documents (Manage)',

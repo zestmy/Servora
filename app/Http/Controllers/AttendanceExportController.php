@@ -8,6 +8,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\ServiceChargePeriod;
+use App\Services\Hr\LatePenalties;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -138,7 +139,8 @@ class AttendanceExportController extends Controller
                     ->where('is_active', true)
                     ->when($scOutletId !== null, fn ($q) => $q->where('outlet_id', $scOutletId))
                     ->sum('service_points_entitlement');
-                $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints);
+                $latePenalties = LatePenalties::forPeriod($user->company_id, $scOutletId, $from, $to);
+                $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints, $latePenalties);
             }
         }
 

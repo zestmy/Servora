@@ -57,8 +57,17 @@ class ServiceChargePeriod extends Model
      * employment/search-filtered) $employees rows being displayed —
      * filtering the grid must never inflate the RM/point value. Falls back
      * to summing $employees when not given.
+     *
+     * $latePenalties is the web clock-in's lateness charge, keyed by
+     * employee_id — see LatePenalties::forPeriod(). It is a flat RM figure
+     * rather than another percentage, because it is priced per MINUTE and a
+     * percentage of a pool share that varies month to month would make the
+     * same five minutes cost differently each time. It is subtracted AFTER
+     * the day-based percentages and the result floored at zero: the service
+     * charge can be reduced to nothing, but it is a share of a pool, not a
+     * debt, and it must never invert into money owed.
      */
-    public static function distribute(?self $row, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null): array
+    public static function distribute(?self $row, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = []): array
     {
         $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
                 || stripos($c->label, 'sick') !== false)
@@ -81,7 +90,7 @@ class ServiceChargePeriod extends Model
         $absPct      = $row ? (float) $row->abs_percent : $absPctFallback;
 
         $rows   = [];
-        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'net' => 0.0];
+        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0, 'net' => 0.0];
         foreach ($employees as $emp) {
             $points  = max(0, (float) $emp->service_points_entitlement);
             $mcDays  = $mcCounts[$emp->id] ?? 0;
@@ -89,6 +98,13 @@ class ServiceChargePeriod extends Model
             $dedPct  = min(100.0, $mcDays * $mcPct + $absDays * $absPct);
             $gross   = $points * $perPoint;
             $dedAmt  = $gross * $dedPct / 100;
+
+            $late     = $latePenalties[$emp->id] ?? null;
+            $lateMins = (int) ($late['minutes'] ?? 0);
+            // Never more than what is left after the day-based deduction,
+            // so the row's own net cannot go negative and drag the column
+            // total below the pool that was actually paid out.
+            $lateAmt  = min(max(0.0, $gross - $dedAmt), (float) ($late['amount'] ?? 0));
 
             $rows[] = [
                 'employee' => $emp,
@@ -98,11 +114,15 @@ class ServiceChargePeriod extends Model
                 'dedPct'   => $dedPct,
                 'gross'    => $gross,
                 'dedAmt'   => $dedAmt,
-                'net'      => $gross - $dedAmt,
+                'lateMins' => $lateMins,
+                'lateAmt'  => $lateAmt,
+                'net'      => $gross - $dedAmt - $lateAmt,
             ];
             $totals['gross']     += $gross;
             $totals['deduction'] += $dedAmt;
-            $totals['net']       += $gross - $dedAmt;
+            $totals['lateAmt']   += $lateAmt;
+            $totals['lateMins']  += $lateMins;
+            $totals['net']       += $gross - $dedAmt - $lateAmt;
         }
 
         return [
@@ -113,6 +133,7 @@ class ServiceChargePeriod extends Model
             'perPoint'    => $perPoint,
             'mcPct'       => $mcPct,
             'absPct'      => $absPct,
+            'hasLate'     => $totals['lateAmt'] > 0 || $totals['lateMins'] > 0,
         ];
     }
 }

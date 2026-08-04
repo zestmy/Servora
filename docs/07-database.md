@@ -145,6 +145,11 @@ UOM additions over time:
 | [2026_04_18_000174_add_section_to_ot_approvers](../database/migrations/2026_04_18_000174_add_section_to_ot_approvers.php) | OT approval routing |
 | [2026_04_18_000175_add_overtime_to_labour_costs](../database/migrations/2026_04_18_000175_add_overtime_to_labour_costs.php) | Overtime columns |
 | [2026_04_06_000157_create_ot_employees_table](../database/migrations/2026_04_06_000157_create_ot_employees_table.php) + [2026_04_12_000152_create_overtime_claims_tables](../database/migrations/2026_04_03_000152_create_overtime_claims_tables.php) | `overtime_claims`, `overtime_claim_approvers` |
+| [2026_08_04_000010_add_geofence_to_outlets_table](../database/migrations/2026_08_04_000010_add_geofence_to_outlets_table.php) | `outlets.latitude/longitude/clock_radius_m` |
+| [2026_08_04_000011_create_clock_settings_table](../database/migrations/2026_08_04_000011_create_clock_settings_table.php) | `clock_settings` (one row per company) |
+| [2026_08_04_000012_create_employee_face_descriptors_table](../database/migrations/2026_08_04_000012_create_employee_face_descriptors_table.php) | `employee_face_descriptors` |
+| [2026_08_04_000013_create_clock_events_table](../database/migrations/2026_08_04_000013_create_clock_events_table.php) | `clock_events` |
+| [2026_08_04_000014_add_clock_in_permissions](../database/migrations/2026_08_04_000014_add_clock_in_permissions.php) | `hr.clock`, `hr.clock.manage` |
 
 ### AI / audit / scanning
 
