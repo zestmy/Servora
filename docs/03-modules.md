@@ -77,6 +77,7 @@ Find the right component to edit fast. Routes are pulled from [routes/web.php](.
 | [Hr/ClockSettings](../app/Livewire/Hr/ClockSettings.php) | `/hr/clock-settings` | Lateness rate + grace + cap, GPS/face enforcement, and the per-outlet geofence. |
 | [Hr/FaceEnrolment](../app/Livewire/Hr/FaceEnrolment.php) | `/hr/face-enrolment` | Manager-run capture of employee face descriptors. |
 | [Clock/Staff/Punch](../app/Livewire/Clock/Staff/Punch.php) | `{slug}.<domain>/clock` | Staff PWA: camera + GPS clock in/out. Sign-in shares the labels app's staff PIN session. |
+| [Staff/StaffLogin](../app/Livewire/Staff/StaffLogin.php) | `/clock/login`, `/labels/login` | Shared staff sign-in for both apps: outlet → name → PIN. One class and one view so the two cannot drift. |
 
 **Web clock-in** — staff clock in from a PWA that captures a selfie, computes a face descriptor on the device,
 and reports coordinates. Every comparison happens server-side in

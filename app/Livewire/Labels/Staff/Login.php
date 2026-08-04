@@ -3,177 +3,37 @@
 namespace App\Livewire\Labels\Staff;
 
 use App\Http\Middleware\LabelStaffAuthenticate;
-use App\Models\Employee;
-use App\Scopes\CompanyScope;
-use App\Services\Labels\LabelStaffSession;
-use Illuminate\Support\Facades\RateLimiter;
-use Livewire\Component;
+use App\Livewire\Staff\StaffLogin;
 
 /**
- * Staff sign-in: pick your name, then key in your PIN.
- *
- * Name first, PIN second — not PIN alone. PINs are hashed, so finding an
- * employee from a PIN alone would mean bcrypt-checking every employee in
- * the company on every attempt: slow by design, and it would force a fast
- * hash instead, which is exactly the wrong trade for a 4–6 digit secret.
- * Picking a name makes verification a single check. It is also how every
- * POS terminal works, so it needs no explaining.
- *
- * Only employees with a PIN are listed. A manager grants access by setting
- * one and revokes it by clearing it.
+ * Label app sign-in. Everything is in StaffLogin — this only says which app
+ * it is.
  */
-class Login extends Component
+class Login extends StaffLogin
 {
-    public ?int $employeeId = null;
-
-    public string $pin = '';
-
-    public string $error = '';
-
-    /** Attempts allowed before a name is locked out briefly. */
-    private const MAX_ATTEMPTS = 5;
-
-    private const LOCKOUT_SECONDS = 60;
-
-    public function selectEmployee(int $id): void
+    protected function intendedKey(): string
     {
-        $this->employeeId = $id;
-        $this->pin        = '';
-        $this->error      = '';
+        return LabelStaffAuthenticate::INTENDED_KEY;
     }
 
-    public function back(): void
+    protected function fallbackRoute(): string
     {
-        $this->employeeId = null;
-        $this->pin        = '';
-        $this->error      = '';
+        return 'labels.staff.print';
     }
 
-    /** Number pad. Submits itself once the PIN is long enough to be one. */
-    public function press(string $digit): void
+    protected function layoutName(): string
     {
-        if (strlen($this->pin) >= 6) {
-            return;
-        }
-
-        $this->pin  .= $digit;
-        $this->error = '';
+        return 'layouts.labels-staff';
     }
 
-    public function backspace(): void
+    protected function tagline(): string
     {
-        $this->pin   = substr($this->pin, 0, -1);
-        $this->error = '';
+        return 'Food safety labels';
     }
 
-    public function submit(LabelStaffSession $session)
+    /** A luggage tag, matching the labels mark in the sidebar. */
+    protected function iconPath(): string
     {
-        $employee = $this->employee();
-
-        if (! $employee) {
-            $this->error = 'Pick your name first.';
-
-            return null;
-        }
-
-        $key = 'label-pin:' . $employee->id;
-
-        if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
-            $this->error = 'Too many attempts. Wait '
-                . RateLimiter::availableIn($key) . ' seconds.';
-            $this->pin = '';
-
-            return null;
-        }
-
-        if (! $employee->verifyLabelPin($this->pin)) {
-            // Counted per employee: a shared kitchen tablet means one IP for
-            // everyone, so throttling by IP would lock out the whole kitchen
-            // because one person fumbled their PIN.
-            RateLimiter::hit($key, self::LOCKOUT_SECONDS);
-
-            $this->error = 'Wrong PIN.';
-            $this->pin   = '';
-
-            return null;
-        }
-
-        RateLimiter::clear($key);
-        $session->signIn($employee);
-
-        return $this->redirect($this->destination(), navigate: false);
-    }
-
-    /**
-     * Where to land after signing in.
-     *
-     * Honours the page the person was originally heading for — scanning a
-     * set's QR while signed out should end up on that set. Validated rather
-     * than trusted: the URL must be on this same host and inside the staff
-     * app, so a stored value can never become an open redirect.
-     */
-    private function destination(): string
-    {
-        $intended = session()->pull(LabelStaffAuthenticate::INTENDED_KEY);
-        $fallback = route('labels.staff.print');
-
-        if (! $intended) {
-            return $fallback;
-        }
-
-        $target = parse_url($intended);
-        $here   = parse_url($fallback);
-
-        if (($target['host'] ?? null) !== ($here['host'] ?? null)) {
-            return $fallback;
-        }
-
-        $base = rtrim($here['path'] ?? '/', '/');
-        $path = $target['path'] ?? '';
-
-        // Must sit within the staff app's own path, not merely on the host.
-        if ($base !== '' && ! str_starts_with($path, $base)) {
-            return $fallback;
-        }
-
-        return $intended;
-    }
-
-    public function render()
-    {
-        return view('livewire.labels.staff.login', [
-            'employees' => $this->staffWithPins(),
-            'selected'  => $this->employee(),
-            'company'   => \App\Models\Company::find(app(LabelStaffSession::class)->companyId()),
-        ])->layout('layouts.labels-staff', ['title' => 'Sign in']);
-    }
-
-    private function employee(): ?Employee
-    {
-        if (! $this->employeeId) {
-            return null;
-        }
-
-        return $this->staffWithPins()->firstWhere('id', $this->employeeId);
-    }
-
-    /**
-     * Only this subdomain's company, only active staff, only those a manager
-     * has given a PIN.
-     */
-    private function staffWithPins()
-    {
-        $companyId = app(LabelStaffSession::class)->companyId();
-
-        if (! $companyId) {
-            return collect();
-        }
-
-        return Employee::withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->whereNotNull('label_pin')
-            ->orderBy('name')
-            ->get();
+        return 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.997 1.997 0 013 12V7a4 4 0 014-4z';
     }
 }

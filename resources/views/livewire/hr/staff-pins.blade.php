@@ -33,8 +33,9 @@
         </div>
 
         <p class="text-xs text-gray-500 mt-2">
-            They tap their name and enter their PIN. It is the same PIN for both, so signing in to one
-            signs them in to the other.
+            They pick their outlet, pick their name, and enter their PIN. It is the same PIN for both,
+            so signing in to one signs them in to the other. Somebody with no outlet set will not
+            appear in either list.
         </p>
 
         <p class="text-xs text-warning-600 mt-2">

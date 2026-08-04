@@ -1,58 +1,78 @@
-{{-- min-h-full, not a vh value: the scroll area already has a definite
+{{-- Shared by every staff app. See App\Livewire\Staff\StaffLogin for why
+     there is one screen rather than one per app.
+
+     min-h-full, not a vh value: the scroll area already has a definite
      height, so a viewport unit here would overshoot it and scroll. --}}
 <div class="min-h-full flex flex-col justify-center">
 
-    @php
-        $logo = $company?->logo
-            ? \Illuminate\Support\Facades\Storage::disk('public')->url($company->logo)
-            : null;
-    @endphp
-
     <div class="text-center mb-6">
-        @if ($logo)
+        @if ($company?->logo)
             <div class="flex justify-center mb-3">
                 <x-brand-mark :company="$company" surface="light"
                               size="h-16" width="max-w-[200px]" />
             </div>
         @else
+            {{-- No brand set: fall back to the app's own mark. --}}
             <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center mb-3">
                 <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="{{ $iconPath }}"/>
                 </svg>
             </div>
         @endif
         <h1 class="text-xl font-semibold tracking-tight text-gray-900">
-            {{ $company?->brand_name ?? $company?->name ?? 'Clock In' }}
+            {{ $company?->brand_name ?? $company?->name ?? 'Servora' }}
         </h1>
-        <p class="mt-0.5 text-sm text-gray-600">Staff attendance</p>
+        <p class="mt-0.5 text-sm text-gray-600">{{ $tagline }}</p>
     </div>
 
     @if (! $selected)
-        {{-- Step one: who are you --}}
-        <div class="panel overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-100">
-                <p class="text-sm font-semibold text-gray-900">Tap your name</p>
-            </div>
+        {{-- Step one: where are you, and who are you --}}
+        <div class="panel p-5">
+            @if ($outlets->isEmpty())
+                <div class="py-8 text-center">
+                    <p class="text-sm font-medium text-gray-900">Nobody has a staff PIN yet.</p>
+                    <p class="mt-1 text-sm text-gray-600">
+                        A manager sets up PINs in Servora under HR &rarr; Staff PINs.
+                    </p>
+                </div>
+            @else
+                {{-- Only asked when there is a choice to make. One outlet is
+                     preselected in mount(), and a dropdown that can only have
+                     one answer is a tap nobody should have to make. --}}
+                @if ($outlets->count() > 1)
+                    <label for="staff-outlet" class="block text-sm font-semibold text-gray-900 mb-1.5">
+                        Your outlet
+                    </label>
+                    <select id="staff-outlet" wire:model.live="outletId"
+                            class="w-full min-h-[3.25rem] rounded-control border-gray-300 text-base mb-4">
+                        <option value="">Choose an outlet…</option>
+                        @foreach ($outlets as $outlet)
+                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
 
-            <div class="divide-y divide-gray-100 max-h-[55vh] overflow-y-auto">
-                @forelse ($employees as $employee)
-                    <button type="button" wire:click="selectEmployee({{ $employee->id }})"
-                            wire:key="emp-{{ $employee->id }}"
-                            class="list-row min-h-[3.75rem]">
-                        <span class="w-9 h-9 shrink-0 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-sm font-semibold">
-                            {{ strtoupper(mb_substr($employee->name, 0, 1)) }}
-                        </span>
-                        <span class="text-base font-medium text-gray-900">{{ $employee->name }}</span>
-                    </button>
-                @empty
-                    <div class="px-4 py-10 text-center">
-                        <p class="text-sm font-medium text-gray-900">Nobody has a staff PIN yet.</p>
-                        <p class="mt-1 text-sm text-gray-600">
-                            A manager sets up PINs in Servora under HR &rarr; Staff PINs.
-                        </p>
-                    </div>
-                @endforelse
-            </div>
+                <label for="staff-name" class="block text-sm font-semibold text-gray-900 mb-1.5">
+                    Your name
+                </label>
+                <select id="staff-name" wire:model.live="employeeId"
+                        @disabled(! $outletId)
+                        class="w-full min-h-[3.25rem] rounded-control border-gray-300 text-base
+                               disabled:bg-gray-50 disabled:text-gray-400">
+                    <option value="">
+                        {{ $outletId ? 'Choose your name…' : 'Choose an outlet first' }}
+                    </option>
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                    @endforeach
+                </select>
+
+                @if ($outletId && $employees->isEmpty())
+                    <p class="mt-2 text-sm text-gray-600">
+                        Nobody at this outlet has a PIN yet. Ask your manager.
+                    </p>
+                @endif
+            @endif
         </div>
     @else
         {{-- Step two: PIN --}}
