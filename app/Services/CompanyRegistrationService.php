@@ -61,7 +61,7 @@ class CompanyRegistrationService
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
                 'settings.view', 'users.manage', 'hr.view',
-                'hr.attendance', 'hr.claims',
+                'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage',
                 'hr.documents.view', 'hr.documents.manage',
             ]);
 
@@ -140,7 +140,7 @@ class CompanyRegistrationService
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
                 'settings.view', 'users.manage', 'hr.view',
-                'hr.attendance', 'hr.claims',
+                'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage',
                 'hr.documents.view', 'hr.documents.manage',
             ]);
 

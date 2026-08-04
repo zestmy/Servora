@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "node scripts/copy-face-models.mjs && vite build",
         "dev": "vite"
     },
     "devDependencies": {
@@ -21,6 +21,7 @@
         "@rollup/rollup-win32-x64-msvc": "^4.59.0"
     },
     "dependencies": {
-        "@tailwindcss/typography": "^0.5.19"
+        "@tailwindcss/typography": "^0.5.19",
+        "@vladmandic/face-api": "^1.7.15"
     }
 }

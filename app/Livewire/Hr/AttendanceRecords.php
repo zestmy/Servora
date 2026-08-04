@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\Section;
 use App\Models\ServiceChargePeriod;
+use App\Services\Hr\LatePenalties;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -527,6 +528,10 @@ class AttendanceRecords extends Component
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
                 is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
                 $this->serviceChargeTotalPoints(),
+                // Same outlet scope as the pool itself, so the deduction and
+                // the pool it comes out of can never be drawn from different
+                // sets of outlets.
+                LatePenalties::forPeriod($companyId, $this->serviceChargeOutletId(), $from, $to),
             )
             : null;
 

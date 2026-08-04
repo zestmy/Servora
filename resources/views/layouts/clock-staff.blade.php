@@ -1,0 +1,195 @@
+{{--
+    Staff clock-in app shell.
+
+    Same bones as the labels staff shell — fixed app frame, bottom tabs,
+    safe-area handling — because staff move between the two on the same
+    phone and a second set of conventions to learn would be a cost with no
+    benefit. Two tabs only: the thing you came to do, and proof you did it.
+--}}
+@php
+    $brandCompany = app()->bound('currentCompany') ? app('currentCompany') : null;
+    $brandName    = $brandCompany?->brand_name ?? $brandCompany?->name ?? 'Clock In';
+@endphp
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- Matches the header fill exactly, so there is no seam between the OS
+         status bar and the header on Android. --}}
+    <meta name="theme-color" content="#0d5f61">
+    {{-- Where clock.js fetches the recognition weights from. A meta tag
+         rather than a hard-coded path: the app mounts on a subdomain in
+         production and a sub-path locally, and the JS should not have to
+         know which. --}}
+    <meta name="face-models-url" content="{{ asset('face-models') }}">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Clock In">
+    <link rel="manifest" href="{{ route('clock.staff.manifest') }}">
+    <link rel="apple-touch-icon" href="{{ asset('clock-app/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('clock-app/icon-192.png') }}">
+    <title>{{ $title ?? 'Clock In' }} | {{ $brandName }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/clock.js'])
+    @livewireStyles
+    <style>
+        html, body { overscroll-behavior-y: contain; }
+
+        .safe-top {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+            padding-bottom: 0.75rem;
+        }
+        .safe-top-plain { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); }
+        .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem); }
+        .safe-x {
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
+
+        /* Pinned to all four edges, scrolling in the middle. Anchoring to
+           inset:0 asks the browser where its edges are rather than computing
+           a height from a viewport unit and hoping it agrees — see the
+           labels shell for the two attempts that failed on real phones. */
+        .app-shell {
+            position: fixed;
+            inset: 0;
+            margin: 0 auto;
+            max-width: 42rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .app-scroll {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* The preview is mirrored so it behaves like a mirror, which is what
+           anyone expects of a front camera. The stored still is un-mirrored
+           again in JS — evidence should look the way a witness saw it. */
+        .clock-video { transform: scaleX(-1); }
+    </style>
+</head>
+<body class="h-full bg-gray-50 antialiased overflow-hidden">
+
+<div class="app-shell bg-gray-50">
+
+    @isset($staff)
+        @php
+            $initials = collect(preg_split('/\s+/', trim($staff->name)))
+                ->filter()->take(2)
+                ->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))
+                ->implode('');
+        @endphp
+
+        <header class="shrink-0 z-20 bg-brand-700 text-white px-3 safe-top safe-x flex items-center gap-2">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                <x-brand-mark :company="$brandCompany" surface="dark"
+                              size="h-6" width="max-w-[64px]" :alt="$brandName" />
+                <div class="min-w-0">
+                    {{-- The outlet leads: it is what the geofence is measured
+                         against and what the punch is recorded to. --}}
+                    <p class="text-sm font-semibold leading-tight truncate">{{ $outletName ?: $brandName }}</p>
+                    <p class="text-[11px] leading-tight text-brand-100 truncate">{{ $staff->name }}</p>
+                </div>
+            </div>
+
+            <button type="button" wire:click="signOut"
+                    aria-label="Signed in as {{ $staff->name }} — sign out"
+                    class="shrink-0 flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white/15 pl-1 pr-3 active:bg-white/25">
+                <span aria-hidden="true"
+                      class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
+                    {{ $initials }}
+                </span>
+                <span class="text-xs font-medium">Sign out</span>
+            </button>
+        </header>
+    @endisset
+
+    <main class="app-scroll px-3 pb-3 safe-x {{ isset($staff) ? 'pt-3' : 'safe-top-plain' }}">
+        {{ $slot }}
+    </main>
+
+    @isset($staff)
+        @php
+            $tabs = [
+                ['route' => 'clock.staff.punch',   'label' => 'Clock',
+                 'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                ['route' => 'clock.staff.history', 'label' => 'My punches',
+                 'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
+            ];
+        @endphp
+        {{-- The active tab is marked three ways — a rule above it, a heavier
+             stroke, and colour — because colour alone is the one signal a
+             glare-washed screen in a doorway will not carry, and it is also
+             WCAG 1.4.1. --}}
+        <nav class="shrink-0 z-20 bg-white border-t border-gray-200 safe-bottom safe-x">
+            <div class="grid grid-cols-2">
+                @foreach ($tabs as $tab)
+                    @php $active = request()->routeIs($tab['route']); @endphp
+                    <a href="{{ route($tab['route']) }}" wire:navigate
+                       @if ($active) aria-current="page" @endif
+                       class="relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 py-2
+                              {{ $active ? 'text-brand-700' : 'text-gray-500' }} active:bg-gray-50">
+                        @if ($active)
+                            <span aria-hidden="true" class="absolute inset-x-8 top-0 h-0.5 rounded-full bg-brand-700"></span>
+                        @endif
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ $active ? '2.2' : '1.8' }}">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $tab['icon'] }}"/>
+                        </svg>
+                        <span class="text-[11px] {{ $active ? 'font-semibold' : 'font-medium' }}">{{ $tab['label'] }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </nav>
+    @endisset
+
+    <div id="pwa-install" class="hidden shrink-0 px-3 pb-3 safe-x">
+        <div class="flex items-center gap-3 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-lg">
+            <span class="flex-1 text-sm">Add Clock In to your home screen</span>
+            <button id="pwa-install-go" class="px-3 py-1.5 bg-white text-gray-900 text-xs font-semibold rounded-lg">Add</button>
+            <button id="pwa-install-no" class="text-gray-400 text-lg leading-none px-1" aria-label="Dismiss">&times;</button>
+        </div>
+    </div>
+</div>
+
+@livewireScripts
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker
+                .register(@js(route('clock.staff.sw')), { scope: @js(route('clock.staff.punch', absolute: false)) })
+                // Registration failing must never stop somebody clocking in.
+                .catch(() => {});
+        });
+    }
+
+    let deferredPrompt = null;
+    const installBar = document.getElementById('pwa-install');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        if (installBar && localStorage.getItem('clock-install-dismissed') !== '1') {
+            installBar.classList.remove('hidden');
+        }
+    });
+
+    document.getElementById('pwa-install-go')?.addEventListener('click', async () => {
+        installBar?.classList.add('hidden');
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt = null;
+        }
+    });
+
+    document.getElementById('pwa-install-no')?.addEventListener('click', () => {
+        installBar?.classList.add('hidden');
+        localStorage.setItem('clock-install-dismissed', '1');
+    });
+</script>
+</body>
+</html>

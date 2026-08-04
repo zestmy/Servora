@@ -1,0 +1,151 @@
+<?php
+
+namespace App\Models;
+
+use App\Scopes\CompanyScope;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * A single clock-in or clock-out punch, with every check that was run on it.
+ *
+ * @see \App\Services\Hr\ClockInService which is the only thing that should
+ *      create these; the model deliberately carries no punch logic itself.
+ */
+class ClockEvent extends Model
+{
+    public const TYPE_IN  = 'in';
+    public const TYPE_OUT = 'out';
+
+    public const STATUS_VERIFIED = 'verified';
+    public const STATUS_FLAGGED  = 'flagged';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+
+    /**
+     * Why a punch was flagged. Stored as keys rather than sentences so the
+     * review screen can translate them and so a report can count them.
+     */
+    public const FLAG_LABELS = [
+        'outside_geofence' => 'Outside the outlet',
+        'no_location'      => 'Location not shared',
+        'weak_location'    => 'GPS fix too vague to trust',
+        'no_outlet_fence'  => 'Outlet has no coordinates set',
+        'face_mismatch'    => 'Face did not match',
+        'no_face'          => 'No face captured',
+        'not_enrolled'     => 'No enrolled face on file',
+        'no_shift'         => 'No rostered shift',
+        'too_early'        => 'Far earlier than the shift',
+        'late'             => 'Late',
+        'duplicate'        => 'Already clocked in',
+        'no_open_punch'    => 'Clocked out without clocking in',
+    ];
+
+    protected $fillable = [
+        'company_id', 'outlet_id', 'employee_id', 'roster_entry_id', 'type',
+        'work_date', 'happened_at', 'latitude', 'longitude', 'accuracy_m',
+        'distance_m', 'within_geofence', 'face_distance', 'face_verified',
+        'selfie_path', 'minutes_late', 'chargeable_late_minutes',
+        'penalty_amount', 'status', 'flags', 'reason', 'reviewed_by',
+        'reviewed_at', 'review_note', 'override_late_minutes', 'device_label',
+        'user_agent', 'ip_address',
+    ];
+
+    protected $casts = [
+        'work_date'               => 'date',
+        'happened_at'             => 'datetime',
+        'reviewed_at'             => 'datetime',
+        'latitude'                => 'decimal:7',
+        'longitude'               => 'decimal:7',
+        'accuracy_m'              => 'integer',
+        'distance_m'              => 'integer',
+        'within_geofence'         => 'boolean',
+        'face_distance'           => 'decimal:4',
+        'face_verified'           => 'boolean',
+        'minutes_late'            => 'integer',
+        'chargeable_late_minutes' => 'integer',
+        'override_late_minutes'   => 'integer',
+        'penalty_amount'          => 'decimal:2',
+        'flags'                   => 'array',
+    ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CompanyScope());
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function outlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class);
+    }
+
+    public function rosterEntry(): BelongsTo
+    {
+        return $this->belongsTo(RosterEntry::class);
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * Punches that still count.
+     *
+     * A rejected punch is kept for the audit trail but must never reach
+     * payroll, the attendance grid, or the service charge deduction — every
+     * consumer goes through this scope rather than filtering by hand, so
+     * there is one place to be wrong.
+     */
+    public function scopeCounted(Builder $query): Builder
+    {
+        return $query->where('status', '!=', self::STATUS_REJECTED);
+    }
+
+    public function scopeNeedingReview(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_FLAGGED);
+    }
+
+    /** Lateness actually charged for: a manager's override wins if set. */
+    public function effectiveLateMinutes(): int
+    {
+        return $this->override_late_minutes ?? $this->chargeable_late_minutes;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === self::STATUS_REJECTED;
+    }
+
+    public function needsReview(): bool
+    {
+        return $this->status === self::STATUS_FLAGGED;
+    }
+
+    /** Human-readable flag reasons, skipping any key we no longer know. */
+    public function flagLabels(): array
+    {
+        return collect($this->flags ?? [])
+            ->map(fn ($f) => self::FLAG_LABELS[$f] ?? null)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_VERIFIED => 'Verified',
+            self::STATUS_APPROVED => 'Approved',
+            self::STATUS_REJECTED => 'Rejected',
+            default               => 'Needs review',
+        };
+    }
+}

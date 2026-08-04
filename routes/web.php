@@ -1,15 +1,16 @@
 <?php
 
 /*
- * Staff label app, loaded FIRST on purpose.
+ * Staff apps, loaded FIRST on purpose.
  *
- * It serves /labels on company subdomains. The manager-facing /labels
+ * They serve /labels and /clock on company subdomains. The manager-facing
  * routes below carry no domain constraint, so they match any host — if
  * they were registered first they would swallow every subdomain request
  * and staff would be bounced to the main-app login. Registration order is
  * the only thing separating the two.
  */
 require __DIR__ . '/labels-staff.php';
+require __DIR__ . '/clock-staff.php';
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -355,6 +356,13 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/employees/export-excel', [\App\Http\Controllers\EmployeeExportController::class, 'excel'])->name('hr.employees.export-excel')->middleware('can:hr.view');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
+    // Web clock-in — the staff-facing app lives in routes/clock-staff.php;
+    // these are the manager-facing review, policy and enrolment screens.
+    Route::get('/hr/clock-ins', \App\Livewire\Hr\ClockEvents::class)->name('hr.clock-ins')->middleware('can:hr.clock');
+    Route::get('/hr/clock-ins/{event}/selfie', [\App\Http\Controllers\Hr\ClockImageController::class, 'selfie'])->name('hr.clock-ins.selfie')->middleware('can:hr.clock');
+    Route::get('/hr/clock-settings', \App\Livewire\Hr\ClockSettings::class)->name('hr.clock-settings')->middleware('can:hr.clock.manage');
+    Route::get('/hr/face-enrolment', \App\Livewire\Hr\FaceEnrolment::class)->name('hr.face-enrolment')->middleware('can:hr.clock.manage');
+    Route::get('/hr/face-enrolment/{descriptor}/photo', [\App\Http\Controllers\Hr\ClockImageController::class, 'enrolment'])->name('hr.face-enrolment.photo')->middleware('can:hr.clock.manage');
     Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.claims');

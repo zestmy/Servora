@@ -72,6 +72,17 @@ Find the right component to edit fast. Routes are pulled from [routes/web.php](.
 |-----------|-------|---------|
 | [Hr/Employees](../app/Livewire/Hr/Employees.php) | `/hr/employees` | Staff list with filters (outlet, section, status). |
 | [Hr/OvertimeClaims](../app/Livewire/Hr/OvertimeClaims.php) | `/hr/overtime-claims` | OT claim form + auto-calc hours; approval workflow. |
+| [Hr/ClockEvents](../app/Livewire/Hr/ClockEvents.php) | `/hr/clock-ins` | Web clock-in review queue: approve/reject flagged punches, override charged minutes. |
+| [Hr/ClockSettings](../app/Livewire/Hr/ClockSettings.php) | `/hr/clock-settings` | Lateness rate + grace + cap, GPS/face enforcement, and the per-outlet geofence. |
+| [Hr/FaceEnrolment](../app/Livewire/Hr/FaceEnrolment.php) | `/hr/face-enrolment` | Manager-run capture of employee face descriptors. |
+| [Clock/Staff/Punch](../app/Livewire/Clock/Staff/Punch.php) | `{slug}.<domain>/clock` | Staff PWA: camera + GPS clock in/out. Sign-in shares the labels app's staff PIN session. |
+
+**Web clock-in** — staff clock in from a PWA that captures a selfie, computes a face descriptor on the device,
+and reports coordinates. Every comparison happens server-side in
+[ClockInService](../app/Services/Hr/ClockInService.php); the phone is trusted to observe, never to judge.
+Lateness is measured against the **approved** duty roster and charged per minute against the service charge
+split on the Attendance Record screen. A failed *check* flags a punch for review; only a missing *input*
+refuses one.
 
 ---
 

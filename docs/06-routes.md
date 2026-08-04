@@ -116,6 +116,23 @@ Under `/kitchen/*` after switching via `/workspace/kitchen`.
 ### HR (`can:hr.view`)
 - `/hr/employees`, `/hr/overtime-claims`
 - `/hr/overtime-claims/pdf/{employee}` → [OtClaimPdfController](../app/Http/Controllers/OtClaimPdfController.php)
+
+### Web clock-in
+Manager-facing (`can:hr.clock`):
+- `/hr/clock-ins` → [Hr/ClockEvents](../app/Livewire/Hr/ClockEvents.php) — the review queue
+- `/hr/clock-ins/{event}/selfie` → [Hr/ClockImageController](../app/Http/Controllers/Hr/ClockImageController.php)
+
+Manager-facing (`can:hr.clock.manage`):
+- `/hr/clock-settings` → [Hr/ClockSettings](../app/Livewire/Hr/ClockSettings.php)
+- `/hr/face-enrolment` → [Hr/FaceEnrolment](../app/Livewire/Hr/FaceEnrolment.php)
+- `/hr/face-enrolment/{descriptor}/photo` → [Hr/ClockImageController](../app/Http/Controllers/Hr/ClockImageController.php)
+
+Staff-facing, in [routes/clock-staff.php](../routes/clock-staff.php) — registered BEFORE `web.php` for the same
+reason `labels-staff.php` is, and mounted at `{slug}.<domain>/clock` (or `/clock-staff` locally):
+- `/login` → [Clock/Staff/Login](../app/Livewire/Clock/Staff/Login.php) (staff PIN)
+- `/` → [Clock/Staff/Punch](../app/Livewire/Clock/Staff/Punch.php) (`clock.staff` middleware)
+- `/history` → [Clock/Staff/History](../app/Livewire/Clock/Staff/History.php)
+- `/manifest.webmanifest`, `/sw.js` → [Hr/ClockAppController](../app/Http/Controllers/Hr/ClockAppController.php)
 - `/training/sop/{id}/pdf`, `/training/sop/pdf-all` → [Lms\SopPdfController](../app/Http/Controllers/Lms/)
 
 ### Billing

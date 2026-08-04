@@ -38,10 +38,11 @@ class ResolveCompanyFromSubdomain
         session(['subdomain_company_id' => $company->id]);
         session(['lms_company_slug' => $company->slug]);
 
-        // The staff label routes are constrained to {companySlug}.<domain>,
-        // so route() needs that parameter. Defaulting it here means views
-        // can call route('labels.staff.print') without threading the slug
-        // through every link.
+        // The staff app routes (labels, clock-in) are constrained to
+        // {companySlug}.<domain>, so route() needs that parameter. Defaulting
+        // it here means views can call route('labels.staff.print') or
+        // route('clock.staff.punch') without threading the slug through
+        // every link.
         \Illuminate\Support\Facades\URL::defaults(['companySlug' => $company->slug]);
 
         return $next($request);
