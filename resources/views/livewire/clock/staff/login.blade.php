@@ -48,7 +48,7 @@
                     <div class="px-4 py-10 text-center">
                         <p class="text-sm font-medium text-gray-900">Nobody has a staff PIN yet.</p>
                         <p class="mt-1 text-sm text-gray-600">
-                            A manager sets up PINs in Servora under Labels &rarr; Staff Access.
+                            A manager sets up PINs in Servora under HR &rarr; Staff PINs.
                         </p>
                     </div>
                 @endforelse

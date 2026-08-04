@@ -115,6 +115,7 @@ Under `/kitchen/*` after switching via `/workspace/kitchen`.
 
 ### HR (`can:hr.view`)
 - `/hr/employees`, `/hr/overtime-claims`
+- `/hr/staff-pins` (`can:staff.pins`) → [Hr/StaffPins](../app/Livewire/Hr/StaffPins.php) — the PIN that opens both staff apps. Moved here from `/labels/staff-access`, which now 301s to it.
 - `/hr/overtime-claims/pdf/{employee}` → [OtClaimPdfController](../app/Http/Controllers/OtClaimPdfController.php)
 
 ### Web clock-in

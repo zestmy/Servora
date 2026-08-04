@@ -337,7 +337,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels/set-qr-sheet', \App\Http\Controllers\Labels\SetQrSheetController::class)->name('labels.sets.qr-sheet')->middleware('can:labels.manage');
     Route::get('/labels/expiring', \App\Livewire\Labels\Expiring::class)->name('labels.expiring')->middleware('can:labels.print');
     Route::get('/labels/log', \App\Livewire\Labels\PrintLog::class)->name('labels.log')->middleware('can:labels.view_log');
-    Route::get('/labels/staff-access', \App\Livewire\Labels\StaffAccess::class)->name('labels.staff-access')->middleware('can:labels.manage');
+    // Moved to HR (one PIN now opens both staff apps). Kept as a redirect
+    // rather than deleted: this path is in the label printing plan, in
+    // managers' bookmarks, and in whatever they wrote down when they first
+    // set the kitchen up.
+    Route::redirect('/labels/staff-access', '/hr/staff-pins', 301)->name('labels.staff-access');
     Route::get('/labels/templates', \App\Livewire\Labels\Templates::class)->name('labels.templates')->middleware('can:labels.manage');
     Route::get('/labels/templates/{template}/design', \App\Livewire\Labels\TemplateDesigner::class)->name('labels.templates.design')->middleware('can:labels.manage');
     Route::get('/labels/shelf-life', \App\Livewire\Labels\ShelfLifeGrid::class)->name('labels.shelf-life')->middleware('can:labels.manage');
@@ -352,6 +356,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 
     // HR routes
     Route::get('/hr/employees', \App\Livewire\Hr\Employees::class)->name('hr.employees')->middleware('can:hr.view');
+    // The PIN that opens the staff apps (clock-in and labels alike).
+    Route::get('/hr/staff-pins', \App\Livewire\Hr\StaffPins::class)->name('hr.staff-pins')->middleware('can:staff.pins');
     Route::get('/hr/employees/export-pdf', [\App\Http\Controllers\EmployeeExportController::class, 'pdf'])->name('hr.employees.export-pdf')->middleware('can:hr.view');
     Route::get('/hr/employees/export-excel', [\App\Http\Controllers\EmployeeExportController::class, 'excel'])->name('hr.employees.export-excel')->middleware('can:hr.view');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');

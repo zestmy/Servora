@@ -137,6 +137,7 @@ Applied on routes as `middleware('can:permission.name')`:
 | `hr.view` | `/hr/*`, `/settings/labour-costs`, `/settings/lms-users`, `/training/sop/*` |
 | `hr.clock` | `/hr/clock-ins` — review and approve/reject clock-in punches. Inherited from `hr.attendance` on migration. |
 | `hr.clock.manage` | `/hr/clock-settings`, `/hr/face-enrolment` — the lateness rate, the outlet geofence, and biometric enrolment. Granted to money-and-people roles only; never inherited. |
+| `staff.pins` | `/hr/staff-pins` — issue and revoke the PIN that opens the staff apps (clock-in and labels). Inherited from **both** `labels.manage` and `hr.view`, so the move out of Labels took the ability away from nobody. |
 
 Role-specific middleware:
 - `role:System Admin` — `/admin/*` (via `\Spatie\Permission\Middleware\RoleMiddleware`).

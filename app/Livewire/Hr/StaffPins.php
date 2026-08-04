@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Labels;
+namespace App\Livewire\Hr;
 
 use App\Models\Company;
 use App\Models\Employee;
@@ -9,17 +9,22 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
- * Manager view: who can sign in to the staff label app.
+ * Manager view: who can sign in to the staff apps.
+ *
+ * Lives in HR rather than under Labels, where it started. One PIN now opens
+ * both staff apps — label printing and clock-in — and the person who decides
+ * whether somebody can clock in is the person who manages that employee, not
+ * whoever administers the label printers.
  *
  * Access is exactly "has a PIN". Granting is setting one, revoking is
  * clearing it — no separate flag to fall out of step with reality.
  *
  * A generated PIN is shown ONCE, here, and never again. It is stored
  * hashed, so this screen genuinely cannot show it later; the only recovery
- * is to issue a new one. That is the right trade for a credential that
- * opens a kitchen's printing.
+ * is to issue a new one. That is the right trade for a credential that now
+ * opens attendance as well as printing.
  */
-class StaffAccess extends Component
+class StaffPins extends Component
 {
     public string $search = '';
 
@@ -94,7 +99,7 @@ class StaffAccess extends Component
 
         $this->justIssued = [];
 
-        session()->flash('success', $employee->name . ' can no longer sign in to the label app.');
+        session()->flash('success', $employee->name . ' can no longer sign in to the staff apps.');
     }
 
     public function render()
@@ -106,24 +111,30 @@ class StaffAccess extends Component
             ->orderBy('name')
             ->get();
 
-        return view('livewire.labels.staff-access', [
+        return view('livewire.hr.staff-pins', [
             'employees' => $employees,
             'outlets'   => Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get(),
-            'appUrl'    => $this->staffAppUrl(),
-        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Label staff access']);
+            'labelsUrl' => $this->staffAppUrl('labels', 'labels-staff'),
+            'clockUrl'  => $this->staffAppUrl('clock', 'clock-staff'),
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Staff PINs']);
     }
 
-    /** The address to give staff, so a manager doesn't have to work it out. */
-    private function staffAppUrl(): string
+    /**
+     * The address to give staff, so a manager doesn't have to work it out.
+     *
+     * Both apps are built the same way: a company subdomain in production,
+     * a plain path locally where there is no subdomain to constrain on.
+     */
+    private function staffAppUrl(string $path, string $localPath): string
     {
         $company = Company::find(Auth::user()->company_id);
         $domain  = config('app.domain');
 
         if (! $domain || ! $company?->slug) {
-            return url('/labels-staff/login');
+            return url('/' . $localPath . '/login');
         }
 
-        return 'https://' . $company->slug . '.' . $domain . '/labels';
+        return 'https://' . $company->slug . '.' . $domain . '/' . $path;
     }
 
     /** Scoped by the model's CompanyScope — never trust a posted id alone. */
