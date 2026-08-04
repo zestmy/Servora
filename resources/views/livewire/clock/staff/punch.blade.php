@@ -136,6 +136,11 @@
 
     <p id="clock-status" class="text-center text-sm text-gray-600 min-h-[1.25rem] mb-3" aria-live="polite"></p>
 
+    {{-- Hidden until something has plainly gone wrong, then it is one line a
+         staff member can read down the phone to a manager. "It's frozen" is
+         not something anyone can act on; "app NOT STARTED" is. --}}
+    <p id="clock-diagnostics" class="hidden text-center text-[11px] font-mono text-gray-400 mb-3"></p>
+
     {{-- Off-site note. Always available rather than only appearing after a
          refusal: somebody sent to another branch already knows they are
          away, and making them fail once first is pointless friction. --}}
@@ -186,176 +191,24 @@
 @script
 <script>
     /*
-     * Drives the camera and the punch.
+     * Almost everything lives in resources/js/clock.js, which is a plain
+     * module and runs whether or not Livewire boots — so a Livewire failure
+     * can no longer take the camera preview down with it.
      *
-     * Deliberately plain and linear: this runs once, in a doorway, on a
-     * phone that may be three years old, and the person using it is late.
-     * Every failure path ends with the button usable again — being unable
-     * to press it at all is worse than a punch that gets flagged.
+     * This block exists for one reason: $wire is only available here.
      */
-    const video   = document.getElementById('clock-video');
-    const canvas  = document.getElementById('clock-canvas');
-    const overlay = document.getElementById('clock-camera-overlay');
-    const overlayMessage = document.getElementById('clock-camera-message');
+    document.addEventListener('click', (event) => {
+        if (! event.target.closest('#clock-action')) return;
 
-    const api = window.ServoraClock;
-
-    // Everything inside wire:ignore keeps its identity across renders and can
-    // be held in a variable. The status line is re-rendered, so it is looked
-    // up fresh each time it is written to.
-    const setStatus = (text) => {
-        const el = document.getElementById('clock-status');
-        if (el) el.textContent = text || '';
-    };
-
-    let camera = null;
-    let busy = false;
-    let booted = false;
-    let starting = false;
-    /** Whether the face step can run at all — a denied camera or missing
-     *  model files turn it off, and the server decides what that costs. */
-    let faceAvailable = false;
-
-    const setOverlay = (text) => { if (overlayMessage) overlayMessage.textContent = text; };
-
-    /**
-     * Every message ends with what to DO, and the overlay stays tappable
-     * behind all of them — the person reading this is standing at a door
-     * and needs a way forward, not a diagnosis.
-     */
-    function cameraProblem(error) {
-        switch (error?.name) {
-            case 'NotAllowedError':
-            case 'SecurityError':
-                return 'Camera blocked. Allow camera for this site in your browser settings, then tap here.';
-            case 'NotFoundError':
-            case 'OverconstrainedError':
-                return 'No camera found on this device. Tap to try again.';
-            case 'NotReadableError':
-                return 'Another app is using the camera. Close it, then tap here.';
-            case 'TimeoutError':
-                return 'The camera did not respond — a permission prompt may be waiting. Tap to try again.';
-            case 'NotSupportedError':
-                return 'This browser cannot use the camera. Ask your manager to record this shift.';
-            default:
-                return 'Could not start the camera. Tap to try again.';
-        }
-    }
-
-    async function boot() {
-        if (starting || camera?.stream) return;
-
-        starting = true;
-        setOverlay('Starting camera…');
+        const api = window.ServoraClock;
 
         if (! api) {
-            // clock.js did not load. Reloading is the only fix from here.
-            setOverlay('The camera could not be set up. Reload the page.');
-            booted = true;
-            starting = false;
+            // The module did not load; the diagnostic line says so.
+            api?.showDiagnostics?.();
             return;
         }
 
-        camera ??= new api.ClockCamera({ video, canvas, onStatus: setStatus });
-
-        try {
-            await camera.start();
-            overlay.classList.add('hidden');
-        } catch (e) {
-            setOverlay(cameraProblem(e));
-            // Still punchable: if the company does not require a face the
-            // punch is perfectly valid, and if it does the server refuses it
-            // in words the employee can act on.
-            booted = true;
-            starting = false;
-            return;
-        }
-
-        setStatus('Getting the face check ready…');
-
-        try {
-            await api.loadModels();
-            faceAvailable = true;
-            setStatus('');
-        } catch (e) {
-            // The weights are ~6.5MB; a bad connection is the usual cause.
-            setStatus('Face check unavailable — your punch will be sent for review.');
-        }
-
-        booted = true;
-        starting = false;
-    }
-
-    // A retry from a real tap is the call iOS reliably prompts for, so the
-    // overlay is the recovery path for every failure above.
-    overlay?.addEventListener('click', boot);
-
-    async function punch() {
-        if (busy) return;
-
-        if (! booted) {
-            setStatus('Just getting the camera ready…');
-            return;
-        }
-
-        busy = true;
-
-        try {
-            // The position request goes out first and is awaited last: the
-            // GPS fix is the slowest part and there is no reason for it to
-            // queue behind the camera work.
-            const positionPromise = api.currentPosition();
-
-            let face = null;
-
-            if (faceAvailable) {
-                setStatus('Blink once');
-                await camera.waitForBlink();
-
-                setStatus('Hold still…');
-                face = await camera.capture();
-
-                if (! face) {
-                    setStatus('Could not see your face. Try again in better light.');
-                    return;
-                }
-            }
-
-            setStatus('Checking where you are…');
-            const position = await positionPromise;
-
-            setStatus('Recording…');
-
-            await $wire.submit({
-                latitude:   position?.latitude ?? null,
-                longitude:  position?.longitude ?? null,
-                accuracy:   position?.accuracy ?? null,
-                descriptor: face?.descriptor ?? null,
-                // A still is kept even when the descriptor could not be
-                // computed — a manager reviewing a flagged punch would much
-                // rather have a photo than a shrug.
-                selfie:     face?.selfie ?? (camera?.stream ? camera.still() : null),
-                device:     navigator.userAgentData?.platform ?? null,
-            });
-
-            setStatus('');
-        } catch (e) {
-            setStatus('Something went wrong. Try again.');
-        } finally {
-            busy = false;
-        }
-    }
-
-    // Delegated: the button is replaced on every render, so a handler bound
-    // to the original node would stop firing after the first punch.
-    document.addEventListener('click', (event) => {
-        if (event.target.closest('#clock-action')) punch();
+        api.performPunch($wire);
     });
-
-    // Free the camera when the screen is left, so the indicator light goes
-    // out and the battery stops paying for a preview nobody is looking at.
-    document.addEventListener('livewire:navigating', () => camera?.stop(), { once: true });
-
-    boot();
 </script>
 @endscript

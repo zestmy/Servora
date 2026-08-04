@@ -8,7 +8,6 @@ use App\Scopes\CompanyScope;
 use App\Services\Hr\ClockInException;
 use App\Services\Hr\ClockInService;
 use App\Services\Hr\ShiftResolver;
-use App\Services\Staff\StaffSession;
 use Carbon\Carbon;
 use Livewire\Attributes\Locked;
 
@@ -78,12 +77,6 @@ class Punch extends StaffComponent
         $this->shiftResolved = false;
     }
 
-    public function signOut(StaffSession $session)
-    {
-        $session->signOut();
-
-        return $this->redirectRoute('clock.staff.login', navigate: false);
-    }
 
     /**
      * The clock-in this person has not yet clocked out of, if any.

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Hr\ClockAppController;
+use App\Http\Controllers\Hr\ClockSessionController;
 use App\Livewire\Clock\Staff\History as ClockHistory;
 use App\Livewire\Clock\Staff\Login as ClockLogin;
 use App\Livewire\Clock\Staff\Punch as ClockPunch;
@@ -42,5 +43,8 @@ $group->group(function () {
     Route::middleware('clock.staff')->group(function () {
         Route::get('/', ClockPunch::class)->name('clock.staff.punch');
         Route::get('/history', ClockHistory::class)->name('clock.staff.history');
+        // A plain form post, not a Livewire action: the control lives in the
+        // layout, outside any component root, where wire:click never binds.
+        Route::post('/logout', [ClockSessionController::class, 'destroy'])->name('clock.staff.logout');
     });
 });

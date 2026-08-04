@@ -96,15 +96,24 @@
                 </div>
             </div>
 
-            <button type="button" wire:click="signOut"
-                    aria-label="Signed in as {{ $staff->name }} — sign out"
-                    class="shrink-0 flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white/15 pl-1 pr-3 active:bg-white/25">
-                <span aria-hidden="true"
-                      class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
-                    {{ $initials }}
-                </span>
-                <span class="text-xs font-medium">Sign out</span>
-            </button>
+            {{-- A real form post. This control sits in the LAYOUT, outside any
+                 Livewire component's root element, where a wire:click is never
+                 bound and the button is silently inert — which is exactly how
+                 it shipped and how it was reported. A form also keeps working
+                 when the app's JavaScript has failed, which is the moment
+                 somebody most needs to get out. --}}
+            <form method="POST" action="{{ route('clock.staff.logout') }}" class="shrink-0">
+                @csrf
+                <button type="submit"
+                        aria-label="Signed in as {{ $staff->name }} — sign out"
+                        class="flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white/15 pl-1 pr-3 active:bg-white/25">
+                    <span aria-hidden="true"
+                          class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
+                        {{ $initials }}
+                    </span>
+                    <span class="text-xs font-medium">Sign out</span>
+                </button>
+            </form>
         </header>
     @endisset
 

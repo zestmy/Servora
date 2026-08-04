@@ -4,7 +4,6 @@ namespace App\Livewire\Clock\Staff;
 
 use App\Models\ClockEvent;
 use App\Scopes\CompanyScope;
-use App\Services\Staff\StaffSession;
 
 /**
  * The employee's own punch history for the last fortnight.
@@ -21,12 +20,6 @@ class History extends StaffComponent
 {
     private const DAYS = 14;
 
-    public function signOut(StaffSession $session)
-    {
-        $session->signOut();
-
-        return $this->redirectRoute('clock.staff.login', navigate: false);
-    }
 
     public function render()
     {

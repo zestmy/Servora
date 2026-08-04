@@ -280,10 +280,219 @@ export function currentPosition({ timeout = 12000 } = {}) {
 
 export { loadModels };
 
-/**
- * Exposed on window because the punch screen drives this from an inline
- * Livewire @script block, which is not part of the module graph and so
- * cannot import from it.
+/* ── Punch screen controller ──────────────────────────────────────────────
+ *
+ * Deliberately driven from this module rather than from the Livewire
+ * @script block on the page.
+ *
+ * The camera used to be started from @script, which meant a Livewire that
+ * failed to boot took the preview down with it — and the two failures look
+ * identical from the doorway: a dark rectangle and nothing happening. This
+ * module is a plain <script type="module"> and runs whatever Livewire does,
+ * so the preview comes up on its own and only the final submit needs $wire.
  */
-window.ServoraClock = { ClockCamera, currentPosition, loadModels };
+
+const screen = {
+    camera: null,
+    faceAvailable: false,
+    starting: false,
+    error: null,
+};
+
+const el = (id) => document.getElementById(id);
+
+const setOverlay = (text) => {
+    const node = el('clock-camera-message');
+    if (node) node.textContent = text;
+};
+
+const setStatus = (text) => {
+    const node = el('clock-status');
+    if (node) node.textContent = text || '';
+};
+
+/** Every message ends with what to DO — the reader is standing at a door. */
+function cameraProblem(error) {
+    switch (error?.name) {
+        case 'NotAllowedError':
+        case 'SecurityError':
+            return 'Camera blocked. Allow camera for this site in your browser settings, then tap here.';
+        case 'NotFoundError':
+        case 'OverconstrainedError':
+            return 'No camera found on this device. Tap to try again.';
+        case 'NotReadableError':
+            return 'Another app is using the camera. Close it, then tap here.';
+        case 'TimeoutError':
+            return 'The camera did not respond — a permission prompt may be waiting. Tap to try again.';
+        case 'NotSupportedError':
+            return 'This browser cannot use the camera. Ask your manager to record this shift.';
+        default:
+            return 'Could not start the camera. Tap to try again.';
+    }
+}
+
+/**
+ * One line a staff member can read out over the phone.
+ *
+ * Hidden while everything works, and revealed only once something has
+ * plainly gone wrong — at which point "it's broken" needs to become a fact
+ * somebody can act on without a laptop and a debugger.
+ */
+function showDiagnostics() {
+    const node = el('clock-diagnostics');
+    if (! node) return;
+
+    const camera = screen.camera?.stream ? 'on' : (screen.error || 'off');
+
+    node.textContent = `app ${window.Livewire ? 'ok' : 'NOT STARTED'}`
+        + ` · camera ${camera}`
+        + ` · face ${screen.faceAvailable ? 'ok' : 'off'}`;
+
+    if (! screen.camera?.stream || ! window.Livewire) {
+        node.classList.remove('hidden');
+    }
+}
+
+async function startScreen() {
+    const video  = el('clock-video');
+    const canvas = el('clock-canvas');
+
+    // Not the punch screen (history, login) — nothing to do.
+    if (! video || ! canvas) return;
+
+    if (screen.starting || screen.camera?.stream) return;
+
+    screen.starting = true;
+    screen.error    = null;
+    setOverlay('Starting camera…');
+
+    screen.camera ??= new ClockCamera({ video, canvas, onStatus: setStatus });
+
+    try {
+        await screen.camera.start();
+        el('clock-camera-overlay')?.classList.add('hidden');
+    } catch (error) {
+        screen.error = error?.name || 'failed';
+        setOverlay(cameraProblem(error));
+        screen.starting = false;
+        showDiagnostics();
+
+        return;
+    }
+
+    setStatus('Getting the face check ready…');
+
+    try {
+        await loadModels();
+        screen.faceAvailable = true;
+        setStatus('');
+    } catch (error) {
+        // The weights are ~6.5MB; a bad connection is the usual cause.
+        setStatus('Face check unavailable — your punch will be sent for review.');
+    }
+
+    screen.starting = false;
+}
+
+/**
+ * Capture, locate, and hand the observations to Livewire.
+ *
+ * $wire is passed in from the page's @script block — the one thing this
+ * module cannot get for itself.
+ */
+async function performPunch(wire) {
+    if (screen.starting) {
+        setStatus('Just getting the camera ready…');
+
+        return;
+    }
+
+    if (screen.busy) return;
+    screen.busy = true;
+
+    try {
+        // Requested first and awaited last: the GPS fix is the slowest part
+        // and has no reason to queue behind the camera work.
+        const positionPromise = currentPosition();
+
+        let face = null;
+
+        if (screen.faceAvailable) {
+            setStatus('Blink once');
+            await screen.camera.waitForBlink();
+
+            setStatus('Hold still…');
+            face = await screen.camera.capture();
+
+            if (! face) {
+                setStatus('Could not see your face. Try again in better light.');
+
+                return;
+            }
+        }
+
+        setStatus('Checking where you are…');
+        const position = await positionPromise;
+
+        setStatus('Recording…');
+
+        await wire.submit({
+            latitude:   position?.latitude ?? null,
+            longitude:  position?.longitude ?? null,
+            accuracy:   position?.accuracy ?? null,
+            descriptor: face?.descriptor ?? null,
+            // A still is kept even when the descriptor could not be computed —
+            // a manager reviewing a flagged punch would much rather have a
+            // photo than a shrug.
+            selfie:     face?.selfie ?? (screen.camera?.stream ? screen.camera.still() : null),
+            device:     navigator.userAgentData?.platform ?? null,
+        });
+
+        setStatus('');
+    } catch (error) {
+        setStatus('Something went wrong. Try again.');
+    } finally {
+        screen.busy = false;
+    }
+}
+
+function boot() {
+    // Proves to anyone reading the DOM that this module evaluated at all.
+    document.documentElement.dataset.clockJs = 'ok';
+
+    // A retry from a real tap is the call iOS reliably prompts for, so the
+    // overlay is the recovery path for every camera failure.
+    const overlay = el('clock-camera-overlay');
+    if (overlay && ! overlay.dataset.bound) {
+        overlay.dataset.bound = '1';
+        overlay.addEventListener('click', startScreen);
+    }
+
+    startScreen();
+
+    // Long enough that a slow model download is not mistaken for a fault.
+    setTimeout(showDiagnostics, 15000);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+} else {
+    boot();
+}
+
+// Livewire swaps the DOM without a page load.
+document.addEventListener('livewire:navigated', boot);
+
+// Free the camera on the way out, so the indicator light goes off.
+document.addEventListener('livewire:navigating', () => screen.camera?.stop());
+
+/**
+ * Exposed on window because the punch screen's inline Livewire @script block
+ * is not part of the module graph and cannot import from it. It needs
+ * exactly one thing: somewhere to hand $wire.
+ */
+window.ServoraClock = {
+    ClockCamera, currentPosition, loadModels,
+    screen, startScreen, performPunch, showDiagnostics,
+};
 
