@@ -137,6 +137,10 @@ const POSE_HOLD_MS = 550;
 /** Give up on a pose after this and say so, rather than waiting forever. */
 const POSE_TIMEOUT_MS = 12000;
 
+/** How long to wait for the ~6.5MB of face weights before giving up on them
+ *  and letting the punch proceed without a face check. */
+const MODEL_TIMEOUT_MS = 30000;
+
 export class ClockCamera {
     constructor({ video, canvas, onStatus, facing = FACING_USER }) {
         this.video = video;
@@ -485,11 +489,22 @@ function showDiagnostics() {
     const node = el(screen.dom?.diagnostics);
     if (! node) return;
 
+    const video  = el(screen.dom?.video);
     const camera = screen.camera?.stream ? 'on' : (screen.error || 'off');
 
-    node.textContent = `app ${window.Livewire ? 'ok' : 'NOT STARTED'}`
-        + ` · camera ${camera}`
-        + ` · face ${screen.faceAvailable ? 'ok' : 'off'}`;
+    // Enough to place the failure exactly: whether the start sequence is
+    // still running, whether the browser offers a camera API at all, and
+    // whether the element ever received frames.
+    node.textContent = [
+        `app ${window.Livewire ? 'ok' : 'NOT STARTED'}`,
+        `cam ${camera}`,
+        screen.starting ? 'starting' : 'idle',
+        navigator.mediaDevices?.getUserMedia ? 'api' : 'NO API',
+        window.isSecureContext ? 'https' : 'INSECURE',
+        `${video?.videoWidth || 0}x${video?.videoHeight || 0}`,
+        video?.paused ? 'paused' : 'playing',
+        `face ${screen.faceAvailable ? 'ok' : 'off'}`,
+    ].join(' · ');
 
     if (! screen.camera?.stream || ! window.Livewire) {
         node.classList.remove('hidden');
@@ -504,6 +519,19 @@ async function startScreen() {
     screen.error    = null;
     setOverlay('Starting camera…');
 
+    // try/finally around the WHOLE body. `starting` is a lock, and it used to
+    // be released on each path individually — so any await that never settled
+    // pinned it true forever, and every retry after that (a tap, a re-boot,
+    // the observer) returned early without doing anything at all. That is a
+    // preview stuck on "Starting camera…" with no error and no way back.
+    try {
+        await startCamera();
+    } finally {
+        screen.starting = false;
+    }
+}
+
+async function startCamera() {
     screen.camera ??= new ClockCamera({
         video: el(screen.dom.video),
         canvas: el(screen.dom.canvas),
@@ -517,7 +545,6 @@ async function startScreen() {
     } catch (error) {
         screen.error = error?.name || 'failed';
         setOverlay(cameraProblem(error));
-        screen.starting = false;
         showDiagnostics();
 
         return;
@@ -534,7 +561,16 @@ async function startScreen() {
     setStatus('Getting the face check ready…');
 
     try {
-        await loadModels();
+        // A deadline of its own. The weights are ~6.5MB and a stalled fetch
+        // never rejects — which used to hold the whole start sequence open.
+        await Promise.race([
+            loadModels(),
+            new Promise((_, reject) => setTimeout(
+                () => reject(new DOMException('Model download timed out.', 'TimeoutError')),
+                MODEL_TIMEOUT_MS,
+            )),
+        ]);
+
         screen.faceAvailable = true;
         setStatus('');
     } catch (error) {
@@ -543,8 +579,6 @@ async function startScreen() {
             ? 'Face model could not load. Check the connection and reload.'
             : 'Face check unavailable — your punch will be sent for review.');
     }
-
-    screen.starting = false;
 
     runGuide();
 
@@ -1119,6 +1153,10 @@ function boot() {
         screen.camera?.stop();
         screen.camera = null;
         screen.faceAvailable = false;
+        // Release the lock too. Whatever start was in flight was pointed at
+        // an element that no longer exists, so waiting for it would block the
+        // replacement from ever starting.
+        screen.starting = false;
     }
 
     screen.videoNode = video;
@@ -1177,8 +1215,11 @@ function boot() {
 
     startScreen();
 
-    // Long enough that a slow model download is not mistaken for a fault.
-    setTimeout(showDiagnostics, 15000);
+    // Twice: once early enough to be useful while somebody is still looking
+    // at it, once late enough not to mistake a slow model download for a
+    // fault.
+    setTimeout(showDiagnostics, 6000);
+    setTimeout(showDiagnostics, 20000);
 }
 
 if (document.readyState === 'loading') {
