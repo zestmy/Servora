@@ -29,3 +29,10 @@ Schedule::command('reports:send-scheduled')->everyFifteenMinutes();
 // the shift, not tomorrow. withoutOverlapping because a slow PrintNode
 // response must not stack runs on top of each other.
 Schedule::command('labels:reconcile-jobs')->everyTenMinutes()->withoutOverlapping();
+
+// Clear out rendered SOP export PDFs (~12 MB each) past their retention
+// window, and fail off any run whose worker died without reporting. Hourly
+// rather than daily because the second half of that is what unsticks the
+// Training Portal's export button after a deploy restarts the queue worker
+// mid-render.
+Schedule::command('sop:prune-exports')->hourly()->withoutOverlapping();

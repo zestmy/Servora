@@ -72,14 +72,14 @@
                     </div>
                 </div>
             @endif
-            <x-download-link href="{{ route('training.sop.pdf-all') }}"
-               class="btn-secondary">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export All SOPs
-            </x-download-link>
         </div>
+    </div>
+
+    {{-- The whole catalogue renders too heavy for a request (~500 MB, ~100 s),
+         so it is queued and collected from this panel rather than being a
+         download link like the category exports above. --}}
+    <div class="mb-6">
+        @livewire('settings.sop-export-panel')
     </div>
 
     {{-- ── Public LMS URL ── --}}
@@ -213,7 +213,7 @@
                 </div>
             @endif
             <p class="text-xs text-gray-600 mt-3">
-                Click a category to export its SOPs as a PDF, or use <span class="font-medium text-gray-500">Export All SOPs</span> above for everything.
+                Click a category to export its SOPs as a PDF, or use <span class="font-medium text-gray-500">Full SOP Handbook</span> above for everything.
                 Only recipes with preparation steps appear in the LMS.
                 <a href="{{ route('recipes.index') }}" class="text-brand-500 hover:underline">Manage recipes</a>
             </p>

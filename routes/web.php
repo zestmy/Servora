@@ -68,6 +68,7 @@ use App\Livewire\Settings\TaxRates as SettingsTaxRates;
 use App\Http\Controllers\PurchaseDocumentPdfController;
 use App\Http\Controllers\IngredientExportController;
 use App\Http\Controllers\StockTakeCountSheetController;
+use App\Http\Controllers\Lms\SopExportController;
 use App\Http\Controllers\Lms\SopPdfController;
 use App\Livewire\Settings\LmsUsers as SettingsLmsUsers;
 use App\Livewire\Admin\Plans\Index as AdminPlansIndex;
@@ -344,6 +345,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 
     Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:hr.view');
     Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:hr.view');
+    // The whole catalogue is too heavy to render in a request — it goes through
+    // the queue and is collected here. See App\Jobs\GenerateSopExport.
+    Route::get('/training/sop/export/{export}', [SopExportController::class, 'download'])->name('training.sop.export.download')->middleware('can:hr.view');
 
     // HR routes
     Route::get('/hr/employees', \App\Livewire\Hr\Employees::class)->name('hr.employees')->middleware('can:hr.view');

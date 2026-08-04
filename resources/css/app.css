@@ -278,6 +278,38 @@
     .meter-soon  .meter-time { @apply text-warning-700; }
     .meter-over  .meter-time { @apply text-danger-700; }
 
+    /* ── Progress ─────────────────────────────────────────────────────────
+       A job the user is waiting on, not a value being reported — that is why
+       this is separate from .meter rather than a size variant of it. .meter
+       is 3px because it sits in a table row; this one is the only thing on
+       screen the user cares about, so it is 8px and carries a readout.
+
+       Two modes, and the distinction is honest rather than decorative.
+       .progress-fill is a real fraction, used while the work is countable
+       (preparing image N of M). .progress-indeterminate is for the stretch
+       that genuinely cannot be measured — dompdf's render is one call that
+       holds the whole document and returns nothing until it is finished — so
+       the bar slides instead of pretending to a percentage. A determinate bar
+       parked at 75% for a minute reads as hung; a moving one reads as working.
+
+       Both keep animating under prefers-reduced-motion only in the sense that
+       the global block above flattens them — the fill still lands at the right
+       width, and the indeterminate track falls back to a flat tint, so neither
+       mode loses its meaning when the motion goes. */
+    .progress      { @apply relative block h-2 w-full overflow-hidden rounded-full bg-gray-200; }
+    .progress-fill { @apply block h-full rounded-full bg-brand-600 transition-[width] duration-700 ease-out; }
+
+    /* The sliding band. 40% wide so there is always track visible on both
+       sides — a full-width sweep looks like a fill that never completes. */
+    .progress-indeterminate { @apply bg-brand-100; }
+    .progress-indeterminate::after {
+        content: '';
+        @apply absolute inset-y-0 left-0 w-2/5 animate-progress-slide rounded-full bg-brand-600;
+    }
+
+    .progress-label { @apply text-sm font-medium text-gray-800; }
+    .progress-meta  { @apply text-xs tabular-nums text-gray-600; }
+
     /* ── Stat ─────────────────────────────────────────────────────────────
        Three tiers out of one type size plus weight and colour, rather than
        three sizes. The figure is the only thing that grows. */

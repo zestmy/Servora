@@ -183,6 +183,12 @@ export default {
                 'shimmer': {
                     '100%': { transform: 'translateX(100%)' },
                 },
+                /* Travels 250% because the band is 40% wide: it has to clear
+                   the right edge completely before restarting on the left. */
+                'progress-slide': {
+                    from: { transform: 'translateX(-100%)' },
+                    to:   { transform: 'translateX(250%)' },
+                },
                 'marquee': {
                     from: { transform: 'translateX(0)' },
                     to:   { transform: 'translateX(-50%)' },
@@ -192,6 +198,7 @@ export default {
             animation: {
                 'reveal-up': 'reveal-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
                 'shimmer': 'shimmer 1.8s infinite',
+                'progress-slide': 'progress-slide 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite',
                 'marquee': 'marquee 42s linear infinite',
             },
         },
