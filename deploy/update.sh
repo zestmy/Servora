@@ -97,6 +97,21 @@ journalctl -u servora-queue -n 20 --no-pager --output=short 2>&1 | tail -20 | se
 # with a non-zero exit, and `set -e` would turn that into a failed deploy.
 php artisan queue:signal --watch=3 2>&1 | sed 's/^/    /' || true
 
+# The FULL live unit, drop-ins included. deploy/install.sh writes this file
+# once at install and update.sh has never rewritten it, so what is actually
+# on the box may not be what the repo says — and a drop-in adding something
+# like RuntimeMaxSec would never show up in the repo at all.
+info "Queue worker unit as it exists on this box:"
+systemctl cat servora-queue --no-pager 2>&1 | sed 's/^/    /' || true
+
+# The worker's OWN output. Everything read so far has been systemd talking
+# about the service; nothing from php itself. If queue:work is printing a
+# reason before it exits, it is in here and nowhere else.
+info "Queue worker output (systemd's own lines filtered out):"
+journalctl -u servora-queue -n 300 --no-pager --output=cat 2>&1 \
+    | grep -v -E '^(Started|Stopping|Stopped|Deactivated|Scheduled restart|servora-queue)' \
+    | tail -25 | sed 's/^/    /' || true
+
 if systemctl is-active --quiet servora-queue 2>/dev/null; then
     info "Restarting queue worker..."
     systemctl restart servora-queue
