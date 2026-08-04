@@ -111,13 +111,33 @@
                             {{ $outletId ? 'Choose somebody…' : 'Choose an outlet first' }}
                         </option>
                         @foreach ($employees as $employee)
-                            @php $count = (int) ($counts[$employee->id] ?? 0); @endphp
+                            @php
+                                $count  = (int) ($counts[$employee->id] ?? 0);
+                                $isThem = $selected?->id === $employee->id;
+                            @endphp
                             {{-- The capture count rides in the label: it is the
                                  question this screen exists to answer, and a
-                                 select has nowhere else to put it. --}}
-                            <option value="{{ $employee->id }}" @selected($selected?->id === $employee->id)>
+                                 select has nowhere else to put it.
+
+                                 Except for the person currently open. Captures
+                                 save by fetch rather than a page load, so their
+                                 number is the one value on this screen that can
+                                 go stale — and it did: the option read "(no
+                                 faces)" while the panel below counted 2 of 8,
+                                 the same person described two ways at once. A
+                                 manager reading the dropdown would reasonably
+                                 conclude nothing had saved.
+
+                                 It is dropped rather than kept in sync with
+                                 JavaScript. The panel underneath already gives
+                                 the live figure with more detail, so this was
+                                 duplication, and the only way two copies of a
+                                 number cannot disagree is for there to be one. --}}
+                            <option value="{{ $employee->id }}" @selected($isThem)>
                                 {{ $employee->name }}
-                                ({{ $count ?: 'no' }} {{ Str::plural('face', $count ?: 0) }})
+                                @unless ($isThem)
+                                    ({{ $count ?: 'no' }} {{ Str::plural('face', $count ?: 0) }})
+                                @endunless
                             </option>
                         @endforeach
                     </select>
