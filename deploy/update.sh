@@ -93,6 +93,18 @@ info "Setting permissions..."
 chown -R "${WEB_USER}:${WEB_USER}" "$APP_DIR"
 chmod -R 775 "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
 
+# ── Can staff faces be told apart? ──────────────────────────────────────────
+# TEMPORARY, and read-only. Recognising somebody from the camera alone is
+# identification rather than verification, and whether that is safe depends on
+# these particular people in these particular rooms — not on anything that can
+# be reasoned out from here. This measures it on the faces already enrolled so
+# the thresholds come from data instead of from a guess.
+#
+# --anonymise because this lands in a GitHub Actions log: the numbers are the
+# point, staff names are not. Remove this block once the answer is in hand.
+info "Face separation (read-only measurement):"
+sudo -u "${WEB_USER}" php artisan clock:face-separation --anonymise 2>&1 | sed 's/^/    /' || true
+
 # ── Queue worker ────────────────────────────────────────────────────────────
 # The unit file was written once by install.sh and never touched again, so a
 # box installed months ago kept whatever ExecStart it was installed with —
