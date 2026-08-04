@@ -64,7 +64,14 @@
                     <div class="flex gap-2">
                         <select id="enrol-outlet" name="outlet"
                                 onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()"
-                                class="flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm">
+                                {{-- min-w-0 is load-bearing, not decoration. A flex item
+                                     defaults to min-width:auto, so flex-1 alone cannot
+                                     shrink a <select> below the intrinsic width of its
+                                     LONGEST option — the control then overflows its panel
+                                     and pushes the Select button off the screen. Outlet
+                                     names are short enough to have hidden this; staff
+                                     names are not. --}}
+                                class="min-w-0 flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm">
                             <option value="">Choose an outlet…</option>
                             @foreach ($outlets as $outlet)
                                 <option value="{{ $outlet->id }}" @selected($outletId === $outlet->id)>
@@ -96,7 +103,10 @@
                     <select id="enrol-employee" name="employee"
                             @disabled(! $outletId)
                             onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()"
-                            class="flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm disabled:bg-gray-100 disabled:text-gray-500">
+                            {{-- See the outlet select above for why min-w-0 is here. This
+                                 is the one that actually overflowed: "MOHD AFFANDY BIN
+                                 ZULKARNAIN (no faces)" is wider than the panel. --}}
+                            class="min-w-0 flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm disabled:bg-gray-100 disabled:text-gray-500">
                         <option value="">
                             {{ $outletId ? 'Choose somebody…' : 'Choose an outlet first' }}
                         </option>
