@@ -492,12 +492,28 @@ async function performPunch(wire) {
     }
 }
 
-/** One enrolment capture, for the manager-facing screen. */
-async function performEnrolCapture(wire) {
+/**
+ * One enrolment capture, posted straight to the server.
+ *
+ * A plain fetch rather than a Livewire action: enrolment gates the entire
+ * feature — nobody can clock in with a face check until their face is on
+ * file — and it was failing silently because the save went through $wire on
+ * a screen where Livewire had not started. This works either way.
+ */
+async function performEnrolCapture() {
     if (notReady()) return;
 
     if (! screen.faceAvailable) {
         setStatus('Face model still loading — a moment.');
+
+        return;
+    }
+
+    const form = document.getElementById('enrol-form');
+    const employeeId = form?.dataset.employee;
+
+    if (! employeeId) {
+        setStatus('Pick somebody from the list first.');
 
         return;
     }
@@ -514,13 +530,66 @@ async function performEnrolCapture(wire) {
             return;
         }
 
-        await wire.enrol({ descriptor: face.descriptor, photo: face.selfie });
-        setStatus('Saved. Turn the head slightly and take another.');
+        const response = await fetch(form.dataset.endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            },
+            body: JSON.stringify({
+                employee_id: employeeId,
+                descriptor: face.descriptor,
+                photo: face.selfie,
+            }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (! response.ok) {
+            setStatus(result.message || 'Capture failed. Try again.');
+
+            return;
+        }
+
+        appendCapture(result);
+
+        setStatus(result.enough
+            ? `Saved — ${result.count} on file. That is enough to clock in with.`
+            : `Saved — ${result.count} on file. Turn the head slightly and take another.`);
     } catch (error) {
         setStatus('Capture failed. Try again.');
     } finally {
         screen.busy = false;
     }
+}
+
+/**
+ * Show the capture just taken without reloading.
+ *
+ * A reload would restart the camera and its permission dance between every
+ * shot, and a manager takes three or four in a row.
+ */
+function appendCapture(result) {
+    const list = document.getElementById('enrol-captures');
+
+    if (! list || ! result?.photo_url) return;
+
+    document.getElementById('enrol-empty')?.classList.add('hidden');
+
+    const figure = document.createElement('div');
+    figure.className = 'relative';
+
+    const image = document.createElement('img');
+    image.src = result.photo_url;
+    image.alt = 'Enrolment capture';
+    image.className = 'w-full aspect-square object-cover rounded-lg border border-gray-200';
+
+    figure.appendChild(image);
+    list.appendChild(figure);
+
+    const counter = document.getElementById('enrol-count');
+    if (counter) counter.textContent = result.count;
 }
 
 function boot() {
@@ -548,6 +617,16 @@ function boot() {
     if (overlay && ! overlay.dataset.bound) {
         overlay.dataset.bound = '1';
         overlay.addEventListener('click', startScreen);
+    }
+
+    // Delegated, and bound once: the capture button is re-rendered whenever
+    // the enrolment page reloads, and a handler bound to the original node
+    // would stop firing.
+    if (! document.body.dataset.clockBound) {
+        document.body.dataset.clockBound = '1';
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('#enrol-capture')) performEnrolCapture();
+        });
     }
 
     startScreen();

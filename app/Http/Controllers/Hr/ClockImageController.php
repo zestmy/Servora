@@ -25,8 +25,12 @@ class ClockImageController extends Controller
     public function selfie(ClockEvent $event): StreamedResponse|Response
     {
         abort_unless(Auth::user()?->can('hr.clock'), 403);
+        // (int) before the strict comparison: MySQL's PDO hands foreign keys
+        // back as strings, so in_array("1", [1, 2], true) is false and every
+        // selfie 403s into a blank box. Every other outlet check in the
+        // codebase casts for exactly this reason.
         abort_unless(
-            in_array($event->outlet_id, Auth::user()->accessibleOutletIds(), true),
+            in_array((int) $event->outlet_id, Auth::user()->accessibleOutletIds(), true),
             403
         );
 
@@ -36,8 +40,10 @@ class ClockImageController extends Controller
     public function enrolment(EmployeeFaceDescriptor $descriptor): StreamedResponse|Response
     {
         abort_unless(Auth::user()?->can('hr.clock.manage'), 403);
+        // Cast for the same reason as selfie() above. An employee with no
+        // outlet casts to 0, which is refused — which is the right answer.
         abort_unless(
-            in_array($descriptor->employee?->outlet_id, Auth::user()->accessibleOutletIds(), true),
+            in_array((int) $descriptor->employee?->outlet_id, Auth::user()->accessibleOutletIds(), true),
             403
         );
 

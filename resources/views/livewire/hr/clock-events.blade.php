@@ -160,9 +160,14 @@
 
     {{-- Review panel --}}
     @if ($viewing)
-        <div class="fixed inset-0 z-40 bg-gray-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+        {{-- The OVERLAY scrolls, not the panel, and there is no vh anywhere.
+             A max-h-[92vh] panel is taller than what iOS actually shows once
+             the browser chrome is counted, so its lower half — including
+             Approve and Reject — sat below the fold with no way to reach it. --}}
+        <div class="fixed inset-0 z-40 bg-gray-900/50 overflow-y-auto"
              wire:key="panel-{{ $viewing->id }}">
-            <div class="bg-white w-full sm:max-w-2xl sm:rounded-xl shadow-xl max-h-[92vh] overflow-y-auto">
+            <div class="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full sm:max-w-2xl sm:rounded-xl shadow-xl">
                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 sticky top-0 bg-white">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-900">{{ $viewing->employee?->name }}</h3>
@@ -184,7 +189,13 @@
                                  looked at. --}}
                             <img src="{{ route('hr.clock-ins.selfie', $viewing) }}"
                                  alt="Selfie taken at the punch"
-                                 class="w-full rounded-lg border border-gray-200 bg-gray-50">
+                                 class="w-full rounded-lg border border-gray-200 bg-gray-50"
+                                 onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden')">
+                            {{-- A broken image is an empty rectangle that says
+                                 nothing. This says which of the two it was. --}}
+                            <div class="hidden w-full aspect-[4/3] rounded-lg border border-dashed border-danger-300 grid place-items-center px-4 text-center text-sm text-danger-700">
+                                The photo could not be loaded — it may have been swept from storage.
+                            </div>
                         @else
                             <div class="w-full aspect-[4/3] rounded-lg border border-dashed border-gray-300 grid place-items-center text-sm text-gray-500">
                                 No photo captured
@@ -282,6 +293,7 @@
                         <button wire:click="approve({{ $viewing->id }})" class="btn-primary">Approve</button>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     @endif

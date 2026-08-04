@@ -2,11 +2,10 @@
 
 namespace App\Livewire\Hr;
 
+use App\Http\Controllers\Hr\FaceEnrolmentController;
 use App\Models\Employee;
 use App\Models\EmployeeFaceDescriptor;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -22,31 +21,28 @@ use Livewire\Component;
  * shot stops working the week somebody grows a beard or clocks in under a
  * different light; a handful taken at slightly different angles keeps the
  * daily punch working without having to loosen the threshold for everyone.
+ *
+ * READ-ONLY BY DESIGN. This component renders the screen and nothing else —
+ * choosing a name is a link, saving a capture is a fetch to
+ * FaceEnrolmentController, and deleting one is a form post. Enrolment gates
+ * the whole feature, so none of it may depend on Livewire's JavaScript
+ * having started; it was failing silently on exactly that.
  */
 class FaceEnrolment extends Component
 {
-    /** Below this a face is too poorly enrolled to be worth keeping. */
-    private const MIN_CAPTURES = 3;
-
-    /** Above this, more captures stop helping and just cost comparison time. */
-    private const MAX_CAPTURES = 8;
-
     public string $search = '';
 
     #[Locked]
     public ?int $employeeId = null;
 
-    #[Locked]
-    public string $errorMessage = '';
-
     /**
      * Who is being enrolled comes from the URL, not from a Livewire action.
      *
      * Picking a name used to be a wire:click, which meant it did nothing at
-     * all on a device where Livewire's JavaScript had not started — the list
-     * responded to taps by staying exactly as it was, with no way to tell
-     * that from a slow network. A plain link works with no JavaScript
-     * whatsoever, and it makes the choice bookmarkable into the bargain.
+     * all on a device where Livewire had not started — the list responded to
+     * taps by staying exactly as it was, with no way to tell that from a slow
+     * network. A plain link works with no JavaScript whatsoever, and it makes
+     * the choice bookmarkable into the bargain.
      */
     public function mount(?int $employee = null): void
     {
@@ -55,66 +51,6 @@ class FaceEnrolment extends Component
         if ($employee) {
             $this->employeeId = $this->findEmployee($employee)?->id;
         }
-    }
-
-    /**
-     * @param  array  $payload  {descriptor: number[], photo?: string}
-     */
-    public function enrol(array $payload): void
-    {
-        abort_unless(Auth::user()->can('hr.clock.manage'), 403);
-
-        $this->errorMessage = '';
-
-        $employee = $this->employee();
-
-        if (! $employee) {
-            return;
-        }
-
-        $descriptor = $payload['descriptor'] ?? null;
-
-        if (! EmployeeFaceDescriptor::isValidDescriptor($descriptor)) {
-            $this->errorMessage = 'That capture could not be read. Try again with the face filling more of the frame.';
-
-            return;
-        }
-
-        if ($this->captures()->count() >= self::MAX_CAPTURES) {
-            $this->errorMessage = 'That is already ' . self::MAX_CAPTURES . ' captures — plenty. Delete one first if you want to replace it.';
-
-            return;
-        }
-
-        EmployeeFaceDescriptor::create([
-            'company_id'    => $employee->company_id,
-            'employee_id'   => $employee->id,
-            'descriptor'    => array_map('floatval', $descriptor),
-            'model_version' => EmployeeFaceDescriptor::MODEL_VERSION,
-            'photo_path'    => $this->storePhoto($employee, $payload['photo'] ?? null),
-            'enrolled_by'   => Auth::id(),
-        ]);
-
-        session()->flash('success', 'Capture saved.');
-    }
-
-    public function deleteCapture(int $id): void
-    {
-        abort_unless(Auth::user()->can('hr.clock.manage'), 403);
-
-        $capture = $this->captures()->firstWhere('id', $id);
-
-        if (! $capture) {
-            return;
-        }
-
-        if ($capture->photo_path) {
-            Storage::disk('local')->delete($capture->photo_path);
-        }
-
-        $capture->delete();
-
-        session()->flash('success', 'Capture deleted.');
     }
 
     public function employee(): ?Employee
@@ -141,31 +77,6 @@ class FaceEnrolment extends Component
             ->get();
     }
 
-    /** The reference photo, on the private disk — never public. */
-    private function storePhoto(Employee $employee, ?string $dataUrl): ?string
-    {
-        if (! is_string($dataUrl) || ! preg_match('#^data:image/(jpeg|jpg|png);base64,#', $dataUrl, $m)) {
-            return null;
-        }
-
-        if (strlen($dataUrl) > 2_500_000) {
-            return null;
-        }
-
-        $binary = base64_decode(substr($dataUrl, strpos($dataUrl, ',') + 1), true);
-
-        if ($binary === false || $binary === '' || ! @getimagesizefromstring($binary)) {
-            return null;
-        }
-
-        $path = sprintf(
-            'face-enrolments/%d/%d/%s.%s',
-            $employee->company_id, $employee->id, Str::uuid(), $m[1] === 'png' ? 'png' : 'jpg'
-        );
-
-        return Storage::disk('local')->put($path, $binary) ? $path : null;
-    }
-
     public function render()
     {
         $employees = Employee::whereIn('outlet_id', Auth::user()->accessibleOutletIds() ?: [0])
@@ -189,8 +100,8 @@ class FaceEnrolment extends Component
             'counts'      => $counts,
             'selected'    => $this->employee(),
             'captures'    => $this->captures(),
-            'minCaptures' => self::MIN_CAPTURES,
-            'maxCaptures' => self::MAX_CAPTURES,
+            'minCaptures' => FaceEnrolmentController::MIN_CAPTURES,
+            'maxCaptures' => FaceEnrolmentController::MAX_CAPTURES,
         ])->layout('layouts.app', ['title' => 'Face Enrolment']);
     }
 }

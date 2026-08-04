@@ -369,6 +369,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/clock-settings', \App\Livewire\Hr\ClockSettings::class)->name('hr.clock-settings')->middleware('can:hr.clock.manage');
     Route::get('/hr/face-enrolment', \App\Livewire\Hr\FaceEnrolment::class)->name('hr.face-enrolment')->middleware('can:hr.clock.manage');
     Route::get('/hr/face-enrolment/{descriptor}/photo', [\App\Http\Controllers\Hr\ClockImageController::class, 'enrolment'])->name('hr.face-enrolment.photo')->middleware('can:hr.clock.manage');
+    // Plain HTTP, not Livewire actions: enrolment gates the whole feature and
+    // must not depend on Livewire's JavaScript having started.
+    Route::post('/hr/face-enrolment/capture', [\App\Http\Controllers\Hr\FaceEnrolmentController::class, 'store'])->name('hr.face-enrolment.capture')->middleware('can:hr.clock.manage');
+    Route::delete('/hr/face-enrolment/{descriptor}', [\App\Http\Controllers\Hr\FaceEnrolmentController::class, 'destroy'])->name('hr.face-enrolment.delete')->middleware('can:hr.clock.manage');
     Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.claims');

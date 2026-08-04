@@ -76,7 +76,9 @@
              some browsers — every time the manager moved to the next person in
              a queue of thirty. It boots once, and the button is what changes. --}}
         <div class="lg:col-span-2">
-            <div class="panel p-5">
+            <div class="panel p-5" id="enrol-form"
+                 data-employee="{{ $selected?->id }}"
+                 data-endpoint="{{ route('hr.face-enrolment.capture') }}">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-900">
@@ -84,7 +86,7 @@
                         </h3>
                         <p class="text-xs text-gray-600">
                             @if ($selected)
-                                {{ $captures->count() }} of {{ $maxCaptures }} captures
+                                <span id="enrol-count">{{ $captures->count() }}</span> of {{ $maxCaptures }} captures
                                 @if ($captures->count() < $minCaptures)
                                     · at least {{ $minCaptures }} recommended
                                 @endif
@@ -98,12 +100,6 @@
                            class="text-xs font-medium text-gray-600 hover:underline">Done</a>
                     @endif
                 </div>
-
-                @if ($errorMessage)
-                    <div class="mb-3 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">
-                        {{ $errorMessage }}
-                    </div>
-                @endif
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -147,12 +143,16 @@
 
                         @if (! $selected)
                             <p class="text-sm text-gray-500">—</p>
-                        @elseif ($captures->isEmpty())
-                            <p class="text-sm text-gray-500">Nothing enrolled yet.</p>
                         @else
-                            <div class="grid grid-cols-3 gap-2">
+                            <p id="enrol-empty" class="text-sm text-gray-500 {{ $captures->isEmpty() ? '' : 'hidden' }}">
+                                Nothing enrolled yet.
+                            </p>
+
+                            {{-- Appended to by clock.js after each capture, so
+                                 the camera is not torn down between shots. --}}
+                            <div id="enrol-captures" class="grid grid-cols-3 gap-2">
                                 @foreach ($captures as $capture)
-                                    <div wire:key="cap-{{ $capture->id }}" class="relative group">
+                                    <div class="relative">
                                         @if ($capture->photo_path)
                                             <img src="{{ route('hr.face-enrolment.photo', $capture) }}"
                                                  alt="Enrolment capture"
@@ -162,13 +162,20 @@
                                                 no photo
                                             </div>
                                         @endif
-                                        <button wire:click="deleteCapture({{ $capture->id }})"
-                                                wire:confirm="Delete this capture?"
-                                                aria-label="Delete capture"
-                                                class="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-white border border-gray-300
-                                                       text-gray-600 text-sm leading-none shadow-sm hover:bg-danger-50 hover:text-danger-700">
-                                            &times;
-                                        </button>
+                                        {{-- A form post: removing a bad capture
+                                             must work with no JavaScript too. --}}
+                                        <form method="POST"
+                                              action="{{ route('hr.face-enrolment.delete', $capture) }}"
+                                              onsubmit="return confirm('Delete this capture?')"
+                                              class="absolute -top-1.5 -right-1.5">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" aria-label="Delete capture"
+                                                    class="w-6 h-6 rounded-full bg-white border border-gray-300
+                                                           text-gray-600 text-sm leading-none shadow-sm hover:bg-danger-50 hover:text-danger-700">
+                                                &times;
+                                            </button>
+                                        </form>
                                     </div>
                                 @endforeach
                             </div>
@@ -179,25 +186,3 @@
         </div>
     </div>
 </div>
-
-@script
-<script>
-    /*
-     * The camera and the model live in resources/js/clock.js, which self-boots
-     * as soon as the module evaluates. It used to be started from here, and
-     * that was a race: @script runs when Livewire initialises, the Vite tag is
-     * a deferred module, and neither order is guaranteed — so this block could
-     * reach for window.ServoraClock and find nothing there yet.
-     *
-     * This exists for one reason: $wire is only available here.
-     *
-     * Delegated, because the button is replaced on every render — a handler
-     * bound to the original node would stop firing after the first capture.
-     */
-    document.addEventListener('click', (event) => {
-        if (! event.target.closest('#enrol-capture')) return;
-
-        window.ServoraClock?.performEnrolCapture($wire);
-    });
-</script>
-@endscript
