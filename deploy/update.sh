@@ -112,6 +112,22 @@ journalctl -u servora-queue -n 300 --no-pager --output=cat 2>&1 \
     | grep -v -E '^(Started|Stopping|Stopped|Deactivated|Scheduled restart|servora-queue)' \
     | tail -25 | sed 's/^/    /' || true
 
+# Whether the worker CAN be told to stop by a signal at all. Without pcntl,
+# Laravel never registers its SIGTERM handler and shouldQuit can never be
+# set — which would rule signals out as the cause entirely.
+info "Signal support:"
+php -r 'echo "    pcntl: ", extension_loaded("pcntl") ? "loaded" : "MISSING", PHP_EOL,
+        "    posix: ", extension_loaded("posix") ? "loaded" : "MISSING", PHP_EOL;' || true
+
+# Run the exact ExecStart in the foreground, as the same user, and watch it.
+# The service produces no output at all through systemd; -vvv here should
+# show whatever it is deciding. `timeout` caps it either way, and a worker
+# living twelve seconds is the same worker systemd starts every five.
+info "Foreground worker for 12s (exit code is the point):"
+timeout 12 sudo -u "${WEB_USER}" php artisan queue:work --sleep=3 --tries=3 --max-time=3600 -vvv 2>&1 \
+    | tail -25 | sed 's/^/    /' || true
+echo "    foreground exit: ${PIPESTATUS[0]:-?} (124 = still running when time ran out, which is HEALTHY)" 
+
 if systemctl is-active --quiet servora-queue 2>/dev/null; then
     info "Restarting queue worker..."
     systemctl restart servora-queue
