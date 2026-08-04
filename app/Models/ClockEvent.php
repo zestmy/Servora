@@ -120,6 +120,12 @@ class ClockEvent extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    /** Who deleted it, while it is deleted. Cleared on restore. */
+    public function deleter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
     /**
      * Punches that still count.
      *
