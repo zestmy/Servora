@@ -16,10 +16,17 @@ class Outlet extends Model
     protected $fillable = [
         'company_id', 'name', 'code', 'phone', 'address', 'country', 'state', 'is_active',
         'default_kitchen_id', 'default_cpu_id',
+        // Clock-in geofence. Absent from this list, update() dropped them
+        // silently while the settings screen still reported a save — the
+        // location looked set and never was.
+        'latitude', 'longitude', 'clock_radius_m',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'      => 'boolean',
+        'latitude'       => 'decimal:7',
+        'longitude'      => 'decimal:7',
+        'clock_radius_m' => 'integer',
     ];
 
     public function company(): BelongsTo

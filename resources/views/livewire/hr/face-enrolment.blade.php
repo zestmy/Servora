@@ -172,105 +172,21 @@
 @script
 <script>
     /*
-     * Enrolment capture. Same camera helper as the staff app so a face
-     * enrolled here is measured exactly the way it will be measured at the
-     * door — a different pipeline on either side would produce descriptors
-     * that never quite match.
+     * The camera and the model live in resources/js/clock.js, which self-boots
+     * as soon as the module evaluates. It used to be started from here, and
+     * that was a race: @script runs when Livewire initialises, the Vite tag is
+     * a deferred module, and neither order is guaranteed — so this block could
+     * reach for window.ServoraClock and find nothing there yet.
+     *
+     * This exists for one reason: $wire is only available here.
+     *
+     * Delegated, because the button is replaced on every render — a handler
+     * bound to the original node would stop firing after the first capture.
      */
-    const video   = document.getElementById('enrol-video');
-    const canvas  = document.getElementById('enrol-canvas');
-    const overlay = document.getElementById('enrol-overlay');
-    const overlayMessage = document.getElementById('enrol-overlay-message');
-
-    // Everything inside wire:ignore keeps its identity across renders and can
-    // be held in a variable. The status line and the button are re-rendered,
-    // so they are looked up fresh each time they are touched.
-    const setStatus = (text) => {
-        const el = document.getElementById('enrol-status');
-        if (el) el.textContent = text || '';
-    };
-
-    let camera = null;
-    let modelsReady = false;
-    let capturing = false;
-    let starting = false;
-
-    const setOverlay = (text) => { if (overlayMessage) overlayMessage.textContent = text; };
-
-    async function boot() {
-        if (starting || camera?.stream || ! video) return;
-
-        starting = true;
-        setOverlay('Starting camera…');
-
-        if (! window.ServoraClock) {
-            setOverlay('The camera could not be set up. Reload the page.');
-            starting = false;
-            return;
-        }
-
-        camera ??= new window.ServoraClock.ClockCamera({ video, canvas, onStatus: setStatus });
-
-        try {
-            await camera.start();
-            overlay.classList.add('hidden');
-        } catch (e) {
-            setOverlay(e?.name === 'NotAllowedError'
-                ? 'Camera blocked. Allow camera for this site, then tap here.'
-                : 'Could not start the camera. Tap to try again.');
-            starting = false;
-            return;
-        }
-
-        setStatus('Loading the face model…');
-
-        try {
-            await window.ServoraClock.loadModels();
-            modelsReady = true;
-            setStatus('');
-        } catch (e) {
-            setStatus('Face model could not load. Check the connection and reload.');
-        }
-
-        starting = false;
-    }
-
-    // Retrying from a real tap is the call browsers reliably prompt for.
-    overlay?.addEventListener('click', boot);
-
-    // Delegated: the button element is replaced on every render, so a handler
-    // bound to the original node would stop firing after the first capture.
-    document.addEventListener('click', async (event) => {
+    document.addEventListener('click', (event) => {
         if (! event.target.closest('#enrol-capture')) return;
 
-        if (! modelsReady) {
-            setStatus('Face model still loading — a moment.');
-            return;
-        }
-
-        if (capturing) return;
-        capturing = true;
-        setStatus('Hold still…');
-
-        try {
-            const face = await camera.capture();
-
-            if (! face) {
-                setStatus('No face found. Move closer and try again.');
-                return;
-            }
-
-            await $wire.enrol({ descriptor: face.descriptor, photo: face.selfie });
-            setStatus('Saved. Turn the head slightly and take another.');
-        } catch (e) {
-            setStatus('Capture failed. Try again.');
-        } finally {
-            capturing = false;
-        }
+        window.ServoraClock?.performEnrolCapture($wire);
     });
-
-    document.addEventListener('livewire:navigating', () => camera?.stop(), { once: true });
-
-    boot();
 </script>
 @endscript

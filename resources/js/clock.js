@@ -280,34 +280,63 @@ export function currentPosition({ timeout = 12000 } = {}) {
 
 export { loadModels };
 
-/* ── Punch screen controller ──────────────────────────────────────────────
+/* ── Camera screen controller ─────────────────────────────────────────────
  *
- * Deliberately driven from this module rather than from the Livewire
- * @script block on the page.
+ * Drives BOTH camera screens — the staff punch screen and the manager-facing
+ * face enrolment screen — from this module rather than from their inline
+ * Livewire @script blocks.
  *
- * The camera used to be started from @script, which meant a Livewire that
- * failed to boot took the preview down with it — and the two failures look
- * identical from the doorway: a dark rectangle and nothing happening. This
- * module is a plain <script type="module"> and runs whatever Livewire does,
- * so the preview comes up on its own and only the final submit needs $wire.
+ * @script runs when Livewire initialises. The Vite tag that loads this file
+ * is a deferred module. Those two orders are not guaranteed, so a @script
+ * that reached for window.ServoraClock could find nothing there yet and give
+ * up — which on the enrolment screen is exactly what happened. Booting from
+ * inside the module removes the race: by definition this code runs only once
+ * the module has evaluated. Only the final submit still needs $wire.
  */
 
+/**
+ * Each screen names its own elements. Same behaviour, different ids —
+ * a face enrolled on one screen has to be measured the same way it will be
+ * measured at the door, so they share one pipeline rather than two.
+ */
+const SCREENS = [
+    {
+        key: 'punch',
+        video: 'clock-video', canvas: 'clock-canvas',
+        overlay: 'clock-camera-overlay', message: 'clock-camera-message',
+        status: 'clock-status', diagnostics: 'clock-diagnostics',
+    },
+    {
+        key: 'enrol',
+        video: 'enrol-video', canvas: 'enrol-canvas',
+        overlay: 'enrol-overlay', message: 'enrol-overlay-message',
+        status: 'enrol-status', diagnostics: null,
+    },
+];
+
 const screen = {
+    dom: null,
     camera: null,
     faceAvailable: false,
     starting: false,
+    busy: false,
     error: null,
 };
 
-const el = (id) => document.getElementById(id);
+const el = (id) => (id ? document.getElementById(id) : null);
+
+/** Which camera screen, if any, is on the page right now. */
+function findScreen() {
+    return SCREENS.find((s) => el(s.video) && el(s.canvas)) || null;
+}
 
 const setOverlay = (text) => {
-    const node = el('clock-camera-message');
+    const node = el(screen.dom?.message);
     if (node) node.textContent = text;
 };
 
 const setStatus = (text) => {
-    const node = el('clock-status');
+    const node = el(screen.dom?.status);
     if (node) node.textContent = text || '';
 };
 
@@ -334,12 +363,12 @@ function cameraProblem(error) {
 /**
  * One line a staff member can read out over the phone.
  *
- * Hidden while everything works, and revealed only once something has
- * plainly gone wrong — at which point "it's broken" needs to become a fact
- * somebody can act on without a laptop and a debugger.
+ * Hidden while everything works, revealed once something has plainly gone
+ * wrong — at which point "it's broken" needs to become a fact somebody can
+ * act on without a laptop and a debugger.
  */
 function showDiagnostics() {
-    const node = el('clock-diagnostics');
+    const node = el(screen.dom?.diagnostics);
     if (! node) return;
 
     const camera = screen.camera?.stream ? 'on' : (screen.error || 'off');
@@ -354,23 +383,22 @@ function showDiagnostics() {
 }
 
 async function startScreen() {
-    const video  = el('clock-video');
-    const canvas = el('clock-canvas');
-
-    // Not the punch screen (history, login) — nothing to do.
-    if (! video || ! canvas) return;
-
+    if (! screen.dom) return;
     if (screen.starting || screen.camera?.stream) return;
 
     screen.starting = true;
     screen.error    = null;
     setOverlay('Starting camera…');
 
-    screen.camera ??= new ClockCamera({ video, canvas, onStatus: setStatus });
+    screen.camera ??= new ClockCamera({
+        video: el(screen.dom.video),
+        canvas: el(screen.dom.canvas),
+        onStatus: setStatus,
+    });
 
     try {
         await screen.camera.start();
-        el('clock-camera-overlay')?.classList.add('hidden');
+        el(screen.dom.overlay)?.classList.add('hidden');
     } catch (error) {
         screen.error = error?.name || 'failed';
         setOverlay(cameraProblem(error));
@@ -388,10 +416,23 @@ async function startScreen() {
         setStatus('');
     } catch (error) {
         // The weights are ~6.5MB; a bad connection is the usual cause.
-        setStatus('Face check unavailable — your punch will be sent for review.');
+        setStatus(screen.dom.key === 'enrol'
+            ? 'Face model could not load. Check the connection and reload.'
+            : 'Face check unavailable — your punch will be sent for review.');
     }
 
     screen.starting = false;
+}
+
+/** Shared guard for the two actions below. */
+function notReady() {
+    if (screen.starting) {
+        setStatus('Just getting the camera ready…');
+
+        return true;
+    }
+
+    return screen.busy;
 }
 
 /**
@@ -401,13 +442,8 @@ async function startScreen() {
  * module cannot get for itself.
  */
 async function performPunch(wire) {
-    if (screen.starting) {
-        setStatus('Just getting the camera ready…');
+    if (notReady()) return;
 
-        return;
-    }
-
-    if (screen.busy) return;
     screen.busy = true;
 
     try {
@@ -456,13 +492,59 @@ async function performPunch(wire) {
     }
 }
 
+/** One enrolment capture, for the manager-facing screen. */
+async function performEnrolCapture(wire) {
+    if (notReady()) return;
+
+    if (! screen.faceAvailable) {
+        setStatus('Face model still loading — a moment.');
+
+        return;
+    }
+
+    screen.busy = true;
+    setStatus('Hold still…');
+
+    try {
+        const face = await screen.camera.capture();
+
+        if (! face) {
+            setStatus('No face found. Move closer and try again.');
+
+            return;
+        }
+
+        await wire.enrol({ descriptor: face.descriptor, photo: face.selfie });
+        setStatus('Saved. Turn the head slightly and take another.');
+    } catch (error) {
+        setStatus('Capture failed. Try again.');
+    } finally {
+        screen.busy = false;
+    }
+}
+
 function boot() {
     // Proves to anyone reading the DOM that this module evaluated at all.
     document.documentElement.dataset.clockJs = 'ok';
 
+    const found = findScreen();
+
+    if (! found) return;
+
+    // A different screen than last time (Livewire navigation): drop the old
+    // camera so the new elements get a fresh one.
+    if (screen.dom && screen.dom.key !== found.key) {
+        screen.camera?.stop();
+        screen.camera = null;
+        screen.faceAvailable = false;
+    }
+
+    screen.dom = found;
+
     // A retry from a real tap is the call iOS reliably prompts for, so the
     // overlay is the recovery path for every camera failure.
-    const overlay = el('clock-camera-overlay');
+    const overlay = el(found.overlay);
+
     if (overlay && ! overlay.dataset.bound) {
         overlay.dataset.bound = '1';
         overlay.addEventListener('click', startScreen);
@@ -487,12 +569,11 @@ document.addEventListener('livewire:navigated', boot);
 document.addEventListener('livewire:navigating', () => screen.camera?.stop());
 
 /**
- * Exposed on window because the punch screen's inline Livewire @script block
- * is not part of the module graph and cannot import from it. It needs
- * exactly one thing: somewhere to hand $wire.
+ * Exposed on window because the inline Livewire @script blocks are not part
+ * of the module graph and cannot import from it. They need exactly one
+ * thing: somewhere to hand $wire.
  */
 window.ServoraClock = {
     ClockCamera, currentPosition, loadModels,
-    screen, startScreen, performPunch, showDiagnostics,
+    screen, startScreen, performPunch, performEnrolCapture, showDiagnostics,
 };
-
