@@ -127,6 +127,15 @@
                 @endif
 
                 <p class="progress-meta mt-2">
+                    @if ($typicalSeconds)
+                        {{-- The render is most of the wait and cannot report from
+                             inside dompdf, so this is the reference point instead
+                             of a percentage that would be invented. --}}
+                        Your last export took
+                        {{ $typicalSeconds >= 60
+                            ? intdiv($typicalSeconds, 60) . 'm ' . ($typicalSeconds % 60) . 's'
+                            : $typicalSeconds . 's' }}.
+                    @endif
                     You can leave this page — the file will be here when you come back.
                 </p>
             </div>

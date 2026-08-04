@@ -66,6 +66,34 @@ class SopExportPanel extends Component
     {
     }
 
+    /**
+     * How long this company's last successful export took.
+     *
+     * The render is ~95% of the wait and cannot report progress from inside
+     * dompdf, so the honest alternative to a fake percentage is a reference
+     * point: "last one took 1m 46s" turns a blank 100-second stare into a
+     * wait with a shape. Measured, not estimated — if nothing has finished
+     * before, the panel simply omits it rather than guessing.
+     */
+    private function typicalSeconds(?SopExport $current): ?int
+    {
+        $previous = SopExport::forCompany(Auth::user()->company_id)
+            ->where('status', SopExport::STATUS_COMPLETED)
+            ->when($current, fn ($q) => $q->whereKeyNot($current->id))
+            ->whereNotNull('started_at')
+            ->whereNotNull('finished_at')
+            ->latest('id')
+            ->first(['started_at', 'finished_at']);
+
+        if (! $previous) {
+            return null;
+        }
+
+        $seconds = $previous->started_at->diffInSeconds($previous->finished_at);
+
+        return $seconds > 0 ? (int) $seconds : null;
+    }
+
     public function render()
     {
         $export = $this->exportId
@@ -76,6 +104,7 @@ class SopExportPanel extends Component
             'export'   => $export,
             'running'  => (bool) $export?->isRunning(),
             'pollMs'   => self::POLL_MS,
+            'typicalSeconds' => $this->typicalSeconds($export),
             'sopCount' => Recipe::where('company_id', Auth::user()->company_id)
                 ->where('is_active', true)
                 ->where('exclude_from_lms', false)
