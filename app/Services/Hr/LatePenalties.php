@@ -26,7 +26,8 @@ class LatePenalties
     {
         $query = ClockEvent::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
-            ->where('type', ClockEvent::TYPE_IN)
+            // Late arrivals and break overruns are one shift's charges.
+            ->whereIn('type', [ClockEvent::TYPE_IN, ClockEvent::TYPE_BREAK_END])
             ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
             ->counted()
             // The ordering IS the "first punch wins" rule — reduce() trusts it
@@ -48,9 +49,14 @@ class LatePenalties
      *
      * Separated from the query so the rule can be exercised directly.
      *
+     * Only the FIRST clock-in on a shift counts — a repeat tap is one late
+     * arrival, not two. Every break_end counts, because each carries only the
+     * overrun minutes it added rather than the shift's running total, so
+     * summing them gives the shift's overrun exactly once.
+     *
      * @param  iterable<ClockEvent>  $events  ordered by employee, work date,
-     *                                        then time — the first row seen for
-     *                                        a shift is the one that counts.
+     *                                        then time, so the first clock-in
+     *                                        seen for a shift is the earliest.
      * @return array<int, array{minutes: int, amount: float, shifts: int}>
      */
     public static function reduce(iterable $events): array
@@ -65,11 +71,13 @@ class LatePenalties
 
             $shiftKey = $event->employee_id . ':' . $workDate;
 
-            if (isset($seen[$shiftKey])) {
-                continue;
-            }
+            if ($event->type === ClockEvent::TYPE_IN) {
+                if (isset($seen[$shiftKey])) {
+                    continue;
+                }
 
-            $seen[$shiftKey] = true;
+                $seen[$shiftKey] = true;
+            }
 
             $minutes = $event->effectiveLateMinutes();
             $amount  = (float) $event->penalty_amount;

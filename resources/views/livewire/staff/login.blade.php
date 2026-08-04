@@ -30,27 +30,28 @@
         <div class="panel p-5">
             @if ($outlets->isEmpty())
                 <div class="py-8 text-center">
-                    <p class="text-sm font-medium text-gray-900">Nobody has a staff PIN yet.</p>
+                    <p class="text-sm font-medium text-gray-900">No outlets set up yet.</p>
                     <p class="mt-1 text-sm text-gray-600">
-                        A manager sets up PINs in Servora under HR &rarr; Staff PINs.
+                        A manager adds outlets in Servora under Settings &rarr; Outlets.
                     </p>
                 </div>
             @else
-                {{-- Only asked when there is a choice to make. One outlet is
-                     preselected in mount(), and a dropdown that can only have
-                     one answer is a tap nobody should have to make. --}}
-                @if ($outlets->count() > 1)
-                    <label for="staff-outlet" class="block text-sm font-semibold text-gray-900 mb-1.5">
-                        Your outlet
-                    </label>
-                    <select id="staff-outlet" wire:model.live="outletId"
-                            class="w-full min-h-[3.25rem] rounded-control border-gray-300 text-base mb-4">
-                        <option value="">Choose an outlet…</option>
-                        @foreach ($outlets as $outlet)
-                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                        @endforeach
-                    </select>
-                @endif
+                {{-- Always shown, even for a single outlet. Hiding it when
+                     there was only one choice meant staff could not see which
+                     outlet they were about to sign in at, and a company that
+                     had only given PINs to one branch appeared to have lost
+                     the selector altogether. Seeing the answer is worth more
+                     than saving the tap. --}}
+                <label for="staff-outlet" class="block text-sm font-semibold text-gray-900 mb-1.5">
+                    Your outlet
+                </label>
+                <select id="staff-outlet" wire:model.live="outletId"
+                        class="w-full min-h-[3.25rem] rounded-control border-gray-300 text-base mb-4">
+                    <option value="">Choose an outlet…</option>
+                    @foreach ($outlets as $outlet)
+                        <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                    @endforeach
+                </select>
 
                 <label for="staff-name" class="block text-sm font-semibold text-gray-900 mb-1.5">
                     Your name

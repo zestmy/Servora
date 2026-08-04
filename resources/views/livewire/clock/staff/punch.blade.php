@@ -77,13 +77,16 @@
         <div class="rounded-xl border px-4 py-3 mb-3 {{ $ok ? 'border-teal-300 bg-teal-50' : 'border-amber-300 bg-amber-50' }}"
              role="status">
             <p class="text-base font-semibold {{ $ok ? 'text-teal-900' : 'text-amber-900' }}">
-                {{ $lastEvent->type === ClockEvent::TYPE_IN ? 'Clocked in' : 'Clocked out' }}
-                at {{ $lastEvent->happened_at->format('g:i A') }}
+                {{ $lastEvent->typeLabel() }} at {{ $lastEvent->happened_at->format('g:i A') }}
             </p>
 
             @if ($lastEvent->minutes_late > 0)
                 <p class="mt-1 text-sm text-amber-900">
-                    {{ $lastEvent->minutes_late }} {{ Str::plural('minute', $lastEvent->minutes_late) }} late.
+                    @if ($lastEvent->type === ClockEvent::TYPE_BREAK_END)
+                        {{ $lastEvent->minutes_late }} {{ Str::plural('minute', $lastEvent->minutes_late) }} over your break allowance.
+                    @else
+                        {{ $lastEvent->minutes_late }} {{ Str::plural('minute', $lastEvent->minutes_late) }} late.
+                    @endif
                     @if ((float) $lastEvent->penalty_amount > 0)
                         RM {{ number_format((float) $lastEvent->penalty_amount, 2) }} deducted from your service charge.
                     @else
@@ -162,14 +165,37 @@
         {{ $actionLabel }}
     </button>
 
+    {{-- Breaks only exist between clocking in and clocking out, so the button
+         is simply absent otherwise rather than present and refusing. --}}
+    @if ($breakType)
+        <button type="button" id="clock-break"
+                class="mt-2 w-full min-h-[3.25rem] rounded-xl text-base font-semibold border
+                       {{ $onBreak
+                           ? 'border-warning-300 bg-warning-50 text-warning-800 active:bg-warning-100'
+                           : 'border-gray-300 bg-white text-gray-800 active:bg-gray-50' }}">
+            {{ $onBreak ? 'End Break' : 'Start Break' }}
+        </button>
+
+        @if ($onBreak)
+            <p class="mt-2 text-center text-xs text-gray-600">
+                On break since {{ $this->lastPunch()?->happened_at?->format('g:i A') }}.
+                @if ($breakAllowance > 0)
+                    {{ $breakAllowance }} minutes allowed this shift{{ $breakTaken > 0 ? ", {$breakTaken} already taken" : '' }}.
+                @endif
+            </p>
+        @elseif ($breakTaken > 0)
+            <p class="mt-2 text-center text-xs {{ $breakTaken > $breakAllowance ? 'text-danger-700 font-medium' : 'text-gray-600' }}">
+                {{ $breakTaken }} of {{ $breakAllowance }} break minutes used this shift.
+            </p>
+        @endif
+    @endif
+
     {{-- ── Today ───────────────────────────────────────────────────────── --}}
     @if ($punches->isNotEmpty())
         <div class="mt-4 rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
             @foreach ($punches as $punch)
                 <div class="flex items-center justify-between px-4 py-2.5">
-                    <span class="text-sm text-gray-700">
-                        {{ $punch->type === ClockEvent::TYPE_IN ? 'In' : 'Out' }}
-                    </span>
+                    <span class="text-sm text-gray-700">{{ $punch->typeLabel() }}</span>
                     <span class="text-sm font-medium text-gray-900 tabular-nums">
                         {{ $punch->happened_at->format('g:i A') }}
                         @if ($punch->needsReview())
@@ -198,17 +224,15 @@
      * This block exists for one reason: $wire is only available here.
      */
     document.addEventListener('click', (event) => {
-        if (! event.target.closest('#clock-action')) return;
+        const shift = event.target.closest('#clock-action');
+        const brk   = event.target.closest('#clock-break');
 
-        const api = window.ServoraClock;
+        if (! shift && ! brk) return;
 
-        if (! api) {
-            // The module did not load; the diagnostic line says so.
-            api?.showDiagnostics?.();
-            return;
-        }
-
-        api.performPunch($wire);
+        // The page only says WHICH button was pressed. What that means —
+        // clock in, clock out, start break, end break — is decided server
+        // side from what is already on record.
+        window.ServoraClock?.performPunch($wire, brk ? 'break' : 'shift');
     });
 </script>
 @endscript

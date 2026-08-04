@@ -15,8 +15,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ClockEvent extends Model
 {
-    public const TYPE_IN  = 'in';
-    public const TYPE_OUT = 'out';
+    public const TYPE_IN          = 'in';
+    public const TYPE_OUT         = 'out';
+    public const TYPE_BREAK_START = 'break_start';
+    public const TYPE_BREAK_END   = 'break_end';
+
+    /** The punches that open and close attendance, as opposed to breaks. */
+    public const SHIFT_TYPES = [self::TYPE_IN, self::TYPE_OUT];
 
     public const STATUS_VERIFIED = 'verified';
     public const STATUS_FLAGGED  = 'flagged';
@@ -40,6 +45,8 @@ class ClockEvent extends Model
         'late'             => 'Late',
         'duplicate'        => 'Already clocked in',
         'no_open_punch'    => 'Clocked out without clocking in',
+        'no_open_break'    => 'Break ended without starting one',
+        'break_overrun'    => 'Break ran over the allowance',
     ];
 
     protected $fillable = [
@@ -137,6 +144,23 @@ class ClockEvent extends Model
             ->filter()
             ->values()
             ->all();
+    }
+
+    /** Human label for the punch type, for lists and the review queue. */
+    public function typeLabel(): string
+    {
+        return match ($this->type) {
+            self::TYPE_IN          => 'Clock in',
+            self::TYPE_OUT         => 'Clock out',
+            self::TYPE_BREAK_START => 'Break start',
+            self::TYPE_BREAK_END   => 'Break end',
+            default                => ucfirst((string) $this->type),
+        };
+    }
+
+    public function isBreak(): bool
+    {
+        return in_array($this->type, [self::TYPE_BREAK_START, self::TYPE_BREAK_END], true);
     }
 
     public function statusLabel(): string

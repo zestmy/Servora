@@ -207,10 +207,13 @@ abstract class StaffLogin extends Component
     }
 
     /**
-     * Outlets with somebody who can actually sign in.
+     * Every active outlet in the company.
      *
-     * An outlet whose staff have no PINs is a dead end — offering it would
-     * lead to an empty name list and no way to tell why.
+     * This used to list only outlets that already had PIN holders, which
+     * made the selector vanish for a company that had set up PINs at one
+     * branch — the dropdown appeared to be missing rather than narrowed. An
+     * outlet with nobody enrolled now shows and says so, which is a far
+     * easier thing to act on than an absent control.
      */
     public function outlets()
     {
@@ -222,13 +225,6 @@ abstract class StaffLogin extends Component
 
         return Outlet::where('company_id', $companyId)
             ->where('is_active', true)
-            ->whereIn('id', function ($query) use ($companyId) {
-                $query->select('outlet_id')
-                    ->from('employees')
-                    ->where('company_id', $companyId)
-                    ->where('is_active', true)
-                    ->whereNotNull('label_pin');
-            })
             ->orderBy('name')
             ->get();
     }

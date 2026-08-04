@@ -102,7 +102,7 @@
                             {{ $event->employee?->name ?? '—' }}
                             <span class="block text-[11px] font-normal text-gray-500">{{ $event->outlet?->name }}</span>
                         </td>
-                        <td class="px-2 py-2 text-gray-600">{{ $event->type === ClockEvent::TYPE_IN ? 'In' : 'Out' }}</td>
+                        <td class="px-2 py-2 text-gray-600 whitespace-nowrap">{{ $event->typeLabel() }}</td>
                         <td class="px-2 py-2 text-right tabular-nums text-gray-800">{{ $event->happened_at->format('g:i A') }}</td>
                         <td class="px-2 py-2 text-right tabular-nums text-gray-500">
                             {{ $shiftStart ? $shiftStart->format('g:i A') : '—' }}
@@ -173,8 +173,7 @@
                         <h3 class="text-sm font-semibold text-gray-900">{{ $viewing->employee?->name }}</h3>
                         <p class="text-xs text-gray-600">
                             {{ $viewing->work_date->format('D d M Y') }} ·
-                            {{ $viewing->type === ClockEvent::TYPE_IN ? 'Clock in' : 'Clock out' }}
-                            at {{ $viewing->happened_at->format('g:i A') }}
+                            {{ $viewing->typeLabel() }} at {{ $viewing->happened_at->format('g:i A') }}
                         </p>
                     </div>
                     <button wire:click="closePanel" class="text-gray-400 hover:text-gray-600 text-2xl leading-none px-2" aria-label="Close">&times;</button>

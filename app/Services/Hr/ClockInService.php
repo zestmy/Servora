@@ -59,7 +59,9 @@ class ClockInService
      */
     public function punch(Employee $employee, string $type, array $input): ClockEvent
     {
-        $type = $type === ClockEvent::TYPE_OUT ? ClockEvent::TYPE_OUT : ClockEvent::TYPE_IN;
+        $type = in_array($type, [
+            ClockEvent::TYPE_OUT, ClockEvent::TYPE_BREAK_START, ClockEvent::TYPE_BREAK_END,
+        ], true) ? $type : ClockEvent::TYPE_IN;
 
         $outlet = $this->outletFor($employee);
 
@@ -79,8 +81,14 @@ class ClockInService
             $flags[] = 'no_shift';
         }
 
-        $location = $this->assessLocation($input, $outlet, $settings, $flags);
-        $face     = $this->assessFace($employee, $input, $settings, $flags);
+        // A break punch is judged leniently. It cannot open or close
+        // attendance — its only consequence is a charge against the person
+        // making it — so refusing one because the camera failed would leave
+        // somebody unable to end a break that is costing them money by the
+        // minute. Everything is still recorded; nothing is enforced.
+        $lenient  = $this->isBreak($type);
+        $location = $this->assessLocation($input, $outlet, $settings, $flags, $lenient);
+        $face     = $this->assessFace($employee, $input, $settings, $flags, $lenient);
 
         [$minutesLate, $chargeable, $penalty] = $this->assessLateness(
             $type, $shift, $at, $settings, $flags
@@ -99,6 +107,12 @@ class ClockInService
             }
         } elseif (! $this->countedPunches($employee, $workDate, ClockEvent::TYPE_IN)->first()) {
             $flags[] = 'no_open_punch';
+        }
+
+        if ($type === ClockEvent::TYPE_BREAK_END) {
+            [$minutesLate, $chargeable, $penalty] = $this->assessBreak(
+                $employee, $workDate, $shift, $at, $settings, $flags
+            );
         }
 
         $selfiePath = $this->storeSelfie($employee, $input['selfie'] ?? null);
@@ -178,7 +192,7 @@ class ClockInService
     /**
      * @return array{latitude: ?float, longitude: ?float, accuracy: ?int, distance: ?int, within: bool}
      */
-    private function assessLocation(array $input, Outlet $outlet, ClockSetting $settings, array &$flags): array
+    private function assessLocation(array $input, Outlet $outlet, ClockSetting $settings, array &$flags, bool $lenient = false): array
     {
         $result = [
             'latitude' => null, 'longitude' => null, 'accuracy' => null,
@@ -188,7 +202,7 @@ class ClockInService
         $hasFix = Geo::isValidCoordinate($input['latitude'] ?? null, $input['longitude'] ?? null);
 
         if (! $hasFix) {
-            if ($settings->require_gps) {
+            if ($settings->require_gps && ! $lenient) {
                 throw new ClockInException(
                     'Location is switched off. Allow location for this site in your browser, then try again.'
                 );
@@ -237,14 +251,14 @@ class ClockInService
         }
 
         if (! $result['within']) {
-            if ($settings->require_gps && ! $settings->allow_offsite_with_reason) {
+            if ($settings->require_gps && ! $settings->allow_offsite_with_reason && ! $lenient) {
                 throw new ClockInException(sprintf(
                     'You are about %s from %s. Clock in when you get to the outlet.',
                     $this->humanDistance($distance), $outlet->name
                 ));
             }
 
-            if ($settings->require_gps && trim((string) ($input['reason'] ?? '')) === '') {
+            if ($settings->require_gps && ! $lenient && trim((string) ($input['reason'] ?? '')) === '') {
                 throw new ClockInException(sprintf(
                     'You are about %s from %s. Add a short reason and try again.',
                     $this->humanDistance($distance), $outlet->name
@@ -260,12 +274,12 @@ class ClockInService
     /**
      * @return array{distance: ?float, verified: bool}
      */
-    private function assessFace(Employee $employee, array $input, ClockSetting $settings, array &$flags): array
+    private function assessFace(Employee $employee, array $input, ClockSetting $settings, array &$flags, bool $lenient = false): array
     {
         $descriptor = $input['descriptor'] ?? null;
 
         if (! EmployeeFaceDescriptor::isValidDescriptor($descriptor)) {
-            if ($settings->require_face) {
+            if ($settings->require_face && ! $lenient) {
                 throw new ClockInException(
                     'We could not read your face. Hold the phone at arm’s length in decent light and try again.'
                 );
@@ -333,6 +347,82 @@ class ClockInService
         }
 
         return [$charge['minutes'], $charge['chargeable'], $charge['amount']];
+    }
+
+    private function isBreak(string $type): bool
+    {
+        return in_array($type, [ClockEvent::TYPE_BREAK_START, ClockEvent::TYPE_BREAK_END], true);
+    }
+
+    /**
+     * Charge for a break that ran past the shift's rest allowance.
+     *
+     * The allowance is the ROSTER's, because that is where rest is planned:
+     * the shift's own rest_duration when set, otherwise the outlet's roster
+     * setting. There is deliberately no separate per-employee break field —
+     * one would be a second source of truth for a number the roster already
+     * owns, and the two would drift.
+     *
+     * Overrun is charged at the same RM/minute as lateness, and shares the
+     * shift's cap with it: they are one shift's worth of charges, and giving
+     * each its own ceiling would quietly double the one a manager set.
+     *
+     * @param  array{entry: \App\Models\RosterEntry, start: Carbon, end: Carbon}|null  $shift
+     * @return array{0: int, 1: int, 2: float}  overrun minutes, chargeable, RM
+     */
+    private function assessBreak(
+        Employee $employee,
+        Carbon $workDate,
+        ?array $shift,
+        Carbon $at,
+        ClockSetting $settings,
+        array &$flags,
+    ): array {
+        $starts = $this->countedPunches($employee, $workDate, ClockEvent::TYPE_BREAK_START);
+        $ends   = $this->countedPunches($employee, $workDate, ClockEvent::TYPE_BREAK_END);
+
+        // Pair them in order. An unmatched start is the break ending now.
+        $openStart = $starts->get($ends->count());
+
+        if (! $openStart) {
+            $flags[] = 'no_open_break';
+
+            return [0, 0, 0.0];
+        }
+
+        $taken = 0;
+
+        foreach ($ends as $index => $end) {
+            $start = $starts->get($index);
+
+            if ($start) {
+                $taken += max(0, (int) floor($start->happened_at->diffInSeconds($end->happened_at, false) / 60));
+            }
+        }
+
+        $taken += max(0, (int) floor($openStart->happened_at->diffInSeconds($at, false) / 60));
+
+        $allowance      = BreakOverrun::allowanceFor($shift['entry'] ?? null, $employee->outlet_id);
+        $alreadyMinutes = (int) $ends->sum('chargeable_late_minutes');
+        $alreadyAmount  = (float) $this->countedPunches($employee, $workDate, ClockEvent::TYPE_IN)
+            ->sum('penalty_amount') + (float) $ends->sum('penalty_amount');
+
+        $result = BreakOverrun::compute($taken, $allowance, $alreadyMinutes);
+
+        if ($result['overrun'] > 0) {
+            $flags[] = 'break_overrun';
+        }
+
+        $amount = BreakOverrun::amount(
+            $result['chargeable'],
+            (float) $settings->late_rate_per_minute,
+            $settings->late_cap_per_shift !== null ? (float) $settings->late_cap_per_shift : null,
+            $alreadyAmount,
+        );
+
+        // minutes_late carries the shift's total overrun so the review screen
+        // shows the real figure; chargeable carries only what this break adds.
+        return [$result['overrun'], $result['chargeable'], $amount];
     }
 
     /** Punches for one shift that still count, oldest first. */

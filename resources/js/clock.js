@@ -441,7 +441,7 @@ function notReady() {
  * $wire is passed in from the page's @script block — the one thing this
  * module cannot get for itself.
  */
-async function performPunch(wire) {
+async function performPunch(wire, intent = 'shift') {
     if (notReady()) return;
 
     screen.busy = true;
@@ -482,7 +482,7 @@ async function performPunch(wire) {
             // photo than a shrug.
             selfie:     face?.selfie ?? (screen.camera?.stream ? screen.camera.still() : null),
             device:     navigator.userAgentData?.platform ?? null,
-        });
+        }, intent);
 
         setStatus('');
     } catch (error) {

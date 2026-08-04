@@ -18,7 +18,7 @@
                     <div class="px-4 py-2.5 {{ $event->isRejected() ? 'opacity-50' : '' }}">
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-sm text-gray-700">
-                                {{ $event->type === ClockEvent::TYPE_IN ? 'Clocked in' : 'Clocked out' }}
+                                {{ $event->typeLabel() }}
                             </span>
                             <span class="text-sm font-medium text-gray-900 tabular-nums">
                                 {{ $event->happened_at->format('g:i A') }}
