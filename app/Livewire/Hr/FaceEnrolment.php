@@ -6,6 +6,7 @@ use App\Http\Controllers\Hr\FaceEnrolmentController;
 use App\Models\Employee;
 use App\Models\EmployeeFaceDescriptor;
 use App\Models\Outlet;
+use App\Services\Hr\FaceMatcher;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -97,6 +98,21 @@ class FaceEnrolment extends Component
             ->find($id);
     }
 
+    /**
+     * The captures on file, each tagged with how far it sits from its nearest
+     * sibling.
+     *
+     * Measuring the enrolled faces on production turned up one capture 0.635
+     * from the closest other picture of the same person — further than the
+     * 0.500 line a punch has to clear. A capture like that is dead weight at
+     * best: it can never be the one that matches, and if it is a bad frame
+     * (an odd angle, a blown highlight, or something that was not a face at
+     * all) it is quietly poisoning the enrolment.
+     *
+     * Nothing on screen showed which one it was. A grid of thumbnails all
+     * look equally fine, so "one of these is wrong" is unactionable advice
+     * unless the screen says which. That is the whole point of this.
+     */
     public function captures()
     {
         $employee = $this->employee();
@@ -105,9 +121,37 @@ class FaceEnrolment extends Component
             return collect();
         }
 
-        return EmployeeFaceDescriptor::where('employee_id', $employee->id)
+        $captures = EmployeeFaceDescriptor::where('employee_id', $employee->id)
             ->orderBy('id')
             ->get();
+
+        foreach ($captures as $capture) {
+            $capture->nearest = $this->nearestSibling($capture, $captures);
+        }
+
+        return $captures;
+    }
+
+    /** Distance to the closest OTHER capture of the same person, or null. */
+    private function nearestSibling(EmployeeFaceDescriptor $capture, $all): ?float
+    {
+        if (! EmployeeFaceDescriptor::isValidDescriptor($capture->descriptor)) {
+            return null;
+        }
+
+        $best = null;
+
+        foreach ($all as $other) {
+            if ($other->id === $capture->id
+                || ! EmployeeFaceDescriptor::isValidDescriptor($other->descriptor)) {
+                continue;
+            }
+
+            $d = FaceMatcher::euclidean($capture->descriptor, $other->descriptor);
+            $best = $best === null ? $d : min($best, $d);
+        }
+
+        return $best === null ? null : round($best, 3);
     }
 
     public function render()

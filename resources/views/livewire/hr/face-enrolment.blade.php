@@ -270,11 +270,23 @@
                                  the camera is not torn down between shots. --}}
                             <div id="enrol-captures" class="grid grid-cols-3 gap-2">
                                 @foreach ($captures as $capture)
+                                    {{-- An "odd one out" is a capture sitting further from this
+                                         person's other pictures than a punch is allowed to sit
+                                         from any of them. It can never be the one that matches,
+                                         so at best it is dead weight — and at worst it is a bad
+                                         frame dragging the enrolment around.
+
+                                         The number is shown rather than just a warning colour:
+                                         0.62 next to a row of 0.28s tells you which to delete
+                                         without having to trust a badge. --}}
+                                    @php
+                                        $odd = $capture->nearest !== null && $capture->nearest > 0.5;
+                                    @endphp
                                     <div class="relative">
                                         @if ($capture->photo_path)
                                             <img src="{{ route('hr.face-enrolment.photo', $capture) }}"
                                                  alt="Enrolment capture"
-                                                 class="w-full aspect-square object-cover rounded-lg border border-gray-200">
+                                                 class="w-full aspect-square object-cover rounded-lg border-2 {{ $odd ? 'border-danger-400' : 'border-gray-200' }}">
                                         @else
                                             <div class="w-full aspect-square rounded-lg border border-dashed border-gray-300 grid place-items-center text-[10px] text-gray-400 text-center px-1">
                                                 no photo
@@ -294,9 +306,29 @@
                                                 &times;
                                             </button>
                                         </form>
+
+                                        @if ($capture->nearest !== null)
+                                            <span title="Distance to this person's closest other capture. Lower is better."
+                                                  class="absolute bottom-1 left-1 rounded px-1 text-[10px] font-mono leading-tight
+                                                         {{ $odd ? 'bg-danger-600 text-white' : 'bg-black/55 text-white' }}">
+                                                {{ number_format($capture->nearest, 2) }}
+                                            </span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
+
+                            @php $odds = $captures->filter(fn ($c) => $c->nearest !== null && $c->nearest > 0.5); @endphp
+
+                            @if ($odds->isNotEmpty())
+                                <p class="mt-2 text-xs text-danger-700">
+                                    {{ $odds->count() }} {{ Str::plural('capture', $odds->count()) }}
+                                    {{ $odds->count() === 1 ? 'sits' : 'sit' }} further from the others than a
+                                    clock-in is allowed to. Look at {{ $odds->count() === 1 ? 'it' : 'them' }} —
+                                    if the picture is a bad angle, badly lit, or not a face at all, delete it and
+                                    take another. It cannot help a match and it may be hurting one.
+                                </p>
+                            @endif
                         @endif
                     </div>
                 </div>
