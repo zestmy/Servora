@@ -155,13 +155,10 @@
         </nav>
     @endisset
 
-    <div id="pwa-install" class="hidden shrink-0 px-3 pb-3 safe-x">
-        <div class="flex items-center gap-3 bg-gray-900 text-white rounded-xl px-4 py-3 shadow-lg">
-            <span class="flex-1 text-sm">Add Clock In to your home screen</span>
-            <button id="pwa-install-go" class="px-3 py-1.5 bg-white text-gray-900 text-xs font-semibold rounded-lg">Add</button>
-            <button id="pwa-install-no" class="text-gray-400 text-lg leading-none px-1" aria-label="Dismiss">&times;</button>
-        </div>
-    </div>
+    @include('partials.pwa-install', [
+        'appName'    => 'Clock In',
+        'storageKey' => 'clock-install-dismissed',
+    ])
 </div>
 
 @livewireScripts
@@ -175,30 +172,6 @@
         });
     }
 
-    let deferredPrompt = null;
-    const installBar = document.getElementById('pwa-install');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-
-        if (installBar && localStorage.getItem('clock-install-dismissed') !== '1') {
-            installBar.classList.remove('hidden');
-        }
-    });
-
-    document.getElementById('pwa-install-go')?.addEventListener('click', async () => {
-        installBar?.classList.add('hidden');
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            deferredPrompt = null;
-        }
-    });
-
-    document.getElementById('pwa-install-no')?.addEventListener('click', () => {
-        installBar?.classList.add('hidden');
-        localStorage.setItem('clock-install-dismissed', '1');
-    });
 </script>
 </body>
 </html>

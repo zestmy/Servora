@@ -30,17 +30,6 @@ const DETECTOR_INPUT_SIZE = 320;
 /** Below this the "face" is usually a shadow or a pattern on a wall. */
 const DETECTOR_SCORE_THRESHOLD = 0.45;
 
-/**
- * Eye aspect ratio under which an eye counts as closed. Derived from the
- * 68-point landmark model, where a comfortably open eye sits around 0.30 and
- * a closed one near 0.10.
- */
-const BLINK_EAR = 0.19;
-
-/** Give up waiting for a blink after this and capture anyway, saying so.
- *  A hard requirement would strand anyone in bad light at the door. */
-const BLINK_TIMEOUT_MS = 8000;
-
 let faceapi = null;
 let modelsReady = null;
 
@@ -69,20 +58,84 @@ async function loadModels() {
     return modelsReady;
 }
 
-/** Vertical-to-horizontal ratio of one eye's six landmark points. */
-function eyeAspectRatio(eye) {
-    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-    const horizontal = dist(eye[0], eye[3]);
+/**
+ * Rough head pose from the 68-point landmarks.
+ *
+ * Not a real 3D solve — no camera intrinsics, no PnP. Two ratios are enough
+ * to tell "turned left" from "facing forward", and that is the whole job:
+ *
+ *   yaw   how far the nose sits from the middle of the jaw span. Positive is
+ *         the subject's own LEFT, because landmark 0 is their right jaw and
+ *         16 their left, so the nose slides toward 16 as they turn left.
+ *   pitch where the nose tip sits between the eye line and the mouth. Tilting
+ *         the chin up foreshortens the lower face and the tip rises toward
+ *         the eyes; tilting down does the reverse.
+ *
+ * Both are normalised by the face's own size, so they hold whether somebody
+ * is at arm's length or leaning in.
+ */
+function estimatePose(landmarks) {
+    const jaw   = landmarks.getJawOutline();
+    const nose  = landmarks.getNose();
+    const mouth = landmarks.getMouth();
+    const eyeL  = landmarks.getLeftEye();
+    const eyeR  = landmarks.getRightEye();
 
-    if (horizontal === 0) return 1;
+    if (! jaw?.length || ! nose?.length || ! mouth?.length) return null;
 
-    return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * horizontal);
+    const meanY = (points) => points.reduce((sum, p) => sum + p.y, 0) / points.length;
+
+    const noseTip = nose[6] || nose[nose.length - 1];
+    const jawFrom = jaw[0];
+    const jawTo   = jaw[jaw.length - 1];
+    const span    = jawTo.x - jawFrom.x;
+
+    if (! span) return null;
+
+    const eyeY   = (meanY(eyeL) + meanY(eyeR)) / 2;
+    const mouthY = meanY(mouth);
+    const height = mouthY - eyeY;
+
+    if (! height) return null;
+
+    return {
+        // 0 is dead centre either way.
+        yaw:   ((noseTip.x - jawFrom.x) / span) - 0.5,
+        pitch: ((noseTip.y - eyeY) / height) - NEUTRAL_PITCH,
+    };
 }
 
-/** Which way the camera points. Remembered per device — see FACING_KEY. */
-const FACING_USER = 'user';
-const FACING_ENVIRONMENT = 'environment';
-const FACING_KEY = 'servora-clock-facing';
+/** Where the nose tip sits between eyes and mouth on a level head. */
+const NEUTRAL_PITCH = 0.55;
+
+/**
+ * The poses a scan can ask for.
+ *
+ * Thresholds are deliberately loose. A scan that will not accept a
+ * three-quarter turn is a scan somebody gives up on, and the descriptors
+ * are more useful for the variety than for the exact angle.
+ */
+const POSES = {
+    centre: { label: 'Look straight at the camera', test: (p) => Math.abs(p.yaw) < 0.07 && Math.abs(p.pitch) < 0.10 },
+    left:   { label: 'Slowly turn your head to your LEFT',  test: (p) => p.yaw > 0.11 },
+    right:  { label: 'Slowly turn your head to your RIGHT', test: (p) => p.yaw < -0.11 },
+    up:     { label: 'Lift your chin UP',   test: (p) => p.pitch < -0.13 },
+    down:   { label: 'Lower your chin DOWN', test: (p) => p.pitch > 0.15 },
+};
+
+/** The enrolment ceremony: centre first, then the four angles. */
+const SCAN_SEQUENCE = ['centre', 'left', 'right', 'up', 'down'];
+
+/** What a clock-in punch may ask for. Centre is excluded — facing the camera
+ *  is what somebody does anyway, so it proves nothing about liveness. */
+const PUNCH_CHALLENGES = ['left', 'right', 'up', 'down'];
+
+/** How long a pose must be held before it counts — long enough not to fire
+ *  as somebody sweeps past it, short enough not to feel like a stare. */
+const POSE_HOLD_MS = 550;
+
+/** Give up on a pose after this and say so, rather than waiting forever. */
+const POSE_TIMEOUT_MS = 12000;
 
 export class ClockCamera {
     constructor({ video, canvas, onStatus, facing = FACING_USER }) {
@@ -185,46 +238,53 @@ export class ClockCamera {
     }
 
     /**
-     * Watch until both eyes close in one frame, or the timeout runs out.
+     * Wait until a named pose is HELD, reporting progress as it goes.
      *
-     * @returns {Promise<boolean>} whether a blink was actually seen.
+     * Replaces the old blink prompt. A blink is a poor liveness signal — a
+     * photo waved slightly can pass one, and a still photo cannot turn its
+     * head at all. It is still a deterrent rather than a control: the real
+     * backstop remains that every punch keeps a selfie a manager can look at.
+     *
+     * @param {string} poseKey
+     * @param {(fraction: number, hint: string) => void} onProgress
+     * @returns {Promise<boolean>} whether the pose was actually reached.
      */
-    async waitForBlink() {
-        const api = await loadModels();
+    async waitForPose(poseKey, onProgress = () => {}) {
+        const api  = await loadModels();
+        const pose = POSES[poseKey];
+
+        if (! pose) return false;
+
         const options = new api.TinyFaceDetectorOptions({
             inputSize: DETECTOR_INPUT_SIZE,
             scoreThreshold: DETECTOR_SCORE_THRESHOLD,
         });
 
-        const deadline = Date.now() + BLINK_TIMEOUT_MS;
-        let sawOpen = false;
+        const deadline = Date.now() + POSE_TIMEOUT_MS;
+        let heldSince = null;
 
         while (Date.now() < deadline) {
-            const result = await api
-                .detectSingleFace(this.video, options)
-                .withFaceLandmarks();
+            const result = await api.detectSingleFace(this.video, options).withFaceLandmarks();
+            const angles = result ? estimatePose(result.landmarks) : null;
 
-            if (result) {
-                const left = eyeAspectRatio(result.landmarks.getLeftEye());
-                const right = eyeAspectRatio(result.landmarks.getRightEye());
-                const closed = left < BLINK_EAR && right < BLINK_EAR;
+            if (angles && pose.test(angles)) {
+                heldSince ??= Date.now();
 
-                // Open-then-closed, not merely closed: someone who walks up
-                // mid-blink, or a photo of someone with narrow eyes, would
-                // otherwise pass on the very first frame.
-                if (closed && sawOpen) {
-                    return true;
-                }
+                const held = Math.min(1, (Date.now() - heldSince) / POSE_HOLD_MS);
+                onProgress(held, 'Hold it…');
 
-                if (! closed) {
-                    sawOpen = true;
-                }
+                if (held >= 1) return true;
+            } else {
+                // Reset rather than decay: a pose half-held then abandoned is
+                // not most of a pose.
+                heldSince = null;
+                onProgress(0, result ? pose.label : 'Looking for a face…');
             }
 
-            this.onStatus(result ? 'Blink once' : 'Looking for your face…');
-
-            await new Promise((r) => setTimeout(r, 120));
+            await new Promise((r) => setTimeout(r, 110));
         }
+
+        onProgress(0, '');
 
         return false;
     }
@@ -353,6 +413,7 @@ const SCREENS = [
         overlay: 'clock-camera-overlay', message: 'clock-camera-message',
         status: 'clock-status', diagnostics: 'clock-diagnostics',
         guide: 'clock-guide-oval', hint: 'clock-guide-hint', progress: null,
+        ring: 'clock-guide-ring',
     },
     {
         key: 'enrol',
@@ -360,6 +421,7 @@ const SCREENS = [
         overlay: 'enrol-overlay', message: 'enrol-overlay-message',
         status: 'enrol-status', diagnostics: 'enrol-diagnostics',
         guide: 'enrol-guide-oval', hint: 'enrol-guide-hint', progress: 'enrol-progress',
+        ring: 'enrol-guide-ring',
     },
 ];
 
@@ -367,6 +429,7 @@ const screen = {
     dom: null,
     videoNode: null,
     guiding: false,
+    scanning: false,
     camera: null,
     faceAvailable: false,
     starting: false,
@@ -484,6 +547,19 @@ async function startScreen() {
     screen.starting = false;
 
     runGuide();
+
+    // Enrolment starts scanning on its own — that IS the feature. It waits
+    // for somebody to be selected, and stays quiet once there are enough
+    // faces on file, so reopening a finished person is not a fresh ceremony.
+    if (screen.dom?.key === 'enrol') {
+        const bar = el(screen.dom.progress);
+        const needed = Number(bar?.dataset.needed || 3);
+        const have = Number(bar?.dataset.have || 0);
+
+        if (document.getElementById('enrol-form')?.dataset.employee && have < needed) {
+            runScan();
+        }
+    }
 }
 
 /** Shared guard for the two actions below. */
@@ -604,20 +680,123 @@ function assessFraming(detection, video) {
     return { state: 'good', hint: 'Good — hold still' };
 }
 
+/** Set the advice line and the oval colour together. */
+function setGuideHint(hint, state = 'idle') {
+    paintGuide({ state, hint });
+}
+
 function paintGuide({ state, hint }) {
     const oval = el(screen.dom?.guide);
     const line = el(screen.dom?.hint);
 
     if (oval) {
-        oval.style.borderColor = GUIDE_COLOURS[state];
-        // Solid once framed: the dashes say "aim here", a solid ring says
+        // An SVG ellipse, so stroke rather than border.
+        oval.style.stroke = GUIDE_COLOURS[state];
+        // Solid once framed: the dashes say "aim here", a solid outline says
         // "you are there", which reads at a glance without being read.
-        oval.style.borderStyle = state === 'good' ? 'solid' : 'dashed';
+        oval.style.strokeDasharray = state === 'good' ? 'none' : '7 6';
     }
 
     if (line) {
         line.textContent = hint;
         line.style.color = state === 'good' ? '#047857' : '';
+    }
+}
+
+/**
+ * The arc around the oval — "scan progress in the face frame".
+ *
+ * Drawn as a stroked ellipse whose dash offset is wound back as the fraction
+ * rises, so the ring fills clockwise from the top. getTotalLength() is asked
+ * for the real perimeter rather than approximating one, because an ellipse's
+ * circumference has no closed form and a wrong constant shows up as a ring
+ * that never quite closes.
+ *
+ * @param {number} fraction 0 to 1
+ */
+function paintRing(fraction) {
+    const ring = el(screen.dom?.ring);
+
+    if (! ring) return;
+
+    const length = ring.getTotalLength?.() || 0;
+
+    if (! length) return;
+
+    const clamped = Math.max(0, Math.min(1, fraction));
+
+    ring.style.strokeDasharray  = `${length}`;
+    ring.style.strokeDashoffset = `${length * (1 - clamped)}`;
+    ring.style.opacity = clamped > 0 ? '1' : '0';
+}
+
+/**
+ * The guided enrolment scan.
+ *
+ * Walks the five poses, capturing each the moment it is held. This is where
+ * a multi-angle ceremony earns its keep: enrolment happens once, and the
+ * descriptors it produces decide whether somebody can clock in for months
+ * afterwards. One head-on shot stops working the week they grow a beard.
+ *
+ * A pose that cannot be reached is SKIPPED, not retried forever. Four good
+ * angles beat a scan somebody abandoned halfway through, and the manual
+ * Capture button is still there for whatever is missing.
+ */
+async function runScan() {
+    if (screen.scanning || screen.dom?.key !== 'enrol') return;
+
+    const form = document.getElementById('enrol-form');
+
+    if (! form?.dataset.employee || ! screen.faceAvailable) return;
+
+    screen.scanning = true;
+    stopGuide();
+
+    let taken = 0;
+    let skipped = 0;
+
+    try {
+        for (const [index, poseKey] of SCAN_SEQUENCE.entries()) {
+            if (! screen.scanning) break;
+
+            setStatus(`Step ${index + 1} of ${SCAN_SEQUENCE.length}`);
+            setGuideHint(POSES[poseKey].label, 'poor');
+
+            const held = await screen.camera.waitForPose(poseKey, (fraction, hint) => {
+                // The ring shows this pose's hold, offset by the steps done —
+                // so it sweeps once across the whole scan, not five times.
+                paintRing((index + fraction) / SCAN_SEQUENCE.length);
+
+                if (hint) setGuideHint(hint, fraction > 0 ? 'good' : 'poor');
+            });
+
+            if (! held) {
+                skipped++;
+                continue;
+            }
+
+            const saved = await captureAndSave();
+
+            if (saved) {
+                taken++;
+            } else {
+                // Storage refused it — a full slate, or a face it could not
+                // read. Either way, pressing on would repeat the failure.
+                break;
+            }
+
+            paintRing((index + 1) / SCAN_SEQUENCE.length);
+        }
+    } finally {
+        screen.scanning = false;
+        paintRing(0);
+        setGuideHint('', 'idle');
+
+        setStatus(taken
+            ? `Scan finished — ${taken} added${skipped ? `, ${skipped} skipped` : ''}.`
+            : 'Scan finished without a usable capture. Try the Capture button.');
+
+        runGuide();
     }
 }
 
@@ -704,11 +883,27 @@ async function performPunch(wire, intent = 'shift') {
         let face = null;
 
         if (screen.faceAvailable) {
-            setStatus('Blink once');
-            await screen.camera.waitForBlink();
+            // ONE pose, chosen at random each time. A single gesture is all a
+            // doorway will tolerate twice a day — the five-step ceremony
+            // belongs to enrolment, which happens once. Random matters: a
+            // fixed challenge could be pre-recorded, a varying one cannot.
+            const challenge = PUNCH_CHALLENGES[Math.floor(Math.random() * PUNCH_CHALLENGES.length)];
 
+            setStatus(POSES[challenge].label);
+            const held = await screen.camera.waitForPose(challenge, (fraction, hint) => {
+                paintRing(fraction);
+                if (hint) setStatus(hint);
+            });
+
+            paintRing(held ? 1 : 0);
+
+            // A pose that never came is not a refusal. Capture anyway and let
+            // the manager see the selfie — stranding somebody outside because
+            // they could not turn their head far enough is the wrong trade.
             setStatus('Hold still…');
             face = await screen.camera.capture();
+
+            paintRing(0);
 
             if (! face) {
                 setStatus('Could not see your face. Try again in better light.');
@@ -759,17 +954,32 @@ async function performEnrolCapture() {
         return;
     }
 
-    const form = document.getElementById('enrol-form');
-    const employeeId = form?.dataset.employee;
-
-    if (! employeeId) {
+    if (! document.getElementById('enrol-form')?.dataset.employee) {
         setStatus('Pick somebody from the list first.');
 
         return;
     }
 
-    screen.busy = true;
     setStatus('Hold still…');
+    await captureAndSave();
+}
+
+/**
+ * Take one frame and store it.
+ *
+ * Shared by the manual button and the guided scan, so the two cannot drift
+ * on what a capture is or on how a failure reads.
+ *
+ * @returns {Promise<boolean>} whether it was saved.
+ */
+async function captureAndSave() {
+    const form = document.getElementById('enrol-form');
+
+    if (! form?.dataset.employee || screen.busy) return false;
+
+    const employeeId = form.dataset.employee;
+
+    screen.busy = true;
 
     try {
         const face = await screen.camera.capture();
@@ -777,7 +987,7 @@ async function performEnrolCapture() {
         if (! face) {
             setStatus('No face found. Move closer and try again.');
 
-            return;
+            return false;
         }
 
         const response = await fetch(form.dataset.endpoint, {
@@ -799,7 +1009,7 @@ async function performEnrolCapture() {
         if (! response.ok) {
             setStatus(result.message || 'Capture failed. Try again.');
 
-            return;
+            return false;
         }
 
         appendCapture(result);
@@ -807,9 +1017,13 @@ async function performEnrolCapture() {
 
         setStatus(result.enough
             ? `Saved — ${result.count} on file. That is enough to clock in with.`
-            : `Saved — ${result.count} on file. Turn the head slightly and take another.`);
+            : `Saved — ${result.count} on file.`);
+
+        return true;
     } catch (error) {
         setStatus('Capture failed. Try again.');
+
+        return false;
     } finally {
         screen.busy = false;
     }
@@ -920,6 +1134,17 @@ function boot() {
             // this is the user gesture Safari wants before it will play.
             screen.camera?.resume();
 
+            if (event.target.closest('[data-clock-scan]')) {
+                if (screen.scanning) {
+                    screen.scanning = false;
+                    setStatus('Scan stopped.');
+                } else {
+                    runScan();
+                }
+
+                return;
+            }
+
             if (event.target.closest('[data-clock-flip]')) {
                 flipCamera();
 
@@ -980,4 +1205,5 @@ window.ServoraClock = {
     ClockCamera, currentPosition, loadModels,
     screen, startScreen, performPunch, performEnrolCapture, showDiagnostics,
     assessFraming, paintProgress, flipCamera, preferredFacing,
+    runScan, estimatePose, POSES, SCAN_SEQUENCE,
 };

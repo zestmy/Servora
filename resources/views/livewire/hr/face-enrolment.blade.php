@@ -123,12 +123,24 @@
                                    playsinline muted autoplay></video>
                             <canvas id="enrol-canvas" class="hidden"></canvas>
 
-                            {{-- Framing guide. pointer-events-none so it never
-                                 swallows the tap that retries the camera. --}}
+                            {{-- Framing guide plus the scan ring. The dashed
+                                 oval says where the face goes; the ring around
+                                 it fills as the scan walks its five poses, so
+                                 progress is read where the eyes already are
+                                 rather than somewhere below the video. --}}
                             <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                <div id="enrol-guide-oval"
-                                     class="rounded-[50%] border-[3px] border-dashed transition-colors duration-200"
-                                     style="width: 56%; aspect-ratio: 3 / 4; border-color: rgba(255,255,255,0.55);"></div>
+                                <svg viewBox="0 0 200 260" class="h-[86%] w-auto" aria-hidden="true">
+                                    <ellipse id="enrol-guide-oval" cx="100" cy="130" rx="86" ry="118"
+                                             fill="none" stroke="rgba(255,255,255,0.55)"
+                                             stroke-width="3" stroke-dasharray="7 6"
+                                             style="transition: stroke .2s;"></ellipse>
+                                    {{-- Wound from the top: rotate -90 puts the
+                                         dash origin at 12 o'clock. --}}
+                                    <ellipse id="enrol-guide-ring" cx="100" cy="130" rx="86" ry="118"
+                                             fill="none" stroke="#34d399" stroke-width="5"
+                                             stroke-linecap="round" transform="rotate(-90 100 130)"
+                                             style="opacity: 0; transition: opacity .2s, stroke-dashoffset .12s linear;"></ellipse>
+                                </svg>
                             </div>
 
                             <button type="button" data-clock-flip
@@ -155,7 +167,7 @@
                         {{-- Progress, so "how many more?" is answerable without
                              counting thumbnails. The first three slots are the
                              ones that matter; the rest are headroom. --}}
-                        <div id="enrol-progress" class="mt-2" data-needed="{{ $needed }}">
+                        <div id="enrol-progress" class="mt-2" data-needed="{{ $needed }}" data-have="{{ $captures->count() }}">
                             <div class="flex items-center gap-1" role="img"
                                  aria-label="{{ $captures->count() }} of {{ $maxCaptures }} captures taken">
                                 @for ($i = 0; $i < $maxCaptures; $i++)
@@ -181,6 +193,15 @@
                         {{-- Enabled state comes from the server, not from JS:
                              this button is re-rendered on every save, and a
                              flag set in JS would be wiped by the morph. --}}
+                        {{-- The scan runs itself when somebody is selected and
+                             is short of faces. This is for re-running it, and
+                             for stopping one mid-way. --}}
+                        <button type="button" data-clock-scan @disabled(! $selected)
+                                class="mt-2 w-full min-h-[2.75rem] rounded-lg border border-brand-600 text-sm font-semibold
+                                       text-brand-700 disabled:opacity-50 active:bg-brand-50">
+                            Start / stop guided scan
+                        </button>
+
                         <button type="button" id="enrol-capture" @disabled(! $selected)
                                 class="mt-2 w-full min-h-[3rem] rounded-lg bg-brand-700 text-white text-sm font-semibold
                                        disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-800">
