@@ -15,7 +15,17 @@
     $chargeable = max(0, $lateBy - (int) $settings->grace_minutes);
 @endphp
 
-<div wire:key="punch-{{ $nextType }}">
+{{-- No wire:key here, and that is load-bearing.
+
+     It used to be wire:key="punch-{{ '{{' }} $nextType }}". Clocking in flips
+     nextType from "in" to "out", so the key CHANGED — and a changed key on a
+     component's root element makes Livewire discard the element and rebuild
+     it rather than morph it. That took the wire:ignore camera subtree with
+     it: a fresh <video> with no stream, an overlay reset to its server text,
+     and a click listener still bound to the button that had just been thrown
+     away. Which is exactly "Tap to start camera does nothing" the moment you
+     try to start a break. --}}
+<div>
 
     {{-- ── The shift you are on ─────────────────────────────────────────
          First thing on the screen because it is the thing that decides

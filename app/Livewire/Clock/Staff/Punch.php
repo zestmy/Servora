@@ -168,6 +168,7 @@ class Punch extends StaffComponent
     public function breakAllowanceMinutes(): int
     {
         return \App\Services\Hr\BreakOverrun::allowanceFor(
+            $this->staff(),
             $this->shift()['entry'] ?? null,
             $this->staff()->outlet_id,
         );

@@ -2,8 +2,10 @@
 
 namespace Tests\Unit\Hr;
 
+use App\Models\Employee;
+use App\Models\RosterEntry;
 use App\Services\Hr\BreakOverrun;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 /**
  * Break overrun decides money, so the arithmetic is pinned down here.
@@ -94,5 +96,65 @@ class BreakOverrunTest extends TestCase
     public function test_no_chargeable_minutes_means_no_money(): void
     {
         $this->assertSame(0.0, BreakOverrun::amount(0, 5.00));
+    }
+
+    // ── The allowance chain ───────────────────────────────────────────────
+
+    private function employee(?int $breakMinutes): Employee
+    {
+        $employee = new Employee();
+        $employee->break_minutes = $breakMinutes;
+
+        return $employee;
+    }
+
+    private function entry(?int $restDuration): RosterEntry
+    {
+        $entry = new RosterEntry();
+        $entry->rest_duration = $restDuration;
+
+        return $entry;
+    }
+
+    public function test_an_employee_override_beats_the_roster_line(): void
+    {
+        // The duty roster prefills rest_duration on nearly every line, so an
+        // override that lost to it would apply on almost no shift at all.
+        $this->assertSame(
+            20,
+            BreakOverrun::allowanceFor($this->employee(20), $this->entry(60), null)
+        );
+    }
+
+    public function test_a_zero_override_is_honoured_and_not_read_as_unset(): void
+    {
+        $this->assertSame(
+            0,
+            BreakOverrun::allowanceFor($this->employee(0), $this->entry(60), null)
+        );
+    }
+
+    public function test_the_roster_line_applies_when_the_employee_has_no_override(): void
+    {
+        $this->assertSame(
+            45,
+            BreakOverrun::allowanceFor($this->employee(null), $this->entry(45), null)
+        );
+    }
+
+    public function test_the_default_applies_when_nothing_is_set(): void
+    {
+        $this->assertSame(
+            BreakOverrun::DEFAULT_ALLOWANCE_MINUTES,
+            BreakOverrun::allowanceFor(null, null, null)
+        );
+    }
+
+    public function test_a_negative_override_cannot_manufacture_an_allowance(): void
+    {
+        $this->assertSame(
+            0,
+            BreakOverrun::allowanceFor($this->employee(-30), null, null)
+        );
     }
 }

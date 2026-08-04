@@ -465,6 +465,19 @@
                             <x-input-error :messages="$errors->get('f_halal_training_date')" class="mt-1" />
                         </div>
                     @endif
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Break Allowance (minutes)</label>
+                        <input type="number" min="0" max="1440" wire:model="f_break_minutes"
+                               placeholder="Use the roster's allowance"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_break_minutes')" class="mt-1" />
+                        {{-- Blank and 0 mean different things, so both are spelled out. --}}
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            A personal override for clock-in break tracking. Leave blank to follow the duty
+                            roster's rest duration for each shift. Enter 0 for no break allowance at all.
+                        </p>
+                    </div>
+
                     <label class="inline-flex items-center gap-2">
                         <input type="checkbox" wire:model="f_is_active" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                         <span class="text-sm text-gray-700">Active</span>
@@ -502,7 +515,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Break Minutes@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         @unless ($canViewPay)
                             <p class="mt-0.5 text-blue-700">Salary and Service Points columns are ignored — you don't have access to compensation data.</p>

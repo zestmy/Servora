@@ -402,7 +402,7 @@ class ClockInService
 
         $taken += max(0, (int) floor($openStart->happened_at->diffInSeconds($at, false) / 60));
 
-        $allowance      = BreakOverrun::allowanceFor($shift['entry'] ?? null, $employee->outlet_id);
+        $allowance      = BreakOverrun::allowanceFor($employee, $shift['entry'] ?? null, $employee->outlet_id);
         $alreadyMinutes = (int) $ends->sum('chargeable_late_minutes');
         $alreadyAmount  = (float) $this->countedPunches($employee, $workDate, ClockEvent::TYPE_IN)
             ->sum('penalty_amount') + (float) $ends->sum('penalty_amount');

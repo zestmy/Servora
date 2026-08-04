@@ -17,6 +17,7 @@ class Employee extends Model
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
+        'break_minutes',
     ];
 
     /**
@@ -117,6 +118,7 @@ class Employee extends Model
         'halal_training'         => 'boolean',
         'halal_training_date'    => 'date',
         'service_points_entitlement' => 'decimal:2',
+        'break_minutes'              => 'integer',
         'basic_salary'               => 'decimal:2',
         'label_pin_set_at'           => 'datetime',
     ];

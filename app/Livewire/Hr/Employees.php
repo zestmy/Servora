@@ -45,6 +45,7 @@ class Employees extends Component
     public string $f_typhoid_expired_on = '';
     public bool   $f_halal_training     = false;
     public string $f_halal_training_date = '';
+    public string $f_break_minutes     = '';
     public string $f_service_points    = '';
     public string $f_basic_salary      = '';
     public string $f_pay_type          = '';
@@ -121,6 +122,9 @@ class Employees extends Component
             ]),
             'f_halal_training'      => 'boolean',
             'f_halal_training_date' => 'nullable|date',
+            // A blank means "use the roster's". 0 is a real answer (no paid
+            // break), so it must stay distinguishable from blank.
+            'f_break_minutes'       => 'nullable|integer|min:0|max:1440',
             'f_service_points'      => 'nullable|numeric|min:0|max:999999.99',
             'f_basic_salary'        => 'nullable|numeric|min:0|max:9999999999.99',
             'f_pay_type'            => 'nullable|in:' . implode(',', array_keys(Employee::PAY_TYPES)),
@@ -210,6 +214,7 @@ class Employees extends Component
         $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
         $this->f_halal_training      = (bool) $emp->halal_training;
         $this->f_halal_training_date = $emp->halal_training_date?->format('Y-m-d') ?? '';
+        $this->f_break_minutes = $emp->break_minutes !== null ? (string) $emp->break_minutes : '';
         // Pay fields are only hydrated for permitted users — otherwise they'd
         // ride along in the Livewire payload even with the inputs hidden.
         if ($this->canViewPay()) {
@@ -263,6 +268,8 @@ class Employees extends Component
             'halal_training'      => $this->f_halal_training,
             'halal_training_date' => $this->f_halal_training ? ($this->f_halal_training_date ?: null) : null,
             'is_active'     => $this->f_is_active,
+            // Blank means "use the roster's allowance"; 0 is a real answer.
+            'break_minutes' => $this->f_break_minutes !== '' ? (int) $this->f_break_minutes : null,
         ];
 
         // Pay fields are omitted entirely for users without hr.compensation, so
@@ -358,6 +365,7 @@ class Employees extends Component
         $this->f_halal_training_date = '';
         $this->f_service_points = '';
         $this->f_basic_salary  = '';
+        $this->f_break_minutes = '';
         $this->f_pay_type      = '';
         $this->f_is_active     = true;
     }
@@ -499,6 +507,9 @@ class Employees extends Component
         $canViewPay = $this->canViewPay();
         if ($canViewPay) {
             $aliasMap += [
+                'break minutes'              => 'break_minutes',
+                'break duration'             => 'break_minutes',
+                'break'                      => 'break_minutes',
                 'service points entitlement' => 'service_points_entitlement',
                 'service points'             => 'service_points_entitlement',
                 'service pts'                => 'service_points_entitlement',

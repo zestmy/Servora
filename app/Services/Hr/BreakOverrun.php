@@ -27,15 +27,30 @@ final class BreakOverrun
     public const DEFAULT_ALLOWANCE_MINUTES = 60;
 
     /**
-     * Rest minutes a shift is allowed.
+     * Rest minutes a shift is allowed, most specific source first:
      *
-     * The ROSTER owns this: the shift's own rest_duration when set, else the
-     * outlet's roster setting. There is deliberately no per-employee break
-     * field — it would be a second source of truth for a number the roster
-     * already holds, and the two would drift.
+     *   1. the employee's own break_minutes, when set
+     *   2. the roster line's rest_duration
+     *   3. the outlet's roster setting
+     *   4. DEFAULT_ALLOWANCE_MINUTES
+     *
+     * The EMPLOYEE beats the roster line, which looks backwards until you
+     * see how rosters are built: the duty roster prefills rest_duration from
+     * the outlet setting, so nearly every line carries a value. If the line
+     * won, a personal allowance would apply on almost no shift and the
+     * override would be decorative. An override that does not override is
+     * worse than none — somebody would set it, believe it was in force, and
+     * be charged anyway.
      */
-    public static function allowanceFor(?\App\Models\RosterEntry $entry, ?int $outletId): int
-    {
+    public static function allowanceFor(
+        ?\App\Models\Employee $employee,
+        ?\App\Models\RosterEntry $entry,
+        ?int $outletId,
+    ): int {
+        if ($employee && $employee->break_minutes !== null) {
+            return max(0, (int) $employee->break_minutes);
+        }
+
         if ($entry && $entry->rest_duration !== null) {
             return max(0, (int) $entry->rest_duration);
         }

@@ -316,6 +316,7 @@ const SCREENS = [
 
 const screen = {
     dom: null,
+    videoNode: null,
     camera: null,
     faceAvailable: false,
     starting: false,
@@ -610,23 +611,49 @@ function boot() {
 
     screen.dom = found;
 
-    // A retry from a real tap is the call iOS reliably prompts for, so the
-    // overlay is the recovery path for every camera failure.
-    const overlay = el(found.overlay);
+    // A <video> that has been REPLACED — not merely re-rendered — carries no
+    // stream, however healthy the ClockCamera pointing at the old node was.
+    // Livewire discarding and rebuilding this component is exactly how the
+    // camera died mid-shift, so identity is checked rather than assumed.
+    const video = el(found.video);
 
-    if (overlay && ! overlay.dataset.bound) {
-        overlay.dataset.bound = '1';
-        overlay.addEventListener('click', startScreen);
+    if (screen.videoNode && screen.videoNode !== video) {
+        screen.camera?.stop();
+        screen.camera = null;
+        screen.faceAvailable = false;
     }
 
-    // Delegated, and bound once: the capture button is re-rendered whenever
-    // the enrolment page reloads, and a handler bound to the original node
-    // would stop firing.
+    screen.videoNode = video;
+
+    // Everything below is delegated and bound once. A handler attached to a
+    // specific button stops firing the moment that button is replaced, which
+    // is the failure this whole block exists to survive.
     if (! document.body.dataset.clockBound) {
         document.body.dataset.clockBound = '1';
+
         document.addEventListener('click', (event) => {
-            if (event.target.closest('#enrol-capture')) performEnrolCapture();
+            if (event.target.closest('#enrol-capture')) {
+                performEnrolCapture();
+
+                return;
+            }
+
+            // A retry from a real tap is the call iOS reliably prompts for,
+            // so the overlay is the recovery path for every camera failure.
+            if (event.target.closest('#clock-camera-overlay')
+                || event.target.closest('#enrol-overlay')) {
+                startScreen();
+            }
         });
+
+        // Re-boot whenever the camera element is swapped out from under us.
+        // Cheaper than guessing which framework hook fired, and it holds for
+        // any cause — a morph, a navigation, a full re-render.
+        new MutationObserver(() => {
+            const current = SCREENS.map((s) => el(s.video)).find(Boolean) || null;
+
+            if (current && current !== screen.videoNode) boot();
+        }).observe(document.body, { childList: true, subtree: true });
     }
 
     startScreen();
