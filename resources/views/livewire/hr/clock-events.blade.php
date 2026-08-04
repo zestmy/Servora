@@ -57,6 +57,25 @@
                     <option value="{{ ClockEvent::STATUS_REJECTED }}">Rejected</option>
                 </select>
             </div>
+
+            {{-- Deliberately its own control rather than another entry in the
+                 Status list. Deleted is orthogonal to status — a deleted punch
+                 still has one — and folding them together would make "show me
+                 the flagged punch I deleted by mistake" unaskable, which is
+                 the only question this filter exists to answer.
+
+                 Only company admins see it, because they are the only ones
+                 who can act on what it reveals. --}}
+            @if ($this->canDelete())
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Deleted</label>
+                    <select wire:model.live="deletedFilter" class="w-full rounded-lg border-gray-300 text-sm">
+                        <option value="">Hidden</option>
+                        <option value="include">Include deleted</option>
+                        <option value="only">Deleted only</option>
+                    </select>
+                </div>
+            @endif
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
@@ -96,10 +115,22 @@
                             ? \Carbon\Carbon::parse((string) $event->rosterEntry->shift_start)
                             : null;
                     @endphp
-                    <tr wire:key="ev-{{ $event->id }}" class="hover:bg-gray-50/70 {{ $event->isRejected() ? 'opacity-60' : '' }}">
+                    <tr wire:key="ev-{{ $event->id }}"
+                        class="hover:bg-gray-50/70 {{ $event->isRejected() || $event->trashed() ? 'opacity-60' : '' }}">
                         <td class="px-3 py-2 whitespace-nowrap text-gray-700">{{ $event->work_date->format('d M') }}</td>
                         <td class="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
-                            {{ $event->employee?->name ?? '—' }}
+                            {{-- Struck through, not merely faded. Once deleted
+                                 rows are mixed in with live ones, opacity
+                                 alone is a difference somebody scanning the
+                                 list at speed will miss. --}}
+                            <span class="{{ $event->trashed() ? 'line-through' : '' }}">
+                                {{ $event->employee?->name ?? '—' }}
+                            </span>
+                            @if ($event->trashed())
+                                <span class="ml-1 align-middle rounded bg-gray-200 px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-700">
+                                    Deleted
+                                </span>
+                            @endif
                             <span class="block text-[11px] font-normal text-gray-500">{{ $event->outlet?->name }}</span>
                         </td>
                         <td class="px-2 py-2 text-gray-600 whitespace-nowrap">{{ $event->typeLabel() }}</td>
@@ -267,6 +298,10 @@
                 </div>
 
                 <div class="px-5 pb-5 space-y-3">
+                    {{-- A deleted punch shows one action and nothing else: an
+                         override box and a note field are controls with
+                         nothing left to act on. --}}
+                    @if (! $viewing->trashed())
                     @if ($this->canViewPay())
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">
@@ -283,6 +318,37 @@
                         <textarea wire:model="reviewNote" rows="2" class="w-full rounded-lg border-gray-300 text-sm"></textarea>
                     </div>
 
+                    @endif
+
+                    @if ($viewing->trashed())
+                        {{-- A deleted punch gets one action, not four.
+                             Approve and Reject would be writing decisions onto
+                             a record that counts for nothing, and the server
+                             refuses them anyway — offering the buttons would
+                             just be a way to find that out the hard way. --}}
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                            <p class="text-sm font-medium text-gray-900">This punch is deleted.</p>
+                            <p class="mt-0.5 text-xs text-gray-600">
+                                It counts for nothing — not attendance, not the service charge
+                                @if ($viewing->deleter)
+                                    — deleted by {{ $viewing->deleter->name }}
+                                @endif
+                                @if ($viewing->deleted_at)
+                                    on {{ $viewing->deleted_at->format('d M Y, g:i A') }}
+                                @endif.
+                            </p>
+
+                            @if ($this->canDelete())
+                                <button wire:click="restoreEvent({{ $viewing->id }})"
+                                        wire:confirm="Restore this punch?{{ $this->canViewPay() && (float) $viewing->penalty_amount > 0
+                                            ? ' Its RM' . number_format((float) $viewing->penalty_amount, 2) . ' late charge will apply again.'
+                                            : '' }}"
+                                        class="btn-primary mt-3">
+                                    Restore
+                                </button>
+                            @endif
+                        </div>
+                    @else
                     <div class="flex flex-wrap items-center gap-2 justify-end">
                         {{-- Delete sits apart from Approve and Reject, on the
                              far side of the row.
@@ -303,7 +369,7 @@
                             <button wire:click="deleteEvent({{ $viewing->id }})"
                                     wire:confirm="Delete this punch?{{ $charge > 0
                                         ? ' It carries an RM' . number_format($charge, 2) . ' late charge, which will stop applying to the service charge.'
-                                        : '' }} It stops counting everywhere. The record is kept for audit but cannot be restored from this screen."
+                                        : '' }} It stops counting everywhere. You can bring it back with the Deleted filter."
                                     class="mr-auto px-3 py-2 text-sm font-medium text-danger-700 hover:underline">
                                 Delete
                             </button>
@@ -316,6 +382,7 @@
                         </button>
                         <button wire:click="approve({{ $viewing->id }})" class="btn-primary">Approve</button>
                     </div>
+                    @endif
                 </div>
             </div>
             </div>
