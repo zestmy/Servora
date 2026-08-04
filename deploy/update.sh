@@ -77,6 +77,20 @@ info "Setting permissions..."
 chown -R "${WEB_USER}:${WEB_USER}" "$APP_DIR"
 chmod -R 775 "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
 
+# ── Queue worker state, BEFORE we touch it ──────────────────────────────────
+# Read-only. The worker has repeatedly been found dead between deploys, and
+# restarting it here is exactly what destroys the evidence of why. This prints
+# the unit's restart policy and its last words into the deploy log, which is
+# somewhere the failure can actually be read after the fact.
+#
+# Every command is `|| true`: `set -e` is on, and a diagnostic must never be
+# the thing that fails a deploy.
+info "Queue worker state before restart:"
+systemctl show servora-queue \
+    -p ActiveState -p SubState -p Result -p NRestarts -p Restart -p ExecMainStatus \
+    --no-pager 2>&1 | sed 's/^/    /' || true
+journalctl -u servora-queue -n 20 --no-pager --output=short 2>&1 | tail -20 | sed 's/^/    /' || true
+
 if systemctl is-active --quiet servora-queue 2>/dev/null; then
     info "Restarting queue worker..."
     systemctl restart servora-queue
