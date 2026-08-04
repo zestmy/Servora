@@ -134,7 +134,34 @@ export class ClockCamera {
         }
 
         this.video.srcObject = this.stream;
-        this.video.play?.().catch(() => {});
+
+        // Metadata can land after srcObject is assigned, and Safari will not
+        // start a stream it has no dimensions for yet — so play is attempted
+        // both now and once the element knows what it is showing.
+        this.video.addEventListener('loadedmetadata', () => this.resume(), { once: true });
+        this.resume();
+    }
+
+    /**
+     * Start or restart playback, ignoring rejection.
+     *
+     * A paused <video> is INVISIBLE but still capturable: the detector and
+     * the canvas both read its current decoded frame, so a rejected play()
+     * produced exactly "the camera is not opening, but Capture works". This
+     * is called again from every tap, because a play() made under a real
+     * user gesture is the one Safari does not refuse.
+     */
+    resume() {
+        if (! this.video || ! this.stream) return;
+
+        if (this.video.paused || this.video.readyState < 2) {
+            this.video.play?.().catch(() => {});
+        }
+    }
+
+    /** Whether the preview is actually showing moving pictures. */
+    get playing() {
+        return Boolean(this.stream) && ! this.video?.paused && (this.video?.videoWidth ?? 0) > 0;
     }
 
     stop() {
@@ -409,6 +436,14 @@ async function startScreen() {
         return;
     }
 
+    // A stream that opened but is not painting looks identical to a dead
+    // camera, so it is named rather than left as a black rectangle.
+    setTimeout(() => {
+        if (screen.camera && ! screen.camera.playing) {
+            setStatus('Tap the preview to start the picture.');
+        }
+    }, 1500);
+
     setStatus('Getting the face check ready…');
 
     try {
@@ -585,8 +620,42 @@ function appendCapture(result) {
     image.src = result.photo_url;
     image.alt = 'Enrolment capture';
     image.className = 'w-full aspect-square object-cover rounded-lg border border-gray-200';
-
     figure.appendChild(image);
+
+    // The same form the server renders, built here so a capture taken two
+    // seconds ago can be thrown away without reloading — which is when you
+    // most want to, because you have just seen it was blurred.
+    if (result.delete_url) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = result.delete_url;
+        form.className = 'absolute -top-1.5 -right-1.5';
+        form.addEventListener('submit', (event) => {
+            if (! confirm('Delete this capture?')) event.preventDefault();
+        });
+
+        for (const [name, value] of [
+            ['_token', document.querySelector('meta[name="csrf-token"]')?.content || ''],
+            ['_method', 'DELETE'],
+        ]) {
+            const field = document.createElement('input');
+            field.type = 'hidden';
+            field.name = name;
+            field.value = value;
+            form.appendChild(field);
+        }
+
+        const remove = document.createElement('button');
+        remove.type = 'submit';
+        remove.setAttribute('aria-label', 'Delete capture');
+        remove.className = 'w-6 h-6 rounded-full bg-white border border-gray-300 '
+            + 'text-gray-600 text-sm leading-none shadow-sm hover:bg-danger-50 hover:text-danger-700';
+        remove.textContent = '\u00d7';
+
+        form.appendChild(remove);
+        figure.appendChild(form);
+    }
+
     list.appendChild(figure);
 
     const counter = document.getElementById('enrol-count');
@@ -632,6 +701,10 @@ function boot() {
         document.body.dataset.clockBound = '1';
 
         document.addEventListener('click', (event) => {
+            // Cheap, and it costs nothing when the preview is already live:
+            // this is the user gesture Safari wants before it will play.
+            screen.camera?.resume();
+
             if (event.target.closest('#enrol-capture')) {
                 performEnrolCapture();
 

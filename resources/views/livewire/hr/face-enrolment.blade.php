@@ -30,42 +30,50 @@
         </p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="space-y-4">
 
-        {{-- Who --}}
-        <div class="panel overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-100">
-                <input type="text" wire:model.live.debounce.400ms="search"
-                       placeholder="Search staff"
-                       class="w-full rounded-lg border-gray-300 text-sm">
-            </div>
-            <div class="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
-                @forelse ($employees as $employee)
-                    @php $count = (int) ($counts[$employee->id] ?? 0); @endphp
-                    {{-- A real link, not a wire:click. Picking a name has to work
-                         on a device where Livewire's JavaScript never started,
-                         which is exactly how this failed: taps did nothing and
-                         the list looked identical to a slow network. --}}
-                    <a href="{{ route('hr.face-enrolment', ['employee' => $employee->id]) }}" wire:navigate
-                       wire:key="emp-{{ $employee->id }}"
-                       class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-gray-50
-                              {{ $selected?->id === $employee->id ? 'bg-brand-50' : '' }}">
-                        <span class="min-w-0">
-                            <span class="block text-sm font-medium text-gray-900 truncate">{{ $employee->name }}</span>
-                            <span class="block text-[11px] text-gray-500 truncate">{{ $employee->outlet?->name }}</span>
-                        </span>
-                        {{-- The count is the whole point of this list: it says
-                             at a glance who still cannot use the clock. --}}
-                        <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full
-                            {{ $count >= $minCaptures ? 'bg-success-100 text-success-700'
-                               : ($count > 0 ? 'bg-warning-100 text-warning-700' : 'bg-gray-100 text-gray-500') }}">
-                            {{ $count ?: 'none' }}
-                        </span>
-                    </a>
-                @empty
-                    <p class="px-4 py-8 text-center text-sm text-gray-600">No staff match that.</p>
-                @endforelse
-            </div>
+        {{-- Who.
+
+             A dropdown, not a scrolling list. The list pushed the camera and
+             the capture button so far down the page that enrolling somebody
+             meant scrolling past everybody else to reach the shutter — on the
+             one screen where the manager and the employee are both standing
+             there waiting.
+
+             A GET form rather than a wire:click or an onchange-only select:
+             it works with no JavaScript, and the Select button means a
+             browser that ignores onchange is still usable. --}}
+        <div class="panel p-4">
+            <form method="GET" action="{{ route('hr.face-enrolment') }}">
+                <label for="enrol-employee" class="block text-sm font-semibold text-gray-900 mb-1.5">
+                    Who are you enrolling?
+                </label>
+
+                <div class="flex gap-2">
+                    <select id="enrol-employee" name="employee"
+                            onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()"
+                            class="flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm">
+                        <option value="">Choose somebody…</option>
+                        @foreach ($employees as $employee)
+                            @php $count = (int) ($counts[$employee->id] ?? 0); @endphp
+                            {{-- The capture count rides in the label: it is the
+                                 question this screen exists to answer, and a
+                                 select has nowhere else to put it. --}}
+                            <option value="{{ $employee->id }}" @selected($selected?->id === $employee->id)>
+                                {{ $employee->name }}
+                                @if ($employee->outlet?->name) — {{ $employee->outlet->name }} @endif
+                                ({{ $count ?: 'no' }} {{ Str::plural('face', $count ?: 0) }})
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <button type="submit" class="btn-secondary shrink-0">Select</button>
+                </div>
+
+                @if ($employees->isEmpty())
+                    <p class="mt-2 text-sm text-gray-600">No staff at the outlets you can see.</p>
+                @endif
+            </form>
         </div>
 
         {{-- Capture.
@@ -75,7 +83,7 @@
              would mean a fresh getUserMedia — and a fresh permission prompt on
              some browsers — every time the manager moved to the next person in
              a queue of thirty. It boots once, and the button is what changes. --}}
-        <div class="lg:col-span-2">
+        <div>
             <div class="panel p-5" id="enrol-form"
                  data-employee="{{ $selected?->id }}"
                  data-endpoint="{{ route('hr.face-enrolment.capture') }}">

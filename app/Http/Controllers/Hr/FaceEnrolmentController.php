@@ -73,10 +73,13 @@ class FaceEnrolmentController extends Controller
         ]);
 
         return response()->json([
-            'id'        => $capture->id,
-            'photo_url' => $capture->photo_path ? route('hr.face-enrolment.photo', $capture) : null,
-            'count'     => $existing + 1,
-            'enough'    => ($existing + 1) >= self::MIN_CAPTURES,
+            'id'         => $capture->id,
+            'photo_url'  => $capture->photo_path ? route('hr.face-enrolment.photo', $capture) : null,
+            // So a capture taken seconds ago can be deleted without a reload —
+            // the usual reason to delete one is that you just saw it was bad.
+            'delete_url' => route('hr.face-enrolment.delete', $capture),
+            'count'      => $existing + 1,
+            'enough'     => ($existing + 1) >= self::MIN_CAPTURES,
         ]);
     }
 
