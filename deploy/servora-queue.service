@@ -1,0 +1,60 @@
+# Servora queue worker — the single definition of this unit.
+#
+# install.sh and update.sh both render this file, substituting __WEB_USER__
+# and __APP_DIR__. It used to be a heredoc inside install.sh alone, which
+# meant the live unit was whatever the box was installed with and no later
+# deploy ever corrected it.
+#
+# ── Why there is no --max-time on ExecStart ──────────────────────────────────
+#
+# There was, and it stopped the worker dead every few seconds for as long as
+# the app was in maintenance mode. Illuminate\Queue\Worker:
+#
+#     protected function pauseWorker($options, $lastRestart)
+#     {
+#         $this->sleep($options->sleep > 0 ? $options->sleep : 1);
+#         return $this->stopIfNecessary($options, $lastRestart);   // no $startTime
+#     }
+#
+#     protected function stopIfNecessary($options, $lastRestart, $startTime = 0, ...)
+#     {
+#         return match (true) {
+#             ...
+#             $options->maxTime && hrtime(true) / 1e9 - $startTime >= $options->maxTime
+#                 => static::EXIT_SUCCESS,
+#
+# pauseWorker() drops $startTime, so it defaults to 0 — and hrtime(true) on
+# Linux counts from boot, so `hrtime(true) / 1e9 - 0` is the machine's uptime.
+# On any box up longer than --max-time, that comparison is true forever.
+#
+# pauseWorker() is what runs while `php artisan down` is in effect. So every
+# deploy put the worker into: sleep 3s, exit 0, systemd restarts it, repeat —
+# silently, because queue:work only prints its banner when attached to a
+# terminal (Terminal::hasSttyAvailable()). Clean exits, no output, a restart
+# counter climbing past fifty, and nothing anywhere saying why.
+#
+# RuntimeMaxSec does the job --max-time was there for — recycle the process on
+# a schedule so a slow leak cannot accumulate — and systemd measures it from
+# when it started this process, which is the number that was wanted all along.
+[Unit]
+Description=Servora Queue Worker
+After=network.target mysql.service
+
+[Service]
+User=__WEB_USER__
+Group=__WEB_USER__
+WorkingDirectory=__APP_DIR__
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3
+Restart=always
+RestartSec=5
+
+# Recycle hourly. SIGTERM lets the worker finish the job in hand first, and
+# Restart=always brings it straight back.
+RuntimeMaxSec=3600
+
+# Bound the graceful stop. A deploy stops this unit before it starts, and a
+# worker wedged inside a long job must not hold the deploy for the default 90s.
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

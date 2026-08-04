@@ -32,12 +32,28 @@ if [[ -z "${SERVORA_DEPLOY_LOCK_HELD:-}" ]]; then
     fi
 fi
 
-# Ensure maintenance mode is always lifted, even on failure
+# Ensure maintenance mode is lifted and the worker is running again, even on
+# failure. A deploy that dies halfway must not leave queued work stranded.
 cleanup() {
     info "Disabling maintenance mode..."
     php artisan up
+    systemctl start servora-queue 2>/dev/null || true
 }
 trap cleanup EXIT
+
+# Stop the worker BEFORE maintenance mode, not after the deploy.
+#
+# Two reasons, and the first one is the bug that had this service restarting
+# fifty times a deploy: a worker that is up while `artisan down` is in effect
+# exits cleanly every few seconds, forever. deploy/servora-queue.service has
+# the full derivation.
+#
+# The second reason stands on its own. Between `git reset` and the end of
+# migrations the checked-out code and the database disagree, and a worker left
+# running picks jobs off the queue and runs them against exactly that. Nothing
+# should be executing application code during those ninety seconds.
+info "Stopping queue worker for the deploy..."
+systemctl stop servora-queue 2>/dev/null || true
 
 info "Enabling maintenance mode..."
 php artisan down --refresh=15
@@ -77,63 +93,41 @@ info "Setting permissions..."
 chown -R "${WEB_USER}:${WEB_USER}" "$APP_DIR"
 chmod -R 775 "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache"
 
-# ── Queue worker state, BEFORE we touch it ──────────────────────────────────
-# Read-only. The worker has repeatedly been found dead between deploys, and
-# restarting it here is exactly what destroys the evidence of why. This prints
-# the unit's restart policy and its last words into the deploy log, which is
-# somewhere the failure can actually be read after the fact.
+# ── Queue worker ────────────────────────────────────────────────────────────
+# The unit file was written once by install.sh and never touched again, so a
+# box installed months ago kept whatever ExecStart it was installed with —
+# including the --max-time that made the worker exit every few seconds under
+# maintenance mode. Reconcile it against the repo on every deploy so a fix to
+# the unit ships like a fix to anything else.
 #
-# Every command is `|| true`: `set -e` is on, and a diagnostic must never be
-# the thing that fails a deploy.
-info "Queue worker state before restart:"
-systemctl show servora-queue \
-    -p ActiveState -p SubState -p Result -p NRestarts -p Restart -p ExecMainStatus \
-    --no-pager 2>&1 | sed 's/^/    /' || true
-journalctl -u servora-queue -n 20 --no-pager --output=short 2>&1 | tail -20 | sed 's/^/    /' || true
+# Only rewrite when the content differs: an unconditional write plus
+# daemon-reload on every deploy is noise, and it makes "the unit changed" stop
+# meaning anything in the log.
+UNIT_SRC="${APP_DIR}/deploy/servora-queue.service"
+UNIT_DST="/etc/systemd/system/servora-queue.service"
 
-# The worker exits CLEANLY every few seconds, which rules out a crash and
-# leaves the restart signal: a cached timestamp that stops any worker whose
-# reading of it changes. `|| true` because queue:signal reports a problem
-# with a non-zero exit, and `set -e` would turn that into a failed deploy.
-php artisan queue:signal --watch=3 2>&1 | sed 's/^/    /' || true
+if [[ -f "$UNIT_SRC" ]]; then
+    UNIT_RENDERED="$(sed -e "s|__WEB_USER__|${WEB_USER}|g" -e "s|__APP_DIR__|${APP_DIR}|g" "$UNIT_SRC")"
 
-# The FULL live unit, drop-ins included. deploy/install.sh writes this file
-# once at install and update.sh has never rewritten it, so what is actually
-# on the box may not be what the repo says — and a drop-in adding something
-# like RuntimeMaxSec would never show up in the repo at all.
-info "Queue worker unit as it exists on this box:"
-systemctl cat servora-queue --no-pager 2>&1 | sed 's/^/    /' || true
+    if [[ ! -f "$UNIT_DST" ]] || [[ "$UNIT_RENDERED" != "$(cat "$UNIT_DST")" ]]; then
+        info "Queue worker unit changed — installing it..."
+        printf '%s\n' "$UNIT_RENDERED" > "$UNIT_DST"
+        systemctl daemon-reload
+        systemctl enable servora-queue 2>/dev/null || true
+    fi
+fi
 
-# The worker's OWN output. Everything read so far has been systemd talking
-# about the service; nothing from php itself. If queue:work is printing a
-# reason before it exits, it is in here and nowhere else.
-info "Queue worker output (systemd's own lines filtered out):"
-journalctl -u servora-queue -n 300 --no-pager --output=cat 2>&1 \
-    | grep -v -E '^(Started|Stopping|Stopped|Deactivated|Scheduled restart|servora-queue)' \
-    | tail -25 | sed 's/^/    /' || true
-
-# Whether the worker CAN be told to stop by a signal at all. Without pcntl,
-# Laravel never registers its SIGTERM handler and shouldQuit can never be
-# set — which would rule signals out as the cause entirely.
-info "Signal support:"
-php -r 'echo "    pcntl: ", extension_loaded("pcntl") ? "loaded" : "MISSING", PHP_EOL,
-        "    posix: ", extension_loaded("posix") ? "loaded" : "MISSING", PHP_EOL;' || true
-
-# Run the exact ExecStart in the foreground, as the same user, and watch it.
-# The service produces no output at all through systemd; -vvv here should
-# show whatever it is deciding. `timeout` caps it either way, and a worker
-# living twelve seconds is the same worker systemd starts every five.
-info "Foreground worker for 12s (exit code is the point):"
-timeout 12 sudo -u "${WEB_USER}" php artisan queue:work --sleep=3 --tries=3 --max-time=3600 -vvv 2>&1 \
-    | tail -25 | sed 's/^/    /' || true
-echo "    foreground exit: ${PIPESTATUS[0]:-?} (124 = still running when time ran out, which is HEALTHY)" 
-
-if systemctl is-active --quiet servora-queue 2>/dev/null; then
-    info "Restarting queue worker..."
-    systemctl restart servora-queue
-elif systemctl list-unit-files | grep -q servora-queue; then
+if systemctl list-unit-files 2>/dev/null | grep -q servora-queue; then
     info "Starting queue worker..."
     systemctl start servora-queue
+
+    # Proof, in the deploy log, that it is still up a moment later rather than
+    # merely accepted. A worker that flaps looks identical to a healthy one at
+    # the instant `start` returns; NRestarts is the number that tells them
+    # apart, and it is the number that went to fifty unnoticed.
+    sleep 2
+    systemctl show servora-queue -p ActiveState -p SubState -p NRestarts --no-pager 2>&1 \
+        | sed 's/^/    /' || true
 else
     warn "Queue worker service not found. Skipping."
 fi

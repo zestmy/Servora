@@ -6,18 +6,24 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Why the queue worker keeps exiting.
+ * Is the restart signal stopping the queue workers?
  *
- * Written after servora-queue was found restarting seven times a minute,
- * exiting CLEANLY each time — ExecMainStatus=0, "Deactivated successfully".
- * A clean exit rules out a crash and points at the one thing that asks a
- * healthy worker to stop: the restart signal.
+ * Written while chasing servora-queue restarting seven times a minute and
+ * exiting CLEANLY every time — ExecMainStatus=0, "Deactivated successfully",
+ * no output at all. The restart signal was the leading theory, because it is
+ * the one thing that asks a healthy worker to stop: `queue:restart` writes a
+ * timestamp to the CACHE, a worker reads it at startup and again each loop,
+ * and it quits the moment the two differ.
  *
- * `queue:restart` writes a timestamp to the CACHE. A worker reads it once at
- * startup and again on every loop, and stops the moment the two differ. So a
- * value that keeps changing — or a cache that keeps losing and regaining it —
- * makes every worker quit within seconds of starting, forever, with no error
- * anywhere.
+ * It was not the cause here. The signal read NULL and stayed NULL across
+ * repeated samples while the worker kept exiting. The actual cause was
+ * --max-time on ExecStart interacting with maintenance mode — derived in full
+ * in deploy/servora-queue.service.
+ *
+ * The command stays because that answer took three deploys to get and this
+ * gets it in one, and because the signal is still the first thing worth ruling
+ * out the next time workers stop for no visible reason. A NULL, stable reading
+ * means: not this, look at the unit.
  *
  * Reads only. Safe to run on production at any time.
  */

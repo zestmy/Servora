@@ -280,23 +280,12 @@ if [[ "${ENABLE_SSL,,}" == "y" ]]; then
 fi
 
 # ── 15. Queue worker (systemd) ──────────────────────────────────────────────
+# The unit lives in deploy/servora-queue.service so that install.sh and
+# update.sh cannot drift apart — see that file for why --max-time is absent.
 info "Setting up queue worker..."
-cat > /etc/systemd/system/servora-queue.service <<UNIT
-[Unit]
-Description=Servora Queue Worker
-After=network.target mysql.service
-
-[Service]
-User=${WEB_USER}
-Group=${WEB_USER}
-WorkingDirectory=${APP_DIR}
-ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --max-time=3600
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNIT
+sed -e "s|__WEB_USER__|${WEB_USER}|g" -e "s|__APP_DIR__|${APP_DIR}|g" \
+    "$(dirname "${BASH_SOURCE[0]}")/servora-queue.service" \
+    > /etc/systemd/system/servora-queue.service
 
 systemctl daemon-reload
 systemctl enable servora-queue
