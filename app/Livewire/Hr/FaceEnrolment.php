@@ -39,23 +39,22 @@ class FaceEnrolment extends Component
     #[Locked]
     public string $errorMessage = '';
 
+    /**
+     * Who is being enrolled comes from the URL, not from a Livewire action.
+     *
+     * Picking a name used to be a wire:click, which meant it did nothing at
+     * all on a device where Livewire's JavaScript had not started — the list
+     * responded to taps by staying exactly as it was, with no way to tell
+     * that from a slow network. A plain link works with no JavaScript
+     * whatsoever, and it makes the choice bookmarkable into the bargain.
+     */
     public function mount(?int $employee = null): void
     {
+        $employee ??= request()->integer('employee') ?: null;
+
         if ($employee) {
-            $this->select($employee);
+            $this->employeeId = $this->findEmployee($employee)?->id;
         }
-    }
-
-    public function select(int $id): void
-    {
-        $this->employeeId   = $this->findEmployee($id)?->id;
-        $this->errorMessage = '';
-    }
-
-    public function clearSelection(): void
-    {
-        $this->employeeId   = null;
-        $this->errorMessage = '';
     }
 
     /**

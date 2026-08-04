@@ -310,7 +310,7 @@ const SCREENS = [
         key: 'enrol',
         video: 'enrol-video', canvas: 'enrol-canvas',
         overlay: 'enrol-overlay', message: 'enrol-overlay-message',
-        status: 'enrol-status', diagnostics: null,
+        status: 'enrol-status', diagnostics: 'enrol-diagnostics',
     },
 ];
 

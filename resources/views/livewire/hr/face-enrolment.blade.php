@@ -42,10 +42,14 @@
             <div class="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
                 @forelse ($employees as $employee)
                     @php $count = (int) ($counts[$employee->id] ?? 0); @endphp
-                    <button type="button" wire:click="select({{ $employee->id }})"
-                            wire:key="emp-{{ $employee->id }}"
-                            class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-gray-50
-                                   {{ $selected?->id === $employee->id ? 'bg-brand-50' : '' }}">
+                    {{-- A real link, not a wire:click. Picking a name has to work
+                         on a device where Livewire's JavaScript never started,
+                         which is exactly how this failed: taps did nothing and
+                         the list looked identical to a slow network. --}}
+                    <a href="{{ route('hr.face-enrolment', ['employee' => $employee->id]) }}" wire:navigate
+                       wire:key="emp-{{ $employee->id }}"
+                       class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-gray-50
+                              {{ $selected?->id === $employee->id ? 'bg-brand-50' : '' }}">
                         <span class="min-w-0">
                             <span class="block text-sm font-medium text-gray-900 truncate">{{ $employee->name }}</span>
                             <span class="block text-[11px] text-gray-500 truncate">{{ $employee->outlet?->name }}</span>
@@ -57,7 +61,7 @@
                                : ($count > 0 ? 'bg-warning-100 text-warning-700' : 'bg-gray-100 text-gray-500') }}">
                             {{ $count ?: 'none' }}
                         </span>
-                    </button>
+                    </a>
                 @empty
                     <p class="px-4 py-8 text-center text-sm text-gray-600">No staff match that.</p>
                 @endforelse
@@ -90,7 +94,8 @@
                         </p>
                     </div>
                     @if ($selected)
-                        <button wire:click="clearSelection" class="text-xs font-medium text-gray-600 hover:underline">Done</button>
+                        <a href="{{ route('hr.face-enrolment') }}" wire:navigate
+                           class="text-xs font-medium text-gray-600 hover:underline">Done</a>
                     @endif
                 </div>
 
@@ -120,6 +125,12 @@
                         </div>
 
                         <p id="enrol-status" class="mt-2 text-center text-xs text-gray-600 min-h-[1rem]" aria-live="polite"></p>
+
+                        {{-- Hidden until something has plainly gone wrong. "app
+                             NOT STARTED" is the difference between a camera
+                             fault and Livewire never booting, and from a
+                             screenshot the two are identical. --}}
+                        <p id="enrol-diagnostics" class="hidden mt-1 text-center text-[11px] font-mono text-gray-400"></p>
 
                         {{-- Enabled state comes from the server, not from JS:
                              this button is re-rendered on every save, and a
