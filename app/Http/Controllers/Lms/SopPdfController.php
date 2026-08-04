@@ -8,15 +8,19 @@ use App\Models\Company;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\VideoShareToken;
+use App\Services\Pdf\PdfImage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 use chillerlan\QRCode\Output\QRGdImagePNG;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class SopPdfController extends Controller
 {
+    public function __construct(private PdfImage $images)
+    {
+    }
+
     public function single(int $id)
     {
         $isLmsTrainee = Auth::guard('lms')->check();
@@ -267,15 +271,8 @@ class SopPdfController extends Controller
         $result = [];
         foreach ($steps as $step) {
             if (! $step->image_path) continue;
-            try {
-                $path = Storage::disk('public')->path($step->image_path);
-                if (file_exists($path)) {
-                    $mime = mime_content_type($path) ?: 'image/jpeg';
-                    $data = base64_encode(file_get_contents($path));
-                    $result[$step->id] = "data:{$mime};base64,{$data}";
-                }
-            } catch (\Throwable $e) {
-                // skip
+            if ($uri = $this->images->photo($step->image_path)) {
+                $result[$step->id] = $uri;
             }
         }
         return $result;
@@ -285,14 +282,8 @@ class SopPdfController extends Controller
     {
         $result = [];
         foreach ($images as $img) {
-            try {
-                $path = Storage::disk('public')->path($img->file_path);
-                if (file_exists($path)) {
-                    $data = base64_encode(file_get_contents($path));
-                    $result[] = "data:{$img->mime_type};base64,{$data}";
-                }
-            } catch (\Throwable $e) {
-                // Skip images that can't be read
+            if ($uri = $this->images->photo($img->file_path)) {
+                $result[] = $uri;
             }
         }
         return $result;
@@ -330,15 +321,6 @@ class SopPdfController extends Controller
 
     private function logoToBase64(?Company $company): ?string
     {
-        if (! $company?->logo) return null;
-        try {
-            $path = Storage::disk('public')->path($company->logo);
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-            }
-        } catch (\Throwable $e) {
-        }
-        return null;
+        return $this->images->logo($company?->logo);
     }
 }
