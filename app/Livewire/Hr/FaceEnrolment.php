@@ -5,6 +5,7 @@ namespace App\Livewire\Hr;
 use App\Http\Controllers\Hr\FaceEnrolmentController;
 use App\Models\Employee;
 use App\Models\EmployeeFaceDescriptor;
+use App\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -36,6 +37,19 @@ class FaceEnrolment extends Component
     public ?int $employeeId = null;
 
     /**
+     * Which outlet's staff are on offer.
+     *
+     * The name list was capped at fifty across every outlet a manager can
+     * see, so at a company with a few branches the person standing in front
+     * of them might simply not be in it — with nothing on screen to say why.
+     * Narrowing by outlet first makes the second list short enough to be
+     * complete, which is the actual fix; the shorter dropdown is a side
+     * effect.
+     */
+    #[Locked]
+    public ?int $outletId = null;
+
+    /**
      * Who is being enrolled comes from the URL, not from a Livewire action.
      *
      * Picking a name used to be a wire:click, which meant it did nothing at
@@ -51,6 +65,25 @@ class FaceEnrolment extends Component
         if ($employee) {
             $this->employeeId = $this->findEmployee($employee)?->id;
         }
+
+        $outlets = $this->outlets();
+        $asked   = request()->integer('outlet') ?: null;
+
+        $this->outletId = match (true) {
+            // A chosen name settles it: showing somebody enrolled at branch A
+            // under a dropdown reading branch B is a screen that lies.
+            (bool) $this->employee()             => $this->employee()->outlet_id,
+            $asked && $outlets->contains($asked) => $asked,
+            // One outlet is not a choice, so it is made rather than asked.
+            $outlets->count() === 1              => $outlets->first(),
+            default                              => null,
+        };
+    }
+
+    /** Outlet ids this user may enrol into, in the order they are listed. */
+    private function outlets()
+    {
+        return collect(Auth::user()->accessibleOutletIds() ?: []);
     }
 
     public function employee(): ?Employee
@@ -79,14 +112,27 @@ class FaceEnrolment extends Component
 
     public function render()
     {
-        $employees = Employee::whereIn('outlet_id', Auth::user()->accessibleOutletIds() ?: [0])
-            ->where('is_active', true)
-            ->when($this->search !== '', fn ($q) => $q
-                ->where(fn ($w) => $w->where('name', 'like', '%' . $this->search . '%')
-                    ->orWhere('staff_id', 'like', '%' . $this->search . '%')))
-            ->inListOrder()
-            ->limit(50)
-            ->get();
+        $outlets = Outlet::whereIn('id', $this->outlets() ?: [0])
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        // No outlet chosen means no name list. Offering every branch's staff
+        // at once is what made the list overflow its cap in the first place,
+        // and an empty second dropdown reads as "pick the one above" without
+        // needing to say it.
+        $employees = $this->outletId
+            ? Employee::where('outlet_id', $this->outletId)
+                ->where('is_active', true)
+                ->when($this->search !== '', fn ($q) => $q
+                    ->where(fn ($w) => $w->where('name', 'like', '%' . $this->search . '%')
+                        ->orWhere('staff_id', 'like', '%' . $this->search . '%')))
+                ->inListOrder()
+                // Well past any single outlet's headcount. The old cap of
+                // fifty spanned every outlet at once, which is how somebody
+                // could be missing from the list with nothing to explain it.
+                ->limit(500)
+                ->get()
+            : Employee::query()->whereRaw('1 = 0')->get();
 
         // How many faces each of them has, so the list shows who is still
         // missing one — the question this screen exists to answer.
@@ -96,6 +142,8 @@ class FaceEnrolment extends Component
             ->pluck('total', 'employee_id');
 
         return view('livewire.hr.face-enrolment', [
+            'outlets'     => $outlets,
+            'outletId'    => $this->outletId,
             'employees'   => $employees,
             'counts'      => $counts,
             'selected'    => $this->employee(),

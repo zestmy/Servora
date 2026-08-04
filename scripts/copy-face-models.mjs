@@ -28,7 +28,12 @@ const target = join(root, 'public', 'face-models');
  * accident.
  */
 const MODELS = [
+    // Fast, and generous — used for the live framing loop only, where it runs
+    // several times a second and a wrong answer costs a wrong hint.
     'tiny_face_detector_model',
+    // Accurate, and 5.4MB. Used for every capture that becomes a descriptor,
+    // after the fast one was found to score an open hand as a face.
+    'ssd_mobilenetv1_model',
     'face_landmark_68_model',
     'face_recognition_model',
 ];

@@ -4,8 +4,9 @@
     "type": "module",
     "scripts": {
         "lint": "node scripts/lint.mjs",
-        "build": "npm run lint && node scripts/copy-face-models.mjs && vite build",
-        "dev": "vite"
+        "build": "npm run lint && npm run test:js && node scripts/copy-face-models.mjs && vite build",
+        "dev": "vite",
+        "test:js": "node --test \"tests/js/*.test.mjs\""
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.2",

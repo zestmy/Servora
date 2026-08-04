@@ -43,17 +43,63 @@
              A GET form rather than a wire:click or an onchange-only select:
              it works with no JavaScript, and the Select button means a
              browser that ignores onchange is still usable. --}}
-        <div class="panel p-4">
+        <div class="panel p-4 space-y-4">
+
+            {{-- Outlet first.
+
+                 The name list used to span every outlet a manager could see
+                 and stop at fifty, so at a multi-branch company the person
+                 standing in front of them could simply be absent from it,
+                 with nothing on screen explaining why. Narrowing first makes
+                 the second list short enough to be complete.
+
+                 Its own form: choosing an outlet must DROP the chosen
+                 employee, and it does that by not carrying one. --}}
+            @if ($outlets->count() > 1)
+                <form method="GET" action="{{ route('hr.face-enrolment') }}">
+                    <label for="enrol-outlet" class="block text-sm font-semibold text-gray-900 mb-1.5">
+                        Which outlet?
+                    </label>
+
+                    <div class="flex gap-2">
+                        <select id="enrol-outlet" name="outlet"
+                                onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()"
+                                class="flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm">
+                            <option value="">Choose an outlet…</option>
+                            @foreach ($outlets as $outlet)
+                                <option value="{{ $outlet->id }}" @selected($outletId === $outlet->id)>
+                                    {{ $outlet->name }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <button type="submit" class="btn-secondary shrink-0">Select</button>
+                    </div>
+                </form>
+            @endif
+
+            {{-- Then who.
+
+                 A GET form rather than a wire:click or an onchange-only
+                 select: it works with no JavaScript, and the Select button
+                 means a browser that ignores onchange is still usable. --}}
             <form method="GET" action="{{ route('hr.face-enrolment') }}">
+                {{-- Keeps the outlet across the hop, so picking a name does
+                     not silently reset the list it came from. --}}
+                <input type="hidden" name="outlet" value="{{ $outletId }}">
+
                 <label for="enrol-employee" class="block text-sm font-semibold text-gray-900 mb-1.5">
                     Who are you enrolling?
                 </label>
 
                 <div class="flex gap-2">
                     <select id="enrol-employee" name="employee"
+                            @disabled(! $outletId)
                             onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()"
-                            class="flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm">
-                        <option value="">Choose somebody…</option>
+                            class="flex-1 min-h-[3rem] rounded-lg border-gray-300 text-sm disabled:bg-gray-100 disabled:text-gray-500">
+                        <option value="">
+                            {{ $outletId ? 'Choose somebody…' : 'Choose an outlet first' }}
+                        </option>
                         @foreach ($employees as $employee)
                             @php $count = (int) ($counts[$employee->id] ?? 0); @endphp
                             {{-- The capture count rides in the label: it is the
@@ -61,17 +107,18 @@
                                  select has nowhere else to put it. --}}
                             <option value="{{ $employee->id }}" @selected($selected?->id === $employee->id)>
                                 {{ $employee->name }}
-                                @if ($employee->outlet?->name) — {{ $employee->outlet->name }} @endif
                                 ({{ $count ?: 'no' }} {{ Str::plural('face', $count ?: 0) }})
                             </option>
                         @endforeach
                     </select>
 
-                    <button type="submit" class="btn-secondary shrink-0">Select</button>
+                    <button type="submit" class="btn-secondary shrink-0" @disabled(! $outletId)>Select</button>
                 </div>
 
-                @if ($employees->isEmpty())
-                    <p class="mt-2 text-sm text-gray-600">No staff at the outlets you can see.</p>
+                @if ($outletId && $employees->isEmpty())
+                    <p class="mt-2 text-sm text-gray-600">No active staff at this outlet.</p>
+                @elseif ($outlets->isEmpty())
+                    <p class="mt-2 text-sm text-gray-600">No outlets you can see.</p>
                 @endif
             </form>
         </div>

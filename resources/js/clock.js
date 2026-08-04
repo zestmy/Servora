@@ -20,6 +20,8 @@
  * puts it in front of a manager.
  */
 
+import { looksLikeFace } from './face-geometry.js';
+
 const MODEL_URL = document.querySelector('meta[name="face-models-url"]')?.content || '/face-models';
 
 /** Detector input size. 320 is the smallest that reliably finds a face at
@@ -27,8 +29,28 @@ const MODEL_URL = document.querySelector('meta[name="face-models-url"]')?.conten
  *  Android phones this is used on. */
 const DETECTOR_INPUT_SIZE = 320;
 
-/** Below this the "face" is usually a shadow or a pattern on a wall. */
-const DETECTOR_SCORE_THRESHOLD = 0.45;
+/**
+ * Below this the "face" is usually a shadow or a pattern on a wall.
+ *
+ * Raised from 0.45, which was low enough that an open hand held up to the
+ * camera scored as a face. tinyFaceDetector is a speed-first model and it is
+ * generous with skin-toned blobs; it is kept for the live framing loop, where
+ * it runs several times a second and a wrong answer costs a wrong hint, and
+ * no longer trusted for anything that gets recorded.
+ */
+const DETECTOR_SCORE_THRESHOLD = 0.6;
+
+/**
+ * The detector used when it MATTERS — every capture that becomes a
+ * descriptor, at enrolment and at the door.
+ *
+ * SSD MobileNet v1 is the accurate detector face-api ships: 5.4MB against
+ * tiny's 190KB, several times slower per frame, and dramatically less willing
+ * to call a hand a face. That trade is obviously right here — a capture
+ * happens once per punch, where tenths of a second are free and a false
+ * positive is a wrong person's attendance record.
+ */
+const CAPTURE_MIN_CONFIDENCE = 0.7;
 
 let faceapi = null;
 let modelsReady = null;
@@ -42,6 +64,7 @@ async function loadModels() {
 
         await Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+            faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
             faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
             faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         ]);
@@ -338,7 +361,12 @@ export class ClockCamera {
 
         while (Date.now() < deadline) {
             const result = await api.detectSingleFace(this.video, options).withFaceLandmarks();
-            const angles = result ? estimatePose(result.landmarks) : null;
+
+            // A pose read off something that is not a face is a pose read off
+            // nothing. Without this the scan happily tracked an open hand
+            // through all four angles.
+            const real   = result ? looksLikeFace(result.landmarks) : { ok: false };
+            const angles = real.ok ? estimatePose(result.landmarks) : null;
 
             if (angles && pose.test(angles)) {
                 heldSince ??= Date.now();
@@ -351,7 +379,7 @@ export class ClockCamera {
                 // Reset rather than decay: a pose half-held then abandoned is
                 // not most of a pose.
                 heldSince = null;
-                onProgress(0, result ? pose.label : 'Looking for a face…');
+                onProgress(0, real.ok ? pose.label : 'Looking for a face…');
             }
 
             await new Promise((r) => setTimeout(r, 110));
@@ -369,15 +397,22 @@ export class ClockCamera {
      */
     async capture() {
         const api = await loadModels();
-        const options = new api.TinyFaceDetectorOptions({
-            inputSize: DETECTOR_INPUT_SIZE,
-            scoreThreshold: DETECTOR_SCORE_THRESHOLD,
+
+        // The accurate detector, not the fast one. This is the frame that
+        // becomes a descriptor and gets written to somebody's attendance
+        // record, and it happens once per punch — there is nothing to spend
+        // the speed on. tinyFaceDetector at its old threshold accepted an
+        // open hand here.
+        const options = new api.SsdMobilenetv1Options({
+            minConfidence: CAPTURE_MIN_CONFIDENCE,
+            maxResults: 1,
         });
 
         // Best of three. A single frame catches motion blur often enough to
         // be annoying, and the detector's own score is a decent proxy for
         // which frame is worth keeping.
         let best = null;
+        let rejected = null;
 
         for (let i = 0; i < 3; i++) {
             const result = await api
@@ -385,14 +420,33 @@ export class ClockCamera {
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
-            if (result && (! best || result.detection.score > best.detection.score)) {
-                best = result;
+            if (result) {
+                // Second opinion, and a cheap one. The detector says where a
+                // face is; this says whether the landmarks it produced
+                // describe one. Both have to agree before a descriptor is
+                // built out of the frame.
+                const real = looksLikeFace(result.landmarks);
+
+                if (! real.ok) {
+                    rejected = real.why;
+                } else if (! best || result.detection.score > best.detection.score) {
+                    best = result;
+                }
             }
 
             if (i < 2) await new Promise((r) => setTimeout(r, 100));
         }
 
-        if (! best) return null;
+        if (! best) {
+            // Distinguishes "nothing found" from "found something that was
+            // not a face", because the two need different things from the
+            // person holding the phone.
+            this.lastRejection = rejected;
+
+            return null;
+        }
+
+        this.lastRejection = null;
 
         return {
             descriptor: Array.from(best.descriptor),
@@ -548,6 +602,21 @@ const setStatus = (text) => {
     const node = el(screen.dom?.status);
     if (node) node.textContent = text || '';
 };
+
+/**
+ * Why a capture produced nothing.
+ *
+ * "No face found" was the only answer for both possible causes, and they need
+ * opposite things from the person holding the phone: an empty frame means get
+ * closer, whereas a frame the checks REJECTED means what is in it is not a
+ * face — which is worth saying plainly, because the person doing it usually
+ * knows they are holding up a hand.
+ */
+function captureProblem(camera) {
+    return camera?.lastRejection
+        ? 'That did not look like a face. Point the camera at your face and try again.'
+        : 'No face found. Move closer, into better light, and try again.';
+}
 
 /** Every message ends with what to DO — the reader is standing at a door. */
 function cameraProblem(error) {
@@ -996,9 +1065,15 @@ async function runGuide() {
                 continue;
             }
 
-            const detection = await api.detectSingleFace(video, options);
+            // Landmarks as well as a box. The guide used to run on the box
+            // alone, so anything the detector fired on was reported as a
+            // well-framed face — which is what said "hold still" to an open
+            // hand. The landmark net is small and this loop runs about four
+            // times a second; it comfortably affords the second opinion.
+            const found = await api.detectSingleFace(video, options).withFaceLandmarks();
+            const real  = found ? looksLikeFace(found.landmarks) : { ok: false };
 
-            paintGuide(assessFraming(detection, video));
+            paintGuide(assessFraming(real.ok ? found.detection : null, video));
 
             // ~4 a second. Fast enough to feel live, slow enough to leave the
             // phone able to do anything else.
@@ -1080,7 +1155,7 @@ async function performPunch(wire, intent = 'shift') {
             paintRing(0);
 
             if (! face) {
-                setStatus('Could not see your face. Try again in better light.');
+                setStatus(captureProblem(screen.camera));
 
                 return;
             }
@@ -1159,7 +1234,7 @@ async function captureAndSave() {
         const face = await screen.camera.capture();
 
         if (! face) {
-            setStatus('No face found. Move closer and try again.');
+            setStatus(captureProblem(screen.camera));
 
             return false;
         }
