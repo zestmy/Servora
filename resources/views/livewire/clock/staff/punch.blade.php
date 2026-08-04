@@ -130,9 +130,25 @@
          a reload. The overlay inside is driven by JS alone for the same
          reason. --}}
     <div wire:ignore class="rounded-xl overflow-hidden bg-gray-900 relative mb-3" style="aspect-ratio: 4 / 3;">
-        <video id="clock-video" class="clock-video w-full h-full object-cover"
+        {{-- No mirror class here: JS applies it, and only to the front
+             camera, so a rear-facing kiosk is not shown back to front. --}}
+        <video id="clock-video" class="w-full h-full object-cover"
                playsinline muted autoplay></video>
         <canvas id="clock-canvas" class="hidden"></canvas>
+
+        {{-- Framing guide, pointer-events-none so it never swallows the tap
+             that retries the camera. --}}
+        <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div id="clock-guide-oval"
+                 class="rounded-[50%] border-[3px] border-dashed transition-colors duration-200"
+                 style="width: 56%; aspect-ratio: 3 / 4; border-color: rgba(255,255,255,0.55);"></div>
+        </div>
+
+        <button type="button" data-clock-flip
+                aria-label="Switch between the front and back camera"
+                class="absolute bottom-2 right-2 rounded-full bg-gray-900/70 px-3 py-1.5 text-[11px] font-medium text-white active:bg-gray-900">
+            Flip camera
+        </button>
 
         {{-- A button, not a div, and it says "Tap to start" before any script
              touches it. Two reasons. On iOS a getUserMedia call made from a
@@ -146,6 +162,11 @@
             <span id="clock-camera-message" class="text-sm text-gray-200">Tap to start camera</span>
         </button>
     </div>
+
+    {{-- Live framing advice, kept apart from the status line because it
+         changes several times a second and would stamp on messages the
+         person actually needs to read. --}}
+    <p id="clock-guide-hint" class="text-center text-sm font-medium text-gray-700 min-h-[1.25rem]"></p>
 
     <p id="clock-status" class="text-center text-sm text-gray-600 min-h-[1.25rem] mb-3" aria-live="polite"></p>
 

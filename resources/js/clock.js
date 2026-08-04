@@ -79,12 +79,18 @@ function eyeAspectRatio(eye) {
     return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * horizontal);
 }
 
+/** Which way the camera points. Remembered per device — see FACING_KEY. */
+const FACING_USER = 'user';
+const FACING_ENVIRONMENT = 'environment';
+const FACING_KEY = 'servora-clock-facing';
+
 export class ClockCamera {
-    constructor({ video, canvas, onStatus }) {
+    constructor({ video, canvas, onStatus, facing = FACING_USER }) {
         this.video = video;
         this.canvas = canvas;
         this.onStatus = onStatus || (() => {});
         this.stream = null;
+        this.facing = facing;
     }
 
     /**
@@ -119,7 +125,10 @@ export class ClockCamera {
                 // mounted on a wall may only have one camera, and exact would
                 // fail outright on it.
                 navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                    // facingMode as a PREFERENCE, not `exact`: a wall-mounted
+                    // tablet may have only one camera, and exact would fail
+                    // outright rather than falling back to what exists.
+                    video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false,
                 }),
                 new Promise((_, reject) => {
@@ -134,6 +143,11 @@ export class ClockCamera {
         }
 
         this.video.srcObject = this.stream;
+
+        // Only the front camera is mirrored. A mirror is what people expect
+        // of a camera pointed at themselves; doing it to the rear one would
+        // flip the room and any text in it.
+        this.video.style.transform = this.facing === FACING_USER ? 'scaleX(-1)' : 'none';
 
         // Metadata can land after srcObject is assigned, and Safari will not
         // start a stream it has no dimensions for yet — so play is attempted
@@ -264,12 +278,18 @@ export class ClockCamera {
 
         const ctx = this.canvas.getContext('2d');
 
-        // Un-mirror. The preview is flipped so it behaves like a mirror,
-        // which is what people expect of a front camera — but the stored
-        // evidence should show the person the way a witness would see them.
+        // Un-mirror, but only what was mirrored. The front preview is
+        // flipped so it behaves like a mirror, which is what people expect —
+        // but the stored evidence should show the person the way a witness
+        // would see them. The rear camera was never flipped, so flipping it
+        // here would invent a reversal that never happened.
         ctx.save();
-        ctx.translate(width, 0);
-        ctx.scale(-1, 1);
+
+        if (this.facing === FACING_USER) {
+            ctx.translate(width, 0);
+            ctx.scale(-1, 1);
+        }
+
         ctx.drawImage(this.video, 0, 0, width, height);
         ctx.restore();
 
@@ -332,18 +352,21 @@ const SCREENS = [
         video: 'clock-video', canvas: 'clock-canvas',
         overlay: 'clock-camera-overlay', message: 'clock-camera-message',
         status: 'clock-status', diagnostics: 'clock-diagnostics',
+        guide: 'clock-guide-oval', hint: 'clock-guide-hint', progress: null,
     },
     {
         key: 'enrol',
         video: 'enrol-video', canvas: 'enrol-canvas',
         overlay: 'enrol-overlay', message: 'enrol-overlay-message',
         status: 'enrol-status', diagnostics: 'enrol-diagnostics',
+        guide: 'enrol-guide-oval', hint: 'enrol-guide-hint', progress: 'enrol-progress',
     },
 ];
 
 const screen = {
     dom: null,
     videoNode: null,
+    guiding: false,
     camera: null,
     faceAvailable: false,
     starting: false,
@@ -422,6 +445,7 @@ async function startScreen() {
         video: el(screen.dom.video),
         canvas: el(screen.dom.canvas),
         onStatus: setStatus,
+        facing: preferredFacing(),
     });
 
     try {
@@ -458,6 +482,8 @@ async function startScreen() {
     }
 
     screen.starting = false;
+
+    runGuide();
 }
 
 /** Shared guard for the two actions below. */
@@ -469,6 +495,194 @@ function notReady() {
     }
 
     return screen.busy;
+}
+
+/* ── Framing guide ────────────────────────────────────────────────────────
+ *
+ * A dashed oval over the preview, and one line of advice under it.
+ *
+ * Enrolment quality decides whether somebody can clock in for months
+ * afterwards, and the two ways it goes wrong — a face too small to describe,
+ * or half out of frame — are invisible to the person holding the phone. A
+ * manager gets no feedback at all until a punch is flagged weeks later.
+ *
+ * The loop runs the DETECTOR only, not the landmark or recognition nets, so
+ * it costs a fraction of a real capture. It yields while a capture is in
+ * flight so the two never contend for the main thread.
+ */
+
+/** How wide a face should be, as a fraction of the frame. */
+const FRAME_MIN_WIDTH = 0.28;
+const FRAME_MAX_WIDTH = 0.62;
+
+/** How far off-centre a face may sit before it is worth mentioning. */
+const FRAME_MAX_OFFSET_X = 0.16;
+const FRAME_MAX_OFFSET_Y = 0.18;
+
+const GUIDE_COLOURS = {
+    idle: 'rgba(255,255,255,0.55)',
+    poor: '#fbbf24',
+    good: '#34d399',
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Which camera this device should use.
+ *
+ * localStorage, not the session: a wall-mounted tablet facing the counter
+ * wants the rear camera every time, and that is a property of the DEVICE,
+ * not of whoever is signed in on it.
+ */
+function preferredFacing() {
+    try {
+        return localStorage.getItem(FACING_KEY) === FACING_ENVIRONMENT
+            ? FACING_ENVIRONMENT
+            : FACING_USER;
+    } catch (error) {
+        // Private browsing can refuse storage outright.
+        return FACING_USER;
+    }
+}
+
+function rememberFacing(facing) {
+    try {
+        localStorage.setItem(FACING_KEY, facing);
+    } catch (error) {
+        // Not remembering is survivable; failing to switch is not.
+    }
+}
+
+/** Swap between the front and rear camera, restarting the preview. */
+async function flipCamera() {
+    const next = preferredFacing() === FACING_USER ? FACING_ENVIRONMENT : FACING_USER;
+
+    rememberFacing(next);
+
+    stopGuide();
+    screen.camera?.stop();
+    screen.camera = null;
+    screen.faceAvailable = false;
+
+    el(screen.dom?.overlay)?.classList.remove('hidden');
+
+    await startScreen();
+}
+
+/**
+ * Judge one detection against the frame.
+ *
+ * @returns {{state: 'idle'|'poor'|'good', hint: string}}
+ */
+function assessFraming(detection, video) {
+    if (! detection) {
+        return { state: 'idle', hint: 'Looking for a face…' };
+    }
+
+    const width  = video.videoWidth || 1;
+    const height = video.videoHeight || 1;
+    const box    = detection.box;
+
+    const widthRatio = box.width / width;
+    // The preview is mirrored, but a distance from the centre is symmetric,
+    // so the offsets below need no un-mirroring.
+    const offsetX = Math.abs((box.x + box.width / 2) / width - 0.5);
+    const offsetY = Math.abs((box.y + box.height / 2) / height - 0.5);
+
+    if (widthRatio < FRAME_MIN_WIDTH) {
+        return { state: 'poor', hint: 'Move closer' };
+    }
+
+    if (widthRatio > FRAME_MAX_WIDTH) {
+        return { state: 'poor', hint: 'Move back a little' };
+    }
+
+    if (offsetX > FRAME_MAX_OFFSET_X || offsetY > FRAME_MAX_OFFSET_Y) {
+        return { state: 'poor', hint: 'Centre your face in the oval' };
+    }
+
+    return { state: 'good', hint: 'Good — hold still' };
+}
+
+function paintGuide({ state, hint }) {
+    const oval = el(screen.dom?.guide);
+    const line = el(screen.dom?.hint);
+
+    if (oval) {
+        oval.style.borderColor = GUIDE_COLOURS[state];
+        // Solid once framed: the dashes say "aim here", a solid ring says
+        // "you are there", which reads at a glance without being read.
+        oval.style.borderStyle = state === 'good' ? 'solid' : 'dashed';
+    }
+
+    if (line) {
+        line.textContent = hint;
+        line.style.color = state === 'good' ? '#047857' : '';
+    }
+}
+
+async function runGuide() {
+    if (screen.guiding || ! screen.dom?.guide) return;
+
+    screen.guiding = true;
+
+    try {
+        const api = await loadModels();
+        const options = new api.TinyFaceDetectorOptions({
+            inputSize: DETECTOR_INPUT_SIZE,
+            scoreThreshold: DETECTOR_SCORE_THRESHOLD,
+        });
+
+        while (screen.guiding) {
+            const video = el(screen.dom?.guide) ? screen.videoNode : null;
+
+            // Yield entirely while a capture runs — they would otherwise
+            // fight over the main thread and both get slower.
+            if (! video || screen.busy || ! screen.camera?.playing) {
+                await sleep(300);
+                continue;
+            }
+
+            const detection = await api.detectSingleFace(video, options);
+
+            paintGuide(assessFraming(detection, video));
+
+            // ~4 a second. Fast enough to feel live, slow enough to leave the
+            // phone able to do anything else.
+            await sleep(220);
+        }
+    } catch (error) {
+        // The guide is a convenience. Losing it must never stop a capture.
+        screen.guiding = false;
+    }
+}
+
+function stopGuide() {
+    screen.guiding = false;
+}
+
+/** Fill the capture progress bar. */
+function paintProgress(count) {
+    const wrap = el(screen.dom?.progress);
+
+    if (! wrap) return;
+
+    const needed = Number(wrap.dataset.needed || 3);
+
+    wrap.querySelectorAll('[data-slot]').forEach((slot, index) => {
+        const filled = index < count;
+        slot.style.backgroundColor = filled
+            ? (index < needed ? '#0d5f61' : '#6ee7b7')
+            : '#e5e7eb';
+    });
+
+    const label = wrap.querySelector('[data-progress-label]');
+
+    if (label) {
+        label.textContent = count >= needed
+            ? `${count} on file — enough to clock in with`
+            : `${count} of ${needed} needed`;
+    }
 }
 
 /**
@@ -589,6 +803,7 @@ async function performEnrolCapture() {
         }
 
         appendCapture(result);
+        paintProgress(result.count);
 
         setStatus(result.enough
             ? `Saved — ${result.count} on file. That is enough to clock in with.`
@@ -705,6 +920,12 @@ function boot() {
             // this is the user gesture Safari wants before it will play.
             screen.camera?.resume();
 
+            if (event.target.closest('[data-clock-flip]')) {
+                flipCamera();
+
+                return;
+            }
+
             if (event.target.closest('#enrol-capture')) {
                 performEnrolCapture();
 
@@ -745,7 +966,10 @@ if (document.readyState === 'loading') {
 document.addEventListener('livewire:navigated', boot);
 
 // Free the camera on the way out, so the indicator light goes off.
-document.addEventListener('livewire:navigating', () => screen.camera?.stop());
+document.addEventListener('livewire:navigating', () => {
+    stopGuide();
+    screen.camera?.stop();
+});
 
 /**
  * Exposed on window because the inline Livewire @script blocks are not part
@@ -755,4 +979,5 @@ document.addEventListener('livewire:navigating', () => screen.camera?.stop());
 window.ServoraClock = {
     ClockCamera, currentPosition, loadModels,
     screen, startScreen, performPunch, performEnrolCapture, showDiagnostics,
+    assessFraming, paintProgress, flipCamera, preferredFacing,
 };

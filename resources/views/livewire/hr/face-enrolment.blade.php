@@ -117,9 +117,25 @@
                              first capture, which is exactly when the manager
                              needs the next one. --}}
                         <div wire:ignore class="rounded-lg overflow-hidden bg-gray-900 relative" style="aspect-ratio: 4 / 3;">
-                            <video id="enrol-video" class="w-full h-full object-cover" style="transform: scaleX(-1);"
+                            {{-- The mirror is applied by JS, not here: only the
+                                 front camera should be flipped. --}}
+                            <video id="enrol-video" class="w-full h-full object-cover"
                                    playsinline muted autoplay></video>
                             <canvas id="enrol-canvas" class="hidden"></canvas>
+
+                            {{-- Framing guide. pointer-events-none so it never
+                                 swallows the tap that retries the camera. --}}
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                <div id="enrol-guide-oval"
+                                     class="rounded-[50%] border-[3px] border-dashed transition-colors duration-200"
+                                     style="width: 56%; aspect-ratio: 3 / 4; border-color: rgba(255,255,255,0.55);"></div>
+                            </div>
+
+                            <button type="button" data-clock-flip
+                                    aria-label="Switch between the front and back camera"
+                                    class="absolute bottom-2 right-2 rounded-full bg-gray-900/70 px-3 py-1.5 text-[11px] font-medium text-white active:bg-gray-900">
+                                Flip camera
+                            </button>
                             {{-- Tappable, and labelled before any script runs —
                                  see the clock screen for why both matter. --}}
                             <button type="button" id="enrol-overlay"
@@ -128,7 +144,33 @@
                             </button>
                         </div>
 
-                        <p id="enrol-status" class="mt-2 text-center text-xs text-gray-600 min-h-[1rem]" aria-live="polite"></p>
+                        {{-- Live framing advice. Separate from the status line
+                             because it changes several times a second and would
+                             otherwise stamp on messages the person needs to read. --}}
+                        <p id="enrol-guide-hint" class="mt-2 text-center text-xs font-medium text-gray-700 min-h-[1rem]"></p>
+
+                        <p id="enrol-status" class="mt-1 text-center text-xs text-gray-600 min-h-[1rem]" aria-live="polite"></p>
+
+                        @php $needed = $minCaptures; @endphp
+                        {{-- Progress, so "how many more?" is answerable without
+                             counting thumbnails. The first three slots are the
+                             ones that matter; the rest are headroom. --}}
+                        <div id="enrol-progress" class="mt-2" data-needed="{{ $needed }}">
+                            <div class="flex items-center gap-1" role="img"
+                                 aria-label="{{ $captures->count() }} of {{ $maxCaptures }} captures taken">
+                                @for ($i = 0; $i < $maxCaptures; $i++)
+                                    <span data-slot class="h-1.5 flex-1 rounded-full transition-colors duration-200"
+                                          style="background-color: {{ $i < $captures->count()
+                                              ? ($i < $needed ? '#0d5f61' : '#6ee7b7')
+                                              : '#e5e7eb' }};"></span>
+                                @endfor
+                            </div>
+                            <p data-progress-label class="mt-1 text-center text-[11px] text-gray-600">
+                                {{ $captures->count() >= $needed
+                                    ? $captures->count() . ' on file — enough to clock in with'
+                                    : $captures->count() . ' of ' . $needed . ' needed' }}
+                            </p>
+                        </div>
 
                         {{-- Hidden until something has plainly gone wrong. "app
                              NOT STARTED" is the difference between a camera

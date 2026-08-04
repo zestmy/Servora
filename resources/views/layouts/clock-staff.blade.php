@@ -66,10 +66,10 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* The preview is mirrored so it behaves like a mirror, which is what
-           anyone expects of a front camera. The stored still is un-mirrored
-           again in JS — evidence should look the way a witness saw it. */
-        .clock-video { transform: scaleX(-1); }
+        /* Mirroring is applied by clock.js, per camera, not here. A blanket
+           scaleX(-1) would flip the REAR camera too — showing the room, and
+           any writing in it, back to front — and it would fight the inline
+           transform the module sets when the camera is switched. */
     </style>
 </head>
 <body class="h-full bg-gray-50 antialiased overflow-hidden">
