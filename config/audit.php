@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ClockEvent;
 use App\Models\CreditNote;
 use App\Models\DeliveryOrder;
 use App\Models\Employee;
@@ -79,6 +80,12 @@ return [
         ProductionRecipe::class,
 
         // HR & labour
+        // ClockEvent carries the ringgit deducted from somebody's service
+        // charge, and it can now be deleted and restored from the review
+        // screen. The observer already records both events, so listing it
+        // here is the whole audit trail — including who restored a punch,
+        // which deleted_by alone cannot express once it is cleared.
+        ClockEvent::class,
         OvertimeClaim::class,
         LabourCost::class,
         Employee::class,

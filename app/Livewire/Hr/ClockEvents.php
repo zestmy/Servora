@@ -31,6 +31,18 @@ class ClockEvents extends Component
     public string $from          = '';
     public string $to            = '';
 
+    /**
+     * Whether deleted punches are on screen: '' hides them, 'include' mixes
+     * them in, 'only' shows nothing else.
+     *
+     * A separate control from the status filter because the two are
+     * independent — a deleted punch still has a status, and folding "deleted"
+     * into that list would make it impossible to ask for deleted FLAGGED
+     * punches, which is the actual question somebody has when hunting for
+     * one they removed by mistake.
+     */
+    public string $deletedFilter = '';
+
     /** Punch open in the detail panel. */
     #[Locked]
     public ?int $viewingId = null;
@@ -57,7 +69,7 @@ class ClockEvents extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['search', 'outletFilter', 'statusFilter', 'from', 'to'], true)) {
+        if (in_array($property, ['search', 'outletFilter', 'statusFilter', 'deletedFilter', 'from', 'to'], true)) {
             $this->resetPage();
         }
     }
@@ -114,6 +126,15 @@ class ClockEvents extends Component
         $event = $this->findEvent($id);
 
         if (! $event) {
+            return;
+        }
+
+        // findEvent() sees deleted punches so they can be opened and
+        // restored. Approving one would write a decision onto a record that
+        // counts for nothing, so it is refused rather than silently allowed.
+        if ($event->trashed()) {
+            session()->flash('error', 'That punch is deleted. Restore it first.');
+
             return;
         }
 
@@ -230,9 +251,58 @@ class ClockEvents extends Component
             : 'Punch deleted.');
     }
 
+    /**
+     * Put a deleted punch back, with everything it counted towards.
+     *
+     * deleted_by is cleared rather than kept: a live record carrying "deleted
+     * by Aisha" reads as a record that is still deleted, and the column
+     * exists to describe the current state. The history of who removed it and
+     * who put it back is not lost — ClockEvent is registered in config/audit,
+     * so the observer writes both the deletion and the restore to the audit
+     * trail, which is append-only and cannot be edited.
+     */
+    public function restoreEvent(int $id): void
+    {
+        abort_unless(Auth::user()->can('hr.clock'), 403);
+
+        if (! $this->canDelete()) {
+            session()->flash('error', 'Restoring clock-ins needs company admin access.');
+
+            return;
+        }
+
+        $event = $this->findEvent($id);
+
+        if (! $event?->trashed()) {
+            return;
+        }
+
+        $event->restore();
+        $event->forceFill(['deleted_by' => null])->saveQuietly();
+
+        session()->flash('success', $this->canViewPay() && (float) $event->penalty_amount > 0
+            ? sprintf(
+                'Punch restored. Its RM%s late charge applies again.',
+                number_format((float) $event->penalty_amount, 2)
+            )
+            : 'Punch restored.');
+    }
+
+    /**
+     * withTrashed, always.
+     *
+     * Deleting a punch keeps the detail panel open on it for a moment, and
+     * restoring one has to find it in the first place. Without this the panel
+     * blanked the instant a punch was deleted, and a restore button would
+     * have had nothing to act on.
+     *
+     * Safe because it is the only lookup and every caller re-checks what it
+     * is allowed to do — the outlet scope below is what actually guards it.
+     */
     private function findEvent(int $id): ?ClockEvent
     {
-        return ClockEvent::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+        return ClockEvent::withTrashed()
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
             ->find($id);
     }
 
@@ -266,6 +336,11 @@ class ClockEvents extends Component
         $accessible = $this->accessibleOutletIds();
 
         $events = ClockEvent::with(['employee', 'outlet', 'rosterEntry', 'reviewer'])
+            // Deleted punches are absent unless asked for. 'only' is how
+            // somebody finds one they removed by mistake without having to
+            // remember which day it was on.
+            ->when($this->deletedFilter === 'include', fn ($q) => $q->withTrashed())
+            ->when($this->deletedFilter === 'only', fn ($q) => $q->onlyTrashed())
             ->whereIn('outlet_id', $accessible ?: [0])
             ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
             ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter))
