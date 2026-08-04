@@ -121,10 +121,17 @@
                playsinline muted autoplay></video>
         <canvas id="clock-canvas" class="hidden"></canvas>
 
-        <div id="clock-camera-overlay"
-             class="absolute inset-0 grid place-items-center bg-gray-900/80 text-center px-6">
-            <p id="clock-camera-message" class="text-sm text-gray-200">Starting camera…</p>
-        </div>
+        {{-- A button, not a div, and it says "Tap to start" before any script
+             touches it. Two reasons. On iOS a getUserMedia call made from a
+             real tap is the one that reliably prompts, so every failure here
+             has to be retryable by touching it. And because the script
+             overwrites this text as its first action, text that still reads
+             "Tap to start camera" means the script never ran at all — which
+             is otherwise indistinguishable from a camera that hung. --}}
+        <button type="button" id="clock-camera-overlay"
+                class="absolute inset-0 grid place-items-center bg-gray-900/80 text-center px-6 w-full">
+            <span id="clock-camera-message" class="text-sm text-gray-200">Tap to start camera</span>
+        </button>
     </div>
 
     <p id="clock-status" class="text-center text-sm text-gray-600 min-h-[1.25rem] mb-3" aria-live="polite"></p>
@@ -204,28 +211,63 @@
     let camera = null;
     let busy = false;
     let booted = false;
+    let starting = false;
     /** Whether the face step can run at all — a denied camera or missing
      *  model files turn it off, and the server decides what that costs. */
     let faceAvailable = false;
 
+    const setOverlay = (text) => { if (overlayMessage) overlayMessage.textContent = text; };
+
+    /**
+     * Every message ends with what to DO, and the overlay stays tappable
+     * behind all of them — the person reading this is standing at a door
+     * and needs a way forward, not a diagnosis.
+     */
+    function cameraProblem(error) {
+        switch (error?.name) {
+            case 'NotAllowedError':
+            case 'SecurityError':
+                return 'Camera blocked. Allow camera for this site in your browser settings, then tap here.';
+            case 'NotFoundError':
+            case 'OverconstrainedError':
+                return 'No camera found on this device. Tap to try again.';
+            case 'NotReadableError':
+                return 'Another app is using the camera. Close it, then tap here.';
+            case 'TimeoutError':
+                return 'The camera did not respond — a permission prompt may be waiting. Tap to try again.';
+            case 'NotSupportedError':
+                return 'This browser cannot use the camera. Ask your manager to record this shift.';
+            default:
+                return 'Could not start the camera. Tap to try again.';
+        }
+    }
+
     async function boot() {
-        if (! api || ! navigator.mediaDevices?.getUserMedia) {
-            overlayMessage.textContent = 'This browser cannot use the camera. Ask your manager to record this shift.';
+        if (starting || camera?.stream) return;
+
+        starting = true;
+        setOverlay('Starting camera…');
+
+        if (! api) {
+            // clock.js did not load. Reloading is the only fix from here.
+            setOverlay('The camera could not be set up. Reload the page.');
             booted = true;
+            starting = false;
             return;
         }
 
-        camera = new api.ClockCamera({ video, canvas, onStatus: setStatus });
+        camera ??= new api.ClockCamera({ video, canvas, onStatus: setStatus });
 
         try {
             await camera.start();
             overlay.classList.add('hidden');
         } catch (e) {
-            overlayMessage.textContent = 'Camera blocked. Allow camera for this site in your browser settings, then reload.';
+            setOverlay(cameraProblem(e));
             // Still punchable: if the company does not require a face the
             // punch is perfectly valid, and if it does the server refuses it
             // in words the employee can act on.
             booted = true;
+            starting = false;
             return;
         }
 
@@ -241,7 +283,12 @@
         }
 
         booted = true;
+        starting = false;
     }
+
+    // A retry from a real tap is the call iOS reliably prompts for, so the
+    // overlay is the recovery path for every failure above.
+    overlay?.addEventListener('click', boot);
 
     async function punch() {
         if (busy) return;

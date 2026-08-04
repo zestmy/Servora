@@ -111,9 +111,12 @@
                             <video id="enrol-video" class="w-full h-full object-cover" style="transform: scaleX(-1);"
                                    playsinline muted autoplay></video>
                             <canvas id="enrol-canvas" class="hidden"></canvas>
-                            <div id="enrol-overlay" class="absolute inset-0 grid place-items-center bg-gray-900/80 px-6 text-center">
-                                <p id="enrol-overlay-message" class="text-sm text-gray-200">Starting camera…</p>
-                            </div>
+                            {{-- Tappable, and labelled before any script runs —
+                                 see the clock screen for why both matter. --}}
+                            <button type="button" id="enrol-overlay"
+                                    class="absolute inset-0 grid place-items-center bg-gray-900/80 px-6 text-center w-full">
+                                <span id="enrol-overlay-message" class="text-sm text-gray-200">Tap to start camera</span>
+                            </button>
                         </div>
 
                         <p id="enrol-status" class="mt-2 text-center text-xs text-gray-600 min-h-[1rem]" aria-live="polite"></p>
@@ -190,17 +193,32 @@
     let camera = null;
     let modelsReady = false;
     let capturing = false;
+    let starting = false;
+
+    const setOverlay = (text) => { if (overlayMessage) overlayMessage.textContent = text; };
 
     async function boot() {
-        if (! video || ! window.ServoraClock) return;
+        if (starting || camera?.stream || ! video) return;
 
-        camera = new window.ServoraClock.ClockCamera({ video, canvas, onStatus: setStatus });
+        starting = true;
+        setOverlay('Starting camera…');
+
+        if (! window.ServoraClock) {
+            setOverlay('The camera could not be set up. Reload the page.');
+            starting = false;
+            return;
+        }
+
+        camera ??= new window.ServoraClock.ClockCamera({ video, canvas, onStatus: setStatus });
 
         try {
             await camera.start();
             overlay.classList.add('hidden');
         } catch (e) {
-            overlayMessage.textContent = 'Camera blocked. Allow camera for this site, then reload.';
+            setOverlay(e?.name === 'NotAllowedError'
+                ? 'Camera blocked. Allow camera for this site, then tap here.'
+                : 'Could not start the camera. Tap to try again.');
+            starting = false;
             return;
         }
 
@@ -213,7 +231,12 @@
         } catch (e) {
             setStatus('Face model could not load. Check the connection and reload.');
         }
+
+        starting = false;
     }
+
+    // Retrying from a real tap is the call browsers reliably prompt for.
+    overlay?.addEventListener('click', boot);
 
     // Delegated: the button element is replaced on every render, so a handler
     // bound to the original node would stop firing after the first capture.

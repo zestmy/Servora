@@ -87,18 +87,54 @@ export class ClockCamera {
         this.stream = null;
     }
 
-    async start() {
+    /**
+     * Open the camera.
+     *
+     * Both awaits below have bitten us on iOS and are deliberately defensive:
+     *
+     * getUserMedia does NOT reject when a permission prompt goes unanswered —
+     * it stays pending forever. Awaiting it bare left the preview stuck on
+     * "Starting camera…" with neither a success nor an error path ever
+     * running, which is the one outcome this screen must never produce. It
+     * races a timeout so the caller can offer a retry instead.
+     *
+     * play() is not awaited at all. The element carries `autoplay`, so Safari
+     * frequently starts playback itself and then rejects the explicit call
+     * with an AbortError — and in some versions never settles it. None of
+     * that matters: frames flow as soon as srcObject is set, which is what
+     * the detector reads.
+     */
+    async start({ timeoutMs = 12000 } = {}) {
         if (this.stream) return;
 
-        // facingMode 'user' rather than exact: a kitchen tablet mounted on a
-        // wall may only have one camera, and exact would fail outright on it.
-        this.stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-            audio: false,
-        });
+        if (! navigator.mediaDevices?.getUserMedia) {
+            throw new DOMException('This browser has no camera API.', 'NotSupportedError');
+        }
+
+        let timer;
+
+        try {
+            this.stream = await Promise.race([
+                // facingMode 'user' rather than exact: a kitchen tablet
+                // mounted on a wall may only have one camera, and exact would
+                // fail outright on it.
+                navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false,
+                }),
+                new Promise((_, reject) => {
+                    timer = setTimeout(
+                        () => reject(new DOMException('Timed out waiting for the camera.', 'TimeoutError')),
+                        timeoutMs,
+                    );
+                }),
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
 
         this.video.srcObject = this.stream;
-        await this.video.play();
+        this.video.play?.().catch(() => {});
     }
 
     stop() {
