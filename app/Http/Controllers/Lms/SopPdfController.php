@@ -17,12 +17,31 @@ use Illuminate\Support\Facades\Auth;
 
 class SopPdfController extends Controller
 {
+    /**
+     * Ceiling for a render, above php.ini's 256M.
+     *
+     * dompdf keeps a frame object per DOM node for the whole document and
+     * only serialises at the end, so its peak tracks document structure, not
+     * page count alone: a 61-recipe category export measures ~198 MB with
+     * every image stripped out, and ~240 MB with them. 256M left no headroom
+     * and was the 500.
+     *
+     * Deliberately not higher. This is a 2 GB box running five php-fpm
+     * children, so a ceiling generous enough for the whole 203-recipe catalogue
+     * (~660 MB by the same measurement) would let two concurrent exports take
+     * the server down. A limit is a ceiling and not a reservation, so this
+     * costs nothing on the requests that don't need it.
+     */
+    private const RENDER_MEMORY = '512M';
+
     public function __construct(private PdfImage $images)
     {
     }
 
     public function single(int $id)
     {
+        ini_set('memory_limit', self::RENDER_MEMORY);
+
         $isLmsTrainee = Auth::guard('lms')->check();
         $user = $isLmsTrainee
             ? Auth::guard('lms')->user()
@@ -68,6 +87,8 @@ class SopPdfController extends Controller
 
     public function all()
     {
+        ini_set('memory_limit', self::RENDER_MEMORY);
+
         $isLmsTrainee = Auth::guard('lms')->check();
         $user = $isLmsTrainee
             ? Auth::guard('lms')->user()
