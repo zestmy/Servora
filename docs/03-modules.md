@@ -71,6 +71,7 @@ Find the right component to edit fast. Routes are pulled from [routes/web.php](.
 | Component | Route | Purpose |
 |-----------|-------|---------|
 | [Hr/Employees](../app/Livewire/Hr/Employees.php) | `/hr/employees` | Staff list with filters (outlet, section, status). |
+| [Hr/StaffPins](../app/Livewire/Hr/StaffPins.php) | `/hr/staff-pins` | Issue / revoke the staff-app PIN. One PIN opens both clock-in and labels. |
 | [Hr/OvertimeClaims](../app/Livewire/Hr/OvertimeClaims.php) | `/hr/overtime-claims` | OT claim form + auto-calc hours; approval workflow. |
 | [Hr/ClockEvents](../app/Livewire/Hr/ClockEvents.php) | `/hr/clock-ins` | Web clock-in review queue: approve/reject flagged punches, override charged minutes. |
 | [Hr/ClockSettings](../app/Livewire/Hr/ClockSettings.php) | `/hr/clock-settings` | Lateness rate + grace + cap, GPS/face enforcement, and the per-outlet geofence. |

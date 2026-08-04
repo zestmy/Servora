@@ -63,6 +63,7 @@ class Users extends Component
         'hr.claims'            => 'HR — Overtime Claims',
         'hr.clock'             => 'HR — Clock-In Review',
         'hr.clock.manage'      => 'HR — Clock-In Settings & Face Enrolment',
+        'staff.pins'           => 'HR — Staff PINs (staff app access)',
         'hr.compensation'      => 'HR — Salary & Service Points (sensitive)',
         'hr.documents.view'    => 'HR Documents (View)',
         'hr.documents.manage'  => 'HR Documents (Manage)',

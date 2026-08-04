@@ -235,7 +235,6 @@
                             ['route' => 'labels.log',        'label' => 'Print Log',       'permission' => 'labels.view_log'],
                             ['route' => 'labels.shelf-life', 'label' => 'Shelf Life',      'permission' => 'labels.manage'],
                             ['route' => 'labels.templates',  'label' => 'Templates',       'permission' => 'labels.manage'],
-                            ['route' => 'labels.staff-access', 'label' => 'Staff Access',  'permission' => 'labels.manage'],
                             ['route' => 'labels.printers',   'label' => 'Label Printers',  'permission' => 'labels.manage'],
                             ['route' => 'labels.settings',   'label' => 'Label Settings',  'permission' => 'labels.manage'],
                         ],
@@ -252,6 +251,7 @@
                         'label' => 'HR',
                         'items' => [
                             ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view'],
+                            ['route' => 'hr.staff-pins',           'label' => 'Staff PINs',      'permission' => 'staff.pins'],
                             ['route' => 'hr.duty-roster',          'label' => 'Duty Roster'], // Viewable by all users
                             ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance'],
                             ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock'],

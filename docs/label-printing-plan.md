@@ -337,7 +337,7 @@ Four tabs: Print, Sets, Expiring, Log. The staff log is read-only and scoped to 
 member's own outlet — it shows the whole outlet's activity, not just their own, because
 the question being answered is usually about a label someone else printed.
 
-Managers administer access at `/labels/staff-access`: issue a random PIN (shown **once**,
+Managers administer access at `/hr/staff-pins` (moved from `/labels/staff-access`, which now redirects, when the clock-in app started sharing the same PIN): issue a random PIN (shown **once**,
 stored hashed, unrecoverable by design), set one manually, or revoke. Staff without an
 outlet cannot be given access, because there would be no printer, no sets and nothing
 to expire. Staff can change their own PIN in the app.

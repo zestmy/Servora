@@ -7,21 +7,40 @@
     @endif
 
     <div class="mb-6">
-        <p class="page-eyebrow">Labels / Staff access</p>
-        <h1 class="page-title mt-1">Staff access</h1>
+        <p class="page-eyebrow">HR / Staff PINs</p>
+        <h1 class="page-title mt-1">Staff PINs</h1>
     </div>
 
     <div class="card p-5 mb-4">
         <p class="text-sm text-gray-600">
-            Give kitchen staff a PIN so they can print labels from a phone or tablet without a Servora login.
+            Give staff a PIN so they can use the staff apps from a phone or tablet without a Servora login.
         </p>
+
+        {{-- One PIN, both apps — said plainly, because issuing a PIN for
+             label printing now also lets that person clock in, and a manager
+             should not discover that from an attendance report. --}}
+        <div class="mt-3 space-y-1.5 text-xs text-gray-500">
+            <p>
+                <span class="font-medium text-gray-700">Clock in</span> —
+                <span class="font-mono text-gray-700">{{ $clockUrl }}</span>.
+                Records attendance against the duty roster, with a photo and location.
+            </p>
+            <p>
+                <span class="font-medium text-gray-700">Labels</span> —
+                <span class="font-mono text-gray-700">{{ $labelsUrl }}</span>.
+                Whoever signs in is recorded as “Prepared by” on every label they print.
+            </p>
+        </div>
+
         <p class="text-xs text-gray-500 mt-2">
-            They go to <span class="font-mono text-gray-700">{{ $appUrl }}</span>, tap their name and enter their PIN.
-            Whoever signs in is recorded as "Prepared by" on every label they print.
+            They tap their name and enter their PIN. It is the same PIN for both, so signing in to one
+            signs them in to the other.
         </p>
+
         <p class="text-xs text-warning-600 mt-2">
             A PIN is shown once when you issue it and stored encrypted after that — it can't be looked up later,
-            only replaced. Staff can change their own PIN in the app.
+            only replaced. Staff can change their own PIN in the app. Revoking a PIN signs that person out
+            of both apps everywhere.
         </p>
     </div>
 
@@ -91,12 +110,12 @@
                                             class="ml-1 text-xs text-brand-600 hover:underline">Set manually</button>
                                     @if ($employee->hasLabelPin())
                                         <button wire:click="revoke({{ $employee->id }})"
-                                                wire:confirm="Revoke label access for {{ $employee->name }}? They'll be signed out everywhere."
+                                                wire:confirm="Revoke staff app access for {{ $employee->name }}? They'll be signed out of clock-in and labels everywhere, and won't be able to clock in."
                                                 class="ml-2 text-xs text-danger-500 hover:underline">Revoke</button>
                                     @endif
                                 @else
-                                    {{-- Labels are outlet-scoped: without one there is no
-                                         printer, no sets and nothing to expire. --}}
+                                    {{-- Both staff apps are outlet-scoped: without an outlet
+                                         there is no printer and no geofence to clock in against. --}}
                                     <span class="text-xs text-gray-600">Needs an outlet first</span>
                                 @endif
                             </td>
