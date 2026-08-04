@@ -141,6 +141,31 @@ const POSE_TIMEOUT_MS = 12000;
  *  and letting the punch proceed without a face check. */
 const MODEL_TIMEOUT_MS = 30000;
 
+/** How long the camera gets to open before the diagnostic line is shown.
+ *  Long enough to cover a permission prompt somebody is reading. */
+const REVEAL_AFTER_MS = 6000;
+
+/*
+ * Which camera. These are the values getUserMedia's facingMode takes, and
+ * they are declared here because for several releases they were not declared
+ * anywhere at all.
+ *
+ * Nine sites referenced them and every one threw ReferenceError. The first
+ * was preferredFacing(), called while constructing the ClockCamera — so the
+ * camera never opened, on any device, and getUserMedia was never so much as
+ * called. It read as "camera not opening" and survived every fix aimed at the
+ * start sequence, because the start sequence was not the part that was
+ * broken.
+ *
+ * The try/catch in preferredFacing() is what kept it invisible: written to
+ * survive a browser that refuses localStorage, it swallowed the real
+ * ReferenceError and then threw an identical one from its own catch, where
+ * nothing was left to report it.
+ */
+const FACING_USER        = 'user';
+const FACING_ENVIRONMENT = 'environment';
+const FACING_KEY         = 'servora-clock-facing';
+
 export class ClockCamera {
     constructor({ video, canvas, onStatus, facing = FACING_USER }) {
         this.video = video;
@@ -176,6 +201,8 @@ export class ClockCamera {
 
         let timer;
 
+        note('gum');
+
         try {
             this.stream = await Promise.race([
                 // facingMode 'user' rather than exact: a kitchen tablet
@@ -198,6 +225,44 @@ export class ClockCamera {
         } finally {
             clearTimeout(timer);
         }
+
+        note('gum:ok');
+
+        this.paint();
+    }
+
+    /**
+     * Point this camera at a <video> element, keeping the stream.
+     *
+     * A MediaStream is not owned by the element showing it. When Livewire
+     * rebuilds the component the <video> is replaced, and the old code
+     * responded by stopping the camera and asking for it again — a second
+     * permission round trip on iOS, for a stream that was alive and well the
+     * whole time. Worse, it did that while a start was still in flight,
+     * abandoning it and force-clearing the lock, so two getUserMedia calls
+     * could be outstanding at once against elements neither of which was on
+     * the page any more.
+     *
+     * Re-pointing costs nothing and prompts for nothing. It is also correct
+     * mid-start: if the stream has not arrived yet, start() paints whichever
+     * element is current by the time it does.
+     */
+    attach(video, canvas) {
+        if (canvas) this.canvas = canvas;
+
+        if (! video || video === this.video) return;
+
+        // Release the old node first, so two elements never hold one stream.
+        if (this.video) this.video.srcObject = null;
+
+        this.video = video;
+
+        if (this.stream) this.paint();
+    }
+
+    /** Put the current stream on the current element and get it moving. */
+    paint() {
+        if (! this.video || ! this.stream) return;
 
         this.video.srcObject = this.stream;
 
@@ -238,7 +303,11 @@ export class ClockCamera {
     stop() {
         this.stream?.getTracks().forEach((track) => track.stop());
         this.stream = null;
-        this.video.srcObject = null;
+
+        // Guarded: attach() can leave this holding a node that has since been
+        // removed, and an unguarded assignment here would throw from a
+        // teardown path — turning a tidy-up into the failure.
+        if (this.video) this.video.srcObject = null;
     }
 
     /**
@@ -439,7 +508,29 @@ const screen = {
     starting: false,
     busy: false,
     error: null,
+    bootedAt: 0,
 };
+
+/* ── The event trail ──────────────────────────────────────────────────────
+ *
+ * A snapshot of the state was not enough. "cam off · idle" was reported from
+ * a phone where the overlay still read "Starting camera…", and that single
+ * line is consistent with at least four different stories: a start that never
+ * ran, one that ran and threw past its own catch, one abandoned mid-flight by
+ * a DOM swap, and one that finished against an element no longer on the page.
+ * Guessing between them cost three attempts.
+ *
+ * So the screen now carries its own history: a short ring buffer of what
+ * actually happened, in order, printed on the same line. It is a dozen short
+ * tokens, it costs nothing, and it turns a screenshot into an answer.
+ */
+const trail = [];
+
+function note(event) {
+    trail.push(event);
+
+    if (trail.length > 14) trail.shift();
+}
 
 const el = (id) => (id ? document.getElementById(id) : null);
 
@@ -504,31 +595,72 @@ function showDiagnostics() {
         `${video?.videoWidth || 0}x${video?.videoHeight || 0}`,
         video?.paused ? 'paused' : 'playing',
         `face ${screen.faceAvailable ? 'ok' : 'off'}`,
+        // The history, last first, because the most recent event is the one
+        // that explains the current state.
+        trail.length ? `[${trail.slice().reverse().join(' <- ')}]` : '[no events]',
     ].join(' · ');
 
-    if (! screen.camera?.stream || ! window.Livewire) {
+    // Hidden while a start is still plausibly in progress. Revealing it at
+    // once would put a fault line on a screen that is about to work.
+    const settled = screen.bootedAt && Date.now() - screen.bootedAt > REVEAL_AFTER_MS;
+
+    if ((settled && ! screen.camera?.stream) || ! window.Livewire) {
         node.classList.remove('hidden');
     }
 }
 
 async function startScreen() {
     if (! screen.dom) return;
-    if (screen.starting || screen.camera?.stream) return;
+
+    if (screen.starting) {
+        note('skip:busy');
+
+        return;
+    }
+
+    if (screen.camera?.stream) {
+        note('skip:live');
+        screen.camera.resume();
+
+        return;
+    }
 
     screen.starting = true;
     screen.error    = null;
     setOverlay('Starting camera…');
+    note('start');
 
-    // try/finally around the WHOLE body. `starting` is a lock, and it used to
-    // be released on each path individually — so any await that never settled
-    // pinned it true forever, and every retry after that (a tap, a re-boot,
-    // the observer) returned early without doing anything at all. That is a
-    // preview stuck on "Starting camera…" with no error and no way back.
+    // try/catch/finally around the WHOLE body. `starting` is a lock, and it
+    // used to be released on each path individually — so any await that never
+    // settled pinned it true forever, and every retry after that (a tap, a
+    // re-boot, the observer) returned early without doing anything at all.
+    //
+    // The catch matters just as much. startCamera() guards getUserMedia, but
+    // anything thrown OUTSIDE that guard escaped as an unhandled rejection —
+    // no error recorded, overlay still reading "Starting camera…", lock duly
+    // released by the finally. That is indistinguishable from a hang and it
+    // is precisely what was reported.
     try {
         await startCamera();
+    } catch (error) {
+        screen.error = error?.name || 'script';
+        note(`throw:${screen.error}`);
+        setOverlay('Something went wrong starting the camera. Tap to try again.');
     } finally {
         screen.starting = false;
     }
+
+    // No stream, no error, nothing to tap through. Whatever the cause, that
+    // combination is a bug in this file rather than a camera the phone
+    // refused, and a screen that says nothing is the one outcome this must
+    // never produce. Name it and offer the retry.
+    if (! screen.camera?.stream && ! screen.error) {
+        screen.error = 'nostream';
+        note('nostream');
+        setOverlay('The camera did not start. Tap to try again.');
+    }
+
+    if (! screen.camera?.stream) showDiagnostics();
 }
 
 async function startCamera() {
@@ -539,11 +671,18 @@ async function startCamera() {
         facing: preferredFacing(),
     });
 
+    // Always the CURRENT elements: a camera kept across a Livewire rebuild
+    // is still pointing at the nodes it was made with until it is told
+    // otherwise, and painting a detached <video> shows nobody anything.
+    screen.camera.attach(el(screen.dom.video), el(screen.dom.canvas));
+
     try {
         await screen.camera.start();
         el(screen.dom.overlay)?.classList.add('hidden');
+        note('open');
     } catch (error) {
         screen.error = error?.name || 'failed';
+        note(`err:${screen.error}`);
         setOverlay(cameraProblem(error));
         showDiagnostics();
 
@@ -668,6 +807,7 @@ async function flipCamera() {
     const next = preferredFacing() === FACING_USER ? FACING_ENVIRONMENT : FACING_USER;
 
     rememberFacing(next);
+    note(`flip:${next === FACING_USER ? 'front' : 'back'}`);
 
     stopGuide();
     screen.camera?.stop();
@@ -1133,6 +1273,9 @@ function boot() {
 
     if (! found) return;
 
+    note('boot');
+    screen.bootedAt ||= Date.now();
+
     // A different screen than last time (Livewire navigation): drop the old
     // camera so the new elements get a fresh one.
     if (screen.dom && screen.dom.key !== found.key) {
@@ -1147,16 +1290,18 @@ function boot() {
     // stream, however healthy the ClockCamera pointing at the old node was.
     // Livewire discarding and rebuilding this component is exactly how the
     // camera died mid-shift, so identity is checked rather than assumed.
+    //
+    // The response used to be to stop the camera, drop it, and clear the
+    // start lock. That threw away a working stream to ask for it again, and
+    // clearing the lock mid-flight let a second getUserMedia start while the
+    // first was still outstanding — two pending prompts, neither pointed at
+    // an element still on the page. Re-pointing the camera does the same job
+    // with no prompt, no teardown, and no second call.
     const video = el(found.video);
 
     if (screen.videoNode && screen.videoNode !== video) {
-        screen.camera?.stop();
-        screen.camera = null;
-        screen.faceAvailable = false;
-        // Release the lock too. Whatever start was in flight was pointed at
-        // an element that no longer exists, so waiting for it would block the
-        // replacement from ever starting.
-        screen.starting = false;
+        note('swap');
+        screen.camera?.attach(video, el(found.canvas));
     }
 
     screen.videoNode = video;
@@ -1215,12 +1360,28 @@ function boot() {
 
     startScreen();
 
-    // Twice: once early enough to be useful while somebody is still looking
-    // at it, once late enough not to mistake a slow model download for a
-    // fault.
-    setTimeout(showDiagnostics, 6000);
-    setTimeout(showDiagnostics, 20000);
+    // A live line rather than two snapshots. The old pair of timers fired at
+    // six and twenty seconds, so what somebody photographed was the state at
+    // one of two arbitrary instants — which is how a report arrived showing a
+    // combination that no single moment of the code can actually produce.
+    // Refreshing keeps the line and the screen telling the same story.
+    if (! window.__servoraClockDiag) {
+        window.__servoraClockDiag = setInterval(showDiagnostics, 1000);
+    }
 }
+
+/*
+ * Anything that escaped a promise. startScreen() now catches its own, but a
+ * rejection from a listener or a timer still lands here — and on a screen
+ * with no console attached, unrecorded is the same as invisible.
+ */
+window.addEventListener('unhandledrejection', (event) => {
+    note(`reject:${event.reason?.name || event.reason?.message?.slice(0, 20) || '?'}`);
+});
+
+window.addEventListener('error', (event) => {
+    note(`error:${event.message?.slice(0, 24) || '?'}`);
+});
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, { once: true });
