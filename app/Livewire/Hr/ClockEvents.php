@@ -167,6 +167,69 @@ class ClockEvents extends Component
             : 'Punch approved.');
     }
 
+    /**
+     * Whether this user may delete punches at all.
+     *
+     * `can_delete_records` is the capability the company admin and business
+     * manager roles carry, and the same gate duty rosters and overtime claims
+     * already use — deliberately not a new permission, because a fourth way
+     * to express "the boss can remove things" is a fourth thing to keep in
+     * step. hasCapability() also lets system roles through, as everywhere.
+     *
+     * Reviewing a punch and deleting one are different powers on purpose: an
+     * outlet manager with hr.clock can approve and reject all day and still
+     * cannot make a record disappear.
+     */
+    public function canDelete(): bool
+    {
+        return Auth::user()?->hasCapability('can_delete_records') ?? false;
+    }
+
+    /**
+     * Remove a punch from every total it feeds, keeping the record.
+     *
+     * It soft deletes, so the row survives for audit while leaving the review
+     * queue, the attendance export and the service charge together — see the
+     * ClockEvent model for why that single mechanism covers all three.
+     *
+     * The selfie is deliberately NOT deleted. The photograph is the evidence
+     * for a punch somebody has just decided was wrong, which is the moment it
+     * is most likely to be asked about, and a restored record with no picture
+     * would be worse than useless.
+     */
+    public function deleteEvent(int $id): void
+    {
+        abort_unless(Auth::user()->can('hr.clock'), 403);
+
+        if (! $this->canDelete()) {
+            session()->flash('error', 'Deleting clock-ins needs company admin access.');
+
+            return;
+        }
+
+        $event = $this->findEvent($id);
+
+        if (! $event) {
+            return;
+        }
+
+        // Written before the delete: an update() afterwards would have to go
+        // looking for a row the query builder now hides.
+        $event->forceFill(['deleted_by' => Auth::id()])->saveQuietly();
+        $event->delete();
+
+        $this->closePanel();
+
+        // Names the money, because that is the part a manager cannot see
+        // undone from this screen and would otherwise learn about at payout.
+        session()->flash('success', $this->canViewPay() && (float) $event->penalty_amount > 0
+            ? sprintf(
+                'Punch deleted. The RM%s late charge it carried no longer applies.',
+                number_format((float) $event->penalty_amount, 2)
+            )
+            : 'Punch deleted.');
+    }
+
     private function findEvent(int $id): ?ClockEvent
     {
         return ClockEvent::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])

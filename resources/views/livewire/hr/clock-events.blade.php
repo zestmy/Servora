@@ -283,7 +283,32 @@
                         <textarea wire:model="reviewNote" rows="2" class="w-full rounded-lg border-gray-300 text-sm"></textarea>
                     </div>
 
-                    <div class="flex flex-wrap gap-2 justify-end">
+                    <div class="flex flex-wrap items-center gap-2 justify-end">
+                        {{-- Delete sits apart from Approve and Reject, on the
+                             far side of the row.
+
+                             Rejecting voids a punch and keeps it on the
+                             screen; deleting takes it off the screen
+                             altogether. They are different decisions and the
+                             destructive one should not be a neighbour of the
+                             button somebody presses forty times a morning.
+
+                             Company admin only — an outlet manager can
+                             approve and reject all day and still not make a
+                             record disappear. --}}
+                        @if ($this->canDelete())
+                            @php
+                                $charge = $this->canViewPay() ? (float) $viewing->penalty_amount : 0.0;
+                            @endphp
+                            <button wire:click="deleteEvent({{ $viewing->id }})"
+                                    wire:confirm="Delete this punch?{{ $charge > 0
+                                        ? ' It carries an RM' . number_format($charge, 2) . ' late charge, which will stop applying to the service charge.'
+                                        : '' }} It stops counting everywhere. The record is kept for audit but cannot be restored from this screen."
+                                    class="mr-auto px-3 py-2 text-sm font-medium text-danger-700 hover:underline">
+                                Delete
+                            </button>
+                        @endif
+
                         <button wire:click="reject({{ $viewing->id }})"
                                 wire:confirm="Reject this punch? It stops counting for attendance and for the service charge."
                                 class="px-3 py-2 text-sm font-medium text-danger-700 border border-danger-200 rounded-lg hover:bg-danger-50">

@@ -6,6 +6,7 @@ use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * A single clock-in or clock-out punch, with every check that was run on it.
@@ -15,6 +16,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ClockEvent extends Model
 {
+    /**
+     * A punch is an attendance record, and a late one is a payroll record —
+     * it carries the ringgit taken off somebody's service charge. Deleting
+     * one has to stop it counting without destroying the evidence that it
+     * happened, so it soft deletes.
+     *
+     * This also does the arithmetic for free: LatePenalties::forPeriod()
+     * reads this table live and drops only the CompanyScope, so the
+     * SoftDeletingScope survives and a deleted punch leaves the service
+     * charge, the review queue and the export together.
+     */
+    use SoftDeletes;
+
     public const TYPE_IN          = 'in';
     public const TYPE_OUT         = 'out';
     public const TYPE_BREAK_START = 'break_start';
@@ -58,6 +72,10 @@ class ClockEvent extends Model
         'reviewed_at', 'review_note', 'override_late_minutes', 'device_label',
         'user_agent', 'ip_address',
     ];
+
+    // deleted_by is deliberately absent from $fillable. It records WHO took a
+    // punch out of the payroll, so it is written by the delete path alone and
+    // must never be settable through mass assignment.
 
     protected $casts = [
         'work_date'               => 'date',
