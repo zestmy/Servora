@@ -91,6 +91,12 @@ systemctl show servora-queue \
     --no-pager 2>&1 | sed 's/^/    /' || true
 journalctl -u servora-queue -n 20 --no-pager --output=short 2>&1 | tail -20 | sed 's/^/    /' || true
 
+# The worker exits CLEANLY every few seconds, which rules out a crash and
+# leaves the restart signal: a cached timestamp that stops any worker whose
+# reading of it changes. `|| true` because queue:signal reports a problem
+# with a non-zero exit, and `set -e` would turn that into a failed deploy.
+php artisan queue:signal --watch=3 2>&1 | sed 's/^/    /' || true
+
 if systemctl is-active --quiet servora-queue 2>/dev/null; then
     info "Restarting queue worker..."
     systemctl restart servora-queue
