@@ -4,6 +4,7 @@ namespace App\Livewire\Hr;
 
 use App\Models\Section;
 use App\Models\Employee;
+use App\Models\ComplianceSetting;
 use App\Models\Outlet;
 use App\Services\Hr\DocumentExpiry;
 use Illuminate\Support\Facades\Auth;
@@ -633,8 +634,10 @@ class Employees extends Component
             ? app(DocumentExpiry::class)->summarise($complianceQuery, $companyId)
             : null;
 
+        $complianceSettings = ComplianceSetting::forCompany($companyId);
+
         return view('livewire.hr.employees', compact(
-            'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay', 'compliance'
+            'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay', 'compliance', 'complianceSettings'
         ))->layout('layouts.app', ['title' => 'Employees']);
     }
 }

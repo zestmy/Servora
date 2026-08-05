@@ -39,6 +39,33 @@
         </p>
     </div>
 
+    {{-- Built-in documents: which of them actually lapse --}}
+    <div class="card p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-700">Built-in documents</h3>
+        <p class="text-xs text-gray-500 mt-1">
+            Only documents that expire appear in the Employees compliance card and the reminder email —
+            an expiry report has nothing to say about a certificate that is attended once and never renewed.
+            Whether staff hold them is still shown on the Employees list either way.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+            <label class="inline-flex items-center gap-2">
+                <input type="checkbox" wire:model="typhoid_expires" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                <span class="text-sm text-gray-700">Typhoid Card expires</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+                <input type="checkbox" wire:model="food_handler_expires" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                <span class="text-sm text-gray-700">Food Handler expires</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+                <input type="checkbox" wire:model="halal_training_expires" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                <span class="text-sm text-gray-700">Halal Awareness Training expires</span>
+            </label>
+        </div>
+        <div class="flex justify-end mt-4">
+            <button wire:click="saveBuiltIns" class="btn-primary">Save</button>
+        </div>
+    </div>
+
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="table-surface min-w-[820px]">

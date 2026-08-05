@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\CertificationType;
+use App\Models\ComplianceSetting;
 use App\Models\EmployeeCertification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,11 @@ class CertificationTypes extends Component
 {
     public bool $showModal = false;
     public ?int $editingId = null;
+
+    // Which built-in documents this company treats as expiring.
+    public bool $typhoid_expires        = true;
+    public bool $food_handler_expires   = false;
+    public bool $halal_training_expires = false;
 
     public string $name        = '';
     public string $description = '';
@@ -50,6 +56,34 @@ class CertificationTypes extends Component
         return [
             'name.unique' => 'A certification with this name already exists.',
         ];
+    }
+
+    public function mount(): void
+    {
+        $c = ComplianceSetting::forCompany(Auth::user()->company_id);
+
+        $this->typhoid_expires        = (bool) $c->typhoid_expires;
+        $this->food_handler_expires   = (bool) $c->food_handler_expires;
+        $this->halal_training_expires = (bool) $c->halal_training_expires;
+    }
+
+    /**
+     * Save the built-in document flags. Only documents that expire appear in
+     * the compliance card and the reminder email — an expiry report has
+     * nothing to say about a one-off certificate.
+     */
+    public function saveBuiltIns(): void
+    {
+        ComplianceSetting::updateOrCreate(
+            ['company_id' => Auth::user()->company_id],
+            [
+                'typhoid_expires'        => $this->typhoid_expires,
+                'food_handler_expires'   => $this->food_handler_expires,
+                'halal_training_expires' => $this->halal_training_expires,
+            ]
+        );
+
+        session()->flash('success', 'Built-in document settings saved.');
     }
 
     public function openCreate(): void

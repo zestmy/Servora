@@ -214,12 +214,13 @@
                         <input type="text" wire:model="f_food_handler_cert_no" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. FHC-2026-0123" />
                         <x-input-error :messages="$errors->get('f_food_handler_cert_no')" class="mt-1" />
                     </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Food Handler — Expires On</label>
-                        <input type="date" wire:model="f_food_handler_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                        <x-input-error :messages="$errors->get('f_food_handler_expired_on')" class="mt-1" />
-                        <p class="mt-1 text-[11px] text-gray-500">Leave blank if the certificate does not expire.</p>
-                    </div>
+                    @if ($complianceSettings->expires('food_handler'))
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Food Handler — Expires On</label>
+                            <input type="date" wire:model="f_food_handler_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('f_food_handler_expired_on')" class="mt-1" />
+                        </div>
+                    @endif
                 </div>
             @endif
 
@@ -253,12 +254,13 @@
                         <input type="date" wire:model="f_halal_training_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                         <x-input-error :messages="$errors->get('f_halal_training_date')" class="mt-1" />
                     </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Halal Training — Expires On</label>
-                        <input type="date" wire:model="f_halal_training_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                        <x-input-error :messages="$errors->get('f_halal_training_expired_on')" class="mt-1" />
-                        <p class="mt-1 text-[11px] text-gray-500">Leave blank if the training does not need renewing.</p>
-                    </div>
+                    @if ($complianceSettings->expires('halal'))
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Halal Training — Expires On</label>
+                            <input type="date" wire:model="f_halal_training_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('f_halal_training_expired_on')" class="mt-1" />
+                        </div>
+                    @endif
                 </div>
             @endif
 

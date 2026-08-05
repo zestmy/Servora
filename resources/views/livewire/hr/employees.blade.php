@@ -318,13 +318,16 @@
                         </td>
                         <td class="px-4 py-3 text-center">
                             <x-hr.doc-status :held="$emp->food_handler_certified" :expires="$emp->food_handler_expired_on"
+                                             :tracks-expiry="$complianceSettings->expires('food_handler')"
                                              yes="Certified" :note="$emp->food_handler_cert_no" />
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <x-hr.doc-status :held="$emp->typhoid_card" :expires="$emp->typhoid_expired_on" />
+                            <x-hr.doc-status :held="$emp->typhoid_card" :expires="$emp->typhoid_expired_on"
+                                             :tracks-expiry="$complianceSettings->expires('typhoid')" />
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <x-hr.doc-status :held="$emp->halal_training" :expires="$emp->halal_training_expired_on" />
+                            <x-hr.doc-status :held="$emp->halal_training" :expires="$emp->halal_training_expired_on"
+                                             :tracks-expiry="$complianceSettings->expires('halal')" />
                             @if ($emp->halal_training && $emp->halal_training_date)
                                 <div class="text-[10px] text-gray-600 mt-0.5 whitespace-nowrap">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
                             @endif

@@ -396,11 +396,13 @@ class EmployeeForm extends Component
         $canViewPay = $this->canViewPay();
         // The full catalogue for naming a chosen row, plus what is still free
         // to add — a course already listed must not be offered twice.
+        // Hides the expiry inputs for documents this company treats as one-off.
+        $complianceSettings    = \App\Models\ComplianceSetting::forCompany($companyId);
         $certificationTypes    = CertificationType::ordered()->get()->keyBy('id');
         $availableCertifications = $this->availableCertificationTypes();
 
         return view('livewire.hr.employee-form', compact(
-            'outlets', 'sections', 'canViewPay', 'certificationTypes', 'availableCertifications'
+            'outlets', 'sections', 'canViewPay', 'certificationTypes', 'availableCertifications', 'complianceSettings'
         ))
             ->layout('layouts.app', ['title' => $this->employeeId ? 'Edit Employee' : 'Add Employee']);
     }

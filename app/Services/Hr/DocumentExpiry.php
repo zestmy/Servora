@@ -3,6 +3,7 @@
 namespace App\Services\Hr;
 
 use App\Models\CertificationType;
+use App\Models\ComplianceSetting;
 use App\Models\Employee;
 use App\Scopes\CompanyScope;
 use Carbon\Carbon;
@@ -167,8 +168,16 @@ class DocumentExpiry
     private function definitions(int $companyId): array
     {
         $definitions = [];
+        $compliance  = ComplianceSetting::forCompany($companyId);
 
         foreach (Employee::COMPLIANCE_DOCUMENTS as $key => $doc) {
+            // A one-off document has nothing to expire, so it has no place in
+            // an expiry report at all — its held/not-held state is on the
+            // Employees list, which is where that question belongs.
+            if (! $compliance->expires($key)) {
+                continue;
+            }
+
             $definitions[] = [
                 'key'        => $key,
                 'label'      => $doc['label'],
@@ -176,8 +185,8 @@ class DocumentExpiry
                 'held'       => $doc['held'],
                 'expires'    => $doc['expires'],
                 'has_expiry' => true,
-                // The built-ins are the statutory ones: not holding one is
-                // itself the finding, so they are always reported as missing.
+                // Of the documents that DO expire, not holding one at all is
+                // itself the finding, so it is reported as missing.
                 'required'   => true,
             ];
         }
@@ -189,12 +198,18 @@ class DocumentExpiry
             ->get();
 
         foreach ($types as $type) {
+            // Same rule as the built-ins: this report is about expiry, so a
+            // course that never lapses is not part of it.
+            if (! $type->has_expiry) {
+                continue;
+            }
+
             $definitions[] = [
                 'key'        => 'cert:' . $type->id,
                 'label'      => $type->name,
                 'source'     => 'catalogue',
                 'type_id'    => $type->id,
-                'has_expiry' => $type->has_expiry,
+                'has_expiry' => true,
                 'required'   => $type->is_required,
             ];
         }

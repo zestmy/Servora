@@ -4,6 +4,9 @@
     'yes'     => 'Yes',
     'no'      => 'No',
     'note'    => null,
+    // False for a document this company treats as one-off: there is no expiry
+    // to chase, so the missing-date line would be asking for nothing.
+    'tracksExpiry' => true,
 ])
 
 {{--
@@ -16,6 +19,7 @@
 --}}
 @php
     $warningDays = \App\Services\Hr\DocumentExpiry::WARNING_DAYS;
+    if (! $tracksExpiry) $expires = null;
     $expired     = $held && $expires && $expires->isBefore(today());
     $expiring    = $held && $expires && ! $expired && $expires->lte(today()->addDays($warningDays));
 
@@ -35,7 +39,7 @@
     <div class="text-[10px] mt-0.5 whitespace-nowrap {{ $expired ? 'text-danger-500' : ($expiring ? 'text-warning-600' : 'text-gray-600') }}">
         {{ $expired ? 'expired' : 'until' }} {{ $expires->format('d M Y') }}
     </div>
-@elseif ($held)
+@elseif ($held && $tracksExpiry)
     {{-- No date recorded: neither valid nor expired, and the card counts it
          separately, so it must not silently read as fine here either. --}}
     <div class="text-[10px] text-gray-500 mt-0.5 whitespace-nowrap">no expiry date</div>
