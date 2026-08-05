@@ -206,6 +206,18 @@
                     </div>
                 </a>
 
+                {{-- Certifications & Training (employee course catalogue) --}}
+                <a href="{{ route('settings.certifications') }}"
+                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Certifications &amp; Training</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Courses you record against staff, with expiry reminders</p>
+                    </div>
+                </a>
+
                 {{-- Outlet Groups --}}
                 <a href="{{ route('settings.outlet-groups') }}"
                    class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
