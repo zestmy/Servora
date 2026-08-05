@@ -66,6 +66,125 @@
         </div>
     </div>
 
+    {{-- Compliance: what expires next, and who --}}
+    @php $ds = \App\Services\Hr\DocumentExpiry::class; @endphp
+    <div class="card p-4 mb-4">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-gray-700">Documents &amp; Training</h3>
+                @if ($compliance && array_sum($compliance['counts']) > 0)
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+                                 {{ $compliance['counts'][$ds::EXPIRED] > 0 ? 'bg-danger-100 text-danger-700' : 'bg-warning-100 text-warning-700' }}">
+                        {{ array_sum($compliance['counts']) }} need attention
+                    </span>
+                @endif
+            </div>
+            <button wire:click="toggleCompliance" class="text-xs font-medium text-brand-600 hover:text-brand-800">
+                {{ $showCompliance ? 'Hide' : 'Show' }}
+            </button>
+        </div>
+
+        @if ($showCompliance && $compliance)
+            <p class="text-xs text-gray-500 mt-1">
+                Active staff in this view ({{ $compliance['employees'] }}), expiring within {{ $compliance['warning_days'] }} days.
+                <a href="{{ route('settings.certifications') }}" class="text-brand-600 hover:underline">Manage courses</a>
+            </p>
+
+            {{-- Per-document tallies --}}
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                @foreach ($compliance['documents'] as $doc)
+                    @php
+                        $needs = $doc[$ds::EXPIRED] + $doc[$ds::EXPIRING];
+                        $tone  = $doc[$ds::EXPIRED] > 0
+                            ? 'bg-danger-50 border-danger-200'
+                            : ($needs > 0 ? 'bg-warning-50 border-warning-200' : 'bg-gray-50 border-gray-200');
+                    @endphp
+                    <div class="rounded-lg border p-3 {{ $tone }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="text-xs font-medium uppercase tracking-wider text-gray-600">{{ $doc['label'] }}</p>
+                            @unless ($doc['required'])
+                                <span class="text-[10px] text-gray-500 whitespace-nowrap">optional</span>
+                            @endunless
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                            <span class="text-lg font-semibold tabular-nums {{ $doc[$ds::EXPIRED] > 0 ? 'text-danger-600' : 'text-gray-400' }}">
+                                {{ $doc[$ds::EXPIRED] }}<span class="text-[11px] font-normal text-gray-500"> expired</span>
+                            </span>
+                            <span class="text-lg font-semibold tabular-nums {{ $doc[$ds::EXPIRING] > 0 ? 'text-warning-600' : 'text-gray-400' }}">
+                                {{ $doc[$ds::EXPIRING] }}<span class="text-[11px] font-normal text-gray-500"> expiring</span>
+                            </span>
+                            <span class="text-lg font-semibold tabular-nums text-success-600">
+                                {{ $doc[$ds::VALID] }}<span class="text-[11px] font-normal text-gray-500"> valid</span>
+                            </span>
+                        </div>
+                        <p class="mt-1 text-[11px] text-gray-600">
+                            @if ($doc[$ds::MISSING] > 0){{ $doc[$ds::MISSING] }} missing @endif
+                            @if ($doc[$ds::UNDATED] > 0)· {{ $doc[$ds::UNDATED] }} with no expiry date @endif
+                            {{-- Keep a space before @endif: Blade will not parse a directive
+                                 that follows a word character, and it silently renders as text. --}}
+                            @if ($doc[$ds::MISSING] === 0 && $doc[$ds::UNDATED] === 0) All recorded @endif
+                        </p>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Who, most urgent first --}}
+            @php $rows = $compliance['rows']; @endphp
+            @if ($rows->isEmpty())
+                <p class="mt-4 px-3 py-4 text-center text-sm text-success-700 bg-success-50 border border-success-200 rounded-lg">
+                    Everything is in date. Nothing expires in the next {{ $compliance['warning_days'] }} days.
+                </p>
+            @else
+                <div class="mt-4 border border-gray-100 rounded-lg overflow-hidden">
+                    <div class="divide-y divide-gray-50">
+                        @foreach ($rows->take(12) as $row)
+                            @php
+                                $stateTone = [
+                                    $ds::EXPIRED  => 'bg-danger-100 text-danger-700',
+                                    $ds::EXPIRING => 'bg-warning-100 text-warning-700',
+                                    $ds::UNDATED  => 'bg-gray-100 text-gray-600',
+                                    $ds::MISSING  => 'bg-gray-100 text-gray-600',
+                                ][$row['state']];
+                            @endphp
+                            <div wire:key="comp-{{ $row['employee_id'] }}-{{ $row['document_key'] }}"
+                                 class="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50">
+                                <a href="{{ route('hr.employees.edit', $row['employee_id']) }}"
+                                   class="text-sm font-medium text-gray-800 hover:text-brand-600 hover:underline">
+                                    {{ $row['name'] }}
+                                </a>
+                                @if ($row['outlet'])
+                                    <span class="text-[11px] text-gray-500">{{ $row['outlet'] }}</span>
+                                @endif
+                                <span class="text-xs text-gray-600">{{ $row['document'] }}</span>
+                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $stateTone }}">
+                                    @if ($row['state'] === $ds::EXPIRED)
+                                        expired {{ abs($row['days']) }}d ago
+                                    @elseif ($row['state'] === $ds::EXPIRING)
+                                        {{ $row['days'] === 0 ? 'expires today' : 'in ' . $row['days'] . 'd' }}
+                                    @elseif ($row['state'] === $ds::UNDATED)
+                                        no expiry date
+                                    @else
+                                        not recorded
+                                    @endif
+                                </span>
+                                @if ($row['expires_on'])
+                                    <span class="text-[11px] text-gray-500 whitespace-nowrap w-20 text-right">{{ $row['expires_on']->format('d M Y') }}</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                    @if ($rows->count() > 12)
+                        {{-- Say what was left out rather than letting the list
+                             read as the whole story. --}}
+                        <div class="px-3 py-2 bg-gray-50 text-xs text-gray-600 border-t border-gray-100">
+                            Showing the 12 most urgent of {{ $rows->count() }}. The rest are in the scheduled reminder email.
+                        </div>
+                    @endif
+                </div>
+            @endif
+        @endif
+    </div>
+
     {{-- Filter Bar --}}
     <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
@@ -182,6 +301,7 @@
                                         'extended_probation' => 'bg-orange-100 text-orange-700',
                                         'partimer'           => 'bg-purple-100 text-purple-700',
                                         'outsourcing'        => 'bg-blue-100 text-blue-700',
+                                        'resigned'           => 'bg-gray-200 text-gray-700',
                                     ];
                                     $probationOverdue = in_array($emp->employment_status, ['probation', 'extended_probation'], true)
                                         && $emp->employment_status_date?->isBefore(today());
@@ -197,28 +317,14 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->food_handler_certified ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500' }}">
-                                {{ $emp->food_handler_certified ? 'Certified' : 'No' }}
-                            </span>
-                            @if ($emp->food_handler_certified && $emp->food_handler_cert_no)
-                                <div class="text-[10px] text-gray-600 mt-0.5 font-mono whitespace-nowrap">{{ $emp->food_handler_cert_no }}</div>
-                            @endif
+                            <x-hr.doc-status :held="$emp->food_handler_certified" :expires="$emp->food_handler_expired_on"
+                                             yes="Certified" :note="$emp->food_handler_cert_no" />
                         </td>
                         <td class="px-4 py-3 text-center">
-                            @php $typhoidExpired = $emp->typhoid_card && $emp->typhoid_expired_on?->isBefore(today()); @endphp
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $typhoidExpired ? 'bg-danger-100 text-danger-700' : ($emp->typhoid_card ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500') }}">
-                                {{ $typhoidExpired ? 'Expired' : ($emp->typhoid_card ? 'Yes' : 'No') }}
-                            </span>
-                            @if ($emp->typhoid_card && $emp->typhoid_expired_on)
-                                <div class="text-[10px] mt-0.5 whitespace-nowrap {{ $typhoidExpired ? 'text-danger-500' : 'text-gray-600' }}">
-                                    {{ $typhoidExpired ? 'expired' : 'until' }} {{ $emp->typhoid_expired_on->format('d M Y') }}
-                                </div>
-                            @endif
+                            <x-hr.doc-status :held="$emp->typhoid_card" :expires="$emp->typhoid_expired_on" />
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->halal_training ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500' }}">
-                                {{ $emp->halal_training ? 'Yes' : 'No' }}
-                            </span>
+                            <x-hr.doc-status :held="$emp->halal_training" :expires="$emp->halal_training_expired_on" />
                             @if ($emp->halal_training && $emp->halal_training_date)
                                 <div class="text-[10px] text-gray-600 mt-0.5 whitespace-nowrap">attended {{ $emp->halal_training_date->format('d M Y') }}</div>
                             @endif
@@ -291,7 +397,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Break Minutes@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Food Handler Expiry, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Halal Training Expiry, Break Minutes@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         {{-- Blank and 0 mean different things here, same as on the employee form. --}}
                         <p class="mt-0.5 text-blue-700">Break Minutes: leave the cell blank to follow the duty roster's rest duration, or enter 0 for no break allowance at all.</p>
@@ -299,6 +405,9 @@
                             <p class="mt-0.5 text-blue-700">Salary and Service Points columns are ignored — you don't have access to compensation data.</p>
                         @endunless
                         <p class="mt-1 text-blue-700">Existing employees are matched by Staff ID first, then E-mail, then (Outlet + Name). Matches update; new rows create.</p>
+                        {{-- Catalogue courses are per-employee records, not columns, so they
+                             are not importable — say so rather than let them look supported. --}}
+                        <p class="mt-0.5 text-blue-700">Courses from Settings → Certifications &amp; Training are recorded on the employee form, not through this file.</p>
                     </div>
 
                     <div>

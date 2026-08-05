@@ -124,10 +124,10 @@
                     </select>
                     <x-input-error :messages="$errors->get('f_employment_status')" class="mt-1" />
                 </div>
-                @if (in_array($f_employment_status, ['probation', 'confirmed', 'extended_probation'], true))
+                @if (array_key_exists($f_employment_status, \App\Models\Employee::EMPLOYMENT_STATUS_DATE_LABELS))
                     <div>
                         <label class="text-xs font-semibold text-gray-600">
-                            {{ ['probation' => 'Probation — Until', 'confirmed' => 'Confirmed — On', 'extended_probation' => 'Probation Extended — Until'][$f_employment_status] }}
+                            {{ \App\Models\Employee::EMPLOYMENT_STATUS_DATE_LABELS[$f_employment_status] }}
                             <span class="text-danger-500">*</span>
                         </label>
                         <input type="date" wire:model="f_employment_status_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
@@ -208,10 +208,18 @@
                 <span class="text-sm text-gray-700">Food Handler Certified</span>
             </label>
             @if ($f_food_handler_certified)
-                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <label class="text-xs font-semibold text-gray-600">Food Handler Certificate — Serial No.</label>
-                    <input type="text" wire:model="f_food_handler_cert_no" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. FHC-2026-0123" />
-                    <x-input-error :messages="$errors->get('f_food_handler_cert_no')" class="mt-1" />
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Food Handler Certificate — Serial No.</label>
+                        <input type="text" wire:model="f_food_handler_cert_no" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. FHC-2026-0123" />
+                        <x-input-error :messages="$errors->get('f_food_handler_cert_no')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Food Handler — Expires On</label>
+                        <input type="date" wire:model="f_food_handler_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_food_handler_expired_on')" class="mt-1" />
+                        <p class="mt-1 text-[11px] text-gray-500">Leave blank if the certificate does not expire.</p>
+                    </div>
                 </div>
             @endif
 
@@ -239,12 +247,90 @@
                 <span class="text-sm text-gray-700">Halal Awareness Training</span>
             </label>
             @if ($f_halal_training)
-                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <label class="text-xs font-semibold text-gray-600">Halal Awareness Training — Date Attended</label>
-                    <input type="date" wire:model="f_halal_training_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                    <x-input-error :messages="$errors->get('f_halal_training_date')" class="mt-1" />
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Halal Awareness Training — Date Attended</label>
+                        <input type="date" wire:model="f_halal_training_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_halal_training_date')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Halal Training — Expires On</label>
+                        <input type="date" wire:model="f_halal_training_expired_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_halal_training_expired_on')" class="mt-1" />
+                        <p class="mt-1 text-[11px] text-gray-500">Leave blank if the training does not need renewing.</p>
+                    </div>
                 </div>
             @endif
+
+            {{-- Company catalogue courses. Managed under Settings → Certifications & Training. --}}
+            <div class="pt-3 mt-1 border-t border-gray-100">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold text-gray-600">Other Certifications &amp; Training</p>
+                        <p class="text-[11px] text-gray-500">Courses your company tracks, from Settings → Certifications &amp; Training.</p>
+                    </div>
+                    <button type="button" wire:click="addCertification"
+                            @disabled($availableCertifications->isEmpty())
+                            class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+                        + Add
+                    </button>
+                </div>
+
+                <x-input-error :messages="$errors->get('f_certifications')" class="mt-2" />
+
+                @forelse ($f_certifications as $i => $cert)
+                    <div wire:key="cert-row-{{ $i }}" class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                            <div class="sm:col-span-4">
+                                <label class="text-xs font-semibold text-gray-600">Course <span class="text-danger-500">*</span></label>
+                                <select wire:model="f_certifications.{{ $i }}.type_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                    <option value="">— Select —</option>
+                                    {{-- The row's own course stays listed even though it is taken,
+                                         or editing another field would silently blank this one. --}}
+                                    @if (! empty($cert['type_id']) && $certificationTypes->has((int) $cert['type_id']))
+                                        <option value="{{ $cert['type_id'] }}">{{ $certificationTypes[(int) $cert['type_id']]->name }}</option>
+                                    @endif
+                                    @foreach ($availableCertifications as $type)
+                                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('f_certifications.' . $i . '.type_id')" class="mt-1" />
+                            </div>
+                            <div class="sm:col-span-3">
+                                <label class="text-xs font-semibold text-gray-600">Certificate No.</label>
+                                <input type="text" wire:model="f_certifications.{{ $i }}.reference_no" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('f_certifications.' . $i . '.reference_no')" class="mt-1" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="text-xs font-semibold text-gray-600">Issued</label>
+                                <input type="date" wire:model="f_certifications.{{ $i }}.issued_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="text-xs font-semibold text-gray-600">Expires</label>
+                                <input type="date" wire:model="f_certifications.{{ $i }}.expires_on" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            </div>
+                            <div class="sm:col-span-1 flex items-end pb-1">
+                                <button type="button" wire:click="removeCertification({{ $i }})"
+                                        title="Remove" class="icon-btn text-danger-400 hover:text-danger-600">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        @if (! empty($cert['type_id']) && $certificationTypes->has((int) $cert['type_id']) && ! $certificationTypes[(int) $cert['type_id']]->has_expiry)
+                            <p class="mt-2 text-[11px] text-gray-500">This is a one-off course — it will not be chased for renewal even without an expiry date.</p>
+                        @endif
+                    </div>
+                @empty
+                    <p class="mt-3 text-xs text-gray-500">
+                        @if ($availableCertifications->isEmpty())
+                            No courses in the catalogue yet — add them under
+                            <a href="{{ route('settings.certifications') }}" class="text-brand-600 hover:underline">Settings → Certifications &amp; Training</a>.
+                        @else
+                            None recorded.
+                        @endif
+                    </p>
+                @endforelse
+            </div>
         </div>
 
         {{-- Recent activity (edit only) --}}

@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Scopes\CompanyScope;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -12,10 +14,10 @@ class Employee extends Model
         'company_id', 'outlet_id', 'section_id', 'staff_id',
         'name', 'designation',
         'email', 'phone', 'is_active',
-        'join_date', 'food_handler_certified', 'food_handler_cert_no',
+        'join_date', 'food_handler_certified', 'food_handler_cert_no', 'food_handler_expired_on',
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
         'employment_status', 'employment_status_date', 'outsourcing_company',
-        'halal_training', 'halal_training_date',
+        'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes',
     ];
@@ -92,6 +94,50 @@ class Employee extends Model
         'extended_probation' => 'Extended Probation',
         'partimer'           => 'Partimer',
         'outsourcing'        => 'Outsourcing',
+        'resigned'           => 'Resigned',
+    ];
+
+    /**
+     * Statuses whose `employment_status_date` is required, and the label the
+     * form puts on the date field for each.
+     *
+     * Outsourcing takes a company instead of a date; a part-timer has neither
+     * an until nor a since, so both stay out of this list and their date is
+     * nulled on save.
+     */
+    public const EMPLOYMENT_STATUS_DATE_LABELS = [
+        'probation'          => 'Probation — Until',
+        'confirmed'          => 'Confirmed — On',
+        'extended_probation' => 'Probation Extended — Until',
+        'resigned'           => 'Resigned — On',
+    ];
+
+    /**
+     * The compliance documents tracked per employee, in the order they are
+     * reported on the Employees card and in the reminder email.
+     *
+     * `held` is the boolean saying the employee has the document at all;
+     * `expires` is the date it lapses. Every screen, export and the scheduled
+     * reminder reads this list rather than naming the columns, so a fourth
+     * document is a new entry here plus a migration — not a hunt through the
+     * views for the three places that would otherwise disagree.
+     */
+    public const COMPLIANCE_DOCUMENTS = [
+        'typhoid' => [
+            'label'   => 'Typhoid Card',
+            'held'    => 'typhoid_card',
+            'expires' => 'typhoid_expired_on',
+        ],
+        'food_handler' => [
+            'label'   => 'Food Handler',
+            'held'    => 'food_handler_certified',
+            'expires' => 'food_handler_expired_on',
+        ],
+        'halal' => [
+            'label'   => 'Halal Training',
+            'held'    => 'halal_training',
+            'expires' => 'halal_training_expired_on',
+        ],
     ];
 
     /** How basic_salary is expressed. */
@@ -113,11 +159,13 @@ class Employee extends Model
         'join_date'              => 'date',
         'employment_status_date' => 'date',
         'food_handler_certified' => 'boolean',
+        'food_handler_expired_on' => 'date',
         'typhoid_card'           => 'boolean',
         'typhoid_valid_from'     => 'date',
         'typhoid_expired_on'     => 'date',
         'halal_training'         => 'boolean',
         'halal_training_date'    => 'date',
+        'halal_training_expired_on' => 'date',
         'service_points_entitlement' => 'decimal:2',
         'break_minutes'              => 'integer',
         'basic_salary'               => 'decimal:2',
@@ -161,6 +209,43 @@ class Employee extends Model
     }
 
     /**
+     * Staff whose records still need processing for a period starting $from:
+     * everyone active, plus anyone who resigned on or after that date.
+     *
+     * A resignation does not end the paperwork. Attendance for the days worked
+     * up to the leaving date still has to be completed and the last OT claims
+     * approved and paid, so filtering on is_active alone made someone vanish
+     * from the very month their final pay depends on. They drop off by
+     * themselves once the period being viewed starts after they left.
+     */
+    public function scopeEmployedDuring($query, $from)
+    {
+        return $query->where(function ($q) use ($from) {
+            $q->where('employees.is_active', true)
+              ->orWhere(function ($r) use ($from) {
+                  $r->where('employees.employment_status', 'resigned')
+                    ->whereNotNull('employees.employment_status_date')
+                    ->whereDate('employees.employment_status_date', '>=', $from);
+              });
+        });
+    }
+
+    /** True once the resignation date has passed. */
+    public function hasResigned(): bool
+    {
+        return $this->employment_status === 'resigned';
+    }
+
+    /**
+     * The last date this employee can have attendance or an OT claim against
+     * them, or null if they are still employed.
+     */
+    public function employedUntil(): ?Carbon
+    {
+        return $this->hasResigned() ? $this->employment_status_date : null;
+    }
+
+    /**
      * Whether the given (default: current) user may read salary and service
      * point data. The single gate for every employee screen, export and import
      * so pay visibility can never drift between them.
@@ -189,7 +274,8 @@ class Employee extends Model
 
     /**
      * Secondary line for the employment status: the until/since date for
-     * probation states, or the provider name for outsourcing.
+     * probation states, the leaving date for a resignation, or the provider
+     * name for outsourcing.
      */
     public function employmentStatusDetail(): ?string
     {
@@ -198,8 +284,16 @@ class Employee extends Model
                 ? 'until ' . $this->employment_status_date->format('d M Y') : null,
             'confirmed' => $this->employment_status_date
                 ? 'since ' . $this->employment_status_date->format('d M Y') : null,
+            'resigned' => $this->employment_status_date
+                ? 'on ' . $this->employment_status_date->format('d M Y') : null,
             'outsourcing' => $this->outsourcing_company,
             default => null,
         };
+    }
+
+    /** Employee certifications from the company's managed training catalogue. */
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(EmployeeCertification::class);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Livewire\Hr;
 use App\Models\Section;
 use App\Models\Employee;
 use App\Models\Outlet;
+use App\Services\Hr\DocumentExpiry;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
@@ -38,6 +39,8 @@ class Employees extends Component
             $activeOutletId = Auth::user()?->activeOutletId();
             if ($activeOutletId) $this->outletFilter = (string) $activeOutletId;
         }
+
+        $this->showCompliance = (bool) session('hr.employees.compliance_open', true);
     }
 
     /**
@@ -59,6 +62,15 @@ class Employees extends Component
     protected function canViewPay(): bool
     {
         return Employee::canViewPay(Auth::user());
+    }
+
+    /** Compliance card open/closed, remembered per user across visits. */
+    public bool $showCompliance = true;
+
+    public function toggleCompliance(): void
+    {
+        $this->showCompliance = ! $this->showCompliance;
+        session(['hr.employees.compliance_open' => $this->showCompliance]);
     }
 
     public function updatingSearch(): void         { $this->resetPage(); }
@@ -236,6 +248,12 @@ class Employees extends Component
             'typhoid expiry'      => 'typhoid_expired_on',
             'typhoid expiry date' => 'typhoid_expired_on',
             'typhoid expired'     => 'typhoid_expired_on',
+            'food handler expiry'      => 'food_handler_expired_on',
+            'food handler expired on'  => 'food_handler_expired_on',
+            'food handler expiry date' => 'food_handler_expired_on',
+            'halal training expiry'      => 'halal_training_expired_on',
+            'halal training expired on'  => 'halal_training_expired_on',
+            'halal expiry'               => 'halal_training_expired_on',
             // Break allowance is NOT pay-gated: the employee form shows the
             // field to everyone and the modal advertises the column to
             // everyone, so gating it here only made the value vanish silently
@@ -371,7 +389,7 @@ class Employees extends Component
 
             // New HR fields only overwrite when their column is present in the
             // CSV, so older files don't blank out existing values on update.
-            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on', 'employment_status_date' => 'employment status date', 'halal_training_date' => 'halal training date'] as $dateKey => $dateLabel) {
+            foreach (['join_date' => 'join date', 'typhoid_valid_from' => 'typhoid valid from', 'typhoid_expired_on' => 'typhoid expired on', 'employment_status_date' => 'employment status date', 'halal_training_date' => 'halal training date', 'food_handler_expired_on' => 'food handler expiry', 'halal_training_expired_on' => 'halal training expiry'] as $dateKey => $dateLabel) {
                 if (! array_key_exists($dateKey, $data)) {
                     continue;
                 }
@@ -402,6 +420,8 @@ class Employees extends Component
                     'parttime'           => 'partimer',
                     'outsourcing'        => 'outsourcing',
                     'outsource'          => 'outsourcing',
+                    'resigned'           => 'resigned',
+                    'resign'             => 'resigned',
                 ];
                 if ($statusRaw === '') {
                     $payload['employment_status'] = null;
@@ -511,10 +531,10 @@ class Employees extends Component
         // Break Minutes carries a sample on one row and a blank on the other,
         // because blank and 0 mean different things and the template is where
         // that gets noticed.
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date', 'Break Minutes'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Food Handler Expiry', 'Halal Awareness Training', 'Halal Training Date', 'Halal Training Expiry', 'Break Minutes'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '60'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', '', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', '2028-06-30', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '2029-03-11', '60'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              '',           'No',  '', '', 'No', '', '', ''],
         ];
 
         // Pay columns only appear in the template for users who may see them.
@@ -600,7 +620,21 @@ class Employees extends Component
 
         $employees = $query->paginate(25);
 
-        return view('livewire.hr.employees', compact('employees', 'outlets', 'sections', 'canViewAll', 'canViewPay'))
-            ->layout('layouts.app', ['title' => 'Employees']);
+        // Compliance follows the outlet and section you are looking at, but
+        // never the search box or the status filters: it answers "what is due
+        // in this part of the business", not "what is due among the rows
+        // currently matching my search". Active staff only — DocumentExpiry
+        // narrows to those, since nobody chases a leaver for a renewal.
+        $complianceQuery = Employee::query()->whereIn('outlet_id', $accessible ?: [0]);
+        if ($this->outletFilter !== '')  $complianceQuery->where('outlet_id', (int) $this->outletFilter);
+        if ($this->sectionFilter !== '') $complianceQuery->where('section_id', (int) $this->sectionFilter);
+
+        $compliance = $this->showCompliance
+            ? app(DocumentExpiry::class)->summarise($complianceQuery, $companyId)
+            : null;
+
+        return view('livewire.hr.employees', compact(
+            'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay', 'compliance'
+        ))->layout('layouts.app', ['title' => 'Employees']);
     }
 }

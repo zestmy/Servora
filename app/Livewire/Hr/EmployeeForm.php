@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Hr;
 
+use App\Models\CertificationType;
 use App\Models\Employee;
+use App\Models\EmployeeCertification;
 use App\Models\Outlet;
 use App\Models\Section;
 use Illuminate\Support\Facades\Auth;
@@ -34,12 +36,25 @@ class EmployeeForm extends Component
     public string $f_outsourcing_company    = '';
     public bool   $f_food_handler_certified = false;
     public string $f_food_handler_cert_no   = '';
+    public string $f_food_handler_expired_on = '';
     public bool   $f_typhoid_card   = false;
     public string $f_typhoid_valid_from = '';
     public string $f_typhoid_expired_on = '';
     public bool   $f_halal_training       = false;
     public string $f_halal_training_date  = '';
+    public string $f_halal_training_expired_on = '';
     public string $f_break_minutes     = '';
+
+    /**
+     * Catalogue certifications recorded against this employee.
+     *
+     * One row per course: ['type_id', 'reference_no', 'issued_on', 'expires_on'].
+     * Kept as a plain array rather than models so an unsaved row costs nothing
+     * and Cancel leaves no orphan behind.
+     *
+     * @var array<int, array<string, string>>
+     */
+    public array $f_certifications = [];
     public string $f_service_points    = '';
     public string $f_basic_salary      = '';
     public string $f_pay_type          = '';
@@ -75,12 +90,24 @@ class EmployeeForm extends Component
         $this->f_outsourcing_company    = $this->f_outsourcing_provider === 'others' ? ($emp->outsourcing_company ?? '') : '';
         $this->f_food_handler_certified = (bool) $emp->food_handler_certified;
         $this->f_food_handler_cert_no   = $emp->food_handler_cert_no ?? '';
+        $this->f_food_handler_expired_on = $emp->food_handler_expired_on?->format('Y-m-d') ?? '';
         $this->f_typhoid_card  = (bool) $emp->typhoid_card;
         $this->f_typhoid_valid_from = $emp->typhoid_valid_from?->format('Y-m-d') ?? '';
         $this->f_typhoid_expired_on = $emp->typhoid_expired_on?->format('Y-m-d') ?? '';
         $this->f_halal_training      = (bool) $emp->halal_training;
         $this->f_halal_training_date = $emp->halal_training_date?->format('Y-m-d') ?? '';
+        $this->f_halal_training_expired_on = $emp->halal_training_expired_on?->format('Y-m-d') ?? '';
         $this->f_break_minutes = $emp->break_minutes !== null ? (string) $emp->break_minutes : '';
+        $this->f_certifications = $emp->certifications()
+            ->orderBy('certification_type_id')
+            ->get()
+            ->map(fn ($c) => [
+                'type_id'      => (string) $c->certification_type_id,
+                'reference_no' => $c->reference_no ?? '',
+                'issued_on'    => $c->issued_on?->format('Y-m-d') ?? '',
+                'expires_on'   => $c->expires_on?->format('Y-m-d') ?? '',
+            ])
+            ->all();
         // Pay fields are only hydrated for permitted users — otherwise they'd
         // ride along in the Livewire payload even with the inputs hidden.
         if ($this->canViewPay()) {
@@ -131,7 +158,7 @@ class EmployeeForm extends Component
             'f_phone'          => 'nullable|string|max:50',
             'f_join_date'      => 'nullable|date',
             'f_employment_status' => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_STATUSES)),
-            'f_employment_status_date' => in_array($this->f_employment_status, ['probation', 'confirmed', 'extended_probation'], true)
+            'f_employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
                 ? 'required|date'
                 : 'nullable|date',
             'f_outsourcing_provider' => 'in:experiva,others',
@@ -140,6 +167,7 @@ class EmployeeForm extends Component
                 : 'nullable|string|max:100',
             'f_food_handler_certified' => 'boolean',
             'f_food_handler_cert_no'   => 'nullable|string|max:100',
+            'f_food_handler_expired_on' => 'nullable|date',
             'f_typhoid_card'   => 'boolean',
             'f_typhoid_valid_from' => 'nullable|date',
             'f_typhoid_expired_on' => array_filter([
@@ -148,9 +176,25 @@ class EmployeeForm extends Component
             ]),
             'f_halal_training'      => 'boolean',
             'f_halal_training_date' => 'nullable|date',
+            'f_halal_training_expired_on' => array_filter([
+                'nullable', 'date',
+                $this->f_halal_training_date ? 'after:f_halal_training_date' : null,
+            ]),
             // A blank means "use the roster's". 0 is a real answer (no paid
             // break), so it must stay distinguishable from blank.
             'f_break_minutes'       => 'nullable|integer|min:0|max:1440',
+            'f_certifications'                 => 'array|max:50',
+            'f_certifications.*.type_id'       => [
+                'required',
+                // The table holds one row per (employee, course), so a repeated
+                // pick would fail at the database and lose the whole save.
+                'distinct',
+                \Illuminate\Validation\Rule::exists('certification_types', 'id')
+                    ->where('company_id', Auth::user()->company_id),
+            ],
+            'f_certifications.*.reference_no'  => 'nullable|string|max:100',
+            'f_certifications.*.issued_on'     => 'nullable|date',
+            'f_certifications.*.expires_on'    => 'nullable|date',
             'f_service_points'      => 'nullable|numeric|min:0|max:999999.99',
             'f_basic_salary'        => 'nullable|numeric|min:0|max:9999999999.99',
             'f_pay_type'            => 'nullable|in:' . implode(',', array_keys(Employee::PAY_TYPES)),
@@ -199,6 +243,30 @@ class EmployeeForm extends Component
         return [$this->defaultPhoneCode(), $phone];
     }
 
+    public function addCertification(): void
+    {
+        $this->f_certifications[] = [
+            'type_id' => '', 'reference_no' => '', 'issued_on' => '', 'expires_on' => '',
+        ];
+    }
+
+    public function removeCertification(int $index): void
+    {
+        unset($this->f_certifications[$index]);
+        // Re-index, or Livewire renders the array as an object and the
+        // remaining rows lose their wire:model bindings.
+        $this->f_certifications = array_values($this->f_certifications);
+    }
+
+    /** Catalogue courses still available to add, given what is already listed. */
+    public function availableCertificationTypes(): \Illuminate\Support\Collection
+    {
+        $taken = array_filter(array_column($this->f_certifications, 'type_id'));
+
+        return CertificationType::active()->ordered()->get()
+            ->reject(fn ($t) => in_array((string) $t->id, $taken, true));
+    }
+
     public function save(): void
     {
         $this->validate();
@@ -219,7 +287,7 @@ class EmployeeForm extends Component
             'join_date'     => $this->f_join_date ?: null,
             'employment_status' => $this->f_employment_status ?: null,
             // Date applies to probation/confirmed/extension; company to outsourcing.
-            'employment_status_date' => in_array($this->f_employment_status, ['probation', 'confirmed', 'extended_probation'], true)
+            'employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
                 ? ($this->f_employment_status_date ?: null)
                 : null,
             'outsourcing_company' => $this->f_employment_status === 'outsourcing'
@@ -229,6 +297,7 @@ class EmployeeForm extends Component
             // Cert number only applies while the certified box is ticked —
             // unticking clears it, same as the typhoid validity dates.
             'food_handler_cert_no'   => $this->f_food_handler_certified ? ($this->f_food_handler_cert_no ?: null) : null,
+            'food_handler_expired_on' => $this->f_food_handler_certified ? ($this->f_food_handler_expired_on ?: null) : null,
             'typhoid_card'  => $this->f_typhoid_card,
             // Validity dates only apply while the card box is ticked — unticking
             // clears them so a "No" employee can't carry stale validity info.
@@ -236,6 +305,7 @@ class EmployeeForm extends Component
             'typhoid_expired_on' => $this->f_typhoid_card ? ($this->f_typhoid_expired_on ?: null) : null,
             'halal_training'      => $this->f_halal_training,
             'halal_training_date' => $this->f_halal_training ? ($this->f_halal_training_date ?: null) : null,
+            'halal_training_expired_on' => $this->f_halal_training ? ($this->f_halal_training_expired_on ?: null) : null,
             'is_active'     => $this->f_is_active,
             // Blank means "use the roster's allowance"; 0 is a real answer.
             'break_minutes' => $this->f_break_minutes !== '' ? (int) $this->f_break_minutes : null,
@@ -265,11 +335,49 @@ class EmployeeForm extends Component
             $emp->update($data);
             session()->flash('success', 'Employee updated.');
         } else {
-            Employee::create($data);
+            $emp = Employee::create($data);
             session()->flash('success', 'Employee added.');
         }
 
+        $this->syncCertifications($emp);
+
         $this->redirectRoute('hr.employees');
+    }
+
+    /**
+     * Bring the employee's catalogue certifications in line with the form.
+     *
+     * Rows the form no longer carries are deleted, which is the only way to
+     * correct a course recorded against the wrong person. Existing rows are
+     * updated in place rather than deleted and recreated, so the record keeps
+     * its created_at — when a certificate was first logged is the sort of
+     * thing an audit asks about.
+     */
+    private function syncCertifications(Employee $employee): void
+    {
+        $companyId = $employee->company_id;
+        $keptTypeIds = [];
+
+        foreach ($this->f_certifications as $row) {
+            $typeId = (int) ($row['type_id'] ?? 0);
+            if (! $typeId) continue;
+
+            $keptTypeIds[] = $typeId;
+
+            EmployeeCertification::updateOrCreate(
+                ['employee_id' => $employee->id, 'certification_type_id' => $typeId],
+                [
+                    'company_id'   => $companyId,
+                    'reference_no' => ($row['reference_no'] ?? '') ?: null,
+                    'issued_on'    => ($row['issued_on'] ?? '') ?: null,
+                    'expires_on'   => ($row['expires_on'] ?? '') ?: null,
+                ]
+            );
+        }
+
+        EmployeeCertification::where('employee_id', $employee->id)
+            ->when($keptTypeIds, fn ($q) => $q->whereNotIn('certification_type_id', $keptTypeIds))
+            ->delete();
     }
 
     public function render()
@@ -286,8 +394,14 @@ class EmployeeForm extends Component
 
         $sections   = Section::active()->ordered()->get();
         $canViewPay = $this->canViewPay();
+        // The full catalogue for naming a chosen row, plus what is still free
+        // to add — a course already listed must not be offered twice.
+        $certificationTypes    = CertificationType::ordered()->get()->keyBy('id');
+        $availableCertifications = $this->availableCertificationTypes();
 
-        return view('livewire.hr.employee-form', compact('outlets', 'sections', 'canViewPay'))
+        return view('livewire.hr.employee-form', compact(
+            'outlets', 'sections', 'canViewPay', 'certificationTypes', 'availableCertifications'
+        ))
             ->layout('layouts.app', ['title' => $this->employeeId ? 'Edit Employee' : 'Add Employee']);
     }
 }
