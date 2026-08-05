@@ -89,7 +89,14 @@ class CompensationSummary
             ->get()
             ->groupBy('employee_id');
 
-        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to) {
+        // Year to date from COMMITTED runs, for the PCB MTD formula. One query
+        // for everyone rather than one per employee inside the map.
+        $ytd = $calculator
+            ? app(\App\Services\Payroll\YearToDate::class)
+                ->forMonth($companyId, $staff->pluck('id')->all(), $from)
+            : collect();
+
+        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to, $ytd) {
             $basic = $employee->basic_salary !== null ? (float) $employee->basic_salary : 0.0;
 
             $components = ($assignments[$employee->id] ?? collect())
@@ -129,8 +136,10 @@ class CompensationSummary
             $taxablePay   = round($basic + $allowancesOnly->where('taxable', true)->sum('amount') + $otTotal, 2);
             $gross        = round($basic + $allowances + $otTotal, 2);
 
-            $statutory = $calculator?->for($employee, $epfWages, $socsoWages, $taxablePay, $to)
-                ?? self::NO_STATUTORY;
+            $statutory = $calculator?->for(
+                $employee, $epfWages, $socsoWages, $taxablePay, $to, null,
+                $ytd[$employee->id] ?? null,
+            ) ?? self::NO_STATUTORY;
 
             return [
                 'employee_id' => $employee->id,

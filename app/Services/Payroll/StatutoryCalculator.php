@@ -19,12 +19,13 @@ use Carbon\Carbon;
  *     This computes a percentage of the (capped) wage instead, which lands
  *     within a few sen of the table but is not guaranteed to equal it row for
  *     row. Reconcile against the official table before submitting a return.
- *  2. PCB here is the ANNUALISED ESTIMATE, not the full MTD formula from the
- *     Income Tax (Deduction from Remuneration) Rules. The real formula carries
- *     year-to-date remuneration and year-to-date MTD forward, which needs a
- *     payroll run history this system does not keep yet. For steady monthly pay
- *     the two agree closely; for a month with a bonus or a mid-year joiner they
- *     will not. Treat it as an indication and check LHDN's calculator.
+ *  2. PCB uses the MTD formula from the Income Tax (Deduction from
+ *     Remuneration) Rules — MTD = [(P − M) × R + B − (Z + X)] ÷ (n + 1) — fed
+ *     with year-to-date remuneration, EPF and tax from COMMITTED payroll runs.
+ *     It falls back to annualising the current month when there is no run
+ *     history for the year, which is correct in January and an understatement
+ *     mid-year for a company that has only just started running payroll here.
+ *     That case is stated in the notes rather than left to be discovered.
  *
  * Every figure this returns is labelled as an estimate in the UI for exactly
  * these reasons.
@@ -65,6 +66,7 @@ class StatutoryCalculator
         float $taxablePay,
         ?Carbon $asOf = null,
         ?EmployeeStatutoryProfile $profile = null,
+        ?array $ytd = null,
     ): array {
         $asOf    = $asOf ?? Carbon::today();
         $profile = $profile ?? EmployeeStatutoryProfile::forEmployee($employee);
@@ -104,8 +106,17 @@ class StatutoryCalculator
         }
 
         if ($this->settings->pcb_enabled && $profile->pcb_enabled) {
-            $result['pcb'] = $this->pcb($taxablePay, $result['epf_employee'], $profile);
-            $notes[] = 'PCB is an annualised estimate, not the LHDN MTD formula.';
+            $ytd = $ytd ?: YearToDate::NONE;
+
+            $result['pcb'] = $this->pcb($taxablePay, $result['epf_employee'], $profile, $asOf, $ytd);
+
+            // Which of the two it used matters to whoever checks the figure, so
+            // the note says rather than describing PCB generically.
+            $monthNumber = (int) $asOf->format('n');
+            if ($ytd['months'] === 0 && $monthNumber > 1) {
+                $notes[] = 'PCB assumes no earlier pay this year — no approved payroll run before '
+                    . $asOf->format('F') . '. It will be understated if this employee was paid earlier in ' . $asOf->format('Y') . '.';
+            }
         }
 
         $result['employee_total'] = round(
@@ -200,27 +211,45 @@ class StatutoryCalculator
     }
 
     /**
-     * PCB, annualised.
+     * PCB by the LHDN MTD formula for normal remuneration:
      *
-     * Take the month's taxable pay times twelve, subtract the annual reliefs
-     * the profile allows for, run it through the resident tax bands, divide by
-     * twelve, then take off monthly zakat. Never negative.
+     *     MTD = [ (P − M) × R + B − (Z + X) ] ÷ (n + 1)
      *
-     * This is NOT the statutory MTD formula — see the class docblock. It is
-     * deliberately conservative in shape (it does not carry year-to-date
-     * figures) and is presented as an estimate everywhere it is shown.
+     *   P  chargeable income for the year: pay already received, this month's
+     *      pay, and the remaining months estimated at this month's pay, less
+     *      EPF (capped annually) and the personal reliefs.
+     *   M  the start of the tax band P falls in.
+     *   R  that band's rate.
+     *   B  tax on M, after the individual rebate where P is small enough.
+     *   Z  zakat already paid this year, plus this month's.
+     *   X  MTD already deducted this year.
+     *   n  months remaining in the year after this one.
+     *
+     * The divisor (n + 1) is what makes this self-correcting: each month
+     * spreads the remaining liability over the months left, so a raise or a
+     * mid-year start is absorbed rather than compounding. In December n is 0
+     * and the month settles whatever the year still owes.
+     *
+     * @param  array{gross: float, epf: float, pcb: float, zakat: float, months: int}  $ytd
      */
-    private function pcb(float $taxablePay, float $epfEmployee, EmployeeStatutoryProfile $profile): float
-    {
-        if ($taxablePay <= 0) {
-            return 0.0;
-        }
+    private function pcb(
+        float $taxablePay,
+        float $epfEmployee,
+        EmployeeStatutoryProfile $profile,
+        Carbon $asOf,
+        array $ytd,
+    ): float {
+        $n = YearToDate::remainingMonths($asOf);
 
-        $annualIncome = $taxablePay * 12;
+        // P — the year's chargeable income as it currently looks.
+        $futurePay = $taxablePay * $n;
+        $annualPay = $ytd['gross'] + $taxablePay + $futurePay;
 
-        // EPF relief is capped annually, so twelve months of contribution can
-        // only ever relieve up to the cap.
-        $epfRelief = min($epfEmployee * 12, (float) $this->settings->pcb_relief_epf_cap);
+        // EPF relief is an ANNUAL cap, so the year's contributions — past,
+        // present and projected — are capped together rather than each month
+        // being allowed the full cap.
+        $annualEpf = $ytd['epf'] + $epfEmployee + ($epfEmployee * $n);
+        $epfRelief = min($annualEpf, (float) $this->settings->pcb_relief_epf_cap);
 
         $relief = (float) $this->settings->pcb_relief_individual
             + $epfRelief
@@ -228,24 +257,71 @@ class StatutoryCalculator
             + ($profile->children * (float) $this->settings->pcb_relief_child)
             + (float) $profile->annual_other_relief;
 
-        $chargeable = max(0, $annualIncome - $relief);
-        $annualTax  = $this->taxOn($chargeable);
+        $p = max(0.0, $annualPay - $relief);
+
+        if ($p <= 0) {
+            return 0.0;
+        }
+
+        // M, R and B, read off the same band table the annual calculation uses.
+        [$m, $r] = $this->bandFor($p);
+        $b = $this->taxOn($m);
 
         // The individual rebate for a small chargeable income. Leaving it out
         // deducts tax from low-paid staff who owe none — the most visible way
         // this calculation can be wrong. A second rebate applies where the
         // spouse has no income.
-        if ($chargeable > 0 && $chargeable <= (float) $this->settings->pcb_rebate_threshold) {
+        if ($p <= (float) $this->settings->pcb_rebate_threshold) {
             $rebate = (float) $this->settings->pcb_rebate_amount;
             if ($profile->pcb_category === 'spouse_not_working') {
                 $rebate *= 2;
             }
-            $annualTax = max(0, $annualTax - $rebate);
+            $b -= $rebate;
         }
 
-        $monthly = $annualTax / 12 - (float) $profile->monthly_zakat;
+        // Z — zakat paid this year including this month. Not stored per line,
+        // so it is derived from the standing monthly figure and the months
+        // already committed.
+        $monthlyZakat = (float) $profile->monthly_zakat;
+        $z = $monthlyZakat * ($ytd['months'] + 1);
 
-        return round(max(0, $monthly), 2);
+        // X — MTD already deducted this year.
+        $x = $ytd['pcb'];
+
+        $mtd = (($p - $m) * $r + $b - ($z + $x)) / ($n + 1);
+
+        // Never negative: MTD is a deduction, and an over-deduction earlier in
+        // the year is refunded on assessment, not paid back through payroll.
+        return round(max(0.0, $mtd), 2);
+    }
+
+    /**
+     * The band a chargeable income falls in, as [start of band, rate].
+     *
+     * Returns the START of the band, not its ceiling — the MTD formula taxes
+     * the slice above M at R and takes everything below it as B.
+     *
+     * @return array{0: float, 1: float}
+     */
+    private function bandFor(float $chargeable): array
+    {
+        $previous = 0.0;
+
+        foreach ($this->settings->taxBands() as $band) {
+            $upper = $band['up_to'] !== null ? (float) $band['up_to'] : null;
+
+            if ($upper === null || $chargeable <= $upper) {
+                return [$previous, (float) $band['rate'] / 100];
+            }
+
+            $previous = $upper;
+        }
+
+        // Past the last banded figure: the final band's rate applies from its
+        // own start. Only reachable if the table has no open-ended top band.
+        $last = collect($this->settings->taxBands())->last();
+
+        return [$previous, (float) ($last['rate'] ?? 0) / 100];
     }
 
     /** Progressive tax on a chargeable income, using the company's bands. */
