@@ -25,6 +25,14 @@
             <button wire:click="nextMonth" class="icon-btn" title="Next month">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
             </button>
+            <x-download-link :href="route('hr.compensation.export-pdf', ['month' => $month, 'outlet' => $outletFilter, 'section' => $sectionFilter])"
+                    title="Export PDF"
+                    class="px-2.5 md:px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="hidden sm:inline">PDF</span>
+            </x-download-link>
             <a href="{{ route('settings.pay-components') }}" class="btn-secondary">Pay components</a>
             <a href="{{ route('settings.statutory') }}" class="btn-secondary">Statutory</a>
         </div>

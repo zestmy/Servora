@@ -369,6 +369,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Compensation sits behind hr.compensation — the same gate that hides
     // salary on the Employees list and the exports.
     Route::get('/hr/compensation', \App\Livewire\Hr\Compensation::class)->name('hr.compensation')->middleware('can:hr.compensation');
+    // Declared before /hr/compensation/{id} so "export-pdf" is not swallowed as an employee id.
+    Route::get('/hr/compensation/export-pdf', \App\Http\Controllers\CompensationPdfController::class)->name('hr.compensation.export-pdf')->middleware('can:hr.compensation');
     Route::get('/hr/compensation/{id}', \App\Livewire\Hr\EmployeeCompensation::class)->name('hr.compensation.employee')->middleware('can:hr.compensation');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
