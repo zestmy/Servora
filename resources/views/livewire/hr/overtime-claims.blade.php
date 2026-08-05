@@ -107,6 +107,15 @@
                 @endforeach
             </select>
 
+            <select wire:model.live="employmentStatusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">All Employment</option>
+                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                @endforeach
+                <option value="none">No Status</option>
+            </select>
+
             <select wire:model.live="employeeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Employees</option>
                 @foreach ($allEmployees as $emp)
@@ -795,22 +804,8 @@
     @if ($showSummaryModal)
         @teleport('body')
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-             wire:click.self="$set('showSummaryModal', false)"
-             x-data="{
-                 month: '{{ $summaryMonth }}',
-                 year:  '{{ $summaryYear }}',
-                 outletId: '{{ $outletFilter }}',
-                 months: [
-                     { v:'01', l:'January' },  { v:'02', l:'February' }, { v:'03', l:'March' },
-                     { v:'04', l:'April' },    { v:'05', l:'May' },      { v:'06', l:'June' },
-                     { v:'07', l:'July' },     { v:'08', l:'August' },   { v:'09', l:'September' },
-                     { v:'10', l:'October' },  { v:'11', l:'November' }, { v:'12', l:'December' },
-                 ],
-                 get summaryUrl() {
-                     return '{{ route('hr.ot-claims.summary-pdf') }}?month=' + this.month + '&year=' + this.year + (this.outletId ? '&outlet=' + this.outletId : '');
-                 }
-             }">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+             wire:click.self="$set('showSummaryModal', false)">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="p-1.5 bg-brand-50 rounded-lg">
                         <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -820,21 +815,32 @@
                     </div>
                     <h3 class="text-base font-semibold text-gray-800">OT Claims — Summary Report</h3>
                 </div>
-                <p class="text-xs text-gray-600 mb-4">All approved OT claims for the selected month, grouped by type with hours subtotals and grand total.</p>
+                <p class="text-xs text-gray-600 mb-4">All approved OT claims for the selected period, grouped by type with hours subtotals and grand total.</p>
+
+                <div class="flex flex-wrap items-center gap-1.5 mb-4">
+                    @foreach (\App\Livewire\Hr\OvertimeClaims::SUMMARY_PERIODS as $periodKey => $periodLabel)
+                        <button type="button" wire:click="setSummaryPeriod('{{ $periodKey }}')"
+                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                                       {{ $summaryPeriod === $periodKey
+                                           ? 'bg-brand-600 text-white border-brand-600'
+                                           : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                            {{ $periodLabel }}
+                        </button>
+                    @endforeach
+                    @if ($summaryPeriod === 'custom')
+                        <span class="px-3 py-1.5 text-xs font-medium rounded-lg border bg-brand-600 text-white border-brand-600">Custom</span>
+                    @endif
+                </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <x-input-label for="sum_month" value="Month *" />
-                        <select id="sum_month" x-model="month"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
-                            <template x-for="m in months" :key="m.v">
-                                <option :value="m.v" x-text="m.l" :selected="m.v === month"></option>
-                            </template>
-                        </select>
+                        <x-input-label for="sum_from" value="From Date *" />
+                        <input id="sum_from" wire:model.live="summaryFrom" type="date"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
                     </div>
                     <div>
-                        <x-input-label for="sum_year" value="Year *" />
-                        <input id="sum_year" x-model="year" type="number" min="2020" max="2099"
+                        <x-input-label for="sum_to" value="To Date *" />
+                        <input id="sum_to" wire:model.live="summaryTo" type="date"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500" />
                     </div>
                 </div>
@@ -844,8 +850,8 @@
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
                         Cancel
                     </button>
-                    <a :href="summaryUrl" target="_blank"
-                       class="btn-primary">
+                    <a href="{{ $this->getSummaryPdfUrl() }}" target="_blank"
+                       @class(['btn-primary', 'pointer-events-none opacity-50' => ! $summaryFrom || ! $summaryTo])>
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

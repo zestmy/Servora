@@ -20,6 +20,7 @@ class OvertimeClaims extends Component
     public string $dateTo           = '';
     public string $employeeFilter   = '';
     public string $sectionFilter    = '';
+    public string $employmentStatusFilter = ''; // '' all | status key | 'exclude_outsourcing' | 'none'
     public string $outletFilter     = '';
     public string $quickRange       = 'this_month';
     public string $sortField        = 'claim_date';
@@ -62,10 +63,11 @@ class OvertimeClaims extends Component
     public string $pdfTo         = '';
     public string $pdfEmployeeId = '';
 
-    // Summary PDF modal
+    // Summary PDF modal — any date range, not just a whole month.
     public bool   $showSummaryModal = false;
-    public string $summaryMonth     = '';
-    public string $summaryYear      = '';
+    public string $summaryPeriod    = 'this_month'; // preset key | 'custom'
+    public string $summaryFrom      = '';
+    public string $summaryTo        = '';
 
     protected function rules(): array
     {
@@ -112,6 +114,7 @@ class OvertimeClaims extends Component
     public function updatedDateFrom(): void       { $this->resetPage(); $this->selected = []; $this->quickRange = 'custom'; }
     public function updatedDateTo(): void         { $this->resetPage(); $this->selected = []; $this->quickRange = 'custom'; }
     public function updatedEmployeeFilter(): void { $this->resetPage(); $this->selected = []; }
+    public function updatedEmploymentStatusFilter(): void { $this->resetPage(); $this->selected = []; }
     public function updatedOutletFilter(): void   { $this->resetPage(); $this->selected = []; $this->employeeFilter = ''; }
 
     public function setQuickRange(string $range): void
@@ -168,6 +171,27 @@ class OvertimeClaims extends Component
                 $this->dateTo   = '';
                 break;
             // 'custom' - don't change dates
+        }
+    }
+
+    /**
+     * The employment-status branch, matching the Employees list and Attendance
+     * Record grid ("All Exclude Outsourcing" and "No Status" are synthetic
+     * options, not stored values). Shared by the claims list and every stats
+     * aggregate so the cards and chart follow the visible rows.
+     *
+     * @param  string  $column  qualified when the query joins employees.
+     */
+    protected function applyEmploymentStatus($query, string $column = 'employment_status'): void
+    {
+        if ($this->employmentStatusFilter === 'none') {
+            $query->whereNull($column);
+        } elseif ($this->employmentStatusFilter === 'exclude_outsourcing') {
+            $query->where(function ($q) use ($column) {
+                $q->whereNull($column)->orWhere($column, '!=', 'outsourcing');
+            });
+        } elseif ($this->employmentStatusFilter !== '') {
+            $query->where($column, $this->employmentStatusFilter);
         }
     }
 
@@ -427,6 +451,12 @@ class OvertimeClaims extends Component
                     ->where('section_id', (int) $this->sectionFilter);
             });
         }
+        if ($this->employmentStatusFilter !== '') {
+            $query->whereIn('employee_id', function ($sub) {
+                $sub->select('id')->from('employees');
+                $this->applyEmploymentStatus($sub);
+            });
+        }
 
         // Sorting
         if ($this->sortField === 'employee') {
@@ -501,6 +531,7 @@ class OvertimeClaims extends Component
             // Status is intentionally excluded — the cards ARE the status breakdown.
             ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
             ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
+            ->when($this->employmentStatusFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
             ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
             ->selectRaw("COALESCE(sections.name, 'Unassigned') as section_name,
                 SUM(CASE WHEN overtime_claims.status IN ('submitted', 'approved') THEN overtime_claims.total_ot_hours ELSE 0 END) as total_hours,
@@ -536,6 +567,7 @@ class OvertimeClaims extends Component
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
             ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
             ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
+            ->when($this->employmentStatusFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
             ->where('overtime_claims.status', 'approved')
             ->whereBetween('overtime_claims.claim_date', [$trendFrom, $trendTo])
             ->selectRaw("DATE(DATE_SUB(overtime_claims.claim_date, INTERVAL (WEEKDAY(overtime_claims.claim_date)) DAY)) as week_start,
@@ -578,6 +610,7 @@ class OvertimeClaims extends Component
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
             ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
             ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
+            ->when($this->employmentStatusFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
             ->where('overtime_claims.status', 'approved')
             ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
             ->selectRaw("overtime_claims.employee_id,
@@ -625,12 +658,54 @@ class OvertimeClaims extends Component
         $this->showPdfModal  = true;
     }
 
+    /** Presets offered in the summary modal, alongside a free date range. */
+    public const SUMMARY_PERIODS = [
+        'this_month'   => 'This Month',
+        'last_month'   => 'Last Month',
+        'this_quarter' => 'This Quarter',
+        'this_year'    => 'This Year',
+        'last_year'    => 'Last Year',
+    ];
+
     public function openSummaryModal(): void
     {
-        $this->summaryMonth     = now()->format('m');
-        $this->summaryYear      = now()->format('Y');
+        // Start from whatever range the list is already showing — the report
+        // then matches the claims on screen. Only fall back to this month when
+        // the list is on "All" (no dates).
+        if ($this->dateFrom && $this->dateTo) {
+            $this->summaryPeriod = 'custom';
+            $this->summaryFrom   = $this->dateFrom;
+            $this->summaryTo     = $this->dateTo;
+        } else {
+            $this->setSummaryPeriod('this_month');
+        }
+
         $this->showSummaryModal = true;
     }
+
+    public function setSummaryPeriod(string $period): void
+    {
+        $this->summaryPeriod = $period;
+        $today = now();
+
+        [$from, $to] = match ($period) {
+            'this_month'   => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
+            'last_month'   => [$today->copy()->subMonth()->startOfMonth(), $today->copy()->subMonth()->endOfMonth()],
+            'this_quarter' => [$today->copy()->startOfQuarter(), $today->copy()->endOfQuarter()],
+            'this_year'    => [$today->copy()->startOfYear(), $today->copy()->endOfYear()],
+            'last_year'    => [$today->copy()->subYear()->startOfYear(), $today->copy()->subYear()->endOfYear()],
+            default        => [null, null], // 'custom' — leave the dates alone
+        };
+
+        if ($from && $to) {
+            $this->summaryFrom = $from->toDateString();
+            $this->summaryTo   = $to->toDateString();
+        }
+    }
+
+    // Typing a date by hand drops the preset highlight.
+    public function updatedSummaryFrom(): void { $this->summaryPeriod = 'custom'; }
+    public function updatedSummaryTo(): void   { $this->summaryPeriod = 'custom'; }
 
     public function getPdfUrl(): string
     {
@@ -638,6 +713,15 @@ class OvertimeClaims extends Component
         $employeeId = $this->pdfEmployeeId ?: 'all';
 
         return route('hr.ot-claims.pdf', ['employee' => $employeeId] + $params);
+    }
+
+    public function getSummaryPdfUrl(): string
+    {
+        return route('hr.ot-claims.summary-pdf', array_filter([
+            'from'   => $this->summaryFrom,
+            'to'     => $this->summaryTo,
+            'outlet' => $this->outletFilter,
+        ]));
     }
 
     // ── Employee CRUD ──
