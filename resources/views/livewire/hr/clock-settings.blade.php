@@ -100,8 +100,27 @@
                 <span class="text-sm">
                     <span class="font-medium text-gray-900">Require a face capture</span>
                     <span class="block text-xs text-gray-600">
-                        A face that does not <em>match</em> is always recorded and flagged, never refused —
-                        a new beard should not cost somebody a day's attendance.
+                        Refuses a punch when no readable face was captured at all — a covered lens
+                        or a dark doorway. Whether a face that <em>is</em> captured has to match is
+                        the separate setting below.
+                    </span>
+                </span>
+            </label>
+
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model="require_face_match" class="mt-0.5 rounded border-gray-300 text-brand-600">
+                <span class="text-sm">
+                    <span class="font-medium text-gray-900">Refuse a face that does not match</span>
+                    <span class="block text-xs text-gray-600">
+                        Off, a mismatch is recorded and flagged for you to review, so a new beard or
+                        a bad light never costs somebody a day's attendance. On, they are turned away
+                        at the door and no punch is recorded.
+                    </span>
+                    <span class="block mt-1 text-xs text-amber-700">
+                        This is the only setting here that can send somebody home. Before turning it
+                        on, check Face Enrolment: anyone whose captures are flagged as odd is
+                        somebody this will refuse. Staff with no face enrolled are never refused —
+                        there is nothing to match them against.
                     </span>
                 </span>
             </label>

@@ -25,13 +25,20 @@ use Illuminate\Support\Str;
  *
  * Two principles run through it:
  *
- *   A failed CHECK flags the punch; a missing INPUT refuses it. Somebody
- *   whose face does not match still gets their attendance recorded, with a
- *   selfie for their manager to look at — refusing them would turn a beard
- *   into a missing day's pay, and the manager, not the model, is who should
- *   decide. But somebody who never turned the camera on has produced no
- *   evidence at all, and that is worth stopping at the door where it can
+ *   A failed CHECK flags the punch; a missing INPUT refuses it. By default,
+ *   somebody whose face does not match still gets their attendance recorded,
+ *   with a selfie for their manager to look at — refusing them would turn a
+ *   beard into a missing day's pay, and the manager, not the model, is who
+ *   should decide. But somebody who never turned the camera on has produced
+ *   no evidence at all, and that is worth stopping at the door where it can
  *   still be fixed.
+ *
+ *   `require_face_match` lets a company overrule the first half of that and
+ *   refuse a mismatched CLOCK-IN outright. It is off by default and it is
+ *   narrow on purpose: it never applies to somebody with no enrolled face
+ *   (there is nothing to match), never to a break, and never to a clock-out —
+ *   see assessFace() for why each of those would do more harm than the check
+ *   prevents.
  *
  *   Nothing here trusts a verdict computed by the phone. The device sends
  *   raw observations — coordinates, a descriptor — and every comparison
@@ -88,7 +95,7 @@ class ClockInService
         // minute. Everything is still recorded; nothing is enforced.
         $lenient  = $this->isBreak($type);
         $location = $this->assessLocation($input, $outlet, $settings, $flags, $lenient);
-        $face     = $this->assessFace($employee, $input, $settings, $flags, $lenient);
+        $face     = $this->assessFace($employee, $input, $settings, $flags, $lenient, $type);
 
         [$minutesLate, $chargeable, $penalty] = $this->assessLateness(
             $type, $shift, $at, $settings, $flags
@@ -274,7 +281,7 @@ class ClockInService
     /**
      * @return array{distance: ?float, verified: bool}
      */
-    private function assessFace(Employee $employee, array $input, ClockSetting $settings, array &$flags, bool $lenient = false): array
+    private function assessFace(Employee $employee, array $input, ClockSetting $settings, array &$flags, bool $lenient = false, string $type = ClockEvent::TYPE_IN): array
     {
         $descriptor = $input['descriptor'] ?? null;
 
@@ -311,6 +318,34 @@ class ClockInService
 
         if (! $verified) {
             $flags[] = 'face_mismatch';
+
+            // Turned away at the door, when the company has asked for that.
+            //
+            // Reached ONLY when there are enrolled faces to compare against —
+            // the not_enrolled paths above have already returned. That order
+            // is the whole safety of this: somebody with no face on file has
+            // nothing to fail, and refusing them would lock out every
+            // employee a manager has not got round to enrolling yet.
+            //
+            // $lenient still wins, so a break punch is never refused for this.
+            // Breaks are lenient throughout — a camera that fails must not
+            // strand somebody mid-shift, and ending a break is a punch you
+            // cannot simply decline to make.
+            //
+            // Clock-OUT is exempt for a sharper reason: refusing one is a
+            // trap with no way out. The shift stays open, so nextType() keeps
+            // answering "out", so every later attempt is another refused
+            // clock-out — and the person can never clock in again either.
+            // That is a worse outcome than the flagged record it replaces,
+            // and unlike a refused clock-in there is nothing the employee can
+            // do about it. A mismatched clock-out is still recorded, still
+            // flagged, and still lands in front of a manager.
+            if ($settings->require_face_match && ! $lenient && $type === ClockEvent::TYPE_IN) {
+                throw new ClockInException(
+                    'That did not look like your face. Try again in better light, '
+                    . 'or ask your manager to record this one.'
+                );
+            }
         }
 
         // Clamped to the column's decimal(5,4): two unrelated faces can score

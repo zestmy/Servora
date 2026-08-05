@@ -26,6 +26,9 @@ class ClockSettings extends Component
 
     public bool $require_gps               = true;
     public bool $require_face              = true;
+
+    /** Refuse a punch whose face does not match, rather than flagging it. */
+    public bool $require_face_match        = false;
     public bool $mark_attendance           = false;
     public bool $allow_offsite_with_reason = true;
 
@@ -47,6 +50,7 @@ class ClockSettings extends Component
 
         $this->require_gps               = (bool) $settings->require_gps;
         $this->require_face              = (bool) $settings->require_face;
+        $this->require_face_match        = (bool) $settings->require_face_match;
         $this->mark_attendance           = (bool) $settings->mark_attendance;
         $this->allow_offsite_with_reason = (bool) $settings->allow_offsite_with_reason;
 
@@ -104,6 +108,7 @@ class ClockSettings extends Component
             'face_threshold'       => (float) $this->face_threshold,
             'require_gps'          => $this->require_gps,
             'require_face'         => $this->require_face,
+            'require_face_match'   => $this->require_face_match,
             'mark_attendance'      => $this->mark_attendance,
             'allow_offsite_with_reason' => $this->allow_offsite_with_reason,
         ]);
