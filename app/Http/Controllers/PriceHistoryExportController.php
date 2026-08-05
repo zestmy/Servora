@@ -69,11 +69,11 @@ class PriceHistoryExportController extends Controller
     /** Rows + filter labels + summary stats for the request's filters. */
     protected function fetch(Request $request): array
     {
-        $dateFrom  = (string) $request->get('from', '');
-        $dateTo    = (string) $request->get('to', '');
-        $search    = trim((string) $request->get('search', ''));
-        $direction = in_array($request->get('direction'), ['increase', 'decrease'], true)
-            ? (string) $request->get('direction') : '';
+        $dateFrom  = (string) $request->input('from', '');
+        $dateTo    = (string) $request->input('to', '');
+        $search    = trim((string) $request->input('search', ''));
+        $direction = in_array($request->input('direction'), ['increase', 'decrease'], true)
+            ? (string) $request->input('direction') : '';
 
         $rows = self::query(Auth::user()->company_id, $dateFrom, $dateTo, $search, $direction)
             ->limit(self::MAX_ROWS + 1)

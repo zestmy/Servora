@@ -68,10 +68,10 @@ class RecipeCostPdfController extends Controller
      */
     protected function applyFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request, bool $isPrep): \Illuminate\Database\Eloquent\Builder
     {
-        $search   = trim((string) $request->get('search', ''));
-        $category = trim((string) $request->get('category', ''));
-        $status   = (string) $request->get('status', 'all');
-        $outletId = (int)    $request->get('outlet', 0);
+        $search   = trim((string) $request->input('search', ''));
+        $category = trim((string) $request->input('category', ''));
+        $status   = (string) $request->input('status', 'all');
+        $outletId = (int)    $request->input('outlet', 0);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -147,7 +147,7 @@ class RecipeCostPdfController extends Controller
      */
     protected function applyCostFilter($recipes, Request $request)
     {
-        $costFilter = (string) $request->get('cost', '');
+        $costFilter = (string) $request->input('cost', '');
         if ($costFilter === '') return $recipes;
 
         return $recipes->filter(function ($recipe) use ($costFilter) {
@@ -281,22 +281,22 @@ class RecipeCostPdfController extends Controller
     {
         $filters = [];
 
-        if ($search = trim((string) $request->get('search', ''))) {
+        if ($search = trim((string) $request->input('search', ''))) {
             $filters[] = 'Search: "' . $search . '"';
         }
-        if ($categoryId = (int) $request->get('category', 0)) {
+        if ($categoryId = (int) $request->input('category', 0)) {
             $cat = RecipeCategory::find($categoryId);
             if ($cat) $filters[] = 'Category: ' . $cat->name;
         }
-        if ($status = $request->get('status')) {
+        if ($status = $request->input('status')) {
             if ($status === 'active') $filters[] = 'Status: Active only';
             elseif ($status === 'inactive') $filters[] = 'Status: Inactive only';
         }
-        if ($outletId = (int) $request->get('outlet', 0)) {
+        if ($outletId = (int) $request->input('outlet', 0)) {
             $outlet = \App\Models\Outlet::find($outletId);
             if ($outlet) $filters[] = 'Outlet: ' . $outlet->name;
         }
-        if ($costFilter = $request->get('cost')) {
+        if ($costFilter = $request->input('cost')) {
             $costLabels = [
                 'under25' => 'Cost % under 25',
                 '25to35' => 'Cost % 25–35',

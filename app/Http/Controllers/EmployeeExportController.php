@@ -212,7 +212,7 @@ class EmployeeExportController extends Controller
 
         $filters = [];
 
-        $search = trim((string) $request->get('search', ''));
+        $search = trim((string) $request->input('search', ''));
         if ($search !== '') {
             $s = '%' . $search . '%';
             $query->where(function ($q) use ($s) {
@@ -224,25 +224,25 @@ class EmployeeExportController extends Controller
             $filters[] = 'Search: "' . $search . '"';
         }
 
-        $outletFilter = (string) $request->get('outlet', '');
+        $outletFilter = (string) $request->input('outlet', '');
         if ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true)) {
             $query->where('outlet_id', (int) $outletFilter);
             $outlet = Outlet::find((int) $outletFilter);
             if ($outlet) $filters[] = 'Outlet: ' . $outlet->name;
         }
 
-        $sectionFilter = (string) $request->get('section', '');
+        $sectionFilter = (string) $request->input('section', '');
         if ($sectionFilter !== '') {
             $query->where('section_id', (int) $sectionFilter);
             $section = Section::find((int) $sectionFilter);
             if ($section) $filters[] = 'Section: ' . $section->name;
         }
 
-        $status = (string) $request->get('status', '');
+        $status = (string) $request->input('status', '');
         if ($status === 'active')   { $query->where('is_active', true);  $filters[] = 'Status: Active'; }
         if ($status === 'inactive') { $query->where('is_active', false); $filters[] = 'Status: Inactive'; }
 
-        $employmentStatus = (string) $request->get('employment_status', '');
+        $employmentStatus = (string) $request->input('employment_status', '');
         if ($employmentStatus === 'none') {
             $query->whereNull('employment_status');
             $filters[] = 'Employment: No Status';

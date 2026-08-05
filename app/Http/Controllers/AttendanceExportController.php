@@ -31,12 +31,12 @@ class AttendanceExportController extends Controller
 
         // Period — clamped to the grid's maximum like the Livewire component.
         try {
-            $from = Carbon::parse((string) $request->get('from'))->startOfDay();
+            $from = Carbon::parse((string) $request->input('from'))->startOfDay();
         } catch (\Throwable $e) {
             $from = now()->startOfMonth();
         }
         try {
-            $to = Carbon::parse((string) $request->get('to'))->startOfDay();
+            $to = Carbon::parse((string) $request->input('to'))->startOfDay();
         } catch (\Throwable $e) {
             $to = now()->endOfMonth()->startOfDay();
         }
@@ -61,7 +61,7 @@ class AttendanceExportController extends Controller
             )));
         }
 
-        $search = trim((string) $request->get('search', ''));
+        $search = trim((string) $request->input('search', ''));
         if ($search !== '') {
             $s = '%' . $search . '%';
             $query->where(function ($q) use ($s) {
@@ -70,16 +70,16 @@ class AttendanceExportController extends Controller
                   ->orWhere('designation', 'like', $s);
             });
         }
-        $outletFilter = (string) $request->get('outlet', '');
+        $outletFilter = (string) $request->input('outlet', '');
         if ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true)) {
             $query->where('outlet_id', (int) $outletFilter);
         }
-        $sectionFilter = (string) $request->get('section', '');
+        $sectionFilter = (string) $request->input('section', '');
         if ($sectionFilter !== '') {
             $query->where('section_id', (int) $sectionFilter);
         }
         $employmentLabel  = null;
-        $employmentStatus = (string) $request->get('employment_status', '');
+        $employmentStatus = (string) $request->input('employment_status', '');
         if ($employmentStatus === 'none') {
             $query->whereNull('employment_status');
             $employmentLabel = 'No Employment Status';

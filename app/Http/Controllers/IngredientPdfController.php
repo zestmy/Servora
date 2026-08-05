@@ -18,10 +18,10 @@ class IngredientPdfController extends Controller
             'baseUom', 'recipeUom', 'ingredientCategory.parent', 'suppliers',
         ]);
 
-        $search   = trim((string) $request->get('search', ''));
-        $category = trim((string) $request->get('category', ''));
-        $status   = (string) $request->get('status', 'all');
-        $supplier = (string) $request->get('supplier', '');
+        $search   = trim((string) $request->input('search', ''));
+        $category = trim((string) $request->input('category', ''));
+        $status   = (string) $request->input('status', 'all');
+        $supplier = (string) $request->input('supplier', '');
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
