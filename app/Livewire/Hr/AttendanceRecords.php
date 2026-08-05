@@ -310,8 +310,14 @@ class AttendanceRecords extends Component
      */
     protected function serviceChargeTotalPoints(): float
     {
+        // employedDuring, NOT is_active: the rows being paid use that rule, so
+        // a leaver whose points are in the payout but not in this base would
+        // shrink the divisor, inflate RM/point and allocate more than the pool
+        // holds. The two must be drawn from the same set of people.
+        [$periodFrom] = $this->period();
+
         return (float) Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
-            ->where('is_active', true)
+            ->employedDuring($periodFrom->toDateString())
             ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter))
             ->sum('service_points_entitlement');
     }

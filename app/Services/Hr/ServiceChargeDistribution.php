@@ -36,10 +36,16 @@ class ServiceChargeDistribution
             return null;
         }
 
+        // Active staff PLUS anyone who resigned during this pool's period —
+        // the same rule the grid and the payout slips use. A resignation
+        // deactivates the row, so filtering on is_active alone would drop a
+        // leaver from the very pool they earned points in while the slips
+        // linked from this page still paid them; worse, their points would
+        // also leave $totalPoints below and the RM/point would not match.
         $employees = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessibleOutletIds ?: [0])
             ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId))
-            ->where('is_active', true)
+            ->employedDuring($from->toDateString())
             ->inListOrder()
             ->get();
 
@@ -50,9 +56,9 @@ class ServiceChargeDistribution
             ->get()
             ->mapWithKeys(fn ($r) => [$r->employee_id . ':' . $r->work_date->format('Y-m-d') => $r->attendance_code_id]);
 
-        // The RM/point base is every active employee in scope, which is what
-        // $employees already is here — passed explicitly so the intent is on
-        // the page rather than relying on the default.
+        // The RM/point base is everyone who was employed during the period,
+        // which is what $employees already is here — passed explicitly so the
+        // intent is on the page rather than relying on the default.
         $totalPoints = (float) $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
 
         return ServiceChargePeriod::distribute(

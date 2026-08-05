@@ -189,10 +189,14 @@ class AttendanceExportController extends Controller
                 ->whereDate('period_to', $to)
                 ->first();
             if ($scRow) {
-                // RM/point base: ALL active employees in the outlet scope —
-                // section/employment/search only narrow the displayed rows.
+                // RM/point base: everyone employed during the period in the
+                // outlet scope — section/employment/search only narrow the
+                // displayed rows. employedDuring, NOT is_active, so it matches
+                // the rows above: a leaver whose points are being paid but who
+                // is missing from this base would inflate RM/point and
+                // allocate more than the pool holds.
                 $totalPoints = (float) Employee::whereIn('outlet_id', $accessible ?: [0])
-                    ->where('is_active', true)
+                    ->employedDuring($from->toDateString())
                     ->when($scOutletId !== null, fn ($q) => $q->where('outlet_id', $scOutletId))
                     ->sum('service_points_entitlement');
                 $latePenalties = LatePenalties::forPeriod($user->company_id, $scOutletId, $from, $to);
