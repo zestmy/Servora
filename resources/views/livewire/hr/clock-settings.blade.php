@@ -202,8 +202,25 @@
         </div>
     </div>
 
+    {{-- Leaflet, for the pin picker. OpenStreetMap tiles: no key, no account,
+         and the same source the address lookup already uses. Loaded here only,
+         so no other page pays for it. --}}
+    @once
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+        <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    @endonce
+
     {{-- ── Geofence ─────────────────────────────────────────────────────── --}}
     <div class="panel p-5" x-data="{
+        pickerOpen: false,
+        pickerOutlet: null,
+        pickerName: '',
+        pickerLat: null,
+        pickerLng: null,
+        map: null,
+        marker: null,
+        circle: null,
+
         /* Fills the pair from the browser's own position. Meant to be pressed
            while standing at the outlet — which is the only way to get these
            right without hunting coordinates on a map. */
@@ -222,7 +239,76 @@
                 () => { status.textContent = 'Location refused.'; },
                 { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
             );
-        }
+        },
+
+        /* Drop a pin instead of typing coordinates. Opens on whatever the row
+           already holds; failing that, on the first outlet that does have a
+           position, so a new branch starts near its neighbours rather than in
+           the Atlantic at 0,0. */
+        openPicker(outletId, name, lat, lng, radius, fallback) {
+            this.pickerOutlet = outletId;
+            this.pickerName   = name;
+            const start = (lat !== null && lng !== null) ? [lat, lng] : fallback;
+            this.pickerLat = start[0];
+            this.pickerLng = start[1];
+            this.pickerOpen = true;
+
+            this.$nextTick(() => {
+                if (typeof L === 'undefined') return;
+
+                if (! this.map) {
+                    this.map = L.map(this.$refs.pickerMap);
+                    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '&copy; OpenStreetMap contributors',
+                    }).addTo(this.map);
+                    this.map.on('click', (e) => this.setPin(e.latlng.lat, e.latlng.lng));
+                }
+
+                this.map.setView(start, (lat !== null && lng !== null) ? 18 : 12);
+                this.setPin(start[0], start[1], radius);
+                /* Leaflet measures the container on creation, and the modal was
+                   display:none a moment ago — without this the tiles render
+                   into a zero-sized box and the map looks broken. */
+                setTimeout(() => this.map.invalidateSize(), 60);
+            });
+        },
+
+        setPin(lat, lng, radius) {
+            this.pickerLat = Number(lat.toFixed(7));
+            this.pickerLng = Number(lng.toFixed(7));
+            const metres = Number(radius ?? this.currentRadius()) || 150;
+
+            if (! this.marker) {
+                this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+                this.marker.on('dragend', (e) => {
+                    const p = e.target.getLatLng();
+                    this.setPin(p.lat, p.lng);
+                });
+                // The circle is the geofence itself: seeing it is the only way
+                // to tell a 20m radius from one that covers the car park.
+                this.circle = L.circle([lat, lng], { radius: metres, color: '#0d9488', weight: 1, fillOpacity: 0.12 }).addTo(this.map);
+            } else {
+                this.marker.setLatLng([lat, lng]);
+                this.circle.setLatLng([lat, lng]).setRadius(metres);
+            }
+        },
+
+        currentRadius() {
+            const el = this.$refs['rad' + this.pickerOutlet];
+            return el ? Number(el.value) : 150;
+        },
+
+        applyPin() {
+            const lat = this.$refs['lat' + this.pickerOutlet];
+            const lng = this.$refs['lng' + this.pickerOutlet];
+            lat.value = this.pickerLat.toFixed(7);
+            lat.dispatchEvent(new Event('input'));
+            lng.value = this.pickerLng.toFixed(7);
+            lng.dispatchEvent(new Event('input'));
+            this.$refs['status' + this.pickerOutlet].textContent = 'Set from the map.';
+            this.pickerOpen = false;
+        },
     }">
         <h3 class="text-sm font-semibold text-gray-900">Where each outlet is</h3>
         <p class="mt-0.5 text-xs text-gray-600">
@@ -230,35 +316,70 @@
             are flagged rather than quietly passed.
         </p>
 
+        @php
+            // Where the picker opens for an outlet with nothing set: the first
+            // outlet that does have a position, else Kuala Lumpur.
+            $fallback = collect($outlets)->first(fn ($o) => $o->latitude !== null && $o->longitude !== null);
+            $fallbackPoint = $fallback
+                ? [(float) $fallback->latitude, (float) $fallback->longitude]
+                : [3.1390, 101.6869];
+        @endphp
+
         <div class="mt-4 space-y-4">
             @foreach ($outlets as $outlet)
+                @php
+                    $lat = trim((string) ($fences[$outlet->id]['latitude'] ?? ''));
+                    $lng = trim((string) ($fences[$outlet->id]['longitude'] ?? ''));
+                    $hasPoint = $lat !== '' && $lng !== '' && is_numeric($lat) && is_numeric($lng);
+                @endphp
                 <div wire:key="fence-{{ $outlet->id }}" class="rounded-lg border border-gray-200 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <p class="text-sm font-medium text-gray-900">{{ $outlet->name }}</p>
-                        <button type="button" @click="locate({{ $outlet->id }})"
-                                class="text-xs font-medium text-brand-700 hover:underline">
-                            Use my current location
-                        </button>
+                        <div class="flex flex-wrap items-center gap-3">
+                            @if ($hasPoint)
+                                {{-- Checking the pin landed somewhere sensible is the
+                                     whole point; it opens where the outlet is set to,
+                                     not where it is saved. --}}
+                                <a href="https://www.google.com/maps?q={{ $lat }},{{ $lng }}"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="text-xs font-medium text-brand-700 hover:underline">
+                                    Show on map
+                                </a>
+                            @endif
+                            <button type="button"
+                                    @click="openPicker({{ $outlet->id }}, @js($outlet->name), {{ $hasPoint ? $lat : 'null' }}, {{ $hasPoint ? $lng : 'null' }}, {{ (int) ($fences[$outlet->id]['radius'] ?? 150) }}, @js($fallbackPoint))"
+                                    class="text-xs font-medium text-brand-700 hover:underline">
+                                Pick on map
+                            </button>
+                            <button type="button" @click="locate({{ $outlet->id }})"
+                                    class="text-xs font-medium text-brand-700 hover:underline">
+                                Use my current location
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Latitude</label>
+                            {{-- Live so the "Show on map" link and the picker's
+                                 starting point follow what is typed, not what
+                                 was last saved. --}}
                             <input type="text" x-ref="lat{{ $outlet->id }}"
-                                   wire:model="fences.{{ $outlet->id }}.latitude"
+                                   wire:model.live.debounce.500ms="fences.{{ $outlet->id }}.latitude"
                                    class="w-full rounded-lg border-gray-300 text-sm tabular-nums">
                             @error('fences.' . $outlet->id . '.latitude') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Longitude</label>
                             <input type="text" x-ref="lng{{ $outlet->id }}"
-                                   wire:model="fences.{{ $outlet->id }}.longitude"
+                                   wire:model.live.debounce.500ms="fences.{{ $outlet->id }}.longitude"
                                    class="w-full rounded-lg border-gray-300 text-sm tabular-nums">
                             @error('fences.' . $outlet->id . '.longitude') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Radius (metres)</label>
-                            <input type="number" min="20" max="5000" wire:model="fences.{{ $outlet->id }}.radius"
+                            <input type="number" min="20" max="5000" x-ref="rad{{ $outlet->id }}"
+                                   wire:model.live.debounce.500ms="fences.{{ $outlet->id }}.radius"
                                    class="w-full rounded-lg border-gray-300 text-sm">
                             @error('fences.' . $outlet->id . '.radius') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
                         </div>
@@ -271,6 +392,50 @@
 
         <div class="mt-5 flex justify-end">
             <button wire:click="save" class="btn-primary">Save</button>
+        </div>
+
+        {{-- Pin picker. wire:ignore on the map itself: Livewire morphing the
+             DOM under Leaflet leaves a dead grey box behind. --}}
+        <div x-show="pickerOpen" x-cloak @keydown.escape.window="pickerOpen = false"
+             class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-black/50" @click="pickerOpen = false"></div>
+            <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl" @click.stop>
+                <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800">Pick a location</h3>
+                        <p class="text-xs text-gray-600" x-text="pickerName"></p>
+                    </div>
+                    <button @click="pickerOpen = false" class="text-gray-600 hover:text-gray-900 p-1">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-3">
+                    <p class="text-xs text-gray-600">
+                        Click the map to drop the pin, or drag it. The shaded circle is the geofence at the
+                        radius set for this outlet — anyone punching outside it is flagged.
+                    </p>
+
+                    <div wire:ignore x-ref="pickerMap"
+                         class="h-80 w-full rounded-lg border border-gray-200 bg-gray-100"></div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-xs text-gray-600 tabular-nums">
+                            <span x-text="pickerLat !== null ? pickerLat.toFixed(7) : '—'"></span>,
+                            <span x-text="pickerLng !== null ? pickerLng.toFixed(7) : '—'"></span>
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="pickerOpen = false" class="btn-secondary">Cancel</button>
+                            <button type="button" @click="applyPin()" class="btn-primary">Use this location</button>
+                        </div>
+                    </div>
+
+                    <p class="text-[11px] text-gray-500">
+                        Map tiles come from OpenStreetMap, so opening this contacts them from your browser.
+                        Nothing is sent from the server and the pin is only saved when you press Save.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 </div>

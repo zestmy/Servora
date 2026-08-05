@@ -261,7 +261,8 @@
                             ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view'],
                             ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
                             ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view'],
-                            ['route' => 'hr.clock-settings',       'label' => 'Clock-In Settings', 'permission' => 'hr.clock.manage'],
+                            // Clock-In Settings lives under Settings > HR & People
+                            // with the other HR configuration screens.
                         ],
                     ],
                     [
