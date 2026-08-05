@@ -66,6 +66,45 @@
         </div>
     </div>
 
+    {{-- Food Handler: a held/not-held count, which the expiry card below
+         deliberately does not answer since the certificate is one-off. --}}
+    @php
+        $fhPct = $foodHandlerStats['total'] > 0
+            ? round($foodHandlerStats['taken'] / $foodHandlerStats['total'] * 100)
+            : 0;
+    @endphp
+    <div class="card p-4 mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Food Handler Certificate</p>
+                <p class="text-xs text-gray-500 mt-0.5">Active staff in this view</p>
+            </div>
+            <div class="flex items-center gap-6">
+                <div>
+                    <p class="text-2xl font-semibold tabular-nums text-success-700">{{ number_format($foodHandlerStats['taken']) }}</p>
+                    <p class="text-xs text-gray-600">Taken</p>
+                </div>
+                <div>
+                    <p class="text-2xl font-semibold tabular-nums {{ $foodHandlerStats['not_taken'] > 0 ? 'text-danger-600' : 'text-gray-400' }}">
+                        {{ number_format($foodHandlerStats['not_taken']) }}
+                    </p>
+                    <p class="text-xs text-gray-600">Not taken</p>
+                </div>
+                <div class="hidden sm:block">
+                    <p class="text-2xl font-semibold tabular-nums text-gray-900">{{ $fhPct }}%</p>
+                    <p class="text-xs text-gray-600">Certified</p>
+                </div>
+            </div>
+        </div>
+        @if ($foodHandlerStats['total'] > 0)
+            <div class="mt-3 h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                {{-- Width is inline, not a Tailwind class: the scanner cannot
+                     generate a class built from a runtime value. --}}
+                <div class="h-full bg-success-500 rounded-full" style="width: {{ $fhPct }}%"></div>
+            </div>
+        @endif
+    </div>
+
     {{-- Compliance: what expires next, and who --}}
     @php $ds = \App\Services\Hr\DocumentExpiry::class; @endphp
     <div class="card p-4 mb-4">

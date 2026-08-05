@@ -636,8 +636,24 @@ class Employees extends Component
 
         $complianceSettings = ComplianceSetting::forCompany($companyId);
 
+        // Food handler is a held/not-held question, not an expiry one — it is
+        // one-off for most kitchens, so it is not in the expiry card at all.
+        // Counted over the same scope: active staff in the outlet and section
+        // being viewed, ignoring the search box and the status filters.
+        $foodHandler = (clone $complianceQuery)
+            ->where('is_active', true)
+            ->selectRaw('SUM(food_handler_certified = 1) as taken, SUM(food_handler_certified = 0 OR food_handler_certified IS NULL) as not_taken')
+            ->first();
+
+        $foodHandlerStats = [
+            'taken'     => (int) ($foodHandler->taken ?? 0),
+            'not_taken' => (int) ($foodHandler->not_taken ?? 0),
+        ];
+        $foodHandlerStats['total'] = $foodHandlerStats['taken'] + $foodHandlerStats['not_taken'];
+
         return view('livewire.hr.employees', compact(
-            'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay', 'compliance', 'complianceSettings'
+            'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay',
+            'compliance', 'complianceSettings', 'foodHandlerStats'
         ))->layout('layouts.app', ['title' => 'Employees']);
     }
 }
