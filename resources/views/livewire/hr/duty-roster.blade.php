@@ -139,6 +139,15 @@
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/></svg>
                                 Sort by staff order
                             </button>
+                            {{-- Only fills days that have nothing on them, so it is
+                                 safe to run on a half-built week. --}}
+                            <button wire:click="copyPreviousWeek"
+                                    wire:confirm="Copy last week's roster into the empty days of this week?"
+                                    title="Fill empty days from the same roster last week"
+                                    class="btn-secondary">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                Copy last week
+                            </button>
                             <button wire:click="submitRoster"
                                     class="btn-primary">
                                 Submit for Approval
@@ -287,6 +296,18 @@
                                                 {{ isset($dayRemarks[$day['date']]) ? 'edit' : '+ remark' }}
                                             </button>
                                         @endif
+                                        {{-- Fill this whole day with one shift. Anyone already
+                                             marked off keeps their day off. --}}
+                                        @if ($canBulk && $shifts->isNotEmpty())
+                                            <select onchange="if (this.value) { @this.call('applyShiftToDay', '{{ $day['date'] }}', this.value); this.value=''; }"
+                                                    title="Apply a shift to everyone on this day"
+                                                    class="mt-1 w-full text-[10px] rounded border-gray-200 text-gray-600 py-0.5">
+                                                <option value="">fill day…</option>
+                                                @foreach ($shifts as $shift)
+                                                    <option value="{{ $shift->id }}">{{ $shift->shortLabel() }}</option>
+                                                @endforeach
+                                            </select>
+                                        @endif
                                     </th>
                                 @endforeach
                                 <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
@@ -356,6 +377,18 @@
                                                     </button>
                                                 @endif
                                             </div>
+                                            {{-- Fill this person's whole week with one shift.
+                                                 Their days off are left alone. --}}
+                                            @if ($canBulk && $shifts->isNotEmpty())
+                                                <select onchange="if (this.value) { @this.call('applyShiftToEmployee', {{ $empId }}, this.value); this.value=''; }"
+                                                        title="Apply a shift to this employee's whole week"
+                                                        class="mt-2 w-full text-[10px] rounded border-gray-200 text-gray-600 py-0.5">
+                                                    <option value="">fill week…</option>
+                                                    @foreach ($shifts as $shift)
+                                                        <option value="{{ $shift->id }}">{{ $shift->name }} {{ $shift->timeLabel() }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @endif
                                         </td>
                                         @foreach ($weekDays as $day)
                                             <td class="px-2 py-3 text-center">
@@ -650,6 +683,26 @@
                         @endif
 
                         @if (!$f_is_off_day)
+                            {{-- Pick a shift to fill the three fields below. They stay
+                                 editable: a template is a starting point, not a lock. --}}
+                            @if ($shifts->isNotEmpty())
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Shift</label>
+                                    <select wire:model.live="f_shift_id" class="w-full text-sm rounded-lg border-gray-300 shadow-sm">
+                                        <option value="">Custom times…</option>
+                                        @foreach ($shifts as $shift)
+                                            <option value="{{ $shift->id }}">
+                                                {{ $shift->name }} — {{ $shift->timeLabel() }}
+                                                ({{ $shift->rest_duration }}m break)
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Fills the times below. Change them afterwards if this one day differs.
+                                    </p>
+                                </div>
+                            @endif
+
                             <div class="grid grid-cols-3 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Shift Start</label>

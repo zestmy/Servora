@@ -13,6 +13,7 @@ use App\Models\RosterEntry;
 use App\Models\RosterSetting;
 use App\Models\RosterStation;
 use App\Models\Section;
+use App\Models\Shift;
 use App\Services\RosterEmailService;
 use App\Services\RosterPdfService;
 use Carbon\Carbon;
@@ -34,6 +35,7 @@ class DutyRoster extends Component
     public ?int $f_employee_id = null;
     public string $f_day_date = '';
     public ?int $f_station_id = null;
+    public ?int $f_shift_id = null;
     public string $f_shift_start = '';
     public string $f_shift_end = '';
     public int $f_rest_duration = 60;
@@ -70,6 +72,7 @@ class DutyRoster extends Component
             'f_employee_id' => 'required|exists:employees,id',
             'f_day_date' => 'required|date',
             'f_station_id' => 'nullable|exists:roster_stations,id',
+            'f_shift_id' => 'nullable|exists:shifts,id',
             'f_shift_start' => 'nullable|date_format:H:i',
             'f_shift_end' => 'nullable|date_format:H:i',
             'f_rest_duration' => 'integer|min:0|max:480',
@@ -138,7 +141,7 @@ class DutyRoster extends Component
             $query->where('section_id', $this->sectionId);
         }
 
-        $this->roster = $query->with(['entries.employee', 'entries.station', 'dayRemarks', 'amendments'])
+        $this->roster = $query->with(['entries.employee', 'entries.station', 'entries.shift', 'dayRemarks', 'amendments'])
             ->first();
     }
 
@@ -343,6 +346,7 @@ class DutyRoster extends Component
         $this->f_employee_id = $entry->employee_id;
         $this->f_day_date = $entry->day_date->format('Y-m-d');
         $this->f_station_id = $entry->station_id;
+        $this->f_shift_id = $entry->shift_id;
         $this->f_shift_start = $entry->shift_start ? Carbon::parse($entry->shift_start)->format('H:i') : '';
         $this->f_shift_end = $entry->shift_end ? Carbon::parse($entry->shift_end)->format('H:i') : '';
         $this->f_rest_duration = $entry->rest_duration;
@@ -354,6 +358,223 @@ class DutyRoster extends Component
         $this->f_notes = $entry->notes ?? '';
 
         $this->showEntryForm = true;
+    }
+
+    /**
+     * Picking a shift fills the times in the entry form.
+     *
+     * The fields stay editable afterwards — a template is a starting point,
+     * not a lock, and the one person who leaves an hour early still has to be
+     * rosterable without abandoning the shift.
+     */
+    public function updatedFShiftId($value): void
+    {
+        $shift = $value ? Shift::for($this->outletId, $this->sectionId)->active()->find($value) : null;
+        if (! $shift) {
+            return;
+        }
+
+        $this->f_shift_start   = $shift->start_time->format('H:i');
+        $this->f_shift_end     = $shift->end_time->format('H:i');
+        $this->f_rest_duration = (int) $shift->rest_duration;
+        $this->f_normal_hours  = $shift->normal_hours !== null ? (string) (float) $shift->normal_hours : '';
+        // A shift means someone is working it.
+        $this->f_is_off_day    = false;
+    }
+
+    /** Shifts offered for the roster being edited. */
+    public function availableShifts()
+    {
+        if (! $this->outletId) {
+            return collect();
+        }
+
+        return Shift::for($this->outletId, $this->sectionId)->active()->ordered()->get();
+    }
+
+    /**
+     * Guard shared by every bulk action: they write many entries at once and
+     * cannot ask for an amendment reason per entry, so they are draft-only.
+     */
+    protected function canBulkEdit(): bool
+    {
+        if (! $this->roster) {
+            session()->flash('error', 'Create the roster first.');
+            return false;
+        }
+        if (! $this->roster->isDraft()) {
+            session()->flash('error', 'Bulk changes are only available while the roster is a draft. Edit entries individually to amend it.');
+            return false;
+        }
+        if (! Auth::user()->can('roster.edit')) {
+            session()->flash('error', 'You do not have permission to edit rosters.');
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Put one shift across an employee's whole week. */
+    public function applyShiftToEmployee(int $employeeId, int $shiftId): void
+    {
+        if (! $this->canBulkEdit()) return;
+
+        $shift = Shift::for($this->outletId, $this->sectionId)->active()->find($shiftId);
+        if (! $shift) return;
+
+        $applied = 0;
+        foreach ($this->getWeekDays() as $day) {
+            $applied += $this->writeShift($employeeId, $day['date'], $shift) ? 1 : 0;
+        }
+
+        $this->finishBulk("{$shift->name} applied to {$applied} day(s).");
+    }
+
+    /** Put one shift across everyone on a single day. */
+    public function applyShiftToDay(string $date, int $shiftId): void
+    {
+        if (! $this->canBulkEdit()) return;
+
+        $shift = Shift::for($this->outletId, $this->sectionId)->active()->find($shiftId);
+        if (! $shift) return;
+
+        $employeeIds = RosterEntry::where('roster_id', $this->roster->id)
+            ->distinct()->pluck('employee_id');
+
+        $applied = 0;
+        foreach ($employeeIds as $employeeId) {
+            $applied += $this->writeShift($employeeId, $date, $shift) ? 1 : 0;
+        }
+
+        $this->finishBulk("{$shift->name} applied to {$applied} employee(s).");
+    }
+
+    /**
+     * One employee, one day, one shift. Days already marked off are left
+     * alone — a bulk fill must not quietly cancel someone's rest day.
+     */
+    protected function writeShift(int $employeeId, string $date, Shift $shift): bool
+    {
+        $entry = RosterEntry::where('roster_id', $this->roster->id)
+            ->where('employee_id', $employeeId)
+            ->whereDate('day_date', $date)
+            ->first();
+
+        if ($entry && $entry->is_off_day) {
+            return false;
+        }
+
+        $data = [
+            'shift_id'      => $shift->id,
+            'shift_start'   => $shift->start_time->format('H:i:s'),
+            'shift_end'     => $shift->end_time->format('H:i:s'),
+            'rest_duration' => (int) $shift->rest_duration,
+            'normal_hours'  => $shift->normal_hours !== null ? (float) $shift->normal_hours : null,
+            'is_off_day'    => false,
+            'leave_type'    => null,
+        ];
+
+        if ($entry) {
+            $entry->update($data);
+        } else {
+            RosterEntry::create($data + [
+                'roster_id'   => $this->roster->id,
+                'employee_id' => $employeeId,
+                'day_date'    => $date,
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Copy the previous week's roster into this one.
+     *
+     * Only fills days that have nothing rostered, so it can be run on a
+     * half-built week without wiping what has already been decided. Employees
+     * who are not on this roster are skipped rather than added — the row list
+     * is a deliberate choice made when the roster was created.
+     */
+    public function copyPreviousWeek(): void
+    {
+        if (! $this->canBulkEdit()) return;
+
+        $previous = Roster::where('outlet_id', $this->roster->outlet_id)
+            ->where('section_id', $this->roster->section_id)
+            ->whereDate('week_start_date', Carbon::parse($this->weekStart)->subWeek()->toDateString())
+            ->with('entries')
+            ->first();
+
+        if (! $previous || $previous->entries->isEmpty()) {
+            session()->flash('error', 'There is no roster for the previous week to copy.');
+            return;
+        }
+
+        $onThisRoster = RosterEntry::where('roster_id', $this->roster->id)
+            ->distinct()->pluck('employee_id')->flip();
+
+        $existing = RosterEntry::where('roster_id', $this->roster->id)
+            ->get()
+            ->keyBy(fn ($e) => $e->employee_id . '|' . $e->day_date->format('Y-m-d'));
+
+        $copied = 0;
+        $skipped = 0;
+
+        foreach ($previous->entries as $source) {
+            if (! isset($onThisRoster[$source->employee_id])) {
+                $skipped++;
+                continue;
+            }
+
+            $targetDate = $source->day_date->copy()->addWeek()->format('Y-m-d');
+            $key = $source->employee_id . '|' . $targetDate;
+
+            // An entry that already says something is a decision already made.
+            $current = $existing->get($key);
+            if ($current && ($current->shift_start || $current->is_off_day)) {
+                continue;
+            }
+
+            $data = [
+                'shift_id'          => $source->shift_id,
+                'station_id'        => $source->station_id,
+                'shift_start'       => $source->shift_start,
+                'shift_end'         => $source->shift_end,
+                'rest_duration'     => $source->rest_duration,
+                'normal_hours'      => $source->normal_hours,
+                'is_off_day'        => $source->is_off_day,
+                'leave_type'        => $source->leave_type,
+                'planned_ot'        => $source->planned_ot,
+                'planned_ot_manual' => $source->planned_ot_manual,
+            ];
+
+            if ($current) {
+                $current->update($data);
+            } else {
+                RosterEntry::create($data + [
+                    'roster_id'   => $this->roster->id,
+                    'employee_id' => $source->employee_id,
+                    'day_date'    => $targetDate,
+                ]);
+            }
+
+            $copied++;
+        }
+
+        $this->finishBulk("Copied {$copied} day(s) from last week."
+            . ($skipped ? " {$skipped} entry(s) were for staff not on this roster and were skipped." : ''));
+    }
+
+    /** Shared tail for the bulk actions: stamp, reload, report. */
+    protected function finishBulk(string $message): void
+    {
+        $this->roster->update([
+            'last_edited_by' => Auth::id(),
+            'last_edited_at' => now(),
+        ]);
+
+        $this->loadRoster();
+        session()->flash('success', $message);
     }
 
     public function closeEntryForm(): void
@@ -370,6 +591,7 @@ class DutyRoster extends Component
         $this->f_employee_id = null;
         $this->f_day_date = '';
         $this->f_station_id = null;
+        $this->f_shift_id = null;
         $this->f_shift_start = '';
         $this->f_shift_end = '';
         $this->f_rest_duration = 60;
@@ -402,6 +624,9 @@ class DutyRoster extends Component
             'roster_id' => $this->roster->id,
             'employee_id' => $this->f_employee_id,
             'station_id' => $this->f_station_id,
+            // Kept for the label only — the times above are the entry's own,
+            // so editing the shift later never rewrites a built roster.
+            'shift_id' => $this->f_is_off_day ? null : $this->f_shift_id,
             'day_date' => $this->f_day_date,
             'shift_start' => $this->f_is_off_day ? null : ($this->f_shift_start ?: null),
             'shift_end' => $this->f_is_off_day ? null : ($this->f_shift_end ?: null),
@@ -1025,9 +1250,15 @@ class DutyRoster extends Component
         // Leave types for the form
         $leaveTypes = RosterEntry::LEAVE_TYPES;
 
+        $shifts = $this->availableShifts();
+        // Bulk fills write many entries at once, so they are draft-only —
+        // an amendment needs a reason per entry and cannot be batched.
+        $canBulk = $canEdit && $this->roster && $this->roster->isDraft();
+
         return view('livewire.hr.duty-roster', compact(
             'outlets', 'sections', 'weekDays', 'entriesGrouped', 'entriesBySection', 'employees', 'stations',
-            'dayRemarks', 'emailRecipients', 'periodLabel', 'canCreate', 'canEdit', 'canApprove', 'canAmend', 'canDelete', 'leaveTypes'
+            'dayRemarks', 'emailRecipients', 'periodLabel', 'canCreate', 'canEdit', 'canApprove', 'canAmend', 'canDelete', 'leaveTypes',
+            'shifts', 'canBulk'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Duty Roster']);
     }
 }

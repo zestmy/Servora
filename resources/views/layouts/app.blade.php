@@ -253,6 +253,7 @@
                             ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view'],
                             ['route' => 'hr.staff-pins',           'label' => 'Staff PINs',      'permission' => 'staff.pins'],
                             ['route' => 'hr.duty-roster',          'label' => 'Duty Roster'], // Viewable by all users
+                            ['route' => 'hr.shifts',               'label' => 'Shifts',          'permission' => 'roster.settings'],
                             ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance'],
                             ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock'],
                             ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims'],

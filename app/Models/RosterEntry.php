@@ -38,6 +38,7 @@ class RosterEntry extends Model
         'roster_id',
         'employee_id',
         'station_id',
+        'shift_id',
         'day_date',
         'shift_start',
         'shift_end',
@@ -96,6 +97,16 @@ class RosterEntry extends Model
     public function station(): BelongsTo
     {
         return $this->belongsTo(RosterStation::class, 'station_id');
+    }
+
+    /**
+     * The shift template this entry was filled from, for its label only —
+     * the times on the entry are its own copy and stay put when the template
+     * is edited.
+     */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
     }
 
     /**
