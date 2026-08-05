@@ -256,6 +256,7 @@
                             ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance'],
                             ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock'],
                             ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims'],
+                            ['route' => 'hr.compensation',         'label' => 'Compensation',    'permission' => 'hr.compensation'],
                             ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view'],
                             ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
                             ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view'],

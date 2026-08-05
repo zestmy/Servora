@@ -296,4 +296,16 @@ class Employee extends Model
     {
         return $this->hasMany(EmployeeCertification::class);
     }
+
+    /** Allowances and deductions assigned to this employee. */
+    public function payComponents(): HasMany
+    {
+        return $this->hasMany(EmployeePayComponent::class);
+    }
+
+    /** Basic salary change history, newest first. */
+    public function salaryRevisions(): HasMany
+    {
+        return $this->hasMany(SalaryRevision::class)->orderByDesc('effective_on');
+    }
 }

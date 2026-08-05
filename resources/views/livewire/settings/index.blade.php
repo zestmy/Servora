@@ -218,6 +218,20 @@
                     </div>
                 </a>
 
+                {{-- Pay Components (compensation) --}}
+                @can('hr.compensation')
+                <a href="{{ route('settings.pay-components') }}"
+                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 9v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Pay Components</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Allowances, deductions and overtime rates</p>
+                    </div>
+                </a>
+                @endcan
+
                 {{-- Outlet Groups --}}
                 <a href="{{ route('settings.outlet-groups') }}"
                    class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">

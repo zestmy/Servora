@@ -318,6 +318,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.view');
     Route::get('/settings/sections', \App\Livewire\Settings\Sections::class)->name('settings.sections')->middleware('can:settings.view');
     Route::get('/settings/certifications', \App\Livewire\Settings\CertificationTypes::class)->name('settings.certifications')->middleware('can:settings.view');
+    Route::get('/settings/pay-components', \App\Livewire\Settings\PayComponents::class)->name('settings.pay-components')->middleware('can:hr.compensation');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:inventory.view');
     Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.view');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:hr.view');
@@ -364,6 +365,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Add / edit is a full page, not a modal — the form is too tall for a dialog.
     Route::get('/hr/employees/create', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.create')->middleware('can:hr.view');
     Route::get('/hr/employees/{id}/edit', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.edit')->middleware('can:hr.view');
+    // Compensation sits behind hr.compensation — the same gate that hides
+    // salary on the Employees list and the exports.
+    Route::get('/hr/compensation', \App\Livewire\Hr\Compensation::class)->name('hr.compensation')->middleware('can:hr.compensation');
+    Route::get('/hr/compensation/{id}', \App\Livewire\Hr\EmployeeCompensation::class)->name('hr.compensation.employee')->middleware('can:hr.compensation');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
     // Web clock-in — the staff-facing app lives in routes/clock-staff.php;

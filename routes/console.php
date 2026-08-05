@@ -36,3 +36,9 @@ Schedule::command('labels:reconcile-jobs')->everyTenMinutes()->withoutOverlappin
 // Training Portal's export button after a deploy restarts the queue worker
 // mid-render.
 Schedule::command('sop:prune-exports')->hourly()->withoutOverlapping();
+
+// Land approved salary revisions on the day they take effect. Just after
+// midnight so a raise dated the 1st is in place before anyone opens payroll
+// on the 1st; the command is idempotent (applied_at is the guard), so a
+// missed night is caught by the next run rather than double-applying.
+Schedule::command('salary:apply-revisions')->dailyAt('00:15');
