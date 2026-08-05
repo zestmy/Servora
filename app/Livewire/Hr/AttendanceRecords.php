@@ -433,9 +433,13 @@ class AttendanceRecords extends Component
     {
         $accessible = $this->accessibleOutletIds();
 
+        // Active staff plus anyone who resigned during (or after the start of)
+        // the visible period — their final days still need marking.
+        [$periodFrom] = $this->period();
+
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
-            ->where('is_active', true)
+            ->employedDuring($periodFrom->toDateString())
             ->inListOrder();
 
         // Never load pay columns for users without hr.compensation.

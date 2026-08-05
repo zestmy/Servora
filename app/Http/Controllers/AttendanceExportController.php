@@ -45,9 +45,11 @@ class AttendanceExportController extends Controller
             $to = $from->copy()->addDays(AttendanceRecords::MAX_DAYS - 1);
         }
 
+        // Same rule as the grid: active staff plus anyone who resigned during
+        // the exported period, so the PDF matches what was on screen.
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
-            ->where('is_active', true)
+            ->employedDuring($from->toDateString())
             ->orderByRaw('sort_order IS NULL')
             ->orderBy('sort_order')
             ->orderBy('name');

@@ -237,6 +237,15 @@ class OvertimeClaims extends Component
         $employee = Employee::find($this->employee_id);
         $outletId = $employee?->outlet_id ?? $user->activeOutletId();
 
+        // A leaver stays claimable for the shifts they actually worked, but not
+        // for days after they left — which is the whole reason they are still
+        // in the picker rather than being hidden outright.
+        $employedUntil = $employee?->employedUntil();
+        if ($employedUntil && \Carbon\Carbon::parse($this->claim_date)->gt($employedUntil)) {
+            $this->addError('claim_date', $employee->name . ' resigned on ' . $employedUntil->format('d M Y') . '. An OT claim cannot be dated after that.');
+            return;
+        }
+
         $data = [
             'company_id'    => $user->company_id,
             'outlet_id'     => $outletId,
@@ -510,7 +519,12 @@ class OvertimeClaims extends Component
             })
             ->orderBy('name')
             ->get();
-        $employees = $allEmployees->where('is_active', true);
+
+        // Claimable staff: active, plus anyone who resigned — their last shifts
+        // still have to be claimed and approved after they leave, and the claim
+        // date is validated against the resignation date on save. Someone who
+        // was simply deactivated is not claimable; that is not a leaving date.
+        $employees = $allEmployees->filter(fn ($e) => $e->is_active || $e->hasResigned());
 
         $sections = Section::active()->ordered()->get();
 
