@@ -15,7 +15,8 @@ class ClockSetting extends Model
 {
     protected $fillable = [
         'company_id', 'grace_minutes', 'late_rate_per_minute', 'late_cap_per_shift',
-        'early_window_minutes', 'require_gps', 'require_face', 'max_accuracy_m',
+        'early_window_minutes', 'require_gps', 'require_face', 'require_face_match',
+        'max_accuracy_m',
         'face_threshold', 'mark_attendance', 'allow_offsite_with_reason',
     ];
 
@@ -26,6 +27,7 @@ class ClockSetting extends Model
         'early_window_minutes'      => 'integer',
         'require_gps'               => 'boolean',
         'require_face'              => 'boolean',
+        'require_face_match'        => 'boolean',
         'max_accuracy_m'            => 'integer',
         'face_threshold'            => 'decimal:3',
         'mark_attendance'           => 'boolean',
