@@ -16,7 +16,7 @@ class ServiceChargePeriod extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'period_from', 'period_to',
         'amount', 'retention_percent', 'mc_percent', 'abs_percent',
-        'fund_allocations', 'special_deductions',
+        'fund_allocations', 'special_deductions', 'excluded_employees',
     ];
 
     protected $casts = [
@@ -28,6 +28,7 @@ class ServiceChargePeriod extends Model
         'abs_percent'        => 'decimal:2',
         'fund_allocations'   => 'array',
         'special_deductions' => 'array',
+        'excluded_employees' => 'array',
     ];
 
     /** MySQL does not read column defaults back after an insert. */
@@ -67,6 +68,48 @@ class ServiceChargePeriod extends Model
             'amount' => max(0.0, (float) ($row['amount'] ?? 0)),
             'note'   => (string) ($row['note'] ?? ''),
         ];
+    }
+
+    /**
+     * Employees taking no share of THIS pool.
+     *
+     * A leaver is on the pool covering the period they worked because they
+     * earned those points, but that is the default and not always the
+     * agreement — so it can be overridden per person per pool. Stored against
+     * the pool rather than on the employee, because it is a decision about one
+     * period: excluding someone from June must not touch May.
+     *
+     * @return array<int, int>
+     */
+    public function excludedEmployeeIds(): array
+    {
+        return collect($this->excluded_employees ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function excludes(int $employeeId): bool
+    {
+        return in_array($employeeId, $this->excludedEmployeeIds(), true);
+    }
+
+    /**
+     * Drop the excluded from an Employee query building the RM/point base.
+     *
+     * The base and the rows being paid must come from the same set of people:
+     * points left in the divisor but not paid out UNDER-allocates the pool,
+     * and points paid but missing from the divisor OVER-allocates it. Every
+     * consumer of distribute() applies this to its base query, which is why
+     * it lives here rather than being written out three times.
+     */
+    public function excludeFrom($query)
+    {
+        $ids = $this->excludedEmployeeIds();
+
+        return $ids ? $query->whereNotIn('employees.id', $ids) : $query;
     }
 
     protected static function booted(): void
@@ -153,10 +196,18 @@ class ServiceChargePeriod extends Model
         $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0,
                    'specialAmt' => 0.0, 'net' => 0.0];
         foreach ($employees as $emp) {
-            $points  = max(0, (float) $emp->service_points_entitlement);
+            // Excluded from this pool: no points, so no share and nothing to
+            // deduct from. The row is still listed — a name that simply
+            // vanished from the table would look like a bug, and "excluded"
+            // is the answer to why the figure is zero.
+            $excluded = $row ? $row->excludes($emp->id) : false;
+
+            $points  = $excluded ? 0.0 : max(0, (float) $emp->service_points_entitlement);
             $mcDays  = $mcCounts[$emp->id] ?? 0;
             $absDays = $absCounts[$emp->id] ?? 0;
-            $dedPct  = min(100.0, $mcDays * $mcPct + $absDays * $absPct);
+            // Zeroed when excluded: a "25%" against a nil gross reads as a
+            // deduction that was applied, when nothing was.
+            $dedPct  = $excluded ? 0.0 : min(100.0, $mcDays * $mcPct + $absDays * $absPct);
             $gross   = $points * $perPoint;
             $dedAmt  = $gross * $dedPct / 100;
 
@@ -176,6 +227,7 @@ class ServiceChargePeriod extends Model
 
             $rows[] = [
                 'employee'    => $emp,
+                'excluded'    => $excluded,
                 'points'      => $points,
                 'mcDays'      => $mcDays,
                 'absDays'     => $absDays,
@@ -215,6 +267,7 @@ class ServiceChargePeriod extends Model
             'absPct'        => $absPct,
             'hasLate'       => $totals['lateAmt'] > 0 || $totals['lateMins'] > 0,
             'hasSpecial'    => $totals['specialAmt'] > 0,
+            'hasExcluded'   => collect($rows)->contains('excluded', true),
         ];
     }
 }

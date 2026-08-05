@@ -59,7 +59,11 @@ class ServiceChargeDistribution
         // The RM/point base is everyone who was employed during the period,
         // which is what $employees already is here — passed explicitly so the
         // intent is on the page rather than relying on the default.
-        $totalPoints = (float) $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
+        // Anyone excluded from this pool takes no share, so their points must
+        // leave the divisor too — otherwise the pool under-allocates.
+        $totalPoints = (float) $employees
+            ->reject(fn ($e) => $row->excludes($e->id))
+            ->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
 
         return ServiceChargePeriod::distribute(
             $row, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints,

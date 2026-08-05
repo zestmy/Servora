@@ -417,7 +417,29 @@
                         <tbody>
                             @foreach ($serviceCharge['rows'] as $scRow)
                                 <tr wire:key="sc-{{ $scRow['employee']->id }}" class="hover:bg-gray-50/70 {{ $scRow['points'] <= 0 ? 'opacity-50' : '' }}">
-                                    <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">{{ $scRow['employee']->name }}</td>
+                                    <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">
+                                        {{ $scRow['employee']->name }}
+                                        {{-- A leaver is on this pool because they worked part of
+                                             it, and by default they earned their points. The tick
+                                             is the override for when that is not the agreement;
+                                             .live so the RM/point above moves with it, since
+                                             removing someone changes what a point is worth for
+                                             everyone else. Offered for resigned staff only. --}}
+                                        @if ($scRow['employee']->hasResigned())
+                                            <span class="block text-[10px] text-gray-500">
+                                                Resigned{{ $scRow['employee']->employment_status_date
+                                                    ? ' ' . $scRow['employee']->employment_status_date->format('d M Y') : '' }}
+                                            </span>
+                                            <label class="mt-0.5 inline-flex items-center gap-1.5 cursor-pointer">
+                                                <input type="checkbox"
+                                                       wire:model.live="scExcluded.{{ $scRow['employee']->id }}"
+                                                       class="rounded border-gray-300 text-danger-600 focus:ring-danger-500" />
+                                                <span class="text-[11px] font-normal {{ $scRow['excluded'] ? 'text-danger-600 font-medium' : 'text-gray-600' }}">
+                                                    No service point
+                                                </span>
+                                            </label>
+                                        @endif
+                                    </td>
                                     <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-warning-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['mcDays'] }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['absDays'] }}</td>
@@ -441,17 +463,24 @@
                                          rather than in a separate screen. Saved with
                                          the pool by Save & Calculate. --}}
                                     <td class="px-2 py-1.5 text-right">
-                                        <input type="number" step="0.01" min="0"
-                                               wire:model="scSpecial.{{ $scRow['employee']->id }}.amount"
-                                               placeholder="0.00"
-                                               class="w-24 text-xs text-right rounded border-gray-300 tabular-nums" />
-                                        <input type="text" maxlength="120"
-                                               wire:model="scSpecial.{{ $scRow['employee']->id }}.note"
-                                               placeholder="reason"
-                                               class="mt-1 w-32 text-[11px] rounded border-gray-200 text-gray-600" />
-                                        @error('scSpecial.' . $scRow['employee']->id . '.amount')
-                                            <p class="text-[10px] text-danger-500 mt-0.5">{{ $message }}</p>
-                                        @enderror
+                                        {{-- Nothing to deduct from once excluded, so the
+                                             inputs go rather than sit there accepting a
+                                             figure that would never be applied. --}}
+                                        @if ($scRow['excluded'])
+                                            <span class="text-[11px] text-gray-500">excluded</span>
+                                        @else
+                                            <input type="number" step="0.01" min="0"
+                                                   wire:model="scSpecial.{{ $scRow['employee']->id }}.amount"
+                                                   placeholder="0.00"
+                                                   class="w-24 text-xs text-right rounded border-gray-300 tabular-nums" />
+                                            <input type="text" maxlength="120"
+                                                   wire:model="scSpecial.{{ $scRow['employee']->id }}.note"
+                                                   placeholder="reason"
+                                                   class="mt-1 w-32 text-[11px] rounded border-gray-200 text-gray-600" />
+                                            @error('scSpecial.' . $scRow['employee']->id . '.amount')
+                                                <p class="text-[10px] text-danger-500 mt-0.5">{{ $message }}</p>
+                                            @enderror
+                                        @endif
                                     </td>
                                     <td class="px-2 py-1.5 text-right font-semibold text-teal-700 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
                                 </tr>

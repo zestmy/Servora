@@ -47,6 +47,17 @@ class AttendanceRecords extends Component
 
     /** employee_id => ['amount' => '', 'note' => ''] for this period only. */
     public array $scSpecial = [];
+
+    /**
+     * employee_id => true for staff taking NO share of this pool.
+     *
+     * Offered for resigned staff only. They are on this period because they
+     * worked part of it and the default is that they earned their points; the
+     * tick is the override for when that is not the agreement. Anyone still
+     * employed is handled by the special deduction instead — that reduces one
+     * person's pay, where this changes what a point is worth for everybody.
+     */
+    public array $scExcluded = [];
     public string $scLoadedKey  = '';
 
     // Manage-codes modal
@@ -296,6 +307,10 @@ class AttendanceRecords extends Component
                     'note'   => (string) ($d['note'] ?? ''),
                 ]])
                 ->all();
+
+            $this->scExcluded = collect($row?->excludedEmployeeIds() ?? [])
+                ->mapWithKeys(fn ($id) => [$id => true])
+                ->all();
             $this->scLoadedKey  = $key;
         }
 
@@ -308,17 +323,57 @@ class AttendanceRecords extends Component
      * employment and search filters narrow the displayed rows but must not
      * change how much one point is worth.
      */
-    protected function serviceChargeTotalPoints(): float
+    /**
+     * The ticked exclusions, narrowed to staff who may actually be excluded.
+     *
+     * Re-checked here rather than trusted from the form, because the tick
+     * arrives from the browser and an exclusion applied to someone still
+     * employed would quietly change what a point is worth for the whole
+     * outlet.
+     *
+     * $savedIds are the exclusions already recorded against this pool, and
+     * they survive the check: an exclusion is a decision about ONE closed
+     * period, so someone who resigned in June and was later re-hired must not
+     * have June silently reversed the next time that pool is saved. Removing
+     * one is unticking it, not a change of employment status.
+     *
+     * @param  array<int, int>  $savedIds
+     * @return array<int, int>
+     */
+    protected function excludedServicePointIds(array $savedIds = []): array
+    {
+        $ticked = array_map('intval', array_keys(array_filter($this->scExcluded)));
+
+        if (! $ticked) {
+            return [];
+        }
+
+        $allowed = Employee::whereIn('id', $ticked)
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->where('employment_status', 'resigned')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_intersect($ticked, array_unique(array_merge($allowed, $savedIds))));
+    }
+
+    protected function serviceChargeTotalPoints(array $excludedIds = []): float
     {
         // employedDuring, NOT is_active: the rows being paid use that rule, so
         // a leaver whose points are in the payout but not in this base would
         // shrink the divisor, inflate RM/point and allocate more than the pool
-        // holds. The two must be drawn from the same set of people.
+        // holds. The two must be drawn from the same set of people — which is
+        // also why the pool's exclusions come off here, not just off the rows.
         [$periodFrom] = $this->period();
 
-        return (float) Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+        $query = Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
             ->employedDuring($periodFrom->toDateString())
-            ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter))
+            ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter));
+
+        // Resolved by the caller and passed in, so the divisor and the rows
+        // are computed from one list rather than two that could drift.
+        return (float) ($excludedIds ? $query->whereNotIn('employees.id', $excludedIds) : $query)
             ->sum('service_points_entitlement');
     }
 
@@ -349,6 +404,8 @@ class AttendanceRecords extends Component
             'scFunds.*.points' => 'required|numeric|min:0|max:9999',
             'scSpecial.*.amount' => 'nullable|numeric|min:0|max:9999999',
             'scSpecial.*.note'   => 'nullable|string|max:120',
+            'scExcluded'         => 'array',
+            'scExcluded.*'       => 'boolean',
         ], [
             'scFunds.*.name.required'   => 'Give every allocation a name.',
             'scFunds.*.points.required' => 'Give every allocation its points.',
@@ -377,6 +434,14 @@ class AttendanceRecords extends Component
             ->all();
 
         [$from, $to] = $this->period();
+
+        // Exclusions already on this pool survive the resigned-only check, so
+        // re-saving a closed period cannot reverse a decision made about it.
+        $existing = ServiceChargePeriod::where('outlet_id', $this->serviceChargeOutletId())
+            ->whereDate('period_from', $from)
+            ->whereDate('period_to', $to)
+            ->first();
+
         ServiceChargePeriod::updateOrCreate(
             [
                 'company_id'  => Auth::user()->company_id,
@@ -391,6 +456,9 @@ class AttendanceRecords extends Component
                 'abs_percent'        => round((float) $this->scAbsPercent, 2),
                 'fund_allocations'   => $funds ?: null,
                 'special_deductions' => $special ?: null,
+                'excluded_employees' => $this->excludedServicePointIds(
+                    $existing?->excludedEmployeeIds() ?? []
+                ) ?: null,
             ]
         );
 
@@ -594,12 +662,25 @@ class AttendanceRecords extends Component
 
         $canViewPay = $this->canViewPay();
 
+        $scRow = $this->loadServiceCharge();
+
+        // Ticks that have not been saved yet are applied to the in-memory row
+        // so the table and the RM/point above it move together — a divisor
+        // that already dropped the points while the row was still being paid
+        // would show an allocation the pool cannot cover. Never persisted:
+        // saving goes through updateOrCreate, not this instance.
+        $scExcludedIds = $this->excludedServicePointIds($scRow?->excludedEmployeeIds() ?? []);
+
+        if ($scRow) {
+            $scRow->excluded_employees = $scExcludedIds ?: null;
+        }
+
         $serviceCharge = ($this->showServiceCharge && $canViewPay)
             ? ServiceChargePeriod::distribute(
-                $this->loadServiceCharge(), $employees, $codes, $cellMap,
+                $scRow, $employees, $codes, $cellMap,
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
                 is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
-                $this->serviceChargeTotalPoints(),
+                $this->serviceChargeTotalPoints($scExcludedIds),
                 // Same outlet scope as the pool itself, so the deduction and
                 // the pool it comes out of can never be drawn from different
                 // sets of outlets.

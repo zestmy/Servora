@@ -195,10 +195,11 @@ class AttendanceExportController extends Controller
                 // the rows above: a leaver whose points are being paid but who
                 // is missing from this base would inflate RM/point and
                 // allocate more than the pool holds.
-                $totalPoints = (float) Employee::whereIn('outlet_id', $accessible ?: [0])
-                    ->employedDuring($from->toDateString())
-                    ->when($scOutletId !== null, fn ($q) => $q->where('outlet_id', $scOutletId))
-                    ->sum('service_points_entitlement');
+                $totalPoints = (float) $scRow->excludeFrom(
+                    Employee::whereIn('outlet_id', $accessible ?: [0])
+                        ->employedDuring($from->toDateString())
+                        ->when($scOutletId !== null, fn ($q) => $q->where('outlet_id', $scOutletId))
+                )->sum('service_points_entitlement');
                 $latePenalties = LatePenalties::forPeriod($user->company_id, $scOutletId, $from, $to);
                 $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints, $latePenalties);
             }

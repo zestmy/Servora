@@ -121,6 +121,13 @@
                                     @if ($row['employee']->staff_id)
                                         <span class="block text-[10px] text-gray-500 font-mono">{{ $row['employee']->staff_id }}</span>
                                     @endif
+                                    {{-- Says why the figure is zero. Without this the row
+                                         reads as an entitlement that came out to nothing. --}}
+                                    @if ($row['excluded'])
+                                        <span class="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
+                                            excluded from this pool
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-2 py-1.5 text-gray-600 text-sm">{{ $row['employee']->section?->name ?? '—' }}</td>
                                 <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ $row['points'] > 0 ? number_format($row['points'], 2) : '—' }}</td>
