@@ -257,6 +257,47 @@
                 </div>
             </div>
 
+            {{-- Shift palette — drag one onto a cell.
+                 The + button and the row/column fills all still work; this is a
+                 third way in, not a replacement, which matters because HTML5
+                 drag and drop does not fire on touch screens. --}}
+            @if ($canBulk && $shifts->isNotEmpty())
+                @once
+                    <style>
+                        /* Only visible mid-drag, so the grid stays quiet the rest of the time. */
+                        body.roster-dragging [data-shift-target] {
+                            outline: 1px dashed rgb(148 163 184 / .9);
+                            outline-offset: -3px;
+                        }
+                        [data-shift-chip] { cursor: grab; touch-action: none; }
+                        [data-shift-chip]:active { cursor: grabbing; }
+                    </style>
+                @endonce
+
+                <div class="card p-3 mb-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-medium text-gray-600 mr-1">Drag a shift onto a day:</span>
+                        @foreach ($shifts as $shift)
+                            <div data-shift-chip
+                                 draggable="true"
+                                 ondragstart="event.dataTransfer.setData('text/plain', '{{ $shift->id }}'); event.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('roster-dragging');"
+                                 ondragend="document.body.classList.remove('roster-dragging');"
+                                 title="{{ $shift->name }} — {{ $shift->timeLabel() }} ({{ $shift->rest_duration }}m break)"
+                                 class="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white shadow-e1 select-none hover:border-brand-300">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-brand-100 text-brand-700">
+                                    {{ $shift->shortLabel() }}
+                                </span>
+                                <span class="text-xs text-gray-700">{{ $shift->timeLabel() }}</span>
+                            </div>
+                        @endforeach
+                        <a href="{{ route('hr.shifts') }}" class="text-xs text-brand-600 hover:underline ml-1">Manage</a>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-2">
+                        Dropping on a day off replaces it. You can also drag an existing shift from one day to another.
+                    </p>
+                </div>
+            @endif
+
             {{-- Roster Grid --}}
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
@@ -391,7 +432,16 @@
                                             @endif
                                         </td>
                                         @foreach ($weekDays as $day)
-                                            <td class="px-2 py-3 text-center">
+                                            {{-- The whole cell is the drop target, not just the button:
+                                                 an empty cell's "+" is a small thing to aim at. --}}
+                                            <td class="px-2 py-3 text-center rounded"
+                                                @if ($canBulk)
+                                                    data-shift-target
+                                                    ondragover="event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; this.classList.add('ring-2', 'ring-brand-400');"
+                                                    ondragleave="this.classList.remove('ring-2', 'ring-brand-400');"
+                                                    ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-brand-400'); document.body.classList.remove('roster-dragging'); const sid = event.dataTransfer.getData('text/plain'); if (sid) { @this.call('applyShiftToCell', {{ $empId }}, '{{ $day['date'] }}', sid); }"
+                                                @endif
+                                            >
                                                 @if (isset($empData['entries'][$day['date']]))
                                                     @php
                                                         $entry = $empData['entries'][$day['date']];
@@ -421,6 +471,13 @@
                                                         $canEditThis = ($roster->isDraft() && $canEdit) || ($roster->isApproved() && $canAmend);
                                                     @endphp
                                                     <button wire:click="openEditEntry({{ $entry->id }})"
+                                                            @if ($canBulk && $entry->shift_id)
+                                                                {{-- Drag a rostered shift to another day to repeat it. --}}
+                                                                draggable="true"
+                                                                data-shift-chip
+                                                                ondragstart="event.dataTransfer.setData('text/plain', '{{ $entry->shift_id }}'); event.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('roster-dragging');"
+                                                                ondragend="document.body.classList.remove('roster-dragging');"
+                                                            @endif
                                                             class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
                                                                 {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
                                                             {{ !$canEditThis ? 'disabled' : '' }}>

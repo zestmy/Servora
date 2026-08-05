@@ -450,17 +450,42 @@ class DutyRoster extends Component
     }
 
     /**
-     * One employee, one day, one shift. Days already marked off are left
-     * alone — a bulk fill must not quietly cancel someone's rest day.
+     * Drop a shift onto one cell.
+     *
+     * Unlike the row and column fills this one DOES overwrite a day off: it is
+     * a single deliberate action aimed at one cell, so refusing it would look
+     * broken. The bulk fills protect rest days because they are aimed at seven
+     * cells at once and cannot ask about each.
      */
-    protected function writeShift(int $employeeId, string $date, Shift $shift): bool
+    public function applyShiftToCell(int $employeeId, string $date, int $shiftId): void
+    {
+        if (! $this->canBulkEdit()) return;
+
+        $shift = Shift::for($this->outletId, $this->sectionId)->active()->find($shiftId);
+        if (! $shift) return;
+
+        // Guard the date: it arrives from the browser, and a drop outside the
+        // week would write an entry the grid never shows again.
+        $dates = collect($this->getWeekDays())->pluck('date')->all();
+        if (! in_array($date, $dates, true)) return;
+
+        $this->writeShift($employeeId, $date, $shift, force: true);
+        $this->finishBulk($shift->name . ' set for ' . Carbon::parse($date)->format('D d M') . '.');
+    }
+
+    /**
+     * One employee, one day, one shift. Days already marked off are left
+     * alone unless forced — a bulk fill must not quietly cancel someone's
+     * rest day, but a deliberate drop onto that cell should be obeyed.
+     */
+    protected function writeShift(int $employeeId, string $date, Shift $shift, bool $force = false): bool
     {
         $entry = RosterEntry::where('roster_id', $this->roster->id)
             ->where('employee_id', $employeeId)
             ->whereDate('day_date', $date)
             ->first();
 
-        if ($entry && $entry->is_off_day) {
+        if ($entry && $entry->is_off_day && ! $force) {
             return false;
         }
 
