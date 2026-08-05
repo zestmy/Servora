@@ -274,13 +274,20 @@
                     </style>
                 @endonce
 
-                <div class="card p-3 mb-3">
+                {{-- Pinned while the grid scrolls, so a shift can be dropped on the
+                     last row without scrolling back up for it. The scroll container
+                     is <main>, and on mobile it sits below the sticky top bar
+                     (h-14) rather than under it. --}}
+                <div class="card p-3 mb-3 sticky top-14 md:top-0 z-20 shadow-e2">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-xs font-medium text-gray-600 mr-1">Drag a shift onto a day:</span>
                         @foreach ($shifts as $shift)
+                            {{-- A custom payload type, never text/plain: SortableJS sets
+                                 text/plain when a ROW is dragged by its handle, and the
+                                 cells must not mistake that for a shift. --}}
                             <div data-shift-chip
                                  draggable="true"
-                                 ondragstart="event.dataTransfer.setData('text/plain', '{{ $shift->id }}'); event.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('roster-dragging');"
+                                 ondragstart="event.stopPropagation(); event.dataTransfer.setData('application/x-shift-id', '{{ $shift->id }}'); event.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('roster-dragging');"
                                  ondragend="document.body.classList.remove('roster-dragging');"
                                  title="{{ $shift->name }} — {{ $shift->timeLabel() }} ({{ $shift->rest_duration }}m break)"
                                  class="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white shadow-e1 select-none hover:border-brand-300">
@@ -437,9 +444,9 @@
                                             <td class="px-2 py-3 text-center rounded"
                                                 @if ($canBulk)
                                                     data-shift-target
-                                                    ondragover="event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; this.classList.add('ring-2', 'ring-brand-400');"
+                                                    ondragover="if (!event.dataTransfer.types.includes('application/x-shift-id')) return; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; this.classList.add('ring-2', 'ring-brand-400');"
                                                     ondragleave="this.classList.remove('ring-2', 'ring-brand-400');"
-                                                    ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-brand-400'); document.body.classList.remove('roster-dragging'); const sid = event.dataTransfer.getData('text/plain'); if (sid) { @this.call('applyShiftToCell', {{ $empId }}, '{{ $day['date'] }}', sid); }"
+                                                    ondrop="if (!event.dataTransfer.types.includes('application/x-shift-id')) return; event.preventDefault(); this.classList.remove('ring-2', 'ring-brand-400'); document.body.classList.remove('roster-dragging'); const sid = event.dataTransfer.getData('application/x-shift-id'); if (sid) { @this.call('applyShiftToCell', {{ $empId }}, '{{ $day['date'] }}', sid); }"
                                                 @endif
                                             >
                                                 @if (isset($empData['entries'][$day['date']]))
@@ -475,7 +482,7 @@
                                                                 {{-- Drag a rostered shift to another day to repeat it. --}}
                                                                 draggable="true"
                                                                 data-shift-chip
-                                                                ondragstart="event.dataTransfer.setData('text/plain', '{{ $entry->shift_id }}'); event.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('roster-dragging');"
+                                                                ondragstart="event.stopPropagation(); event.dataTransfer.setData('application/x-shift-id', '{{ $entry->shift_id }}'); event.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('roster-dragging');"
                                                                 ondragend="document.body.classList.remove('roster-dragging');"
                                                             @endif
                                                             class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}

@@ -506,10 +506,32 @@ class DutyRoster extends Component
                 'roster_id'   => $this->roster->id,
                 'employee_id' => $employeeId,
                 'day_date'    => $date,
+                'sort_order'  => $this->employeeSortOrder($employeeId),
             ]);
         }
 
         return true;
+    }
+
+    /**
+     * The row position a NEW entry for this employee must carry.
+     *
+     * Row order is the MINIMUM sort_order across an employee's entries (see
+     * getEntriesGrouped), so an entry created without one defaults to 0 and
+     * yanks that employee to the top of the roster. Inherit what they already
+     * have; an employee with no entries yet goes to the end, never the top.
+     */
+    protected function employeeSortOrder(int $employeeId): int
+    {
+        $existing = RosterEntry::where('roster_id', $this->roster->id)
+            ->where('employee_id', $employeeId)
+            ->min('sort_order');
+
+        if ($existing !== null) {
+            return (int) $existing;
+        }
+
+        return (int) RosterEntry::where('roster_id', $this->roster->id)->max('sort_order') + 1;
     }
 
     /**
@@ -580,6 +602,9 @@ class DutyRoster extends Component
                     'roster_id'   => $this->roster->id,
                     'employee_id' => $source->employee_id,
                     'day_date'    => $targetDate,
+                    // Same reason as writeShift: a missing sort_order reads as
+                    // 0 and moves the employee to the top of the roster.
+                    'sort_order'  => $this->employeeSortOrder($source->employee_id),
                 ]);
             }
 
