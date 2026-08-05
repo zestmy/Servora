@@ -150,6 +150,43 @@ class ClockEvent extends Model
         return $this->override_late_minutes ?? $this->chargeable_late_minutes;
     }
 
+    /**
+     * Where this punch happened, in words.
+     *
+     * Derived from the outlet it was recorded against and the geofence result
+     * already stored — no reverse geocoding, which would mean an API key and
+     * sending staff coordinates to a third party to learn something the
+     * outlet already tells us. "At Suria KLCC" or "230 m from Suria KLCC"
+     * answers the question a manager is actually asking.
+     */
+    public function locationLabel(): ?string
+    {
+        $outlet = $this->outlet?->name;
+
+        if (! $outlet) {
+            return $this->latitude !== null ? 'Location recorded' : null;
+        }
+        if ($this->latitude === null) {
+            return 'No location recorded';
+        }
+        if ($this->within_geofence) {
+            return 'At ' . $outlet;
+        }
+        if ($this->distance_m !== null) {
+            // Under a kilometre reads better in metres; past that, "1.4 km".
+            $away = $this->distance_m >= 1000
+                ? number_format($this->distance_m / 1000, 1) . ' km'
+                : number_format($this->distance_m) . ' m';
+
+            return $away . ' from ' . $outlet;
+        }
+
+        // Coordinates but no distance: the outlet has no geofence set, so
+        // there is nothing to measure against. Say that rather than imply
+        // the punch was somewhere it may not have been.
+        return 'Near ' . $outlet . ' (no geofence set)';
+    }
+
     public function isRejected(): bool
     {
         return $this->status === self::STATUS_REJECTED;

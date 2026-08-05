@@ -152,7 +152,9 @@
                         <td class="px-2 py-2 text-center whitespace-nowrap">
                             {{-- Two small marks rather than a sentence: this
                                  column is scanned down, not read across. --}}
-                            <span title="{{ $event->within_geofence ? 'On site' : 'Not confirmed on site' }}"
+                            {{-- The dot stays; the tooltip names the place, so the
+                                 detail is a hover away without breaking the scan. --}}
+                            <span title="{{ $event->locationLabel() ?? ($event->within_geofence ? 'On site' : 'Not confirmed on site') }}"
                                   class="inline-block w-2.5 h-2.5 rounded-full mr-1 {{ $event->within_geofence ? 'bg-success-500' : 'bg-gray-300' }}"></span>
                             <span title="{{ $event->face_verified ? 'Face matched' : 'Face not matched' }}"
                                   class="inline-block w-2.5 h-2.5 rounded-full {{ $event->face_verified ? 'bg-success-500' : 'bg-gray-300' }}"></span>
@@ -274,11 +276,32 @@
                         </dl>
 
                         @if ($viewing->latitude)
-                            <a href="https://www.google.com/maps?q={{ $viewing->latitude }},{{ $viewing->longitude }}"
-                               target="_blank" rel="noopener noreferrer"
-                               class="inline-block text-xs font-medium text-brand-700 hover:underline">
-                                Open on a map
-                            </a>
+                            {{-- The place, then the link. A manager reading a flagged
+                                 punch wants "where was this" answered before deciding
+                                 whether to open a map at all. --}}
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium
+                                             {{ $viewing->within_geofence ? 'text-success-700' : 'text-warning-700' }}">
+                                    <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                    {{ $viewing->locationLabel() }}
+                                </span>
+                                <span class="text-gray-300">·</span>
+                                <a href="https://www.google.com/maps?q={{ $viewing->latitude }},{{ $viewing->longitude }}"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="text-xs font-medium text-brand-700 hover:underline">
+                                    Open on a map
+                                </a>
+                            </div>
+                        @elseif ($viewing->locationLabel())
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636L5.636 18.364m12.728 0L5.636 5.636"/>
+                                </svg>
+                                {{ $viewing->locationLabel() }}
+                            </span>
                         @endif
 
                         @if ($viewing->reason)
