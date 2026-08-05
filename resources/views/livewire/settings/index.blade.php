@@ -1,305 +1,112 @@
-<div>
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="page-title">Settings</h2>
+{{--
+    Settings, grouped by the module a setting belongs to.
+
+    The tiles come from App\Livewire\Settings\Index as data — this file lays
+    one out, once. Adding a setting is an array entry there, not twenty lines
+    of SVG here.
+--}}
+@php
+    // Each tile's searchable text, precomputed so the filter is a comparison
+    // over strings rather than a DOM query.
+    $haystackFor = fn (array $tile, array $group) => mb_strtolower(
+        $tile['label'] . ' ' . ($tile['note'] ?? '') . ' ' . $group['label']
+    );
+
+    $allHaystacks = collect($groups)
+        ->flatMap(fn ($g) => collect($g['tiles'])->map(fn ($t) => $haystackFor($t, $g)))
+        ->values()
+        ->all();
+@endphp
+
+<div x-data="{
+        q: '',
+        /* Client-side: the whole list is already on the page, and filtering on
+           the server would be a round trip per keystroke to hide six cards. */
+        matches(haystack) {
+            const needle = this.q.trim().toLowerCase();
+            return needle === '' || haystack.includes(needle);
+        },
+        get nothingFound() {
+            return this.q.trim() !== '' && ! @js($allHaystacks).some(h => this.matches(h));
+        }
+     }">
+
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+            <h2 class="page-title">Settings</h2>
+            <p class="text-xs text-gray-600 mt-1">Grouped by module.</p>
+        </div>
+
+        <div class="relative w-full sm:w-72">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="search" x-model="q" placeholder="Search settings…"
+                   class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+        </div>
     </div>
 
-    {{-- ── System Administration (Super Admin / System Admin only) ──────── --}}
-    @if ($isSystemLevel)
-        <div class="mb-6">
-            <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">System Administration</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    @forelse ($groups as $group)
+        @php $groupHaystacks = collect($group['tiles'])->map(fn ($t) => $haystackFor($t, $group))->values()->all(); @endphp
 
-                {{-- All Users (cross-company directory) --}}
-                <a href="{{ route('admin.users') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gray-200 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">All Users</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Every account across all companies, with memberships & roles</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $userCount }} {{ Str::plural('user', $userCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Company Health --}}
-                <a href="{{ route('admin.company-health') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gray-200 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Company Health</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Engagement, usage and at-risk accounts</p>
-                    </div>
-                </a>
-
-                {{-- API Keys --}}
-                <a href="{{ route('settings.api-keys') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gray-200 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">API Keys</p>
-                        <p class="text-sm text-gray-500 mt-0.5">External integrations & API access</p>
-                    </div>
-                </a>
-
+        {{-- The whole group goes when nothing in it matches, so a search never
+             leaves a heading standing over an empty grid. --}}
+        <section class="mb-8"
+                 x-data="{ hs: @js($groupHaystacks) }"
+                 x-show="hs.some(h => matches(h))">
+            <div class="flex items-baseline gap-3">
+                <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ $group['label'] }}</h3>
+                <span class="text-xs text-gray-400">{{ count($group['tiles']) }}</span>
             </div>
-        </div>
-    @endif
+            @if (! empty($group['note']))
+                <p class="text-xs text-gray-500 mt-1">{{ $group['note'] }}</p>
+            @endif
 
-    {{-- ── Company Administration (Company Admin / Business Admin only) ──── --}}
-    @if ($isBusinessLevel && !$isSystemLevel)
-        <div class="mb-6">
-            <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Company Administration</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                @foreach ($group['tiles'] as $tile)
+                    @php
+                        // Written out rather than composed: Tailwind reads
+                        // templates as text and never sees an interpolated class.
+                        $chip = ($tile['tone'] ?? 'brand') === 'gray'
+                            ? 'bg-gray-100 group-hover:bg-gray-200'
+                            : 'bg-brand-50 group-hover:bg-brand-100';
+                        $ink = ($tile['tone'] ?? 'brand') === 'gray' ? 'text-gray-600' : 'text-brand-600';
+                    @endphp
 
-                {{-- Users & Roles --}}
-                <a href="{{ route('settings.users') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Users & Roles</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Manage employee access</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $userCount }} {{ Str::plural('user', $userCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Company Details --}}
-                <a href="{{ route('settings.company-details') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Company Details</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Logo, billing info & document details</p>
-                    </div>
-                </a>
-
-            </div>
-        </div>
-    @endif
-
-    {{-- ── General Settings (anyone with settings.view permission) ──────── --}}
-    {{-- Company-level settings are irrelevant to platform admins — company
-         admins manage these within their own company. --}}
-    @if ($hasSettingsAccess && ! $isSystemLevel)
-        <div class="mb-6">
-            <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">General Settings</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-                {{-- Branches --}}
-                <a href="{{ route('settings.outlets') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Branches</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Manage outlet locations</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $outletCount }} {{ Str::plural('branch', $outletCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Suppliers moved to Purchasing nav --}}
-                {{-- Ingredient Categories moved to Inventory & Recipes nav --}}
-                {{-- Recipe Categories moved to Inventory & Recipes nav --}}
-                {{-- Price Classes moved to Inventory & Recipes nav --}}
-                {{-- Sales Categories moved to Sales nav --}}
-
-                {{-- PO Approvers --}}
-                <a href="{{ route('settings.po-approvers') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">PO Approvers</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Assign who approves purchase orders per outlet</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $poApproverCount }} {{ Str::plural('assignment', $poApproverCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- OT Approvers --}}
-                <a href="{{ route('settings.ot-approvers') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">OT Approvers</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Assign who approves overtime claims per outlet</p>
-                    </div>
-                </a>
-
-                {{-- Price Alerts moved to Procurement nav --}}
-                {{-- Supplier Product Mapping moved to Purchasing nav --}}
-
-                {{-- Tax Rates --}}
-                <a href="{{ route('settings.tax-rates') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Tax Rates</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Configure tax rates per country (SST, GST, VAT)</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $taxRateCount ?? 0 }} {{ Str::plural('rate', $taxRateCount ?? 0) }}</p>
-                    </div>
-                </a>
-
-                {{-- Kitchen Management --}}
-                <a href="{{ route('settings.kitchen-management') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Central Kitchen</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Manage kitchens and assign production staff</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $kitchenCount ?? 0 }} {{ Str::plural('kitchen', $kitchenCount ?? 0) }}</p>
-                    </div>
-                </a>
-
-                {{-- CPU Management (only in CPU mode) --}}
-                @if (Auth::user()->company?->ordering_mode === 'cpu')
-                    <a href="{{ route('settings.cpu-management') }}"
+                    <a href="{{ route($tile['route']) }}"
+                       x-show="matches(@js($haystackFor($tile, $group)))"
                        class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                        <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition {{ $chip }}">
+                            {{-- An icon may hold more than one path; they are stored
+                                 separated by " M" and split back out here. --}}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 {{ $ink }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                @foreach (array_filter(explode(' M', ' ' . ltrim($tile['icon']))) as $segment)
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M{{ trim($segment) }}" />
+                                @endforeach
+                            </svg>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-800">Central Purchasing</p>
-                            <p class="text-sm text-gray-500 mt-0.5">Manage CPU units and assigned staff</p>
-                            <p class="text-xs text-brand-500 font-medium mt-2">{{ $cpuCount ?? 0 }} {{ Str::plural('unit', $cpuCount ?? 0) }}</p>
+                            <p class="font-semibold text-gray-800">{{ $tile['label'] }}</p>
+                            @if (! empty($tile['note']))
+                                <p class="text-sm text-gray-500 mt-0.5">{{ $tile['note'] }}</p>
+                            @endif
+                            @if (! empty($tile['count']))
+                                <p class="text-xs text-brand-500 font-medium mt-2">
+                                    {{ number_format($tile['count'][0]) }} {{ Str::plural($tile['count'][1], $tile['count'][0]) }}
+                                </p>
+                            @endif
                         </div>
                     </a>
-                @endif
-
-                {{-- Departments --}}
-                <a href="{{ route('settings.departments') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Departments</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Ordering departments for purchase orders</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $departmentCount }} {{ Str::plural('department', $departmentCount) }}</p>
-                    </div>
-                </a>
-
-                {{-- Sections (employee grouping) --}}
-                <a href="{{ route('settings.sections') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Sections</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Employee groups (FOH, BOH, …) for OT claims and duty roster</p>
-                    </div>
-                </a>
-
-                {{-- Certifications & Training (employee course catalogue) --}}
-                <a href="{{ route('settings.certifications') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Certifications &amp; Training</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Courses you record against staff, with expiry reminders</p>
-                    </div>
-                </a>
-
-                {{-- Pay Components (compensation) --}}
-                @can('hr.compensation')
-                <a href="{{ route('settings.pay-components') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 9v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Pay Components</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Allowances, deductions and overtime rates</p>
-                    </div>
-                </a>
-                @endcan
-
-                {{-- Statutory rates (EPF / SOCSO / EIS / PCB) --}}
-                @can('hr.compensation')
-                <a href="{{ route('settings.statutory') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Statutory Rates</p>
-                        <p class="text-sm text-gray-500 mt-0.5">EPF, SOCSO, EIS and PCB — verify before use</p>
-                    </div>
-                </a>
-                @endcan
-
-                {{-- Outlet Groups --}}
-                <a href="{{ route('settings.outlet-groups') }}"
-                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6 4a3 3 0 100-6 3 3 0 000 6zM7 14a3 3 0 100-6 3 3 0 000 6z"/></svg>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-gray-800">Outlet Groups</p>
-                        <p class="text-sm text-gray-500 mt-0.5">Group outlets to tag recipes in bulk</p>
-                        <p class="text-xs text-brand-500 font-medium mt-2">{{ $outletGroupCount ?? 0 }} {{ Str::plural('group', $outletGroupCount ?? 0) }}</p>
-                    </div>
-                </a>
-
-                {{-- Par Levels moved to Inventory & Recipes nav --}}
-                {{-- Calendar Events moved to Business Intelligence nav --}}
-
-                {{-- Scheduled Reports --}}
-                @can('reports.view')
-                    <a href="{{ route('settings.reports') }}"
-                       class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                        <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-800">Scheduled Reports</p>
-                            <p class="text-sm text-gray-500 mt-0.5">AI-powered analytics reports via email</p>
-                            <p class="text-xs text-brand-500 font-medium mt-2">{{ \App\Models\ReportSubscription::count() }} {{ Str::plural('subscription', \App\Models\ReportSubscription::count()) }}</p>
-                        </div>
-                    </a>
-                @endcan
-
-                {{-- Document Folders --}}
-                @can('hr.documents.manage')
-                    <a href="{{ route('settings.document-folders') }}"
-                       class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
-                        <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-800">Document Folders</p>
-                            <p class="text-sm text-gray-500 mt-0.5">Configure Google Drive folders for company documents</p>
-                            <p class="text-xs text-brand-500 font-medium mt-2">{{ \App\Models\DocumentFolder::count() }} {{ Str::plural('folder', \App\Models\DocumentFolder::count()) }}</p>
-                        </div>
-                    </a>
-                @endcan
-
-                {{-- Sales Targets moved to Sales nav --}}
-                {{-- Labour Costs moved to Operations nav --}}
-
-                {{-- LMS Users moved to Training nav --}}
-
-                {{-- Form Templates moved to Purchasing nav --}}
-
+                @endforeach
             </div>
+        </section>
+    @empty
+        <div class="card p-8 text-center text-gray-600">
+            There are no settings you can manage.
         </div>
-    @endif
+    @endforelse
+
+    <p x-show="nothingFound" x-cloak class="card p-8 text-center text-sm text-gray-600">
+        Nothing matches “<span x-text="q"></span>”.
+    </p>
 </div>
