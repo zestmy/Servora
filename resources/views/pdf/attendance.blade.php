@@ -194,33 +194,48 @@
             </div>
             <table class="sc-table">
                 @php
-                    // The lateness pair only appears when there is lateness to
-                    // show, so the usual month keeps the wider name column.
-                    // dompdf honours these widths literally — they have to add
-                    // up to 100 in both shapes or the table overflows the page.
-                    $hasLate = $serviceCharge['hasLate'] ?? false;
-                    $w = $hasLate
-                        ? ['n' => 17, 'o' => 11, 'p' => 7, 'd' => 6, 'pct' => 8, 'm' => 9]
-                        : ['n' => 22, 'o' => 13, 'p' => 8, 'd' => 8, 'pct' => 9, 'm' => 10];
+                    // Optional column pairs only appear when they have something
+                    // to show, so the usual month keeps a wide name column.
+                    // dompdf honours widths literally, so rather than maintain a
+                    // hand-tuned set per shape, weights are normalised to 100 —
+                    // which cannot drift out of sync when a column is added.
+                    $hasLate    = $serviceCharge['hasLate'] ?? false;
+                    $hasSpecial = $serviceCharge['hasSpecial'] ?? false;
+
+                    $weights = ['#' => 3, 'name' => 18, 'outlet' => 11, 'pts' => 7, 'mc' => 6, 'abs' => 6];
+                    if ($hasLate)    $weights['latemin'] = 6;
+                    $weights += ['pct' => 8, 'gross' => 10, 'ded' => 10];
+                    if ($hasLate)    $weights['latermk'] = 9;
+                    if ($hasSpecial) $weights['special'] = 9;
+                    $weights['net'] = 11;
+
+                    $sum = array_sum($weights);
+                    $w   = array_map(fn ($x) => round($x * 100 / $sum, 2), $weights);
+
+                    // Columns before the money columns, for the total row's span.
+                    $leadSpan = 6 + ($hasLate ? 1 : 0) + 1;
                 @endphp
                 <thead>
                     <tr>
-                        <th style="width: 3%;">#</th>
-                        <th style="width: {{ $w['n'] }}%;">Name</th>
-                        <th style="width: {{ $w['o'] }}%;">Outlet</th>
-                        <th style="width: {{ $w['p'] }}%;">Svc Pts</th>
-                        <th style="width: {{ $w['d'] }}%;">MC Days</th>
-                        <th style="width: {{ $w['d'] }}%;">ABS Days</th>
+                        <th style="width: {{ $w['#'] }}%;">#</th>
+                        <th style="width: {{ $w['name'] }}%;">Name</th>
+                        <th style="width: {{ $w['outlet'] }}%;">Outlet</th>
+                        <th style="width: {{ $w['pts'] }}%;">Svc Pts</th>
+                        <th style="width: {{ $w['mc'] }}%;">MC Days</th>
+                        <th style="width: {{ $w['abs'] }}%;">ABS Days</th>
                         @if ($hasLate)
-                            <th style="width: 6%;">Late (min)</th>
+                            <th style="width: {{ $w['latemin'] }}%;">Late (min)</th>
                         @endif
                         <th style="width: {{ $w['pct'] }}%;">Deduction %</th>
-                        <th style="width: {{ $w['m'] }}%;">Gross (RM)</th>
-                        <th style="width: 9%;">Deduction (RM)</th>
+                        <th style="width: {{ $w['gross'] }}%;">Gross (RM)</th>
+                        <th style="width: {{ $w['ded'] }}%;">Deduction (RM)</th>
                         @if ($hasLate)
-                            <th style="width: 9%;">Late (RM)</th>
+                            <th style="width: {{ $w['latermk'] }}%;">Late (RM)</th>
                         @endif
-                        <th style="width: {{ $w['m'] }}%;">Net (RM)</th>
+                        @if ($hasSpecial)
+                            <th style="width: {{ $w['special'] }}%;">Special (RM)</th>
+                        @endif
+                        <th style="width: {{ $w['net'] }}%;">Net (RM)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -241,26 +256,65 @@
                             @if ($hasLate)
                                 <td class="r" style="{{ $scRow['lateAmt'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">{{ $scRow['lateAmt'] > 0 ? '-' . number_format($scRow['lateAmt'], 2) : '—' }}</td>
                             @endif
+                            @if ($hasSpecial)
+                                <td class="r" style="{{ $scRow['specialAmt'] > 0 ? 'color: #b91c1c;' : 'color: #cbd5e1;' }}">
+                                    {{ $scRow['specialAmt'] > 0 ? '-' . number_format($scRow['specialAmt'], 2) : '—' }}
+                                    @if ($scRow['specialAmt'] > 0 && $scRow['specialNote'] !== '')
+                                        <span style="display: block; font-size: 6pt; color: #6b7280;">{{ $scRow['specialNote'] }}</span>
+                                    @endif
+                                </td>
+                            @endif
                             <td class="r" style="font-weight: bold; color: #0f766e;">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
                         </tr>
                     @endforeach
                     <tr class="sc-total">
-                        <td class="l" colspan="{{ $hasLate ? 8 : 7 }}">Total</td>
+                        <td class="l" colspan="{{ $leadSpan }}">Total</td>
                         <td class="r">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                         <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
                         @if ($hasLate)
                             <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['lateAmt'], 2) }}</td>
                         @endif
+                        @if ($hasSpecial)
+                            <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['specialAmt'], 2) }}</td>
+                        @endif
                         <td class="r" style="color: #0f766e;">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
                     </tr>
+                    @foreach ($serviceCharge['funds'] ?? [] as $fund)
+                        {{-- Paid from the same pool at the same rate, so they belong
+                             on the same table rather than in a note under it. --}}
+                        <tr>
+                            <td class="l" colspan="{{ $leadSpan }}" style="font-style: italic;">{{ $fund['name'] }}</td>
+                            <td class="r">{{ number_format($fund['amount'], 2) }}</td>
+                            <td colspan="{{ 1 + ($hasLate ? 1 : 0) + ($hasSpecial ? 1 : 0) }}"></td>
+                            <td class="r">{{ number_format($fund['amount'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                    @if (! empty($serviceCharge['funds']))
+                        <tr class="sc-total">
+                            <td class="l" colspan="{{ $leadSpan + 2 + ($hasLate ? 1 : 0) + ($hasSpecial ? 1 : 0) }}">
+                                Allocated of RM {{ number_format($serviceCharge['distributable'], 2) }} distributable
+                            </td>
+                            <td class="r" style="color: #0f766e;">{{ number_format($serviceCharge['allocated'], 2) }}</td>
+                        </tr>
+                    @endif
                 </tbody>
             </table>
             <div class="sc-note">
-                Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet, rounded down to the nearest RM). Deduction = MC days × {{ $fmtPct($serviceCharge['mcPct']) }}%
+                Distributable = collected RM {{ number_format($serviceCharge['collected'] ?? 0, 2) }}
+                − {{ $fmtPct($serviceCharge['retentionPct'] ?? 0) }}% retention
+                = RM {{ number_format($serviceCharge['distributable'] ?? 0, 2) }}.
+                Gross = Service Points × RM/point (distributable ÷ total points of all active employees in the selected outlet, rounded down to the nearest RM).
+                @if (($serviceCharge['fundPoints'] ?? 0) > 0)
+                    Total points include {{ number_format($serviceCharge['fundPoints'], 2) }} allocated to funds, paid at the same rate.
+                @endif
+                Deduction = MC days × {{ $fmtPct($serviceCharge['mcPct']) }}%
                 + Absent days × {{ $fmtPct($serviceCharge['absPct']) }}% of gross, capped at 100%.
                 MC days count codes named MC or SL, or labelled "Sick"; ABS uses the built-in Absent code.
                 @if ($hasLate)
                     Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift, taken after the percentage deduction and never below a net of zero.
+                @endif
+                @if ($hasSpecial)
+                    Special (RM) is agreed per person for this period and is taken last, never below a net of zero.
                 @endif
                 Employees without Service Points are excluded from the split.
             </div>

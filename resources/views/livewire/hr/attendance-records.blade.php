@@ -262,10 +262,17 @@
             {{-- Pool + deduction settings --}}
             <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-end gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Service Charge Pool (RM)</label>
+                    <label class="block text-xs text-gray-500 mb-1">Service Charge Collected (RM)</label>
                     <input type="number" step="0.01" min="0" wire:model="scAmount" placeholder="e.g. 12000.00"
                            class="w-40 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scAmount') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Company retention %</label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model="scRetention"
+                           class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
+                    <p class="text-[11px] text-gray-500 mt-1">Held back before sharing.</p>
+                    @error('scRetention') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">MC deduction % / day</label>
@@ -285,11 +292,24 @@
                 </button>
                 @if ($serviceCharge['row'])
                     <div class="flex flex-wrap items-center gap-2 ml-auto text-xs">
+                        <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                            Collected RM {{ number_format($serviceCharge['collected'], 2) }}
+                        </span>
+                        @if ($serviceCharge['retentionPct'] > 0)
+                            <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                                − {{ rtrim(rtrim(number_format($serviceCharge['retentionPct'], 2, '.', ''), '0'), '.') }}%
+                                (RM {{ number_format($serviceCharge['retentionAmt'], 2) }})
+                            </span>
+                        @endif
                         <span class="px-2.5 py-1 rounded-full bg-teal-100 text-teal-800 font-semibold">
-                            Pool RM {{ number_format((float) $serviceCharge['row']->amount, 2) }}
+                            Distributable RM {{ number_format($serviceCharge['distributable'], 2) }}
                         </span>
                         <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                            Total Points {{ number_format($serviceCharge['totalPoints'], 2) }}
+                            Points {{ number_format($serviceCharge['totalPoints'], 2) }}
+                            @if ($serviceCharge['fundPoints'] > 0)
+                                <span class="text-gray-500">({{ number_format($serviceCharge['staffPoints'], 2) }} staff
+                                + {{ number_format($serviceCharge['fundPoints'], 2) }} funds)</span>
+                            @endif
                         </span>
                         <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
                             RM {{ number_format($serviceCharge['perPoint']) }} / point
@@ -298,7 +318,57 @@
                 @endif
             </div>
 
+            {{-- Fund allocations. Points, not a second percentage: a fund holding
+                 2 of 102 points dilutes every staff share exactly as another
+                 employee would, and the arithmetic stays in one currency. --}}
+            <div class="px-4 py-3 border-b border-gray-100">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <p class="text-xs font-medium text-gray-700">Additional allocations</p>
+                        <p class="text-[11px] text-gray-500">
+                            Named shares that take points alongside staff — an Outlet Fund, a Breakages Fund.
+                        </p>
+                    </div>
+                    <button type="button" wire:click="addServiceChargeFund" class="btn-secondary">+ Add allocation</button>
+                </div>
+
+                @if (count($scFunds) > 0)
+                    <div class="mt-3 space-y-2">
+                        @foreach ($scFunds as $i => $fund)
+                            <div wire:key="sc-fund-{{ $i }}" class="flex flex-wrap items-start gap-2">
+                                <div>
+                                    <input type="text" wire:model="scFunds.{{ $i }}.name" placeholder="e.g. Outlet Fund"
+                                           class="w-48 text-sm rounded-lg border-gray-300 shadow-sm" />
+                                    @error('scFunds.' . $i . '.name') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <input type="number" step="0.01" min="0" wire:model="scFunds.{{ $i }}.points" placeholder="points"
+                                           class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
+                                    @error('scFunds.' . $i . '.points') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                @if ($serviceCharge['row'] && isset($serviceCharge['funds'][$i]))
+                                    <span class="text-xs text-gray-600 py-2">
+                                        = RM {{ number_format($serviceCharge['funds'][$i]['amount'], 2) }}
+                                    </span>
+                                @endif
+                                <button type="button" wire:click="removeServiceChargeFund({{ $i }})"
+                                        class="text-danger-400 hover:text-danger-600 p-2" title="Remove">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3"/></svg>
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
             @if ($serviceCharge['row'])
+                @php
+                    // Show the lateness columns whenever lateness is PRICED, not
+                    // only when somebody was late: a column that appears and
+                    // disappears between periods reads as a bug, and the rate
+                    // needs somewhere to live.
+                    $showLate = $serviceCharge['hasLate'] || $lateRatePerMinute > 0;
+                @endphp
                 <div class="overflow-x-auto">
                     <table class="table-surface">
                         <thead>
@@ -307,15 +377,23 @@
                                 <th class="px-2 py-2 text-right">Svc Pts</th>
                                 <th class="px-2 py-2 text-center">MC Days</th>
                                 <th class="px-2 py-2 text-center">ABS Days</th>
-                                @if ($serviceCharge['hasLate'])
+                                @if ($showLate)
                                     <th class="px-2 py-2 text-center">Late (min)</th>
                                 @endif
                                 <th class="px-2 py-2 text-right">Deduction %</th>
                                 <th class="px-2 py-2 text-right">Gross (RM)</th>
                                 <th class="px-2 py-2 text-right">Deduction (RM)</th>
-                                @if ($serviceCharge['hasLate'])
-                                    <th class="px-2 py-2 text-right">Late (RM)</th>
+                                @if ($showLate)
+                                    <th class="px-2 py-2 text-right">
+                                        Late (RM)
+                                        @if ($lateRatePerMinute > 0)
+                                            <span class="block font-normal normal-case text-[10px] text-gray-500">
+                                                @ RM {{ rtrim(rtrim(number_format($lateRatePerMinute, 2, '.', ''), '0'), '.') }}/min
+                                            </span>
+                                        @endif
+                                    </th>
                                 @endif
+                                <th class="px-2 py-2 text-right w-40">Special deduction (RM)</th>
                                 <th class="px-2 py-2 text-right">Net (RM)</th>
                             </tr>
                         </thead>
@@ -326,7 +404,7 @@
                                     <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-warning-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['mcDays'] }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['absDays'] }}</td>
-                                    @if ($serviceCharge['hasLate'])
+                                    @if ($showLate)
                                         <td class="px-2 py-1.5 text-center {{ $scRow['lateMins'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['lateMins'] > 0 ? $scRow['lateMins'] : '—' }}</td>
                                     @endif
                                     <td class="px-2 py-1.5 text-right {{ $scRow['dedPct'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-600' }}">
@@ -336,11 +414,28 @@
                                     <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['dedAmt'] > 0 ? 'text-danger-600' : 'text-gray-500' }}">
                                         {{ $scRow['dedAmt'] > 0 ? '-' . number_format($scRow['dedAmt'], 2) : '—' }}
                                     </td>
-                                    @if ($serviceCharge['hasLate'])
+                                    @if ($showLate)
                                         <td class="px-2 py-1.5 text-right tabular-nums {{ $scRow['lateAmt'] > 0 ? 'text-danger-600' : 'text-gray-500' }}">
                                             {{ $scRow['lateAmt'] > 0 ? '-' . number_format($scRow['lateAmt'], 2) : '—' }}
                                         </td>
                                     @endif
+                                    {{-- Editable in place: it is agreed per person per
+                                         period, so it belongs on the row it applies to
+                                         rather than in a separate screen. Saved with
+                                         the pool by Save & Calculate. --}}
+                                    <td class="px-2 py-1.5 text-right">
+                                        <input type="number" step="0.01" min="0"
+                                               wire:model="scSpecial.{{ $scRow['employee']->id }}.amount"
+                                               placeholder="0.00"
+                                               class="w-24 text-xs text-right rounded border-gray-300 tabular-nums" />
+                                        <input type="text" maxlength="120"
+                                               wire:model="scSpecial.{{ $scRow['employee']->id }}.note"
+                                               placeholder="reason"
+                                               class="mt-1 w-32 text-[11px] rounded border-gray-200 text-gray-600" />
+                                        @error('scSpecial.' . $scRow['employee']->id . '.amount')
+                                            <p class="text-[10px] text-danger-500 mt-0.5">{{ $message }}</p>
+                                        @enderror
+                                    </td>
                                     <td class="px-2 py-1.5 text-right font-semibold text-teal-700 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
                                 </tr>
                             @endforeach
@@ -350,22 +445,48 @@
                                 <td class="px-3 py-2 text-gray-700" colspan="{{ $serviceCharge['hasLate'] ? 6 : 5 }}">Total</td>
                                 <td class="px-2 py-2 text-right text-gray-700 tabular-nums">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                                 <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
-                                @if ($serviceCharge['hasLate'])
+                                @if ($showLate)
                                     <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['lateAmt'], 2) }}</td>
                                 @endif
+                                <td class="px-2 py-2 text-right tabular-nums {{ $serviceCharge['totals']['specialAmt'] > 0 ? 'text-danger-600' : 'text-gray-500' }}">
+                                    {{ $serviceCharge['totals']['specialAmt'] > 0 ? '-' . number_format($serviceCharge['totals']['specialAmt'], 2) : '—' }}
+                                </td>
                                 <td class="px-2 py-2 text-right text-teal-700 tabular-nums">{{ number_format($serviceCharge['totals']['net'], 2) }}</td>
                             </tr>
+                            @foreach ($serviceCharge['funds'] as $fund)
+                                {{-- Funds sit under the staff total because they are
+                                     paid out of the same pool at the same rate. --}}
+                                <tr class="text-gray-700 font-normal">
+                                    <td class="px-3 py-1.5 italic" colspan="{{ $showLate ? 6 : 5 }}">{{ $fund['name'] }}</td>
+                                    <td class="px-2 py-1.5 text-right tabular-nums">{{ number_format($fund['amount'], 2) }}</td>
+                                    <td colspan="{{ $showLate ? 3 : 2 }}"></td>
+                                    <td class="px-2 py-1.5 text-right tabular-nums">{{ number_format($fund['amount'], 2) }}</td>
+                                </tr>
+                            @endforeach
+                            @if (! empty($serviceCharge['funds']))
+                                <tr class="border-t border-gray-200">
+                                    <td class="px-3 py-2 text-gray-700" colspan="{{ $showLate ? 10 : 8 }}">
+                                        Allocated of RM {{ number_format($serviceCharge['distributable'], 2) }} distributable
+                                    </td>
+                                    <td class="px-2 py-2 text-right text-teal-700 tabular-nums">{{ number_format($serviceCharge['allocated'], 2) }}</td>
+                                </tr>
+                            @endif
                         </tfoot>
                     </table>
                 </div>
                 <p class="px-4 py-2 text-[11px] text-gray-600 border-t border-gray-100">
-                    Gross = Service Points × RM/point (pool ÷ total points of all active employees in the selected outlet, rounded down to the nearest RM — section, employment and search filters narrow this table but never change the RM/point value).
+                    Distributable = collected − {{ rtrim(rtrim(number_format($serviceCharge['retentionPct'], 2, '.', ''), '0'), '.') }}% retention.
+                    Gross = Service Points × RM/point (distributable ÷ total points, rounded down to the nearest RM — section, employment and search filters narrow this table but never change the RM/point value).
+                    @if ($serviceCharge['fundPoints'] > 0)
+                        Total points include {{ number_format($serviceCharge['fundPoints'], 2) }} allocated to funds, which are paid at the same rate.
+                    @endif
                     Deduction = MC days × {{ rtrim(rtrim(number_format($serviceCharge['mcPct'], 2, '.', ''), '0'), '.') }}%
                     + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
                     MC days count cells marked with a code named MC or SL, or labelled “Sick”; ABS uses the built-in Absent code.
-                    @if ($serviceCharge['hasLate'])
+                    @if ($showLate)
                         Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift, taken after the percentage deduction and never below a net of zero.
                     @endif
+                    Special deduction is agreed per person for this period and is taken last, never below a net of zero.
                     Employees without Service Points are excluded from the split.
                     While this panel is open, the PDF export includes this table.
                 </p>

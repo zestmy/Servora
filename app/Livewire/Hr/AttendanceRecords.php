@@ -38,8 +38,15 @@ class AttendanceRecords extends Component
     // were hydrated for so switching periods reloads the stored values.
     public bool   $showServiceCharge = false;
     public string $scAmount     = '';
+    public string $scRetention  = '0';
     public string $scMcPercent  = '5';
     public string $scAbsPercent = '10';
+
+    /** Named allocations that take points alongside staff: [['name','points']]. */
+    public array $scFunds = [];
+
+    /** employee_id => ['amount' => '', 'note' => ''] for this period only. */
+    public array $scSpecial = [];
     public string $scLoadedKey  = '';
 
     // Manage-codes modal
@@ -277,6 +284,18 @@ class AttendanceRecords extends Component
             $this->scAmount     = $row ? number_format((float) $row->amount, 2, '.', '') : '';
             $this->scMcPercent  = $row ? rtrim(rtrim(number_format((float) $row->mc_percent, 2, '.', ''), '0'), '.') : '5';
             $this->scAbsPercent = $row ? rtrim(rtrim(number_format((float) $row->abs_percent, 2, '.', ''), '0'), '.') : '10';
+            $this->scRetention  = $row ? rtrim(rtrim(number_format((float) $row->retention_percent, 2, '.', ''), '0'), '.') : '0';
+
+            $this->scFunds = $row
+                ? array_map(fn ($f) => ['name' => $f['name'], 'points' => (string) $f['points']], $row->funds())
+                : [];
+
+            $this->scSpecial = collect($row?->special_deductions ?? [])
+                ->mapWithKeys(fn ($d, $empId) => [(int) $empId => [
+                    'amount' => (string) (float) ($d['amount'] ?? 0),
+                    'note'   => (string) ($d['note'] ?? ''),
+                ]])
+                ->all();
             $this->scLoadedKey  = $key;
         }
 
@@ -297,19 +316,59 @@ class AttendanceRecords extends Component
             ->sum('service_points_entitlement');
     }
 
+    public function addServiceChargeFund(): void
+    {
+        $this->scFunds[] = ['name' => '', 'points' => ''];
+    }
+
+    public function removeServiceChargeFund(int $index): void
+    {
+        unset($this->scFunds[$index]);
+        // Re-index, or Livewire renders the array as an object and the
+        // remaining rows lose their bindings.
+        $this->scFunds = array_values($this->scFunds);
+    }
+
     public function saveServiceCharge(): void
     {
         abort_unless($this->canViewPay(), 403);
 
         $this->validate([
-            'scAmount'     => 'required|numeric|min:0|max:9999999999',
-            'scMcPercent'  => 'required|numeric|min:0|max:100',
-            'scAbsPercent' => 'required|numeric|min:0|max:100',
-        ], [], [
-            'scAmount'     => 'service charge amount',
+            'scAmount'        => 'required|numeric|min:0|max:9999999999',
+            'scRetention'     => 'required|numeric|min:0|max:100',
+            'scMcPercent'     => 'required|numeric|min:0|max:100',
+            'scAbsPercent'    => 'required|numeric|min:0|max:100',
+            'scFunds'         => 'array|max:20',
+            'scFunds.*.name'  => 'required|string|max:60',
+            'scFunds.*.points' => 'required|numeric|min:0|max:9999',
+            'scSpecial.*.amount' => 'nullable|numeric|min:0|max:9999999',
+            'scSpecial.*.note'   => 'nullable|string|max:120',
+        ], [
+            'scFunds.*.name.required'   => 'Give every allocation a name.',
+            'scFunds.*.points.required' => 'Give every allocation its points.',
+        ], [
+            'scAmount'     => 'service charge collected',
+            'scRetention'  => 'retention %',
             'scMcPercent'  => 'MC deduction %',
             'scAbsPercent' => 'absent deduction %',
         ]);
+
+        // Only rows with a real amount are stored, so clearing a field removes
+        // the deduction rather than leaving a zero behind for someone to
+        // wonder about later.
+        $special = collect($this->scSpecial)
+            ->filter(fn ($d) => (float) ($d['amount'] ?? 0) > 0)
+            ->mapWithKeys(fn ($d, $empId) => [(string) $empId => [
+                'amount' => round((float) $d['amount'], 2),
+                'note'   => trim((string) ($d['note'] ?? '')) ?: null,
+            ]])
+            ->all();
+
+        $funds = collect($this->scFunds)
+            ->map(fn ($f) => ['name' => trim((string) $f['name']), 'points' => round((float) $f['points'], 2)])
+            ->filter(fn ($f) => $f['name'] !== '' && $f['points'] > 0)
+            ->values()
+            ->all();
 
         [$from, $to] = $this->period();
         ServiceChargePeriod::updateOrCreate(
@@ -320,9 +379,12 @@ class AttendanceRecords extends Component
                 'period_to'   => $to->format('Y-m-d'),
             ],
             [
-                'amount'      => round((float) $this->scAmount, 2),
-                'mc_percent'  => round((float) $this->scMcPercent, 2),
-                'abs_percent' => round((float) $this->scAbsPercent, 2),
+                'amount'             => round((float) $this->scAmount, 2),
+                'retention_percent'  => round((float) $this->scRetention, 2),
+                'mc_percent'         => round((float) $this->scMcPercent, 2),
+                'abs_percent'        => round((float) $this->scAbsPercent, 2),
+                'fund_allocations'   => $funds ?: null,
+                'special_deductions' => $special ?: null,
             ]
         );
 
@@ -539,7 +601,14 @@ class AttendanceRecords extends Component
             )
             : null;
 
+        // The RM-per-minute the lateness column was priced at. Shown beside it
+        // so the figure can be checked without opening Clock-In Settings.
+        $lateRatePerMinute = ($this->showServiceCharge && $canViewPay)
+            ? (float) \App\Models\ClockSetting::forCompany($companyId)->late_rate_per_minute
+            : 0.0;
+
         return view('livewire.hr.attendance-records', compact(
+            'lateRatePerMinute',
             'employees', 'outlets', 'sections', 'canViewAll',
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay',

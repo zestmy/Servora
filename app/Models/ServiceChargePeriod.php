@@ -15,16 +15,59 @@ class ServiceChargePeriod extends Model
 {
     protected $fillable = [
         'company_id', 'outlet_id', 'period_from', 'period_to',
-        'amount', 'mc_percent', 'abs_percent',
+        'amount', 'retention_percent', 'mc_percent', 'abs_percent',
+        'fund_allocations', 'special_deductions',
     ];
 
     protected $casts = [
-        'period_from' => 'date',
-        'period_to'   => 'date',
-        'amount'      => 'decimal:2',
-        'mc_percent'  => 'decimal:2',
-        'abs_percent' => 'decimal:2',
+        'period_from'        => 'date',
+        'period_to'          => 'date',
+        'amount'             => 'decimal:2',
+        'retention_percent'  => 'decimal:2',
+        'mc_percent'         => 'decimal:2',
+        'abs_percent'        => 'decimal:2',
+        'fund_allocations'   => 'array',
+        'special_deductions' => 'array',
     ];
+
+    /** MySQL does not read column defaults back after an insert. */
+    protected $attributes = [
+        'retention_percent' => 0,
+    ];
+
+    /** What is actually shared out, after the company's retention. */
+    public function distributableAmount(): float
+    {
+        $retention = max(0.0, min(100.0, (float) $this->retention_percent));
+
+        return round((float) $this->amount * (1 - $retention / 100), 2);
+    }
+
+    /** @return array<int, array{name: string, points: float}> */
+    public function funds(): array
+    {
+        return collect($this->fund_allocations ?? [])
+            ->map(fn ($f) => [
+                'name'   => (string) ($f['name'] ?? ''),
+                'points' => max(0.0, (float) ($f['points'] ?? 0)),
+            ])
+            ->filter(fn ($f) => $f['name'] !== '' && $f['points'] > 0)
+            ->values()
+            ->all();
+    }
+
+    /** A special deduction agreed for one employee this period. */
+    public function specialDeductionFor(int $employeeId): array
+    {
+        $row = ($this->special_deductions ?? [])[(string) $employeeId]
+            ?? ($this->special_deductions ?? [])[$employeeId]
+            ?? null;
+
+        return [
+            'amount' => max(0.0, (float) ($row['amount'] ?? 0)),
+            'note'   => (string) ($row['note'] ?? ''),
+        ];
+    }
 
     protected static function booted(): void
     {
@@ -82,15 +125,33 @@ class ServiceChargePeriod extends Model
             if ($codeId === $absentId)               $absCounts[$empId] = ($absCounts[$empId] ?? 0) + 1;
         }
 
+        $staffPoints = $totalPoints
+            ?? $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
+
+        // Funds take points alongside staff, so they dilute every share exactly
+        // as another employee would — which is the point of expressing an
+        // Outlet Fund in points rather than as a second percentage off the top.
+        $funds      = $row ? $row->funds() : [];
+        $fundPoints = array_sum(array_column($funds, 'points'));
+        $totalPoints = $staffPoints + $fundPoints;
+
+        // What is left after the company's retention is what gets shared.
+        $collected     = $row ? (float) $row->amount : 0.0;
+        $retentionPct  = $row ? max(0.0, min(100.0, (float) $row->retention_percent)) : 0.0;
+        $distributable = $row ? $row->distributableAmount() : 0.0;
+        $retentionAmt  = round($collected - $distributable, 2);
+
         // RM/point is rounded DOWN to a whole ringgit (e.g. 360.6130 -> 360);
         // the remainder stays undistributed.
-        $totalPoints ??= $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
-        $perPoint    = ($row && $totalPoints > 0) ? floor((float) $row->amount / $totalPoints) : 0.0;
-        $mcPct       = $row ? (float) $row->mc_percent : $mcPctFallback;
-        $absPct      = $row ? (float) $row->abs_percent : $absPctFallback;
+        $perPoint = ($row && $totalPoints > 0) ? floor($distributable / $totalPoints) : 0.0;
+        $mcPct    = $row ? (float) $row->mc_percent : $mcPctFallback;
+        $absPct   = $row ? (float) $row->abs_percent : $absPctFallback;
+
+        $fundRows = array_map(fn ($f) => $f + ['amount' => $f['points'] * $perPoint], $funds);
 
         $rows   = [];
-        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0, 'net' => 0.0];
+        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0,
+                   'specialAmt' => 0.0, 'net' => 0.0];
         foreach ($employees as $emp) {
             $points  = max(0, (float) $emp->service_points_entitlement);
             $mcDays  = $mcCounts[$emp->id] ?? 0;
@@ -106,34 +167,54 @@ class ServiceChargePeriod extends Model
             // total below the pool that was actually paid out.
             $lateAmt  = min(max(0.0, $gross - $dedAmt), (float) ($late['amount'] ?? 0));
 
+            // Agreed per employee for this period — a missed KPI, a till
+            // shortfall. Last in the order and capped at what is left, for the
+            // same reason as lateness: a share of a pool must never invert
+            // into money owed.
+            $special    = $row ? $row->specialDeductionFor($emp->id) : ['amount' => 0.0, 'note' => ''];
+            $specialAmt = min(max(0.0, $gross - $dedAmt - $lateAmt), $special['amount']);
+
             $rows[] = [
-                'employee' => $emp,
-                'points'   => $points,
-                'mcDays'   => $mcDays,
-                'absDays'  => $absDays,
-                'dedPct'   => $dedPct,
-                'gross'    => $gross,
-                'dedAmt'   => $dedAmt,
-                'lateMins' => $lateMins,
-                'lateAmt'  => $lateAmt,
-                'net'      => $gross - $dedAmt - $lateAmt,
+                'employee'    => $emp,
+                'points'      => $points,
+                'mcDays'      => $mcDays,
+                'absDays'     => $absDays,
+                'dedPct'      => $dedPct,
+                'gross'       => $gross,
+                'dedAmt'      => $dedAmt,
+                'lateMins'    => $lateMins,
+                'lateAmt'     => $lateAmt,
+                'specialAmt'  => $specialAmt,
+                'specialNote' => $special['note'],
+                'net'         => $gross - $dedAmt - $lateAmt - $specialAmt,
             ];
-            $totals['gross']     += $gross;
-            $totals['deduction'] += $dedAmt;
-            $totals['lateAmt']   += $lateAmt;
-            $totals['lateMins']  += $lateMins;
-            $totals['net']       += $gross - $dedAmt - $lateAmt;
+            $totals['gross']      += $gross;
+            $totals['deduction']  += $dedAmt;
+            $totals['lateAmt']    += $lateAmt;
+            $totals['lateMins']   += $lateMins;
+            $totals['specialAmt'] += $specialAmt;
+            $totals['net']        += $gross - $dedAmt - $lateAmt - $specialAmt;
         }
 
         return [
-            'row'         => $row,
-            'rows'        => $rows,
-            'totals'      => $totals,
-            'totalPoints' => $totalPoints,
-            'perPoint'    => $perPoint,
-            'mcPct'       => $mcPct,
-            'absPct'      => $absPct,
-            'hasLate'     => $totals['lateAmt'] > 0 || $totals['lateMins'] > 0,
+            'row'           => $row,
+            'rows'          => $rows,
+            'totals'        => $totals,
+            'staffPoints'   => $staffPoints,
+            'fundPoints'    => $fundPoints,
+            'totalPoints'   => $totalPoints,
+            'funds'         => $fundRows,
+            'collected'     => $collected,
+            'retentionPct'  => $retentionPct,
+            'retentionAmt'  => $retentionAmt,
+            'distributable' => $distributable,
+            // What the pool actually paid out, and what rounding left behind.
+            'allocated'     => round($totals['net'] + array_sum(array_column($fundRows, 'amount')), 2),
+            'perPoint'      => $perPoint,
+            'mcPct'         => $mcPct,
+            'absPct'        => $absPct,
+            'hasLate'       => $totals['lateAmt'] > 0 || $totals['lateMins'] > 0,
+            'hasSpecial'    => $totals['specialAmt'] > 0,
         ];
     }
 }
