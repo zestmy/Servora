@@ -275,6 +275,7 @@
                             ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims',           'section' => 'Time & Attendance'],
 
                             ['route' => 'hr.compensation',         'label' => 'Compensation',    'permission' => 'hr.compensation',     'section' => 'Pay'],
+                            ['route' => 'hr.payroll',              'label' => 'Payroll',         'permission' => 'hr.payroll',          'section' => 'Pay'],
                             ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view',             'section' => 'Pay'],
 
                             ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view',   'section' => 'Records & Training'],

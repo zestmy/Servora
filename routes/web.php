@@ -378,6 +378,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Declared before /hr/compensation/{id} so "export-pdf" is not swallowed as an employee id.
     Route::get('/hr/compensation/export-pdf', \App\Http\Controllers\CompensationPdfController::class)->name('hr.compensation.export-pdf')->middleware('can:hr.compensation');
     Route::get('/hr/compensation/{id}', \App\Livewire\Hr\EmployeeCompensation::class)->name('hr.compensation.employee')->middleware('can:hr.compensation');
+    // Payroll: runs, and payslips printed from a run's locked lines.
+    Route::get('/hr/payroll', \App\Livewire\Hr\Payroll::class)->name('hr.payroll')->middleware('can:hr.payroll');
+    Route::get('/hr/payroll/{run}', \App\Livewire\Hr\PayrollRunShow::class)->name('hr.payroll.show')->middleware('can:hr.payroll');
+    Route::get('/hr/payroll/{run}/payslips', [\App\Http\Controllers\PayslipController::class, 'all'])->name('hr.payroll.payslips')->middleware('can:hr.payroll');
+    Route::get('/hr/payroll/{run}/payslip/{line}', [\App\Http\Controllers\PayslipController::class, 'single'])->name('hr.payroll.payslip')->middleware('can:hr.payroll');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
     // Payout slips are pay data, so hr.compensation on top of the grid's own gate.

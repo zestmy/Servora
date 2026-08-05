@@ -305,6 +305,33 @@
                     Rates themselves live on <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
                 </p>
                 <form wire:submit.prevent="saveStatutoryProfile" class="space-y-3">
+                    {{-- Payroll paperwork. Without these a payslip cannot identify
+                         the person, a submission file is rejected and a salary
+                         transfer has nowhere to go — so they are asked for here
+                         rather than discovered missing on the day payroll runs. --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">IC / passport no.</label>
+                            <input type="text" maxlength="20" wire:model="s_ic_number"
+                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="880101-10-5555" />
+                            <p class="mt-1 text-[11px] text-gray-500">Identifies the employee on CP39, KWSP and SOCSO submissions.</p>
+                            <x-input-error :messages="$errors->get('s_ic_number')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Bank</label>
+                            <input type="text" maxlength="60" wire:model="s_bank_name"
+                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="Maybank" />
+                            <x-input-error :messages="$errors->get('s_bank_name')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Bank account no.</label>
+                            <input type="text" maxlength="40" wire:model="s_bank_account"
+                                   class="mt-1 w-full text-sm rounded-lg border-gray-300 font-mono" />
+                            <p class="mt-1 text-[11px] text-gray-500">Where the salary is transferred.</p>
+                            <x-input-error :messages="$errors->get('s_bank_account')" class="mt-1" />
+                        </div>
+                        <div></div>
+                    </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs font-semibold text-gray-600">Date of birth</label>

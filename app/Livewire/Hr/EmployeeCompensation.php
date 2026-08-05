@@ -57,6 +57,11 @@ class EmployeeCompensation extends Component
     public string $s_zakat        = '0';
     public string $s_other_relief = '0';
     public string $s_date_of_birth = '';
+    // Payroll paperwork: the IC identifies the employee on every statutory
+    // submission, and the bank pair is what a salary transfer file needs.
+    public string $s_ic_number      = '';
+    public string $s_bank_name      = '';
+    public string $s_bank_account   = '';
 
     public function mount(int $id): void
     {
@@ -88,6 +93,9 @@ class EmployeeCompensation extends Component
         $this->s_zakat         = (string) (float) $p->monthly_zakat;
         $this->s_other_relief  = (string) (float) $p->annual_other_relief;
         $this->s_date_of_birth = $this->employee->date_of_birth?->format('Y-m-d') ?? '';
+        $this->s_ic_number     = (string) ($this->employee->ic_number ?? '');
+        $this->s_bank_name     = (string) ($this->employee->bank_name ?? '');
+        $this->s_bank_account  = (string) ($this->employee->bank_account_no ?? '');
     }
 
     public function saveStatutoryProfile(): void
@@ -102,11 +110,21 @@ class EmployeeCompensation extends Component
             's_zakat'         => 'required|numeric|min:0|max:1000000',
             's_other_relief'  => 'required|numeric|min:0|max:1000000',
             's_date_of_birth' => 'nullable|date|before:today',
+            's_ic_number'     => 'nullable|string|max:20',
+            's_bank_name'     => 'nullable|string|max:60',
+            's_bank_account'  => 'nullable|string|max:40',
         ]);
 
-        // Date of birth lives on the employee — EPF and SOCSO rates both change
-        // at 60, so it is not statutory-only information.
-        $this->employee->update(['date_of_birth' => $this->s_date_of_birth ?: null]);
+        // These live on the employee rather than the statutory profile: EPF and
+        // SOCSO rates both change at 60, so date of birth is not statutory-only,
+        // and the IC and bank pair identify the person rather than describe a
+        // contribution.
+        $this->employee->update([
+            'date_of_birth'   => $this->s_date_of_birth ?: null,
+            'ic_number'       => $this->s_ic_number ?: null,
+            'bank_name'       => $this->s_bank_name ?: null,
+            'bank_account_no' => $this->s_bank_account ?: null,
+        ]);
 
         EmployeeStatutoryProfile::updateOrCreate(
             ['employee_id' => $this->employee->id],

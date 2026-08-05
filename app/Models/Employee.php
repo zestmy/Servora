@@ -19,7 +19,7 @@ class Employee extends Model
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
-        'break_minutes',
+        'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
     ];
 
     /**
@@ -29,6 +29,9 @@ class Employee extends Model
      */
     public const SENSITIVE_PAY_ATTRIBUTES = [
         'service_points_entitlement', 'basic_salary', 'pay_type',
+        // Where someone's salary is paid is pay data as much as the amount —
+        // and a bank account number is worth protecting on its own account.
+        'bank_name', 'bank_account_no',
     ];
 
     /**

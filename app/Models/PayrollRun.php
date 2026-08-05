@@ -1,0 +1,124 @@
+<?php
+
+namespace App\Models;
+
+use App\Scopes\CompanyScope;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * One month's payroll for a company (optionally one outlet).
+ *
+ * DRAFT is the only state in which anything can change. Approving locks the
+ * lines, because the figures stop being a working estimate and become what
+ * the company owes; PAID records that the money actually left. Regenerating a
+ * draft is free and expected — payroll is usually run once to look at, then
+ * again after the last claims are approved.
+ */
+class PayrollRun extends Model
+{
+    public const DRAFT    = 'draft';
+    public const APPROVED = 'approved';
+    public const PAID     = 'paid';
+
+    public const STATUSES = [
+        self::DRAFT    => 'Draft',
+        self::APPROVED => 'Approved',
+        self::PAID     => 'Paid',
+    ];
+
+    protected $fillable = [
+        'company_id', 'outlet_id', 'period_month', 'status', 'reference',
+        'total_gross', 'total_net', 'total_statutory_employee',
+        'total_statutory_employer', 'total_employer_cost', 'employee_count',
+        'generated_by', 'generated_at', 'approved_by', 'approved_at',
+        'paid_at', 'payment_date', 'rate_snapshot', 'rates_were_confirmed', 'notes',
+    ];
+
+    protected $casts = [
+        'period_month'             => 'date',
+        'generated_at'             => 'datetime',
+        'approved_at'              => 'datetime',
+        'paid_at'                  => 'datetime',
+        'payment_date'             => 'date',
+        'rate_snapshot'            => 'array',
+        'rates_were_confirmed'     => 'boolean',
+        'total_gross'              => 'decimal:2',
+        'total_net'                => 'decimal:2',
+        'total_statutory_employee' => 'decimal:2',
+        'total_statutory_employer' => 'decimal:2',
+        'total_employer_cost'      => 'decimal:2',
+    ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CompanyScope());
+    }
+
+    public function lines(): HasMany
+    {
+        return $this->hasMany(PayrollRunLine::class);
+    }
+
+    public function outlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function generatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'generated_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** Only a draft may be regenerated or deleted. */
+    public function isEditable(): bool
+    {
+        return $this->status === self::DRAFT;
+    }
+
+    public function isApproved(): bool
+    {
+        return in_array($this->status, [self::APPROVED, self::PAID], true);
+    }
+
+    public function statusLabel(): string
+    {
+        return self::STATUSES[$this->status] ?? $this->status;
+    }
+
+    public function periodLabel(): string
+    {
+        return Carbon::parse($this->period_month)->format('F Y');
+    }
+
+    /**
+     * PR-2026-08-0001, unique within the company.
+     *
+     * Sequenced per month rather than globally so the reference says when it
+     * was for; the count is of runs already in that month, which is normally
+     * zero because of the one-run-per-month unique key and only non-zero for
+     * per-outlet runs.
+     */
+    public static function nextReference(int $companyId, Carbon $month): string
+    {
+        $seq = static::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereYear('period_month', $month->year)
+            ->whereMonth('period_month', $month->month)
+            ->count() + 1;
+
+        return sprintf('PR-%s-%04d', $month->format('Y-m'), $seq);
+    }
+}
