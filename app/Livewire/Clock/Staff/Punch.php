@@ -33,6 +33,24 @@ class Punch extends StaffComponent
     #[Locked]
     public string $errorMessage = '';
 
+    /**
+     * Whether the full-screen outcome notice is up.
+     *
+     * Separate from $lastEventId because the two answer different questions.
+     * The event stays on record so the panel underneath can keep showing what
+     * happened; this says whether the notice is still covering the screen, and
+     * it has to survive re-renders — typing in the off-site reason box must
+     * not resurrect a notice somebody has already dismissed.
+     */
+    #[Locked]
+    public bool $showResult = false;
+
+    /** Tapped Done, or the notice timed itself out. */
+    public function dismissResult(): void
+    {
+        $this->showResult = false;
+    }
+
     private ?array $shiftCache = null;
 
     private bool $shiftResolved = false;
@@ -46,6 +64,7 @@ class Punch extends StaffComponent
     {
         $this->errorMessage = '';
         $this->lastEventId  = null;
+        $this->showResult   = false;
 
         // The type is decided HERE, from what is already on record, not from
         // whatever the browser sent. The page only says which BUTTON was
@@ -56,6 +75,7 @@ class Punch extends StaffComponent
 
         if (! $type) {
             $this->errorMessage = 'That is not something you can do right now. Reload and try again.';
+            $this->showResult   = true;
 
             return;
         }
@@ -73,13 +93,19 @@ class Punch extends StaffComponent
                 'ip'           => request()->ip(),
             ]);
         } catch (ClockInException $e) {
-            // Refusals are the employee's to act on — shown as written.
+            // Refusals are the employee's to act on — shown as written, and
+            // shown as loudly as a success. A big green notice for one
+            // outcome and a small line for the other teaches people that no
+            // news is good news, which is how somebody walks away from a
+            // refused punch believing they clocked in.
             $this->errorMessage = $e->getMessage();
+            $this->showResult   = true;
 
             return;
         }
 
         $this->lastEventId   = $event->id;
+        $this->showResult    = true;
         $this->reason        = '';
         $this->shiftResolved = false;
     }
@@ -253,6 +279,10 @@ class Punch extends StaffComponent
             'punches'   => $this->punchesToday(),
             'lastEvent' => $lastEvent,
             'outlet'    => $this->staff()->outlet,
+            // shell() hands this to the LAYOUT; the outcome notice needs it in
+            // the view too, so somebody reading a shared phone at arm's length
+            // can see whose punch just went in.
+            'staff'     => $this->staff(),
         ])->layout('layouts.clock-staff', $this->shell('Clock in'));
     }
 }
