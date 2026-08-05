@@ -98,6 +98,23 @@ class Payroll extends Component
         session()->flash('success', 'Draft payroll run deleted.');
     }
 
+    /**
+     * The dates the chosen month will actually cover, resolved live so the
+     * range is visible BEFORE generating rather than discovered after.
+     *
+     * @return array{0: Carbon, 1: Carbon}|null
+     */
+    public function newMonthRange(): ?array
+    {
+        try {
+            $month = Carbon::createFromFormat('Y-m', $this->newMonth)->startOfMonth();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return \App\Models\CompensationSetting::forCompany(Auth::user()->company_id)->cycleFor($month);
+    }
+
     public function render()
     {
         $user = Auth::user();
@@ -114,8 +131,10 @@ class Payroll extends Component
             ->get();
 
         return view('livewire.hr.payroll', [
-            'runs'    => $runs,
-            'outlets' => $outlets,
+            'runs'     => $runs,
+            'outlets'  => $outlets,
+            'newRange' => $this->newMonthRange(),
+            'settings' => \App\Models\CompensationSetting::forCompany($user->company_id),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Payroll']);
     }
 }

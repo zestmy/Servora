@@ -48,6 +48,9 @@ class StatutorySetting extends Model
         'socso_enabled' => 'boolean',
         'eis_enabled'   => 'boolean',
         'pcb_enabled'   => 'boolean',
+        'hrdf_enabled'  => 'boolean',
+        'hrdf_employer_rate' => 'decimal:2',
+        'hrdf_ceiling'       => 'decimal:2',
         'epf_employee_rate'          => 'decimal:2',
         'epf_employer_rate_low'      => 'decimal:2',
         'epf_employer_rate_high'     => 'decimal:2',
@@ -98,6 +101,8 @@ class StatutorySetting extends Model
         'eis_employer_rate'          => 0.20,
         'eis_ceiling'                => 6000.00,
         'eis_max_age'                => 60,
+        // 1% is the mandatory tier (10+ employees); 0.5% the optional 5–9 one.
+        'hrdf_employer_rate'         => 1.00,
         'pcb_relief_individual'      => 9000.00,
         'pcb_relief_epf_cap'         => 4000.00,
         'pcb_relief_spouse'          => 4000.00,
@@ -141,7 +146,8 @@ class StatutorySetting extends Model
     /** Whether anything statutory is switched on at all. */
     public function anyEnabled(): bool
     {
-        return $this->epf_enabled || $this->socso_enabled || $this->eis_enabled || $this->pcb_enabled;
+        return $this->epf_enabled || $this->socso_enabled || $this->eis_enabled
+            || $this->pcb_enabled || $this->hrdf_enabled;
     }
 
     /**

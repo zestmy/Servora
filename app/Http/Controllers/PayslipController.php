@@ -62,6 +62,9 @@ class PayslipController extends Controller
             'run'        => $run,
             'lines'      => $lines,
             'brandName'  => $company?->brand_name ?: $company?->name,
+            // The legal entity as well as the trading name — a payslip records
+            // employment by a company, not by a brand.
+            'companyName' => $company?->name,
             'companyReg' => $company?->registration_number,
             'address'    => $company?->address,
             'employerTaxNumber' => $statutory->employer_tax_number,

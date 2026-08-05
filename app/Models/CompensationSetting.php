@@ -21,7 +21,7 @@ class CompensationSetting extends Model
     protected $fillable = [
         'company_id',
         'ot_normal_multiplier', 'ot_rest_day_multiplier', 'ot_public_holiday_multiplier',
-        'monthly_working_days', 'daily_working_hours',
+        'monthly_working_days', 'daily_working_hours', 'payroll_cycle_start_day',
     ];
 
     protected $casts = [
@@ -30,6 +30,7 @@ class CompensationSetting extends Model
         'ot_public_holiday_multiplier' => 'decimal:2',
         'monthly_working_days'         => 'integer',
         'daily_working_hours'          => 'decimal:2',
+        'payroll_cycle_start_day'      => 'integer',
     ];
 
     protected $attributes = [
@@ -38,7 +39,45 @@ class CompensationSetting extends Model
         'ot_public_holiday_multiplier' => 3.00,
         'monthly_working_days'         => 26,
         'daily_working_hours'          => 8.00,
+        'payroll_cycle_start_day'      => 1,
     ];
+
+    /**
+     * The real date range a labelled payroll month covers.
+     *
+     * With a cycle start day of 1 this is simply the calendar month. With 26,
+     * the month labelled "August 2026" runs 26 Jul – 25 Aug: the cycle is named
+     * for the month it ENDS in, which is the month it is paid in and the month
+     * everyone calls it.
+     *
+     * Defined once here because attendance days, approved OT, dated allowances
+     * and the service charge pool must all be counted over the same range —
+     * four places deriving it independently is four places to disagree.
+     *
+     * @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}
+     */
+    public function cycleFor(\Carbon\Carbon $month): array
+    {
+        $day = max(1, min(28, (int) ($this->payroll_cycle_start_day ?: 1)));
+
+        if ($day === 1) {
+            return [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()];
+        }
+
+        // Capped at 28 in both the setting and here: a cycle starting on the
+        // 30th has no February, and silently sliding to the 28th some months
+        // would make the range inconsistent year to year.
+        $end   = $month->copy()->startOfMonth()->addDays($day - 2)->endOfDay();
+        $start = $end->copy()->startOfDay()->subMonthNoOverflow()->addDay();
+
+        return [$start->startOfDay(), $end->endOfDay()];
+    }
+
+    /** Whether this company runs anything other than calendar months. */
+    public function hasCustomCycle(): bool
+    {
+        return (int) ($this->payroll_cycle_start_day ?: 1) !== 1;
+    }
 
     protected static function booted(): void
     {

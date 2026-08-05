@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Hr;
 
+use App\Jobs\SendPayslipEmail;
 use App\Models\PayrollRun;
+use App\Models\PayslipDelivery;
 use App\Services\Payroll\PayrollRunBuilder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -21,6 +23,8 @@ class PayrollRunShow extends Component
 
     public bool   $showApprove = false;
     public bool   $showPaid    = false;
+    public bool   $showEmail   = false;
+    public bool   $resendSent  = false;
     public string $paymentDate = '';
     public string $notes       = '';
 
@@ -123,6 +127,91 @@ class PayrollRunShow extends Component
         session()->flash('success', 'Payroll marked as paid.');
     }
 
+    /**
+     * Who a payslip can actually be emailed to, and who it cannot.
+     *
+     * The address comes from the employee record rather than the line, because
+     * that is where it is maintained — but it is validated here and copied onto
+     * the delivery, so what was authorised is what gets used.
+     *
+     * @return array{sendable: \Illuminate\Support\Collection, blocked: \Illuminate\Support\Collection, alreadySent: \Illuminate\Support\Collection}
+     */
+    public function emailAudience(): array
+    {
+        $lines = $this->run()->lines()->with('employee:id,email')->orderBy('employee_name')->get();
+
+        $sentLineIds = PayslipDelivery::where('payroll_run_id', $this->runId)
+            ->where('status', PayslipDelivery::SENT)
+            ->pluck('payroll_run_line_id')
+            ->all();
+
+        $withEmail = $lines->map(function ($line) {
+            $email = trim((string) $line->employee?->email);
+
+            return [
+                'line'  => $line,
+                'email' => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null,
+                'raw'   => $email,
+            ];
+        });
+
+        return [
+            // A malformed address is BLOCKED, not attempted: the queue would
+            // just fail on it, and "we tried" is not better than "we told you".
+            'sendable'    => $withEmail->filter(fn ($r) => $r['email'] !== null
+                && ($this->resendSent || ! in_array($r['line']->id, $sentLineIds, true)))->values(),
+            'blocked'     => $withEmail->filter(fn ($r) => $r['email'] === null)->values(),
+            'alreadySent' => $withEmail->filter(fn ($r) => in_array($r['line']->id, $sentLineIds, true))->values(),
+        ];
+    }
+
+    /**
+     * Queue the payslip emails.
+     *
+     * Deliberately NOT fired by approval. Sending someone's pay details out is
+     * its own decision, taken once the figures have been looked at, and an
+     * approval that silently emailed fifty people would be impossible to undo.
+     */
+    public function sendPayslips(): void
+    {
+        abort_unless(Auth::user()->can('hr.payroll'), 403);
+
+        $run = $this->run();
+
+        if (! $run->isApproved()) {
+            session()->flash('error', 'Approve the run before emailing payslips.');
+            return;
+        }
+
+        $audience = $this->emailAudience();
+
+        if ($audience['sendable']->isEmpty()) {
+            session()->flash('error', 'Nobody to send to — no employee in this run has a valid email address'
+                . ($audience['alreadySent']->isNotEmpty() && ! $this->resendSent
+                    ? ' that has not already been sent to.' : '.'));
+            return;
+        }
+
+        foreach ($audience['sendable'] as $row) {
+            // The row is written BEFORE dispatch, so a job that never runs
+            // still leaves a visible "queued" record rather than silence.
+            $delivery = PayslipDelivery::create([
+                'company_id'          => $run->company_id,
+                'payroll_run_id'      => $run->id,
+                'payroll_run_line_id' => $row['line']->id,
+                'employee_id'         => $row['line']->employee_id,
+                'email'               => $row['email'],
+                'status'              => PayslipDelivery::QUEUED,
+                'queued_by'           => Auth::id(),
+            ]);
+
+            SendPayslipEmail::dispatch($delivery->id);
+        }
+
+        $this->showEmail = false;
+        session()->flash('success', $audience['sendable']->count() . ' payslip(s) queued for sending.');
+    }
+
     public function render()
     {
         $run   = $this->run();
@@ -157,6 +246,11 @@ class PayrollRunShow extends Component
             'lines'      => $lines,
             'warnings'   => $warnings,
             'canApprove' => Auth::user()->can('hr.payroll.approve'),
+            'audience'   => $this->emailAudience(),
+            'deliveries' => PayslipDelivery::where('payroll_run_id', $run->id)
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('payroll_run_line_id'),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Payroll — ' . $run->periodLabel()]);
     }
 }

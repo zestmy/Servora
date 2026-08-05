@@ -36,7 +36,8 @@ class CompensationSummary
         'epf_employee' => 0.0, 'epf_employer' => 0.0,
         'socso_employee' => 0.0, 'socso_employer' => 0.0,
         'eis_employee' => 0.0, 'eis_employer' => 0.0,
-        'pcb' => 0.0, 'employee_total' => 0.0, 'employer_total' => 0.0,
+        'pcb' => 0.0, 'hrdf_employer' => 0.0,
+        'employee_total' => 0.0, 'employer_total' => 0.0,
         'notes' => [],
     ];
 
@@ -49,12 +50,21 @@ class CompensationSummary
      *     settings: CompensationSetting,
      * }
      */
-    public function forMonth(Builder $employees, int $companyId, Carbon $month): array
+    public function forMonth(Builder $employees, int $companyId, Carbon $month, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $from = $month->copy()->startOfMonth();
-        $to   = $month->copy()->endOfMonth();
-
         $settings = CompensationSetting::forCompany($companyId);
+
+        // The range defaults to the company's pay CYCLE, not the calendar
+        // month: a company closing payroll on the 25th counts attendance,
+        // approved OT and dated allowances over 26 Jul – 25 Aug for the month
+        // it calls August. Callers may still pass an explicit range for a
+        // one-off period.
+        if ($from === null || $to === null) {
+            [$from, $to] = $settings->cycleFor($month);
+        }
+
+        $from = $from->copy()->startOfDay();
+        $to   = $to->copy()->endOfDay();
 
         // Built once for the whole run: the rates are company-wide, only the
         // employee's own profile varies.
@@ -93,7 +103,11 @@ class CompensationSummary
         // for everyone rather than one per employee inside the map.
         $ytd = $calculator
             ? app(\App\Services\Payroll\YearToDate::class)
-                ->forMonth($companyId, $staff->pluck('id')->all(), $from)
+                // Keyed on the LABELLED month, not the cycle start: with a
+                // 26th-to-25th cycle the August run starts in July, and
+                // year-to-date must mean "the runs before August", not
+                // "the runs before July".
+                ->forMonth($companyId, $staff->pluck('id')->all(), $month->copy()->startOfMonth())
             : collect();
 
         $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to, $ytd) {
@@ -187,6 +201,7 @@ class CompensationSummary
                 'eis_employee'   => round($rows->sum(fn ($r) => $r['statutory']['eis_employee']), 2),
                 'eis_employer'   => round($rows->sum(fn ($r) => $r['statutory']['eis_employer']), 2),
                 'pcb'            => round($rows->sum(fn ($r) => $r['statutory']['pcb']), 2),
+                'hrdf_employer'  => round($rows->sum(fn ($r) => $r['statutory']['hrdf_employer'] ?? 0), 2),
                 'statutory_employee' => round($rows->sum(fn ($r) => $r['statutory']['employee_total']), 2),
                 'statutory_employer' => round($rows->sum(fn ($r) => $r['statutory']['employer_total']), 2),
                 'net'           => round($rows->sum('net'), 2),

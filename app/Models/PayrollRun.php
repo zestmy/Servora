@@ -30,8 +30,8 @@ class PayrollRun extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'period_month', 'status', 'reference',
-        'total_gross', 'total_net', 'total_statutory_employee',
+        'company_id', 'outlet_id', 'period_month', 'period_start', 'period_end', 'status', 'reference',
+        'total_gross', 'total_service_charge', 'total_net', 'total_statutory_employee',
         'total_statutory_employer', 'total_employer_cost', 'employee_count',
         'generated_by', 'generated_at', 'approved_by', 'approved_at',
         'paid_at', 'payment_date', 'rate_snapshot', 'rates_were_confirmed', 'notes',
@@ -39,6 +39,8 @@ class PayrollRun extends Model
 
     protected $casts = [
         'period_month'             => 'date',
+        'period_start'             => 'date',
+        'period_end'               => 'date',
         'generated_at'             => 'datetime',
         'approved_at'              => 'datetime',
         'paid_at'                  => 'datetime',
@@ -46,6 +48,7 @@ class PayrollRun extends Model
         'rate_snapshot'            => 'array',
         'rates_were_confirmed'     => 'boolean',
         'total_gross'              => 'decimal:2',
+        'total_service_charge'     => 'decimal:2',
         'total_net'                => 'decimal:2',
         'total_statutory_employee' => 'decimal:2',
         'total_statutory_employer' => 'decimal:2',
@@ -101,6 +104,38 @@ class PayrollRun extends Model
     public function periodLabel(): string
     {
         return Carbon::parse($this->period_month)->format('F Y');
+    }
+
+    /**
+     * The actual dates covered, e.g. "26 Jul – 25 Aug 2026".
+     *
+     * Shown wherever the month label alone would be ambiguous: with a
+     * mid-month cycle, "August" is not the same thing as August.
+     */
+    public function rangeLabel(): string
+    {
+        if (! $this->period_start || ! $this->period_end) {
+            return $this->periodLabel();
+        }
+
+        $from = Carbon::parse($this->period_start);
+        $to   = Carbon::parse($this->period_end);
+
+        return $from->format($from->year === $to->year ? 'j M' : 'j M Y')
+            . ' – ' . $to->format('j M Y');
+    }
+
+    /** True when the range is not simply the calendar month it is labelled with. */
+    public function hasCustomRange(): bool
+    {
+        if (! $this->period_start || ! $this->period_end) {
+            return false;
+        }
+
+        $month = Carbon::parse($this->period_month);
+
+        return ! Carbon::parse($this->period_start)->isSameDay($month->copy()->startOfMonth())
+            || ! Carbon::parse($this->period_end)->isSameDay($month->copy()->endOfMonth());
     }
 
     /**

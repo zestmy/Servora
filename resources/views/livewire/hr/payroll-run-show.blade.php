@@ -12,6 +12,9 @@
             @if ($canApprove && ! $run->isApproved())
                 <button wire:click="$set('showApprove', true)" class="btn-primary">Approve</button>
             @endif
+            @if ($run->isApproved())
+                <button wire:click="$set('showEmail', true)" class="btn-secondary">Email payslips</button>
+            @endif
             @if ($canApprove && $run->status === \App\Models\PayrollRun::APPROVED)
                 <button wire:click="$set('showPaid', true)" class="btn-primary">Mark paid</button>
             @endif
@@ -31,6 +34,10 @@
             <div>
                 <span class="text-xs text-gray-500 block">Reference</span>
                 <span class="font-mono text-gray-800">{{ $run->reference }}</span>
+            </div>
+            <div>
+                <span class="text-xs text-gray-500 block">Period covered</span>
+                <span class="text-gray-800">{{ $run->rangeLabel() }}</span>
             </div>
             <div>
                 <span class="text-xs text-gray-500 block">Scope</span>
@@ -121,6 +128,12 @@
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
         <div class="stat"><span class="stat-label">Staff</span><span class="stat-value">{{ $run->employee_count }}</span></div>
         <div class="stat"><span class="stat-label">Gross</span><span class="stat-value">{{ number_format((float) $run->total_gross, 2) }}</span></div>
+        @if ((float) $run->total_service_charge > 0)
+            <div class="stat">
+                <span class="stat-label">Service charge</span>
+                <span class="stat-value">{{ number_format((float) $run->total_service_charge, 2) }}</span>
+            </div>
+        @endif
         <div class="stat"><span class="stat-label">Statutory (staff)</span><span class="stat-value">{{ number_format((float) $run->total_statutory_employee, 2) }}</span></div>
         <div class="stat"><span class="stat-label">Net pay</span><span class="stat-value text-brand-700">{{ number_format((float) $run->total_net, 2) }}</span></div>
         <div class="stat">
@@ -139,6 +152,9 @@
                         <th class="px-2 py-2 text-right">Basic</th>
                         <th class="px-2 py-2 text-right">Allowances</th>
                         <th class="px-2 py-2 text-right">OT</th>
+                        @if ((float) $run->total_service_charge > 0)
+                            <th class="px-2 py-2 text-right">Svc charge</th>
+                        @endif
                         <th class="px-2 py-2 text-right">Deductions</th>
                         <th class="px-2 py-2 text-right">Gross</th>
                         <th class="px-2 py-2 text-right">EPF</th>
@@ -170,6 +186,11 @@
                                     <span class="block text-[10px] text-gray-500">{{ number_format((float) $line->ot_hours, 2) }}h</span>
                                 @endif
                             </td>
+                            @if ((float) $run->total_service_charge > 0)
+                                <td class="px-2 py-1.5 text-right tabular-nums text-gray-700">
+                                    {{ (float) $line->service_charge > 0 ? number_format((float) $line->service_charge, 2) : '—' }}
+                                </td>
+                            @endif
                             <td class="px-2 py-1.5 text-right tabular-nums {{ (float) $line->deductions > 0 ? 'text-danger-600' : 'text-gray-400' }}">
                                 {{ (float) $line->deductions > 0 ? '-' . number_format((float) $line->deductions, 2) : '—' }}
                             </td>
@@ -179,13 +200,30 @@
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ (float) $line->eis_employee > 0 ? number_format((float) $line->eis_employee, 2) : '—' }}</td>
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ (float) $line->pcb > 0 ? number_format((float) $line->pcb, 2) : '—' }}</td>
                             <td class="px-2 py-1.5 text-right tabular-nums font-semibold text-brand-700">{{ number_format((float) $line->net, 2) }}</td>
-                            <td class="px-2 py-1.5 text-right">
+                            <td class="px-2 py-1.5 text-right whitespace-nowrap">
                                 <a href="{{ route('hr.payroll.payslip', [$run, $line]) }}"
-                                   class="text-xs font-medium text-brand-600 hover:text-brand-800 whitespace-nowrap">Payslip</a>
+                                   class="text-xs font-medium text-brand-600 hover:text-brand-800">Payslip</a>
+                                {{-- What was sent, where and when — the question
+                                     asked after the fact, answered on the row. --}}
+                                @php $sent = ($deliveries[$line->id] ?? collect())->first(); @endphp
+                                @if ($sent)
+                                    <span class="block text-[10px] mt-0.5
+                                        {{ $sent->status === \App\Models\PayslipDelivery::SENT ? 'text-success-700'
+                                            : ($sent->status === \App\Models\PayslipDelivery::FAILED ? 'text-danger-600' : 'text-gray-500') }}"
+                                          title="{{ $sent->email }}{{ $sent->error ? ' — ' . $sent->error : '' }}">
+                                        @if ($sent->status === \App\Models\PayslipDelivery::SENT)
+                                            emailed {{ $sent->sent_at?->format('d M H:i') }}
+                                        @elseif ($sent->status === \App\Models\PayslipDelivery::FAILED)
+                                            email failed
+                                        @else
+                                            queued
+                                        @endif
+                                    </span>
+                                @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="12" class="px-3 py-6 text-center text-sm text-gray-600">
+                        <tr><td colspan="13" class="px-3 py-6 text-center text-sm text-gray-600">
                             No employees in this run.
                         </td></tr>
                     @endforelse
@@ -217,6 +255,78 @@
                 <div class="mt-4 flex justify-end gap-2">
                     <button wire:click="$set('showApprove', false)" class="btn-ghost">Cancel</button>
                     <button wire:click="approve" class="btn-primary">Approve and lock</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Email payslips. A confirmation, not a one-click send: this puts
+         someone's pay details in their inbox and cannot be recalled. --}}
+    @if ($showEmail)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
+            <div class="card p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+                <h3 class="text-base font-semibold text-gray-800">Email payslips — {{ $run->periodLabel() }}</h3>
+
+                <p class="text-sm text-gray-700 mt-2">
+                    Each employee gets their own payslip as a PDF attachment. The email itself carries
+                    no figures — those are in the attachment.
+                </p>
+
+                <div class="mt-3 space-y-2 text-sm">
+                    <p class="text-gray-800">
+                        <strong>{{ $audience['sendable']->count() }}</strong> will be sent.
+                    </p>
+
+                    @if ($audience['alreadySent']->isNotEmpty())
+                        <label class="flex items-start gap-2">
+                            <input type="checkbox" wire:model.live="resendSent"
+                                   class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span class="text-gray-700">
+                                Also re-send to the {{ $audience['alreadySent']->count() }} already emailed.
+                                <span class="block text-xs text-gray-500">
+                                    Leave unticked to send only to those who have not had it yet.
+                                </span>
+                            </span>
+                        </label>
+                    @endif
+
+                    @if ($audience['blocked']->isNotEmpty())
+                        <div class="alert-warning">
+                            <p class="font-medium">{{ $audience['blocked']->count() }} cannot be emailed</p>
+                            <p class="text-xs mt-0.5">No valid email address on record. They will need their payslip printed.</p>
+                            <ul class="mt-1 text-xs list-disc list-inside">
+                                @foreach ($audience['blocked']->take(10) as $row)
+                                    <li>{{ $row['line']->employee_name }}{{ $row['raw'] ? ' — "' . $row['raw'] . '"' : '' }}</li>
+                                @endforeach
+                                @if ($audience['blocked']->count() > 10)
+                                    <li>and {{ $audience['blocked']->count() - 10 }} more</li>
+                                @endif
+                            </ul>
+                        </div>
+                    @endif
+
+                    {{-- The addresses are shown before sending, not after: this
+                         is the only moment a typo can still be caught. --}}
+                    @if ($audience['sendable']->isNotEmpty())
+                        <details class="rounded-control border border-gray-200 p-2">
+                            <summary class="text-xs font-medium text-gray-700 cursor-pointer">
+                                Check the {{ $audience['sendable']->count() }} address(es)
+                            </summary>
+                            <ul class="mt-2 text-xs text-gray-600 space-y-0.5 max-h-48 overflow-y-auto">
+                                @foreach ($audience['sendable'] as $row)
+                                    <li>{{ $row['line']->employee_name }} — <span class="font-mono">{{ $row['email'] }}</span></li>
+                                @endforeach
+                            </ul>
+                        </details>
+                    @endif
+                </div>
+
+                <div class="mt-4 flex justify-end gap-2">
+                    <button wire:click="$set('showEmail', false)" class="btn-ghost">Cancel</button>
+                    <button wire:click="sendPayslips" wire:loading.attr="disabled" class="btn-primary">
+                        <span wire:loading.remove wire:target="sendPayslips">Send {{ $audience['sendable']->count() }} payslip(s)</span>
+                        <span wire:loading wire:target="sendPayslips">Queueing…</span>
+                    </button>
                 </div>
             </div>
         </div>

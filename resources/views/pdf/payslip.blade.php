@@ -62,9 +62,27 @@
             <div class="doc">
                 <div class="doc-title">Payslip</div>
                 <div class="doc-period">{{ $run->periodLabel() }}</div>
+                {{-- The dates actually worked for, when they are not the
+                     calendar month. Someone checking a payslip against their
+                     own record of hours needs the range, not the label. --}}
+                @if ($run->hasCustomRange())
+                    <div class="co-meta">{{ $run->rangeLabel() }}</div>
+                @endif
                 <div class="co-meta">{{ $run->reference }}</div>
             </div>
             <div class="brand">{{ $brandName }}</div>
+            {{-- The legal entity, when it differs from the trading name. A
+                 payslip is a record of employment by a COMPANY, and the brand
+                 above the door is often not what is on the contract. --}}
+            @if (($companyName ?? null) && $companyName !== $brandName)
+                <div class="co-meta">{{ $companyName }}</div>
+            @endif
+            @if ($address)
+                {{-- Collapsed to one line: dompdf honours the newlines in a
+                     textarea-entered address and a five-line header would push
+                     the second slip off the page. --}}
+                <div class="co-meta">{{ preg_replace('/\s*\R\s*/', ', ', trim($address)) }}</div>
+            @endif
             <div class="co-meta">
                 @if ($companyReg) Co. No. {{ $companyReg }} @endif
                 @if ($employerTaxNumber) &middot; E {{ $employerTaxNumber }} @endif
@@ -112,9 +130,27 @@
                                 <td class="amt">{{ number_format((float) $line->ot_amount, 2) }}</td>
                             </tr>
                         @endif
+                        @if ((float) $line->service_charge > 0)
+                            @php $scd = $line->service_charge_detail ?? []; @endphp
+                            <tr>
+                                <td>
+                                    Service charge
+                                    @if (($scd['points'] ?? 0) > 0)
+                                        <span class="sub">
+                                            {{ rtrim(rtrim(number_format((float) $scd['points'], 2, '.', ''), '0'), '.') }} point(s)
+                                            &times; RM {{ number_format((float) ($scd['per_point'] ?? 0)) }}
+                                            @if ((float) ($scd['attendance'] ?? 0) + (float) ($scd['lateness'] ?? 0) + (float) ($scd['special'] ?? 0) > 0)
+                                                , less deductions
+                                            @endif
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="amt">{{ number_format((float) $line->service_charge, 2) }}</td>
+                            </tr>
+                        @endif
                         <tr class="tot">
                             <td>Gross</td>
-                            <td class="amt">{{ number_format((float) $line->gross + (float) $line->deductions, 2) }}</td>
+                            <td class="amt">{{ number_format((float) $line->gross + (float) $line->deductions + (float) $line->service_charge, 2) }}</td>
                         </tr>
                     </table>
                 </td>
@@ -179,7 +215,8 @@
             Employer contributions this period (not deducted from you): EPF
             {{ number_format((float) $line->epf_employer, 2) }} &middot; SOCSO
             {{ number_format((float) $line->socso_employer, 2) }} &middot; EIS
-            {{ number_format((float) $line->eis_employer, 2) }}.
+            {{ number_format((float) $line->eis_employer, 2) }}@if ((float) $line->hrdf_employer > 0) &middot; HRD Corp levy
+            {{ number_format((float) $line->hrdf_employer, 2) }}@endif.
             This is a computer-generated payslip and needs no signature.
         </div>
     </div>

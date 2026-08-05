@@ -23,8 +23,10 @@ class PayrollRunLine extends Model
         'outlet_name', 'section_name', 'bank_name', 'bank_account_no',
         'epf_number', 'socso_number', 'income_tax_number',
         'pay_type', 'basic', 'allowances', 'deductions', 'ot_hours', 'ot_amount',
+        'service_charge', 'service_charge_detail',
         'gross', 'epf_employee', 'epf_employer', 'socso_employee', 'socso_employer',
-        'eis_employee', 'eis_employer', 'pcb', 'statutory_employee', 'statutory_employer',
+        'eis_employee', 'eis_employer', 'pcb', 'hrdf_employer',
+        'statutory_employee', 'statutory_employer',
         'net', 'employer_cost', 'components', 'ot_by_type', 'statutory_notes',
     ];
 
@@ -37,6 +39,8 @@ class PayrollRunLine extends Model
         'deductions'         => 'decimal:2',
         'ot_hours'           => 'decimal:2',
         'ot_amount'          => 'decimal:2',
+        'service_charge'     => 'decimal:2',
+        'service_charge_detail' => 'array',
         'gross'              => 'decimal:2',
         'epf_employee'       => 'decimal:2',
         'epf_employer'       => 'decimal:2',
@@ -45,6 +49,7 @@ class PayrollRunLine extends Model
         'eis_employee'       => 'decimal:2',
         'eis_employer'       => 'decimal:2',
         'pcb'                => 'decimal:2',
+        'hrdf_employer'      => 'decimal:2',
         'statutory_employee' => 'decimal:2',
         'statutory_employer' => 'decimal:2',
         'net'                => 'decimal:2',

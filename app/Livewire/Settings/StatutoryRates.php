@@ -22,9 +22,14 @@ class StatutoryRates extends Component
     public bool $socso_enabled = true;
     public bool $eis_enabled   = true;
     public bool $pcb_enabled   = false;
+    public bool $hrdf_enabled  = false;
+
+    public string $hrdf_employer_rate = '';
+    public string $hrdf_ceiling       = '';
 
     // The employer side of every submission file. Not rates — these identify
     // the company on the return, and a listing without them is unfileable.
+    public string $employer_hrdf_number  = '';
     public string $employer_epf_number   = '';
     public string $employer_socso_number = '';
     public string $employer_tax_number   = '';
@@ -66,14 +71,19 @@ class StatutoryRates extends Component
         $s = StatutorySetting::forCompany(Auth::user()->company_id);
 
         foreach ([
-            'epf_enabled', 'socso_enabled', 'eis_enabled', 'pcb_enabled',
+            'epf_enabled', 'socso_enabled', 'eis_enabled', 'pcb_enabled', 'hrdf_enabled',
         ] as $flag) {
             $this->{$flag} = (bool) $s->{$flag};
         }
 
-        foreach (['employer_epf_number', 'employer_socso_number', 'employer_tax_number'] as $ref) {
+        foreach (['employer_epf_number', 'employer_socso_number', 'employer_tax_number',
+                  'employer_hrdf_number'] as $ref) {
             $this->{$ref} = (string) ($s->{$ref} ?? '');
         }
+
+        $this->hrdf_employer_rate = (string) (float) ($s->hrdf_employer_rate ?? 1);
+        // Blank means uncapped, which is the normal case for HRD Corp.
+        $this->hrdf_ceiling = $s->hrdf_ceiling !== null ? (string) (float) $s->hrdf_ceiling : '';
 
         foreach ([
             'epf_employee_rate', 'epf_employer_rate_low', 'epf_employer_rate_high', 'epf_wage_threshold',
@@ -114,6 +124,10 @@ class StatutoryRates extends Component
             'eis_employee_rate' => $rate, 'eis_employer_rate' => $rate,
             'eis_ceiling' => 'required|numeric|min:0|max:1000000',
             'eis_max_age' => 'required|integer|min:40|max:100',
+
+            'hrdf_employer_rate' => $rate,
+            // Blank is uncapped, which is the normal HRD Corp case.
+            'hrdf_ceiling'       => 'nullable|numeric|min:0|max:1000000',
 
             'pcb_relief_individual' => 'required|numeric|min:0|max:1000000',
             'pcb_relief_epf_cap'    => 'required|numeric|min:0|max:1000000',
@@ -200,9 +214,15 @@ class StatutoryRates extends Component
         $data['senior_age']  = (int) $this->senior_age;
         $data['eis_max_age'] = (int) $this->eis_max_age;
 
-        foreach (['employer_epf_number', 'employer_socso_number', 'employer_tax_number'] as $ref) {
+        foreach (['employer_epf_number', 'employer_socso_number', 'employer_tax_number',
+                  'employer_hrdf_number'] as $ref) {
             $data[$ref] = trim($this->{$ref}) ?: null;
         }
+
+        $data['hrdf_employer_rate'] = round((float) $this->hrdf_employer_rate, 2);
+        $data['hrdf_ceiling'] = trim($this->hrdf_ceiling) !== ''
+            ? round((float) $this->hrdf_ceiling, 2)
+            : null;
 
         // Confirmation is a deliberate act and is re-stamped on every save, so
         // "checked" always means checked against what is currently stored.

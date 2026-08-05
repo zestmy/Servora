@@ -37,6 +37,8 @@ class PayComponents extends Component
     public string $ot_public_holiday  = '';
     public string $monthly_days       = '';
     public string $daily_hours        = '';
+    /** Day the pay cycle opens. 1 = calendar months, 26 = 26th to the 25th. */
+    public string $cycle_start_day    = '1';
 
     public function mount(): void
     {
@@ -47,6 +49,7 @@ class PayComponents extends Component
         $this->ot_public_holiday = (string) (float) $s->ot_public_holiday_multiplier;
         $this->monthly_days      = (string) $s->monthly_working_days;
         $this->daily_hours       = (string) (float) $s->daily_working_hours;
+        $this->cycle_start_day   = (string) ($s->payroll_cycle_start_day ?: 1);
     }
 
     protected function rules(): array
@@ -160,6 +163,8 @@ class PayComponents extends Component
             'ot_public_holiday' => 'required|numeric|min:0|max:99.99',
             'monthly_days'      => 'required|integer|min:1|max:31',
             'daily_hours'       => 'required|numeric|min:1|max:24',
+            // Capped at 28: a cycle starting on the 30th has no February.
+            'cycle_start_day'   => 'required|integer|min:1|max:28',
         ]);
 
         CompensationSetting::updateOrCreate(
@@ -170,10 +175,11 @@ class PayComponents extends Component
                 'ot_public_holiday_multiplier' => round((float) $this->ot_public_holiday, 2),
                 'monthly_working_days'         => (int) $this->monthly_days,
                 'daily_working_hours'          => round((float) $this->daily_hours, 2),
+                'payroll_cycle_start_day'      => (int) $this->cycle_start_day,
             ]
         );
 
-        session()->flash('success', 'Overtime rates saved.');
+        session()->flash('success', 'Overtime rates and pay cycle saved.');
     }
 
     public function render()

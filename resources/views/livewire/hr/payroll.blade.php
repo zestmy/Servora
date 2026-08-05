@@ -31,7 +31,17 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="label">Month</label>
-                    <input type="month" wire:model="newMonth" class="input" />
+                    <input type="month" wire:model.live="newMonth" class="input" />
+                    {{-- The dates this month actually covers under the company's
+                         pay cycle, shown before generating rather than after. --}}
+                    @if ($newRange)
+                        <p class="help">
+                            Covers <strong>{{ $newRange[0]->format('j M Y') }} – {{ $newRange[1]->format('j M Y') }}</strong>
+                            @if ($settings->hasCustomCycle())
+                                <a href="{{ route('settings.pay-components') }}" class="text-brand-600 hover:underline">(pay cycle)</a>
+                            @endif
+                        </p>
+                    @endif
                     <x-input-error :messages="$errors->get('newMonth')" class="mt-1" />
                 </div>
                 <div>
@@ -83,6 +93,11 @@
                                 <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
                                     <a href="{{ route('hr.payroll.show', $run) }}" wire:navigate
                                        class="hover:text-brand-600 hover:underline">{{ $run->periodLabel() }}</a>
+                                    {{-- With a mid-month cycle, "August" is not the
+                                         same thing as August — so say the dates. --}}
+                                    @if ($run->hasCustomRange())
+                                        <span class="block text-[10px] text-gray-500 font-normal">{{ $run->rangeLabel() }}</span>
+                                    @endif
                                 </td>
                                 <td class="px-3 py-2 text-xs font-mono text-gray-600">{{ $run->reference }}</td>
                                 <td class="px-3 py-2 text-sm text-gray-600">{{ $run->outlet?->name ?? 'All outlets' }}</td>

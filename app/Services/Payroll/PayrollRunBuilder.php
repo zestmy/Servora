@@ -61,9 +61,31 @@ class PayrollRunBuilder
             ->whereIn('outlet_id', $accessibleOutletIds ?: [0])
             ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId));
 
-        $data = $this->summary->forMonth($employees, $companyId, $month);
+        // The real range this month covers under the company's pay cycle. An
+        // existing draft keeps the range it was generated with rather than
+        // silently moving if the setting is changed mid-month.
+        [$from, $to] = $existing?->period_start && $existing?->period_end
+            ? [Carbon::parse($existing->period_start), Carbon::parse($existing->period_end)]
+            : \App\Models\CompensationSetting::forCompany($companyId)->cycleFor($month);
+
+        $data = $this->summary->forMonth($employees, $companyId, $month, $from, $to);
 
         $statutory = StatutorySetting::forCompany($companyId);
+
+        // Service charge for the same range, ASKED of the existing
+        // distribution rather than recomputed. It stays out of
+        // CompensationSummary on purpose — that would be a second
+        // implementation of the same rules — but a run is a snapshot, so it
+        // can copy the answer. Null when no pool was saved for this exact
+        // period, which is the normal case for companies that do not levy one.
+        $serviceCharge = app(\App\Services\Hr\ServiceChargeDistribution::class)->forPeriod(
+            $companyId, $accessibleOutletIds, $from, $to, $outletId,
+        );
+
+        $scByEmployee = collect($serviceCharge['rows'] ?? [])
+            ->keyBy(fn ($r) => $r['employee']->id);
+
+        $scPerPoint = (float) ($serviceCharge['perPoint'] ?? 0);
 
         // Identity that lives outside the summary — it is payroll paperwork,
         // not pay arithmetic, so CompensationSummary has no reason to carry it.
@@ -81,13 +103,15 @@ class PayrollRunBuilder
             ->keyBy('id');
 
         return DB::transaction(function () use (
-            $existing, $companyId, $outletId, $month, $data, $statutory,
-            $profiles, $identity, $userId
+            $existing, $companyId, $outletId, $month, $from, $to, $data, $statutory,
+            $profiles, $identity, $userId, $scByEmployee, $scPerPoint
         ) {
             $run = $existing ?: new PayrollRun([
                 'company_id'   => $companyId,
                 'outlet_id'    => $outletId,
                 'period_month' => $month->toDateString(),
+                'period_start' => $from->toDateString(),
+                'period_end'   => $to->toDateString(),
                 'reference'    => PayrollRun::nextReference($companyId, $month),
             ]);
 
@@ -95,9 +119,15 @@ class PayrollRunBuilder
                 'company_id'               => $companyId,
                 'outlet_id'                => $outletId,
                 'period_month'             => $month->toDateString(),
+                // Stored explicitly, not re-derived: a run must be able to say
+                // what it actually covered even after the cycle setting moves.
+                'period_start'             => $from->toDateString(),
+                'period_end'               => $to->toDateString(),
                 'status'                   => PayrollRun::DRAFT,
                 'total_gross'              => $data['totals']['gross'],
-                'total_net'                => $data['totals']['net'],
+                'total_service_charge'     => round($scByEmployee->sum(fn ($r) => (float) $r['net']), 2),
+                'total_net'                => round((float) $data['totals']['net']
+                    + $scByEmployee->sum(fn ($r) => (float) $r['net']), 2),
                 'total_statutory_employee' => $data['totals']['statutory_employee'],
                 'total_statutory_employer' => $data['totals']['statutory_employer'],
                 'total_employer_cost'      => $data['totals']['employer_cost'],
@@ -118,6 +148,12 @@ class PayrollRunBuilder
             foreach ($data['rows'] as $row) {
                 $profile = $profiles[$row['employee_id']] ?? null;
                 $emp     = $identity[$row['employee_id']] ?? null;
+                $sc      = $scByEmployee[$row['employee_id']] ?? null;
+
+                // The NET share — what the person is actually paid after the
+                // attendance, lateness and special deductions. Gross would
+                // overstate it on a payslip, which is the figure staff check.
+                $scAmount = $sc ? round((float) $sc['net'], 2) : 0.0;
 
                 PayrollRunLine::create([
                     'payroll_run_id'     => $run->id,
@@ -140,6 +176,18 @@ class PayrollRunBuilder
                     'deductions'         => $row['deductions'],
                     'ot_hours'           => $row['ot_hours'],
                     'ot_amount'          => $row['ot_amount'],
+                    'service_charge'     => $scAmount,
+                    // The working, so the payslip can show it without
+                    // recomputing: points, rate, and each deduction.
+                    'service_charge_detail' => $sc ? [
+                        'points'     => (float) $sc['points'],
+                        'per_point'  => $scPerPoint,
+                        'gross'      => (float) $sc['gross'],
+                        'attendance' => (float) $sc['dedAmt'],
+                        'lateness'   => (float) $sc['lateAmt'],
+                        'special'    => (float) $sc['specialAmt'],
+                        'excluded'   => (bool) ($sc['excluded'] ?? false),
+                    ] : null,
                     'gross'              => $row['gross'],
                     'epf_employee'       => $row['statutory']['epf_employee'],
                     'epf_employer'       => $row['statutory']['epf_employer'],
@@ -148,9 +196,19 @@ class PayrollRunBuilder
                     'eis_employee'       => $row['statutory']['eis_employee'],
                     'eis_employer'       => $row['statutory']['eis_employer'],
                     'pcb'                => $row['statutory']['pcb'],
+                    'hrdf_employer'      => $row['statutory']['hrdf_employer'] ?? 0,
                     'statutory_employee' => $row['statutory']['employee_total'],
                     'statutory_employer' => $row['statutory']['employer_total'],
-                    'net'                => $row['net'],
+                    // Service charge is added AFTER statutory, not before:
+                    // EPF, SOCSO and PCB here are computed on salary, and
+                    // folding a pool share into the statutory wage would
+                    // change every contribution on an assumption this system
+                    // has no business making. It IS in net, because it is paid
+                    // in the same transfer and net is what the bank file pays.
+                    'net'                => round((float) $row['net'] + $scAmount, 2),
+                    // NOT in employer cost: the pool is collected from
+                    // customers and passes through the company, so counting it
+                    // as a cost of employment would overstate the wage bill.
                     'employer_cost'      => $row['employer_cost'],
                     'components'         => $row['components']->all(),
                     'ot_by_type'         => $row['ot_by_type'],

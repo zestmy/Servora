@@ -67,6 +67,39 @@
                 <label class="label">LHDN employer no. (E)</label>
                 <input type="text" maxlength="30" wire:model="employer_tax_number" class="input" />
             </div>
+            <div>
+                <label class="label">HRD Corp employer no.</label>
+                <input type="text" maxlength="30" wire:model="employer_hrdf_number" class="input" />
+            </div>
+        </div>
+    </div>
+
+    {{-- HRD Corp levy. Its own card, above the four contribution cards, because
+         it is the one that is NOT deducted from anybody — putting it in the
+         grid beside EPF invites exactly that misreading. --}}
+    <div class="card p-5 mb-4">
+        <label class="flex items-center gap-2 mb-1">
+            <input type="checkbox" wire:model="hrdf_enabled" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+            <span class="text-sm font-semibold text-gray-700">HRD Corp levy (HRDF)</span>
+        </label>
+        <p class="text-xs text-gray-600 mb-3">
+            <strong>Employer only</strong> — never deducted from an employee, and it does not appear on a
+            payslip as a deduction. It is included in cost to company. Mandatory at 10 or more Malaysian
+            employees in a covered industry (1%), optional at 5 to 9 (0.5%). Charged on Malaysian
+            employees; switch it off per person on their Compensation screen where it does not apply.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+                <label class="label">Levy rate (%)</label>
+                <input type="number" step="0.01" min="0" max="100" wire:model="hrdf_employer_rate" class="input" />
+                <x-input-error :messages="$errors->get('hrdf_employer_rate')" class="mt-1" />
+            </div>
+            <div>
+                <label class="label">Wage ceiling (RM)</label>
+                <input type="number" step="0.01" min="0" wire:model="hrdf_ceiling" class="input" placeholder="uncapped" />
+                <p class="help">Leave blank for uncapped, which is the usual case.</p>
+                <x-input-error :messages="$errors->get('hrdf_ceiling')" class="mt-1" />
+            </div>
         </div>
     </div>
 

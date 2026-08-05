@@ -44,6 +44,19 @@ class AppServiceProvider extends ServiceProvider
         );
 
         /*
+         * Payslip emails: 30 a minute.
+         *
+         * Payroll day queues the entire company at once. Sending a hundred
+         * messages in a burst is the fastest way to have a provider treat the
+         * sending domain as a spam source, and a payslip arriving four minutes
+         * later costs nobody anything.
+         */
+        \Illuminate\Support\Facades\RateLimiter::for(
+            'payslip-email',
+            fn () => \Illuminate\Cache\RateLimiting\Limit::perMinute(30)
+        );
+
+        /*
          * Resolve the subdomain company on Livewire's update endpoint too.
          *
          * Livewire posts every interaction to /livewire/update, a route it

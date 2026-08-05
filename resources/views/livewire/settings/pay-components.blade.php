@@ -60,6 +60,29 @@
                 <input type="number" step="0.25" min="1" max="24" wire:model="daily_hours" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                 <x-input-error :messages="$errors->get('daily_hours')" class="mt-1" />
             </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600">Pay cycle starts on day</label>
+                <input type="number" min="1" max="28" wire:model.live="cycle_start_day" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                {{-- Worked through rather than described: "26" on its own does
+                     not tell anyone which month August's payroll covers. --}}
+                @php
+                    $day = max(1, min(28, (int) ($cycle_start_day ?: 1)));
+                    $sample = \Carbon\Carbon::create(now()->year, 8, 1);
+                    $sampleEnd = $sample->copy()->addDays($day - 2);
+                    $sampleStart = $sampleEnd->copy()->subMonthNoOverflow()->addDay();
+                @endphp
+                <p class="mt-1 text-[11px] text-gray-500">
+                    @if ($day === 1)
+                        Calendar months — August payroll covers 1–31 August.
+                    @else
+                        August payroll covers
+                        <strong>{{ $sampleStart->format('j M') }} – {{ $sampleEnd->format('j M') }}</strong>.
+                        Attendance, approved OT, dated allowances and the service charge pool are all counted
+                        over that range.
+                    @endif
+                </p>
+                <x-input-error :messages="$errors->get('cycle_start_day')" class="mt-1" />
+            </div>
             <div class="col-span-2 sm:col-span-5 flex justify-end">
                 <button type="submit" class="btn-primary">Save rates</button>
             </div>

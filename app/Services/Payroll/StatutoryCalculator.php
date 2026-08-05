@@ -78,6 +78,9 @@ class StatutoryCalculator
             'socso_employee' => 0.0, 'socso_employer' => 0.0,
             'eis_employee' => 0.0, 'eis_employer' => 0.0,
             'pcb' => 0.0,
+            // Employer-only. Kept in the same array for one row shape, but it
+            // must never reach employee_total — see the totals below.
+            'hrdf_employer' => 0.0,
         ];
 
         // Age decides the EPF, SOCSO and EIS rate. Without a date of birth the
@@ -119,11 +122,26 @@ class StatutoryCalculator
             }
         }
 
+        // HRD Corp levy: employer only, charged on the employee's wages.
+        // Malaysian employees only by default — the levy is on the local
+        // workforce, and a foreign worker is normally outside it.
+        if ($this->settings->hrdf_enabled && $profile->hrdf_enabled) {
+            if (! $profile->is_malaysian) {
+                $notes[] = 'HRD Corp levy not charged — not a Malaysian employee.';
+            } else {
+                $result['hrdf_employer'] = $this->hrdf($epfWages);
+            }
+        }
+
+        // hrdf_employer is deliberately ABSENT from employee_total. The levy is
+        // never deducted from anyone's pay, and a payslip that showed it as a
+        // deduction would be wrong in the way people notice.
         $result['employee_total'] = round(
             $result['epf_employee'] + $result['socso_employee'] + $result['eis_employee'] + $result['pcb'], 2
         );
         $result['employer_total'] = round(
-            $result['epf_employer'] + $result['socso_employer'] + $result['eis_employer'], 2
+            $result['epf_employer'] + $result['socso_employer'] + $result['eis_employer']
+            + $result['hrdf_employer'], 2
         );
         $result['notes'] = $notes;
 
@@ -293,6 +311,21 @@ class StatutoryCalculator
         // Never negative: MTD is a deduction, and an over-deduction earlier in
         // the year is refunded on assessment, not paid back through payroll.
         return round(max(0.0, $mtd), 2);
+    }
+
+    /**
+     * HRD Corp levy — a percentage of the employee's wages, paid by the
+     * employer on top of the payroll.
+     *
+     * Uncapped unless the company sets a ceiling: HRD Corp does not cap it the
+     * way PERKESO caps SOCSO, but the setting exists for schemes that do.
+     */
+    private function hrdf(float $wages): float
+    {
+        $ceiling = $this->settings->hrdf_ceiling !== null ? (float) $this->settings->hrdf_ceiling : null;
+        $base    = $ceiling !== null ? min($wages, $ceiling) : $wages;
+
+        return round(max(0.0, $base) * (float) $this->settings->hrdf_employer_rate / 100, 2);
     }
 
     /**

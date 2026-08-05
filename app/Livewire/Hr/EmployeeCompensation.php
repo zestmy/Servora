@@ -50,6 +50,9 @@ class EmployeeCompensation extends Component
     public bool   $s_epf          = true;
     public bool   $s_socso        = true;
     public bool   $s_eis          = true;
+    // Employer-only levy, but whether it applies to THIS person is a
+    // per-employee fact the company-wide setting cannot answer.
+    public bool   $s_hrdf         = true;
     public bool   $s_pcb          = true;
     public string $s_epf_override = '';
     public string $s_pcb_category = 'single';
@@ -86,6 +89,7 @@ class EmployeeCompensation extends Component
         $this->s_epf           = (bool) $p->epf_enabled;
         $this->s_socso         = (bool) $p->socso_enabled;
         $this->s_eis           = (bool) $p->eis_enabled;
+        $this->s_hrdf          = (bool) $p->hrdf_enabled;
         $this->s_pcb           = (bool) $p->pcb_enabled;
         $this->s_epf_override  = $p->epf_employee_rate_override !== null ? (string) (float) $p->epf_employee_rate_override : '';
         $this->s_pcb_category  = $p->pcb_category ?: 'single';
@@ -137,6 +141,7 @@ class EmployeeCompensation extends Component
                 'epf_enabled'       => $this->s_epf,
                 'socso_enabled'     => $this->s_socso,
                 'eis_enabled'       => $this->s_eis,
+                'hrdf_enabled'      => $this->s_hrdf,
                 'pcb_enabled'       => $this->s_pcb,
                 'epf_employee_rate_override' => $this->s_epf_override !== '' ? round((float) $this->s_epf_override, 2) : null,
                 'pcb_category'        => $this->s_pcb_category,
