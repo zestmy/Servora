@@ -125,11 +125,18 @@ class ClockInService
 
         $selfiePath = $this->storeSelfie($employee, $input['selfie'] ?? null);
 
-        // "late" is a record of what happened, not a problem to be reviewed —
-        // the deduction is the consequence, and a manager who wants to waive
-        // it can still find the punch. Anything else in the list means a
-        // check could not be satisfied and a human has to look.
-        $reviewable = array_values(array_diff($flags, ['late']));
+        // Flags that are a RECORD of what happened rather than a problem to be
+        // reviewed. Anything else means a check could not be satisfied and a
+        // human has to look.
+        //
+        //   late     — the deduction is the consequence, and a manager who
+        //              wants to waive it can still find the punch.
+        //   no_shift — plenty of real punches have no roster entry: casual
+        //              cover, someone called in, a roster not built yet. It is
+        //              still recorded on the punch and still visible, but
+        //              sending every one of them to the review queue buried
+        //              the punches that genuinely could not be verified.
+        $reviewable = array_values(array_diff($flags, ['late', 'no_shift']));
 
         $event = ClockEvent::create([
             'company_id'      => $employee->company_id,
