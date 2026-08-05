@@ -360,6 +360,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/staff-pins', \App\Livewire\Hr\StaffPins::class)->name('hr.staff-pins')->middleware('can:staff.pins');
     Route::get('/hr/employees/export-pdf', [\App\Http\Controllers\EmployeeExportController::class, 'pdf'])->name('hr.employees.export-pdf')->middleware('can:hr.view');
     Route::get('/hr/employees/export-excel', [\App\Http\Controllers\EmployeeExportController::class, 'excel'])->name('hr.employees.export-excel')->middleware('can:hr.view');
+    // Add / edit is a full page, not a modal — the form is too tall for a dialog.
+    Route::get('/hr/employees/create', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.create')->middleware('can:hr.view');
+    Route::get('/hr/employees/{id}/edit', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.edit')->middleware('can:hr.view');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
     // Web clock-in — the staff-facing app lives in routes/clock-staff.php;

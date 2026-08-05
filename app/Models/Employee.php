@@ -90,6 +90,7 @@ class Employee extends Model
         'probation'          => 'Probation',
         'confirmed'          => 'Confirmed',
         'extended_probation' => 'Extended Probation',
+        'partimer'           => 'Partimer',
         'outsourcing'        => 'Outsourcing',
     ];
 
