@@ -255,6 +255,142 @@
             {{ $outlet->name }} has no location set, so we cannot check you are on site. Your manager can set it in HR settings.
         </p>
     @endif
+
+    {{-- ── What just happened ───────────────────────────────────────────────
+
+         The outcome used to be a line of text in a tinted box above the
+         camera. At the moment it appears, the person is looking at the
+         button they just pressed, near the bottom of a scrolled page — so
+         the one thing they came to find out was off screen, and the honest
+         answer to "did it work?" was to scroll up and read carefully.
+
+         So it takes the whole screen instead. At a doorway, at shift change,
+         held at arm's length, the question is binary and it should be
+         answerable at a glance and from a distance.
+
+         Last in the component root on purpose: it is a sibling of the
+         wire:ignore camera subtree, never a wrapper, so a morph that adds or
+         removes it cannot touch the <video>.
+
+         Three outcomes, three colours, and the distinction is deliberate:
+
+           Recorded and clean       teal    dismisses itself
+           Recorded but flagged     amber   waits to be read
+           Refused                  red     waits to be read
+
+         Only the first goes away on its own. Somebody who has just lost RM3
+         of service charge, or whose punch is going to a manager, is being
+         told something they need to have actually read — and a notice that
+         vanishes while you are still working out what it says is a notice
+         that did not tell you. --}}
+    @if ($showResult && ($lastEvent || $errorMessage))
+        @php
+            $refused  = (bool) $errorMessage;
+            $flagged  = ! $refused && $lastEvent->status !== ClockEvent::STATUS_VERIFIED;
+            $clean    = ! $refused && ! $flagged;
+
+            $skin = $refused
+                ? ['bg' => 'bg-danger-600',  'ink' => 'text-danger-50',  'btn' => 'text-danger-700']
+                : ($flagged
+                    ? ['bg' => 'bg-amber-500', 'ink' => 'text-amber-50',  'btn' => 'text-amber-700']
+                    : ['bg' => 'bg-teal-600',  'ink' => 'text-teal-50',   'btn' => 'text-teal-700']);
+
+            $headline = $refused
+                ? 'NOT RECORDED'
+                : Str::upper($lastEvent->typeLabel() === 'Clock in' ? 'Clocked in'
+                    : ($lastEvent->typeLabel() === 'Clock out' ? 'Clocked out'
+                    : ($lastEvent->typeLabel() === 'Break start' ? 'Break started' : 'Break ended')));
+        @endphp
+
+        {{-- data-punch-result names this element for tests and for anyone
+             debugging from a screenshot: the inline error box below also
+             carries role="alert", and "the first alert on the page" is not
+             this one. The inline copy stays deliberately — it is the record
+             that survives dismissing the notice, and the off-site details
+             block opens itself against it. --}}
+        <div role="alert" aria-live="assertive" data-punch-result="{{ $refused ? 'refused' : ($flagged ? 'flagged' : 'clean') }}"
+             wire:key="result-{{ $lastEvent?->id ?? 'refused' }}"
+             x-data="{
+                 dismiss() { $wire.dismissResult(); },
+                 init() {
+                     {{-- Only a clean punch times out. See above. --}}
+                     @if ($clean)
+                         setTimeout(() => this.dismiss(), 4500);
+                     @endif
+                 },
+             }"
+             class="fixed inset-0 z-50 flex flex-col items-center justify-center px-6 text-center {{ $skin['bg'] }}">
+
+            {{-- A tick or a cross, big enough to read across a kitchen. --}}
+            <svg class="w-24 h-24 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                @if ($refused)
+                    <circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>
+                @else
+                    <circle cx="12" cy="12" r="10"/><path d="M8 12.5l2.5 2.5L16 9"/>
+                @endif
+            </svg>
+
+            <p class="mt-5 text-3xl font-bold tracking-wide text-white">{{ $headline }}</p>
+
+            @unless ($refused)
+                <p class="mt-1 text-5xl font-bold tabular-nums text-white">
+                    {{ $lastEvent->happened_at->format('g:i') }}
+                    <span class="text-2xl align-top">{{ $lastEvent->happened_at->format('A') }}</span>
+                </p>
+            @endunless
+
+            <p class="mt-3 text-base font-medium {{ $skin['ink'] }}">{{ $staff->name }}</p>
+
+            @if ($refused)
+                <p class="mt-3 max-w-sm text-sm {{ $skin['ink'] }}">{{ $errorMessage }}</p>
+            @else
+                @if ($lastEvent->minutes_late > 0)
+                    {{-- The money gets its own line and its own size.
+
+                         Written as one small sentence, the amount deducted was
+                         the faintest thing on a screen whose entire job is to
+                         tell somebody what just happened to their pay. It is
+                         the fact most worth carrying away, so it is set like
+                         one — and the minutes stay small above it, because
+                         "seven" explains the charge but is not the charge. --}}
+                    <p class="mt-4 max-w-sm text-sm {{ $skin['ink'] }}">
+                        @if ($lastEvent->type === ClockEvent::TYPE_BREAK_END)
+                            {{ $lastEvent->minutes_late }} {{ Str::plural('minute', $lastEvent->minutes_late) }} over your break allowance
+                        @else
+                            {{ $lastEvent->minutes_late }} {{ Str::plural('minute', $lastEvent->minutes_late) }} late
+                        @endif
+                    </p>
+
+                    @if ((float) $lastEvent->penalty_amount > 0)
+                        <p class="mt-1 text-3xl font-bold tabular-nums text-white">
+                            RM {{ number_format((float) $lastEvent->penalty_amount, 2) }}
+                        </p>
+                        <p class="text-xs {{ $skin['ink'] }}">off your service charge</p>
+                    @else
+                        <p class="mt-1 text-sm font-medium text-white">Within grace — nothing deducted.</p>
+                    @endif
+                @endif
+
+                @if ($lastEvent->flagLabels())
+                    <ul class="mt-3 space-y-0.5 text-sm {{ $skin['ink'] }}">
+                        @foreach ($lastEvent->flagLabels() as $label)
+                            <li>• {{ $label }}</li>
+                        @endforeach
+                    </ul>
+                    <p class="mt-2 text-sm font-medium text-white">Your manager will review this.</p>
+                @endif
+            @endif
+
+            {{-- Always present, even on the notice that times out: four and a
+                 half seconds is a long time to stand in a doorway once you
+                 already know the answer. --}}
+            <button type="button" wire:click="dismissResult"
+                    class="mt-8 min-h-[3rem] w-full max-w-xs rounded-xl bg-white px-6 text-base font-semibold {{ $skin['btn'] }} active:bg-gray-100">
+                Done
+            </button>
+        </div>
+    @endif
 </div>
 
 @script
