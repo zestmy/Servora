@@ -299,7 +299,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Kitchen reports
     Route::get('/reports/production-history', \App\Livewire\Reports\Kitchen\ProductionHistory::class)->name('reports.production-history')->middleware('can:reports.view');
     Route::get('/reports/yield-analysis', \App\Livewire\Reports\Kitchen\YieldAnalysis::class)->name('reports.yield-analysis')->middleware('can:reports.view');
-    Route::get('/settings', SettingsIndex::class)->name('settings.index')->middleware('can:settings.view');
+    // No settings.view gate: the index is a list of links, every tile carries
+    // the permission its own destination requires, and each of those routes
+    // keeps its own middleware. Gating the whole page instead hid a module's
+    // settings from the person who administers that module.
+    Route::get('/settings', SettingsIndex::class)->name('settings.index');
     Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:purchasing.view');
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:ingredients.view');
     Route::get('/settings/recipe-categories', SettingsRecipeCategories::class)->name('settings.recipe-categories')->middleware('can:recipes.view');

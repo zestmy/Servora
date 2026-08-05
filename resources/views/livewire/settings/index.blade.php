@@ -33,8 +33,16 @@
 
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-            <h2 class="page-title">Settings</h2>
-            <p class="text-xs text-gray-600 mt-1">Grouped by module.</p>
+            @if ($focused)
+                <p class="text-xs text-gray-600">
+                    <a href="{{ route('settings.index') }}" class="text-brand-600 hover:underline">Settings</a>
+                    <span class="text-gray-400">/</span> {{ $focused['label'] }}
+                </p>
+                <h2 class="page-title mt-1">{{ $focused['label'] }}</h2>
+            @else
+                <h2 class="page-title">Settings</h2>
+                <p class="text-xs text-gray-600 mt-1">Grouped by module.</p>
+            @endif
         </div>
 
         <div class="relative w-full sm:w-72">
@@ -45,6 +53,27 @@
                    class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500" />
         </div>
     </div>
+
+    {{-- Jump between modules without going back to the index first. Only worth
+         showing when there is more than one to jump between. --}}
+    @if (count($allGroups) > 1)
+        <div class="flex flex-wrap items-center gap-1.5 mb-6">
+            <a href="{{ route('settings.index') }}"
+               class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                      {{ $focused ? 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' : 'bg-brand-600 text-white border-brand-600' }}">
+                All
+            </a>
+            @foreach ($allGroups as $g)
+                <a href="{{ route('settings.index', ['module' => $g['slug']]) }}"
+                   class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
+                          {{ $focused && $focused['slug'] === $g['slug']
+                              ? 'bg-brand-600 text-white border-brand-600'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
+                    {{ $g['label'] }}
+                </a>
+            @endforeach
+        </div>
+    @endif
 
     @forelse ($groups as $group)
         @php $groupHaystacks = collect($group['tiles'])->map(fn ($t) => $haystackFor($t, $group))->values()->all(); @endphp

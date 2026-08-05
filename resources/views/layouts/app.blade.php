@@ -176,6 +176,12 @@
                 $canSee = function($item) use ($authUser) {
                     if (!empty($item['capability']) && !$authUser->hasCapability($item['capability'])) return false;
                     if (($item['permission'] ?? null) !== null && !$authUser->hasPermissionTo($item['permission'])) return false;
+                    // 'anyPermission': shown when the user holds ANY of them.
+                    // The per-module Settings links need this — a module's
+                    // settings are worth offering to whoever can open any one
+                    // of the screens inside them, not only to settings.view.
+                    if (!empty($item['anyPermission'])
+                        && !collect($item['anyPermission'])->contains(fn ($p) => $authUser->can($p))) return false;
                     if (!empty($item['feature']) && $authUser->company) {
                         if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $item['feature'])) return false;
                     }
@@ -210,6 +216,8 @@
                             ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.view'],
                             ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.view'],
                             ['route' => 'settings.price-alerts',    'label' => 'Price Alerts',       'permission' => 'purchasing.view'],
+                            ['route' => 'settings.index', 'query' => 'module=procurement', 'label' => 'Procurement Settings',
+                             'anyPermission' => ['settings.view']],
                         ],
                     ],
                     [
@@ -224,6 +232,8 @@
                             ['route' => 'inventory.index',            'label' => 'Stocks Management',     'permission' => 'inventory.view'],
                             ['route' => 'settings.par-levels',        'label' => 'Par Levels',       'permission' => 'inventory.view'],
                             ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.view'],
+                            ['route' => 'settings.index', 'query' => 'module=kitchen-production', 'label' => 'Kitchen Settings',
+                             'anyPermission' => ['settings.view']],
                         ],
                     ],
                     [
@@ -249,20 +259,35 @@
                     ],
                     [
                         'label' => 'HR',
+                        // Sub-grouped by what the screen is FOR, so eleven items
+                        // stop reading as one list. Order matters: items are
+                        // rendered in sequence and the caption is emitted when
+                        // the section changes, so each section must be contiguous.
                         'items' => [
-                            ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view'],
-                            ['route' => 'hr.staff-pins',           'label' => 'Staff PINs',      'permission' => 'staff.pins'],
-                            ['route' => 'hr.duty-roster',          'label' => 'Duty Roster'], // Viewable by all users
-                            ['route' => 'hr.shifts',               'label' => 'Shifts',          'permission' => 'roster.settings'],
-                            ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance'],
-                            ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock'],
-                            ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims'],
-                            ['route' => 'hr.compensation',         'label' => 'Compensation',    'permission' => 'hr.compensation'],
-                            ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view'],
-                            ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view'],
-                            ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view'],
-                            // Clock-In Settings lives under Settings > HR & People
-                            // with the other HR configuration screens.
+                            ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view',             'section' => 'People'],
+                            ['route' => 'hr.staff-pins',           'label' => 'Staff PINs',      'permission' => 'staff.pins',          'section' => 'People'],
+
+                            ['route' => 'hr.duty-roster',          'label' => 'Duty Roster',                                            'section' => 'Scheduling'], // Viewable by all users
+                            ['route' => 'hr.shifts',               'label' => 'Shifts',          'permission' => 'roster.settings',     'section' => 'Scheduling'],
+
+                            ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance',     'section' => 'Time & Attendance'],
+                            ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock',            'section' => 'Time & Attendance'],
+                            ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims',           'section' => 'Time & Attendance'],
+
+                            ['route' => 'hr.compensation',         'label' => 'Compensation',    'permission' => 'hr.compensation',     'section' => 'Pay'],
+                            ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view',             'section' => 'Pay'],
+
+                            ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view',   'section' => 'Records & Training'],
+                            ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view',             'section' => 'Records & Training'],
+
+                            // Straight to this module's own settings — including
+                            // Clock-In Settings, which moved there. Offered to
+                            // anyone who can open any of them, not only to
+                            // settings.view, or the person who administers pay
+                            // would have no way in.
+                            ['route' => 'settings.index', 'query' => 'module=hr-people', 'label' => 'HR Settings',
+                             'anyPermission' => ['settings.view', 'hr.compensation', 'hr.documents.manage', 'hr.clock.manage'],
+                             'section' => 'Configure'],
                         ],
                     ],
                     [
@@ -272,12 +297,17 @@
                             ['route' => 'analytics.index', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
                             ['route' => 'settings.calendar-events', 'label' => 'Calendar Events', 'permission' => 'reports.view'],
                             ['route' => 'audit-logs.index', 'label' => 'Audit Logs', 'permission' => 'audit.view'],
+                            ['route' => 'settings.index', 'query' => 'module=reporting', 'label' => 'Reporting Settings',
+                             'anyPermission' => ['reports.view']],
                         ],
                     ],
                     [
                         'label' => 'Settings',
                         'items' => [
-                            ['route' => 'settings.index',            'label' => 'General',          'permission' => 'settings.view'],
+                            // No permission: the page shows only the modules the
+                            // user actually administers, and shows an empty state
+                            // to anyone who administers none.
+                            ['route' => 'settings.index',            'label' => 'All Settings'],
                             ['route' => 'billing.index',             'label' => 'Billing',          'permission' => null, 'capability' => 'can_manage_users'],
                             ['route' => 'referral.dashboard',        'label' => 'Refer & Earn',     'permission' => null],
                         ],
@@ -361,7 +391,20 @@
                                 <svg :class="activeGroup === '{{ $groupSlug }}' && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
                             <div x-show="activeGroup === '{{ $groupSlug }}'">
+                                {{-- A group may sub-divide its items with an optional
+                                     'section' key. The caption is emitted at the first
+                                     VISIBLE item of each section, so a section whose
+                                     items are all hidden by permission never leaves a
+                                     caption behind. Groups without the key are
+                                     untouched. --}}
+                                @php $lastSection = null; @endphp
                                 @foreach ($visibleItems as $item)
+                                    @if (! empty($item['section']) && $item['section'] !== $lastSection)
+                                        @php $lastSection = $item['section']; @endphp
+                                        <p class="px-4 pt-3 pb-1 ml-1 text-[9px] uppercase tracking-widest text-gray-500 font-semibold">
+                                            {{ $item['section'] }}
+                                        </p>
+                                    @endif
                                     @if (!empty($item['comingSoon']))
                                         <span class="block rounded-lg text-sm font-medium px-4 py-1.5 ml-1 text-gray-400 cursor-default flex items-center justify-between">
                                             {{ $item['label'] }}

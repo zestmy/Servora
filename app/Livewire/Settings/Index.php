@@ -31,6 +31,10 @@ use Livewire\Component;
  */
 class Index extends Component
 {
+    /** Show one module only. Slug of a group label, from ?module= . */
+    #[\Livewire\Attributes\Url(as: 'module', except: '')]
+    public string $module = '';
+
     public function render()
     {
         $user              = Auth::user();
@@ -38,13 +42,42 @@ class Index extends Component
         $isBusinessLevel   = $user->hasCapability('can_manage_users');
         $hasSettingsAccess = $user->hasPermissionTo('settings.view');
 
-        $groups = $isSystemLevel
-            ? $this->systemGroups($user)
-            : $this->companyGroups($user, $isBusinessLevel, $hasSettingsAccess);
+        $groups = $this->filter(
+            $isSystemLevel
+                ? $this->systemGroups($user)
+                : $this->companyGroups($user, $isBusinessLevel, $hasSettingsAccess),
+            $user
+        );
+
+        // Slugs are computed from the labels so a group cannot have a link
+        // pointing at a name it no longer has.
+        $groups = array_map(
+            fn (array $g) => $g + ['slug' => \Illuminate\Support\Str::slug($g['label'])],
+            $groups
+        );
+
+        $all      = $groups;
+        $focused  = null;
+
+        if ($this->module !== '') {
+            $match = collect($groups)->firstWhere('slug', $this->module);
+            // An unknown or unpermitted module falls back to everything rather
+            // than to an empty page that looks broken.
+            if ($match) {
+                $focused = $match;
+                $groups  = [$match];
+            } else {
+                $this->module = '';
+            }
+        }
 
         return view('livewire.settings.index', [
-            'groups' => $this->filter($groups, $user),
-        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Settings']);
+            'groups'     => $groups,
+            'allGroups'  => $all,
+            'focused'    => $focused,
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), [
+            'title' => $focused ? 'Settings — ' . $focused['label'] : 'Settings',
+        ]);
     }
 
     /**
@@ -112,10 +145,11 @@ class Index extends Component
             ];
         }
 
-        if (! $hasSettingsAccess) {
-            return $groups;
-        }
-
+        // No early return on settings.view any more. Every tile below carries
+        // the permission its own route requires, so the page can be opened by
+        // anyone who administers ANY module and they see exactly their part of
+        // it — which is what makes the per-module Settings links in the sidebar
+        // work. A user who administers nothing gets the empty state.
         $groups[] = [
             'label' => 'Organisation',
             'note'  => 'Branches, how they group together, and what applies across them.',
@@ -124,6 +158,7 @@ class Index extends Component
                     'label' => 'Branches',
                     'note'  => 'Manage outlet locations',
                     'route' => 'settings.outlets',
+                    'can'   => 'settings.view',
                     'icon'  => 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z',
                     'count' => [$user->company_id ? Outlet::where('company_id', $user->company_id)->count() : 0, 'branch'],
                 ],
@@ -131,6 +166,7 @@ class Index extends Component
                     'label' => 'Outlet Groups',
                     'note'  => 'Group outlets to tag recipes in bulk',
                     'route' => 'settings.outlet-groups',
+                    'can'   => 'settings.view',
                     'icon'  => 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6 4a3 3 0 100-6 3 3 0 000 6zM7 14a3 3 0 100-6 3 3 0 000 6z',
                     'count' => [OutletGroup::count(), 'group'],
                 ],
@@ -138,6 +174,7 @@ class Index extends Component
                     'label' => 'Tax Rates',
                     'note'  => 'Configure tax rates per country (SST, GST, VAT)',
                     'route' => 'settings.tax-rates',
+                    'can'   => 'settings.view',
                     'icon'  => 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
                     'count' => [TaxRate::count(), 'rate'],
                 ],
@@ -152,12 +189,14 @@ class Index extends Component
                     'label' => 'Sections',
                     'note'  => 'Employee groups (FOH, BOH, …) for OT claims and duty roster',
                     'route' => 'settings.sections',
+                    'can'   => 'settings.view',
                     'icon'  => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
                 ],
                 [
                     'label' => 'Certifications & Training',
                     'note'  => 'Courses you record against staff, with expiry reminders',
                     'route' => 'settings.certifications',
+                    'can'   => 'settings.view',
                     'icon'  => 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',
                 ],
                 [
@@ -178,6 +217,7 @@ class Index extends Component
                     'label' => 'OT Approvers',
                     'note'  => 'Assign who approves overtime claims per outlet',
                     'route' => 'settings.ot-approvers',
+                    'can'   => 'settings.view',
                     'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
                 ],
                 [
@@ -206,6 +246,7 @@ class Index extends Component
                     'label' => 'PO Approvers',
                     'note'  => 'Assign who approves purchase orders per outlet',
                     'route' => 'settings.po-approvers',
+                    'can'   => 'settings.view',
                     'icon'  => 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
                     'count' => [PoApprover::count(), 'assignment'],
                 ],
@@ -213,6 +254,7 @@ class Index extends Component
                     'label' => 'Departments',
                     'note'  => 'Ordering departments for purchase orders',
                     'route' => 'settings.departments',
+                    'can'   => 'settings.view',
                     'icon'  => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
                     'count' => [Department::count(), 'department'],
                 ],
@@ -220,6 +262,7 @@ class Index extends Component
                     'label' => 'Central Purchasing',
                     'note'  => 'Manage CPU units and assigned staff',
                     'route' => 'settings.cpu-management',
+                    'can'   => 'settings.view',
                     'icon'  => 'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z',
                     'when'  => $user->company?->ordering_mode === 'cpu',
                     'count' => [CentralPurchasingUnit::count(), 'unit'],
@@ -235,6 +278,7 @@ class Index extends Component
                     'label' => 'Central Kitchen',
                     'note'  => 'Manage kitchens and assign production staff',
                     'route' => 'settings.kitchen-management',
+                    'can'   => 'settings.view',
                     'icon'  => 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
                     'count' => [CentralKitchen::count(), 'kitchen'],
                 ],
