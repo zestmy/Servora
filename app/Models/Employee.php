@@ -14,7 +14,7 @@ class Employee extends Model
         'company_id', 'outlet_id', 'section_id', 'staff_id',
         'name', 'designation',
         'email', 'phone', 'is_active',
-        'join_date', 'food_handler_certified', 'food_handler_cert_no', 'food_handler_expired_on',
+        'join_date', 'date_of_birth', 'food_handler_certified', 'food_handler_cert_no', 'food_handler_expired_on',
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
@@ -157,6 +157,7 @@ class Employee extends Model
     protected $casts = [
         'is_active'              => 'boolean',
         'join_date'              => 'date',
+        'date_of_birth'          => 'date',
         'employment_status_date' => 'date',
         'food_handler_certified' => 'boolean',
         'food_handler_expired_on' => 'date',

@@ -182,11 +182,26 @@
                                 <x-input-error :messages="$errors->get('sort_order')" class="mt-1" />
                             </div>
                         </div>
+                        {{-- Not every allowance is "wages": a travelling allowance is
+                             commonly outside EPF and SOCSO while still being taxable. --}}
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="text-xs font-semibold text-gray-600 mb-2">Counts towards</p>
+                            <div class="flex flex-wrap gap-x-5 gap-y-2">
+                                <label class="inline-flex items-center gap-2">
+                                    <input type="checkbox" wire:model="is_taxable" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                    <span class="text-sm text-gray-700">Taxable (PCB)</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2">
+                                    <input type="checkbox" wire:model="epf_applicable" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                    <span class="text-sm text-gray-700">EPF wages</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2">
+                                    <input type="checkbox" wire:model="socso_applicable" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                    <span class="text-sm text-gray-700">SOCSO / EIS wages</span>
+                                </label>
+                            </div>
+                        </div>
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" wire:model="is_taxable" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Taxable</span>
-                        </label>
-                        <label class="inline-flex items-center gap-2 ml-4">
                             <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                             <span class="text-sm text-gray-700">Active</span>
                         </label>

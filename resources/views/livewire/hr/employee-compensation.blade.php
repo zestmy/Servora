@@ -98,6 +98,85 @@
         </div>
     </div>
 
+    {{-- This month, end to end --}}
+    @if ($thisMonth)
+        <div class="card overflow-hidden mt-4">
+            <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-gray-700">{{ $monthLabel }} — estimated pay</h3>
+                <div class="flex items-center gap-2">
+                    @if ($statutory->ratesUnconfirmed())
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-700">
+                            statutory rates unconfirmed
+                        </span>
+                    @endif
+                    <button wire:click="$set('showStatutory', true)" class="btn-secondary">Statutory details</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+                <div class="p-4">
+                    <p class="text-xs font-medium uppercase tracking-wider text-gray-500 mb-2">Earnings</p>
+                    <dl class="space-y-1 text-sm">
+                        <div class="flex justify-between"><dt class="text-gray-600">Basic</dt><dd class="tabular-nums text-gray-800">{{ number_format($thisMonth['basic'], 2) }}</dd></div>
+                        @foreach ($thisMonth['components']->where('kind', 'allowance') as $c)
+                            <div class="flex justify-between"><dt class="text-gray-600 pl-3">{{ $c['name'] }}</dt><dd class="tabular-nums text-gray-800">{{ number_format($c['amount'], 2) }}</dd></div>
+                        @endforeach
+                        <div class="flex justify-between"><dt class="text-gray-600">Overtime ({{ number_format($thisMonth['ot_hours'], 2) }} hrs)</dt><dd class="tabular-nums text-gray-800">{{ number_format($thisMonth['ot_amount'], 2) }}</dd></div>
+                        @foreach ($thisMonth['components']->where('kind', 'deduction') as $c)
+                            <div class="flex justify-between"><dt class="text-danger-600 pl-3">{{ $c['name'] }}</dt><dd class="tabular-nums text-danger-600">{{ number_format($c['amount'], 2) }}</dd></div>
+                        @endforeach
+                        <div class="flex justify-between pt-2 mt-2 border-t border-gray-100 font-semibold">
+                            <dt class="text-gray-700">Gross</dt><dd class="tabular-nums text-gray-900">{{ number_format($thisMonth['gross'], 2) }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="p-4">
+                    <p class="text-xs font-medium uppercase tracking-wider text-gray-500 mb-2">Statutory (employee)</p>
+                    @php $st = $thisMonth['statutory']; @endphp
+                    <dl class="space-y-1 text-sm">
+                        <div class="flex justify-between"><dt class="text-gray-600">EPF</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['epf_employee'], 2) }}</dd></div>
+                        <div class="flex justify-between"><dt class="text-gray-600">SOCSO</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['socso_employee'], 2) }}</dd></div>
+                        <div class="flex justify-between"><dt class="text-gray-600">EIS</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['eis_employee'], 2) }}</dd></div>
+                        <div class="flex justify-between"><dt class="text-gray-600">PCB</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['pcb'], 2) }}</dd></div>
+                        <div class="flex justify-between pt-2 mt-2 border-t border-gray-100 font-semibold">
+                            <dt class="text-gray-700">Net pay</dt><dd class="tabular-nums text-gray-900">{{ number_format($thisMonth['net'], 2) }}</dd>
+                        </div>
+                    </dl>
+
+                    <p class="text-xs font-medium uppercase tracking-wider text-gray-500 mt-4 mb-2">Employer contributions</p>
+                    <dl class="space-y-1 text-sm">
+                        <div class="flex justify-between"><dt class="text-gray-600">EPF</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['epf_employer'], 2) }}</dd></div>
+                        <div class="flex justify-between"><dt class="text-gray-600">SOCSO</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['socso_employer'], 2) }}</dd></div>
+                        <div class="flex justify-between"><dt class="text-gray-600">EIS</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['eis_employer'], 2) }}</dd></div>
+                        <div class="flex justify-between pt-2 mt-2 border-t border-gray-100 font-semibold">
+                            <dt class="text-gray-700">Total cost to company</dt><dd class="tabular-nums text-gray-900">{{ number_format($thisMonth['employer_cost'], 2) }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            @if (! empty($st['notes']))
+                {{-- Said on the figure itself, not only in the settings screen. --}}
+                <div class="px-4 py-3 bg-warning-50 border-t border-warning-200">
+                    <ul class="text-xs text-warning-800 space-y-0.5 list-disc list-inside">
+                        @foreach ($st['notes'] as $note)
+                            <li>{{ $note }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <div class="px-4 py-3 border-t border-gray-100 text-xs text-gray-600">
+                EPF wages {{ number_format($thisMonth['epf_wages'], 2) }} ·
+                SOCSO/EIS wages {{ number_format($thisMonth['socso_wages'], 2) }} ·
+                taxable {{ number_format($thisMonth['taxable_pay'], 2) }}.
+                Each allowance decides what it counts towards, on
+                <a href="{{ route('settings.pay-components') }}" class="text-brand-600 hover:underline">Pay Components</a>.
+            </div>
+        </div>
+    @endif
+
     {{-- Salary history --}}
     <div class="card overflow-hidden mt-4">
         <div class="px-4 py-3 border-b border-gray-100">
@@ -207,6 +286,106 @@
                     </div>
                     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" wire:click="$set('showAssign', false)" class="btn-secondary">Cancel</button>
+                        <button type="submit" class="btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @endteleport
+    @endif
+
+    {{-- Statutory profile modal --}}
+    @if ($showStatutory)
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" wire:click.self="$set('showStatutory', false)">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 my-8">
+                <h3 class="text-base font-semibold text-gray-800 mb-1">Statutory details</h3>
+                <p class="text-xs text-gray-600 mb-4">
+                    Scheme numbers, and the inputs no company-wide setting can answer.
+                    Rates themselves live on <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
+                </p>
+                <form wire:submit.prevent="saveStatutoryProfile" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Date of birth</label>
+                            <input type="date" wire:model="s_date_of_birth" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <p class="mt-1 text-[11px] text-gray-500">EPF and SOCSO rates change at 60.</p>
+                            <x-input-error :messages="$errors->get('s_date_of_birth')" class="mt-1" />
+                        </div>
+                        <div class="flex items-end pb-1">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" wire:model="s_is_malaysian" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                <span class="text-sm text-gray-700">Malaysian citizen / PR</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">EPF no.</label>
+                            <input type="text" wire:model="s_epf_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('s_epf_number')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">SOCSO no.</label>
+                            <input type="text" wire:model="s_socso_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('s_socso_number')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Tax no.</label>
+                            <input type="text" wire:model="s_tax_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('s_tax_number')" class="mt-1" />
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs font-semibold text-gray-600 mb-2">Contributes to</p>
+                        <div class="flex flex-wrap gap-x-5 gap-y-2">
+                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_epf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EPF</span></label>
+                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_socso" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">SOCSO</span></label>
+                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_eis" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EIS</span></label>
+                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_pcb" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">PCB</span></label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="text-xs font-semibold text-gray-600">EPF employee rate override (%)</label>
+                            <input type="number" step="0.01" wire:model="s_epf_override" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="statutory rate" />
+                            <p class="mt-1 text-[11px] text-gray-500">For a voluntary higher rate. It never lowers the statutory one.</p>
+                            <x-input-error :messages="$errors->get('s_epf_override')" class="mt-1" />
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                        <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Category</label>
+                            <select wire:model="s_pcb_category" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                @foreach (\App\Models\StatutorySetting::PCB_CATEGORIES as $v => $l)
+                                    <option value="{{ $v }}">{{ $l }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('s_pcb_category')" class="mt-1" />
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Children</label>
+                                <input type="number" min="0" wire:model="s_children" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('s_children')" class="mt-1" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Monthly zakat</label>
+                                <input type="number" step="0.01" min="0" wire:model="s_zakat" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('s_zakat')" class="mt-1" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-gray-600">Other relief / yr</label>
+                                <input type="number" step="0.01" min="0" wire:model="s_other_relief" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                                <x-input-error :messages="$errors->get('s_other_relief')" class="mt-1" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                        <button type="button" wire:click="$set('showStatutory', false)" class="btn-secondary">Cancel</button>
                         <button type="submit" class="btn-primary">Save</button>
                     </div>
                 </form>

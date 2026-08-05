@@ -232,6 +232,20 @@
                 </a>
                 @endcan
 
+                {{-- Statutory rates (EPF / SOCSO / EIS / PCB) --}}
+                @can('hr.compensation')
+                <a href="{{ route('settings.statutory') }}"
+                   class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
+                    <div class="flex-shrink-0 w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-brand-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800">Statutory Rates</p>
+                        <p class="text-sm text-gray-500 mt-0.5">EPF, SOCSO, EIS and PCB — verify before use</p>
+                    </div>
+                </a>
+                @endcan
+
                 {{-- Outlet Groups --}}
                 <a href="{{ route('settings.outlet-groups') }}"
                    class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">

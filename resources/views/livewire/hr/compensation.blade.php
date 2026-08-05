@@ -26,8 +26,19 @@
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
             </button>
             <a href="{{ route('settings.pay-components') }}" class="btn-secondary">Pay components</a>
+            <a href="{{ route('settings.statutory') }}" class="btn-secondary">Statutory</a>
         </div>
     </div>
+
+    @if ($summary['statutory']->ratesUnconfirmed())
+        {{-- Loud on purpose: nobody should file a return off a seeded guess. --}}
+        <div class="mb-4 px-4 py-3 bg-warning-50 border border-warning-200 text-warning-800 text-sm rounded-lg">
+            <strong>Statutory rates have not been confirmed.</strong>
+            EPF, SOCSO, EIS and PCB below are calculated from seeded defaults that nobody has checked yet.
+            <a href="{{ route('settings.statutory') }}" class="underline font-medium">Review and confirm them</a>
+            before using these figures for payroll or a statutory return.
+        </div>
+    @endif
 
     {{-- Salary changes waiting for sign-off --}}
     @if ($pending->isNotEmpty())
@@ -110,6 +121,13 @@
                     <th class="px-4 py-3 text-right">OT hrs</th>
                     <th class="px-4 py-3 text-right">OT pay</th>
                     <th class="px-4 py-3 text-right">Gross</th>
+                    @if ($summary['statutory']->anyEnabled())
+                        <th class="px-4 py-3 text-right">EPF</th>
+                        <th class="px-4 py-3 text-right">SOCSO</th>
+                        <th class="px-4 py-3 text-right">EIS</th>
+                        <th class="px-4 py-3 text-right">PCB</th>
+                        <th class="px-4 py-3 text-right">Net</th>
+                    @endif
                     <th class="px-4 py-3 text-center w-24">Manage</th>
                 </tr>
             </thead>
@@ -144,13 +162,21 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums font-semibold text-gray-900">{{ number_format($row['gross'], 2) }}</td>
+                        @if ($summary['statutory']->anyEnabled())
+                            @php $st = $row['statutory']; @endphp
+                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['epf_employee'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['socso_employee'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['eis_employee'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['pcb'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums font-semibold text-gray-900">{{ number_format($row['net'], 2) }}</td>
+                        @endif
                         <td class="px-4 py-3 text-center">
                             <a href="{{ route('hr.compensation.employee', $row['employee_id']) }}"
                                class="px-2 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100">Open</a>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="px-4 py-8 text-center text-gray-600">No employees in this view.</td></tr>
+                    <tr><td colspan="{{ $summary['statutory']->anyEnabled() ? 14 : 9 }}" class="px-4 py-8 text-center text-gray-600">No employees in this view.</td></tr>
                 @endforelse
             </tbody>
             @if ($summary['rows']->isNotEmpty())
@@ -163,6 +189,13 @@
                         <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['ot_hours'], 2) }}</td>
                         <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['ot_amount'], 2) }}</td>
                         <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['gross'], 2) }}</td>
+                        @if ($summary['statutory']->anyEnabled())
+                            <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['epf_employee'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['socso_employee'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['eis_employee'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['pcb'], 2) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['net'], 2) }}</td>
+                        @endif
                         <td></td>
                     </tr>
                 </tfoot>

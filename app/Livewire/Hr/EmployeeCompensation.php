@@ -5,8 +5,11 @@ namespace App\Livewire\Hr;
 use App\Models\CompensationSetting;
 use App\Models\Employee;
 use App\Models\EmployeePayComponent;
+use App\Models\EmployeeStatutoryProfile;
 use App\Models\PayComponent;
 use App\Models\SalaryRevision;
+use App\Models\StatutorySetting;
+use App\Services\Hr\CompensationSummary;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -38,6 +41,23 @@ class EmployeeCompensation extends Component
     public string $r_effective_on = '';
     public string $r_reason       = '';
 
+    // Statutory profile
+    public bool   $showStatutory  = false;
+    public string $s_epf_number   = '';
+    public string $s_socso_number = '';
+    public string $s_tax_number   = '';
+    public bool   $s_is_malaysian = true;
+    public bool   $s_epf          = true;
+    public bool   $s_socso        = true;
+    public bool   $s_eis          = true;
+    public bool   $s_pcb          = true;
+    public string $s_epf_override = '';
+    public string $s_pcb_category = 'single';
+    public string $s_children     = '0';
+    public string $s_zakat        = '0';
+    public string $s_other_relief = '0';
+    public string $s_date_of_birth = '';
+
     public function mount(int $id): void
     {
         $employee = Employee::findOrFail($id);
@@ -47,6 +67,70 @@ class EmployeeCompensation extends Component
         }
 
         $this->employee = $employee;
+        $this->loadStatutoryProfile();
+    }
+
+    private function loadStatutoryProfile(): void
+    {
+        $p = EmployeeStatutoryProfile::forEmployee($this->employee);
+
+        $this->s_epf_number    = $p->epf_number ?? '';
+        $this->s_socso_number  = $p->socso_number ?? '';
+        $this->s_tax_number    = $p->income_tax_number ?? '';
+        $this->s_is_malaysian  = (bool) $p->is_malaysian;
+        $this->s_epf           = (bool) $p->epf_enabled;
+        $this->s_socso         = (bool) $p->socso_enabled;
+        $this->s_eis           = (bool) $p->eis_enabled;
+        $this->s_pcb           = (bool) $p->pcb_enabled;
+        $this->s_epf_override  = $p->epf_employee_rate_override !== null ? (string) (float) $p->epf_employee_rate_override : '';
+        $this->s_pcb_category  = $p->pcb_category ?: 'single';
+        $this->s_children      = (string) $p->children;
+        $this->s_zakat         = (string) (float) $p->monthly_zakat;
+        $this->s_other_relief  = (string) (float) $p->annual_other_relief;
+        $this->s_date_of_birth = $this->employee->date_of_birth?->format('Y-m-d') ?? '';
+    }
+
+    public function saveStatutoryProfile(): void
+    {
+        $this->validate([
+            's_epf_number'    => 'nullable|string|max:30',
+            's_socso_number'  => 'nullable|string|max:30',
+            's_tax_number'    => 'nullable|string|max:30',
+            's_epf_override'  => 'nullable|numeric|min:0|max:100',
+            's_pcb_category'  => 'required|in:' . implode(',', array_keys(StatutorySetting::PCB_CATEGORIES)),
+            's_children'      => 'required|integer|min:0|max:50',
+            's_zakat'         => 'required|numeric|min:0|max:1000000',
+            's_other_relief'  => 'required|numeric|min:0|max:1000000',
+            's_date_of_birth' => 'nullable|date|before:today',
+        ]);
+
+        // Date of birth lives on the employee — EPF and SOCSO rates both change
+        // at 60, so it is not statutory-only information.
+        $this->employee->update(['date_of_birth' => $this->s_date_of_birth ?: null]);
+
+        EmployeeStatutoryProfile::updateOrCreate(
+            ['employee_id' => $this->employee->id],
+            [
+                'company_id'        => $this->employee->company_id,
+                'epf_number'        => $this->s_epf_number ?: null,
+                'socso_number'      => $this->s_socso_number ?: null,
+                'income_tax_number' => $this->s_tax_number ?: null,
+                'is_malaysian'      => $this->s_is_malaysian,
+                'epf_enabled'       => $this->s_epf,
+                'socso_enabled'     => $this->s_socso,
+                'eis_enabled'       => $this->s_eis,
+                'pcb_enabled'       => $this->s_pcb,
+                'epf_employee_rate_override' => $this->s_epf_override !== '' ? round((float) $this->s_epf_override, 2) : null,
+                'pcb_category'        => $this->s_pcb_category,
+                'children'            => (int) $this->s_children,
+                'monthly_zakat'       => round((float) $this->s_zakat, 2),
+                'annual_other_relief' => round((float) $this->s_other_relief, 2),
+            ]
+        );
+
+        $this->employee->refresh();
+        $this->showStatutory = false;
+        session()->flash('success', 'Statutory details saved.');
     }
 
     // ── Allowances and deductions ─────────────────────────────────────────
@@ -200,12 +284,23 @@ class EmployeeCompensation extends Component
             ->with(['requester:id,name', 'reviewer:id,name'])
             ->get();
 
+        // This month's figures for this one employee, through exactly the same
+        // service the list uses — a payslip preview that cannot drift from it.
+        $summary = app(CompensationSummary::class)->forMonth(
+            Employee::query()->whereKey($this->employee->id),
+            $this->employee->company_id,
+            now()
+        );
+
         return view('livewire.hr.employee-compensation', [
             'components'  => $components,
             'assignments' => $assignments,
             'revisions'   => $revisions,
             'settings'    => CompensationSetting::forCompany($this->employee->company_id),
             'canApprove'  => SalaryRevision::canApprove(),
+            'statutory'   => StatutorySetting::forCompany($this->employee->company_id),
+            'thisMonth'   => $summary['rows']->first(),
+            'monthLabel'  => $summary['from']->format('F Y'),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Compensation — ' . $this->employee->name]);
     }
 }

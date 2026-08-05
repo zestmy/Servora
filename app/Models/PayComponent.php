@@ -22,22 +22,27 @@ class PayComponent extends Model
 
     protected $fillable = [
         'company_id', 'name', 'description', 'kind', 'calculation',
-        'default_amount', 'is_taxable', 'sort_order', 'is_active',
+        'default_amount', 'is_taxable', 'epf_applicable', 'socso_applicable',
+        'sort_order', 'is_active',
     ];
 
     protected $casts = [
-        'default_amount' => 'decimal:2',
-        'is_taxable'     => 'boolean',
-        'is_active'      => 'boolean',
+        'default_amount'   => 'decimal:2',
+        'is_taxable'       => 'boolean',
+        'epf_applicable'   => 'boolean',
+        'socso_applicable' => 'boolean',
+        'is_active'        => 'boolean',
     ];
 
     /** MySQL does not read column defaults back after an insert. */
     protected $attributes = [
-        'kind'        => 'allowance',
-        'calculation' => 'fixed',
-        'is_taxable'  => true,
-        'sort_order'  => 0,
-        'is_active'   => true,
+        'kind'             => 'allowance',
+        'calculation'      => 'fixed',
+        'is_taxable'       => true,
+        'epf_applicable'   => true,
+        'socso_applicable' => true,
+        'sort_order'       => 0,
+        'is_active'        => true,
     ];
 
     protected static function booted(): void

@@ -25,7 +25,9 @@ class PayComponents extends Component
     public string $kind           = 'allowance';
     public string $calculation    = 'fixed';
     public string $default_amount = '';
-    public bool   $is_taxable     = true;
+    public bool   $is_taxable       = true;
+    public bool   $epf_applicable   = true;
+    public bool   $socso_applicable = true;
     public string $sort_order     = '0';
     public bool   $is_active      = true;
 
@@ -85,7 +87,9 @@ class PayComponents extends Component
         $this->kind           = $c->kind;
         $this->calculation    = $c->calculation;
         $this->default_amount = $c->default_amount !== null ? (string) (float) $c->default_amount : '';
-        $this->is_taxable     = $c->is_taxable;
+        $this->is_taxable       = $c->is_taxable;
+        $this->epf_applicable   = (bool) $c->epf_applicable;
+        $this->socso_applicable = (bool) $c->socso_applicable;
         $this->sort_order     = (string) $c->sort_order;
         $this->is_active      = $c->is_active;
         $this->showModal      = true;
@@ -101,7 +105,9 @@ class PayComponents extends Component
             'kind'           => $this->kind,
             'calculation'    => $this->calculation,
             'default_amount' => $this->default_amount !== '' ? round((float) $this->default_amount, 2) : null,
-            'is_taxable'     => $this->is_taxable,
+            'is_taxable'       => $this->is_taxable,
+            'epf_applicable'   => $this->epf_applicable,
+            'socso_applicable' => $this->socso_applicable,
             'sort_order'     => (int) $this->sort_order,
             'is_active'      => $this->is_active,
         ];
@@ -190,7 +196,9 @@ class PayComponents extends Component
         $this->kind           = 'allowance';
         $this->calculation    = 'fixed';
         $this->default_amount = '';
-        $this->is_taxable     = true;
+        $this->is_taxable       = true;
+        $this->epf_applicable   = true;
+        $this->socso_applicable = true;
         $this->sort_order     = '0';
         $this->is_active      = true;
         $this->resetValidation();

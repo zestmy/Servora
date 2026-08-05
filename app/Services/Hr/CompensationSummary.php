@@ -6,7 +6,9 @@ use App\Models\CompensationSetting;
 use App\Models\Employee;
 use App\Models\EmployeePayComponent;
 use App\Models\OvertimeClaim;
+use App\Models\StatutorySetting;
 use App\Scopes\CompanyScope;
+use App\Services\Payroll\StatutoryCalculator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -29,6 +31,15 @@ use Illuminate\Support\Collection;
  */
 class CompensationSummary
 {
+    /** Used when no statutory contribution is switched on, so rows keep one shape. */
+    private const NO_STATUTORY = [
+        'epf_employee' => 0.0, 'epf_employer' => 0.0,
+        'socso_employee' => 0.0, 'socso_employer' => 0.0,
+        'eis_employee' => 0.0, 'eis_employer' => 0.0,
+        'pcb' => 0.0, 'employee_total' => 0.0, 'employer_total' => 0.0,
+        'notes' => [],
+    ];
+
     /**
      * @param  Builder  $employees  already scoped to the outlets wanted
      * @return array{
@@ -44,6 +55,13 @@ class CompensationSummary
         $to   = $month->copy()->endOfMonth();
 
         $settings = CompensationSetting::forCompany($companyId);
+
+        // Built once for the whole run: the rates are company-wide, only the
+        // employee's own profile varies.
+        $statutorySettings = StatutorySetting::forCompany($companyId);
+        $calculator = $statutorySettings->anyEnabled()
+            ? new StatutoryCalculator($statutorySettings)
+            : null;
 
         // Staff who were employed for any part of the month: a leaver is still
         // owed for the days they worked, which is the point of the period.
@@ -71,19 +89,23 @@ class CompensationSummary
             ->get()
             ->groupBy('employee_id');
 
-        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings) {
+        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to) {
             $basic = $employee->basic_salary !== null ? (float) $employee->basic_salary : 0.0;
 
             $components = ($assignments[$employee->id] ?? collect())
                 ->filter(fn ($a) => $a->component !== null)
                 ->map(fn ($a) => [
-                    'name'   => $a->component->name,
-                    'kind'   => $a->component->kind,
-                    'amount' => $a->component->resolveAmount((float) $a->amount, $basic),
+                    'name'     => $a->component->name,
+                    'kind'     => $a->component->kind,
+                    'amount'   => $a->component->resolveAmount((float) $a->amount, $basic),
+                    'taxable'  => (bool) $a->component->is_taxable,
+                    'epf'      => (bool) $a->component->epf_applicable,
+                    'socso'    => (bool) $a->component->socso_applicable,
                 ])
                 ->values();
 
-            $allowances = round($components->where('kind', 'allowance')->sum('amount'), 2);
+            $allowancesOnly = $components->where('kind', 'allowance');
+            $allowances = round($allowancesOnly->sum('amount'), 2);
             $deductions = round(abs($components->where('kind', 'deduction')->sum('amount')), 2);
 
             $rate    = $settings->hourlyRate($employee->basic_salary !== null ? (float) $employee->basic_salary : null, $employee->pay_type);
@@ -97,6 +119,18 @@ class CompensationSummary
                 $otByType[$row->ot_type] = ['hours' => $hours, 'amount' => $amount];
                 $otTotal += $amount ?? 0;
             }
+
+            // Statutory wages are earnings-based: a uniform deduction does not
+            // reduce what EPF is owed on. Each allowance says what it counts
+            // towards, because a travelling allowance is commonly outside EPF
+            // and SOCSO wages while still being part of gross pay.
+            $epfWages     = round($basic + $allowancesOnly->where('epf', true)->sum('amount') + $otTotal, 2);
+            $socsoWages   = round($basic + $allowancesOnly->where('socso', true)->sum('amount') + $otTotal, 2);
+            $taxablePay   = round($basic + $allowancesOnly->where('taxable', true)->sum('amount') + $otTotal, 2);
+            $gross        = round($basic + $allowances + $otTotal, 2);
+
+            $statutory = $calculator?->for($employee, $epfWages, $socsoWages, $taxablePay, $to)
+                ?? self::NO_STATUTORY;
 
             return [
                 'employee_id' => $employee->id,
@@ -116,7 +150,15 @@ class CompensationSummary
                 // Salary is unknown, so the OT figure would be a guess. Flagged
                 // rather than silently reported as zero.
                 'ot_unrated'  => $rate === null && $otRows->isNotEmpty(),
-                'gross'       => round($basic + $allowances + $otTotal - $deductions, 2),
+                'epf_wages'   => $epfWages,
+                'socso_wages' => $socsoWages,
+                'taxable_pay' => $taxablePay,
+                'statutory'   => $statutory,
+                // Gross is what is earned; net is what reaches the bank after
+                // both the company's own deductions and the statutory ones.
+                'gross'       => round($gross - $deductions, 2),
+                'net'         => round($gross - $deductions - $statutory['employee_total'], 2),
+                'employer_cost' => round($gross - $deductions + $statutory['employer_total'], 2),
             ];
         });
 
@@ -129,10 +171,22 @@ class CompensationSummary
                 'ot_amount'  => round($rows->sum('ot_amount'), 2),
                 'ot_hours'   => round($rows->sum('ot_hours'), 2),
                 'gross'      => round($rows->sum('gross'), 2),
+                'epf_employee'   => round($rows->sum(fn ($r) => $r['statutory']['epf_employee']), 2),
+                'epf_employer'   => round($rows->sum(fn ($r) => $r['statutory']['epf_employer']), 2),
+                'socso_employee' => round($rows->sum(fn ($r) => $r['statutory']['socso_employee']), 2),
+                'socso_employer' => round($rows->sum(fn ($r) => $r['statutory']['socso_employer']), 2),
+                'eis_employee'   => round($rows->sum(fn ($r) => $r['statutory']['eis_employee']), 2),
+                'eis_employer'   => round($rows->sum(fn ($r) => $r['statutory']['eis_employer']), 2),
+                'pcb'            => round($rows->sum(fn ($r) => $r['statutory']['pcb']), 2),
+                'statutory_employee' => round($rows->sum(fn ($r) => $r['statutory']['employee_total']), 2),
+                'statutory_employer' => round($rows->sum(fn ($r) => $r['statutory']['employer_total']), 2),
+                'net'           => round($rows->sum('net'), 2),
+                'employer_cost' => round($rows->sum('employer_cost'), 2),
             ],
-            'from'     => $from,
-            'to'       => $to,
-            'settings' => $settings,
+            'from'      => $from,
+            'to'        => $to,
+            'settings'  => $settings,
+            'statutory' => $statutorySettings,
         ];
     }
 }
