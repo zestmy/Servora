@@ -77,7 +77,14 @@
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Food Handler Certificate</p>
-                <p class="text-xs text-gray-500 mt-0.5">Active staff in this view</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Active staff in this view
+                    @if ($foodHandlerStats['not_taken'] > 0)
+                        · <button wire:click="toggleFoodHandler" class="font-medium text-brand-600 hover:text-brand-800">
+                            {{ $showFoodHandler ? 'Hide' : 'Show' }} who has not taken it
+                        </button>
+                    @endif
+                </p>
             </div>
             <div class="flex items-center gap-6">
                 <div>
@@ -101,6 +108,37 @@
                 {{-- Width is inline, not a Tailwind class: the scanner cannot
                      generate a class built from a runtime value. --}}
                 <div class="h-full bg-success-500 rounded-full" style="width: {{ $fhPct }}%"></div>
+            </div>
+        @endif
+
+        {{-- Who has not taken it. A count says there is a problem; these are
+             the people someone has to book onto a course, so each name links
+             straight to the record where the certificate gets ticked off. --}}
+        @if ($showFoodHandler && $foodHandlerStats['missing']->isNotEmpty())
+            @php $fhMore = $foodHandlerStats['not_taken'] - $foodHandlerStats['missing']->count(); @endphp
+            <div class="mt-3 pt-3 border-t border-gray-100">
+                <p class="text-xs font-medium text-gray-700 mb-2">
+                    Not taken ({{ number_format($foodHandlerStats['not_taken']) }})
+                </p>
+                <div class="flex flex-wrap gap-1.5">
+                    @foreach ($foodHandlerStats['missing'] as $fhEmp)
+                        <a href="{{ route('hr.employees.edit', $fhEmp->id) }}"
+                           wire:key="fh-{{ $fhEmp->id }}"
+                           title="{{ collect([$fhEmp->outlet?->name, $fhEmp->section?->name])->filter()->join(' · ') ?: 'Open employee' }}"
+                           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                                  bg-danger-50 text-danger-700 border border-danger-200 hover:bg-danger-100 transition">
+                            {{ $fhEmp->name }}
+                            @if ($fhEmp->staff_id)
+                                <span class="font-mono text-[10px] text-danger-500">{{ $fhEmp->staff_id }}</span>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+                @if ($fhMore > 0)
+                    <p class="mt-2 text-[11px] text-gray-500">
+                        and {{ number_format($fhMore) }} more — filter by outlet or section to narrow the list.
+                    </p>
+                @endif
             </div>
         @endif
     </div>

@@ -41,7 +41,8 @@ class Employees extends Component
             if ($activeOutletId) $this->outletFilter = (string) $activeOutletId;
         }
 
-        $this->showCompliance = (bool) session('hr.employees.compliance_open', true);
+        $this->showCompliance  = (bool) session('hr.employees.compliance_open', true);
+        $this->showFoodHandler = (bool) session('hr.employees.food_handler_open', true);
     }
 
     /**
@@ -72,6 +73,18 @@ class Employees extends Component
     {
         $this->showCompliance = ! $this->showCompliance;
         session(['hr.employees.compliance_open' => $this->showCompliance]);
+    }
+
+    /** Most uncertified names listed on the card before it says "and N more". */
+    public const FOOD_HANDLER_NAME_LIMIT = 50;
+
+    /** Food handler name list open/closed, remembered per user across visits. */
+    public bool $showFoodHandler = true;
+
+    public function toggleFoodHandler(): void
+    {
+        $this->showFoodHandler = ! $this->showFoodHandler;
+        session(['hr.employees.food_handler_open' => $this->showFoodHandler]);
     }
 
     public function updatingSearch(): void         { $this->resetPage(); }
@@ -677,6 +690,22 @@ class Employees extends Component
             'not_taken' => (int) ($foodHandler->not_taken ?? 0),
         ];
         $foodHandlerStats['total'] = $foodHandlerStats['taken'] + $foodHandlerStats['not_taken'];
+
+        // Who is missing it, in the same order every staff list uses. A count
+        // tells you there is a problem; the names are what someone acts on, so
+        // they load with the card rather than behind a second screen. Capped
+        // at 50 with the shortfall stated — a kitchen where nobody is
+        // certified would otherwise render the entire roster above the table.
+        $foodHandlerStats['missing'] = ($this->showFoodHandler && $foodHandlerStats['not_taken'] > 0)
+            ? (clone $complianceQuery)
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->where('food_handler_certified', false)
+                                     ->orWhereNull('food_handler_certified'))
+                ->with(['outlet:id,name', 'section:id,name'])
+                ->inListOrder()
+                ->limit(self::FOOD_HANDLER_NAME_LIMIT)
+                ->get(['id', 'name', 'staff_id', 'outlet_id', 'section_id'])
+            : collect();
 
         return view('livewire.hr.employees', compact(
             'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay',
