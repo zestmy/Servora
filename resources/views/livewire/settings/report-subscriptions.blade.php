@@ -225,6 +225,10 @@
                                     Yesterday's sales, meal period breakdown, top items, AI analysis
                                 @elseif($report_type === 'weekly_performance')
                                     Weekly summary, daily trends, best/worst days, AI insights
+                                @elseif($report_type === 'hr_document_expiry')
+                                    Typhoid, food handler, halal and your own training courses — who has
+                                    expired or expires within {{ \App\Services\Hr\DocumentExpiry::WARNING_DAYS }} days, named.
+                                    Active staff only. "All Outlets" sends one company-wide list.
                                 @else
                                     Monthly overview, weekly breakdown, trends, recommendations
                                 @endif

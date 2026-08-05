@@ -4,12 +4,14 @@ namespace App\Services;
 
 use App\Models\AppSetting;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\ReportLog;
 use App\Models\ReportSubscription;
 use App\Models\SalesClosure;
 use App\Models\SalesRecord;
 use App\Scopes\CompanyScope;
+use App\Services\Hr\DocumentExpiry;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\Log;
@@ -69,11 +71,22 @@ class ReportGeneratorService
                 $periodStart = $reportDate->copy();
                 $periodEnd = $reportDate->copy()->endOfMonth();
                 break;
+
+            case 'hr_document_expiry':
+                // Forward-looking, not a closed period: it reports what lapses
+                // in the NEXT warning window, so the report date is today and
+                // the period runs from today to the end of that window.
+                $reportDate = $anchor ?? $now->copy();
+                $periodStart = $reportDate->copy();
+                $periodEnd = $reportDate->copy()->addDays(DocumentExpiry::WARNING_DAYS);
+                break;
         }
 
         // Guardrail: don't send reports built on empty or incomplete data. Checked
         // before any generation so retries cost a few cheap queries, no AI calls.
-        if (!$force) {
+        // It is sales-shaped (it asks whether takings have landed), so an HR
+        // report must skip it or it would be held back every single run.
+        if (!$force && ! $this->skipsDataCompleteness($subscription->report_type)) {
             $issue = $this->checkDataCompleteness($subscription->company_id, $subscription->outlet_id, $periodStart, $periodEnd);
 
             if ($issue !== null) {
@@ -197,8 +210,12 @@ class ReportGeneratorService
         $isMultiOutlet = false;
         $outletsData = [];
 
-        // If no specific outlet, get data for each outlet separately
-        if (!$outletId) {
+        // If no specific outlet, get data for each outlet separately.
+        // The HR expiry report opts out: "All Outlets" there means one list
+        // covering the whole company, with the outlet shown per person —
+        // splitting it per outlet would mail the same manager several lists to
+        // reconcile by hand, and each would omit the head-office staff.
+        if (!$outletId && ! $this->reportsWholeCompany($reportType)) {
             $outlets = Outlet::withoutGlobalScope(CompanyScope::class)
                 ->where('company_id', $companyId)
                 ->where('is_active', true)
@@ -335,6 +352,14 @@ class ReportGeneratorService
                     }
                 }
                 break;
+
+            case 'hr_document_expiry':
+                $data = $this->documentExpiryData($companyId, $outletId, $date);
+                $periodLabel = $this->getPeriodLabel($reportType, $date);
+                // No AI insights: this report is a work list, and a paragraph
+                // of generated commentary above someone's lapsed typhoid card
+                // adds nothing an HR manager needs.
+                break;
         }
 
         return [
@@ -342,6 +367,58 @@ class ReportGeneratorService
             'insights' => $insights,
             'charts' => $charts,
             'period_label' => $periodLabel,
+        ];
+    }
+
+    /**
+     * Report types that are not built on takings, so the sales-completeness
+     * guardrail must not hold them back.
+     */
+    protected function skipsDataCompleteness(string $reportType): bool
+    {
+        return $reportType === 'hr_document_expiry';
+    }
+
+    /** Report types where "All Outlets" means one company-wide list, not a per-outlet fan-out. */
+    protected function reportsWholeCompany(string $reportType): bool
+    {
+        return $reportType === 'hr_document_expiry';
+    }
+
+    /**
+     * Employee document and training expiries, in the same shape the Employees
+     * screen card renders — both go through DocumentExpiry so the email and the
+     * screen can never disagree about who is due.
+     *
+     * Runs on the scheduler with no authenticated user, so CompanyScope is
+     * dropped by hand and the company filtered explicitly.
+     */
+    protected function documentExpiryData(int $companyId, ?int $outletId, Carbon $date): array
+    {
+        $employees = Employee::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId));
+
+        $summary = app(DocumentExpiry::class)->summarise($employees, $companyId, $date->copy()->startOfDay());
+
+        // Flattened for storage on the log: report_data is a json column, and
+        // Carbon instances would come back as strings anyway.
+        return [
+            'documents'    => $summary['documents'],
+            'counts'       => $summary['counts'],
+            'employees'    => $summary['employees'],
+            'warning_days' => $summary['warning_days'],
+            'as_of'        => $summary['as_of']->toDateString(),
+            'rows'         => $summary['rows']->map(fn ($r) => [
+                'employee_id' => $r['employee_id'],
+                'name'        => $r['name'],
+                'staff_id'    => $r['staff_id'],
+                'outlet'      => $r['outlet'],
+                'document'    => $r['document'],
+                'state'       => $r['state'],
+                'expires_on'  => $r['expires_on']?->toDateString(),
+                'days'        => $r['days'],
+            ])->all(),
         ];
     }
 
@@ -438,8 +515,27 @@ class ReportGeneratorService
             'daily_sales' => $date->format('l, j F Y'),
             'weekly_performance' => $date->copy()->startOfWeek()->format('j M') . ' - ' . $date->copy()->startOfWeek()->endOfWeek()->format('j M Y'),
             'monthly_summary' => $date->copy()->startOfMonth()->format('F Y'),
+            // Forward-looking: the window it is warning about, not a past period.
+            'hr_document_expiry' => 'next ' . DocumentExpiry::WARNING_DAYS . ' days, as at ' . $date->format('j M Y'),
             default => $date->format('j F Y'),
         };
+    }
+
+    /** "3 expired, 5 expiring — Staff Documents (Outlet A)". */
+    protected function expirySubject(array $reportData, string $outletName): string
+    {
+        $counts  = $reportData['counts'] ?? [];
+        $expired = $counts[DocumentExpiry::EXPIRED] ?? 0;
+        $soon    = $counts[DocumentExpiry::EXPIRING] ?? 0;
+
+        $lead = match (true) {
+            $expired > 0 && $soon > 0 => "{$expired} expired, {$soon} expiring",
+            $expired > 0              => "{$expired} expired",
+            $soon > 0                 => "{$soon} expiring",
+            default                   => 'All in date',
+        };
+
+        return "{$lead} — Staff Documents ({$outletName})";
     }
 
     /**
@@ -461,6 +557,7 @@ class ReportGeneratorService
             'daily_sales' => 'emails.reports.daily',
             'weekly_performance' => 'emails.reports.weekly',
             'monthly_summary' => 'emails.reports.monthly',
+            'hr_document_expiry' => 'emails.reports.hr-document-expiry',
             default => 'emails.reports.daily',
         };
 
@@ -468,6 +565,9 @@ class ReportGeneratorService
             'daily_sales' => "Daily Sales Report - {$outletName} - {$periodLabel}",
             'weekly_performance' => "Weekly Performance Report - {$outletName} - {$periodLabel}",
             'monthly_summary' => "Monthly Summary Report - {$outletName} - {$periodLabel}",
+            // Lead with the count: this one is read on a phone, and whether it
+            // needs opening at all is the first question.
+            'hr_document_expiry' => $this->expirySubject($reportData, $outletName),
             default => "Analytics Report - {$outletName}",
         };
 
@@ -517,6 +617,8 @@ class ReportGeneratorService
             'daily_sales' => now()->subDay(),
             'weekly_performance' => now()->subWeek()->startOfWeek(),
             'monthly_summary' => now()->subMonth()->startOfMonth(),
+            // Anchored to today, not a past period — it reports what is coming.
+            'hr_document_expiry' => now(),
             default => now()->subDay(),
         };
 

@@ -42,6 +42,7 @@ class ReportPdfController extends Controller
         $view = match ($log->report_type) {
             'weekly_performance' => 'emails.reports.weekly',
             'monthly_summary'    => 'emails.reports.monthly',
+            'hr_document_expiry' => 'emails.reports.hr-document-expiry',
             default              => 'emails.reports.daily',
         };
 

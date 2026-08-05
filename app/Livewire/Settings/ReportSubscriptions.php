@@ -40,7 +40,7 @@ class ReportSubscriptions extends Component
     protected function rules(): array
     {
         return [
-            'report_type' => 'required|in:daily_sales,weekly_performance,monthly_summary',
+            'report_type' => 'required|in:daily_sales,weekly_performance,monthly_summary,hr_document_expiry',
             'frequency' => 'required|in:daily,weekly,monthly',
             'outlet_id' => 'nullable|exists:outlets,id',
             'delivery_channel' => 'required|in:email',
@@ -287,6 +287,7 @@ class ReportSubscriptions extends Component
             'daily_sales' => 'Daily Sales Report',
             'weekly_performance' => 'Weekly Performance Report',
             'monthly_summary' => 'Monthly Summary Report',
+            'hr_document_expiry' => 'Staff Document & Training Expiry',
         ];
     }
 

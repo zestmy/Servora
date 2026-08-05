@@ -122,6 +122,7 @@ class ReportSubscription extends Model
             'daily_sales'        => 'Daily Sales Report',
             'weekly_performance' => 'Weekly Performance Report',
             'monthly_summary'    => 'Monthly Summary Report',
+            'hr_document_expiry' => 'Staff Document & Training Expiry',
             default              => ucwords(str_replace('_', ' ', $this->report_type)),
         };
     }
