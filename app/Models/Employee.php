@@ -231,10 +231,45 @@ class Employee extends Model
         });
     }
 
-    /** True once the resignation date has passed. */
+    /** True when the employment status is resigned, whatever the date. */
     public function hasResigned(): bool
     {
         return $this->employment_status === 'resigned';
+    }
+
+    /**
+     * Whether a resignation has actually taken effect — i.e. the leaving date
+     * is behind us. The date itself is the last working day, so someone
+     * resigning on the 31st is still employed on the 31st.
+     *
+     * Static so the same rule can be applied to a form payload before the row
+     * exists; every write path goes through this rather than re-deriving it.
+     */
+    public static function resignationTookEffect(?string $status, $date, ?Carbon $on = null): bool
+    {
+        if ($status !== 'resigned' || ! $date) {
+            return false;
+        }
+
+        return Carbon::parse($date)->startOfDay()->lt(($on ?? Carbon::today())->copy()->startOfDay());
+    }
+
+    /** Instance form of {@see resignationTookEffect()}. */
+    public function resignationIsEffective(?Carbon $on = null): bool
+    {
+        return static::resignationTookEffect($this->employment_status, $this->employment_status_date, $on);
+    }
+
+    /**
+     * Resigned staff still flagged active whose leaving date has passed —
+     * the set `hr:apply-resignations` deactivates each night.
+     */
+    public function scopeResignationDue($query, ?Carbon $on = null)
+    {
+        return $query->where('employees.is_active', true)
+            ->where('employees.employment_status', 'resigned')
+            ->whereNotNull('employees.employment_status_date')
+            ->whereDate('employees.employment_status_date', '<', ($on ?? Carbon::today())->toDateString());
     }
 
     /**

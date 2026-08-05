@@ -106,7 +106,14 @@ class Employees extends Component
             session()->flash('error', 'You do not have access to this employee.');
             return;
         }
-        $emp->update(['is_active' => ! $emp->is_active]);
+        $active = ! $emp->is_active;
+
+        // Switching a resigned employee back on means they returned, so the
+        // resignation is cleared with it. Leaving it set would have
+        // hr:apply-resignations quietly switch them off again overnight.
+        $emp->update($active && $emp->resignationIsEffective()
+            ? ['is_active' => true, 'employment_status' => null, 'employment_status_date' => null]
+            : ['is_active' => $active]);
     }
 
     public function delete(int $id): void
@@ -504,6 +511,26 @@ class Employees extends Component
                 } else {
                     $errors[] = "Row $rowNum: unknown pay type '" . $data['pay_type'] . "' ignored";
                 }
+            }
+
+            // Same rule as the employee form: a leaving date already behind us
+            // deactivates the row, so importing a resignation list doesn't
+            // leave everyone on it still showing up on next month's attendance
+            // grid. Columns absent from the CSV fall back to what is on file.
+            $resStatus = array_key_exists('employment_status', $payload)
+                ? $payload['employment_status']
+                : $existing?->employment_status;
+            $resDate = array_key_exists('employment_status_date', $payload)
+                ? $payload['employment_status_date']
+                : $existing?->employment_status_date;
+
+            if (Employee::resignationTookEffect($resStatus, $resDate)) {
+                $payload['is_active'] = false;
+            } elseif ($existing) {
+                // Never re-activate an existing row on import — the CSV has no
+                // Active column, so the unconditional true above is only ever
+                // meant as a default for newly created staff.
+                unset($payload['is_active']);
             }
 
             if ($existing) {

@@ -101,11 +101,26 @@
                     <input type="date" wire:model="f_join_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                     <x-input-error :messages="$errors->get('f_join_date')" class="mt-1" />
                 </div>
-                <div class="flex items-end pb-1">
+                @php
+                    // Mirrors what save() enforces, so the checkbox never
+                    // silently disagrees with what gets written.
+                    $resignationLanded = \App\Models\Employee::resignationTookEffect(
+                        $f_employment_status ?: null,
+                        $f_employment_status === 'resigned' ? ($f_employment_status_date ?: null) : null,
+                    );
+                @endphp
+                <div class="flex flex-col justify-end pb-1">
                     <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" wire:model="f_is_active" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                        <span class="text-sm text-gray-700">Active</span>
+                        <input type="checkbox" wire:model="f_is_active" @disabled($resignationLanded)
+                               class="rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50" />
+                        <span class="text-sm {{ $resignationLanded ? 'text-gray-500' : 'text-gray-700' }}">Active</span>
                     </label>
+                    @if ($resignationLanded)
+                        <p class="text-[11px] text-gray-500 mt-1">
+                            Resignation date has passed — this employee is set inactive and drops off
+                            attendance, roster and service charge from the next period.
+                        </p>
+                    @endif
                 </div>
             </div>
         </div>
@@ -130,7 +145,9 @@
                             {{ \App\Models\Employee::EMPLOYMENT_STATUS_DATE_LABELS[$f_employment_status] }}
                             <span class="text-danger-500">*</span>
                         </label>
-                        <input type="date" wire:model="f_employment_status_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        {{-- .live so the Active checkbox above reflects a past
+                             resignation date as soon as it is entered. --}}
+                        <input type="date" wire:model.live="f_employment_status_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                         <x-input-error :messages="$errors->get('f_employment_status_date')" class="mt-1" />
                     </div>
                 @elseif ($f_employment_status === 'outsourcing')

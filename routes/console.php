@@ -42,3 +42,9 @@ Schedule::command('sop:prune-exports')->hourly()->withoutOverlapping();
 // on the 1st; the command is idempotent (applied_at is the guard), so a
 // missed night is caught by the next run rather than double-applying.
 Schedule::command('salary:apply-revisions')->dailyAt('00:15');
+
+// Switch off staff the morning after their resignation date, so they leave
+// the attendance grid, duty roster and service charge pool from the next
+// period onwards but stay on the one they actually worked. Idempotent, so a
+// missed night is caught by the next run.
+Schedule::command('hr:apply-resignations')->dailyAt('00:20');

@@ -306,7 +306,17 @@ class EmployeeForm extends Component
             'halal_training'      => $this->f_halal_training,
             'halal_training_date' => $this->f_halal_training ? ($this->f_halal_training_date ?: null) : null,
             'halal_training_expired_on' => $this->f_halal_training ? ($this->f_halal_training_expired_on ?: null) : null,
-            'is_active'     => $this->f_is_active,
+            // A past leaving date wins over the Active toggle: nobody thinks to
+            // untick it when recording a resignation, and while the row stays
+            // active the person keeps appearing on every future attendance
+            // grid and roster. Future-dated resignations stay active until the
+            // day arrives — hr:apply-resignations flips those overnight.
+            'is_active'     => $this->f_is_active && ! Employee::resignationTookEffect(
+                $this->f_employment_status ?: null,
+                array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
+                    ? ($this->f_employment_status_date ?: null)
+                    : null,
+            ),
             // Blank means "use the roster's allowance"; 0 is a real answer.
             'break_minutes' => $this->f_break_minutes !== '' ? (int) $this->f_break_minutes : null,
         ];
