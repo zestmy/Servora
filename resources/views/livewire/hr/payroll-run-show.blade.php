@@ -84,6 +84,39 @@
         </div>
     @endif
 
+    {{-- Submission and payment files. Only from an approved run: a draft can
+         still be regenerated, and a submission built from figures that then
+         change is the one mistake here that cannot be undone by editing. --}}
+    <div class="card p-4 mb-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Submissions &amp; payment</h3>
+                <p class="text-xs text-gray-600 mt-0.5">
+                    @if ($run->isApproved())
+                        Field listings built from this run's locked figures — check them against KWSP,
+                        PERKESO and LHDN before submitting. Each file repeats that caveat in its first row.
+                    @else
+                        Available once the run is approved.
+                    @endif
+                </p>
+            </div>
+            @if ($run->isApproved())
+                <div class="flex flex-wrap gap-2">
+                    @foreach ([
+                        'bank'  => 'Salary payment',
+                        'cp39'  => 'PCB (CP39)',
+                        'epf'   => 'EPF (KWSP)',
+                        'socso' => 'SOCSO &amp; EIS',
+                    ] as $type => $label)
+                        <a href="{{ route('hr.payroll.export', [$run, $type]) }}" class="btn-secondary text-xs">
+                            {!! $label !!}
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
     {{-- Totals --}}
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
         <div class="stat"><span class="stat-label">Staff</span><span class="stat-value">{{ $run->employee_count }}</span></div>

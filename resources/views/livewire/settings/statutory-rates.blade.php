@@ -47,6 +47,29 @@
         @endif
     </div>
 
+    {{-- Employer reference numbers. Not rates — these identify the company on
+         every submission, and a listing without them cannot be filed. --}}
+    <div class="card p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-700">Employer reference numbers</h3>
+        <p class="text-xs text-gray-600 mt-0.5 mb-3">
+            Printed on payslips and on the EPF, SOCSO and PCB listings produced from a payroll run.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+                <label class="label">EPF employer no.</label>
+                <input type="text" maxlength="30" wire:model="employer_epf_number" class="input" />
+            </div>
+            <div>
+                <label class="label">SOCSO employer code</label>
+                <input type="text" maxlength="30" wire:model="employer_socso_number" class="input" />
+            </div>
+            <div>
+                <label class="label">LHDN employer no. (E)</label>
+                <input type="text" maxlength="30" wire:model="employer_tax_number" class="input" />
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {{-- EPF --}}
         <div class="card p-5">

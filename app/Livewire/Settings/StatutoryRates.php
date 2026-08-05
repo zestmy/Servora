@@ -23,6 +23,12 @@ class StatutoryRates extends Component
     public bool $eis_enabled   = true;
     public bool $pcb_enabled   = false;
 
+    // The employer side of every submission file. Not rates — these identify
+    // the company on the return, and a listing without them is unfileable.
+    public string $employer_epf_number   = '';
+    public string $employer_socso_number = '';
+    public string $employer_tax_number   = '';
+
     public string $epf_employee_rate         = '';
     public string $epf_employer_rate_low     = '';
     public string $epf_employer_rate_high    = '';
@@ -63,6 +69,10 @@ class StatutoryRates extends Component
             'epf_enabled', 'socso_enabled', 'eis_enabled', 'pcb_enabled',
         ] as $flag) {
             $this->{$flag} = (bool) $s->{$flag};
+        }
+
+        foreach (['employer_epf_number', 'employer_socso_number', 'employer_tax_number'] as $ref) {
+            $this->{$ref} = (string) ($s->{$ref} ?? '');
         }
 
         foreach ([
@@ -189,6 +199,10 @@ class StatutoryRates extends Component
 
         $data['senior_age']  = (int) $this->senior_age;
         $data['eis_max_age'] = (int) $this->eis_max_age;
+
+        foreach (['employer_epf_number', 'employer_socso_number', 'employer_tax_number'] as $ref) {
+            $data[$ref] = trim($this->{$ref}) ?: null;
+        }
 
         // Confirmation is a deliberate act and is re-stamped on every save, so
         // "checked" always means checked against what is currently stored.
