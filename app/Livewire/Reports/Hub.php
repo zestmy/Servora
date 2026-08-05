@@ -68,6 +68,15 @@ class Hub extends Component
                 ],
             ],
             [
+                'title' => 'HR',
+                'icon'  => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+                'reports' => [
+                    // Pay data — hidden from anyone without hr.compensation, so
+                    // the hub never offers a link that 403s.
+                    ['label' => 'Service Charge Payout', 'route' => 'reports.service-charge-payout', 'can' => 'hr.compensation'],
+                ],
+            ],
+            [
                 'title' => 'Others',
                 'icon'  => 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
                 'reports' => [
@@ -75,6 +84,24 @@ class Hub extends Component
                 ],
             ],
         ];
+
+        // A report may name a permission of its own; drop those the user does
+        // not hold, then drop any category left empty rather than showing a
+        // heading over nothing.
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        $categories = collect($categories)
+            ->map(function (array $cat) use ($user) {
+                $cat['reports'] = collect($cat['reports'])
+                    ->filter(fn ($r) => ! isset($r['can']) || $user->can($r['can']))
+                    ->values()
+                    ->all();
+
+                return $cat;
+            })
+            ->filter(fn (array $cat) => $cat['reports'] !== [])
+            ->values()
+            ->all();
 
         return view('livewire.reports.hub', compact('categories'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Reports']);
