@@ -2,6 +2,7 @@
 
 namespace App\Services\Hr;
 
+use App\Jobs\ResolveClockEventAddress;
 use App\Models\AttendanceCode;
 use App\Models\AttendanceRecord;
 use App\Models\ClockEvent;
@@ -166,6 +167,13 @@ class ClockInService
 
         if ($type === ClockEvent::TYPE_IN && $settings->mark_attendance) {
             $this->markPresent($employee, $outlet, $workDate);
+        }
+
+        // Queued, never inline: the punch is already recorded and a member of
+        // staff at a door must not wait on a geocoder, nor fail because one is
+        // down. Only when the company has opted in and coordinates exist.
+        if ($settings->resolve_addresses && $event->latitude !== null) {
+            ResolveClockEventAddress::dispatch($event->id);
         }
 
         return $event;

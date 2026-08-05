@@ -279,21 +279,29 @@
                             {{-- The place, then the link. A manager reading a flagged
                                  punch wants "where was this" answered before deciding
                                  whether to open a map at all. --}}
-                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <span class="inline-flex items-center gap-1.5 text-xs font-medium
-                                             {{ $viewing->within_geofence ? 'text-success-700' : 'text-warning-700' }}">
-                                    <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    </svg>
-                                    {{ $viewing->locationLabel() }}
-                                </span>
-                                <span class="text-gray-300">·</span>
-                                <a href="https://www.google.com/maps?q={{ $viewing->latitude }},{{ $viewing->longitude }}"
-                                   target="_blank" rel="noopener noreferrer"
-                                   class="text-xs font-medium text-brand-700 hover:underline">
-                                    Open on a map
-                                </a>
+                            <div class="space-y-1">
+                                <div class="flex flex-wrap items-start gap-x-2 gap-y-1">
+                                    <span class="inline-flex items-start gap-1.5 text-xs font-medium
+                                                 {{ $viewing->within_geofence ? 'text-success-700' : 'text-warning-700' }}">
+                                        <svg class="h-3.5 w-3.5 flex-shrink-0 mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                        <span>{{ $viewing->locationLabel() }}</span>
+                                    </span>
+                                    <span class="text-gray-300">·</span>
+                                    <a href="https://www.google.com/maps?q={{ $viewing->latitude }},{{ $viewing->longitude }}"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="text-xs font-medium text-brand-700 hover:underline whitespace-nowrap">
+                                        Open on a map
+                                    </a>
+                                </div>
+                                {{-- A street address does not answer "was this person at
+                                     work", so the outlet-relative line stays underneath
+                                     it whenever both exist. --}}
+                                @if (filled($viewing->address) && $viewing->geofenceLabel())
+                                    <p class="text-[11px] text-gray-500 pl-5">{{ $viewing->geofenceLabel() }}</p>
+                                @endif
                             </div>
                         @elseif ($viewing->locationLabel())
                             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">

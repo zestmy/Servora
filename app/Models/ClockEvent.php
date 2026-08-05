@@ -161,6 +161,12 @@ class ClockEvent extends Model
      */
     public function locationLabel(): ?string
     {
+        // A resolved street address is the better answer, so it wins when the
+        // company has switched reverse geocoding on and one came back.
+        if (filled($this->address)) {
+            return $this->address;
+        }
+
         $outlet = $this->outlet?->name;
 
         if (! $outlet) {
@@ -184,6 +190,35 @@ class ClockEvent extends Model
         // Coordinates but no distance: the outlet has no geofence set, so
         // there is nothing to measure against. Say that rather than imply
         // the punch was somewhere it may not have been.
+        return 'Near ' . $outlet . ' (no geofence set)';
+    }
+
+    /**
+     * Where this punch happened RELATIVE TO THE OUTLET, regardless of whether
+     * a street address was resolved.
+     *
+     * Shown alongside the address, because "12 Jalan Sultan" does not answer
+     * the question a manager reviewing a flagged punch is asking, which is
+     * whether the person was at work.
+     */
+    public function geofenceLabel(): ?string
+    {
+        $outlet = $this->outlet?->name;
+
+        if (! $outlet || $this->latitude === null) {
+            return null;
+        }
+        if ($this->within_geofence) {
+            return 'At ' . $outlet;
+        }
+        if ($this->distance_m !== null) {
+            $away = $this->distance_m >= 1000
+                ? number_format($this->distance_m / 1000, 1) . ' km'
+                : number_format($this->distance_m) . ' m';
+
+            return $away . ' from ' . $outlet;
+        }
+
         return 'Near ' . $outlet . ' (no geofence set)';
     }
 

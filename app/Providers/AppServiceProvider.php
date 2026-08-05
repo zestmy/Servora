@@ -30,6 +30,20 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         /*
+         * One reverse-geocoding request a second, company-wide.
+         *
+         * Nominatim's usage policy asks for no more than that and would be
+         * within its rights to block the whole application otherwise. A shift
+         * change puts twenty punches on the queue at once, so without this the
+         * first busy morning would be the last one that worked. Jobs over the
+         * limit are released, not dropped — a delayed address is fine.
+         */
+        \Illuminate\Support\Facades\RateLimiter::for(
+            'geocoding',
+            fn () => \Illuminate\Cache\RateLimiting\Limit::perMinute(60)
+        );
+
+        /*
          * Resolve the subdomain company on Livewire's update endpoint too.
          *
          * Livewire posts every interaction to /livewire/update, a route it

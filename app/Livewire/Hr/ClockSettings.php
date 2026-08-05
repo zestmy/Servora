@@ -4,6 +4,7 @@ namespace App\Livewire\Hr;
 
 use App\Models\ClockSetting;
 use App\Models\Outlet;
+use App\Services\Geocoding\ReverseGeocoder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -31,6 +32,10 @@ class ClockSettings extends Component
     public bool $require_face_match        = false;
     public bool $mark_attendance           = false;
     public bool $allow_offsite_with_reason = true;
+    public bool $resolve_addresses         = false;
+
+    /** Result of the "test" button on the geocoding block. */
+    public ?array $geocodeTest = null;
 
     /** outlet_id => ['latitude' => .., 'longitude' => .., 'radius' => ..] */
     public array $fences = [];
@@ -53,6 +58,7 @@ class ClockSettings extends Component
         $this->require_face_match        = (bool) $settings->require_face_match;
         $this->mark_attendance           = (bool) $settings->mark_attendance;
         $this->allow_offsite_with_reason = (bool) $settings->allow_offsite_with_reason;
+        $this->resolve_addresses         = (bool) $settings->resolve_addresses;
 
         foreach ($this->outlets() as $outlet) {
             $this->fences[$outlet->id] = [
@@ -111,6 +117,7 @@ class ClockSettings extends Component
             'require_face_match'   => $this->require_face_match,
             'mark_attendance'      => $this->mark_attendance,
             'allow_offsite_with_reason' => $this->allow_offsite_with_reason,
+            'resolve_addresses'         => $this->resolve_addresses,
         ]);
 
         foreach ($this->outlets() as $outlet) {
@@ -148,10 +155,29 @@ class ClockSettings extends Component
             ->get();
     }
 
+    /**
+     * Prove the provider answers, without touching the cache — the point is
+     * to test the configuration, not to read back an earlier result.
+     */
+    public function testGeocoder(): void
+    {
+        $geocoder = app(ReverseGeocoder::class);
+
+        // KLCC. A fixed, obviously-public point: testing must never require
+        // pulling a real employee's coordinates out of the log.
+        $this->geocodeTest = $geocoder->test(3.1578, 101.7117) + [
+            'provider' => ReverseGeocoder::PROVIDERS[$geocoder->provider()] ?? $geocoder->provider(),
+        ];
+    }
+
     public function render()
     {
+        $geocoder = app(ReverseGeocoder::class);
+
         return view('livewire.hr.clock-settings', [
-            'outlets' => $this->outlets(),
+            'outlets'          => $this->outlets(),
+            'geocodeProvider'  => ReverseGeocoder::PROVIDERS[$geocoder->provider()] ?? $geocoder->provider(),
+            'geocodeReady'     => $geocoder->isConfigured(),
         ])->layout('layouts.app', ['title' => 'Clock-In Settings']);
     }
 }

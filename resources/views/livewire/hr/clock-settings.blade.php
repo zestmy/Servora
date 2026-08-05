@@ -95,6 +95,56 @@
                 </span>
             </label>
 
+            {{-- Reverse geocoding. Off by default and spelled out, because
+                 ticking it sends staff coordinates to a third party. --}}
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <label class="flex items-start gap-3">
+                    <input type="checkbox" wire:model.live="resolve_addresses" class="mt-0.5 rounded border-gray-300 text-brand-600">
+                    <span class="text-sm">
+                        <span class="font-medium text-gray-900">Look up a street address for each punch</span>
+                        <span class="block text-xs text-gray-600">
+                            Shows "12 Jalan Sultan Ismail" beside a punch instead of only its distance from the outlet.
+                        </span>
+                    </span>
+                </label>
+
+                @if ($resolve_addresses)
+                    <div class="mt-3 pl-8 space-y-2">
+                        <p class="text-xs text-gray-700">
+                            <strong>What leaves the building:</strong> the coordinates of each punch are sent to
+                            <strong>{{ $geocodeProvider }}</strong> to be turned into an address. No name, employee
+                            number or photo is sent — only a latitude and longitude.
+                        </p>
+                        <p class="text-xs text-gray-600">
+                            The lookup happens on the queue after the punch is recorded, so a slow or unavailable
+                            provider never delays or blocks a clock-in. Results are cached per location, so a
+                            doorway is looked up once no matter how many people punch there.
+                        </p>
+                        @unless ($geocodeReady)
+                            <p class="text-xs text-danger-700 font-medium">
+                                Google Maps is selected as the provider but no API key is configured, so no address
+                                will be resolved.
+                            </p>
+                        @endunless
+                        <div class="flex items-center gap-3 pt-1">
+                            <button type="button" wire:click="testGeocoder" class="btn-secondary">
+                                <span wire:loading.remove wire:target="testGeocoder">Test the provider</span>
+                                <span wire:loading wire:target="testGeocoder">Testing…</span>
+                            </button>
+                            @if ($geocodeTest)
+                                <span class="text-xs {{ $geocodeTest['ok'] ? 'text-success-700' : 'text-danger-700' }}">
+                                    {{ $geocodeTest['ok'] ? $geocodeTest['address'] : $geocodeTest['message'] }}
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-[11px] text-gray-500">
+                            Punches recorded before this was switched on keep their distance-only label until
+                            someone runs <code>php artisan clock:backfill-addresses</code>.
+                        </p>
+                    </div>
+                @endif
+            </div>
+
             <label class="flex items-start gap-3">
                 <input type="checkbox" wire:model="require_face" class="mt-0.5 rounded border-gray-300 text-brand-600">
                 <span class="text-sm">

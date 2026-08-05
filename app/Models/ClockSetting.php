@@ -18,6 +18,7 @@ class ClockSetting extends Model
         'early_window_minutes', 'require_gps', 'require_face', 'require_face_match',
         'max_accuracy_m',
         'face_threshold', 'mark_attendance', 'allow_offsite_with_reason',
+        'resolve_addresses',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class ClockSetting extends Model
         'face_threshold'            => 'decimal:3',
         'mark_attendance'           => 'boolean',
         'allow_offsite_with_reason' => 'boolean',
+        'resolve_addresses'         => 'boolean',
     ];
 
     protected static function booted(): void
