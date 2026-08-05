@@ -293,6 +293,8 @@
                         <p class="font-semibold mb-1">Expected columns</p>
                         <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Break Minutes@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
+                        {{-- Blank and 0 mean different things here, same as on the employee form. --}}
+                        <p class="mt-0.5 text-blue-700">Break Minutes: leave the cell blank to follow the duty roster's rest duration, or enter 0 for no break allowance at all.</p>
                         @unless ($canViewPay)
                             <p class="mt-0.5 text-blue-700">Salary and Service Points columns are ignored — you don't have access to compensation data.</p>
                         @endunless

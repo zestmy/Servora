@@ -236,6 +236,13 @@ class Employees extends Component
             'typhoid expiry'      => 'typhoid_expired_on',
             'typhoid expiry date' => 'typhoid_expired_on',
             'typhoid expired'     => 'typhoid_expired_on',
+            // Break allowance is NOT pay-gated: the employee form shows the
+            // field to everyone and the modal advertises the column to
+            // everyone, so gating it here only made the value vanish silently
+            // for users without hr.compensation. It is a clock-in setting.
+            'break minutes'       => 'break_minutes',
+            'break duration'      => 'break_minutes',
+            'break'               => 'break_minutes',
         ];
 
         // Pay columns are only recognised for users with hr.compensation —
@@ -244,9 +251,6 @@ class Employees extends Component
         $canViewPay = $this->canViewPay();
         if ($canViewPay) {
             $aliasMap += [
-                'break minutes'              => 'break_minutes',
-                'break duration'             => 'break_minutes',
-                'break'                      => 'break_minutes',
                 'service points entitlement' => 'service_points_entitlement',
                 'service points'             => 'service_points_entitlement',
                 'service pts'                => 'service_points_entitlement',
@@ -426,6 +430,25 @@ class Employees extends Component
             if (array_key_exists('halal_training', $data)) {
                 $payload['halal_training'] = $parseBool($data['halal_training']);
             }
+            if (array_key_exists('break_minutes', $data)) {
+                $brRaw = str_replace([',', ' '], '', $data['break_minutes']);
+                // Blank means "follow the duty roster's rest duration"; 0 means
+                // "no break allowance at all". They are different answers, so an
+                // empty cell must write NULL rather than fall through to 0.
+                if ($brRaw === '') {
+                    $payload['break_minutes'] = null;
+                    // is_numeric plus a whole-number check rather than
+                    // ctype_digit, so a spreadsheet writing "60.0" still
+                    // imports while "60.5" is rejected as not a minute count.
+                } elseif (is_numeric($brRaw) && (float) $brRaw == (int) (float) $brRaw
+                    && (int) (float) $brRaw >= 0 && (int) (float) $brRaw <= 1440) {
+                    $payload['break_minutes'] = (int) (float) $brRaw;
+                } else {
+                    // Left out of the payload entirely, so an existing value
+                    // survives a bad cell instead of being blanked.
+                    $errors[] = "Row $rowNum: invalid break minutes '" . $data['break_minutes'] . "' ignored";
+                }
+            }
             if (array_key_exists('service_points_entitlement', $data)) {
                 $spRaw = str_replace(',', '', $data['service_points_entitlement']);
                 if ($spRaw === '') {
@@ -485,10 +508,13 @@ class Employees extends Component
 
     public function downloadTemplate()
     {
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date'];
+        // Break Minutes carries a sample on one row and a blank on the other,
+        // because blank and 0 mean different things and the template is where
+        // that gets noticed.
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Halal Awareness Training', 'Halal Training Date', 'Break Minutes'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '60'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              'No',  '', '', 'No', '', ''],
         ];
 
         // Pay columns only appear in the template for users who may see them.
