@@ -25,6 +25,60 @@ class AttendanceExportController extends Controller
 {
     public function pdf(Request $request)
     {
+        $data = $this->gather($request);
+
+        $pdf = Pdf::loadView('pdf.attendance', $data)->setPaper('a4', 'landscape');
+
+        return $pdf->stream('Attendance-' . $data['from']->format('Y-m-d') . '-to-' . $data['to']->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * One service charge payout slip per employee.
+     *
+     * Built from the SAME gather() the grid export uses, so a slip and the
+     * table it came from cannot disagree about what someone is owed — which
+     * is the only reason to hand one to a member of staff.
+     */
+    public function payout(Request $request)
+    {
+        $data = $this->gather($request, forceServiceCharge: true);
+
+        abort_unless($data['canViewPay'], 403);
+        abort_if($data['serviceCharge'] === null, 404,
+            'No service charge has been saved for this period and outlet.');
+
+        // Only people with a share get a slip: a page reading RM0.00 because
+        // someone has no service points is not a payout, it is confusing.
+        $rows = collect($data['serviceCharge']['rows'])
+            ->filter(fn ($r) => $r['points'] > 0)
+            ->values();
+
+        abort_if($rows->isEmpty(), 404, 'Nobody in this view has service points for this period.');
+
+        $pdf = Pdf::loadView('pdf.service-charge-payout', [
+            'rows'          => $rows,
+            'serviceCharge' => $data['serviceCharge'],
+            'from'          => $data['from'],
+            'to'            => $data['to'],
+            'brandName'     => $data['brandName'],
+            'logoBase64'    => $data['logoBase64'],
+            'outletName'    => $data['outletName'],
+            'lateRate'      => (float) \App\Models\ClockSetting::forCompany(Auth::user()->company_id)->late_rate_per_minute,
+            'exportedBy'    => Auth::user()->name ?? Auth::user()->email,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('Service-Charge-Payout-' . $data['from']->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Everything both exports need: the scoped employee list, the attendance
+     * grid behind it, and the service charge distribution.
+     *
+     * @param  bool  $forceServiceCharge  the payout slips are ABOUT the pool,
+     *         so they do not depend on the grid's service_charge=1 toggle.
+     */
+    private function gather(Request $request, bool $forceServiceCharge = false): array
+    {
         $user = Auth::user();
 
         $accessible = $user->accessibleOutletIds();
@@ -127,7 +181,7 @@ class AttendanceExportController extends Controller
         $canViewPay = Employee::canViewPay($user);
 
         $serviceCharge = null;
-        if ($canViewPay && $request->boolean('service_charge')) {
+        if ($canViewPay && ($forceServiceCharge || $request->boolean('service_charge'))) {
             $scOutletId = ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true))
                 ? (int) $outletFilter : null;
             $scRow = ServiceChargePeriod::where('outlet_id', $scOutletId)
@@ -146,13 +200,11 @@ class AttendanceExportController extends Controller
             }
         }
 
-        $pdf = Pdf::loadView('pdf.attendance', compact(
+        return compact(
             'employees', 'dates', 'from', 'to', 'codesById', 'cellMap',
             'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel',
             'serviceCharge', 'canViewPay'
-        ))->setPaper('a4', 'landscape');
-
-        return $pdf->stream('Attendance-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.pdf');
+        );
     }
 
     private function companyLogoBase64($company): ?string

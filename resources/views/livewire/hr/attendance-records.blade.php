@@ -268,10 +268,13 @@
                     @error('scAmount') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Company retention %</label>
+                    {{-- The hint lives in the label, not under the box. This row is
+                         items-end, so a helper line below one field pushes that
+                         field's input up and breaks the row's alignment. --}}
+                    <label class="block text-xs text-gray-500 mb-1">Company retention % <span class="text-gray-400">(held back)</span></label>
                     <input type="number" step="0.01" min="0" max="100" wire:model="scRetention"
+                           title="Held back before the pool is shared"
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
-                    <p class="text-[11px] text-gray-500 mt-1">Held back before sharing.</p>
                     @error('scRetention') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
@@ -290,6 +293,20 @@
                         class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
                     Save &amp; Calculate
                 </button>
+                @if ($serviceCharge['row'])
+                    <x-download-link :href="route('hr.attendance.payout-pdf', [
+                                'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
+                                'outlet' => $outletFilter, 'section' => $sectionFilter,
+                                'search' => $search, 'employment_status' => $employmentStatusFilter,
+                            ])"
+                            title="One payout slip per employee"
+                            class="px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Payout slips
+                    </x-download-link>
+                @endif
                 @if ($serviceCharge['row'])
                     <div class="flex flex-wrap items-center gap-2 ml-auto text-xs">
                         <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
