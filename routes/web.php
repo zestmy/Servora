@@ -380,6 +380,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/compensation/{id}', \App\Livewire\Hr\EmployeeCompensation::class)->name('hr.compensation.employee')->middleware('can:hr.compensation');
     // Payroll: runs, and payslips printed from a run's locked lines.
     Route::get('/hr/payroll', \App\Livewire\Hr\Payroll::class)->name('hr.payroll')->middleware('can:hr.payroll');
+    // EA forms declared BEFORE /hr/payroll/{run}, or "ea" is swallowed as a run id.
+    Route::get('/hr/payroll/ea-forms', \App\Livewire\Hr\EaForms::class)->name('hr.payroll.ea-forms')->middleware('can:hr.payroll');
+    Route::get('/hr/payroll/ea', \App\Http\Controllers\EaFormController::class)->name('hr.payroll.ea')->middleware('can:hr.payroll');
     Route::get('/hr/payroll/{run}', \App\Livewire\Hr\PayrollRunShow::class)->name('hr.payroll.show')->middleware('can:hr.payroll');
     Route::get('/hr/payroll/{run}/payslips', [\App\Http\Controllers\PayslipController::class, 'all'])->name('hr.payroll.payslips')->middleware('can:hr.payroll');
     Route::get('/hr/payroll/{run}/payslip/{line}', [\App\Http\Controllers\PayslipController::class, 'single'])->name('hr.payroll.payslip')->middleware('can:hr.payroll');

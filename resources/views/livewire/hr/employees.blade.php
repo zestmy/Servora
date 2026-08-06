@@ -361,6 +361,17 @@
                                class="font-medium text-gray-800 text-left hover:text-brand-600 hover:underline">
                                 {{ $emp->name }}
                             </a>
+                            {{-- Straight to allowances, bank and statutory details.
+                                 They are a screen away from the employee record, so
+                                 without this the only route is knowing to start at
+                                 HR → Compensation. --}}
+                            @if ($canViewPay)
+                                <a href="{{ route('hr.compensation.employee', $emp->id) }}"
+                                   title="Allowances, bank account and statutory details"
+                                   class="block text-[10px] text-brand-600 hover:text-brand-800 hover:underline">
+                                    Pay &amp; bank details
+                                </a>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->designation ?? '—' }}</td>

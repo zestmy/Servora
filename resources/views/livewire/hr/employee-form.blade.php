@@ -212,6 +212,28 @@
                             <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
                         </div>
                     </div>
+
+                    {{-- Allowances, bank details and the statutory numbers are
+                         dated or scheme-specific, so they live on their own
+                         screen. Without this link they were findable only by
+                         knowing to go to HR → Compensation first. --}}
+                    @if ($employeeId)
+                        <div class="pt-3 border-t border-warning-100">
+                            <a href="{{ route('hr.compensation.employee', $employeeId) }}"
+                               class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-800">
+                                Allowances, bank account &amp; statutory details
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            </a>
+                            <p class="mt-0.5 text-[11px] text-gray-600">
+                                Dated allowances and deductions, salary change history, bank account, IC,
+                                EPF / SOCSO / tax numbers and the per-employee statutory switches.
+                            </p>
+                        </div>
+                    @else
+                        <p class="pt-3 border-t border-warning-100 text-[11px] text-gray-600">
+                            Allowances, bank account and statutory details can be added once this employee is saved.
+                        </p>
+                    @endif
                 </div>
             </div>
         @endif

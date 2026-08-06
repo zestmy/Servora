@@ -81,6 +81,9 @@ class StatutoryCalculator
             // Employer-only. Kept in the same array for one row shape, but it
             // must never reach employee_total — see the totals below.
             'hrdf_employer' => 0.0,
+            // Deducted through payroll and reported in Part D of the EA form,
+            // so it is returned rather than only used inside the PCB working.
+            'zakat' => 0.0,
         ];
 
         // Age decides the EPF, SOCSO and EIS rate. Without a date of birth the
@@ -111,7 +114,8 @@ class StatutoryCalculator
         if ($this->settings->pcb_enabled && $profile->pcb_enabled) {
             $ytd = $ytd ?: YearToDate::NONE;
 
-            $result['pcb'] = $this->pcb($taxablePay, $result['epf_employee'], $profile, $asOf, $ytd);
+            $result['pcb']   = $this->pcb($taxablePay, $result['epf_employee'], $profile, $asOf, $ytd);
+            $result['zakat'] = round(max(0.0, (float) $profile->monthly_zakat), 2);
 
             // Which of the two it used matters to whoever checks the figure, so
             // the note says rather than describing PCB generically.
@@ -136,6 +140,8 @@ class StatutoryCalculator
         // hrdf_employer is deliberately ABSENT from employee_total. The levy is
         // never deducted from anyone's pay, and a payslip that showed it as a
         // deduction would be wrong in the way people notice.
+        // Zakat is NOT added here: it is already netted off inside the PCB
+        // figure, and counting it again would deduct it twice.
         $result['employee_total'] = round(
             $result['epf_employee'] + $result['socso_employee'] + $result['eis_employee'] + $result['pcb'], 2
         );

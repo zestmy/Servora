@@ -25,7 +25,7 @@ class PayrollRunLine extends Model
         'pay_type', 'basic', 'allowances', 'deductions', 'ot_hours', 'ot_amount',
         'service_charge', 'service_charge_detail',
         'gross', 'epf_employee', 'epf_employer', 'socso_employee', 'socso_employer',
-        'eis_employee', 'eis_employer', 'pcb', 'hrdf_employer',
+        'eis_employee', 'eis_employer', 'pcb', 'zakat', 'hrdf_employer',
         'statutory_employee', 'statutory_employer',
         'net', 'employer_cost', 'components', 'ot_by_type', 'statutory_notes',
     ];
@@ -49,6 +49,7 @@ class PayrollRunLine extends Model
         'eis_employee'       => 'decimal:2',
         'eis_employer'       => 'decimal:2',
         'pcb'                => 'decimal:2',
+        'zakat'              => 'decimal:2',
         'hrdf_employer'      => 'decimal:2',
         'statutory_employee' => 'decimal:2',
         'statutory_employer' => 'decimal:2',

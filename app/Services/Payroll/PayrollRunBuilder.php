@@ -197,6 +197,7 @@ class PayrollRunBuilder
                     'eis_employer'       => $row['statutory']['eis_employer'],
                     'pcb'                => $row['statutory']['pcb'],
                     'hrdf_employer'      => $row['statutory']['hrdf_employer'] ?? 0,
+                    'zakat'              => $row['statutory']['zakat'] ?? 0,
                     'statutory_employee' => $row['statutory']['employee_total'],
                     'statutory_employer' => $row['statutory']['employer_total'],
                     // Service charge is added AFTER statutory, not before:

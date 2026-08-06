@@ -36,7 +36,7 @@ class CompensationSummary
         'epf_employee' => 0.0, 'epf_employer' => 0.0,
         'socso_employee' => 0.0, 'socso_employer' => 0.0,
         'eis_employee' => 0.0, 'eis_employer' => 0.0,
-        'pcb' => 0.0, 'hrdf_employer' => 0.0,
+        'pcb' => 0.0, 'hrdf_employer' => 0.0, 'zakat' => 0.0,
         'employee_total' => 0.0, 'employer_total' => 0.0,
         'notes' => [],
     ];
