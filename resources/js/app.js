@@ -80,3 +80,47 @@ if (document.readyState === 'loading') {
 
 // Livewire swaps DOM without a page load, so new content needs re-observing.
 document.addEventListener('livewire:navigated', initReveal);
+
+/* ── Back arrows go back ──────────────────────────────────────────────────
+ *
+ * A page's "<" used to be an ordinary link to whatever that page's parent
+ * happened to be, so arriving at HR → Compensation → an employee from
+ * somewhere else and pressing it landed you on a screen you had never asked
+ * for. It now returns to the page you actually came from.
+ *
+ * The href stays a real URL and is the FALLBACK, which is what runs when:
+ *   - the page was opened directly (bookmark, pasted link, first page of the
+ *     session), where "back" has no meaning;
+ *   - the previous page was another site;
+ *   - JavaScript has not booted, or the link is middle-clicked into a new tab.
+ *
+ * The referrer is the test, not history.length: a fresh tab reports 1 in some
+ * browsers and 2 in others, and it counts forward entries too. Delegated from
+ * document so it keeps working after Livewire swaps the DOM.
+ */
+document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[data-back]');
+    if (! link || event.defaultPrevented) return;
+
+    // Leave modified clicks alone — they mean "open elsewhere", and the href
+    // is the right destination for that.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+
+    const referrer = document.referrer;
+    if (! referrer) return;
+
+    let previous;
+    try {
+        previous = new URL(referrer);
+    } catch (e) {
+        return;
+    }
+
+    // Same site, and not this very page — going "back" to where you already
+    // are looks like the button is broken.
+    if (previous.origin !== window.location.origin) return;
+    if (previous.href === window.location.href) return;
+
+    event.preventDefault();
+    window.history.back();
+});

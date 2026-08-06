@@ -16,7 +16,7 @@
          four. -mx-2 keeps the visual line where it was while each control
          gets a real target. --}}
     <div class="-mx-2 mb-2 flex items-center justify-between">
-        <a href="{{ route('labels.staff.sets') }}" wire:navigate
+        <a data-back href="{{ route('labels.staff.sets') }}" wire:navigate
            class="flex min-h-[2.75rem] items-center gap-1 rounded-control px-2 text-xs font-medium text-gray-600 active:bg-gray-100">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>

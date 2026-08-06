@@ -61,6 +61,7 @@ class PayslipMail extends Mailable
             'run'               => $this->run,
             'lines'             => collect([$this->line]),
             'brandName'         => $this->brandName,
+            'logoBase64'        => $this->run->company?->logoDataUri(),
             'companyName'       => $this->run->company?->name,
             'companyReg'        => $this->run->company?->registration_number,
             'address'           => $this->run->company?->address,

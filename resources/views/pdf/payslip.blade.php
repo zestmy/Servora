@@ -70,6 +70,12 @@
                 @endif
                 <div class="co-meta">{{ $run->reference }}</div>
             </div>
+            {{-- Inlined as a data URI by Company::logoDataUri() — dompdf will
+                 not fetch a remote image. Capped in height so a tall logo
+                 cannot push the second slip off the page. --}}
+            @if ($logoBase64 ?? null)
+                <img src="{{ $logoBase64 }}" alt="" style="max-height: 30px; max-width: 150px; margin-bottom: 3px;">
+            @endif
             <div class="brand">{{ $brandName }}</div>
             {{-- The legal entity, when it differs from the trading name. A
                  payslip is a record of employment by a COMPANY, and the brand

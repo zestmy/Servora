@@ -43,7 +43,7 @@
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-start gap-3">
-            <a href="{{ route('hr.employees') }}" title="Back to Employees"
+            <a data-back href="{{ route('hr.employees') }}" title="Back to Employees"
                class="mt-0.5 p-1.5 rounded-control text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />

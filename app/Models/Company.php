@@ -139,6 +139,37 @@ class Company extends Model
         return $this->hasMany(CentralPurchasingUnit::class);
     }
 
+    /**
+     * The company logo as a data URI, for embedding in a PDF.
+     *
+     * dompdf will not fetch a remote image and cannot read a storage path, so
+     * every PDF that wants the logo has to inline it. This lives on the model
+     * because three controllers were about to hold their own copy of it.
+     *
+     * Returns null rather than throwing when the file is missing: a document
+     * without its logo is still a usable document, and a payslip that 500s
+     * because someone deleted an image is not.
+     */
+    public function logoDataUri(): ?string
+    {
+        if (! $this->logo) {
+            return null;
+        }
+
+        try {
+            $path = \Illuminate\Support\Facades\Storage::disk('public')->path($this->logo);
+
+            if (is_file($path)) {
+                return 'data:' . mime_content_type($path) . ';base64,' . base64_encode(file_get_contents($path));
+            }
+        } catch (\Throwable $e) {
+            // Unreadable disk, bad path, missing extension — all the same
+            // answer: no logo.
+        }
+
+        return null;
+    }
+
     public function isCpuMode(): bool
     {
         return $this->ordering_mode === 'cpu';

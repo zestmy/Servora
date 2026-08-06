@@ -169,7 +169,7 @@ class AttendanceExportController extends Controller
 
         $company    = $user->company;
         $brandName  = $company?->brand_name ?: $company?->name;
-        $logoBase64 = $this->companyLogoBase64($company);
+        $logoBase64 = $company?->logoDataUri();
 
         $outletName = $outletFilter !== '' ? Outlet::find((int) $outletFilter)?->name : null;
 
@@ -212,17 +212,4 @@ class AttendanceExportController extends Controller
         );
     }
 
-    private function companyLogoBase64($company): ?string
-    {
-        if (! $company?->logo) return null;
-        try {
-            $path = Storage::disk('public')->path($company->logo);
-            if (file_exists($path)) {
-                $mime = mime_content_type($path);
-                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-            }
-        } catch (\Throwable $e) {
-        }
-        return null;
-    }
 }
