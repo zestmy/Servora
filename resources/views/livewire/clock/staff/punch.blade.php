@@ -122,6 +122,65 @@
         </div>
     @endif
 
+    @if ($kioskOnly)
+        {{-- ── This outlet clocks in on its kiosk ─────────────────────────
+
+             Everything below — the camera, the buttons, the off-site note —
+             is absent rather than disabled, and that is deliberate on two
+             counts.
+
+             clock.js boots off the presence of #clock-video, so leaving the
+             element out is what actually stops the camera. A disabled button
+             over a live preview would keep the lens on all shift for a punch
+             that cannot be made, and the indicator light would say so.
+
+             And a control that is visible but refuses teaches people to press
+             it anyway. If the answer is "use the tablet", the screen should
+             say that and nothing else.
+
+             Anyone who genuinely needs their phone — an area manager, a
+             driver, somebody working an offsite event — is marked "always
+             allowed" on their employee record and never sees this. --}}
+        <div class="rounded-xl border border-brand-200 bg-brand-50 px-5 py-6 text-center mb-3">
+            <div class="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-brand-100 text-brand-700">
+                <x-icon name="device" class="h-6 w-6" />
+            </div>
+
+            <p class="text-base font-semibold text-brand-900">
+                {{ $kiosk ? 'Clock in on the ' . $kiosk->name : 'Clock in on the kiosk' }}
+            </p>
+            <p class="mt-1.5 text-sm text-brand-800">
+                {{ $outlet?->name }} clocks in and out on its own tablet, so there is nothing
+                to press here.
+            </p>
+            <p class="mt-3 text-xs text-brand-700">
+                Just look at the camera on the tablet — no PIN needed. If it cannot recognise you,
+                it will offer you one.
+            </p>
+        </div>
+
+        {{-- Leave, time off, the roster and your own punch history all still
+             work from this phone; only the clock itself has moved. Said out
+             loud because an app that has stopped doing the thing it is named
+             after looks broken otherwise. --}}
+        <p class="mb-4 text-center text-xs text-gray-600">
+            Leave, time off and your roster all still work from here.
+        </p>
+    @else
+
+    @if ($kioskDown)
+        {{-- The kiosk is the way in here, but it is not answering — so the
+             phone is, and saying why saves somebody a walk to a dead tablet.
+             The punch is still recorded and carries kiosk_down, which is a
+             record rather than a fault and stays out of the review queue. --}}
+        <div class="rounded-xl border border-warning-300 bg-warning-50 px-4 py-3 mb-3">
+            <p class="text-sm font-medium text-warning-900">The outlet kiosk is not responding.</p>
+            <p class="mt-0.5 text-xs text-warning-800">
+                Clock in here instead — this one counts, and your manager will see the tablet is down.
+            </p>
+        </div>
+    @endif
+
     {{-- ── Camera ────────────────────────────────────────────────────────
          wire:ignore is load-bearing, not tidiness. Every punch re-renders
          this component, and a morph that touches the <video> drops its
@@ -232,6 +291,8 @@
             </p>
         @endif
     @endif
+
+    @endif {{-- /kioskOnly --}}
 
     {{-- ── Today ───────────────────────────────────────────────────────── --}}
     @if ($punches->isNotEmpty())

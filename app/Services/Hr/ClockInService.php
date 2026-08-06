@@ -74,6 +74,7 @@ class ClockInService
     public function __construct(
         private ShiftResolver $shifts,
         private FaceMatcher $faces,
+        private OwnDevicePolicy $ownDevice,
     ) {
     }
 
@@ -441,42 +442,37 @@ class ClockInService
         array &$flags,
         bool $lenient,
     ): void {
-        if ($employee->allow_byod === true) {
+        $decision = $this->ownDevice->decide($employee, $outlet, $settings);
+
+        if ($decision['status'] === OwnDevicePolicy::ALLOWED) {
             return;
         }
 
-        // canUseOwnDevice() carries the tri-state: an explicit "kiosk only" on
-        // the employee still pins them to the tablet even at an outlet that
-        // allows phones, which a bare expectsKiosk() check here would drop.
-        if ($employee->canUseOwnDevice($outlet) && $settings->byod_enabled) {
-            return;
-        }
-
-        $kioskLive = ClockDevice::withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $employee->company_id)
-            ->where('outlet_id', $outlet->id)
-            ->active()
-            ->paired()
-            ->where('last_seen_at', '>', now()->subMinutes(ClockDevice::HEARTBEAT_STALE_MINUTES))
-            ->exists();
-
-        if (! $kioskLive) {
+        if ($decision['status'] === OwnDevicePolicy::KIOSK_DOWN) {
             $flags[] = 'kiosk_down';
 
             return;
         }
 
-        // Never a break. Somebody mid-shift has already been let in by this
-        // same door, and refusing to let them END a break would leave the
-        // overrun charge running with nothing they can do about it.
-        if (! $settings->byod_enabled && ! $lenient) {
-            throw new ClockInException(sprintf(
-                'Clock in on the kiosk at %s. Your company has turned off clocking in from your own phone.',
-                $outlet->name
-            ));
+        /*
+         * Refused — except for a break, which is never refused.
+         *
+         * Somebody mid-shift has already been let in by some door, and
+         * declining to let them END a break would leave the overrun charge
+         * running with nothing they can do about it. That punch is recorded
+         * and flagged instead, which is also the only way byod_when_kiosk_up
+         * is still reachable now that the staff app hides the button entirely.
+         */
+        if ($lenient) {
+            $flags[] = 'byod_when_kiosk_up';
+
+            return;
         }
 
-        $flags[] = 'byod_when_kiosk_up';
+        throw new ClockInException(
+            $this->ownDevice->message($outlet, $decision['kiosk'])
+            . ' This outlet clocks in on its kiosk.'
+        );
     }
 
     /**

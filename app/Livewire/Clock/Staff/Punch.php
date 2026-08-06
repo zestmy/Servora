@@ -7,6 +7,7 @@ use App\Models\ClockSetting;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\ClockInException;
 use App\Services\Hr\ClockInService;
+use App\Services\Hr\OwnDevicePolicy;
 use App\Services\Hr\PunchState;
 use App\Services\Hr\ShiftResolver;
 use Carbon\Carbon;
@@ -151,6 +152,30 @@ class Punch extends StaffComponent
     }
 
     /**
+     * Whether this phone is a way in at all right now.
+     *
+     * Asked of the SAME object ClockInService asks, which is the point of
+     * OwnDevicePolicy existing. A screen that offers a big green button for a
+     * punch the service is going to refuse is the worst possible version of
+     * this: somebody waits for a GPS fix, holds still for the face, and is
+     * then told to go and use the tablet.
+     *
+     * @return array{status: string, kiosk: ?\App\Models\ClockDevice}
+     */
+    public function ownDevice(): array
+    {
+        $outlet = $this->staff()->outlet;
+
+        // No outlet posting is a different problem, and outletFor() refuses
+        // the punch with a message about exactly that. Nothing to say here.
+        if (! $outlet) {
+            return ['status' => OwnDevicePolicy::ALLOWED, 'kiosk' => null];
+        }
+
+        return app(OwnDevicePolicy::class)->decide($this->staff(), $outlet);
+    }
+
+    /**
      * @return array{entry: \App\Models\RosterEntry, start: Carbon, end: Carbon}|null
      */
     public function shift(): ?array
@@ -241,8 +266,16 @@ class Punch extends StaffComponent
                 ->find($this->lastEventId)
             : null;
 
+        $ownDevice = $this->ownDevice();
+
         return view('livewire.clock.staff.punch', [
             'settings'  => ClockSetting::forCompany($this->staff()->company_id),
+            // When this is true the camera is never rendered, so it never
+            // starts — clock.js boots off the presence of #clock-video, so
+            // leaving the element out is what actually switches it off.
+            'kioskOnly'     => $ownDevice['status'] === OwnDevicePolicy::REFUSED,
+            'kioskDown'     => $ownDevice['status'] === OwnDevicePolicy::KIOSK_DOWN,
+            'kiosk'         => $ownDevice['kiosk'],
             'shift'     => $this->shift(),
             'nextType'  => $this->nextType(),
             'breakType' => $this->nextBreakType(),

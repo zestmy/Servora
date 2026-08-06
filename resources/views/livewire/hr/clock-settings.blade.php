@@ -247,11 +247,36 @@
                  real cost is the enrolled person the camera cannot read this
                  morning, which is a Tuesday in a wet kitchen. --}}
             @unless ($kiosk_allow_pin)
+                @php
+                    // Read from the live-bound fences array, so the warning
+                    // reacts to a mode being changed lower down this same page
+                    // rather than only after a save.
+                    $kioskOnlyOutlets = collect($fences)
+                        ->filter(fn ($f) => ($f['mode'] ?? null) === \App\Models\Outlet::PUNCH_KIOSK_ONLY)
+                        ->count();
+                @endphp
+
                 <div class="alert-warning ml-7">
                     With this off, anyone the camera cannot recognise has <strong>no way to clock in
                     at all</strong> — not only new hires who are not enrolled yet, but enrolled staff
                     in a hairnet, in steam, or in bad morning light. Their manager will have to mark
                     the attendance grid by hand. Enrol everybody on the kiosk itself first.
+
+                    {{-- The combination is worse than either half, and it is
+                         not obvious from two switches on opposite ends of a
+                         page. At a kiosk-only outlet the phone is already
+                         refused, so turning the PIN off as well removes the
+                         last remaining door. --}}
+                    @if ($kioskOnlyOutlets > 0)
+                        <span class="mt-2 block font-semibold">
+                            {{ $kioskOnlyOutlets }}
+                            {{ \Illuminate\Support\Str::plural('outlet', $kioskOnlyOutlets) }}
+                            below {{ $kioskOnlyOutlets === 1 ? 'is' : 'are' }} set to kiosk only,
+                            where phones are already refused — so for staff there this removes the
+                            last way in. Either leave the PIN on, or allow those individuals their
+                            own phone on their employee record.
+                        </span>
+                    @endif
                 </div>
             @endunless
 
