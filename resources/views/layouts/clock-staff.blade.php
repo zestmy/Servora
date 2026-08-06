@@ -126,8 +126,12 @@
             $tabs = [
                 ['route' => 'clock.staff.punch',   'label' => 'Clock',
                  'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
-                ['route' => 'clock.staff.history', 'label' => 'My punches',
+                ['route' => 'clock.staff.history', 'label' => 'Punches',
                  'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
+                ['route' => 'clock.staff.leave',   'label' => 'Leave',
+                 'icon'  => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'],
+                ['route' => 'clock.staff.time-off', 'label' => 'Time off',
+                 'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
             ];
         @endphp
         {{-- The active tab is marked three ways — a rule above it, a heavier
@@ -135,7 +139,16 @@
              glare-washed screen in a doorway will not carry, and it is also
              WCAG 1.4.1. --}}
         <nav class="shrink-0 z-20 bg-white border-t border-gray-200 safe-bottom safe-x">
-            <div class="grid grid-cols-2">
+            {{-- Literal class strings, not "grid-cols-{{ n }}": Tailwind scans
+                 templates as plain text and never sees an interpolated name,
+                 so the built stylesheet would not contain the column count. --}}
+            @php
+                $tabCols = match (count($tabs)) {
+                    1 => 'grid-cols-1', 2 => 'grid-cols-2', 3 => 'grid-cols-3',
+                    4 => 'grid-cols-4', 5 => 'grid-cols-5', default => 'grid-cols-4',
+                };
+            @endphp
+            <div class="grid {{ $tabCols }}">
                 @foreach ($tabs as $tab)
                     @php $active = request()->routeIs($tab['route']); @endphp
                     <a href="{{ route($tab['route']) }}" wire:navigate
