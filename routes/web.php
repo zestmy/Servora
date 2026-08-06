@@ -327,6 +327,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/pay-components', \App\Livewire\Settings\PayComponents::class)->name('settings.pay-components')->middleware('can:hr.compensation');
     Route::get('/settings/statutory', \App\Livewire\Settings\StatutoryRates::class)->name('settings.statutory')->middleware('can:hr.compensation');
     Route::get('/settings/leave-types', \App\Livewire\Settings\LeaveTypes::class)->name('settings.leave-types')->middleware('can:hr.leave.approve');
+    Route::get('/settings/leave-approvers', \App\Livewire\Settings\LeaveApprovers::class)->name('settings.leave-approvers')->middleware('can:hr.leave.approve');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:inventory.view');
     Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.view');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:hr.view');

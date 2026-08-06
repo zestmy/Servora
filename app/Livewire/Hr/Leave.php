@@ -7,6 +7,7 @@ use App\Models\LeaveEntitlement;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Services\Hr\LeaveBalance;
+use App\Services\Hr\LeaveNotifier;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -184,7 +185,7 @@ class Leave extends Component
         // would sit in a queue nobody is expected to look at.
         $autoApprove = ! $type->requires_approval;
 
-        LeaveRequest::create([
+        $created = LeaveRequest::create([
             'company_id'      => $employee->company_id,
             'employee_id'     => $employee->id,
             'leave_type_id'   => $type->id,
@@ -200,10 +201,15 @@ class Leave extends Component
             'approved_at'     => $autoApprove ? now() : null,
         ]);
 
+        // Notify AFTER the request exists — a notification for something that
+        // failed to save would be worse than none.
+        $told = $autoApprove ? 0 : app(LeaveNotifier::class)->submitted($created);
+
         $this->showApply = false;
         session()->flash('success', $autoApprove
             ? 'Leave recorded — ' . $type->name . ' needs no approval.'
-            : 'Leave applied for. It is now waiting on approval.');
+            : 'Leave applied for. It is now waiting on approval.'
+              . ($told ? " {$told} approver(s) notified." : ' Nobody is set up to be notified — check the reporting line or leave approvers.'));
     }
 
     // ── Deciding ─────────────────────────────────────────────────────────
@@ -244,6 +250,8 @@ class Leave extends Component
             'approved_at'   => now(),
             'decision_note' => trim($this->decisionNote) ?: null,
         ]);
+
+        app(LeaveNotifier::class)->decided($request->fresh(['employee', 'leaveType', 'approver']));
 
         $this->decidingId   = null;
         $this->decisionNote = '';

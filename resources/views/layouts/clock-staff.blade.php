@@ -1,14 +1,23 @@
 {{--
-    Staff clock-in app shell.
+    Staff Portal shell.
 
     Same bones as the labels staff shell — fixed app frame, bottom tabs,
     safe-area handling — because staff move between the two on the same
     phone and a second set of conventions to learn would be a cost with no
-    benefit. Two tabs only: the thing you came to do, and proof you did it.
+    benefit.
+
+    Named the Staff PORTAL rather than anything about clocking: it now holds
+    punches, leave and time off, and an app called "Clock In" is the wrong
+    place to go looking for annual leave.
 --}}
 @php
     $brandCompany = app()->bound('currentCompany') ? app('currentCompany') : null;
-    $brandName    = $brandCompany?->brand_name ?? $brandCompany?->name ?? 'Clock In';
+    $brandName    = $brandCompany?->brand_name ?? $brandCompany?->name ?? 'Staff Portal';
+    // The company's own logo when they have uploaded one, else the Servora
+    // mark. Either beats a clock glyph on an app that is no longer just a clock.
+    $appIcon      = $brandCompany?->logo
+        ? \Illuminate\Support\Facades\Storage::disk('public')->url($brandCompany->logo)
+        : asset('favicon.png');
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -27,11 +36,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Clock In">
+    <meta name="apple-mobile-web-app-title" content="Staff Portal">
     <link rel="manifest" href="{{ route('clock.staff.manifest') }}">
-    <link rel="apple-touch-icon" href="{{ asset('clock-app/apple-touch-icon.png') }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('clock-app/icon-192.png') }}">
-    <title>{{ $title ?? 'Clock In' }} | {{ $brandName }}</title>
+    <link rel="apple-touch-icon" href="{{ $appIcon }}">
+    <link rel="icon" type="image/png" href="{{ $appIcon }}">
+    <title>{{ $title ?? 'Staff Portal' }} | {{ $brandName }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/clock.js'])
     @livewireStyles
     <style>
@@ -128,10 +137,16 @@
                  'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
                 ['route' => 'clock.staff.history', 'label' => 'Punches',
                  'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
+                ['route' => 'clock.staff.roster',  'label' => 'Roster',
+                 'icon'  => 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'],
                 ['route' => 'clock.staff.leave',   'label' => 'Leave',
                  'icon'  => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'],
+                // Its own glyph, not the clock's: two identical icons in a
+                // five-tab bar is a bar you have to read rather than scan.
+                // (A // comment, not {{-- --}} — Blade does not strip its own
+                // comments inside @php, and this array is PHP.)
                 ['route' => 'clock.staff.time-off', 'label' => 'Time off',
-                 'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                 'icon'  => 'M13 10V3L4 14h7v7l9-11h-7z'],
             ];
         @endphp
         {{-- The active tab is marked three ways — a rule above it, a heavier

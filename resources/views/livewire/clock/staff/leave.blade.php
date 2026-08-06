@@ -85,9 +85,9 @@
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="text-xs font-semibold text-gray-600">Days</label>
-                    <input type="number" step="0.5" min="0.5" wire:model="f_days"
+                    <input type="number" step="0.5" min="0.5" wire:model.live.debounce.500ms="f_days"
                            class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300" />
-                    <p class="mt-1 text-[11px] text-gray-500">Adjust for rest days.</p>
+                    <p class="mt-1 text-[11px] text-gray-500">The end date follows this. Adjust for rest days.</p>
                     <x-input-error :messages="$errors->get('f_days')" class="mt-1" />
                 </div>
                 <div class="flex flex-col justify-start pt-6 gap-2">

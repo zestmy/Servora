@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\LeaveBalance;
+use App\Services\Hr\LeaveNotifier;
 use Carbon\Carbon;
 
 /**
@@ -45,9 +46,48 @@ class Leave extends StaffComponent
         $this->showForm = true;
     }
 
-    public function updatedFStart(): void { $this->suggestDays(); }
-    public function updatedFEnd(): void   { $this->suggestDays(); }
-    public function updatedFHalf(): void  { $this->suggestDays(); }
+    public function updatedFEnd(): void  { $this->suggestDays(); }
+    public function updatedFHalf(): void { $this->suggestDays(); }
+
+    /*
+     * The two fields drive EACH OTHER, because people fill this in both ways.
+     *
+     * Change the dates and the day count follows; type a day count and the
+     * end date moves to match. Typing "2" and watching To sit on the same day
+     * as From is the version that gets submitted wrong.
+     *
+     * No loop: Livewire fires updated hooks on USER input only, so assigning
+     * these properties from inside the handlers does not re-enter them.
+     */
+    public function updatedFStart(): void { $this->suggestEnd(); }
+    public function updatedFDays(): void  { $this->suggestEnd(); }
+
+    /** Move the end date to match the day count, from the start date. */
+    private function suggestEnd(): void
+    {
+        if ($this->f_half) {
+            $this->f_end  = $this->f_start;
+            $this->f_days = '0.5';
+            return;
+        }
+
+        $days = (float) $this->f_days;
+
+        if ($days <= 0) {
+            return;
+        }
+
+        try {
+            $from = Carbon::parse($this->f_start)->startOfDay();
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        // Whole days only: 2 days from Monday ends Tuesday, so the span is
+        // days − 1. A half day beyond a whole one still ends that same last
+        // day, which is why this rounds up rather than truncating.
+        $this->f_end = $from->copy()->addDays((int) ceil($days) - 1)->toDateString();
+    }
 
     /** A starting point from the dates — rest days still have to be taken off. */
     private function suggestDays(): void
@@ -127,7 +167,7 @@ class Leave extends StaffComponent
 
         $autoApprove = ! $type->requires_approval;
 
-        LeaveRequest::withoutGlobalScope(CompanyScope::class)->create([
+        $created = LeaveRequest::withoutGlobalScope(CompanyScope::class)->create([
             'company_id'      => $staff->company_id,
             'employee_id'     => $staff->id,
             'leave_type_id'   => $type->id,
@@ -143,10 +183,14 @@ class Leave extends StaffComponent
             'approved_at'     => $autoApprove ? now() : null,
         ]);
 
+        if (! $autoApprove) {
+            app(LeaveNotifier::class)->submitted($created);
+        }
+
         $this->showForm = false;
         session()->flash('success', $autoApprove
             ? 'Recorded. ' . $type->name . ' does not need approval.'
-            : 'Applied. Your manager will see it for approval.');
+            : 'Applied. Your manager has been notified.');
     }
 
     /**

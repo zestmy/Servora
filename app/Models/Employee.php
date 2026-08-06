@@ -20,7 +20,7 @@ class Employee extends Model
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
-        'daily_working_hours',
+        'daily_working_hours', 'reports_to_id',
     ];
 
     /**
@@ -196,6 +196,17 @@ class Employee extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    /** This employee's superior — who their leave goes to. */
+    public function superior(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'reports_to_id');
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'reports_to_id');
     }
 
     /**

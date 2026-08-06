@@ -4,6 +4,7 @@ namespace App\Livewire\Clock\Staff;
 
 use App\Models\TimeOffRequest;
 use App\Scopes\CompanyScope;
+use App\Services\Hr\LeaveNotifier;
 use App\Services\Hr\TimeOffBalance;
 
 /**
@@ -55,7 +56,7 @@ class TimeOff extends StaffComponent
             return;
         }
 
-        TimeOffRequest::withoutGlobalScope(CompanyScope::class)->create([
+        $created = TimeOffRequest::withoutGlobalScope(CompanyScope::class)->create([
             'company_id'  => $staff->company_id,
             'employee_id' => $staff->id,
             'off_date'    => $this->f_date,
@@ -65,8 +66,10 @@ class TimeOff extends StaffComponent
             'applied_by'  => null,
         ]);
 
+        app(LeaveNotifier::class)->submitted($created);
+
         $this->showForm = false;
-        session()->flash('success', 'Applied. Your manager will see it for approval.');
+        session()->flash('success', 'Applied. Your manager has been notified.');
     }
 
     public function cancel(int $id): void

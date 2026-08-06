@@ -4,6 +4,7 @@ namespace App\Livewire\Hr;
 
 use App\Models\Employee;
 use App\Models\TimeOffRequest;
+use App\Services\Hr\LeaveNotifier;
 use App\Services\Hr\TimeOffBalance;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -97,7 +98,7 @@ class TimeOff extends Component
             return;
         }
 
-        TimeOffRequest::create([
+        $created = TimeOffRequest::create([
             'company_id'  => $employee->company_id,
             'employee_id' => $employee->id,
             'off_date'    => $this->a_date,
@@ -107,8 +108,11 @@ class TimeOff extends Component
             'applied_by'  => Auth::id(),
         ]);
 
+        $told = app(LeaveNotifier::class)->submitted($created);
+
         $this->showApply = false;
-        session()->flash('success', 'Time off applied for. It is waiting on approval.');
+        session()->flash('success', 'Time off applied for. It is waiting on approval.'
+            . ($told ? " {$told} approver(s) notified." : ''));
     }
 
     public function decide(int $id, string $outcome): void
@@ -144,6 +148,8 @@ class TimeOff extends Component
             'approved_at'   => now(),
             'decision_note' => trim($this->decisionNote) ?: null,
         ]);
+
+        app(LeaveNotifier::class)->decided($request->fresh(['employee', 'approver']));
 
         $this->decidingId   = null;
         $this->decisionNote = '';

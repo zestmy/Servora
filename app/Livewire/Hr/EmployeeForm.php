@@ -23,6 +23,8 @@ class EmployeeForm extends Component
     public ?int   $employeeId       = null;
     public ?int   $f_outlet_id      = null;
     public ?int   $f_section_id     = null;
+    /** Superior — who this employee's leave goes to. */
+    public ?int   $f_reports_to_id  = null;
     public string $f_staff_id       = '';
     public string $f_name           = '';
     public string $f_designation    = '';
@@ -106,6 +108,7 @@ class EmployeeForm extends Component
         $this->employeeId      = $emp->id;
         $this->f_outlet_id     = $emp->outlet_id;
         $this->f_section_id    = $emp->section_id;
+        $this->f_reports_to_id = $emp->reports_to_id;
         $this->f_staff_id      = $emp->staff_id ?? '';
         $this->f_name          = $emp->name;
         $this->f_designation   = $emp->designation ?? '';
@@ -200,6 +203,7 @@ class EmployeeForm extends Component
                 \Illuminate\Validation\Rule::in($accessible),
             ],
             'f_section_id'  => 'nullable|integer|exists:sections,id',
+            'f_reports_to_id' => 'nullable|integer|exists:employees,id',
             'f_staff_id'       => 'nullable|string|max:100',
             'f_name'           => 'required|string|max:255',
             'f_designation'    => 'nullable|string|max:255',
@@ -339,6 +343,9 @@ class EmployeeForm extends Component
             'company_id'    => $user->company_id,
             'outlet_id'     => $this->f_outlet_id,
             'section_id' => $this->f_section_id ?: null,
+            // Never themselves: a self-reference is a loop, and always a slip.
+            'reports_to_id' => ($this->f_reports_to_id && $this->f_reports_to_id !== $this->employeeId)
+                ? $this->f_reports_to_id : null,
             'staff_id'      => $this->f_staff_id ?: null,
             'name'          => $this->f_name,
             'designation'   => $this->f_designation ?: null,
@@ -511,6 +518,13 @@ class EmployeeForm extends Component
 
         $sections   = Section::active()->ordered()->get();
         $canViewPay = $this->canViewPay();
+
+        // Who this person can report to. Excludes themselves and anyone who
+        // already reports to them — a two-person cycle makes the chain
+        // unwalkable and is the one that actually happens.
+        $superiors = app(\App\Services\Hr\LeaveApprovers::class)->candidateSuperiors(
+            $this->employeeId ? Employee::findOrFail($this->employeeId) : new Employee(['company_id' => Auth::user()->company_id])
+        );
         // The full catalogue for naming a chosen row, plus what is still free
         // to add — a course already listed must not be offered twice.
         // Hides the expiry inputs for documents this company treats as one-off.
@@ -519,7 +533,7 @@ class EmployeeForm extends Component
         $availableCertifications = $this->availableCertificationTypes();
 
         return view('livewire.hr.employee-form', compact(
-            'outlets', 'sections', 'canViewPay', 'certificationTypes', 'availableCertifications', 'complianceSettings'
+            'outlets', 'sections', 'canViewPay', 'certificationTypes', 'availableCertifications', 'complianceSettings', 'superiors'
         ))
             ->layout('layouts.app', ['title' => $this->employeeId ? 'Edit Employee' : 'Add Employee']);
     }

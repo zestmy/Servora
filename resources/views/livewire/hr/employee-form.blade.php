@@ -263,6 +263,25 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
+                    <label class="text-xs font-semibold text-gray-600">Reports to</label>
+                    <select wire:model="f_reports_to_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">— None —</option>
+                        @foreach ($superiors as $sup)
+                            <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        Their superior. Leave and time off requests are emailed to this person for approval.
+                        With nobody set, requests fall back to
+                        <a href="{{ route('settings.leave-approvers') }}" class="text-brand-600 hover:underline">Settings → Leave Approvers</a>.
+                    </p>
+                    <x-input-error :messages="$errors->get('f_reports_to_id')" class="mt-1" />
+                </div>
+                <div></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
                     <label class="text-xs font-semibold text-gray-600">Working day (hours)</label>
                     <input type="number" step="0.25" min="1" max="24" wire:model="f_daily_working_hours"
                            placeholder="Company default"

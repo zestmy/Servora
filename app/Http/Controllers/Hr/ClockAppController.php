@@ -9,9 +9,9 @@ use Illuminate\Http\Response;
  * PWA plumbing for the staff clock-in app.
  *
  * Served through Laravel rather than as static files because the app's base
- * path differs by environment — /clock behind a company subdomain in
- * production, /clock-staff locally — and both the manifest's start_url and
- * the service worker's scope have to match wherever it is mounted.
+ * path is derived from the routes — /staff behind a company subdomain — and
+ * both the manifest's start_url and the service worker's scope have to match
+ * wherever it is mounted.
  *
  * A controller, not route closures: deploy/update.sh runs `route:cache`,
  * and closures cannot be cached.
@@ -25,39 +25,53 @@ class ClockAppController extends Controller
         $brand   = $company?->brand_name ?? $company?->name;
 
         $manifest = [
-            'name'        => $brand ? $brand . ' Clock In' : 'Servora Clock In',
+            // Named for the whole app, not just the clock: leave and time off
+            // live here too, and an icon labelled "Clock In" is the wrong
+            // place to go looking for annual leave.
+            'name'        => $brand ? $brand . ' Staff Portal' : 'Servora Staff Portal',
             // A home screen truncates around twelve characters, and this icon
             // is tapped at the door twice a day — it has to be unmistakable.
-            'short_name'  => 'Clock In',
-            'description' => 'Clock in and out at your outlet.',
+            'short_name'  => 'Staff Portal',
+            'description' => 'Clock in, check your punches, and apply for leave.',
             'start_url'   => $start,
             'scope'       => $this->scope(),
             'display'     => 'standalone',
             'orientation' => 'portrait',
             'background_color' => '#f9fafb',
             'theme_color'      => '#0b7677',
-            'icons'            => [
-                [
-                    'src'     => asset('clock-app/icon-192.png'),
-                    'sizes'   => '192x192',
-                    'type'    => 'image/png',
+            /*
+             * The company's own logo when they have uploaded one, else the
+             * Servora mark. Not the clock glyph: the app holds leave and time
+             * off now, and staff pick this icon off a home screen full of
+             * others — their own brand is the fastest thing to find.
+             *
+             * A logo is declared WITHOUT `sizes`, because we do not know its
+             * dimensions and claiming 512x512 for a 300px file makes Android
+             * upscale it into something blurry. "any" lets the browser use it
+             * at whatever size it needs.
+             */
+            'icons'            => $company?->logo
+                ? [[
+                    'src'     => \Illuminate\Support\Facades\Storage::disk('public')->url($company->logo),
+                    'sizes'   => 'any',
                     'purpose' => 'any',
+                ]]
+                : [
+                    [
+                        'src'     => asset('favicon.png'),
+                        'sizes'   => '300x300',
+                        'type'    => 'image/png',
+                        'purpose' => 'any',
+                    ],
+                    [
+                        // Android crops icons to its own shape; the maskable
+                        // one keeps its glyph inside the safe zone.
+                        'src'     => asset('clock-app/icon-maskable-512.png'),
+                        'sizes'   => '512x512',
+                        'type'    => 'image/png',
+                        'purpose' => 'maskable',
+                    ],
                 ],
-                [
-                    'src'     => asset('clock-app/icon-512.png'),
-                    'sizes'   => '512x512',
-                    'type'    => 'image/png',
-                    'purpose' => 'any',
-                ],
-                [
-                    // Android crops icons to its own shape; this one has the
-                    // glyph inside the safe zone so it survives the crop.
-                    'src'     => asset('clock-app/icon-maskable-512.png'),
-                    'sizes'   => '512x512',
-                    'type'    => 'image/png',
-                    'purpose' => 'maskable',
-                ],
-            ],
         ];
 
         return response(json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT))
@@ -91,7 +105,7 @@ class ClockAppController extends Controller
             . '<title>Offline</title>'
             . '<div style="font-family:system-ui;padding:2rem;text-align:center;color:#374151">'
             . '<h1 style="font-size:1.1rem">No connection</h1>'
-            . '<p style="font-size:.875rem;color:#6b7280">Clock In needs a connection to record your punch. '
+            . '<p style="font-size:.875rem;color:#6b7280">The Staff Portal needs a connection to record your punch. '
             . 'Reconnect and try again — do not assume you are clocked in.</p></div>',
             "'\\"
         );
@@ -150,11 +164,22 @@ class ClockAppController extends Controller
             ->header('Service-Worker-Allowed', $scope);
     }
 
-    /** The app's base path, which the worker's scope must match exactly. */
+    /**
+     * The app's BASE path, which the worker's scope must match exactly.
+     *
+     * Derived from the manifest's own URL, not from the punch screen. The
+     * punch screen is /staff/clock, and scoping the worker there would leave
+     * Punches, Leave and Time Off outside it — uncontrolled, and offline for
+     * nobody. The manifest sits at the app root, so its directory IS the base.
+     */
     private function scope(): string
     {
-        $path = parse_url(route('clock.staff.punch', absolute: false), PHP_URL_PATH) ?: '/';
+        $path = parse_url(route('clock.staff.manifest', absolute: false), PHP_URL_PATH) ?: '/';
 
-        return rtrim($path, '/') . '/';
+        // dirname() returns a backslash on Windows for a root-level path, and
+        // a scope has to be a URL path either way.
+        $base = rtrim(str_replace(DIRECTORY_SEPARATOR, '/', dirname($path)), '/');
+
+        return $base . '/';
     }
 }

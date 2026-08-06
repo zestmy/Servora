@@ -7,10 +7,11 @@ use App\Livewire\Clock\Staff\Leave as ClockLeave;
 use App\Livewire\Clock\Staff\TimeOff as ClockTimeOff;
 use App\Livewire\Clock\Staff\Login as ClockLogin;
 use App\Livewire\Clock\Staff\Punch as ClockPunch;
+use App\Livewire\Clock\Staff\Roster as ClockRoster;
 use Illuminate\Support\Facades\Route;
 
 /*
- * Staff clock-in app — {slug}.servora.com.my/clock
+ * Staff app — {slug}.servora.com.my/staff
  *
  * Mounted the same way as routes/labels-staff.php and for the same reason:
  * the main app owns these paths with no domain constraint, and Laravel
@@ -19,7 +20,14 @@ use Illuminate\Support\Facades\Route;
  * very top.
  *
  * Locally APP_DOMAIN is unset and there is no subdomain to constrain on, so
- * these mount at /clock-staff instead. Route NAMES are identical either way.
+ * these mount at the same /staff path. Route NAMES are identical either way.
+ *
+ * THE PREFIX IS /staff, NOT /clock. It stopped being the clock-in app the
+ * moment leave and time off moved in — telling somebody to open "clock" to
+ * apply for annual leave is asking them to ignore the sign above the door.
+ * The route NAMES stay clock.staff.* deliberately: they appear across a dozen
+ * views, a controller and a middleware, and renaming them would be a large
+ * diff that changes nothing anyone can see.
  */
 
 $domain = config('app.domain');
@@ -27,9 +35,9 @@ $domain = config('app.domain');
 $group = Route::middleware(['web', 'company.subdomain']);
 
 if ($domain) {
-    $group->domain('{companySlug}.' . $domain)->prefix('clock');
+    $group->domain('{companySlug}.' . $domain)->prefix('staff');
 } else {
-    $group->prefix('clock-staff');
+    $group->prefix('staff');
 }
 
 $group->group(function () {
@@ -43,8 +51,13 @@ $group->group(function () {
     Route::get('/login', ClockLogin::class)->name('clock.staff.login');
 
     Route::middleware('clock.staff')->group(function () {
-        Route::get('/', ClockPunch::class)->name('clock.staff.punch');
-        Route::get('/history', ClockHistory::class)->name('clock.staff.history');
+        // A bare /staff has to land somewhere: it is what gets typed from
+        // memory, and what a shared link gets trimmed to.
+        Route::redirect('/', '/staff/clock')->name('clock.staff.home');
+
+        Route::get('/clock', ClockPunch::class)->name('clock.staff.punch');
+        Route::get('/punches', ClockHistory::class)->name('clock.staff.history');
+        Route::get('/roster', ClockRoster::class)->name('clock.staff.roster');
         // Self-service leave and time off. Same PIN session as the clock —
         // the people who take leave mostly have a phone, not a manager login.
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');
@@ -53,4 +66,32 @@ $group->group(function () {
         // layout, outside any component root, where wire:click never binds.
         Route::post('/logout', [ClockSessionController::class, 'destroy'])->name('clock.staff.logout');
     });
+});
+
+/*
+ * The old /clock paths, kept as redirects.
+ *
+ * Staff have this installed as a PWA whose start_url is /clock, and there are
+ * bookmarks and printed QR codes pointing at it. Moving the prefix without
+ * these would put a 404 in front of somebody standing at a door trying to
+ * clock in — the worst possible moment to find out a URL changed.
+ *
+ * No `company.subdomain` middleware and no auth: a redirect needs neither,
+ * and resolving a company just to send a browser somewhere else is work for
+ * nothing. They can be dropped once the installed apps have all relaunched.
+ */
+$legacy = Route::middleware(['web']);
+
+if ($domain) {
+    $legacy->domain('{companySlug}.' . $domain)->prefix('clock');
+} else {
+    $legacy->prefix('clock-staff');
+}
+
+$legacy->group(function () {
+    Route::redirect('/', '/staff/clock');
+    Route::redirect('/history', '/staff/punches');
+    Route::redirect('/login', '/staff/login');
+    Route::redirect('/manifest.webmanifest', '/staff/manifest.webmanifest');
+    Route::redirect('/sw.js', '/staff/sw.js');
 });
