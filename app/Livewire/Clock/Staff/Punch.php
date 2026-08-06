@@ -273,6 +273,10 @@ class Punch extends StaffComponent
             // When this is true the camera is never rendered, so it never
             // starts — clock.js boots off the presence of #clock-video, so
             // leaving the element out is what actually switches it off.
+            // Nothing to explain when being away is the job, so the off-site
+            // reason box is dropped rather than left there asking daily for a
+            // fact that was settled once on their employee record.
+            'canClockAnywhere' => $this->staff()->canClockAnywhere(),
             'kioskOnly'     => $ownDevice['status'] === OwnDevicePolicy::REFUSED,
             'kioskDown'     => $ownDevice['status'] === OwnDevicePolicy::KIOSK_DOWN,
             'kiosk'         => $ownDevice['kiosk'],

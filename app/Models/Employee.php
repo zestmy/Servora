@@ -20,7 +20,7 @@ class Employee extends Model
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
-        'daily_working_hours', 'reports_to_id', 'allow_byod',
+        'daily_working_hours', 'reports_to_id', 'allow_byod', 'allow_anywhere',
         // Particulars — each picked from a managed list, see HrOption::TYPES.
         'gender', 'nationality', 'race', 'religion', 'marital_status', 'education_level',
         'emergency_contact_name', 'emergency_contact_relationship',
@@ -97,6 +97,30 @@ class Employee extends Model
         // outright — and answering "yes" here would be inventing a permission
         // out of an absence.
         return $outlet ? ! $outlet->expectsKiosk() : true;
+    }
+
+    /**
+     * Whether the outlet's geofence applies to this person at all.
+     *
+     * For staff whose work is not at the outlet — area managers touring
+     * branches, drivers, an offsite catering crew — every punch is legitimately
+     * outside the fence, so measuring them against it produces a flag a manager
+     * has to dismiss twice a day forever.
+     *
+     * What it switches off is the JUDGEMENT, never the RECORD. Coordinates,
+     * accuracy and the distance from the outlet are all still computed and
+     * stored on the punch exactly as they are for everybody else — a manager
+     * looking at a driver's day can still see where each punch was made. This
+     * only stops that distance being treated as a problem.
+     *
+     * It is also narrow on purpose: it exempts somebody from the GEOFENCE, not
+     * from providing a location. `require_gps` still applies, because "your job
+     * is not at the outlet" is a reason to stop measuring the distance, not a
+     * reason to stop knowing where somebody was.
+     */
+    public function canClockAnywhere(): bool
+    {
+        return (bool) $this->allow_anywhere;
     }
 
     /**
@@ -199,6 +223,9 @@ class Employee extends Model
         // Nullable on purpose: null is "whatever the outlet says", which is
         // what nearly every row holds. See canUseOwnDevice().
         'allow_byod'             => 'boolean',
+        // NOT nullable — there is no per-outlet rule for it to inherit.
+        // See canClockAnywhere().
+        'allow_anywhere'         => 'boolean',
         'join_date'              => 'date',
         'date_of_birth'          => 'date',
         'employment_status_date' => 'date',

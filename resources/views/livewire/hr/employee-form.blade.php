@@ -9,7 +9,7 @@
                          'f_emergency_contact_phone', 'f_emergency_contact_phone_alt', 'f_emergency_contact_address'],
         'employment' => ['f_outlet_id', 'f_section_id', 'f_staff_id', 'f_designation', 'f_join_date',
                          'f_employment_status', 'f_employment_status_date', 'f_outsourcing_provider',
-                         'f_outsourcing_company', 'f_break_minutes', 'f_allow_byod'],
+                         'f_outsourcing_company', 'f_break_minutes', 'f_allow_byod', 'f_allow_anywhere'],
         'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points', 'f_bank_name', 'f_bank_account_no'],
         'statutory'  => ['s_epf_number', 's_socso_number', 's_tax_number', 's_epf_override',
                          's_pcb_category', 's_children', 's_zakat', 's_other_relief'],
@@ -444,6 +444,30 @@
                     At an outlet set to kiosk only, a punch from somebody's own phone is still
                     recorded but is flagged for review. Set this to "always allowed" for the people
                     who genuinely need a phone — area managers, drivers, offsite crews.
+                </p>
+            </div>
+
+            {{-- Sits next to the BYOD exception because the two go together in
+                 practice: the people who need their own phone are usually the
+                 same people who are nowhere near the outlet when they use it.
+                 They are still separate switches — one is about the DEVICE,
+                 the other about the PLACE — and somebody can need either
+                 without the other. --}}
+            <div class="sm:w-1/2 sm:pr-1.5">
+                <label class="text-xs font-semibold text-gray-600">Clock in from anywhere</label>
+                <label class="mt-1 flex items-start gap-2 rounded-lg border border-gray-300 px-3 py-2">
+                    <input type="checkbox" wire:model="f_allow_anywhere"
+                           class="mt-0.5 rounded border-gray-300 text-brand-600">
+                    <span class="text-sm text-gray-800">Ignore the outlet's geofence</span>
+                </label>
+                <x-input-error :messages="$errors->get('f_allow_anywhere')" class="mt-1" />
+                {{-- Says plainly what is kept as well as what is dropped, so
+                     nobody reads this as "stops recording where they are". --}}
+                <p class="mt-1 text-[11px] text-gray-500">
+                    For staff whose work is not at the outlet — area managers touring branches,
+                    drivers, offsite crews. Their punches are neither refused nor flagged for being
+                    away, and they are not asked to type a reason every time.
+                    Where they clocked in is still recorded and still visible on the punch.
                 </p>
             </div>
         </div>

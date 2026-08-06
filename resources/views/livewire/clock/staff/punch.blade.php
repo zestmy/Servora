@@ -248,13 +248,21 @@
 
     {{-- Off-site note. Always available rather than only appearing after a
          refusal: somebody sent to another branch already knows they are
-         away, and making them fail once first is pointless friction. --}}
-    <details class="mb-3 rounded-xl border border-gray-200 bg-white px-4 py-3" @if ($errorMessage) open @endif>
-        <summary class="text-sm font-medium text-gray-700 cursor-pointer">Not at the outlet?</summary>
-        <textarea wire:model="reason" rows="2" maxlength="1000"
-                  class="mt-2 w-full rounded-lg border-gray-300 text-sm"
-                  placeholder="e.g. covering at the Bangsar branch today"></textarea>
-    </details>
+         away, and making them fail once first is pointless friction.
+
+         Absent entirely for somebody allowed to clock in from anywhere. The
+         box exists to justify an unexpected distance, and for them the
+         distance is the job — asking every day for a reason that was settled
+         once on their employee record is the friction this is meant to
+         avoid. --}}
+    @unless ($canClockAnywhere)
+        <details class="mb-3 rounded-xl border border-gray-200 bg-white px-4 py-3" @if ($errorMessage) open @endif>
+            <summary class="text-sm font-medium text-gray-700 cursor-pointer">Not at the outlet?</summary>
+            <textarea wire:model="reason" rows="2" maxlength="1000"
+                      class="mt-2 w-full rounded-lg border-gray-300 text-sm"
+                      placeholder="e.g. covering at the Bangsar branch today"></textarea>
+        </details>
+    @endunless
 
     {{-- Never server-disabled. This button is re-rendered after every punch,
          so any disabled state JS had set would come back from the morph and

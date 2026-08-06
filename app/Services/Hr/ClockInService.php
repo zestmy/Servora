@@ -148,7 +148,7 @@ class ClockInService
 
         $location = $isKiosk
             ? $this->kioskLocation()
-            : $this->assessLocation($input, $outlet, $settings, $flags, $lenient);
+            : $this->assessLocation($employee, $input, $outlet, $settings, $flags, $lenient);
 
         /*
          * A kiosk punch is lenient about the face for the same reason a break
@@ -296,7 +296,7 @@ class ClockInService
     /**
      * @return array{latitude: ?float, longitude: ?float, accuracy: ?int, distance: ?int, within: bool}
      */
-    private function assessLocation(array $input, Outlet $outlet, ClockSetting $settings, array &$flags, bool $lenient = false): array
+    private function assessLocation(Employee $employee, array $input, Outlet $outlet, ClockSetting $settings, array &$flags, bool $lenient = false): array
     {
         $result = [
             'latitude' => null, 'longitude' => null, 'accuracy' => null,
@@ -355,6 +355,30 @@ class ClockInService
         }
 
         if (! $result['within']) {
+            /*
+             * Somebody whose job is not at the outlet.
+             *
+             * Returned before any of the three consequences below, so being
+             * away is neither refused, nor made to carry a typed reason, nor
+             * flagged. Every one of those is the correct response to an
+             * UNEXPECTED distance and the wrong response to an expected one:
+             * an area manager touring four branches would otherwise be flagged
+             * twice a day, every day, for the single most ordinary fact about
+             * their job — and a review queue full of those is a review queue
+             * nobody opens.
+             *
+             * Note what is already in $result by this point and is returned
+             * intact: the coordinates, the accuracy, and the distance in
+             * metres. The measurement is kept, only the verdict is dropped, so
+             * a manager reading a driver's day still sees exactly where each
+             * punch was made. weak_location is likewise left alone above — a
+             * fix too vague to mean anything is a fact about the fix, not
+             * about where this person is allowed to be.
+             */
+            if ($employee->canClockAnywhere()) {
+                return $result;
+            }
+
             if ($settings->require_gps && ! $settings->allow_offsite_with_reason && ! $lenient) {
                 throw new ClockInException(sprintf(
                     'You are about %s from %s. Clock in when you get to the outlet.',

@@ -124,6 +124,15 @@ class EmployeeForm extends Component
     public string $f_allow_byod = '';
 
     /**
+     * Whether the outlet's geofence applies to this person.
+     *
+     * A plain bool, unlike $f_allow_byod above, because there is no per-outlet
+     * rule for it to inherit — the geofence belongs to the place, and this is
+     * a fact about the person's job. No third state to represent.
+     */
+    public bool $f_allow_anywhere = false;
+
+    /**
      * Catalogue certifications recorded against this employee.
      *
      * One row per course: ['type_id', 'reference_no', 'issued_on', 'expires_on'].
@@ -234,6 +243,7 @@ class EmployeeForm extends Component
         $this->f_break_minutes = $emp->break_minutes !== null ? (string) $emp->break_minutes : '';
         $this->f_daily_working_hours = $emp->daily_working_hours !== null ? (string) (float) $emp->daily_working_hours : '';
         $this->f_allow_byod = $emp->allow_byod === null ? '' : ($emp->allow_byod ? 'yes' : 'no');
+        $this->f_allow_anywhere = (bool) $emp->allow_anywhere;
         $this->f_certifications = $emp->certifications()
             ->orderBy('certification_type_id')
             ->get()
@@ -393,6 +403,7 @@ class EmployeeForm extends Component
             'f_daily_working_hours' => 'nullable|numeric|min:1|max:24',
             // '' is the inherit-from-outlet case and the default.
             'f_allow_byod'          => 'nullable|in:,yes,no',
+            'f_allow_anywhere'      => 'boolean',
             // Picked from the company's bank list, plus whatever this record
             // already held — see $originalBankName.
             'f_bank_name'           => [
@@ -669,6 +680,8 @@ class EmployeeForm extends Component
                 'no'    => false,
                 default => null,
             },
+            // Exempts them from the outlet geofence. See canClockAnywhere().
+            'allow_anywhere' => $this->f_allow_anywhere,
         ];
 
         // Pay fields are omitted entirely for users without hr.compensation, so
