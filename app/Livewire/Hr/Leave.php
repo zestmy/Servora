@@ -211,8 +211,13 @@ class Leave extends Component
         }
 
         // The whole point of the is_claimable flag — an entitlement paid out
-        // with salary is recorded and reported, never booked.
-        if ($blocked = $type->blockedReason()) {
+        // with salary is recorded and reported, never booked. Followed by the
+        // reasons that depend on WHO the leave is for, which on this screen is
+        // the chosen employee rather than the person filling the form in.
+        $blocked = $type->blockedReason()
+            ?? app(\App\Services\Hr\AnnualLeaveRules::class)->blockedReason($employee, $type);
+
+        if ($blocked) {
             $this->addError('a_type', $blocked);
             return;
         }

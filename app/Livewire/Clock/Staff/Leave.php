@@ -189,7 +189,14 @@ class Leave extends StaffComponent
             return;
         }
 
-        if ($blocked = $type->blockedReason()) {
+        // The type's own reasons, then the ones that depend on WHO is asking —
+        // the probation gate on annual leave. Checked here as well as shown on
+        // the balance screen, because a balance is a display and this is the
+        // thing that actually refuses.
+        $blocked = $type->blockedReason()
+            ?? app(\App\Services\Hr\AnnualLeaveRules::class)->blockedReason($this->staff(), $type);
+
+        if ($blocked) {
             $this->addError('f_type', $blocked);
             return;
         }

@@ -17,7 +17,7 @@ class LeaveType extends Model
 {
     protected $fillable = [
         'company_id', 'name', 'code', 'description',
-        'is_paid', 'is_claimable', 'is_replacement_holiday', 'requires_approval', 'allows_half_day',
+        'is_paid', 'is_claimable', 'is_replacement_holiday', 'is_annual', 'requires_approval', 'allows_half_day',
         'default_days', 'carry_forward', 'carry_forward_cap',
         'colour', 'sort_order', 'is_active',
     ];
@@ -26,6 +26,9 @@ class LeaveType extends Model
         'is_paid'                => 'boolean',
         'is_claimable'           => 'boolean',
         'is_replacement_holiday' => 'boolean',
+        // Which type the company-wide annual rules govern — pro-rating and the
+        // probation gate. See AnnualLeaveRules.
+        'is_annual'              => 'boolean',
         'requires_approval'      => 'boolean',
         'allows_half_day'        => 'boolean',
         'carry_forward'          => 'boolean',
@@ -111,6 +114,33 @@ class LeaveType extends Model
             ->update(['is_replacement_holiday' => false]);
 
         $type->forceFill(['is_replacement_holiday' => true])->save();
+    }
+
+    /**
+     * Mark the one type the annual leave rules govern, clearing it elsewhere.
+     *
+     * Exclusive for the same reason as the replacement holiday above: two
+     * annual types would make pro-rating and the probation gate apply to
+     * whichever the code happened to look at, which is not something anybody
+     * would guess was the cause when one employee's balance came out wrong.
+     */
+    public static function makeAnnual(self $type): void
+    {
+        static::withoutGlobalScopes()
+            ->where('company_id', $type->company_id)
+            ->where('id', '!=', $type->id)
+            ->update(['is_annual' => false]);
+
+        $type->forceFill(['is_annual' => true])->save();
+    }
+
+    /** The type the annual rules apply to, if the company has marked one. */
+    public static function annualFor(int $companyId): ?self
+    {
+        return static::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('is_annual', true)
+            ->first();
     }
 
     /** This company's replacement-holiday type, if it has one. */

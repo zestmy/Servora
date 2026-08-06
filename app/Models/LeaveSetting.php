@@ -32,10 +32,13 @@ class LeaveSetting extends Model
 
     protected $fillable = [
         'company_id', 'rph_expiry_mode', 'rph_expiry_days',
+        'annual_prorated', 'annual_requires_confirmation',
     ];
 
     protected $casts = [
-        'rph_expiry_days' => 'integer',
+        'rph_expiry_days'              => 'integer',
+        'annual_prorated'              => 'boolean',
+        'annual_requires_confirmation' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -68,6 +71,12 @@ class LeaveSetting extends Model
             ->firstOrCreate(['company_id' => $companyId], [
                 'rph_expiry_mode' => self::EXPIRY_DAYS,
                 'rph_expiry_days' => 90,
+                // Spelled out for the same reason as the two above: on the
+                // create path firstOrCreate hands back the model it BUILT, so
+                // a column left out here reads as null on a company's very
+                // first request rather than as its database default.
+                'annual_prorated'              => false,
+                'annual_requires_confirmation' => false,
             ]);
     }
 
