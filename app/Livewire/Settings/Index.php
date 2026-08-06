@@ -214,6 +214,20 @@ class Index extends Component
                     'can'   => 'hr.compensation',
                 ],
                 [
+                    'label' => 'Employee Particulars',
+                    'note'  => 'Sex, nationality, race, religion, marital status, education',
+                    'route' => 'settings.employee-particulars',
+                    'icon'  => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+                    'can'   => 'hr.view',
+                ],
+                [
+                    'label' => 'Banks',
+                    'note'  => 'The list the employee bank picker offers',
+                    'route' => 'settings.banks',
+                    'icon'  => 'M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m16-11v11M8 14v3m4-3v3m4-3v3',
+                    'can'   => 'hr.compensation',
+                ],
+                [
                     'label' => 'Leave Types',
                     'note'  => 'Annual, RPH, paternity — and which are paid with salary',
                     'route' => 'settings.leave-types',

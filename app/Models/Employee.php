@@ -21,6 +21,11 @@ class Employee extends Model
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
         'daily_working_hours', 'reports_to_id', 'allow_byod',
+        // Particulars — each picked from a managed list, see HrOption::TYPES.
+        'gender', 'nationality', 'race', 'religion', 'marital_status', 'education_level',
+        'emergency_contact_name', 'emergency_contact_relationship',
+        'emergency_contact_phone', 'emergency_contact_phone_alt', 'emergency_contact_address',
+        'photo_path',
     ];
 
     /**
@@ -381,6 +386,12 @@ class Employee extends Model
     public function certifications(): HasMany
     {
         return $this->hasMany(EmployeeCertification::class);
+    }
+
+    /** Scanned paperwork — application form, IC, typhoid card, and the rest. */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class)->latest();
     }
 
     /** Allowances and deductions assigned to this employee. */

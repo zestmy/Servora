@@ -326,6 +326,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/certifications', \App\Livewire\Settings\CertificationTypes::class)->name('settings.certifications')->middleware('can:settings.view');
     Route::get('/settings/pay-components', \App\Livewire\Settings\PayComponents::class)->name('settings.pay-components')->middleware('can:hr.compensation');
     Route::get('/settings/statutory', \App\Livewire\Settings\StatutoryRates::class)->name('settings.statutory')->middleware('can:hr.compensation');
+    Route::get('/settings/banks', \App\Livewire\Settings\Banks::class)->name('settings.banks')->middleware('can:hr.compensation');
+    Route::get('/settings/employee-particulars', \App\Livewire\Settings\EmployeeParticulars::class)->name('settings.employee-particulars')->middleware('can:hr.view');
     Route::get('/settings/leave-types', \App\Livewire\Settings\LeaveTypes::class)->name('settings.leave-types')->middleware('can:hr.leave.approve');
     Route::get('/settings/leave-approvers', \App\Livewire\Settings\LeaveApprovers::class)->name('settings.leave-approvers')->middleware('can:hr.leave.approve');
     Route::get('/settings/public-holidays', \App\Livewire\Settings\PublicHolidays::class)->name('settings.public-holidays')->middleware('can:hr.leave.approve');
@@ -372,6 +374,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/staff-pins', \App\Livewire\Hr\StaffPins::class)->name('hr.staff-pins')->middleware('can:staff.pins');
     Route::get('/hr/employees/export-pdf', [\App\Http\Controllers\EmployeeExportController::class, 'pdf'])->name('hr.employees.export-pdf')->middleware('can:hr.view');
     Route::get('/hr/employees/export-excel', [\App\Http\Controllers\EmployeeExportController::class, 'excel'])->name('hr.employees.export-excel')->middleware('can:hr.view');
+    // Staff photos and scanned paperwork live on the private disk; the
+    // controller re-checks outlet access on every request.
+    Route::get('/hr/employees/{employee}/photo', [\App\Http\Controllers\Hr\EmployeeDocumentController::class, 'photo'])->name('hr.employees.photo')->middleware('can:hr.view');
+    Route::get('/hr/employee-documents/{document}', [\App\Http\Controllers\Hr\EmployeeDocumentController::class, 'show'])->name('hr.employee-documents.show')->middleware('can:hr.view');
+    Route::get('/hr/employee-documents/{document}/download', [\App\Http\Controllers\Hr\EmployeeDocumentController::class, 'download'])->name('hr.employee-documents.download')->middleware('can:hr.view');
     // Add / edit is a full page, not a modal — the form is too tall for a dialog.
     Route::get('/hr/employees/create', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.create')->middleware('can:hr.view');
     Route::get('/hr/employees/{id}/edit', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.edit')->middleware('can:hr.view');

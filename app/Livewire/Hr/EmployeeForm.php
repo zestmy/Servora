@@ -2,13 +2,19 @@
 
 namespace App\Livewire\Hr;
 
+use App\Models\Bank;
 use App\Models\CertificationType;
 use App\Models\Employee;
 use App\Models\EmployeeCertification;
+use App\Models\EmployeeDocument;
+use App\Models\HrOption;
 use App\Models\Outlet;
 use App\Models\Section;
+use App\Services\ImageStorageService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Full-page add / edit form for an employee.
@@ -20,6 +26,8 @@ use Livewire\Component;
  */
 class EmployeeForm extends Component
 {
+    use WithFileUploads;
+
     public ?int   $employeeId       = null;
     public ?int   $f_outlet_id      = null;
     public ?int   $f_section_id     = null;
@@ -34,6 +42,60 @@ class EmployeeForm extends Component
     public string $f_join_date      = '';
     public string $f_ic_number      = '';
     public string $f_date_of_birth  = '';
+
+    /*
+     * Particulars, each picked from a list the company manages in
+     * Settings › Employee Particulars. Mapped rather than handled one by one:
+     * the type key gives the list, the list gives the employees column, and a
+     * seventh particular is one more line here.
+     */
+    public string $f_gender          = '';
+    public string $f_nationality     = '';
+    public string $f_race            = '';
+    public string $f_religion        = '';
+    public string $f_marital_status  = '';
+    public string $f_education_level = '';
+    public string $f_emergency_contact_relationship = '';
+
+    /** @var array<string, string> HrOption type => the property holding it. */
+    public const PARTICULARS = [
+        'gender'          => 'f_gender',
+        'nationality'     => 'f_nationality',
+        'race'            => 'f_race',
+        'religion'        => 'f_religion',
+        'marital_status'  => 'f_marital_status',
+        'education_level' => 'f_education_level',
+        'relationship'    => 'f_emergency_contact_relationship',
+    ];
+
+    /**
+     * What each particular was when the record loaded.
+     *
+     * Same rule as the bank picker: a value since retired from its list stays
+     * selectable, so an unrelated edit cannot quietly blank somebody's
+     * nationality because an admin tidied the list.
+     *
+     * @var array<string, string>
+     */
+    public array $originalParticulars = [];
+
+    /*
+     * Emergency contact. On the employee row rather than a related record —
+     * a manager looking this up at 2am should not depend on a join.
+     */
+    public string $f_emergency_contact_name      = '';
+    public string $f_emergency_contact_phone     = '';
+    public string $f_emergency_contact_phone_alt = '';
+    public string $f_emergency_contact_address   = '';
+
+    /** Staff photograph. Held on the private disk — see the migration. */
+    public $photo = null;
+    public ?string $photoPath = null;
+
+    /* Document upload. One at a time, filed under a type. */
+    public $docFile = null;
+    public string $docType  = 'application_form';
+    public string $docLabel = '';
     public string $f_employment_status      = '';
     public string $f_employment_status_date = '';
     public string $f_outsourcing_provider   = 'experiva'; // 'experiva' | 'others'
@@ -49,6 +111,17 @@ class EmployeeForm extends Component
     public string $f_halal_training_expired_on = '';
     public string $f_break_minutes     = '';
     public string $f_daily_working_hours = '';
+
+    /**
+     * Whether this person may clock in on their own phone.
+     *
+     * A STRING with three values, not a bool, because the useful state is the
+     * third one: '' means "whatever the outlet says", which is what nearly
+     * everybody should be. Storing it as a real choice would freeze each
+     * employee against today's outlet policy, so moving an outlet onto its
+     * kiosk would silently leave every existing member of staff exempt from it.
+     */
+    public string $f_allow_byod = '';
 
     /**
      * Catalogue certifications recorded against this employee.
@@ -67,6 +140,16 @@ class EmployeeForm extends Component
     // deserves the same protection as the figure paid into it.
     public string $f_bank_name         = '';
     public string $f_bank_account_no   = '';
+
+    /**
+     * The bank name this employee was loaded with.
+     *
+     * Kept so a name that is no longer in the picker — typed in before it
+     * existed, or since removed from Settings › Banks — stays selectable and
+     * survives an unrelated edit. Blanking somebody's bank because an admin
+     * tidied the list is how a salary goes unpaid.
+     */
+    public string $originalBankName    = '';
 
     /*
      * Statutory profile, folded in from what used to be a modal on the
@@ -94,6 +177,13 @@ class EmployeeForm extends Component
     {
         $this->f_phone_code = $this->defaultPhoneCode();
 
+        // A picker nobody has ever opened the settings screen for is empty, and
+        // an empty picker cannot record anything.
+        HrOption::seedDefaults(Auth::user()->company_id);
+        if ($this->canViewPay()) {
+            Bank::seedDefaults(Auth::user()->company_id);
+        }
+
         if (! $id) {
             // Default new employees to the user's active outlet.
             $this->f_outlet_id = Auth::user()?->activeOutletId();
@@ -117,6 +207,17 @@ class EmployeeForm extends Component
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
         $this->f_ic_number     = $emp->ic_number ?? '';
         $this->f_date_of_birth = $emp->date_of_birth?->format('Y-m-d') ?? '';
+
+        foreach (self::PARTICULARS as $type => $prop) {
+            $this->$prop = $emp->{HrOption::columnFor($type)} ?? '';
+            $this->originalParticulars[$type] = $this->$prop;
+        }
+
+        $this->f_emergency_contact_name      = $emp->emergency_contact_name ?? '';
+        $this->f_emergency_contact_phone     = $emp->emergency_contact_phone ?? '';
+        $this->f_emergency_contact_phone_alt = $emp->emergency_contact_phone_alt ?? '';
+        $this->f_emergency_contact_address   = $emp->emergency_contact_address ?? '';
+        $this->photoPath = $emp->photo_path;
         $this->f_employment_status      = $emp->employment_status ?? '';
         $this->f_employment_status_date = $emp->employment_status_date?->format('Y-m-d') ?? '';
         $this->f_outsourcing_provider   = ($emp->outsourcing_company && strcasecmp($emp->outsourcing_company, 'Experiva') !== 0) ? 'others' : 'experiva';
@@ -132,6 +233,7 @@ class EmployeeForm extends Component
         $this->f_halal_training_expired_on = $emp->halal_training_expired_on?->format('Y-m-d') ?? '';
         $this->f_break_minutes = $emp->break_minutes !== null ? (string) $emp->break_minutes : '';
         $this->f_daily_working_hours = $emp->daily_working_hours !== null ? (string) (float) $emp->daily_working_hours : '';
+        $this->f_allow_byod = $emp->allow_byod === null ? '' : ($emp->allow_byod ? 'yes' : 'no');
         $this->f_certifications = $emp->certifications()
             ->orderBy('certification_type_id')
             ->get()
@@ -153,6 +255,7 @@ class EmployeeForm extends Component
                 : '';
             $this->f_pay_type = $emp->pay_type ?? '';
             $this->f_bank_name       = $emp->bank_name ?? '';
+            $this->originalBankName  = $this->f_bank_name;
             $this->f_bank_account_no = $emp->bank_account_no ?? '';
 
             $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
@@ -194,10 +297,54 @@ class EmployeeForm extends Component
         return Employee::canViewPay(Auth::user());
     }
 
+    /**
+     * The banks this employee may be paid into: the company's active list, plus
+     * the name already on the record if that has since been retired or was
+     * typed in before the picker existed.
+     *
+     * The stale one is appended rather than dropped so an ordinary edit — a
+     * phone number, a section — cannot quietly wipe somebody's bank.
+     *
+     * @return \Illuminate\Support\Collection<int, Bank>
+     */
+    public function bankOptions(): \Illuminate\Support\Collection
+    {
+        $banks = Bank::active()->ordered()->get();
+
+        if ($this->originalBankName !== '' && ! $banks->contains('name', $this->originalBankName)) {
+            $banks->push(new Bank([
+                'name' => $this->originalBankName,
+                'bic'  => Bank::bicFor($this->originalBankName),
+            ]));
+        }
+
+        return $banks;
+    }
+
+    /**
+     * The values one particular may be set to: its list, plus whatever this
+     * record already held. @see bankOptions() for why the stale one stays.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    public function particularOptions(string $type): \Illuminate\Support\Collection
+    {
+        return HrOption::namesFor($type, $this->originalParticulars[$type] ?? null);
+    }
+
     protected function rules(): array
     {
         $accessible = $this->accessibleOutletIds();
-        return [
+
+        $particulars = [];
+        foreach (self::PARTICULARS as $type => $prop) {
+            $particulars[$prop] = [
+                'nullable', 'string', 'max:60',
+                \Illuminate\Validation\Rule::in($this->particularOptions($type)->all()),
+            ];
+        }
+
+        return $particulars + [
             'f_outlet_id'      => [
                 'required', 'integer',
                 \Illuminate\Validation\Rule::in($accessible),
@@ -213,6 +360,10 @@ class EmployeeForm extends Component
             'f_join_date'      => 'nullable|date',
             'f_ic_number'      => 'nullable|string|max:20',
             'f_date_of_birth'  => 'nullable|date|before:today',
+            'f_emergency_contact_name'      => 'nullable|string|max:120',
+            'f_emergency_contact_phone'     => 'nullable|string|max:50',
+            'f_emergency_contact_phone_alt' => 'nullable|string|max:50',
+            'f_emergency_contact_address'   => 'nullable|string|max:255',
             'f_employment_status' => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_STATUSES)),
             'f_employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
                 ? 'required|date'
@@ -240,7 +391,14 @@ class EmployeeForm extends Component
             // break), so it must stay distinguishable from blank.
             'f_break_minutes'       => 'nullable|integer|min:0|max:1440',
             'f_daily_working_hours' => 'nullable|numeric|min:1|max:24',
-            'f_bank_name'           => 'nullable|string|max:60',
+            // '' is the inherit-from-outlet case and the default.
+            'f_allow_byod'          => 'nullable|in:,yes,no',
+            // Picked from the company's bank list, plus whatever this record
+            // already held — see $originalBankName.
+            'f_bank_name'           => [
+                'nullable', 'string', 'max:60',
+                \Illuminate\Validation\Rule::in($this->bankOptions()->pluck('name')->all()),
+            ],
             'f_bank_account_no'     => 'nullable|string|max:40',
             's_epf_number'   => 'nullable|string|max:30',
             's_socso_number' => 'nullable|string|max:30',
@@ -334,6 +492,109 @@ class EmployeeForm extends Component
             ->reject(fn ($t) => in_array((string) $t->id, $taken, true));
     }
 
+    /**
+     * Drop the photograph on record.
+     *
+     * Applied immediately rather than on save: "remove" that only takes effect
+     * if you then remember to press Save is how a photo somebody asked to have
+     * taken down stays up.
+     */
+    public function removePhoto(): void
+    {
+        if (! $this->employeeId) {
+            $this->photo = null;
+            return;
+        }
+
+        $emp = $this->authorisedEmployee();
+        $old = $emp->photo_path;
+        $emp->update(['photo_path' => null]);
+
+        if ($old) {
+            Storage::disk('local')->delete($old);
+        }
+
+        $this->photo     = null;
+        $this->photoPath = null;
+    }
+
+    /**
+     * File a scan against this employee.
+     *
+     * Uploads land immediately rather than waiting for Save. A document is not
+     * a field of the form — it is a thing that either exists or does not — and
+     * an upload silently discarded by Cancel is the sort of loss nobody thinks
+     * to check for.
+     */
+    public function uploadDocument(): void
+    {
+        if (! $this->employeeId) {
+            session()->flash('doc_error', 'Save the employee first — a document needs a record to hang off.');
+            return;
+        }
+
+        $this->validate([
+            // PDFs and photographs of paperwork, which is what a phone produces.
+            'docFile'  => 'required|file|max:10240|mimes:pdf,jpg,jpeg,png,webp,heic,heif',
+            'docType'  => 'required|in:' . implode(',', array_keys(EmployeeDocument::TYPES)),
+            'docLabel' => 'nullable|string|max:120',
+        ], [
+            'docFile.required' => 'Choose a file to upload.',
+            'docFile.max'      => 'The file may not be larger than 10 MB.',
+            'docFile.mimes'    => 'Upload a PDF or a photo of the document.',
+        ]);
+
+        $emp = $this->authorisedEmployee();
+
+        $original = $this->docFile->getClientOriginalName();
+        $size     = $this->docFile->getSize();
+        $mime     = $this->docFile->getMimeType();
+
+        // storeCompressed shrinks photographed paperwork and leaves PDFs alone.
+        $path = ImageStorageService::storeCompressed(
+            $this->docFile, 'employee-documents/' . $emp->company_id . '/' . $emp->id, 'local'
+        );
+
+        EmployeeDocument::create([
+            'company_id'    => $emp->company_id,
+            'employee_id'   => $emp->id,
+            'type'          => $this->docType,
+            'label'         => trim($this->docLabel) ?: null,
+            'file_path'     => $path,
+            'original_name' => $original,
+            'mime_type'     => $mime,
+            'size_bytes'    => Storage::disk('local')->size($path) ?: $size,
+            'uploaded_by'   => Auth::id(),
+        ]);
+
+        $this->reset(['docFile', 'docLabel']);
+        session()->flash('doc_success', 'Document uploaded.');
+    }
+
+    public function deleteDocument(int $id): void
+    {
+        $this->authorisedEmployee();
+
+        // The model's deleted hook removes the file — see EmployeeDocument.
+        EmployeeDocument::where('employee_id', $this->employeeId)->findOrFail($id)->delete();
+
+        session()->flash('doc_success', 'Document removed.');
+    }
+
+    /** The employee being edited, refused unless this user may reach them. */
+    private function authorisedEmployee(): Employee
+    {
+        $emp = Employee::findOrFail($this->employeeId);
+
+        abort_unless(
+            in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true),
+            403,
+            'You do not have access to this employee.'
+        );
+
+        return $emp;
+    }
+
     public function save(): void
     {
         $this->validate();
@@ -357,6 +618,10 @@ class EmployeeForm extends Component
             'join_date'     => $this->f_join_date ?: null,
             'ic_number'     => $this->f_ic_number ?: null,
             'date_of_birth' => $this->f_date_of_birth ?: null,
+            'emergency_contact_name'      => $this->f_emergency_contact_name ?: null,
+            'emergency_contact_phone'     => $this->f_emergency_contact_phone ?: null,
+            'emergency_contact_phone_alt' => $this->f_emergency_contact_phone_alt ?: null,
+            'emergency_contact_address'   => $this->f_emergency_contact_address ?: null,
             'employment_status' => $this->f_employment_status ?: null,
             // Date applies to probation/confirmed/extension; company to outsourcing.
             'employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
@@ -394,6 +659,16 @@ class EmployeeForm extends Component
             // Blank follows the company default rather than storing a copy.
             'daily_working_hours' => $this->f_daily_working_hours !== ''
                 ? round((float) $this->f_daily_working_hours, 2) : null,
+            // Each picked from its managed list — see PARTICULARS.
+            ...collect(self::PARTICULARS)
+                ->mapWithKeys(fn ($prop, $type) => [HrOption::columnFor($type) => $this->$prop ?: null])
+                ->all(),
+            // null inherits the outlet's punch mode. See canUseOwnDevice().
+            'allow_byod' => match ($this->f_allow_byod) {
+                'yes'   => true,
+                'no'    => false,
+                default => null,
+            },
         ];
 
         // Pay fields are omitted entirely for users without hr.compensation, so
@@ -414,6 +689,20 @@ class EmployeeForm extends Component
             $data['bank_account_no'] = $this->f_bank_account_no ?: null;
         }
 
+        // Stored before the row is written so a failed save leaves no file
+        // behind, and the one it replaces is only deleted once it has.
+        $replacedPhoto = null;
+        if ($this->photo) {
+            $this->validate(['photo' => 'image|max:5120'], [
+                'photo.image' => 'The photo must be an image.',
+                'photo.max'   => 'The photo may not be larger than 5 MB.',
+            ]);
+            $replacedPhoto      = $this->photoPath;
+            $data['photo_path'] = ImageStorageService::storeCompressed(
+                $this->photo, 'employee-photos/' . $user->company_id, 'local'
+            );
+        }
+
         if ($this->employeeId) {
             $emp = Employee::findOrFail($this->employeeId);
             if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
@@ -424,6 +713,10 @@ class EmployeeForm extends Component
         } else {
             $emp = Employee::create($data);
             session()->flash('success', 'Employee added.');
+        }
+
+        if ($replacedPhoto) {
+            Storage::disk('local')->delete($replacedPhoto);
         }
 
         $this->syncCertifications($emp);
@@ -518,6 +811,17 @@ class EmployeeForm extends Component
 
         $sections   = Section::active()->ordered()->get();
         $canViewPay = $this->canViewPay();
+        $banks      = $canViewPay ? $this->bankOptions() : collect();
+
+        // Keyed by type so the blade asks for the list by name rather than
+        // knowing which property holds which particular.
+        $particulars = collect(self::PARTICULARS)
+            ->keys()
+            ->mapWithKeys(fn ($type) => [$type => $this->particularOptions($type)]);
+
+        $documents = $this->employeeId
+            ? EmployeeDocument::where('employee_id', $this->employeeId)->get()->groupBy('type')
+            : collect();
 
         // Who this person can report to. Excludes themselves and anyone who
         // already reports to them — a two-person cycle makes the chain
@@ -533,7 +837,8 @@ class EmployeeForm extends Component
         $availableCertifications = $this->availableCertificationTypes();
 
         return view('livewire.hr.employee-form', compact(
-            'outlets', 'sections', 'canViewPay', 'certificationTypes', 'availableCertifications', 'complianceSettings', 'superiors'
+            'outlets', 'sections', 'canViewPay', 'banks', 'particulars', 'documents',
+            'certificationTypes', 'availableCertifications', 'complianceSettings', 'superiors'
         ))
             ->layout('layouts.app', ['title' => $this->employeeId ? 'Edit Employee' : 'Add Employee']);
     }

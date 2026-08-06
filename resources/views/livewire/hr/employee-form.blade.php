@@ -3,10 +3,13 @@
     // can be flagged rather than leaving someone staring at a form that will
     // not save with nothing visibly wrong on it.
     $tabFields = [
-        'personal'   => ['f_name', 'f_ic_number', 'f_date_of_birth', 'f_email', 'f_phone', 'f_phone_code'],
+        'personal'   => ['f_name', 'f_ic_number', 'f_date_of_birth', 'f_email', 'f_phone', 'f_phone_code',
+                         'photo', 'f_gender', 'f_nationality', 'f_race', 'f_religion', 'f_marital_status',
+                         'f_education_level', 'f_emergency_contact_name', 'f_emergency_contact_relationship',
+                         'f_emergency_contact_phone', 'f_emergency_contact_phone_alt', 'f_emergency_contact_address'],
         'employment' => ['f_outlet_id', 'f_section_id', 'f_staff_id', 'f_designation', 'f_join_date',
                          'f_employment_status', 'f_employment_status_date', 'f_outsourcing_provider',
-                         'f_outsourcing_company', 'f_break_minutes'],
+                         'f_outsourcing_company', 'f_break_minutes', 'f_allow_byod'],
         'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points', 'f_bank_name', 'f_bank_account_no'],
         'statutory'  => ['s_epf_number', 's_socso_number', 's_tax_number', 's_epf_override',
                          's_pcb_category', 's_children', 's_zakat', 's_other_relief'],
@@ -31,7 +34,9 @@
     }
     $tabs['compliance'] = 'Certifications';
     if ($employeeId) {
-        $tabs['activity'] = 'Activity';
+        // Uploads need a record to hang off, so this tab only exists on edit.
+        $tabs['documents'] = 'Documents';
+        $tabs['activity']  = 'Activity';
     }
 
     // Open on the first tab carrying an error, so a failed save lands where the
@@ -102,16 +107,49 @@
     <form id="employee-form" wire:submit.prevent="save" class="space-y-4">
 
         {{-- ── Personal ────────────────────────────────────────────────── --}}
-        <div x-show="tab === 'personal'" x-cloak class="card p-5 space-y-3">
+        <div x-show="tab === 'personal'" x-cloak class="space-y-4">
+        <div class="card p-5 space-y-3">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700">Personal</h3>
                 <p class="text-xs text-gray-500">Who this person is. The IC and date of birth drive statutory rates and every submission.</p>
             </div>
 
-            <div>
-                <label class="text-xs font-semibold text-gray-600">Employee Name <span class="text-danger-500">*</span></label>
-                <input type="text" wire:model="f_name" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                <x-input-error :messages="$errors->get('f_name')" class="mt-1" />
+            {{-- Photograph and name sit together: it is how anyone checks they
+                 have opened the right record. --}}
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 text-center">
+                    <div class="h-20 w-20 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                        @if ($photo)
+                            <img src="{{ $photo->temporaryUrl() }}" alt="" class="h-full w-full object-cover" />
+                        @elseif ($photoPath && $employeeId)
+                            <img src="{{ route('hr.employees.photo', $employeeId) }}" alt="" class="h-full w-full object-cover" />
+                        @else
+                            <x-icon name="users" class="h-7 w-7 text-gray-400" />
+                        @endif
+                    </div>
+                    <div wire:loading wire:target="photo" class="mt-1 text-[11px] text-gray-500">Uploading…</div>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <label class="text-xs font-semibold text-gray-600">Employee Name <span class="text-danger-500">*</span></label>
+                    <input type="text" wire:model="f_name" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <x-input-error :messages="$errors->get('f_name')" class="mt-1" />
+
+                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                        <label class="text-xs font-medium text-brand-600 hover:text-brand-800 cursor-pointer">
+                            {{ $photoPath || $photo ? 'Change photo' : 'Add photo' }}
+                            <input type="file" wire:model="photo" accept="image/*" class="hidden" />
+                        </label>
+                        @if ($photoPath || $photo)
+                            <button type="button" wire:click="removePhoto"
+                                    class="text-xs font-medium text-danger-600 hover:text-danger-800">Remove</button>
+                        @endif
+                        <span class="text-[11px] text-gray-500">
+                            Kept private — only staff who can open this record can see it. Up to 5 MB.
+                        </span>
+                    </div>
+                    <x-input-error :messages="$errors->get('photo')" class="mt-1" />
+                </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -151,6 +189,89 @@
                     <x-input-error :messages="$errors->get('f_phone')" class="mt-1" />
                 </div>
             </div>
+
+            {{-- Particulars. Every list is managed in Settings, so a company
+                 that needs a nationality nobody thought of can add it. --}}
+            <div class="pt-3 border-t border-gray-100">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    @foreach (['gender', 'nationality', 'race', 'religion', 'marital_status', 'education_level'] as $type)
+                        {{-- Block form, not @php(...): this file has @php…@endphp
+                             blocks, and Blade's raw-block pass would swallow
+                             everything between an inline one and the next
+                             @endphp. --}}
+                        @php $prop = \App\Livewire\Hr\EmployeeForm::PARTICULARS[$type]; @endphp
+                        <div wire:key="particular-{{ $type }}">
+                            <label class="text-xs font-semibold text-gray-600">
+                                {{ \App\Models\HrOption::labelFor($type) }}
+                            </label>
+                            <select wire:model="{{ $prop }}" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                <option value="">— Not stated —</option>
+                                @foreach ($particulars[$type] as $name)
+                                    <option value="{{ $name }}">{{ $name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get($prop)" class="mt-1" />
+                        </div>
+                    @endforeach
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Missing an option?
+                    <a href="{{ route('settings.employee-particulars') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage these lists</a>
+                </p>
+            </div>
+        </div>
+
+        {{-- Emergency contact. Its own card: it is the block somebody reads in
+             a hurry, and burying it under the phone number costs seconds that
+             matter. --}}
+        <div class="card p-5 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Emergency Contact</h3>
+                <p class="text-xs text-gray-500">Who to call if something happens at work.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-2">
+                    <label class="text-xs font-semibold text-gray-600">Name</label>
+                    <input type="text" maxlength="120" wire:model="f_emergency_contact_name"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <x-input-error :messages="$errors->get('f_emergency_contact_name')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Relationship</label>
+                    <select wire:model="f_emergency_contact_relationship" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">— Not stated —</option>
+                        @foreach ($particulars['relationship'] as $name)
+                            <option value="{{ $name }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('f_emergency_contact_relationship')" class="mt-1" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Phone</label>
+                    <input type="text" maxlength="50" wire:model="f_emergency_contact_phone"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. +60 12 345 6789" />
+                    <x-input-error :messages="$errors->get('f_emergency_contact_phone')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Second Phone</label>
+                    <input type="text" maxlength="50" wire:model="f_emergency_contact_phone_alt"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <p class="mt-1 text-[11px] text-gray-500">The one person listed is often at work themselves.</p>
+                    <x-input-error :messages="$errors->get('f_emergency_contact_phone_alt')" class="mt-1" />
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs font-semibold text-gray-600">Address</label>
+                <input type="text" maxlength="255" wire:model="f_emergency_contact_address"
+                       class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                <x-input-error :messages="$errors->get('f_emergency_contact_address')" class="mt-1" />
+            </div>
+        </div>
         </div>
 
         {{-- ── Employment ──────────────────────────────────────────────── --}}
@@ -307,6 +428,24 @@
                     roster's rest duration for each shift. Enter 0 for no break allowance at all.
                 </p>
             </div>
+
+            <div class="sm:w-1/2 sm:pr-1.5">
+                <label class="text-xs font-semibold text-gray-600">Clock in on own phone</label>
+                <select wire:model="f_allow_byod" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                    <option value="">Follow the outlet</option>
+                    <option value="yes">Always allowed</option>
+                    <option value="no">Never — kiosk only</option>
+                </select>
+                <x-input-error :messages="$errors->get('f_allow_byod')" class="mt-1" />
+                {{-- The exception, and what it is for. Left on "follow the
+                     outlet", moving that outlet onto its kiosk moves this
+                     person with it; set explicitly, it does not. --}}
+                <p class="mt-1 text-[11px] text-gray-500">
+                    At an outlet set to kiosk only, a punch from somebody's own phone is still
+                    recorded but is flagged for review. Set this to "always allowed" for the people
+                    who genuinely need a phone — area managers, drivers, offsite crews.
+                </p>
+            </div>
         </div>
 
         {{-- ── Compensation ────────────────────────────────────────────── --}}
@@ -348,8 +487,21 @@
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-gray-600">Bank</label>
-                        <input type="text" maxlength="60" wire:model="f_bank_name"
-                               class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. Maybank" />
+                        <select wire:model.live="f_bank_name" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                            <option value="">— Select bank —</option>
+                            @foreach ($banks as $bank)
+                                <option value="{{ $bank->name }}">{{ $bank->name }}</option>
+                            @endforeach
+                        </select>
+                        @php $pickedBank = $banks->firstWhere('name', $f_bank_name); @endphp
+                        @if ($pickedBank?->bic)
+                            <p class="mt-1 text-[11px] text-gray-500 font-mono">{{ $pickedBank->bic }}</p>
+                        @endif
+                        @can('hr.compensation')
+                            <p class="mt-1 text-[11px] text-gray-500">
+                                Missing one? <a href="{{ route('settings.banks') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage banks</a>
+                            </p>
+                        @endcan
                         <x-input-error :messages="$errors->get('f_bank_name')" class="mt-1" />
                     </div>
                     <div>
@@ -606,6 +758,114 @@
                 @endforelse
             </div>
         </div>
+
+        {{-- ── Documents (edit only) ───────────────────────────────────── --}}
+        @if ($employeeId)
+            @php
+                // The two document types whose expiry the record already
+                // tracks. Shown here so the scan and the date that depends on
+                // it are never read apart.
+                $expiryByType = [
+                    'typhoid_card'      => $f_typhoid_card ? $f_typhoid_expired_on : '',
+                    'food_handler_cert' => $f_food_handler_certified ? $f_food_handler_expired_on : '',
+                ];
+            @endphp
+            <div x-show="tab === 'documents'" x-cloak class="space-y-4">
+                <div class="card p-5 space-y-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700">Documents</h3>
+                        <p class="text-xs text-gray-500">
+                            Scanned copies held against this employee. Stored privately — only staff who can
+                            open this record can open the files.
+                        </p>
+                    </div>
+
+                    @if (session('doc_success'))
+                        <div class="alert-success">{{ session('doc_success') }}</div>
+                    @endif
+                    @if (session('doc_error'))
+                        <div class="alert-danger">{{ session('doc_error') }}</div>
+                    @endif
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-start">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Type</label>
+                            <select wire:model="docType" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                @foreach (\App\Models\EmployeeDocument::TYPES as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Label</label>
+                            <input type="text" maxlength="120" wire:model="docLabel"
+                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="Optional" />
+                            <x-input-error :messages="$errors->get('docLabel')" class="mt-1" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="text-xs font-semibold text-gray-600">File</label>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="file" wire:model="docFile" accept=".pdf,image/*"
+                                       class="w-full text-xs text-gray-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-control file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" />
+                                <button type="button" wire:click="uploadDocument" wire:loading.attr="disabled" wire:target="docFile,uploadDocument"
+                                        class="btn-secondary whitespace-nowrap">Upload</button>
+                            </div>
+                            <p class="mt-1 text-[11px] text-gray-500">PDF or photo, up to 10 MB.</p>
+                            <div wire:loading wire:target="docFile,uploadDocument" class="text-[11px] text-gray-500">Uploading…</div>
+                            <x-input-error :messages="$errors->get('docFile')" class="mt-1" />
+                        </div>
+                    </div>
+                </div>
+
+                @foreach (\App\Models\EmployeeDocument::TYPES as $value => $label)
+                    @php $held = $documents[$value] ?? collect(); @endphp
+                    <div class="card p-4" wire:key="doctype-{{ $value }}">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700">{{ $label }}</h4>
+                                @if (($expiryByType[$value] ?? '') !== '')
+                                    <p class="text-[11px] text-gray-600">
+                                        Recorded as expiring {{ \Carbon\Carbon::parse($expiryByType[$value])->format('j M Y') }}
+                                        — set on the Certifications tab.
+                                    </p>
+                                @endif
+                            </div>
+                            @if ($held->isEmpty())
+                                <span class="badge-neutral">None on file</span>
+                            @else
+                                <span class="badge-success">{{ $held->count() }} on file</span>
+                            @endif
+                        </div>
+
+                        @if ($held->isNotEmpty())
+                            <ul class="mt-3 divide-y divide-gray-100 border-t border-gray-100">
+                                @foreach ($held as $doc)
+                                    <li class="flex flex-wrap items-center gap-3 py-2" wire:key="doc-{{ $doc->id }}">
+                                        <x-icon name="document" class="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm text-gray-800 truncate">
+                                                {{ $doc->label ?: $doc->original_name }}
+                                            </p>
+                                            <p class="text-[11px] text-gray-500">
+                                                {{ $doc->sizeLabel() }} &middot; uploaded {{ $doc->created_at->format('j M Y') }}
+                                                @if ($doc->uploader) by {{ $doc->uploader->name }} @endif
+                                            </p>
+                                        </div>
+                                        <a href="{{ route('hr.employee-documents.show', $doc) }}" target="_blank" rel="noopener"
+                                           class="text-xs font-medium text-brand-600 hover:text-brand-800">View</a>
+                                        <a href="{{ route('hr.employee-documents.download', $doc) }}"
+                                           class="text-xs font-medium text-gray-600 hover:text-gray-900">Download</a>
+                                        <button type="button" wire:click="deleteDocument({{ $doc->id }})"
+                                                wire:confirm="Delete this document? The file is removed for good."
+                                                class="text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
 
         {{-- ── Activity (edit only) ────────────────────────────────────── --}}
         @if ($employeeId)
