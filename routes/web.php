@@ -400,6 +400,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/clock-ins', \App\Livewire\Hr\ClockEvents::class)->name('hr.clock-ins')->middleware('can:hr.clock');
     Route::get('/hr/clock-ins/{event}/selfie', [\App\Http\Controllers\Hr\ClockImageController::class, 'selfie'])->name('hr.clock-ins.selfie')->middleware('can:hr.clock');
     Route::get('/hr/clock-settings', \App\Livewire\Hr\ClockSettings::class)->name('hr.clock-settings')->middleware('can:hr.clock.manage');
+    // Kiosk tablets. Same gate as the geofence and face enrolment rather than
+    // a permission of its own: pairing a device that can vouch for an outlet
+    // is the same kind of trust, and a fourth way to say "manages the clock"
+    // is a fourth thing to keep in step.
+    Route::get('/hr/clock-devices', \App\Livewire\Hr\ClockDevices::class)->name('hr.clock-devices')->middleware('can:hr.clock.manage');
     Route::get('/hr/face-enrolment', \App\Livewire\Hr\FaceEnrolment::class)->name('hr.face-enrolment')->middleware('can:hr.clock.manage');
     Route::get('/hr/face-enrolment/{descriptor}/photo', [\App\Http\Controllers\Hr\ClockImageController::class, 'enrolment'])->name('hr.face-enrolment.photo')->middleware('can:hr.clock.manage');
     // Plain HTTP, not Livewire actions: enrolment gates the whole feature and

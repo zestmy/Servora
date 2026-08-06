@@ -7,6 +7,7 @@ use App\Models\ClockSetting;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\ClockInException;
 use App\Services\Hr\ClockInService;
+use App\Services\Hr\PunchState;
 use App\Services\Hr\ShiftResolver;
 use Carbon\Carbon;
 use Livewire\Attributes\Locked;
@@ -66,12 +67,12 @@ class Punch extends StaffComponent
         $this->lastEventId  = null;
         $this->showResult   = false;
 
-        // The type is decided HERE, from what is already on record, not from
+        // The type is decided from what is already on record, not from
         // whatever the browser sent. The page only says which BUTTON was
         // pressed — the shift one or the break one — and the state on record
         // decides what that means. A stale tab offering "Clock in" to
         // somebody who has already clocked in must not open a second shift.
-        $type = $intent === 'break' ? $this->nextBreakType() : $this->nextType();
+        $type = app(PunchState::class)->typeFor($this->staff(), $intent);
 
         if (! $type) {
             $this->errorMessage = 'That is not something you can do right now. Reload and try again.';
@@ -111,57 +112,33 @@ class Punch extends StaffComponent
     }
 
 
-    /**
-     * The clock-in this person has not yet clocked out of, if any.
-     *
-     * Looks at the last day of punches rather than at today's date. Somebody
-     * finishing an overnight shift at 2am has an open punch from yesterday,
-     * and a date-based check would offer to clock them in all over again.
+    /*
+     * Where the person is in their day — all of it delegated to PunchState,
+     * which the kiosk reads too. Two screens working this out for themselves
+     * is two screens that will eventually disagree, and the way that shows up
+     * is somebody who clocked in on the tablet being offered "Clock in" again
+     * by their phone.
      */
+
     public function openPunch(): ?ClockEvent
     {
-        // Shift punches only. A break neither opens nor closes a shift, so
-        // starting one must not make somebody look clocked out.
-        $last = ClockEvent::withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $this->staff()->company_id)
-            ->where('employee_id', $this->staff()->id)
-            ->whereIn('type', ClockEvent::SHIFT_TYPES)
-            ->where('happened_at', '>=', now()->subDay())
-            ->counted()
-            ->orderByDesc('happened_at')
-            ->orderByDesc('id')
-            ->first();
-
-        return $last?->type === ClockEvent::TYPE_IN ? $last : null;
+        return app(PunchState::class)->openPunch($this->staff());
     }
 
     public function nextType(): string
     {
-        return $this->openPunch() ? ClockEvent::TYPE_OUT : ClockEvent::TYPE_IN;
+        return app(PunchState::class)->nextType($this->staff());
     }
 
-    /**
-     * The last counted punch of any kind in the past day.
-     *
-     * Breaks and shift punches interleave, so "what happens next" cannot be
-     * read from clock-ins alone.
-     */
     public function lastPunch(): ?ClockEvent
     {
-        return ClockEvent::withoutGlobalScope(CompanyScope::class)
-            ->where('company_id', $this->staff()->company_id)
-            ->where('employee_id', $this->staff()->id)
-            ->where('happened_at', '>=', now()->subDay())
-            ->counted()
-            ->orderByDesc('happened_at')
-            ->orderByDesc('id')
-            ->first();
+        return app(PunchState::class)->lastPunch($this->staff());
     }
 
     /** Whether the person is mid-break right now. */
     public function onBreak(): bool
     {
-        return $this->lastPunch()?->type === ClockEvent::TYPE_BREAK_START;
+        return app(PunchState::class)->onBreak($this->staff());
     }
 
     /**
@@ -170,11 +147,7 @@ class Punch extends StaffComponent
      */
     public function nextBreakType(): ?string
     {
-        if ($this->onBreak()) {
-            return ClockEvent::TYPE_BREAK_END;
-        }
-
-        return $this->openPunch() ? ClockEvent::TYPE_BREAK_START : null;
+        return app(PunchState::class)->nextBreakType($this->staff());
     }
 
     /**

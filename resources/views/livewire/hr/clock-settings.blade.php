@@ -202,6 +202,81 @@
         </div>
     </div>
 
+    {{-- ── How staff clock in ───────────────────────────────────────────── --}}
+    <div class="panel p-5 mt-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">How staff clock in</h3>
+                <p class="help mt-1 max-w-2xl">
+                    These switches say what the company allows at all. Which one an outlet actually
+                    expects is set per outlet below, and individual staff can be excused from it on
+                    their employee record.
+                </p>
+            </div>
+            <a href="{{ route('hr.clock-devices') }}" wire:navigate class="btn-secondary">Manage kiosks</a>
+        </div>
+
+        <div class="mt-4 space-y-3">
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model="kiosk_enabled" class="mt-0.5 rounded border-gray-300 text-brand-600">
+                <span class="text-sm">
+                    <span class="font-medium text-gray-900">Allow outlet kiosks</span>
+                    <span class="block text-xs text-gray-600">
+                        A registered tablet on the counter recognises whoever walks up — no PIN, and
+                        no GPS, because the device itself is what vouches for the outlet.
+                        Turning this off stops every paired tablet within the minute.
+                    </span>
+                </span>
+            </label>
+
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model="byod_enabled" class="mt-0.5 rounded border-gray-300 text-brand-600">
+                <span class="text-sm">
+                    <span class="font-medium text-gray-900">Allow staff to clock in on their own phones</span>
+                    <span class="block text-xs text-gray-600">
+                        The Staff Portal, with GPS and a selfie. Leave this on unless every outlet has
+                        a kiosk — area managers, drivers and offsite crews have nothing else.
+                    </span>
+                </span>
+            </label>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Kiosk match threshold</label>
+                <input type="number" min="0.30" max="0.60" step="0.01" wire:model="kiosk_face_threshold"
+                       class="w-full rounded-lg border-gray-300 text-sm">
+                @error('kiosk_face_threshold') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                <p class="mt-1 text-[11px] text-gray-500">
+                    Tighter than the one above on purpose: a kiosk searches everybody at the outlet,
+                    not one named person.
+                </p>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Clear-winner margin</label>
+                <input type="number" min="0.02" max="0.30" step="0.01" wire:model="kiosk_face_margin"
+                       class="w-full rounded-lg border-gray-300 text-sm">
+                @error('kiosk_face_margin') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                {{-- The setting that actually prevents the bad outcome, so it
+                     gets the sentence that explains what the bad outcome is. --}}
+                <p class="mt-1 text-[11px] text-gray-500">
+                    How far ahead of the runner-up the best match must be. Closer than this and the
+                    kiosk asks for a PIN rather than guessing between two colleagues.
+                </p>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Kiosk cooldown (minutes)</label>
+                <input type="number" min="0" max="120" wire:model="kiosk_cooldown_minutes"
+                       class="w-full rounded-lg border-gray-300 text-sm">
+                @error('kiosk_cooldown_minutes') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                <p class="mt-1 text-[11px] text-gray-500">
+                    How long the kiosk ignores somebody it has just recorded, so walking past twice
+                    does not clock them straight back out.
+                </p>
+            </div>
+        </div>
+    </div>
+
     {{-- Leaflet, for the pin picker. OpenStreetMap tiles: no key, no account,
          and the same source the address lookup already uses. Loaded here only,
          so no other page pays for it. --}}
@@ -386,6 +461,31 @@
                     </div>
 
                     <p x-ref="status{{ $outlet->id }}" class="mt-2 text-[11px] text-gray-500" aria-live="polite"></p>
+
+                    {{-- Where this outlet's staff are expected to punch.
+
+                         It sits with the geofence because the two answer the
+                         same question from opposite ends: the fence is how a
+                         phone proves it is here, and a kiosk is why one does
+                         not have to. An outlet on kiosk_only is deliberately
+                         still allowed a fence — the people with a standing
+                         exception are using their phones, and their punches
+                         should still be measured. --}}
+                    <div class="mt-4 border-t border-gray-100 pt-3">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">
+                            Where staff here clock in
+                        </label>
+                        <select wire:model.live="fences.{{ $outlet->id }}.mode"
+                                class="w-full rounded-lg border-gray-300 text-sm sm:max-w-sm">
+                            @foreach (\App\Models\Outlet::PUNCH_MODE_LABELS as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('fences.' . $outlet->id . '.mode') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            {{ \App\Models\Outlet::PUNCH_MODE_HINTS[$fences[$outlet->id]['mode'] ?? \App\Models\Outlet::PUNCH_BYOD_ONLY] ?? '' }}
+                        </p>
+                    </div>
                 </div>
             @endforeach
         </div>

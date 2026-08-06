@@ -34,6 +34,20 @@ class ClockSettings extends Component
     public bool $allow_offsite_with_reason = true;
     public bool $resolve_addresses         = false;
 
+    /** Which ways in the company allows at all. Per-outlet mode narrows these. */
+    public bool $kiosk_enabled = true;
+    public bool $byod_enabled  = true;
+
+    /*
+     * The kiosk's own face thresholds, kept separate from face_threshold on
+     * purpose. That one governs a 1:1 check where the person has already named
+     * themselves with a PIN; the kiosk searches the whole outlet, and the
+     * mistake it can make is to write a punch onto the wrong person's record.
+     */
+    public string $kiosk_face_threshold   = '0.45';
+    public string $kiosk_face_margin      = '0.08';
+    public string $kiosk_cooldown_minutes = '3';
+
     /** Result of the "test" button on the geocoding block. */
     public ?array $geocodeTest = null;
 
@@ -60,11 +74,19 @@ class ClockSettings extends Component
         $this->allow_offsite_with_reason = (bool) $settings->allow_offsite_with_reason;
         $this->resolve_addresses         = (bool) $settings->resolve_addresses;
 
+        $this->kiosk_enabled = (bool) $settings->kiosk_enabled;
+        $this->byod_enabled  = (bool) $settings->byod_enabled;
+
+        $this->kiosk_face_threshold = rtrim(rtrim(number_format((float) $settings->kiosk_face_threshold, 3, '.', ''), '0'), '.');
+        $this->kiosk_face_margin    = rtrim(rtrim(number_format((float) $settings->kiosk_face_margin, 3, '.', ''), '0'), '.');
+        $this->kiosk_cooldown_minutes = (string) $settings->kiosk_cooldown_minutes;
+
         foreach ($this->outlets() as $outlet) {
             $this->fences[$outlet->id] = [
                 'latitude'  => $outlet->latitude !== null ? (string) $outlet->latitude : '',
                 'longitude' => $outlet->longitude !== null ? (string) $outlet->longitude : '',
                 'radius'    => $outlet->clock_radius_m !== null ? (string) $outlet->clock_radius_m : '150',
+                'mode'      => $outlet->punchMode(),
             ];
         }
     }
@@ -82,9 +104,20 @@ class ClockSettings extends Component
             // check at all because it looks like one.
             'face_threshold'       => ['required', 'numeric', 'min:0.30', 'max:0.70'],
 
+            /*
+             * Capped at 0.60 rather than the 1:1 line's 0.70. Searching forty
+             * faces instead of one means forty chances to land under the bar,
+             * and the mistake a loose kiosk threshold makes is not a flag on
+             * somebody's punch — it is the punch landing on the wrong person.
+             */
+            'kiosk_face_threshold'   => ['required', 'numeric', 'min:0.30', 'max:0.60'],
+            'kiosk_face_margin'      => ['required', 'numeric', 'min:0.02', 'max:0.30'],
+            'kiosk_cooldown_minutes' => ['required', 'integer', 'min:0', 'max:120'],
+
             'fences.*.latitude'  => ['nullable', 'numeric', 'between:-90,90'],
             'fences.*.longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'fences.*.radius'    => ['nullable', 'integer', 'min:20', 'max:5000'],
+            'fences.*.mode'      => ['nullable', 'in:kiosk_only,byod_only,both'],
         ];
     }
 
@@ -94,6 +127,8 @@ class ClockSettings extends Component
             'fences.*.radius.min' => 'A radius under 20m is tighter than a phone\'s own GPS error.',
             'face_threshold.min'  => 'Below 0.30 almost nobody will match their own enrolment.',
             'face_threshold.max'  => 'Above 0.70 different people start matching each other.',
+            'kiosk_face_threshold.max' => 'Above 0.60 the kiosk starts naming the wrong colleague.',
+            'kiosk_face_margin.min'    => 'Under 0.02 the kiosk will pick between two similar faces on a coin toss.',
         ];
     }
 
@@ -118,6 +153,11 @@ class ClockSettings extends Component
             'mark_attendance'      => $this->mark_attendance,
             'allow_offsite_with_reason' => $this->allow_offsite_with_reason,
             'resolve_addresses'         => $this->resolve_addresses,
+            'kiosk_enabled'             => $this->kiosk_enabled,
+            'byod_enabled'              => $this->byod_enabled,
+            'kiosk_face_threshold'      => (float) $this->kiosk_face_threshold,
+            'kiosk_face_margin'         => (float) $this->kiosk_face_margin,
+            'kiosk_cooldown_minutes'    => (int) $this->kiosk_cooldown_minutes,
         ]);
 
         foreach ($this->outlets() as $outlet) {
@@ -135,12 +175,21 @@ class ClockSettings extends Component
             // every punch in the country.
             $hasPair = $latitude !== '' && $longitude !== '';
 
+            $mode = $fence['mode'] ?? null;
+
             $outlet->update([
                 'latitude'       => $hasPair ? (float) $latitude : null,
                 'longitude'      => $hasPair ? (float) $longitude : null,
                 'clock_radius_m' => $hasPair && trim((string) ($fence['radius'] ?? '')) !== ''
                     ? (int) $fence['radius']
                     : null,
+                // Falls back to the outlet's CURRENT mode rather than to a
+                // default. A missing key means the control was not on the page
+                // — not that somebody chose "own devices only" — and silently
+                // resetting an outlet to BYOD would switch its kiosk off.
+                'punch_mode'     => is_string($mode) && array_key_exists($mode, Outlet::PUNCH_MODE_LABELS)
+                    ? $mode
+                    : $outlet->punchMode(),
             ]);
         }
 

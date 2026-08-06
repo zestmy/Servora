@@ -37,6 +37,20 @@ class ClockEvent extends Model
     /** The punches that open and close attendance, as opposed to breaks. */
     public const SHIFT_TYPES = [self::TYPE_IN, self::TYPE_OUT];
 
+    /**
+     * How the punch arrived. A property of the punch, not a problem with it —
+     * which is why it is a column and not a flag.
+     */
+    public const SOURCE_KIOSK  = 'kiosk';
+    public const SOURCE_BYOD   = 'byod';
+    public const SOURCE_MANUAL = 'manual';
+
+    public const SOURCE_LABELS = [
+        self::SOURCE_KIOSK  => 'Outlet kiosk',
+        self::SOURCE_BYOD   => 'Own device',
+        self::SOURCE_MANUAL => 'Entered by manager',
+    ];
+
     public const STATUS_VERIFIED = 'verified';
     public const STATUS_FLAGGED  = 'flagged';
     public const STATUS_APPROVED = 'approved';
@@ -61,10 +75,19 @@ class ClockEvent extends Model
         'no_open_punch'    => 'Clocked out without clocking in',
         'no_open_break'    => 'Break ended without starting one',
         'break_overrun'    => 'Break ran over the allowance',
+        // The face resolved to more than one person closely enough that
+        // picking a winner would have been a guess. Identity came from the PIN
+        // instead — rare, and worth a look when it happens, because two
+        // colleagues the model cannot separate is a standing risk at that
+        // outlet rather than a one-off.
+        'face_ambiguous'     => 'Face matched more than one person',
+        'byod_when_kiosk_up' => 'Used own device while the kiosk was online',
+        'kiosk_down'         => 'Kiosk was offline',
     ];
 
     protected $fillable = [
         'company_id', 'outlet_id', 'employee_id', 'roster_entry_id', 'type',
+        'source', 'clock_device_id',
         'work_date', 'happened_at', 'latitude', 'longitude', 'accuracy_m',
         'distance_m', 'within_geofence', 'face_distance', 'face_verified',
         'selfie_path', 'minutes_late', 'chargeable_late_minutes',
@@ -115,6 +138,12 @@ class ClockEvent extends Model
         return $this->belongsTo(RosterEntry::class);
     }
 
+    /** The kiosk this came from, when it came from one. */
+    public function device(): BelongsTo
+    {
+        return $this->belongsTo(ClockDevice::class, 'clock_device_id');
+    }
+
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
@@ -161,6 +190,19 @@ class ClockEvent extends Model
      */
     public function locationLabel(): ?string
     {
+        /*
+         * A kiosk answers this outright and answers it first, ahead of even a
+         * resolved street address. The tablet is bolted to a counter at an
+         * outlet somebody chose when they paired it — there are no
+         * coordinates to geocode, and none would improve on knowing which
+         * device recorded it.
+         */
+        if ($this->fromKiosk()) {
+            return $this->device?->name
+                ? 'At ' . ($this->outlet?->name ?? 'the outlet') . ' — ' . $this->device->name
+                : 'At ' . ($this->outlet?->name ?? 'the outlet') . ' (kiosk)';
+        }
+
         // A resolved street address is the better answer, so it wins when the
         // company has switched reverse geocoding on and one came back.
         if (filled($this->address)) {
@@ -205,6 +247,14 @@ class ClockEvent extends Model
     {
         $outlet = $this->outlet?->name;
 
+        // A kiosk punch has no geofence result to report and needs none: the
+        // device it came from is the answer, and locationLabel() already gives
+        // it. Returning "no location recorded" here would read as a gap in the
+        // evidence rather than a stronger kind of it.
+        if ($this->fromKiosk()) {
+            return null;
+        }
+
         if (! $outlet || $this->latitude === null) {
             return null;
         }
@@ -240,6 +290,34 @@ class ClockEvent extends Model
             ->filter()
             ->values()
             ->all();
+    }
+
+    public function sourceLabel(): string
+    {
+        return self::SOURCE_LABELS[$this->source] ?? 'Own device';
+    }
+
+    /**
+     * Where the punch was made, for the review queue.
+     *
+     * A kiosk names itself, because "Front counter iPad" answers the question
+     * a manager has about a kiosk punch — which tablet — in a way that the
+     * bare word "kiosk" does not.
+     */
+    public function sourceDetail(): string
+    {
+        if ($this->source !== self::SOURCE_KIOSK) {
+            return $this->sourceLabel();
+        }
+
+        return $this->device?->name
+            ? 'Kiosk — ' . $this->device->name
+            : 'Outlet kiosk (device removed)';
+    }
+
+    public function fromKiosk(): bool
+    {
+        return $this->source === self::SOURCE_KIOSK;
     }
 
     /** Human label for the punch type, for lists and the review queue. */

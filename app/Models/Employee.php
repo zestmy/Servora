@@ -20,7 +20,7 @@ class Employee extends Model
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
-        'daily_working_hours', 'reports_to_id',
+        'daily_working_hours', 'reports_to_id', 'allow_byod',
     ];
 
     /**
@@ -61,6 +61,37 @@ class Employee extends Model
     {
         return $this->hasLabelPin()
             && \Illuminate\Support\Facades\Hash::check($pin, $this->label_pin);
+    }
+
+    /**
+     * Whether this person is expected to punch on their own phone.
+     *
+     * The outlet sets the rule and the employee is the exception to it, which
+     * is the whole reason allow_byod is nullable — null inherits, so an outlet
+     * can be switched to its kiosk without editing every member of staff, and
+     * the people who genuinely need a phone stay marked as such through the
+     * change.
+     *
+     * Read at the moment of the punch rather than cached anywhere: somebody
+     * moved to another outlet inherits that outlet's rule the same day.
+     *
+     * A false answer never refuses a punch — it flags one. Nothing in this
+     * feature is allowed to leave a person unable to record that they turned
+     * up for work.
+     */
+    public function canUseOwnDevice(?Outlet $outlet = null): bool
+    {
+        if ($this->allow_byod !== null) {
+            return (bool) $this->allow_byod;
+        }
+
+        $outlet ??= $this->outlet;
+
+        // No outlet resolved is not a licence to guess. Somebody whose posting
+        // is missing has bigger problems — outletFor() refuses the punch
+        // outright — and answering "yes" here would be inventing a permission
+        // out of an absence.
+        return $outlet ? ! $outlet->expectsKiosk() : true;
     }
 
     /**
@@ -160,6 +191,9 @@ class Employee extends Model
 
     protected $casts = [
         'is_active'              => 'boolean',
+        // Nullable on purpose: null is "whatever the outlet says", which is
+        // what nearly every row holds. See canUseOwnDevice().
+        'allow_byod'             => 'boolean',
         'join_date'              => 'date',
         'date_of_birth'          => 'date',
         'employment_status_date' => 'date',

@@ -32,6 +32,18 @@ class ClockEvents extends Component
     public string $to            = '';
 
     /**
+     * Kiosk, own device, or both.
+     *
+     * The question this answers is the one an outlet running a kiosk actually
+     * has: who is still punching on their phone. That is visible as a filter
+     * rather than only as a flag because the interesting cases are the ones
+     * that were NOT flagged — somebody with a standing exception using it
+     * every single day is a permission worth revisiting, and no individual
+     * punch of theirs will ever appear in the review queue to say so.
+     */
+    public string $sourceFilter  = '';
+
+    /**
      * Whether deleted punches are on screen: '' hides them, 'include' mixes
      * them in, 'only' shows nothing else.
      *
@@ -69,7 +81,7 @@ class ClockEvents extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['search', 'outletFilter', 'statusFilter', 'deletedFilter', 'from', 'to'], true)) {
+        if (in_array($property, ['search', 'outletFilter', 'statusFilter', 'sourceFilter', 'deletedFilter', 'from', 'to'], true)) {
             $this->resetPage();
         }
     }
@@ -335,7 +347,9 @@ class ClockEvents extends Component
 
         $accessible = $this->accessibleOutletIds();
 
-        $events = ClockEvent::with(['employee', 'outlet', 'rosterEntry', 'reviewer'])
+        // `device` is eager-loaded because sourceDetail() names the kiosk on
+        // every kiosk row — thirty rows would otherwise be thirty queries.
+        $events = ClockEvent::with(['employee', 'outlet', 'rosterEntry', 'reviewer', 'device'])
             // Deleted punches are absent unless asked for. 'only' is how
             // somebody finds one they removed by mistake without having to
             // remember which day it was on.
@@ -345,6 +359,7 @@ class ClockEvents extends Component
             ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
             ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter))
             ->when($this->statusFilter !== '', fn ($q) => $q->where('status', $this->statusFilter))
+            ->when($this->sourceFilter !== '', fn ($q) => $q->where('source', $this->sourceFilter))
             ->when($this->search !== '', fn ($q) => $q->whereHas('employee', fn ($e) => $e
                 ->where('name', 'like', '%' . $this->search . '%')
                 ->orWhere('staff_id', 'like', '%' . $this->search . '%')))

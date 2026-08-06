@@ -23,6 +23,7 @@
         </div>
         @can('hr.clock.manage')
             <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('hr.clock-devices') }}" wire:navigate class="btn-secondary">Kiosks</a>
                 <a href="{{ route('hr.face-enrolment') }}" wire:navigate class="btn-secondary">Face Enrolment</a>
                 <a href="{{ route('hr.clock-settings') }}" wire:navigate class="btn-secondary">Settings</a>
             </div>
@@ -31,7 +32,7 @@
 
     {{-- Filters --}}
     <div class="panel p-4 mb-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <div class="lg:col-span-2">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
                 <input type="text" wire:model.live.debounce.400ms="search"
@@ -55,6 +56,21 @@
                     <option value="{{ ClockEvent::STATUS_VERIFIED }}">Verified</option>
                     <option value="{{ ClockEvent::STATUS_APPROVED }}">Approved</option>
                     <option value="{{ ClockEvent::STATUS_REJECTED }}">Rejected</option>
+                </select>
+            </div>
+
+            {{-- Where the punch came from.
+                 The useful question at a kiosk outlet is who is still using
+                 their phone, and most of those punches are perfectly in order
+                 — a granted exception never gets flagged — so the review queue
+                 will never surface them. This will. --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Punched on</label>
+                <select wire:model.live="sourceFilter" class="w-full rounded-lg border-gray-300 text-sm">
+                    <option value="">Anywhere</option>
+                    @foreach (ClockEvent::SOURCE_LABELS as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
                 </select>
             </div>
 
@@ -133,7 +149,14 @@
                             @endif
                             <span class="block text-[11px] font-normal text-gray-500">{{ $event->outlet?->name }}</span>
                         </td>
-                        <td class="px-2 py-2 text-gray-600 whitespace-nowrap">{{ $event->typeLabel() }}</td>
+                        <td class="px-2 py-2 text-gray-600 whitespace-nowrap">
+                            {{ $event->typeLabel() }}
+                            {{-- Under the type rather than in a column of its
+                                 own: this table already carries ten, and where
+                                 a punch was made is a caption on what it was,
+                                 not an independent fact to scan down. --}}
+                            <span class="block text-[11px] text-gray-500">{{ $event->sourceDetail() }}</span>
+                        </td>
                         <td class="px-2 py-2 text-right tabular-nums text-gray-800">{{ $event->happened_at->format('g:i A') }}</td>
                         <td class="px-2 py-2 text-right tabular-nums text-gray-500">
                             {{ $shiftStart ? $shiftStart->format('g:i A') : '—' }}

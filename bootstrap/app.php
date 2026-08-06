@@ -28,6 +28,29 @@ return Application::configure(basePath: dirname(__DIR__))
             'kitchen.user'        => \App\Http\Middleware\EnsureKitchenUser::class,
             'labels.staff'        => \App\Http\Middleware\LabelStaffAuthenticate::class,
             'clock.staff'         => \App\Http\Middleware\ClockStaffAuthenticate::class,
+            'clock.kiosk'         => \App\Http\Middleware\KioskAuthenticate::class,
+        ]);
+
+        /*
+         * The kiosk's JSON endpoints authenticate on the X-Kiosk-Token header
+         * and refuse the cookie outright (KioskAuthenticate, via=header), so
+         * they cannot be driven by ambient authority and have nothing for a
+         * CSRF token to protect.
+         *
+         * They have to be exempt. A kiosk screen is opened once and left up
+         * for a fourteen-hour shift; the session whose token the page was
+         * rendered with expires hours before the last punch of the night, and
+         * a clock-in that fails at 10pm because of a cookie lifetime is the
+         * exact failure this feature cannot have.
+         *
+         * The PAIRING post is deliberately not listed. It is an ordinary form
+         * on an ordinary page, submitted within a minute of being loaded, and
+         * it is where a device credential is handed out.
+         */
+        $middleware->validateCsrfTokens(except: [
+            'staff/kiosk/identify',
+            'staff/kiosk/punch',
+            'staff/kiosk/ping',
         ]);
 
         // Force all non-LMS traffic to the main domain (must run early)

@@ -79,6 +79,64 @@ class ClockAppController extends Controller
     }
 
     /**
+     * The kiosk's own manifest, so a tablet installs it as its own app.
+     *
+     * Separate from the staff manifest and not a variant of it. They are two
+     * apps that happen to share a code path: one is a person's phone, opening
+     * on their own punch screen, and the other is a tablet on a counter that
+     * must open on the kiosk and nowhere else. A shared start_url would send
+     * a re-launched kiosk to the PIN sign-in — which is precisely the screen
+     * a kiosk exists to replace.
+     *
+     * The scope is narrowed to /staff/kiosk so that a link out of the kiosk
+     * leaves the installed app rather than quietly navigating a wall-mounted
+     * tablet into somebody's private leave application.
+     */
+    public function kioskManifest(): Response
+    {
+        $start   = route('clock.kiosk.screen', absolute: false);
+        $company = app()->bound('currentCompany') ? app('currentCompany') : null;
+        $brand   = $company?->brand_name ?? $company?->name;
+
+        $manifest = [
+            'name'        => $brand ? $brand . ' Clock Kiosk' : 'Servora Clock Kiosk',
+            'short_name'  => 'Clock Kiosk',
+            'description' => 'Outlet clock-in kiosk.',
+            'start_url'   => $start,
+            'scope'       => rtrim($start, '/') . '/',
+            'display'     => 'standalone',
+            // Landscape: this is a tablet sitting in a stand on a counter, and
+            // the confirm card is built wide. A portrait lock would rotate the
+            // one device in the building that is never held in a hand.
+            'orientation' => 'landscape',
+            'background_color' => '#0b1220',
+            'theme_color'      => '#0b7677',
+            'icons'            => $company?->logo
+                ? [[
+                    'src'     => \Illuminate\Support\Facades\Storage::disk('public')->url($company->logo),
+                    'sizes'   => 'any',
+                    'purpose' => 'any',
+                ]]
+                : [
+                    [
+                        'src'   => asset('favicon.png'),
+                        'sizes' => '300x300',
+                        'type'  => 'image/png',
+                    ],
+                    [
+                        'src'     => asset('clock-app/icon-maskable-512.png'),
+                        'sizes'   => '512x512',
+                        'type'    => 'image/png',
+                        'purpose' => 'maskable',
+                    ],
+                ],
+        ];
+
+        return response(json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT))
+            ->header('Content-Type', 'application/manifest+json');
+    }
+
+    /**
      * Cautious about pages, generous about models.
      *
      * Nothing dynamic is cached: a clock-in screen that renders from cache

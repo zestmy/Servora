@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Hr\ClockAppController;
 use App\Http\Controllers\Hr\ClockSessionController;
+use App\Http\Controllers\Hr\KioskController;
 use App\Livewire\Clock\Staff\History as ClockHistory;
 use App\Livewire\Clock\Staff\Leave as ClockLeave;
 use App\Livewire\Clock\Staff\TimeOff as ClockTimeOff;
@@ -49,6 +50,38 @@ $group->group(function () {
         ->name('clock.staff.sw');
 
     Route::get('/login', ClockLogin::class)->name('clock.staff.login');
+
+    /*
+     * The outlet kiosk.
+     *
+     * Alongside the staff app rather than inside it, because it authenticates
+     * something else entirely: a registered DEVICE, not a person. Nobody signs
+     * in to a kiosk — that is the whole idea of one — so `clock.staff` would
+     * bounce every request it ever received straight to the PIN screen.
+     */
+    Route::get('/kiosk/manifest.webmanifest', [ClockAppController::class, 'kioskManifest'])
+        ->name('clock.kiosk.manifest');
+
+    Route::get('/kiosk/pair', [KioskController::class, 'pair'])->name('clock.kiosk.pair');
+    Route::post('/kiosk/pair', [KioskController::class, 'storePair'])->name('clock.kiosk.pair.store');
+
+    // The screen itself, reached by an ordinary navigation that carries only
+    // the cookie.
+    Route::middleware('clock.kiosk')->group(function () {
+        Route::get('/kiosk', [KioskController::class, 'screen'])->name('clock.kiosk.screen');
+    });
+
+    /*
+     * The JSON endpoints, header-authenticated. `:header` refuses the cookie,
+     * which is what makes them safe to exempt from CSRF in bootstrap/app.php —
+     * and they have to be exempt, because this screen stays open far longer
+     * than the session whose token rendered it.
+     */
+    Route::middleware('clock.kiosk:header')->group(function () {
+        Route::post('/kiosk/identify', [KioskController::class, 'identify'])->name('clock.kiosk.identify');
+        Route::post('/kiosk/punch', [KioskController::class, 'punch'])->name('clock.kiosk.punch');
+        Route::post('/kiosk/ping', [KioskController::class, 'ping'])->name('clock.kiosk.ping');
+    });
 
     Route::middleware('clock.staff')->group(function () {
         // A bare /staff has to land somewhere: it is what gets typed from

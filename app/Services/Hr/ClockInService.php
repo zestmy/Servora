@@ -5,6 +5,7 @@ namespace App\Services\Hr;
 use App\Jobs\ResolveClockEventAddress;
 use App\Models\AttendanceCode;
 use App\Models\AttendanceRecord;
+use App\Models\ClockDevice;
 use App\Models\ClockEvent;
 use App\Models\ClockSetting;
 use App\Models\Employee;
@@ -44,6 +45,26 @@ use Illuminate\Support\Str;
  *   Nothing here trusts a verdict computed by the phone. The device sends
  *   raw observations — coordinates, a descriptor — and every comparison
  *   against the company's thresholds happens on this side.
+ *
+ * TWO WAYS IN, judged by the same rules but not by the same evidence.
+ *
+ *   BYOD   somebody's own phone. It has to prove where it is, because it
+ *          could be anywhere, and that proof is a GPS fix against the
+ *          outlet's geofence.
+ *
+ *   KIOSK  a tablet registered to one outlet by a manager who knew where it
+ *          was going. Its location is a fact somebody configured rather than
+ *          a claim a handset makes, so a kiosk punch skips the geofence
+ *          entirely — no indoor fix, no accuracy tolerance, and nothing a
+ *          mock-location app can contribute. Registering the device replaces
+ *          the measurement rather than adding to it.
+ *
+ * What a kiosk punch does NOT get is a free pass on identity. It gets the
+ * opposite: the face had to name somebody out of everybody at the outlet
+ * before the punch could be offered at all. What it does get is leniency
+ * about a face that could not be read, because the kiosk's own fallback is
+ * the PIN, and refusing a punch that already went through the fallback would
+ * leave the person no way in at all.
  */
 class ClockInService
 {
@@ -61,7 +82,10 @@ class ClockInService
      *     latitude?: mixed, longitude?: mixed, accuracy?: mixed,
      *     descriptor?: mixed, selfie?: ?string, reason?: ?string,
      *     device_label?: ?string, user_agent?: ?string, ip?: ?string,
-     * }  $input  Raw observations from the device. Every value is untrusted.
+     *     source?: ?string, device?: ?ClockDevice, identification?: ?string,
+     * }  $input  Raw observations from the device. Every value is untrusted
+     *            EXCEPT `device`, which the kiosk middleware resolved from a
+     *            token and is therefore a model rather than a claim.
      *
      * @throws ClockInException when the punch cannot be recorded at all.
      */
@@ -70,6 +94,18 @@ class ClockInService
         $type = in_array($type, [
             ClockEvent::TYPE_OUT, ClockEvent::TYPE_BREAK_START, ClockEvent::TYPE_BREAK_END,
         ], true) ? $type : ClockEvent::TYPE_IN;
+
+        $device = $input['device'] ?? null;
+        $device = $device instanceof ClockDevice ? $device : null;
+
+        /*
+         * The source is derived from the DEVICE, not from what was sent.
+         * A caller holding a verified kiosk token is a kiosk punch and a
+         * caller without one is not, and letting a field decide that would
+         * make "source: kiosk" a request anybody could make — which is to say
+         * a way to skip the geofence by typing a word.
+         */
+        $source = $device ? ClockEvent::SOURCE_KIOSK : ClockEvent::SOURCE_BYOD;
 
         $outlet = $this->outletFor($employee);
 
@@ -94,9 +130,47 @@ class ClockInService
         // making it — so refusing one because the camera failed would leave
         // somebody unable to end a break that is costing them money by the
         // minute. Everything is still recorded; nothing is enforced.
-        $lenient  = $this->isBreak($type);
-        $location = $this->assessLocation($input, $outlet, $settings, $flags, $lenient);
-        $face     = $this->assessFace($employee, $input, $settings, $flags, $lenient, $type);
+        $lenient = $this->isBreak($type);
+        $isKiosk = $source === ClockEvent::SOURCE_KIOSK;
+
+        /*
+         * FIRST, ahead of the location and face checks, because it is the only
+         * one of the three that can be answered without asking anything of the
+         * person. Making somebody wait for a GPS fix and hold up their face,
+         * and only then telling them their company does not accept phone
+         * punches, is thirty seconds spent to arrive at a refusal that was
+         * knowable before they pressed the button.
+         */
+        if (! $isKiosk) {
+            $this->assessOwnDevice($employee, $outlet, $settings, $flags, $lenient);
+        }
+
+        $location = $isKiosk
+            ? $this->kioskLocation()
+            : $this->assessLocation($input, $outlet, $settings, $flags, $lenient);
+
+        /*
+         * A kiosk punch is lenient about the face for the same reason a break
+         * is, and it is worth being explicit about why, because on the face of
+         * it a kiosk is where you would want the check STRICTEST.
+         *
+         * The check has already happened. Getting this far on a kiosk means
+         * either the face named this person out of the whole outlet, or the
+         * face could not and they keyed their PIN instead. Throwing here would
+         * refuse the second group — who are exactly the people the fallback
+         * exists for: the cook at 6am with a hairnet and steamed-up glasses,
+         * and the new hire nobody has enrolled yet. They are recorded, they
+         * are flagged, and a manager decides.
+         */
+        $face = $this->assessFace($employee, $input, $settings, $flags, $lenient || $isKiosk, $type);
+
+        // How the kiosk arrived at this person. Recorded as a flag rather than
+        // decided here: the identification itself is FaceIdentifier's job, but
+        // what a close call MEANS for the punch is this file's, like every
+        // other verdict.
+        if (($input['identification'] ?? null) === FaceIdentifier::AMBIGUOUS) {
+            $flags[] = 'face_ambiguous';
+        }
 
         [$minutesLate, $chargeable, $penalty] = $this->assessLateness(
             $type, $shift, $at, $settings, $flags
@@ -136,7 +210,12 @@ class ClockInService
         //              still recorded on the punch and still visible, but
         //              sending every one of them to the review queue buried
         //              the punches that genuinely could not be verified.
-        $reviewable = array_values(array_diff($flags, ['late', 'no_shift']));
+        //   kiosk_down — the reason a phone punch was fine, not a problem with
+        //              it. The kiosk being dead is worth surfacing on the
+        //              DEVICES screen, where somebody can go and plug it in;
+        //              putting it here would flag every punch at the outlet
+        //              for a fault none of those people caused.
+        $reviewable = array_values(array_diff($flags, ['late', 'no_shift', 'kiosk_down']));
 
         $event = ClockEvent::create([
             'company_id'      => $employee->company_id,
@@ -144,6 +223,8 @@ class ClockInService
             'employee_id'     => $employee->id,
             'roster_entry_id' => $shift['entry']->id ?? null,
             'type'            => $type,
+            'source'          => $source,
+            'clock_device_id' => $device?->id,
             'work_date'       => $workDate->toDateString(),
             'happened_at'     => $at,
 
@@ -291,6 +372,111 @@ class ClockInService
         }
 
         return $result;
+    }
+
+    /**
+     * Where a kiosk punch happened: at the outlet, because the tablet is.
+     *
+     * No coordinates are recorded, and none are wanted. The device is bolted
+     * to a counter at an outlet a manager chose when they paired it, which is
+     * a far better answer than a GPS fix — a mall basement routinely reports
+     * three hundred metres of error, and a rooted handset can report anything
+     * at all. A registered device replaces the measurement rather than
+     * supplementing it.
+     *
+     * within_geofence is set TRUE with a null distance, and that pairing is
+     * deliberate. The column means "was this punch at the outlet", and for a
+     * kiosk the answer is yes on stronger evidence than the column was built
+     * for; leaving it false so it matched the absent coordinates would tell
+     * every report that counts it that nobody at a kiosk outlet was ever on
+     * site. The null distance is what says the basis was not a measurement,
+     * and locationLabel() reads the source to explain which it was.
+     *
+     * @return array{latitude: ?float, longitude: ?float, accuracy: ?int, distance: ?int, within: bool}
+     */
+    private function kioskLocation(): array
+    {
+        return [
+            'latitude' => null, 'longitude' => null, 'accuracy' => null,
+            'distance' => null, 'within'   => true,
+        ];
+    }
+
+    /**
+     * A punch from somebody's own phone where a kiosk was the expected route.
+     *
+     * The problem being solved is not fraud, it is drift. Where both a tablet
+     * and a phone will work, the phone wins every time — it is already in your
+     * hand, and there are three people at the tablet. Left alone the kiosk
+     * becomes decorative within a fortnight and the outlet is back to a PIN
+     * anybody can share.
+     *
+     * Three gates, in this order, and the order is the design:
+     *
+     *   1. A NAMED EXCEPTION beats everything. Area managers, drivers, crew
+     *      working an offsite event. This is the entire control: the choice
+     *      moves out of the doorway, where convenience decides it, and onto a
+     *      screen where somebody had to mean it. It outranks the company
+     *      switch as well as the outlet's mode, because that is what an
+     *      exception is for — a company that turns phones off still has to be
+     *      able to keep its area manager working.
+     *
+     *   2. NO LIVE KIOSK, no case to answer. A dead tablet must never cost an
+     *      outlet its attendance, so nothing below this line can refuse or
+     *      flag when there was no kiosk to have used. kiosk_down records WHY
+     *      the punch was fine, which is why it is kept out of the review
+     *      queue; the place to notice a dead kiosk is the devices screen,
+     *      where somebody can go and plug it in.
+     *
+     *   3. Only then does policy apply. A company that has switched phone
+     *      clock-in off gets a refusal — it is a deliberate instruction with
+     *      an obvious alternative three metres away, not a check the employee
+     *      failed. An outlet that merely PREFERS its kiosk gets a flag, and
+     *      the punch stands: preferring is not forbidding.
+     */
+    private function assessOwnDevice(
+        Employee $employee,
+        Outlet $outlet,
+        ClockSetting $settings,
+        array &$flags,
+        bool $lenient,
+    ): void {
+        if ($employee->allow_byod === true) {
+            return;
+        }
+
+        // canUseOwnDevice() carries the tri-state: an explicit "kiosk only" on
+        // the employee still pins them to the tablet even at an outlet that
+        // allows phones, which a bare expectsKiosk() check here would drop.
+        if ($employee->canUseOwnDevice($outlet) && $settings->byod_enabled) {
+            return;
+        }
+
+        $kioskLive = ClockDevice::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $employee->company_id)
+            ->where('outlet_id', $outlet->id)
+            ->active()
+            ->paired()
+            ->where('last_seen_at', '>', now()->subMinutes(ClockDevice::HEARTBEAT_STALE_MINUTES))
+            ->exists();
+
+        if (! $kioskLive) {
+            $flags[] = 'kiosk_down';
+
+            return;
+        }
+
+        // Never a break. Somebody mid-shift has already been let in by this
+        // same door, and refusing to let them END a break would leave the
+        // overrun charge running with nothing they can do about it.
+        if (! $settings->byod_enabled && ! $lenient) {
+            throw new ClockInException(sprintf(
+                'Clock in on the kiosk at %s. Your company has turned off clocking in from your own phone.',
+                $outlet->name
+            ));
+        }
+
+        $flags[] = 'byod_when_kiosk_up';
     }
 
     /**
