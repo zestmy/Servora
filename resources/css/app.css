@@ -143,6 +143,7 @@
     .badge-success { @apply badge bg-success-50 text-success-800; }
     .badge-warning { @apply badge bg-warning-50 text-warning-800; }
     .badge-danger  { @apply badge bg-danger-50  text-danger-800; }
+    .badge-info    { @apply badge bg-info-50    text-info-800; }
 
     /* ── Tables ───────────────────────────────────────────────────────────
        Hairline between rows only. No border-t AND border-b on every row.
