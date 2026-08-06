@@ -25,9 +25,14 @@
             then be overridden per employee.
         </p>
         <p class="text-xs text-gray-600 mt-1">
-            <strong>Can be applied for</strong> is the setting to watch. A replacement public holiday that is
-            <strong>paid out with salary</strong> still needs its entitlement recorded and reported, but nobody
-            should be able to book it as a day off — untick it and the apply form says exactly that.
+            <strong>Can be applied for</strong> is the blunt company-wide off switch: untick it for an
+            entitlement that is <strong>paid out with salary</strong> rather than taken as time away, and the
+            apply form says exactly that instead of silently refusing.
+        </p>
+        <p class="text-xs text-gray-600 mt-1">
+            Whether a <em>particular</em> public holiday is paid rather than replaced is decided per holiday in
+            the <a href="{{ route('settings.public-holidays') }}" class="text-brand-600 hover:text-brand-800 font-medium">public holiday register</a>,
+            not here.
         </p>
     </div>
 
@@ -99,6 +104,25 @@
                 @endunless
 
                 <label class="flex items-start gap-2">
+                    <input type="checkbox" wire:model.live="f_is_replacement_holiday" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <span class="text-sm text-gray-700">
+                        This is the replacement public holiday type
+                        <span class="block text-[11px] text-gray-500">
+                            Its balance comes from the
+                            <a href="{{ route('settings.public-holidays') }}" class="text-brand-600 hover:text-brand-800 font-medium">public holiday register</a>
+                            — one day per replaceable holiday the branch observes — rather than the yearly figure
+                            above. Only one type can be this.
+                        </span>
+                    </span>
+                </label>
+                @if ($f_is_replacement_holiday)
+                    <p class="text-[11px] text-info-700 pl-6">
+                        Default days and per-employee entitlements are ignored for this type. Ticking it here
+                        unticks whichever other type had it.
+                    </p>
+                @endif
+
+                <label class="flex items-start gap-2">
                     <input type="checkbox" wire:model="f_is_paid" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                     <span class="text-sm text-gray-700">Paid leave
                         <span class="block text-[11px] text-gray-500">Untick for unpaid leave.</span>
@@ -166,6 +190,9 @@
                                     @unless ($type->is_claimable)
                                         <span class="badge-warning" title="Paid out with salary — cannot be booked as a day off">paid with salary</span>
                                     @endunless
+                                    @if ($type->is_replacement_holiday)
+                                        <span class="badge-info" title="Balance comes from the public holiday register">from holiday register</span>
+                                    @endif
                                     @unless ($type->is_paid)<span class="badge-danger">unpaid</span>@endunless
                                     @if ($type->carry_forward)
                                         <span class="badge-info">carries forward{{ $type->carry_forward_cap !== null ? ' (max ' . rtrim(rtrim(number_format((float) $type->carry_forward_cap, 1), '0'), '.') . ')' : '' }}</span>

@@ -6,8 +6,10 @@ use App\Models\Employee;
 use App\Models\LeaveEntitlement;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\PublicHoliday;
 use App\Services\Hr\LeaveBalance;
 use App\Services\Hr\LeaveNotifier;
+use App\Services\Hr\ReplacementHolidays;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -32,6 +34,8 @@ class Leave extends Component
     public bool   $showApply    = false;
     public string $a_employee   = '';
     public string $a_type       = '';
+    /** Which public holiday a replacement day is being taken against. */
+    public string $a_holiday    = '';
     public string $a_start      = '';
     public string $a_end        = '';
     public string $a_days       = '';
@@ -80,12 +84,61 @@ class Leave extends Component
 
     public function openApply(): void
     {
-        $this->reset(['a_employee', 'a_type', 'a_start', 'a_end', 'a_days', 'a_reason']);
+        $this->reset(['a_employee', 'a_type', 'a_holiday', 'a_start', 'a_end', 'a_days', 'a_reason']);
         $this->a_half = false;
         $this->a_start = now()->toDateString();
         $this->a_end   = now()->toDateString();
         $this->resetErrorBag();
         $this->showApply = true;
+    }
+
+    /**
+     * The unspent replacement credits the chosen employee could book, or an
+     * empty collection when the form is not on a replacement type.
+     *
+     * @return \Illuminate\Support\Collection<int, array{holiday: \App\Models\PublicHoliday, expires_on: ?Carbon, status: string, request: ?LeaveRequest, taken_on: ?Carbon}>
+     */
+    public function replacementCredits()
+    {
+        $type = $this->a_type !== '' ? LeaveType::find((int) $this->a_type) : null;
+
+        if (! $type?->is_replacement_holiday || $this->a_employee === '') {
+            return collect();
+        }
+
+        $employee = Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->find((int) $this->a_employee);
+
+        return $employee ? app(ReplacementHolidays::class)->claimable($employee) : collect();
+    }
+
+    /** True while the apply form is on the replacement type. */
+    public function applyingReplacement(): bool
+    {
+        return $this->a_type !== ''
+            && (bool) LeaveType::find((int) $this->a_type)?->is_replacement_holiday;
+    }
+
+    /*
+     * A replacement is one whole day against one named holiday, so choosing a
+     * type or a person invalidates whichever credit was picked and pins the
+     * day count. Letting the count stay editable would invite "3 days" against
+     * a single credit, which the balance would then have to refuse.
+     */
+    public function updatedAType(): void
+    {
+        $this->a_holiday = '';
+
+        if ($this->applyingReplacement()) {
+            $this->a_half = false;
+            $this->a_days = '1';
+            $this->a_end  = $this->a_start;
+        }
+    }
+
+    public function updatedAEmployee(): void
+    {
+        $this->a_holiday = '';
     }
 
     /**
@@ -100,6 +153,14 @@ class Leave extends Component
 
     private function suggestDays(): void
     {
+        // A replacement day is one credit, one day — the dates do not get a
+        // vote, and the end date follows the start.
+        if ($this->applyingReplacement()) {
+            $this->a_days = '1';
+            $this->a_end  = $this->a_start;
+            return;
+        }
+
         if ($this->a_half) {
             $this->a_days = '0.5';
             $this->a_end  = $this->a_start;
@@ -166,19 +227,35 @@ class Leave extends Component
             return;
         }
 
-        $days = round((float) $this->a_days, 1);
-        $year = (int) Carbon::parse($this->a_start)->format('Y');
+        $days    = round((float) $this->a_days, 1);
+        $year    = (int) Carbon::parse($this->a_start)->format('Y');
+        $holiday = null;
 
-        // Checked at APPLICATION, not approval: someone who books a flight on
-        // the strength of a request that was never going to fit has a much
-        // worse day than someone told "no" straight away.
-        $remaining = app(LeaveBalance::class)->remainingFor($employee, $type, $year);
+        if ($type->is_replacement_holiday) {
+            /*
+             * A replacement draws on ONE NAMED HOLIDAY, not on a yearly
+             * figure, so the ordinary balance check is skipped rather than
+             * added to. It would ask the wrong question: a credit earned in
+             * December and taken in January belongs to December's balance, and
+             * a year-based check would refuse it on 2 January every time.
+             */
+            $holiday = $this->resolveReplacementCredit($employee, $days);
 
-        if ($days > $remaining + 0.001) {
-            $this->addError('a_days', $employee->name . ' has '
-                . rtrim(rtrim(number_format($remaining, 1), '0'), '.')
-                . ' day(s) of ' . $type->name . ' left for ' . $year . '.');
-            return;
+            if (! $holiday) {
+                return;
+            }
+        } else {
+            // Checked at APPLICATION, not approval: someone who books a flight
+            // on the strength of a request that was never going to fit has a
+            // much worse day than someone told "no" straight away.
+            $remaining = app(LeaveBalance::class)->remainingFor($employee, $type, $year);
+
+            if ($days > $remaining + 0.001) {
+                $this->addError('a_days', $employee->name . ' has '
+                    . rtrim(rtrim(number_format($remaining, 1), '0'), '.')
+                    . ' day(s) of ' . $type->name . ' left for ' . $year . '.');
+                return;
+            }
         }
 
         // A type that needs no approval is granted on the spot — otherwise it
@@ -186,9 +263,10 @@ class Leave extends Component
         $autoApprove = ! $type->requires_approval;
 
         $created = LeaveRequest::create([
-            'company_id'      => $employee->company_id,
-            'employee_id'     => $employee->id,
-            'leave_type_id'   => $type->id,
+            'company_id'        => $employee->company_id,
+            'employee_id'       => $employee->id,
+            'leave_type_id'     => $type->id,
+            'public_holiday_id' => $holiday?->id,
             'start_date'      => $this->a_start,
             'end_date'        => $this->a_half ? $this->a_start : $this->a_end,
             'days'            => $days,
@@ -212,6 +290,49 @@ class Leave extends Component
               . ($told ? " {$told} approver(s) notified." : ' Nobody is set up to be notified — check the reporting line or leave approvers.'));
     }
 
+    /**
+     * The holiday this replacement day is being taken against, or null with an
+     * error already on the form.
+     *
+     * Re-checked here rather than trusted from the picker because the list was
+     * rendered some seconds ago: the employee may have booked the same credit
+     * on their phone in between, and two days off for one holiday is exactly
+     * the error nobody notices until the payroll run.
+     */
+    private function resolveReplacementCredit(Employee $employee, float $days): ?PublicHoliday
+    {
+        if ($this->a_holiday === '') {
+            $this->addError('a_holiday', 'Pick which public holiday this day is replacing.');
+            return null;
+        }
+
+        if (abs($days - 1.0) > 0.001) {
+            $this->addError('a_days', 'A replacement day is one whole day — one public holiday, one day back.');
+            return null;
+        }
+
+        $service = app(ReplacementHolidays::class);
+        $credit  = $service->claimable($employee)
+            ->firstWhere('holiday.id', (int) $this->a_holiday);
+
+        if (! $credit) {
+            $this->addError('a_holiday', $employee->name
+                . ' has no unused replacement day for that holiday — it may have just been booked.');
+            return null;
+        }
+
+        $reason = $service->reasonCannotTake(
+            $credit['holiday'], Carbon::parse($this->a_start), $employee
+        );
+
+        if ($reason) {
+            $this->addError('a_start', $reason);
+            return null;
+        }
+
+        return $credit['holiday'];
+    }
+
     // ── Deciding ─────────────────────────────────────────────────────────
 
     public function decide(int $id, string $outcome): void
@@ -229,7 +350,13 @@ class Leave extends Component
 
         // Re-checked at approval as well as application: other requests may
         // have been approved in between and eaten the balance.
-        if ($outcome === LeaveRequest::APPROVED) {
+        //
+        // A replacement is exempt. It holds ONE named credit from the moment
+        // it is applied for — a pending request already counts as spending it,
+        // so nothing else can have taken it — and the year-based check below
+        // would ask about the wrong year for a December credit taken in
+        // January.
+        if ($outcome === LeaveRequest::APPROVED && ! $request->leaveType->is_replacement_holiday) {
             $remaining = app(LeaveBalance::class)->remainingFor(
                 $request->employee, $request->leaveType, $request->balanceYear()
             );
@@ -310,6 +437,15 @@ class Leave extends Component
             return;
         }
 
+        // Refused rather than saved-and-ignored. The replacement balance is
+        // read off the holiday register, so a figure entered here would have
+        // no effect at all — and a number on screen that changes nothing is
+        // worse than being told no.
+        if (LeaveType::find((int) $this->g_type)?->is_replacement_holiday) {
+            $this->addError('g_type', 'Replacement days are earned from the public holiday register, not granted — add or edit the holiday there instead.');
+            return;
+        }
+
         LeaveEntitlement::updateOrCreate(
             [
                 'employee_id'   => $employee->id,
@@ -341,7 +477,7 @@ class Leave extends Component
             ->inListOrder()
             ->get();
 
-        $requests = LeaveRequest::with(['employee:id,name,outlet_id,staff_id', 'leaveType', 'approver:id,name'])
+        $requests = LeaveRequest::with(['employee:id,name,outlet_id,staff_id', 'leaveType', 'publicHoliday:id,name,date', 'approver:id,name'])
             ->whereIn('employee_id', $employees->pluck('id'))
             ->when($this->statusFilter !== '', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->outletFilter !== '', fn ($q) => $q->whereIn('employee_id',
@@ -367,6 +503,8 @@ class Leave extends Component
             'employees'  => $employees,
             'balances'   => $balances,
             'types'      => LeaveType::active()->ordered()->get(),
+            'credits'    => $this->replacementCredits(),
+            'isReplacement' => $this->applyingReplacement(),
             'outlets'    => \App\Models\Outlet::where('company_id', $user->company_id)
                 ->where('is_active', true)->whereIn('id', $accessible)->orderBy('name')->get(),
             'canApprove' => $this->canApprove(),

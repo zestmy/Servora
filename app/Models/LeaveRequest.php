@@ -31,7 +31,7 @@ class LeaveRequest extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'employee_id', 'leave_type_id',
+        'company_id', 'employee_id', 'leave_type_id', 'public_holiday_id',
         'start_date', 'end_date', 'days', 'is_half_day', 'half_day_period',
         'reason', 'status', 'applied_by', 'approved_by', 'approved_at', 'decision_note',
     ];
@@ -57,6 +57,17 @@ class LeaveRequest extends Model
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(LeaveType::class);
+    }
+
+    /**
+     * The holiday this day off replaces — null for every other kind of leave.
+     *
+     * Set, it means a credit is SPENT. It is what lets the balance answer
+     * "which holiday have I still not taken?" rather than only "how many".
+     */
+    public function publicHoliday(): BelongsTo
+    {
+        return $this->belongsTo(PublicHoliday::class);
     }
 
     public function approver(): BelongsTo

@@ -25,6 +25,7 @@ class LeaveTypes extends Component
     public string $f_description = '';
     public bool   $f_is_paid = true;
     public bool   $f_is_claimable = true;
+    public bool   $f_is_replacement_holiday = false;
     public bool   $f_requires_approval = true;
     public bool   $f_allows_half_day = true;
     public string $f_default_days = '0';
@@ -58,6 +59,7 @@ class LeaveTypes extends Component
         $this->f_description       = (string) $type->description;
         $this->f_is_paid           = (bool) $type->is_paid;
         $this->f_is_claimable      = (bool) $type->is_claimable;
+        $this->f_is_replacement_holiday = (bool) $type->is_replacement_holiday;
         $this->f_requires_approval = (bool) $type->requires_approval;
         $this->f_allows_half_day   = (bool) $type->allows_half_day;
         $this->f_default_days      = (string) (float) $type->default_days;
@@ -112,13 +114,26 @@ class LeaveTypes extends Component
         ];
 
         if ($this->editingId) {
-            LeaveType::findOrFail($this->editingId)->update($data);
-            session()->flash('success', 'Leave type updated.');
+            $type = LeaveType::findOrFail($this->editingId);
+            $type->update($data);
+            $message = 'Leave type updated.';
         } else {
             $data['sort_order'] = (int) LeaveType::max('sort_order') + 1;
-            LeaveType::create($data);
-            session()->flash('success', 'Leave type added.');
+            $type = LeaveType::create($data);
+            $message = 'Leave type added.';
         }
+
+        // Set last and through the model, which clears the flag off any other
+        // type: two of them would make "how many replacement days do I have"
+        // depend on sort order, which nobody would guess was the cause.
+        if ($this->f_is_replacement_holiday) {
+            LeaveType::makeReplacementHoliday($type);
+            $message .= ' Its balance now comes from the public holiday register.';
+        } elseif ($type->is_replacement_holiday) {
+            $type->update(['is_replacement_holiday' => false]);
+        }
+
+        session()->flash('success', $message);
 
         $this->showForm = false;
         $this->resetForm();
@@ -158,6 +173,7 @@ class LeaveTypes extends Component
         ]);
         $this->f_is_paid = true;
         $this->f_is_claimable = true;
+        $this->f_is_replacement_holiday = false;
         $this->f_requires_approval = true;
         $this->f_allows_half_day = true;
         $this->f_carry_forward = false;

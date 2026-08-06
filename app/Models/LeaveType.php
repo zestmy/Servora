@@ -17,28 +17,29 @@ class LeaveType extends Model
 {
     protected $fillable = [
         'company_id', 'name', 'code', 'description',
-        'is_paid', 'is_claimable', 'requires_approval', 'allows_half_day',
+        'is_paid', 'is_claimable', 'is_replacement_holiday', 'requires_approval', 'allows_half_day',
         'default_days', 'carry_forward', 'carry_forward_cap',
         'colour', 'sort_order', 'is_active',
     ];
 
     protected $casts = [
-        'is_paid'           => 'boolean',
-        'is_claimable'      => 'boolean',
-        'requires_approval' => 'boolean',
-        'allows_half_day'   => 'boolean',
-        'carry_forward'     => 'boolean',
-        'is_active'         => 'boolean',
-        'default_days'      => 'decimal:1',
-        'carry_forward_cap' => 'decimal:1',
-        'sort_order'        => 'integer',
+        'is_paid'                => 'boolean',
+        'is_claimable'           => 'boolean',
+        'is_replacement_holiday' => 'boolean',
+        'requires_approval'      => 'boolean',
+        'allows_half_day'        => 'boolean',
+        'carry_forward'          => 'boolean',
+        'is_active'              => 'boolean',
+        'default_days'           => 'decimal:1',
+        'carry_forward_cap'      => 'decimal:1',
+        'sort_order'             => 'integer',
     ];
 
     /** Seeded for a new company — the common Malaysian set, all editable. */
     public const STARTER_TYPES = [
         ['name' => 'Annual Leave',              'code' => 'AL',  'default_days' => 8,  'colour' => 'teal',   'carry_forward' => true],
         ['name' => 'Medical Leave',             'code' => 'MC',  'default_days' => 14, 'colour' => 'amber'],
-        ['name' => 'Replacement Public Holiday','code' => 'RPH', 'default_days' => 0,  'colour' => 'blue'],
+        ['name' => 'Replacement Public Holiday','code' => 'RPH', 'default_days' => 0,  'colour' => 'blue', 'is_replacement_holiday' => true],
         ['name' => 'Paternity Leave',           'code' => 'PL',  'default_days' => 7,  'colour' => 'indigo'],
         ['name' => 'Maternity Leave',           'code' => 'ML',  'default_days' => 98, 'colour' => 'pink'],
         ['name' => 'Compassionate Leave',       'code' => 'CL',  'default_days' => 3,  'colour' => 'slate'],
@@ -71,11 +72,16 @@ class LeaveType extends Model
     }
 
     /**
-     * Why this type cannot be applied for, or null when it can.
+     * Why this type cannot be applied for AT ALL, or null when it can.
      *
      * Returned as a SENTENCE rather than a boolean because the apply form has
      * to explain itself — "RPH is paid with your salary" is the answer, and
      * a greyed-out option with no reason just looks broken.
+     *
+     * Company-wide reasons only. A replacement holiday type may also be
+     * unavailable to one PERSON on one DAY because they have no unspent credit
+     * left; that is not knowable from the type, and
+     * @see \App\Services\Hr\ReplacementHolidays::blockedReason() answers it.
      */
     public function blockedReason(): ?string
     {
@@ -88,6 +94,33 @@ class LeaveType extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Ensure at most one type per company is the replacement-holiday one.
+     *
+     * Two would make "how many replacement days do I have" ambiguous, and the
+     * balance service picks the first it finds — so the answer would depend on
+     * sort order, which nobody would ever guess was the cause.
+     */
+    public static function makeReplacementHoliday(self $type): void
+    {
+        static::withoutGlobalScopes()
+            ->where('company_id', $type->company_id)
+            ->where('id', '!=', $type->id)
+            ->update(['is_replacement_holiday' => false]);
+
+        $type->forceFill(['is_replacement_holiday' => true])->save();
+    }
+
+    /** This company's replacement-holiday type, if it has one. */
+    public static function replacementHolidayFor(int $companyId): ?self
+    {
+        return static::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('is_replacement_holiday', true)
+            ->active()
+            ->first();
     }
 
     /** Create the starter set for a company that has none. */

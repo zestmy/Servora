@@ -25,6 +25,17 @@ class AppServiceProvider extends ServiceProvider
                 return new EngineMailerTransport();
             });
         });
+
+        /*
+         * Shared for its per-request holiday cache.
+         *
+         * The HR leave screen asks for a balance for up to fifty employees,
+         * and every replacement balance needs the same company-and-year list
+         * of public holidays. A fresh instance per resolve would fetch that
+         * list fifty times over. The container is rebuilt each request, so
+         * the cache cannot outlive the data it was built from.
+         */
+        $this->app->singleton(\App\Services\Hr\ReplacementHolidays::class);
     }
 
     public function boot(): void

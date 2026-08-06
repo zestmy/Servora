@@ -4,9 +4,11 @@ namespace App\Livewire\Clock\Staff;
 
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\PublicHoliday;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\LeaveBalance;
 use App\Services\Hr\LeaveNotifier;
+use App\Services\Hr\ReplacementHolidays;
 use Carbon\Carbon;
 
 /**
@@ -21,6 +23,8 @@ use Carbon\Carbon;
 class Leave extends StaffComponent
 {
     public string $f_type   = '';
+    /** Which public holiday a replacement day is being taken against. */
+    public string $f_holiday = '';
     public string $f_start  = '';
     public string $f_end    = '';
     public string $f_days   = '';
@@ -38,12 +42,46 @@ class Leave extends StaffComponent
 
     public function openForm(): void
     {
-        $this->reset(['f_type', 'f_days', 'f_reason']);
+        $this->reset(['f_type', 'f_holiday', 'f_days', 'f_reason']);
         $this->f_half  = false;
         $this->f_start = now()->toDateString();
         $this->f_end   = now()->toDateString();
         $this->resetErrorBag();
         $this->showForm = true;
+    }
+
+    /** The chosen type, scoped to the employee's own company by hand. */
+    private function chosenType(): ?LeaveType
+    {
+        if ($this->f_type === '') {
+            return null;
+        }
+
+        return LeaveType::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $this->staff()->company_id)
+            ->find((int) $this->f_type);
+    }
+
+    /** True while the form is on the replacement public holiday type. */
+    public function applyingReplacement(): bool
+    {
+        return (bool) $this->chosenType()?->is_replacement_holiday;
+    }
+
+    /*
+     * A replacement is one whole day against one named holiday, so switching
+     * type drops whichever credit was picked and pins the day count. Leaving
+     * "3" in the box against a single credit only earns a refusal on submit.
+     */
+    public function updatedFType(): void
+    {
+        $this->f_holiday = '';
+
+        if ($this->applyingReplacement()) {
+            $this->f_half = false;
+            $this->f_days = '1';
+            $this->f_end  = $this->f_start;
+        }
     }
 
     public function updatedFEnd(): void  { $this->suggestDays(); }
@@ -65,6 +103,13 @@ class Leave extends StaffComponent
     /** Move the end date to match the day count, from the start date. */
     private function suggestEnd(): void
     {
+        // One credit, one day — the two fields stop driving each other.
+        if ($this->applyingReplacement()) {
+            $this->f_days = '1';
+            $this->f_end  = $this->f_start;
+            return;
+        }
+
         if ($this->f_half) {
             $this->f_end  = $this->f_start;
             $this->f_days = '0.5';
@@ -92,6 +137,12 @@ class Leave extends StaffComponent
     /** A starting point from the dates — rest days still have to be taken off. */
     private function suggestDays(): void
     {
+        if ($this->applyingReplacement()) {
+            $this->f_days = '1';
+            $this->f_end  = $this->f_start;
+            return;
+        }
+
         if ($this->f_half) {
             $this->f_days = '0.5';
             $this->f_end  = $this->f_start;
@@ -153,24 +204,41 @@ class Leave extends StaffComponent
             return;
         }
 
-        $days = round((float) $this->f_days, 1);
-        $year = (int) Carbon::parse($this->f_start)->format('Y');
+        $days    = round((float) $this->f_days, 1);
+        $year    = (int) Carbon::parse($this->f_start)->format('Y');
+        $holiday = null;
 
-        $remaining = app(LeaveBalance::class)->remainingFor($staff, $type, $year);
+        if ($type->is_replacement_holiday) {
+            /*
+             * A replacement draws on ONE NAMED HOLIDAY, so the yearly balance
+             * check is skipped rather than added to — it would ask the wrong
+             * question. A day earned in December and taken in January belongs
+             * to December's credits, and a year-based check would refuse it
+             * every 2 January.
+             */
+            $holiday = $this->resolveReplacementCredit($days);
 
-        if ($days > $remaining + 0.001) {
-            $this->addError('f_days', 'You have '
-                . rtrim(rtrim(number_format($remaining, 1), '0'), '.')
-                . ' day(s) of ' . $type->name . ' left for ' . $year . '.');
-            return;
+            if (! $holiday) {
+                return;
+            }
+        } else {
+            $remaining = app(LeaveBalance::class)->remainingFor($staff, $type, $year);
+
+            if ($days > $remaining + 0.001) {
+                $this->addError('f_days', 'You have '
+                    . rtrim(rtrim(number_format($remaining, 1), '0'), '.')
+                    . ' day(s) of ' . $type->name . ' left for ' . $year . '.');
+                return;
+            }
         }
 
         $autoApprove = ! $type->requires_approval;
 
         $created = LeaveRequest::withoutGlobalScope(CompanyScope::class)->create([
-            'company_id'      => $staff->company_id,
-            'employee_id'     => $staff->id,
-            'leave_type_id'   => $type->id,
+            'company_id'        => $staff->company_id,
+            'employee_id'       => $staff->id,
+            'leave_type_id'     => $type->id,
+            'public_holiday_id' => $holiday?->id,
             'start_date'      => $this->f_start,
             'end_date'        => $this->f_half ? $this->f_start : $this->f_end,
             'days'            => $days,
@@ -191,6 +259,46 @@ class Leave extends StaffComponent
         session()->flash('success', $autoApprove
             ? 'Recorded. ' . $type->name . ' does not need approval.'
             : 'Applied. Your manager has been notified.');
+    }
+
+    /**
+     * The holiday this replacement day is being taken against, or null with an
+     * error already on the form.
+     *
+     * Re-resolved from the service rather than trusted from the picker: the
+     * list was rendered some seconds ago and a manager may have booked the
+     * same credit from the office in between.
+     */
+    private function resolveReplacementCredit(float $days): ?PublicHoliday
+    {
+        $staff = $this->staff();
+
+        if ($this->f_holiday === '') {
+            $this->addError('f_holiday', 'Choose which public holiday you are taking this day for.');
+            return null;
+        }
+
+        if (abs($days - 1.0) > 0.001) {
+            $this->addError('f_days', 'A replacement day is one whole day — one public holiday, one day back.');
+            return null;
+        }
+
+        $service = app(ReplacementHolidays::class);
+        $credit  = $service->claimable($staff)->firstWhere('holiday.id', (int) $this->f_holiday);
+
+        if (! $credit) {
+            $this->addError('f_holiday', 'You have no unused replacement day for that holiday — it may have just been booked for you.');
+            return null;
+        }
+
+        $reason = $service->reasonCannotTake($credit['holiday'], Carbon::parse($this->f_start), $staff);
+
+        if ($reason) {
+            $this->addError('f_start', $reason);
+            return null;
+        }
+
+        return $credit['holiday'];
     }
 
     /**
@@ -227,15 +335,23 @@ class Leave extends StaffComponent
         $requests = LeaveRequest::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $staff->company_id)
             ->where('employee_id', $staff->id)
-            ->with('leaveType')
+            ->with(['leaveType', 'publicHoliday:id,name,date'])
             ->orderByDesc('start_date')
             ->limit(30)
             ->get();
+
+        $replacements = app(ReplacementHolidays::class);
 
         return view('livewire.clock.staff.leave', [
             'balances' => $balances,
             'requests' => $requests,
             'year'     => $year,
+            // The whole year's credits, not just the unused ones: "which
+            // holidays am I still owed for" and "which did I already take"
+            // are the same list, and staff read it as a statement.
+            'credits'  => $replacements->creditsFor($staff, $year),
+            'claimable'     => $replacements->claimable($staff),
+            'isReplacement' => $this->applyingReplacement(),
         ])->layout('layouts.clock-staff', $this->shell('My leave'));
     }
 }

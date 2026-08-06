@@ -23,6 +23,11 @@
                             @if ($row['pending'] > 0)
                                 · {{ rtrim(rtrim(number_format($row['pending'], 1), '0'), '.') }} pending
                             @endif
+                            @if (($row['expired'] ?? 0) > 0)
+                                {{-- Shown, not netted off in silence: a day lost to the
+                                     claim window is the one people come and ask about. --}}
+                                · <span class="text-warning-700">{{ rtrim(rtrim(number_format($row['expired'], 1), '0'), '.') }} expired</span>
+                            @endif
                         </p>
                         {{-- An entitlement paid out with salary is SHOWN, with
                              the reason — hiding it would leave someone unable to
@@ -39,6 +44,45 @@
             @endforeach
         </div>
     </div>
+
+    {{-- The public holidays statement.
+         The balance above says "3 left"; this says WHICH three, when each
+         expires, and which ones were already taken. Staff read a number as a
+         claim and a list as a fact — and the ones that expired have to appear
+         here or the count above looks like a mistake. --}}
+    @if ($credits->isNotEmpty())
+        <div class="card p-3">
+            <h2 class="text-sm font-semibold text-gray-800 mb-2">My public holidays — {{ $year }}</h2>
+            <div class="divide-y divide-gray-100">
+                @foreach ($credits as $credit)
+                    <div class="py-2 flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm text-gray-800 truncate">{{ $credit['holiday']->name }}</p>
+                            <p class="text-[11px] text-gray-500">
+                                {{ $credit['holiday']->date->format('j M Y') }}
+                                @if ($credit['status'] === \App\Services\Hr\ReplacementHolidays::SPENT && $credit['taken_on'])
+                                    · taken {{ $credit['taken_on']->format('j M Y') }}
+                                @elseif ($credit['expires_on'])
+                                    · take by {{ $credit['expires_on']->format('j M Y') }}
+                                @else
+                                    · no deadline
+                                @endif
+                            </p>
+                        </div>
+                        @php
+                            [$label, $tone] = match ($credit['status']) {
+                                \App\Services\Hr\ReplacementHolidays::SPENT    => ['Taken',    'bg-gray-100 text-gray-600'],
+                                \App\Services\Hr\ReplacementHolidays::EXPIRED  => ['Expired',  'bg-warning-100 text-warning-800'],
+                                \App\Services\Hr\ReplacementHolidays::UPCOMING => ['Upcoming', 'bg-info-100 text-info-800'],
+                                default                                        => ['Available','bg-success-100 text-success-800'],
+                            };
+                        @endphp
+                        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium {{ $tone }}">{{ $label }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     @unless ($showForm)
         {{-- 44px minimum: this is tapped one-handed on a phone. --}}
@@ -67,44 +111,85 @@
                 <x-input-error :messages="$errors->get('f_type')" class="mt-1" />
             </div>
 
-            <div class="grid grid-cols-2 gap-2">
+            {{-- A replacement is taken against ONE named holiday, so the form
+                 asks which. Without it "1 day RPH" is a number nobody can
+                 reconcile against the holidays they actually worked. --}}
+            @if ($isReplacement)
                 <div>
-                    <label class="text-xs font-semibold text-gray-600">From</label>
-                    <input type="date" wire:model.live="f_start"
-                           class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300" />
-                    <x-input-error :messages="$errors->get('f_start')" class="mt-1" />
+                    <label class="text-xs font-semibold text-gray-600">Which public holiday?</label>
+                    @if ($claimable->isEmpty())
+                        <p class="mt-1 rounded-surface bg-warning-50 border border-warning-200 px-3 py-2 text-[11px] text-warning-800">
+                            You have no unused replacement days right now.
+                        </p>
+                    @else
+                        <select wire:model.live="f_holiday"
+                                class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300">
+                            <option value="">— Select —</option>
+                            @foreach ($claimable as $credit)
+                                <option value="{{ $credit['holiday']->id }}">
+                                    {{ $credit['holiday']->name }} — {{ $credit['holiday']->date->format('j M Y') }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @php $picked = $f_holiday !== '' ? $claimable->firstWhere('holiday.id', (int) $f_holiday) : null; @endphp
+                        @if ($picked && $picked['expires_on'])
+                            <p class="mt-1 text-[11px] text-gray-600">
+                                Take it by {{ $picked['expires_on']->format('j M Y') }}.
+                            </p>
+                        @endif
+                    @endif
+                    <x-input-error :messages="$errors->get('f_holiday')" class="mt-1" />
                 </div>
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">To</label>
-                    <input type="date" wire:model.live="f_end" @disabled($f_half)
-                           class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300 disabled:bg-gray-100" />
-                    <x-input-error :messages="$errors->get('f_end')" class="mt-1" />
-                </div>
-            </div>
+            @endif
 
             <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">Days</label>
-                    <input type="number" step="0.5" min="0.5" wire:model.live.debounce.500ms="f_days"
+                <div class="{{ $isReplacement ? 'col-span-2' : '' }}">
+                    <label class="text-xs font-semibold text-gray-600">{{ $isReplacement ? 'Day off' : 'From' }}</label>
+                    <input type="date" wire:model.live="f_start"
                            class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300" />
-                    <p class="mt-1 text-[11px] text-gray-500">The end date follows this. Adjust for rest days.</p>
-                    <x-input-error :messages="$errors->get('f_days')" class="mt-1" />
-                </div>
-                <div class="flex flex-col justify-start pt-6 gap-2">
-                    <label class="inline-flex items-center gap-2 min-h-[2.75rem]">
-                        <input type="checkbox" wire:model.live="f_half"
-                               class="h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                        <span class="text-sm text-gray-700">Half day</span>
-                    </label>
-                    @if ($f_half)
-                        <select wire:model="f_half_period"
-                                class="w-full min-h-[2.75rem] text-sm rounded-control border-gray-300">
-                            <option value="am">Morning</option>
-                            <option value="pm">Afternoon</option>
-                        </select>
+                    @if ($isReplacement)
+                        <p class="mt-1 text-[11px] text-gray-500">On or after the holiday, before it expires.</p>
                     @endif
+                    <x-input-error :messages="$errors->get('f_start')" class="mt-1" />
                 </div>
+                @unless ($isReplacement)
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">To</label>
+                        <input type="date" wire:model.live="f_end" @disabled($f_half)
+                               class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300 disabled:bg-gray-100" />
+                        <x-input-error :messages="$errors->get('f_end')" class="mt-1" />
+                    </div>
+                @endunless
             </div>
+
+            @unless ($isReplacement)
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Days</label>
+                        <input type="number" step="0.5" min="0.5" wire:model.live.debounce.500ms="f_days"
+                               class="mt-1 w-full min-h-[2.75rem] text-sm rounded-control border-gray-300" />
+                        <p class="mt-1 text-[11px] text-gray-500">The end date follows this. Adjust for rest days.</p>
+                        <x-input-error :messages="$errors->get('f_days')" class="mt-1" />
+                    </div>
+                    <div class="flex flex-col justify-start pt-6 gap-2">
+                        <label class="inline-flex items-center gap-2 min-h-[2.75rem]">
+                            <input type="checkbox" wire:model.live="f_half"
+                                   class="h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                            <span class="text-sm text-gray-700">Half day</span>
+                        </label>
+                        @if ($f_half)
+                            <select wire:model="f_half_period"
+                                    class="w-full min-h-[2.75rem] text-sm rounded-control border-gray-300">
+                                <option value="am">Morning</option>
+                                <option value="pm">Afternoon</option>
+                            </select>
+                        @endif
+                    </div>
+                </div>
+            @else
+                <p class="text-[11px] text-gray-500">One public holiday, one day back.</p>
+                <x-input-error :messages="$errors->get('f_days')" class="mt-1" />
+            @endunless
 
             <div>
                 <label class="text-xs font-semibold text-gray-600">Reason</label>
@@ -147,6 +232,11 @@
                             @endif
                             @if ($req->is_half_day) · half day ({{ $req->half_day_period }}) @endif
                         </p>
+                        @if ($req->publicHoliday)
+                            <p class="text-[11px] text-gray-600">
+                                for {{ $req->publicHoliday->name }}, {{ $req->publicHoliday->date->format('j M') }}
+                            </p>
+                        @endif
                         @if ($req->reason)
                             <p class="text-[11px] text-gray-500 mt-0.5">{{ $req->reason }}</p>
                         @endif
