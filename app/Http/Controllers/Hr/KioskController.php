@@ -194,6 +194,7 @@ class KioskController extends Controller
         RateLimiter::hit($key, 60);
 
         $settings = ClockSetting::forCompany($device->company_id);
+        $allowPin = (bool) $settings->kiosk_allow_pin;
 
         $result = $identifier->identify(
             $device->company_id,
@@ -202,13 +203,24 @@ class KioskController extends Controller
             $settings,
         );
 
+        /*
+         * `allow_pin` rides on EVERY identify response, and it is the setting
+         * as it stands right now rather than as it stood when the page loaded.
+         *
+         * A kiosk is the one screen in the building nobody ever reloads — it
+         * is opened once, put in a stand, and left for weeks. Without this, a
+         * manager who switches the PIN fallback off watches the tablet go on
+         * offering a PIN indefinitely and reasonably concludes the setting
+         * does nothing. (The server refuses those punches either way, so the
+         * hole is closed regardless; this is about the screen telling the
+         * truth about itself.)
+         */
         if ($result['status'] === FaceIdentifier::MATCHED) {
             return response()->json(
-                $this->matchedPayload($result['employee'], $result['distance'], $device, $settings, $state)
+                ['allow_pin' => $allowPin]
+                + $this->matchedPayload($result['employee'], $result['distance'], $device, $settings, $state)
             );
         }
-
-        $allowPin = (bool) $settings->kiosk_allow_pin;
 
         if ($result['status'] === FaceIdentifier::AMBIGUOUS) {
             /*
@@ -224,6 +236,7 @@ class KioskController extends Controller
              * put on a counter screen for no reason.
              */
             return response()->json([
+                'allow_pin' => $allowPin,
                 'status'    => 'ambiguous',
                 'message'   => $allowPin
                     ? 'More than one person matched. Tap your name and key your PIN.'
@@ -242,6 +255,7 @@ class KioskController extends Controller
         // entirely with the fallback. Telling somebody to use a PIN that the
         // company has switched off is worse than saying nothing.
         return response()->json([
+            'allow_pin' => $allowPin,
             'status'  => $result['status'],
             'message' => match (true) {
                 $result['status'] === FaceIdentifier::NO_FACES && $allowPin

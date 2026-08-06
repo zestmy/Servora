@@ -118,6 +118,39 @@ function pinAllowed() {
     return root()?.dataset.allowPin === '1';
 }
 
+/**
+ * Adopt the setting as the server currently reports it.
+ *
+ * This screen is opened once and left in a stand for weeks — it is the last
+ * page in the building anybody thinks to reload. So the value it was RENDERED
+ * with goes stale the moment a manager changes it, and a kiosk that keeps
+ * offering a PIN for a fortnight after the switch was thrown makes the switch
+ * look broken.
+ *
+ * The server is the authority either way: it refuses those punches whatever
+ * this page believes. This only keeps the screen honest about itself.
+ */
+function syncPinAllowed(data) {
+    if (typeof data?.allow_pin !== 'boolean') return;
+
+    const node = root();
+
+    if (! node) return;
+
+    const next = data.allow_pin ? '1' : '0';
+
+    if (node.dataset.allowPin === next) return;
+
+    node.dataset.allowPin = next;
+
+    // Just withdrawn: pull down anything already on screen that depends on it.
+    if (! data.allow_pin) {
+        el('kiosk-pin-offer')?.classList.add('hidden');
+
+        if (state.mode === 'pin') resetToIdle();
+    }
+}
+
 /** Every call to the kiosk API. The token goes in a HEADER, never a cookie. */
 async function api(url, body) {
     const response = await fetch(url, {
@@ -322,6 +355,9 @@ async function identify() {
     }
 
     const data = result.data || {};
+
+    // Before anything reads pinAllowed() below.
+    syncPinAllowed(data);
 
     if (data.status === 'matched') {
         openConfirm(data);
