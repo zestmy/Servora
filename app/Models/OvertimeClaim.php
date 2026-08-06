@@ -17,17 +17,46 @@ class OvertimeClaim extends Model
         'ot_type', 'reason', 'status',
         'approved_by', 'approved_at', 'rejected_reason',
         'source', 'roster_entry_id',
+        'paid_at', 'paid_in_run_id', 'marked_paid_by', 'hours_taken_off',
     ];
 
     protected $casts = [
         'claim_date'     => 'date',
         'total_ot_hours' => 'decimal:2',
         'approved_at'    => 'datetime',
+        'paid_at'        => 'datetime',
+        'hours_taken_off' => 'decimal:2',
     ];
 
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+    }
+
+    /**
+     * Whether the company has paid this out.
+     *
+     * Unpaid approved overtime is what an employee may draw on as time off;
+     * once payroll has committed to paying it, it is gone.
+     */
+    public function isPaid(): bool
+    {
+        return $this->paid_at !== null;
+    }
+
+    /** Hours still available to take as time off. */
+    public function hoursAvailableForTimeOff(): float
+    {
+        if ($this->status !== 'approved' || $this->isPaid()) {
+            return 0.0;
+        }
+
+        return round(max(0, (float) $this->total_ot_hours - (float) $this->hours_taken_off), 2);
+    }
+
+    public function paidInRun(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\PayrollRun::class, 'paid_in_run_id');
     }
 
     public function company(): BelongsTo

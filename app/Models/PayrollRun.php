@@ -104,6 +104,38 @@ class PayrollRun extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
+    /**
+     * Mark the overtime this run pays as paid.
+     *
+     * Called on APPROVAL, not on "mark paid": approving locks the figures and
+     * commits the company to those amounts, so from that moment the hours are
+     * spoken for. Leaving them open until the money physically moved would let
+     * an employee take as time off overtime that payroll had already promised
+     * to pay them — the double count this whole mechanism exists to prevent.
+     *
+     * Claims already paid by an earlier run are left alone, so a re-approval
+     * or an overlapping period cannot rewrite which run settled what.
+     */
+    public function settleOvertime(?int $userId = null): int
+    {
+        $employeeIds = $this->lines()->pluck('employee_id')->filter();
+
+        if ($employeeIds->isEmpty() || ! $this->period_start || ! $this->period_end) {
+            return 0;
+        }
+
+        return \App\Models\OvertimeClaim::withoutGlobalScopes()
+            ->whereIn('employee_id', $employeeIds)
+            ->where('status', 'approved')
+            ->whereNull('paid_at')
+            ->whereBetween('claim_date', [$this->period_start, $this->period_end])
+            ->update([
+                'paid_at'        => now(),
+                'paid_in_run_id' => $this->id,
+                'marked_paid_by' => $userId,
+            ]);
+    }
+
     /** Only a draft may be regenerated or deleted. */
     public function isEditable(): bool
     {

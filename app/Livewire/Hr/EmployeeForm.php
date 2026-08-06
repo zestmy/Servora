@@ -46,6 +46,7 @@ class EmployeeForm extends Component
     public string $f_halal_training_date  = '';
     public string $f_halal_training_expired_on = '';
     public string $f_break_minutes     = '';
+    public string $f_daily_working_hours = '';
 
     /**
      * Catalogue certifications recorded against this employee.
@@ -127,6 +128,7 @@ class EmployeeForm extends Component
         $this->f_halal_training_date = $emp->halal_training_date?->format('Y-m-d') ?? '';
         $this->f_halal_training_expired_on = $emp->halal_training_expired_on?->format('Y-m-d') ?? '';
         $this->f_break_minutes = $emp->break_minutes !== null ? (string) $emp->break_minutes : '';
+        $this->f_daily_working_hours = $emp->daily_working_hours !== null ? (string) (float) $emp->daily_working_hours : '';
         $this->f_certifications = $emp->certifications()
             ->orderBy('certification_type_id')
             ->get()
@@ -233,6 +235,7 @@ class EmployeeForm extends Component
             // A blank means "use the roster's". 0 is a real answer (no paid
             // break), so it must stay distinguishable from blank.
             'f_break_minutes'       => 'nullable|integer|min:0|max:1440',
+            'f_daily_working_hours' => 'nullable|numeric|min:1|max:24',
             'f_bank_name'           => 'nullable|string|max:60',
             'f_bank_account_no'     => 'nullable|string|max:40',
             's_epf_number'   => 'nullable|string|max:30',
@@ -381,6 +384,9 @@ class EmployeeForm extends Component
             ),
             // Blank means "use the roster's allowance"; 0 is a real answer.
             'break_minutes' => $this->f_break_minutes !== '' ? (int) $this->f_break_minutes : null,
+            // Blank follows the company default rather than storing a copy.
+            'daily_working_hours' => $this->f_daily_working_hours !== ''
+                ? round((float) $this->f_daily_working_hours, 2) : null,
         ];
 
         // Pay fields are omitted entirely for users without hr.compensation, so

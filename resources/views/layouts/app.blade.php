@@ -273,6 +273,8 @@
                             ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance',     'section' => 'Time & Attendance'],
                             ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock',            'section' => 'Time & Attendance'],
                             ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims',           'section' => 'Time & Attendance'],
+                            ['route' => 'hr.leave',                'label' => 'Leave',           'permission' => 'hr.leave',            'section' => 'Time & Attendance'],
+                            ['route' => 'hr.time-off',             'label' => 'Time Off',        'permission' => 'hr.leave',            'section' => 'Time & Attendance'],
 
                             ['route' => 'hr.compensation',         'label' => 'Compensation',    'permission' => 'hr.compensation',     'section' => 'Pay'],
                             ['route' => 'hr.payroll',              'label' => 'Payroll',         'permission' => 'hr.payroll',          'section' => 'Pay'],

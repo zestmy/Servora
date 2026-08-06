@@ -326,6 +326,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/certifications', \App\Livewire\Settings\CertificationTypes::class)->name('settings.certifications')->middleware('can:settings.view');
     Route::get('/settings/pay-components', \App\Livewire\Settings\PayComponents::class)->name('settings.pay-components')->middleware('can:hr.compensation');
     Route::get('/settings/statutory', \App\Livewire\Settings\StatutoryRates::class)->name('settings.statutory')->middleware('can:hr.compensation');
+    Route::get('/settings/leave-types', \App\Livewire\Settings\LeaveTypes::class)->name('settings.leave-types')->middleware('can:hr.leave.approve');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:inventory.view');
     Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.view');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:hr.view');
@@ -406,6 +407,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.claims');
+    Route::get('/hr/leave', \App\Livewire\Hr\Leave::class)->name('hr.leave')->middleware('can:hr.leave');
+    Route::get('/hr/time-off', \App\Livewire\Hr\TimeOff::class)->name('hr.time-off')->middleware('can:hr.leave');
     Route::get('/hr/documents', \App\Livewire\Hr\Documents::class)->name('hr.documents')->middleware('can:hr.documents.view');
     Route::get('/hr/duty-roster', \App\Livewire\Hr\DutyRoster::class)->name('hr.duty-roster'); // Viewable by all authenticated users
     Route::get('/hr/shifts', \App\Livewire\Hr\Shifts::class)->name('hr.shifts')->middleware('can:roster.settings');

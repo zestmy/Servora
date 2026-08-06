@@ -115,9 +115,14 @@ class PayrollRunShow extends Component
             'notes'       => $this->notes ?: null,
         ]);
 
+        // The overtime this run pays is now spoken for and can no longer be
+        // taken as time off — see PayrollRun::settleOvertime().
+        $settled = $run->settleOvertime(Auth::id());
+
         $this->showApprove = false;
         $this->forgetRun();
-        session()->flash('success', 'Payroll approved. The figures are now locked.');
+        session()->flash('success', 'Payroll approved. The figures are now locked.'
+            . ($settled ? " {$settled} overtime claim(s) marked paid." : ''));
     }
 
     public function markPaid(): void

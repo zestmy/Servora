@@ -20,6 +20,7 @@ class Employee extends Model
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
+        'daily_working_hours',
     ];
 
     /**
@@ -171,6 +172,7 @@ class Employee extends Model
         'halal_training_date'    => 'date',
         'halal_training_expired_on' => 'date',
         'service_points_entitlement' => 'decimal:2',
+        'daily_working_hours'    => 'decimal:2',
         'break_minutes'              => 'integer',
         'basic_salary'               => 'decimal:2',
         'label_pin_set_at'           => 'datetime',

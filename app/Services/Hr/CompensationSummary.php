@@ -94,7 +94,11 @@ class CompensationSummary
             ->whereIn('employee_id', $staff->pluck('id'))
             ->where('status', 'approved')
             ->whereBetween('claim_date', [$from->toDateString(), $to->toDateString()])
-            ->selectRaw('employee_id, ot_type, SUM(total_ot_hours) as hours')
+            // Hours already taken as TIME OFF are subtracted, not paid. An hour
+            // of overtime is either paid or taken off, never both — this
+            // subtraction is the only thing preventing the double count, and
+            // it is why time-off approval writes hours_taken_off onto the claim.
+            ->selectRaw('employee_id, ot_type, SUM(total_ot_hours - hours_taken_off) as hours')
             ->groupBy('employee_id', 'ot_type')
             ->get()
             ->groupBy('employee_id');

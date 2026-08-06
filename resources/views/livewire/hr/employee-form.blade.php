@@ -261,6 +261,21 @@
                 @endif
             </div>
 
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Working day (hours)</label>
+                    <input type="number" step="0.25" min="1" max="24" wire:model="f_daily_working_hours"
+                           placeholder="Company default"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        This employee's contract day. Used to show what a block of time off comes to in days —
+                        7.5, 9 and 11-hour contracts are all different amounts of overtime. Blank follows the
+                        company default.
+                    </p>
+                    <x-input-error :messages="$errors->get('f_daily_working_hours')" class="mt-1" />
+                </div>
+            </div>
+
             <div class="sm:w-1/2 sm:pr-1.5">
                 <label class="text-xs font-semibold text-gray-600">Break Allowance (minutes)</label>
                 <input type="number" min="0" max="1440" wire:model="f_break_minutes"
