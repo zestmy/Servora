@@ -194,7 +194,7 @@ class Leave extends StaffComponent
         // the balance screen, because a balance is a display and this is the
         // thing that actually refuses.
         $blocked = $type->blockedReason()
-            ?? app(\App\Services\Hr\AnnualLeaveRules::class)->blockedReason($this->staff(), $type);
+            ?? app(\App\Services\Hr\LeaveRules::class)->blockedReason($this->staff(), $type);
 
         if ($blocked) {
             $this->addError('f_type', $blocked);

@@ -215,7 +215,7 @@ class Leave extends Component
         // reasons that depend on WHO the leave is for, which on this screen is
         // the chosen employee rather than the person filling the form in.
         $blocked = $type->blockedReason()
-            ?? app(\App\Services\Hr\AnnualLeaveRules::class)->blockedReason($employee, $type);
+            ?? app(\App\Services\Hr\LeaveRules::class)->blockedReason($employee, $type);
 
         if ($blocked) {
             $this->addError('a_type', $blocked);

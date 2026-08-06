@@ -51,12 +51,10 @@ class LeaveBalance
 
         $replacements = app(ReplacementHolidays::class);
 
-        // Read once for the whole map rather than per type — forCompany() is a
-        // query, and this runs over every leave type on every balance screen.
-        $annual         = app(AnnualLeaveRules::class);
-        $leaveSettings  = \App\Models\LeaveSetting::forCompany($employee->company_id);
+        // Per-type now, so there is no company-wide row to read alongside it.
+        $rules = app(LeaveRules::class);
 
-        return $types->map(function (LeaveType $type) use ($entitlements, $used, $employee, $year, $replacements, $annual, $leaveSettings) {
+        return $types->map(function (LeaveType $type) use ($entitlements, $used, $employee, $year, $replacements, $rules) {
             // The replacement type's balance comes from the holiday register,
             // not from an entitlement row — its `default_days` is meaningless
             // and an entitlement granted against it would be ignored, so the
@@ -83,12 +81,12 @@ class LeaveBalance
              * Pro-rated after the entitlement is resolved, so it applies to an
              * explicitly granted figure as well as to the type's default —
              * granting somebody 12 days should mean 12 days' worth of accrual,
-             * not an escape from the company's own rule.
+             * not an escape from the rule.
              *
-             * A no-op unless the company pro-rates AND this is the annual type
-             * AND the person joined or left mid-year.
+             * A no-op unless the type pro-rates AND the person joined or left
+             * mid-year.
              */
-            $entitled = $annual->entitlementFor($employee, $type, $entitled, $year, $leaveSettings);
+            $entitled = $rules->entitlementFor($employee, $type, $entitled, $year);
 
             $rows     = $used[$type->id] ?? collect();
             $approved = round((float) $rows->where('status', LeaveRequest::APPROVED)->sum('days'), 1);
@@ -106,7 +104,7 @@ class LeaveBalance
                 // then the employee-specific one. Same order the replacement
                 // holiday branch above uses.
                 'blocked'   => $type->blockedReason()
-                    ?? $annual->blockedReason($employee, $type, $leaveSettings),
+                    ?? $rules->blockedReason($employee, $type),
             ];
         });
     }

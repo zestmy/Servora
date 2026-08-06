@@ -36,65 +36,6 @@
         </p>
     </div>
 
-    {{-- ── Annual leave rules ──────────────────────────────────────────────
-         Company-wide, and separate from the type form because they apply to
-         the company rather than to whichever type happens to be open. --}}
-    <div class="panel p-5 mb-4">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h3 class="text-sm font-semibold text-gray-900">Annual leave rules</h3>
-                <p class="help mt-1 max-w-2xl">
-                    @if ($annualType)
-                        These apply to <strong>{{ $annualType->name }}</strong> and no other type.
-                    @else
-                        No type is marked as the annual leave type yet, so <strong>neither rule does
-                        anything</strong>. Edit a type and tick “This is the annual leave type”.
-                    @endif
-                </p>
-            </div>
-            <button type="button" wire:click="saveAnnualRules" class="btn-primary">Save rules</button>
-        </div>
-
-        <div class="mt-4 space-y-3">
-            <label class="flex items-start gap-3">
-                <input type="checkbox" wire:model="annual_prorated" class="mt-0.5 rounded border-gray-300 text-brand-600">
-                <span class="text-sm">
-                    <span class="font-medium text-gray-900">Pro-rate the entitlement</span>
-                    {{-- Says the rounding out loud. "Why do I have 4.5 days and
-                         not 5" is the first question this setting produces. --}}
-                    <span class="block text-xs text-gray-600">
-                        Earned across the year in proportion to service, by completed months and rounded
-                        <em>down</em> to the nearest half day — so somebody joining in July gets about half.
-                        A resignation dated inside the year closes the window early. Off, everybody gets the
-                        full entitlement from day one.
-                    </span>
-                </span>
-            </label>
-
-            <label class="flex items-start gap-3">
-                <input type="checkbox" wire:model.live="annual_requires_confirmation" class="mt-0.5 rounded border-gray-300 text-brand-600">
-                <span class="text-sm">
-                    <span class="font-medium text-gray-900">Only after employment is confirmed</span>
-                    <span class="block text-xs text-gray-600">
-                        Staff on probation or extended probation cannot apply for annual leave. Off, they can
-                        take it during probation.
-                    </span>
-                </span>
-            </label>
-
-            @if ($annual_requires_confirmation)
-                {{-- Named because it is the group people forget: only the two
-                     probation statuses are gated, so an incomplete record is
-                     never the reason somebody is refused leave. --}}
-                <div class="alert-info ml-7">
-                    Only <strong>Probation</strong> and <strong>Extended Probation</strong> are blocked.
-                    Part-timers, outsourced staff and anyone whose employment status has not been set are
-                    unaffected — a blank status is a gap in the record, not a reason to refuse leave.
-                </div>
-            @endif
-        </div>
-    </div>
-
     @if ($showForm)
         <div class="card p-5 mb-4 space-y-3">
             <h3 class="text-sm font-semibold text-gray-700">{{ $editingId ? 'Edit' : 'New' }} leave type</h3>
@@ -181,20 +122,46 @@
                     </p>
                 @endif
 
-                {{-- Which type the company-wide annual rules govern. Exclusive
-                     like the one above, and for the same reason: two of them
-                     would make pro-rating apply to whichever the code happened
-                     to read first. --}}
+                {{-- Rules any type may carry, not just annual leave. A custom
+                     Study Leave or the Hospitalisation entitlement has the same
+                     questions, and nothing about "earned across the year" is
+                     peculiar to annual. --}}
                 <label class="flex items-start gap-2">
-                    <input type="checkbox" wire:model.live="f_is_annual" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <input type="checkbox" wire:model.live="f_is_prorated" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                     <span class="text-sm text-gray-700">
-                        This is the annual leave type
+                        Pro-rate the entitlement
+                        {{-- Says the rounding out loud. "Why do I have 4.5 days
+                             and not 5" is the first question this produces. --}}
                         <span class="block text-[11px] text-gray-500">
-                            The company-wide annual rules below — pro-rating and the probation gate —
-                            apply to this type and no other. Only one type can be this.
+                            Earned across the year in proportion to service — by completed months, rounded
+                            <em>down</em> to the nearest half day, so somebody joining in July gets about
+                            half. A resignation dated inside the year closes the window early. Off,
+                            everybody gets the full entitlement from day one.
                         </span>
                     </span>
                 </label>
+
+                <label class="flex items-start gap-2">
+                    <input type="checkbox" wire:model.live="f_requires_confirmation" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <span class="text-sm text-gray-700">
+                        Only after employment is confirmed
+                        <span class="block text-[11px] text-gray-500">
+                            Staff on probation or extended probation cannot apply for this type.
+                            Off, they can take it during probation.
+                        </span>
+                    </span>
+                </label>
+
+                @if ($f_requires_confirmation)
+                    {{-- The group people forget: only the two probation statuses
+                         are gated, so an incomplete record is never the reason
+                         somebody is refused leave. --}}
+                    <p class="text-[11px] text-info-700 pl-6">
+                        Only <strong>Probation</strong> and <strong>Extended Probation</strong> are blocked.
+                        Part-timers, outsourced staff and anyone whose employment status has not been set
+                        are unaffected — a blank status is a gap in the record, not a reason to refuse leave.
+                    </p>
+                @endif
 
                 <label class="flex items-start gap-2">
                     <input type="checkbox" wire:model="f_is_paid" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />

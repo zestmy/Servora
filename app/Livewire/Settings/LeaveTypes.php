@@ -27,17 +27,13 @@ class LeaveTypes extends Component
     public bool   $f_is_claimable = true;
     public bool   $f_is_replacement_holiday = false;
 
-    /** Which type the company-wide annual rules govern. Exclusive. */
-    public bool   $f_is_annual = false;
-
     /*
-     * The two company-wide annual rules. They live on this screen rather than
-     * with the public holidays — where LeaveSetting is otherwise edited —
-     * because they are rules ABOUT leave types, and somebody looking for
-     * "how does annual leave work" comes here.
+     * Rules any type may carry — see LeaveRules. Per type rather than
+     * company-wide, so a custom Study Leave or the Hospitalisation entitlement
+     * can use them as readily as annual leave can.
      */
-    public bool $annual_prorated              = false;
-    public bool $annual_requires_confirmation = false;
+    public bool   $f_is_prorated           = false;
+    public bool   $f_requires_confirmation = false;
     public bool   $f_requires_approval = true;
     public bool   $f_allows_half_day = true;
     public string $f_default_days = '0';
@@ -53,30 +49,6 @@ class LeaveTypes extends Component
         // A company with no types at all cannot use the module, and choosing
         // seven names is not a decision worth blocking on.
         LeaveType::seedDefaults(Auth::user()->company_id);
-
-        $settings = \App\Models\LeaveSetting::forCompany(Auth::user()->company_id);
-
-        $this->annual_prorated              = (bool) $settings->annual_prorated;
-        $this->annual_requires_confirmation = (bool) $settings->annual_requires_confirmation;
-    }
-
-    /**
-     * Save the company-wide annual rules.
-     *
-     * Its own action rather than folded into the type form: these apply to the
-     * company, not to whichever type happens to be open, and saving them as a
-     * side effect of editing "Medical Leave" would be a surprise.
-     */
-    public function saveAnnualRules(): void
-    {
-        abort_unless(Auth::user()->can('hr.leave.approve'), 403);
-
-        \App\Models\LeaveSetting::forCompany(Auth::user()->company_id)->update([
-            'annual_prorated'              => $this->annual_prorated,
-            'annual_requires_confirmation' => $this->annual_requires_confirmation,
-        ]);
-
-        session()->flash('success', 'Annual leave rules saved.');
     }
 
     public function create(): void
@@ -96,7 +68,8 @@ class LeaveTypes extends Component
         $this->f_is_paid           = (bool) $type->is_paid;
         $this->f_is_claimable      = (bool) $type->is_claimable;
         $this->f_is_replacement_holiday = (bool) $type->is_replacement_holiday;
-        $this->f_is_annual             = (bool) $type->is_annual;
+        $this->f_is_prorated           = (bool) $type->is_prorated;
+        $this->f_requires_confirmation = (bool) $type->requires_confirmation;
         $this->f_requires_approval = (bool) $type->requires_approval;
         $this->f_allows_half_day   = (bool) $type->allows_half_day;
         $this->f_default_days      = (string) (float) $type->default_days;
@@ -148,6 +121,9 @@ class LeaveTypes extends Component
                 : null,
             'colour'            => $this->f_colour,
             'is_active'         => $this->f_is_active,
+            // See LeaveRules. Any type may carry these, not just annual leave.
+            'is_prorated'           => $this->f_is_prorated,
+            'requires_confirmation' => $this->f_requires_confirmation,
         ];
 
         if ($this->editingId) {
@@ -170,13 +146,6 @@ class LeaveTypes extends Component
             $type->update(['is_replacement_holiday' => false]);
         }
 
-        // Same exclusivity, same reason — see LeaveType::makeAnnual().
-        if ($this->f_is_annual) {
-            LeaveType::makeAnnual($type);
-            $message .= ' The annual leave rules now apply to it.';
-        } elseif ($type->is_annual) {
-            $type->update(['is_annual' => false]);
-        }
 
         session()->flash('success', $message);
 
@@ -219,7 +188,8 @@ class LeaveTypes extends Component
         $this->f_is_paid = true;
         $this->f_is_claimable = true;
         $this->f_is_replacement_holiday = false;
-        $this->f_is_annual             = false;
+        $this->f_is_prorated           = false;
+        $this->f_requires_confirmation = false;
         $this->f_requires_approval = true;
         $this->f_allows_half_day = true;
         $this->f_carry_forward = false;
@@ -235,10 +205,6 @@ class LeaveTypes extends Component
 
         return view('livewire.settings.leave-types', [
             'types' => $types,
-            // Named so the rules panel can say which type it governs, and say
-            // plainly when none is marked — in which case both rules do
-            // nothing, which is worth knowing before wondering why.
-            'annualType' => $types->firstWhere('is_annual', true),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Leave Types']);
     }
 }

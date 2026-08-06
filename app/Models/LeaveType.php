@@ -17,7 +17,8 @@ class LeaveType extends Model
 {
     protected $fillable = [
         'company_id', 'name', 'code', 'description',
-        'is_paid', 'is_claimable', 'is_replacement_holiday', 'is_annual', 'requires_approval', 'allows_half_day',
+        'is_paid', 'is_claimable', 'is_replacement_holiday', 'requires_approval', 'allows_half_day',
+        'is_prorated', 'requires_confirmation',
         'default_days', 'carry_forward', 'carry_forward_cap',
         'colour', 'sort_order', 'is_active',
     ];
@@ -26,9 +27,9 @@ class LeaveType extends Model
         'is_paid'                => 'boolean',
         'is_claimable'           => 'boolean',
         'is_replacement_holiday' => 'boolean',
-        // Which type the company-wide annual rules govern — pro-rating and the
-        // probation gate. See AnnualLeaveRules.
-        'is_annual'              => 'boolean',
+        // Rules any type may carry, not just annual leave. See LeaveRules.
+        'is_prorated'            => 'boolean',
+        'requires_confirmation'  => 'boolean',
         'requires_approval'      => 'boolean',
         'allows_half_day'        => 'boolean',
         'carry_forward'          => 'boolean',
@@ -42,6 +43,9 @@ class LeaveType extends Model
     public const STARTER_TYPES = [
         ['name' => 'Annual Leave',              'code' => 'AL',  'default_days' => 8,  'colour' => 'teal',   'carry_forward' => true],
         ['name' => 'Medical Leave',             'code' => 'MC',  'default_days' => 14, 'colour' => 'amber'],
+        // Its own entitlement rather than sick days, as the Employment Act
+        // treats it. Longer and separately tracked.
+        ['name' => 'Hospitalisation Leave',     'code' => 'HL',  'default_days' => 60, 'colour' => 'blue'],
         ['name' => 'Replacement Public Holiday','code' => 'RPH', 'default_days' => 0,  'colour' => 'blue', 'is_replacement_holiday' => true],
         ['name' => 'Paternity Leave',           'code' => 'PL',  'default_days' => 7,  'colour' => 'indigo'],
         ['name' => 'Maternity Leave',           'code' => 'ML',  'default_days' => 98, 'colour' => 'pink'],
@@ -116,32 +120,6 @@ class LeaveType extends Model
         $type->forceFill(['is_replacement_holiday' => true])->save();
     }
 
-    /**
-     * Mark the one type the annual leave rules govern, clearing it elsewhere.
-     *
-     * Exclusive for the same reason as the replacement holiday above: two
-     * annual types would make pro-rating and the probation gate apply to
-     * whichever the code happened to look at, which is not something anybody
-     * would guess was the cause when one employee's balance came out wrong.
-     */
-    public static function makeAnnual(self $type): void
-    {
-        static::withoutGlobalScopes()
-            ->where('company_id', $type->company_id)
-            ->where('id', '!=', $type->id)
-            ->update(['is_annual' => false]);
-
-        $type->forceFill(['is_annual' => true])->save();
-    }
-
-    /** The type the annual rules apply to, if the company has marked one. */
-    public static function annualFor(int $companyId): ?self
-    {
-        return static::withoutGlobalScopes()
-            ->where('company_id', $companyId)
-            ->where('is_annual', true)
-            ->first();
-    }
 
     /** This company's replacement-holiday type, if it has one. */
     public static function replacementHolidayFor(int $companyId): ?self
