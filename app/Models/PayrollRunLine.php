@@ -60,6 +60,16 @@ class PayrollRunLine extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        static::creating(function (self $line) {
+            $line->uuid = $line->uuid ?: (string) \Illuminate\Support\Str::uuid();
+        });
+    }
+
+    /** Payslip URLs carry the UUID — see PayrollRun::getRouteKeyName(). */
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 
     public function run(): BelongsTo

@@ -58,6 +58,25 @@ class PayrollRun extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        // Assigned on create so a run never exists without one — the route key
+        // cannot be null for a row someone is about to be sent a link to.
+        static::creating(function (self $run) {
+            $run->uuid = $run->uuid ?: (string) \Illuminate\Support\Str::uuid();
+        });
+    }
+
+    /**
+     * URLs carry the UUID, not the id.
+     *
+     * Defence in depth only: the permission middleware and the company check
+     * are what actually stop someone reading a payroll run. This stops an
+     * authorised link from advertising how many runs exist, and stops anyone
+     * walking the set by counting.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 
     public function lines(): HasMany

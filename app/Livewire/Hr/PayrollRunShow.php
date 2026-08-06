@@ -19,7 +19,8 @@ use Livewire\Component;
  */
 class PayrollRunShow extends Component
 {
-    public int $runId;
+    /** Route key is the run's UUID — see PayrollRun::getRouteKeyName(). */
+    public string $runUuid;
 
     public bool   $showApprove = false;
     public bool   $showPaid    = false;
@@ -28,20 +29,34 @@ class PayrollRunShow extends Component
     public string $paymentDate = '';
     public string $notes       = '';
 
-    public function mount(int $run): void
+    public function mount(string $run): void
     {
-        $this->runId = $run;
+        $this->runUuid = $run;
 
         $model = $this->run();
         $this->notes       = (string) $model->notes;
         $this->paymentDate = now()->format('Y-m-d');
     }
 
-    /** Company-scoped by the global scope, so another tenant's id 404s. */
+    /**
+     * Company-scoped by the global scope, so another tenant's UUID 404s.
+     *
+     * Memoised per request: render(), emailAudience() and the actions all ask
+     * for it, and a lookup each would be four queries for one row. Cleared by
+     * anything that writes, so a status change is not read back stale.
+     */
+    private ?PayrollRun $cachedRun = null;
+
     public function run(): PayrollRun
     {
-        return PayrollRun::with('outlet:id,name', 'generatedBy:id,name', 'approvedBy:id,name')
-            ->findOrFail($this->runId);
+        return $this->cachedRun ??= PayrollRun::with('outlet:id,name', 'generatedBy:id,name', 'approvedBy:id,name')
+            ->where('uuid', $this->runUuid)
+            ->firstOrFail();
+    }
+
+    private function forgetRun(): void
+    {
+        $this->cachedRun = null;
     }
 
     protected function accessibleOutletIds(): array
@@ -71,6 +86,7 @@ class PayrollRunShow extends Component
             return;
         }
 
+        $this->forgetRun();
         session()->flash('success', 'Payroll regenerated from current figures.');
     }
 
@@ -100,6 +116,7 @@ class PayrollRunShow extends Component
         ]);
 
         $this->showApprove = false;
+        $this->forgetRun();
         session()->flash('success', 'Payroll approved. The figures are now locked.');
     }
 
@@ -124,6 +141,7 @@ class PayrollRunShow extends Component
         ]);
 
         $this->showPaid = false;
+        $this->forgetRun();
         session()->flash('success', 'Payroll marked as paid.');
     }
 
@@ -140,7 +158,7 @@ class PayrollRunShow extends Component
     {
         $lines = $this->run()->lines()->with('employee:id,email')->orderBy('employee_name')->get();
 
-        $sentLineIds = PayslipDelivery::where('payroll_run_id', $this->runId)
+        $sentLineIds = PayslipDelivery::where('payroll_run_id', $this->run()->id)
             ->where('status', PayslipDelivery::SENT)
             ->pluck('payroll_run_line_id')
             ->all();

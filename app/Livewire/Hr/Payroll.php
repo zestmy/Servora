@@ -80,7 +80,7 @@ class Payroll extends Component
         $this->showNew = false;
         session()->flash('success', "Payroll generated for {$run->periodLabel()}: {$run->employee_count} employee(s).");
 
-        $this->redirectRoute('hr.payroll.show', ['run' => $run->id], navigate: true);
+        $this->redirectRoute('hr.payroll.show', ['run' => $run->uuid], navigate: true);
     }
 
     public function deleteRun(int $id): void

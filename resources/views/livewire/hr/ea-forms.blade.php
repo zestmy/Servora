@@ -4,7 +4,7 @@
             <a href="{{ route('hr.payroll') }}" wire:navigate class="btn-secondary">Payroll runs</a>
             @if ($forms->isNotEmpty())
                 <a href="{{ route('hr.payroll.ea', ['year' => $year, 'outlet' => $outletFilter ?: null]) }}"
-                   class="btn-primary">Download all ({{ $forms->count() }})</a>
+                   class="btn-primary">EA forms ({{ $forms->count() }})</a>
             @endif
         </x-slot:actions>
     </x-page-header>
@@ -32,6 +32,30 @@
             in its own footnote.
         </p>
     </div>
+
+    {{-- The employer's own return. A different document from the EA and often
+         confused with it: the EA goes to each EMPLOYEE by 28 February, Form E
+         goes to LHDN by 31 March with the CP8D listing attached. --}}
+    @if ($forms->isNotEmpty())
+        <div class="card p-4 mb-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700">Employer annual return</h3>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                        <strong>Form E</strong> is what you submit to LHDN by <strong>31 March {{ $year + 1 }}</strong>,
+                        with the <strong>CP8D</strong> employee listing. Built from the same payroll as the EA forms
+                        above, so the three cannot disagree about a figure.
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('hr.payroll.form-e', ['format' => 'pdf', 'year' => $year, 'outlet' => $outletFilter ?: null]) }}"
+                       class="btn-secondary text-xs">Form E</a>
+                    <a href="{{ route('hr.payroll.form-e', ['format' => 'cp8d', 'year' => $year, 'outlet' => $outletFilter ?: null]) }}"
+                       class="btn-secondary text-xs">CP8D listing</a>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="toolbar mb-4">
         <div class="flex flex-wrap items-end gap-3">
