@@ -101,11 +101,18 @@
         <tbody>
             @php
                 $n = 0;
+                // Keyed on every status in Employee::EMPLOYMENT_STATUSES. A
+                // missing key threw "Undefined array key" and took the whole
+                // export down, so unknown statuses fall back to a neutral pill
+                // below rather than a 500 — adding a status must not be able to
+                // break the PDF again.
                 $esPills = [
                     'probation'          => 'pill-amber',
                     'confirmed'          => 'pill-green',
                     'extended_probation' => 'pill-orange',
+                    'partimer'           => 'pill-blue',
                     'outsourcing'        => 'pill-blue',
+                    'resigned'           => 'pill-gray',
                 ];
             @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $outletName => $group)
@@ -130,7 +137,7 @@
                         <td>{{ $emp->join_date?->format('d M Y') ?? '—' }}</td>
                         <td class="c">
                             @if ($emp->employment_status)
-                                <span class="pill {{ $probationOverdue ? 'pill-red' : $esPills[$emp->employment_status] }}">{{ $emp->employmentStatusLabel() }}</span>
+                                <span class="pill {{ $probationOverdue ? 'pill-red' : ($esPills[$emp->employment_status] ?? 'pill-gray') }}">{{ $emp->employmentStatusLabel() }}</span>
                                 @if ($emp->employmentStatusDetail())
                                     <div class="sub {{ $probationOverdue ? 'sub-red' : '' }}">{{ $emp->employmentStatusDetail() }}</div>
                                 @endif
