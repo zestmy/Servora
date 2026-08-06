@@ -470,6 +470,27 @@
                     Where they clocked in is still recorded and still visible on the punch.
                 </p>
             </div>
+
+            <div class="sm:w-1/2 sm:pr-1.5">
+                <label class="text-xs font-semibold text-gray-600">Service charge paid from</label>
+                <select wire:model="f_service_charge_outlet_id"
+                        class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                    <option value="">Their own outlet</option>
+                    @foreach ($outlets as $o)
+                        <option value="{{ $o->id }}">{{ $o->name }}</option>
+                    @endforeach
+                </select>
+                <x-input-error :messages="$errors->get('f_service_charge_outlet_id')" class="mt-1" />
+                {{-- The consequence is stated because it is not obvious and it
+                     is other people's money: this does not top somebody up
+                     from elsewhere, it MOVES them, so both pools re-price. --}}
+                <p class="mt-1 text-[11px] text-gray-500">
+                    Pays this person from another outlet's service charge pool — for someone posted
+                    to one branch but earning alongside another. They join that pool and leave their
+                    own, so RM per point changes for <strong>both</strong> outlets.
+                    Attendance, roster and clock-in are unaffected.
+                </p>
+            </div>
         </div>
 
         {{-- ── Compensation ────────────────────────────────────────────── --}}

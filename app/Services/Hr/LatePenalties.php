@@ -45,6 +45,41 @@ class LatePenalties
     }
 
     /**
+     * The same totals, for a named set of employees regardless of outlet.
+     *
+     * What the service charge actually needs. A pool pays the people on its
+     * list, and since service_charge_outlet_id can put somebody on KLCC's list
+     * while they clock in at IOI every day, asking for "KLCC's punches" would
+     * search the wrong outlet and come back empty — handing that person a full
+     * pool share with their lateness charge silently dropped, which is money.
+     *
+     * forPeriod() is kept for callers that genuinely mean an outlet's punches.
+     *
+     * @param  array<int, int>  $employeeIds
+     * @return array<int, array{minutes: int, amount: float, shifts: int}>
+     */
+    public static function forEmployees(int $companyId, array $employeeIds, Carbon $from, Carbon $to): array
+    {
+        if ($employeeIds === []) {
+            return [];
+        }
+
+        $query = ClockEvent::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->whereIn('employee_id', $employeeIds)
+            ->whereIn('type', [ClockEvent::TYPE_IN, ClockEvent::TYPE_BREAK_END])
+            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->counted()
+            // Same ordering as forPeriod(): it IS the "first punch wins" rule.
+            ->orderBy('employee_id')
+            ->orderBy('work_date')
+            ->orderBy('happened_at')
+            ->orderBy('id');
+
+        return self::reduce($query->get());
+    }
+
+    /**
      * Fold clock-in events, oldest first per shift, into per-employee totals.
      *
      * Separated from the query so the rule can be exercised directly.

@@ -123,7 +123,17 @@
                                     @endif
                                     {{-- Says why the figure is zero. Without this the row
                                          reads as an entitlement that came out to nothing. --}}
-                                    @if ($row['excluded'])
+                                    {{-- "Excluded" and "paid elsewhere" both zero the
+                                         figure, but they mean opposite things to whoever
+                                         reads this: one person is getting nothing, the
+                                         other is getting it from another branch. Saying
+                                         "excluded" for the second would look like a
+                                         missing payment. --}}
+                                    @if ($row['elsewhere'] ?? false)
+                                        <span class="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-brand-50 text-brand-800">
+                                            paid from {{ $row['employee']->serviceChargeOutlet?->name ?? 'another outlet' }}
+                                        </span>
+                                    @elseif ($row['excluded'])
                                         <span class="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
                                             excluded from this pool
                                         </span>

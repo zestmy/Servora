@@ -367,9 +367,13 @@ class AttendanceRecords extends Component
         // also why the pool's exclusions come off here, not just off the rows.
         [$periodFrom] = $this->period();
 
+        // Scoped by who this POOL pays, not by who works at the outlet. A
+        // person redirected to another outlet's pool takes no share here, so
+        // their points must leave the divisor too — otherwise the pool
+        // under-allocates and everybody else is quietly short-changed.
         $query = Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
             ->employedDuring($periodFrom->toDateString())
-            ->when($this->outletFilter !== '', fn ($q) => $q->where('outlet_id', (int) $this->outletFilter));
+            ->forServiceChargeOutlet($this->outletFilter !== '' ? (int) $this->outletFilter : null);
 
         // Resolved by the caller and passed in, so the divisor and the rows
         // are computed from one list rather than two that could drift.

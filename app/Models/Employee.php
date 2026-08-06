@@ -21,6 +21,7 @@ class Employee extends Model
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
         'daily_working_hours', 'reports_to_id', 'allow_byod', 'allow_anywhere',
+        'service_charge_outlet_id',
         // Particulars — each picked from a managed list, see HrOption::TYPES.
         'gender', 'nationality', 'race', 'religion', 'marital_status', 'education_level',
         'emergency_contact_name', 'emergency_contact_relationship',
@@ -121,6 +122,56 @@ class Employee extends Model
     public function canClockAnywhere(): bool
     {
         return (bool) $this->allow_anywhere;
+    }
+
+    /** The outlet whose service charge pool pays this person. */
+    public function serviceChargeOutlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class, 'service_charge_outlet_id');
+    }
+
+    /**
+     * Which pool pays them — the override if set, otherwise their posting.
+     *
+     * One accessor, used by every query and by the arithmetic, so "which pool"
+     * is answered the same way in the divisor as in the rows. Those two
+     * drifting apart is the failure this feature can most easily cause: the
+     * RM/point is pool ÷ total points, so a person counted in one and not the
+     * other silently misprices EVERYBODY in that outlet.
+     */
+    public function serviceChargeOutletId(): ?int
+    {
+        return $this->service_charge_outlet_id ?: $this->outlet_id;
+    }
+
+    /** Whether they are paid from somewhere other than where they are posted. */
+    public function serviceChargeIsElsewhere(): bool
+    {
+        return $this->service_charge_outlet_id !== null
+            && (int) $this->service_charge_outlet_id !== (int) $this->outlet_id;
+    }
+
+    /**
+     * Employees a given outlet's service charge pool pays.
+     *
+     * Redirected staff come IN, and their home outlet loses them — the OR is
+     * written so that each person matches exactly one outlet, which is what
+     * makes the two pools' divisors add up to the whole company. A null
+     * $outletId is the all-outlets pool and matches everybody.
+     */
+    public function scopeForServiceChargeOutlet(\Illuminate\Database\Eloquent\Builder $query, ?int $outletId): \Illuminate\Database\Eloquent\Builder
+    {
+        if ($outletId === null) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($outletId) {
+            $q->where('employees.service_charge_outlet_id', $outletId)
+                ->orWhere(function ($q) use ($outletId) {
+                    $q->whereNull('employees.service_charge_outlet_id')
+                        ->where('employees.outlet_id', $outletId);
+                });
+        });
     }
 
     /**

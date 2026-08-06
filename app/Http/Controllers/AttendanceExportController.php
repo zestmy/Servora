@@ -195,12 +195,21 @@ class AttendanceExportController extends Controller
                 // the rows above: a leaver whose points are being paid but who
                 // is missing from this base would inflate RM/point and
                 // allocate more than the pool holds.
+                // Scoped by who this pool PAYS — see
+                // Employee::scopeForServiceChargeOutlet(). Staff redirected to
+                // another outlet's pool take no share here, so their points
+                // must leave the divisor as well as the rows.
                 $totalPoints = (float) $scRow->excludeFrom(
                     Employee::whereIn('outlet_id', $accessible ?: [0])
                         ->employedDuring($from->toDateString())
-                        ->when($scOutletId !== null, fn ($q) => $q->where('outlet_id', $scOutletId))
+                        ->forServiceChargeOutlet($scOutletId)
                 )->sum('service_points_entitlement');
-                $latePenalties = LatePenalties::forPeriod($user->company_id, $scOutletId, $from, $to);
+                // Per employee, not per outlet: a redirected person's punches
+                // live at the outlet they work in, so an outlet lookup finds
+                // none and drops their lateness charge.
+                $latePenalties = LatePenalties::forEmployees(
+                    $user->company_id, $employees->pluck('id')->all(), $from, $to
+                );
                 $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints, $latePenalties);
             }
         }

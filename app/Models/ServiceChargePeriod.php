@@ -195,12 +195,34 @@ class ServiceChargePeriod extends Model
         $rows   = [];
         $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0,
                    'specialAmt' => 0.0, 'net' => 0.0];
+        // Which pool this is. Null is the all-outlets pool, which everybody is
+        // in by definition, so no redirection can move anyone out of it.
+        $poolOutletId = $row?->outlet_id;
+
         foreach ($employees as $emp) {
+            /*
+             * Paid from a DIFFERENT outlet's pool.
+             *
+             * Treated exactly like an exclusion — no points, no share, nothing
+             * to deduct from — because that is arithmetically what it is here.
+             * They are not missing money; they are collecting it from the
+             * outlet named on their record, and counting them twice is the one
+             * outcome this must never produce.
+             *
+             * It matters most in the attendance grid, where the rows are the
+             * people who WORK at an outlet rather than the people its pool
+             * pays. Somebody posted to IOI and paid from KLCC belongs in IOI's
+             * attendance and in KLCC's payout, and this is what keeps those
+             * two facts from contradicting each other on one screen.
+             */
+            $elsewhere = $poolOutletId !== null
+                && (int) $emp->serviceChargeOutletId() !== (int) $poolOutletId;
+
             // Excluded from this pool: no points, so no share and nothing to
             // deduct from. The row is still listed — a name that simply
             // vanished from the table would look like a bug, and "excluded"
             // is the answer to why the figure is zero.
-            $excluded = $row ? $row->excludes($emp->id) : false;
+            $excluded = $elsewhere || ($row ? $row->excludes($emp->id) : false);
 
             $points  = $excluded ? 0.0 : max(0, (float) $emp->service_points_entitlement);
             $mcDays  = $mcCounts[$emp->id] ?? 0;
@@ -228,6 +250,11 @@ class ServiceChargePeriod extends Model
             $rows[] = [
                 'employee'    => $emp,
                 'excluded'    => $excluded,
+                // Kept separate from `excluded` even though it forces it, so a
+                // screen can say "paid from KLCC" rather than the flatly
+                // misleading "excluded from the service charge" — this person
+                // is being paid, just not out of this pool.
+                'elsewhere'   => $elsewhere,
                 'points'      => $points,
                 'mcDays'      => $mcDays,
                 'absDays'     => $absDays,

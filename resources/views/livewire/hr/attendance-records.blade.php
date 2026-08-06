@@ -466,7 +466,14 @@
                                         {{-- Nothing to deduct from once excluded, so the
                                              inputs go rather than sit there accepting a
                                              figure that would never be applied. --}}
-                                        @if ($scRow['excluded'])
+                                        @if ($scRow['elsewhere'] ?? false)
+                                            {{-- Listed because they work here, zero because
+                                                 their pool is elsewhere. Naming the outlet
+                                                 stops this reading as a lost payment. --}}
+                                            <span class="text-[11px] text-brand-700">
+                                                paid from {{ $scRow['employee']->serviceChargeOutlet?->name ?? 'another outlet' }}
+                                            </span>
+                                        @elseif ($scRow['excluded'])
                                             <span class="text-[11px] text-gray-500">excluded</span>
                                         @else
                                             <input type="number" step="0.01" min="0"

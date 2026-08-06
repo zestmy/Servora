@@ -13,6 +13,7 @@ use App\Models\Section;
 use App\Services\ImageStorageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -133,6 +134,16 @@ class EmployeeForm extends Component
     public bool $f_allow_anywhere = false;
 
     /**
+     * Which outlet's service charge pool pays this person.
+     *
+     * Blank means "wherever they are posted", which is what almost every
+     * employee should hold. Setting it moves them between pools — see
+     * Employee::scopeForServiceChargeOutlet() for why that changes RM/point
+     * for everyone in BOTH outlets.
+     */
+    public ?int $f_service_charge_outlet_id = null;
+
+    /**
      * Catalogue certifications recorded against this employee.
      *
      * One row per course: ['type_id', 'reference_no', 'issued_on', 'expires_on'].
@@ -244,6 +255,7 @@ class EmployeeForm extends Component
         $this->f_daily_working_hours = $emp->daily_working_hours !== null ? (string) (float) $emp->daily_working_hours : '';
         $this->f_allow_byod = $emp->allow_byod === null ? '' : ($emp->allow_byod ? 'yes' : 'no');
         $this->f_allow_anywhere = (bool) $emp->allow_anywhere;
+        $this->f_service_charge_outlet_id = $emp->service_charge_outlet_id;
         $this->f_certifications = $emp->certifications()
             ->orderBy('certification_type_id')
             ->get()
@@ -404,6 +416,13 @@ class EmployeeForm extends Component
             // '' is the inherit-from-outlet case and the default.
             'f_allow_byod'          => 'nullable|in:,yes,no',
             'f_allow_anywhere'      => 'boolean',
+            // Must be an outlet this user can actually see, so the picker
+            // cannot be used to move money into a branch they have no access
+            // to. Nullable: blank is the normal state.
+            'f_service_charge_outlet_id' => [
+                'nullable', 'integer',
+                Rule::in($this->accessibleOutletIds()),
+            ],
             // Picked from the company's bank list, plus whatever this record
             // already held — see $originalBankName.
             'f_bank_name'           => [
@@ -614,6 +633,16 @@ class EmployeeForm extends Component
         $data = [
             'company_id'    => $user->company_id,
             'outlet_id'     => $this->f_outlet_id,
+            /*
+             * Stored as NULL when it matches the posting, never as a copy of
+             * outlet_id. A copy would silently stop following a transfer —
+             * move somebody to another branch and they would keep drawing from
+             * the outlet they left, with nothing on screen to say why.
+             */
+            'service_charge_outlet_id' => ($this->f_service_charge_outlet_id
+                && (int) $this->f_service_charge_outlet_id !== (int) $this->f_outlet_id)
+                    ? (int) $this->f_service_charge_outlet_id
+                    : null,
             'section_id' => $this->f_section_id ?: null,
             // Never themselves: a self-reference is a loop, and always a slip.
             'reports_to_id' => ($this->f_reports_to_id && $this->f_reports_to_id !== $this->employeeId)
