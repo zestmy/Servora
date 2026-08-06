@@ -75,6 +75,9 @@ class OtClaimPdfController extends Controller
                     'claims'      => $claims,
                     'totalHours'  => $claims->sum('total_ot_hours'),
                     'hoursByType' => $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours')),
+                    // Which of these hours become money and which become time
+                    // off — see the single-employee branch below for why.
+                    'hoursBySettlement' => $claims->groupBy('settlement')->map(fn ($g) => $g->sum('total_ot_hours')),
                     'submitters'  => $submitters,
                     // Actual approver(s) who approved these claims, not everyone with privilege.
                     'approvers'   => $claims->pluck('approver')->filter()->unique('id'),
@@ -116,6 +119,15 @@ class OtClaimPdfController extends Controller
         $totalHours  = $claims->sum('total_ot_hours');
         $hoursByType = $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours'));
 
+        /*
+         * Split by how each claim is settled. Both halves are approved
+         * overtime and both belong on this record — the person worked those
+         * hours either way — but only one half will ever appear on a payslip,
+         * and a total that silently mixes them is the one number somebody will
+         * check their pay against.
+         */
+        $hoursBySettlement = $claims->groupBy('settlement')->map(fn ($g) => $g->sum('total_ot_hours'));
+
         // Hours still pending approval in this range — excluded from the PDF
         // (which is approved-only), but surfaced as a footer note so the total
         // never looks short without explanation.
@@ -149,7 +161,7 @@ class OtClaimPdfController extends Controller
         );
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
-            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'submitters', 'approvers', 'calendarEvents', 'from', 'to', 'pendingHours', 'rejectedClaims'
+            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'hoursBySettlement', 'submitters', 'approvers', 'calendarEvents', 'from', 'to', 'pendingHours', 'rejectedClaims'
         ))->setPaper('a4', 'portrait');
 
         $name = str_replace([' ', '/', '\\'], '-', strtolower($employee->name));

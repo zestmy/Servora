@@ -127,6 +127,20 @@ class PayrollRun extends Model
         return \App\Models\OvertimeClaim::withoutGlobalScopes()
             ->whereIn('employee_id', $employeeIds)
             ->where('status', 'approved')
+            /*
+             * Time-off claims are NEVER settled by a run, and this line is
+             * load-bearing rather than tidy.
+             *
+             * This run did not pay them — CompensationSummary leaves them out
+             * of ot_amount entirely — so stamping paid_at here would mark as
+             * settled money that never moved. Worse, TimeOffBalance treats
+             * paid_at as the thing that ends availability, so approving any
+             * payroll run would silently wipe the whole time-off balance this
+             * setting exists to build up. The employee would simply find their
+             * hours gone, with a paid_at on the claim saying they had been
+             * paid for them.
+             */
+            ->where('settlement', \App\Models\OvertimeClaim::SETTLE_PAYROLL)
             ->whereNull('paid_at')
             ->whereBetween('claim_date', [$this->period_start, $this->period_end])
             ->update([

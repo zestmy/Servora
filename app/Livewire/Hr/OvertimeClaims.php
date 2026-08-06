@@ -280,7 +280,24 @@ class OvertimeClaims extends Component
         session()->flash('success', 'OT claim submitted for approval.');
     }
 
-    public function approveClaim(int $id): void
+    /**
+     * Approve a claim, either for payroll or as time off.
+     *
+     * One method for both because the authorisation, the state check and the
+     * audit fields are identical — only the settlement differs, and splitting
+     * it into two would be two places to keep an approver check in step.
+     *
+     * $settlement NULL means "whatever this employee is normally on", which is
+     * what the plain Approve button and the bulk action both send. That is
+     * where the employee-level setting earns its keep: an approver working
+     * through twenty claims does not have to remember which people are on
+     * time-off terms.
+     *
+     * A non-null value is what the APPROVER explicitly pressed, and it is
+     * checked against the allowed values rather than trusted — it arrives from
+     * the browser and it decides whether somebody is paid in money or hours.
+     */
+    public function approveClaim(int $id, ?string $settlement = null): void
     {
         $claim = OvertimeClaim::with('employee')->findOrFail($id);
         if ($claim->status !== 'submitted') return;
@@ -290,12 +307,36 @@ class OvertimeClaims extends Component
             return;
         }
 
+        $settlement = match ($settlement) {
+            OvertimeClaim::SETTLE_TIME_OFF => OvertimeClaim::SETTLE_TIME_OFF,
+            OvertimeClaim::SETTLE_PAYROLL  => OvertimeClaim::SETTLE_PAYROLL,
+            // Anything else, including null and anything invented by a
+            // hand-edited request, falls back to the employee's own terms.
+            default => $claim->employee?->overtimeSettlementDefault() ?? OvertimeClaim::SETTLE_PAYROLL,
+        };
+
         $claim->update([
             'status'      => 'approved',
+            'settlement'  => $settlement,
             'approved_by' => Auth::id(),
             'approved_at' => now(),
         ]);
-        session()->flash('success', 'OT claim approved.');
+
+        // Names the consequence rather than saying "approved". The two
+        // outcomes are paid very differently and the approver has just chosen
+        // between them — an identical message for both is how somebody
+        // discovers next payday that they pressed the wrong one.
+        session()->flash('success', $settlement === OvertimeClaim::SETTLE_TIME_OFF
+            ? sprintf('Approved as time off — %s hours added to %s\'s time-off balance, not to payroll.',
+                rtrim(rtrim(number_format((float) $claim->total_ot_hours, 2), '0'), '.'),
+                $claim->employee?->name ?? 'the employee')
+            : 'OT claim approved for payroll.');
+    }
+
+    /** The button beside Approve. Settlement is decided here, not in the view. */
+    public function approveClaimAsTimeOff(int $id): void
+    {
+        $this->approveClaim($id, OvertimeClaim::SETTLE_TIME_OFF);
     }
 
     public function openReject(int $id): void
@@ -356,20 +397,38 @@ class OvertimeClaims extends Component
             ->where('status', 'submitted')
             ->get();
 
-        $count = 0;
+        $count    = 0;
+        $timeOff  = 0;
+
         foreach ($claims as $claim) {
             if (OvertimeClaimApprover::isApproverFor($user->id, $claim->employee?->outlet_id, $claim->employee?->section_id) || $user->isSystemRole()) {
+                // Each claim settles on ITS OWN employee's terms. A bulk
+                // approve spanning twenty people is exactly where nobody can
+                // be expected to remember who is on time-off terms, which is
+                // the whole reason the employee-level default exists.
+                $settlement = $claim->employee?->overtimeSettlementDefault()
+                    ?? OvertimeClaim::SETTLE_PAYROLL;
+
                 $claim->update([
                     'status'      => 'approved',
+                    'settlement'  => $settlement,
                     'approved_by' => $user->id,
                     'approved_at' => now(),
                 ]);
+
                 $count++;
+                $settlement === OvertimeClaim::SETTLE_TIME_OFF && $timeOff++;
             }
         }
 
         $this->selected = [];
-        session()->flash('success', "{$count} claim(s) approved.");
+
+        // Says how the batch split. "20 claims approved" hides the fact that
+        // four of them will never appear on a payslip.
+        session()->flash('success', $timeOff > 0
+            ? sprintf('%d claim(s) approved — %d as time off, %d for payroll.',
+                $count, $timeOff, $count - $timeOff)
+            : "{$count} claim(s) approved.");
     }
 
     public function openBulkReject(): void

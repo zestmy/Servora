@@ -10,6 +10,9 @@
 @php
     $pendingHours   = $pendingHours ?? 0;
     $rejectedClaims = $rejectedClaims ?? collect();
+    // Keyed 'payroll' / 'time_off'. Defaulted so an older caller that does not
+    // pass it renders exactly as before rather than fataling.
+    $hoursBySettlement = $hoursBySettlement ?? collect();
 @endphp
 
 {{-- Header --}}
@@ -101,6 +104,27 @@
                             <td class="type-label">Total OT</td>
                             <td class="type-hours">{{ number_format($totalHours, 2) }} hrs</td>
                         </tr>
+
+                        {{-- How the total settles. Both halves are approved
+                             overtime and both belong on this record — the hours
+                             were worked either way — but only one half reaches a
+                             payslip, and this is the document somebody checks
+                             their pay against. Shown only when there IS a split,
+                             so an all-payroll page stays as it was. --}}
+                        @if (($hoursBySettlement['time_off'] ?? 0) > 0)
+                            <tr>
+                                <td class="type-label" style="padding-top: 6px;">&nbsp;&nbsp;of which paid in payroll</td>
+                                <td class="type-hours" style="padding-top: 6px;">
+                                    {{ number_format($hoursBySettlement['payroll'] ?? 0, 2) }} hrs
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="type-label">&nbsp;&nbsp;of which taken as Time Off</td>
+                                <td class="type-hours">
+                                    {{ number_format($hoursBySettlement['time_off'] ?? 0, 2) }} hrs
+                                </td>
+                            </tr>
+                        @endif
                     </table>
                 </div>
             </div>
@@ -119,7 +143,15 @@
             <th class="center" style="width: 8%;">End</th>
             <th class="center" style="width: 9%;">Hours</th>
             <th style="width: 13%;">OT Type</th>
-            <th style="width: 22%;">Reason</th>
+            {{-- Only when the page actually has both kinds. A column reading
+                 "Payroll" on every row of an ordinary claim sheet is a column
+                 that costs width and says nothing. --}}
+            @if (($hoursBySettlement['time_off'] ?? 0) > 0)
+                <th style="width: 10%;">Settled As</th>
+                <th style="width: 12%;">Reason</th>
+            @else
+                <th style="width: 22%;">Reason</th>
+            @endif
         </tr>
     </thead>
     <tbody>
@@ -145,6 +177,11 @@
                         default          => ucfirst(str_replace('_', ' ', $claim->ot_type)),
                     } }}
                 </td>
+                @if (($hoursBySettlement['time_off'] ?? 0) > 0)
+                    <td style="font-size: 8pt; {{ $claim->settlement === 'time_off' ? 'color: #104d4f; font-weight: 600;' : 'color: #666;' }}">
+                        {{ $claim->settlement === 'time_off' ? 'Time Off' : 'Payroll' }}
+                    </td>
+                @endif
                 <td style="font-size: 8pt;">{{ $claim->reason }}</td>
             </tr>
         @endforeach
@@ -153,7 +190,7 @@
         <tr>
             <td colspan="5" style="text-align: right; font-weight: bold;">Total Overtime Hours</td>
             <td class="center" style="font-weight: bold;">{{ number_format($totalHours, 2) }}</td>
-            <td colspan="2"></td>
+            <td colspan="{{ ($hoursBySettlement['time_off'] ?? 0) > 0 ? 3 : 2 }}"></td>
         </tr>
     </tfoot>
 </table>

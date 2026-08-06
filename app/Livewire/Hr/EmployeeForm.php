@@ -143,6 +143,9 @@ class EmployeeForm extends Component
      */
     public ?int $f_service_charge_outlet_id = null;
 
+    /** Default settlement for this person's approved overtime. */
+    public bool $f_overtime_as_time_off = false;
+
     /**
      * Catalogue certifications recorded against this employee.
      *
@@ -256,6 +259,7 @@ class EmployeeForm extends Component
         $this->f_allow_byod = $emp->allow_byod === null ? '' : ($emp->allow_byod ? 'yes' : 'no');
         $this->f_allow_anywhere = (bool) $emp->allow_anywhere;
         $this->f_service_charge_outlet_id = $emp->service_charge_outlet_id;
+        $this->f_overtime_as_time_off = (bool) $emp->overtime_as_time_off;
         $this->f_certifications = $emp->certifications()
             ->orderBy('certification_type_id')
             ->get()
@@ -416,6 +420,7 @@ class EmployeeForm extends Component
             // '' is the inherit-from-outlet case and the default.
             'f_allow_byod'          => 'nullable|in:,yes,no',
             'f_allow_anywhere'      => 'boolean',
+            'f_overtime_as_time_off' => 'boolean',
             // Must be an outlet this user can actually see, so the picker
             // cannot be used to move money into a branch they have no access
             // to. Nullable: blank is the normal state.
@@ -711,6 +716,9 @@ class EmployeeForm extends Component
             },
             // Exempts them from the outlet geofence. See canClockAnywhere().
             'allow_anywhere' => $this->f_allow_anywhere,
+            // Seeds the settlement on NEW approvals only — see
+            // overtimeSettlementDefault(). Existing claims keep their own.
+            'overtime_as_time_off' => $this->f_overtime_as_time_off,
         ];
 
         // Pay fields are omitted entirely for users without hr.compensation, so

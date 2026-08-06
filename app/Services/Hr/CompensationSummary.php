@@ -93,6 +93,11 @@ class CompensationSummary
         $otHours = OvertimeClaim::withoutGlobalScope(CompanyScope::class)
             ->whereIn('employee_id', $staff->pluck('id'))
             ->where('status', 'approved')
+            // Claims approved as TIME OFF are not an amount owed at all —
+            // they were settled in hours the moment they were approved. They
+            // never reach a payslip, and PayrollRun::settleOvertime() likewise
+            // leaves them alone so they stay available to take.
+            ->where('settlement', OvertimeClaim::SETTLE_PAYROLL)
             ->whereBetween('claim_date', [$from->toDateString(), $to->toDateString()])
             // Hours already taken as TIME OFF are subtracted, not paid. An hour
             // of overtime is either paid or taken off, never both — this

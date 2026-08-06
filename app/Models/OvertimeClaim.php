@@ -14,7 +14,7 @@ class OvertimeClaim extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'submitted_by', 'employee_id',
         'claim_date', 'ot_time_start', 'ot_time_end', 'total_ot_hours',
-        'ot_type', 'reason', 'status',
+        'ot_type', 'reason', 'status', 'settlement',
         'approved_by', 'approved_at', 'rejected_reason',
         'source', 'roster_entry_id',
         'paid_at', 'paid_in_run_id', 'marked_paid_by', 'hours_taken_off',
@@ -33,6 +33,10 @@ class OvertimeClaim extends Model
         static::addGlobalScope(new CompanyScope());
     }
 
+    /** How an approved claim is settled. See the settlement migration. */
+    public const SETTLE_PAYROLL  = 'payroll';
+    public const SETTLE_TIME_OFF = 'time_off';
+
     /**
      * Whether the company has paid this out.
      *
@@ -42,6 +46,23 @@ class OvertimeClaim extends Model
     public function isPaid(): bool
     {
         return $this->paid_at !== null;
+    }
+
+    /**
+     * Settled as time off — never priced, never paid, never settled by a run.
+     *
+     * Because payroll leaves it alone, paid_at stays null for good, so the
+     * hours remain available in the time-off balance until they are actually
+     * taken. That permanence IS the feature.
+     */
+    public function isTimeOff(): bool
+    {
+        return $this->settlement === self::SETTLE_TIME_OFF;
+    }
+
+    public function settlementLabel(): string
+    {
+        return $this->isTimeOff() ? 'Time Off' : 'Payroll';
     }
 
     /** Hours still available to take as time off. */

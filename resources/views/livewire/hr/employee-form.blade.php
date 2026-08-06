@@ -472,6 +472,25 @@
             </div>
 
             <div class="sm:w-1/2 sm:pr-1.5">
+                <label class="text-xs font-semibold text-gray-600">Overtime settled as</label>
+                <label class="mt-1 flex items-start gap-2 rounded-lg border border-gray-300 px-3 py-2">
+                    <input type="checkbox" wire:model="f_overtime_as_time_off"
+                           class="mt-0.5 rounded border-gray-300 text-brand-600">
+                    <span class="text-sm text-gray-800">Time off, not payroll</span>
+                </label>
+                <x-input-error :messages="$errors->get('f_overtime_as_time_off')" class="mt-1" />
+                {{-- A default, not a lock — said plainly, because "all their OT
+                     is time off" and "OT defaults to time off" behave the same
+                     right up until an approver presses the other button. --}}
+                <p class="mt-1 text-[11px] text-gray-500">
+                    Approved overtime for this person goes to their time-off balance instead of
+                    their payslip. It is the default the approval screen and bulk approve both use;
+                    an approver can still settle a single claim to payroll. Claims already approved
+                    keep whichever way they were approved.
+                </p>
+            </div>
+
+            <div class="sm:w-1/2 sm:pr-1.5">
                 <label class="text-xs font-semibold text-gray-600">Service charge paid from</label>
                 <select wire:model="f_service_charge_outlet_id"
                         class="mt-1 w-full text-sm rounded-lg border-gray-300">

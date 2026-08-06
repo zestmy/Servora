@@ -21,7 +21,7 @@ class Employee extends Model
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
         'daily_working_hours', 'reports_to_id', 'allow_byod', 'allow_anywhere',
-        'service_charge_outlet_id',
+        'service_charge_outlet_id', 'overtime_as_time_off',
         // Particulars — each picked from a managed list, see HrOption::TYPES.
         'gender', 'nationality', 'race', 'religion', 'marital_status', 'education_level',
         'emergency_contact_name', 'emergency_contact_relationship',
@@ -122,6 +122,22 @@ class Employee extends Model
     public function canClockAnywhere(): bool
     {
         return (bool) $this->allow_anywhere;
+    }
+
+    /**
+     * How this person's approved overtime is settled unless told otherwise.
+     *
+     * A default that the claim then carries for itself. Deliberately NOT read
+     * at payroll time from the employee record: a claim approved for payroll
+     * last month must stay a payroll claim even if the person is moved onto
+     * time-off terms today, and resolving it live would rewrite the past every
+     * time somebody edited an employee.
+     */
+    public function overtimeSettlementDefault(): string
+    {
+        return $this->overtime_as_time_off
+            ? OvertimeClaim::SETTLE_TIME_OFF
+            : OvertimeClaim::SETTLE_PAYROLL;
     }
 
     /** The outlet whose service charge pool pays this person. */
@@ -277,6 +293,7 @@ class Employee extends Model
         // NOT nullable — there is no per-outlet rule for it to inherit.
         // See canClockAnywhere().
         'allow_anywhere'         => 'boolean',
+        'overtime_as_time_off'   => 'boolean',
         'join_date'              => 'date',
         'date_of_birth'          => 'date',
         'employment_status_date' => 'date',

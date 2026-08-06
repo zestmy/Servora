@@ -501,6 +501,15 @@
                                     } }}">
                                     {{ $claim->status === 'submitted' ? 'Pending' : ucfirst($claim->status) }}
                                 </span>
+                                {{-- "Approved" alone does not say whether this becomes money or
+                                     hours, and the two are settled in completely different
+                                     places. Only shown for time off: payroll is the norm and a
+                                     badge on every ordinary row would be noise. --}}
+                                @if ($claim->status === 'approved' && $claim->isTimeOff())
+                                    <span class="mt-0.5 block px-2 py-0.5 text-[10px] font-medium rounded-full bg-brand-50 text-brand-800">
+                                        Time Off — not paid
+                                    </span>
+                                @endif
                                 @if ($claim->status === 'rejected' && $claim->rejected_reason)
                                     <p class="text-[10px] text-danger-400 mt-0.5">{{ Str::limit($claim->rejected_reason, 30) }}</p>
                                 @endif
@@ -515,7 +524,29 @@
                                         <button wire:click="submitClaim({{ $claim->id }})" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Submit</button>
                                     @endif
                                     @if ($claim->status === 'submitted' && ($canApproveMap[$claim->id] ?? false))
-                                        <button wire:click="approveClaim({{ $claim->id }})" class="text-success-600 hover:text-success-800 text-xs font-medium">Approve</button>
+                                        @php $otIsTimeOff = (bool) $claim->employee?->overtime_as_time_off; @endphp
+
+                                        {{-- Plain Approve settles on the employee's own terms,
+                                             so somebody on time-off terms cannot be paid in cash
+                                             by an approver who did not know. The label says which
+                                             it will be rather than leaving it to be discovered on
+                                             a payslip. --}}
+                                        <button wire:click="approveClaim({{ $claim->id }})"
+                                                class="text-success-600 hover:text-success-800 text-xs font-medium">
+                                            {{ $otIsTimeOff ? 'Approve (time off)' : 'Approve' }}
+                                        </button>
+
+                                        {{-- Redundant for somebody already on time-off terms, so
+                                             it is simply absent there rather than a second button
+                                             that does the same thing. --}}
+                                        @unless ($otIsTimeOff)
+                                            <button wire:click="approveClaimAsTimeOff({{ $claim->id }})"
+                                                    wire:confirm="Approve as time off? These hours go to {{ addslashes($claim->employee?->name ?? 'this employee') }}'s time-off balance and will NOT be paid in payroll."
+                                                    class="text-brand-600 hover:text-brand-800 text-xs font-medium">
+                                                Approve as Time Off
+                                            </button>
+                                        @endunless
+
                                         <button wire:click="openReject({{ $claim->id }})" class="text-danger-500 hover:text-danger-700 text-xs font-medium">Reject</button>
                                     @endif
                                     @if (in_array($claim->status, ['draft', 'rejected']) || $canDeleteAny)
