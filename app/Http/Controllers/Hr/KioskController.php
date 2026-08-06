@@ -138,16 +138,26 @@ class KioskController extends Controller
 
     public function screen(Request $request)
     {
-        $device = $this->device();
+        $device   = $this->device();
+        $settings = ClockSetting::forCompany($device->company_id);
+        $allowPin = (bool) $settings->kiosk_allow_pin;
 
         return view('clock.kiosk.screen', [
             'company'  => Company::find($device->company_id),
             'device'   => $device,
             'outlet'   => $device->outlet,
-            'settings' => ClockSetting::forCompany($device->company_id),
-            // For the PIN fallback. Everyone at this outlet who has a PIN —
-            // the same list, scoped the same way, as the staff sign-in screen.
-            'employees' => $this->pinHolders($device),
+            'settings' => $settings,
+            'allowPin' => $allowPin,
+            /*
+             * For the PIN fallback. Everyone at this outlet who has a PIN —
+             * the same list, scoped the same way, as the staff sign-in screen.
+             *
+             * Not fetched at all when the fallback is off. This is a roster of
+             * everybody who works here, rendered into a page on a counter in a
+             * public room; when nothing can be done with it, it should not be
+             * in the markup to be read.
+             */
+            'employees' => $allowPin ? $this->pinHolders($device) : collect(),
             /*
              * The device token, handed to the page deliberately so its scripts
              * can send it as a header. The cookie itself stays httpOnly and
@@ -198,6 +208,8 @@ class KioskController extends Controller
             );
         }
 
+        $allowPin = (bool) $settings->kiosk_allow_pin;
+
         if ($result['status'] === FaceIdentifier::AMBIGUOUS) {
             /*
              * Two people the model cannot separate. The shortlist is offered
@@ -206,25 +218,44 @@ class KioskController extends Controller
              *
              * Letting a tap alone settle it would hand the decision straight
              * back to whoever is standing there, which is precisely the person
-             * the margin gate exists to keep out of it.
+             * the margin gate exists to keep out of it. With the fallback off
+             * there is nothing to shortcut into, so no names are sent at all —
+             * a list of colleagues the camera half-matched is not something to
+             * put on a counter screen for no reason.
              */
             return response()->json([
                 'status'    => 'ambiguous',
-                'message'   => 'More than one person matched. Tap your name and key your PIN.',
-                'shortlist' => collect($result['shortlist'])
-                    ->map(fn ($row) => [
-                        'id'   => $row['employee']->id,
-                        'name' => $row['employee']->name,
-                    ])->values(),
+                'message'   => $allowPin
+                    ? 'More than one person matched. Tap your name and key your PIN.'
+                    : 'Could not tell you apart from a colleague. Try again face-on, or ask your manager to record this shift.',
+                'shortlist' => $allowPin
+                    ? collect($result['shortlist'])
+                        ->map(fn ($row) => [
+                            'id'   => $row['employee']->id,
+                            'name' => $row['employee']->name,
+                        ])->values()
+                    : [],
             ]);
         }
 
+        // Every message ends with what to DO, and what there is to do changes
+        // entirely with the fallback. Telling somebody to use a PIN that the
+        // company has switched off is worse than saying nothing.
         return response()->json([
             'status'  => $result['status'],
-            'message' => match ($result['status']) {
-                FaceIdentifier::NO_FACES  => 'Nobody at this outlet has been enrolled yet. Use your PIN.',
-                FaceIdentifier::BAD_INPUT => 'That did not read as a face. Try again, or use your PIN.',
-                default                   => 'Not recognised. Try again, or use your PIN.',
+            'message' => match (true) {
+                $result['status'] === FaceIdentifier::NO_FACES && $allowPin
+                    => 'Nobody at this outlet has been enrolled yet. Use your PIN.',
+                $result['status'] === FaceIdentifier::NO_FACES
+                    => 'Nobody at this outlet has been enrolled yet. Ask your manager.',
+                $result['status'] === FaceIdentifier::BAD_INPUT && $allowPin
+                    => 'That did not read as a face. Try again, or use your PIN.',
+                $result['status'] === FaceIdentifier::BAD_INPUT
+                    => 'That did not read as a face. Move into better light and try again.',
+                $allowPin
+                    => 'Not recognised. Try again, or use your PIN.',
+                default
+                    => 'Not recognised. Try again face-on, or ask your manager to record this shift.',
             },
         ]);
     }
@@ -292,11 +323,20 @@ class KioskController extends Controller
             : $this->fromPin($request, $device);
 
         if (! $employee) {
+            /*
+             * "Wrong PIN" is the right answer to a wrong PIN and the wrong
+             * answer to a PIN that was never going to be accepted. Somebody
+             * keying a PIN they know is correct, being told it is wrong, will
+             * try it three more times and then report a broken kiosk — and the
+             * manager will go looking at PINs. Name the actual reason.
+             */
             return response()->json([
                 'status'  => 'error',
-                'message' => $request->filled('token')
-                    ? 'That took too long. Look at the camera again.'
-                    : 'Wrong PIN.',
+                'message' => match (true) {
+                    $request->filled('token') => 'That took too long. Look at the camera again.',
+                    ! $settings->kiosk_allow_pin => 'PIN clock-in is switched off here. Ask your manager to record this shift.',
+                    default => 'Wrong PIN.',
+                },
             ], 422);
         }
 
@@ -418,6 +458,19 @@ class KioskController extends Controller
      */
     private function fromPin(Request $request, ClockDevice $device): array
     {
+        /*
+         * Refused HERE, not merely hidden on the screen.
+         *
+         * The kiosk's endpoints answer to a device token, and that token is
+         * readable in the page it is handed to. A company that has switched
+         * the PIN fallback off has said something about how people clock in,
+         * and leaving the door open behind a hidden button would make that
+         * statement true only for people who do not open devtools.
+         */
+        if (! ClockSetting::forCompany($device->company_id)->kiosk_allow_pin) {
+            return [null, null, null];
+        }
+
         $employee = $this->employeeAtOutlet((int) $request->input('employee_id'), $device);
 
         if (! $employee) {

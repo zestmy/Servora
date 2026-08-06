@@ -63,6 +63,16 @@ const RESULT_MS = 5000;
 /** A notice — "not recognised", "already clocked in" — is briefer. */
 const NOTICE_MS = 4000;
 
+/**
+ * How long the PIN offer stays on screen after a failed recognition.
+ *
+ * Longer than a plain notice, because this one has to survive somebody
+ * reading it, deciding to take it, and reaching the screen — but it still
+ * goes away, so the next person arrives at a clean camera prompt rather than
+ * at the last person's staff list.
+ */
+const OFFER_MS = 12000;
+
 /** Heartbeat. Matches what the server treats as "recently seen". */
 const PING_MS = 60000;
 
@@ -80,6 +90,9 @@ const state = {
     selfie: null,
     pinEmployee: null,
     pin: '',
+    // Names the last identification was torn between, held so the offer can
+    // float them to the top if somebody takes it.
+    shortlist: [],
     wakeLock: null,
     detecting: false,
 };
@@ -90,6 +103,19 @@ function endpoint(name) {
 
 function deviceToken() {
     return root()?.dataset.token || '';
+}
+
+/**
+ * Whether a PIN is a way in here at all.
+ *
+ * The server is what actually enforces this — KioskController::fromPin()
+ * refuses outright when the company has switched it off, because these
+ * endpoints answer to a device token that is readable in this very page. What
+ * the flag does here is stop the screen offering a door that is already shut,
+ * which is a courtesy to the person standing at it rather than a control.
+ */
+function pinAllowed() {
+    return root()?.dataset.allowPin === '1';
 }
 
 /** Every call to the kiosk API. The token goes in a HEADER, never a cookie. */
@@ -145,14 +171,29 @@ function setHint(text) {
  */
 let noticeTimer = null;
 
-function notice(text, ms = NOTICE_MS) {
+/**
+ * @param {string} text
+ * @param {{offerPin?: boolean, ms?: number}} options
+ *        offerPin reveals the fallback, for as long as the notice is up.
+ */
+function notice(text, { offerPin = false, ms = null } = {}) {
     show('idle');
     setHint(text);
 
+    const offer   = el('kiosk-pin-offer');
+    const showing = offerPin && pinAllowed();
+
+    offer?.classList.toggle('hidden', ! showing);
+
+    // A plain notice is read in a glance; an offer has to survive somebody
+    // deciding to take it, walking a step closer, and pressing it.
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => {
-        if (state.mode === 'idle') setHint(defaultHint());
-    }, ms);
+        if (state.mode === 'idle') {
+            setHint(defaultHint());
+            offer?.classList.add('hidden');
+        }
+    }, ms ?? (showing ? OFFER_MS : NOTICE_MS));
 }
 
 function defaultHint() {
@@ -288,24 +329,43 @@ async function identify() {
         return;
     }
 
+    state.pausedUntil = Date.now() + RETRY_AFTER_MS;
+
     if (data.status === 'ambiguous') {
-        // A close call between two colleagues is never resolved by a tap. The
-        // shortlist is a shortcut into the PIN step, not an answer to it.
-        openPin(data.shortlist || []);
-        setPinHint(data.message || 'Tap your name and key your PIN.');
+        /*
+         * A close call between two colleagues is never resolved by a tap. The
+         * shortlist is a shortcut into the PIN step, not an answer to it — the
+         * tap still has to be followed by that person's PIN.
+         *
+         * Remembered rather than acted on: the offer below opens the panel
+         * only if somebody actually presses it.
+         */
+        state.shortlist = data.shortlist || [];
+        notice(data.message || 'Could not tell you apart from a colleague.', { offerPin: true });
 
         return;
     }
 
     if (data.status === 'cooldown') {
-        state.pausedUntil = Date.now() + RETRY_AFTER_MS;
+        // No PIN offer here. They are already clocked in; the fallback would
+        // only invite a second punch.
         notice(data.message || 'Already recorded.');
 
         return;
     }
 
-    state.pausedUntil = Date.now() + RETRY_AFTER_MS;
-    notice(data.message || 'Not recognised. Use your PIN.');
+    /*
+     * Not recognised.
+     *
+     * The offer appears HERE and only here — after a real failure, on a timer,
+     * and needing a deliberate press. It is not on the idle screen, and it is
+     * not opened for them either: a panel that springs up on every miss would
+     * put a list of everybody who works here on a counter screen several times
+     * an hour, and would show the PIN route MORE often than the button it
+     * replaced, which is the opposite of the point.
+     */
+    state.shortlist = [];
+    notice(data.message || 'Not recognised.', { offerPin: true });
 }
 
 /* ── Confirm ──────────────────────────────────────────────────────────── */
@@ -345,12 +405,29 @@ function openConfirm(data) {
  * The door for everybody the camera could not name.
  *
  * The cook at 6am with a hairnet and steamed-up glasses, the new hire nobody
- * has enrolled yet, and the two colleagues the model cannot tell apart. It has
- * to exist — a kiosk with no fallback is a kiosk that sends people home — and
- * the punch it produces carries no face, so the server flags it and a manager
- * sees it. That is the trade, made deliberately.
+ * has enrolled yet, and the two colleagues the model cannot tell apart. The
+ * punch it produces carries no face, so the server flags it and a manager sees
+ * it. That is the trade, made deliberately.
+ *
+ * It is reached only from a FAILED recognition — there is no longer a button
+ * for it on the idle screen. Offered side by side, a PIN beats a camera every
+ * time on familiarity alone, and a kiosk whose staff all clock in by PIN has
+ * bought nothing.
+ *
+ * A company may switch it off entirely, at a cost worth being clear about: the
+ * casualty is not really the unenrolled new hire, who is a known and small
+ * group, but the enrolled cook whose face simply cannot be read this morning.
+ * They have no way in at all and their manager marks the grid by hand.
+ *
+ * @returns {boolean} whether the fallback was actually opened.
  */
 function openPin(shortlist = []) {
+    // Nothing to open. The panel is not even in the markup when the fallback
+    // is off, so this would otherwise show an empty screen with no way back.
+    if (! pinAllowed()) {
+        return false;
+    }
+
     state.pinEmployee = null;
     state.pin = '';
 
@@ -375,6 +452,8 @@ function openPin(shortlist = []) {
     filterPinList('');
     paintPinStep();
     show('pin');
+
+    return true;
 }
 
 function setPinHint(text) {
@@ -489,7 +568,12 @@ function resetToIdle() {
     state.selfie = null;
     state.pinEmployee = null;
     state.pin = '';
+    state.shortlist = [];
     state.stableSince = null;
+
+    // The offer belongs to the failure that raised it. Leaving it up would
+    // hand the next person a PIN route they never failed their way into.
+    el('kiosk-pin-offer')?.classList.add('hidden');
     // A short pause, so the person who just punched is not immediately
     // re-identified as they pick their bag back up.
     state.pausedUntil = Date.now() + RETRY_AFTER_MS;
@@ -639,8 +723,11 @@ function bind() {
         }
 
         if (target.closest('[data-kiosk-pin-open]')) {
-            openPin([]);
-            setPinHint('Find your name, then key your PIN.');
+            if (openPin(state.shortlist)) {
+                setPinHint(state.shortlist.length
+                    ? 'Tap your name and key your PIN.'
+                    : 'Find your name, then key your PIN.');
+            }
 
             return;
         }

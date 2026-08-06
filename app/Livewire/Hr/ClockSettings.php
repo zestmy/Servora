@@ -38,6 +38,9 @@ class ClockSettings extends Component
     public bool $kiosk_enabled = true;
     public bool $byod_enabled  = true;
 
+    /** Whether the kiosk accepts a PIN when it cannot recognise a face. */
+    public bool $kiosk_allow_pin = true;
+
     /*
      * The kiosk's own face thresholds, kept separate from face_threshold on
      * purpose. That one governs a 1:1 check where the person has already named
@@ -74,8 +77,9 @@ class ClockSettings extends Component
         $this->allow_offsite_with_reason = (bool) $settings->allow_offsite_with_reason;
         $this->resolve_addresses         = (bool) $settings->resolve_addresses;
 
-        $this->kiosk_enabled = (bool) $settings->kiosk_enabled;
-        $this->byod_enabled  = (bool) $settings->byod_enabled;
+        $this->kiosk_enabled   = (bool) $settings->kiosk_enabled;
+        $this->byod_enabled    = (bool) $settings->byod_enabled;
+        $this->kiosk_allow_pin = (bool) $settings->kiosk_allow_pin;
 
         $this->kiosk_face_threshold = rtrim(rtrim(number_format((float) $settings->kiosk_face_threshold, 3, '.', ''), '0'), '.');
         $this->kiosk_face_margin    = rtrim(rtrim(number_format((float) $settings->kiosk_face_margin, 3, '.', ''), '0'), '.');
@@ -155,6 +159,7 @@ class ClockSettings extends Component
             'resolve_addresses'         => $this->resolve_addresses,
             'kiosk_enabled'             => $this->kiosk_enabled,
             'byod_enabled'              => $this->byod_enabled,
+            'kiosk_allow_pin'           => $this->kiosk_allow_pin,
             'kiosk_face_threshold'      => (float) $this->kiosk_face_threshold,
             'kiosk_face_margin'         => (float) $this->kiosk_face_margin,
             'kiosk_cooldown_minutes'    => (int) $this->kiosk_cooldown_minutes,

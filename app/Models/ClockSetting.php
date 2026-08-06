@@ -21,6 +21,7 @@ class ClockSetting extends Model
         'resolve_addresses',
         'kiosk_enabled', 'byod_enabled',
         'kiosk_face_threshold', 'kiosk_face_margin', 'kiosk_cooldown_minutes',
+        'kiosk_allow_pin',
     ];
 
     protected $casts = [
@@ -41,6 +42,7 @@ class ClockSetting extends Model
         'kiosk_face_threshold'      => 'decimal:3',
         'kiosk_face_margin'         => 'decimal:3',
         'kiosk_cooldown_minutes'    => 'integer',
+        'kiosk_allow_pin'           => 'boolean',
     ];
 
     protected static function booted(): void

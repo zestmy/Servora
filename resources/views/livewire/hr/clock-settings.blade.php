@@ -230,6 +230,32 @@
             </label>
 
             <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model.live="kiosk_allow_pin" class="mt-0.5 rounded border-gray-300 text-brand-600">
+                <span class="text-sm">
+                    <span class="font-medium text-gray-900">Let the kiosk fall back to a PIN</span>
+                    <span class="block text-xs text-gray-600">
+                        When the camera cannot recognise somebody, they can find their name and key
+                        their PIN instead. The offer only appears <em>after</em> a failed scan, never
+                        as a standing option, and every PIN punch is flagged for your review.
+                    </span>
+                </span>
+            </label>
+
+            {{-- Shown only when they are switching it off, and it names the
+                 casualty people do not expect. Everyone assumes the cost is
+                 unenrolled new hires — a small group you can plan around. The
+                 real cost is the enrolled person the camera cannot read this
+                 morning, which is a Tuesday in a wet kitchen. --}}
+            @unless ($kiosk_allow_pin)
+                <div class="alert-warning ml-7">
+                    With this off, anyone the camera cannot recognise has <strong>no way to clock in
+                    at all</strong> — not only new hires who are not enrolled yet, but enrolled staff
+                    in a hairnet, in steam, or in bad morning light. Their manager will have to mark
+                    the attendance grid by hand. Enrol everybody on the kiosk itself first.
+                </div>
+            @endunless
+
+            <label class="flex items-start gap-3">
                 <input type="checkbox" wire:model="byod_enabled" class="mt-0.5 rounded border-gray-300 text-brand-600">
                 <span class="text-sm">
                     <span class="font-medium text-gray-900">Allow staff to clock in on their own phones</span>

@@ -72,6 +72,10 @@
      data-identify="{{ route('clock.kiosk.identify') }}"
      data-punch="{{ route('clock.kiosk.punch') }}"
      data-ping="{{ route('clock.kiosk.ping') }}"
+     {{-- Whether there is a fallback to fall back TO. The server refuses a PIN
+          punch outright when this is off — see KioskController::fromPin() —
+          so this only stops the screen offering a door that is already shut. --}}
+     data-allow-pin="{{ $allowPin ? '1' : '0' }}"
      {{-- A copy of the device token, handed to the page deliberately so its
           scripts can send it as a header. The cookie itself stays httpOnly and
           unreadable, and the JSON endpoints accept ONLY the header — which is
@@ -119,14 +123,25 @@
                     <p class="mt-3 text-base text-gray-400">Stand about an arm's length away.</p>
                 </div>
 
-                {{-- The fallback is visible, not hidden behind a failure. The
-                     people who need it most — a new hire, somebody in a
-                     hairnet — should not have to fail twice to discover it. --}}
-                <button type="button" data-kiosk-pin-open
-                        class="min-h-[3.5rem] rounded-control border border-gray-600 px-8 text-lg
-                               font-semibold text-gray-200 hover:bg-gray-800 active:bg-gray-800">
-                    Use my PIN instead
-                </button>
+                {{-- The fallback, and it starts HIDDEN.
+
+                     It used to be a permanent button on this screen, offered
+                     as an equal choice, and that was a mistake: a PIN is
+                     familiar and instant where a camera takes a second, so
+                     side by side the PIN wins every time — and a kiosk whose
+                     staff all clock in by PIN has bought nothing at all.
+
+                     kiosk.js reveals it only after a recognition has actually
+                     failed, and hides it again a few seconds later. So it is
+                     there for the person who needs it, at the moment they need
+                     it, and is not an option anybody browses to. --}}
+                @if ($allowPin)
+                    <button type="button" data-kiosk-pin-open id="kiosk-pin-offer"
+                            class="hidden min-h-[3.5rem] rounded-control border border-gray-600 px-8 text-lg
+                                   font-semibold text-gray-200 hover:bg-gray-800 active:bg-gray-800">
+                        Use my PIN instead
+                    </button>
+                @endif
             </div>
 
             {{-- Confirm --}}
@@ -157,7 +172,10 @@
                 </div>
             </div>
 
-            {{-- PIN fallback --}}
+            {{-- PIN fallback. Absent from the markup entirely when the company
+                 has switched it off — an empty panel and a staff list nobody
+                 can use are not worth shipping to a screen on a counter. --}}
+            @if ($allowPin)
             <div id="kiosk-state-pin" class="hidden h-full flex flex-col min-h-0">
                 <p id="kiosk-pin-hint" class="shrink-0 pb-2 text-center text-base text-warning-200"></p>
 
@@ -224,6 +242,7 @@
                     </button>
                 </div>
             </div>
+            @endif
 
             {{-- Result --}}
             <div id="kiosk-state-result" class="hidden h-full flex items-center justify-center px-2">
