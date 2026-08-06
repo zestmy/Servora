@@ -41,30 +41,12 @@ class EmployeeCompensation extends Component
     public string $r_effective_on = '';
     public string $r_reason       = '';
 
-    // Statutory profile
-    public bool   $showStatutory  = false;
-    public string $s_epf_number   = '';
-    public string $s_socso_number = '';
-    public string $s_tax_number   = '';
-    public bool   $s_is_malaysian = true;
-    public bool   $s_epf          = true;
-    public bool   $s_socso        = true;
-    public bool   $s_eis          = true;
-    // Employer-only levy, but whether it applies to THIS person is a
-    // per-employee fact the company-wide setting cannot answer.
-    public bool   $s_hrdf         = true;
-    public bool   $s_pcb          = true;
-    public string $s_epf_override = '';
-    public string $s_pcb_category = 'single';
-    public string $s_children     = '0';
-    public string $s_zakat        = '0';
-    public string $s_other_relief = '0';
-    public string $s_date_of_birth = '';
-    // Payroll paperwork: the IC identifies the employee on every statutory
-    // submission, and the bank pair is what a salary transfer file needs.
-    public string $s_ic_number      = '';
-    public string $s_bank_name      = '';
-    public string $s_bank_account   = '';
+    /*
+     * Statutory profile fields have MOVED to the employee record's Statutory
+     * tab. They describe the person rather than what this month owes, and
+     * keeping an editor here as well would be a second door onto the same
+     * rows — the same reason basic salary is not editable on this screen.
+     */
 
     public function mount(int $id): void
     {
@@ -75,85 +57,6 @@ class EmployeeCompensation extends Component
         }
 
         $this->employee = $employee;
-        $this->loadStatutoryProfile();
-    }
-
-    private function loadStatutoryProfile(): void
-    {
-        $p = EmployeeStatutoryProfile::forEmployee($this->employee);
-
-        $this->s_epf_number    = $p->epf_number ?? '';
-        $this->s_socso_number  = $p->socso_number ?? '';
-        $this->s_tax_number    = $p->income_tax_number ?? '';
-        $this->s_is_malaysian  = (bool) $p->is_malaysian;
-        $this->s_epf           = (bool) $p->epf_enabled;
-        $this->s_socso         = (bool) $p->socso_enabled;
-        $this->s_eis           = (bool) $p->eis_enabled;
-        $this->s_hrdf          = (bool) $p->hrdf_enabled;
-        $this->s_pcb           = (bool) $p->pcb_enabled;
-        $this->s_epf_override  = $p->epf_employee_rate_override !== null ? (string) (float) $p->epf_employee_rate_override : '';
-        $this->s_pcb_category  = $p->pcb_category ?: 'single';
-        $this->s_children      = (string) $p->children;
-        $this->s_zakat         = (string) (float) $p->monthly_zakat;
-        $this->s_other_relief  = (string) (float) $p->annual_other_relief;
-        $this->s_date_of_birth = $this->employee->date_of_birth?->format('Y-m-d') ?? '';
-        $this->s_ic_number     = (string) ($this->employee->ic_number ?? '');
-        $this->s_bank_name     = (string) ($this->employee->bank_name ?? '');
-        $this->s_bank_account  = (string) ($this->employee->bank_account_no ?? '');
-    }
-
-    public function saveStatutoryProfile(): void
-    {
-        $this->validate([
-            's_epf_number'    => 'nullable|string|max:30',
-            's_socso_number'  => 'nullable|string|max:30',
-            's_tax_number'    => 'nullable|string|max:30',
-            's_epf_override'  => 'nullable|numeric|min:0|max:100',
-            's_pcb_category'  => 'required|in:' . implode(',', array_keys(StatutorySetting::PCB_CATEGORIES)),
-            's_children'      => 'required|integer|min:0|max:50',
-            's_zakat'         => 'required|numeric|min:0|max:1000000',
-            's_other_relief'  => 'required|numeric|min:0|max:1000000',
-            's_date_of_birth' => 'nullable|date|before:today',
-            's_ic_number'     => 'nullable|string|max:20',
-            's_bank_name'     => 'nullable|string|max:60',
-            's_bank_account'  => 'nullable|string|max:40',
-        ]);
-
-        // These live on the employee rather than the statutory profile: EPF and
-        // SOCSO rates both change at 60, so date of birth is not statutory-only,
-        // and the IC and bank pair identify the person rather than describe a
-        // contribution.
-        $this->employee->update([
-            'date_of_birth'   => $this->s_date_of_birth ?: null,
-            'ic_number'       => $this->s_ic_number ?: null,
-            'bank_name'       => $this->s_bank_name ?: null,
-            'bank_account_no' => $this->s_bank_account ?: null,
-        ]);
-
-        EmployeeStatutoryProfile::updateOrCreate(
-            ['employee_id' => $this->employee->id],
-            [
-                'company_id'        => $this->employee->company_id,
-                'epf_number'        => $this->s_epf_number ?: null,
-                'socso_number'      => $this->s_socso_number ?: null,
-                'income_tax_number' => $this->s_tax_number ?: null,
-                'is_malaysian'      => $this->s_is_malaysian,
-                'epf_enabled'       => $this->s_epf,
-                'socso_enabled'     => $this->s_socso,
-                'eis_enabled'       => $this->s_eis,
-                'hrdf_enabled'      => $this->s_hrdf,
-                'pcb_enabled'       => $this->s_pcb,
-                'epf_employee_rate_override' => $this->s_epf_override !== '' ? round((float) $this->s_epf_override, 2) : null,
-                'pcb_category'        => $this->s_pcb_category,
-                'children'            => (int) $this->s_children,
-                'monthly_zakat'       => round((float) $this->s_zakat, 2),
-                'annual_other_relief' => round((float) $this->s_other_relief, 2),
-            ]
-        );
-
-        $this->employee->refresh();
-        $this->showStatutory = false;
-        session()->flash('success', 'Statutory details saved.');
     }
 
     // ── Allowances and deductions ─────────────────────────────────────────

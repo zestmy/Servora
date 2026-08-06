@@ -30,6 +30,8 @@ class EmployeeForm extends Component
     public string $f_phone_code     = '';
     public string $f_phone          = '';
     public string $f_join_date      = '';
+    public string $f_ic_number      = '';
+    public string $f_date_of_birth  = '';
     public string $f_employment_status      = '';
     public string $f_employment_status_date = '';
     public string $f_outsourcing_provider   = 'experiva'; // 'experiva' | 'others'
@@ -58,6 +60,31 @@ class EmployeeForm extends Component
     public string $f_service_points    = '';
     public string $f_basic_salary      = '';
     public string $f_pay_type          = '';
+    // Where the salary is paid. Pay-gated with the amount: an account number
+    // deserves the same protection as the figure paid into it.
+    public string $f_bank_name         = '';
+    public string $f_bank_account_no   = '';
+
+    /*
+     * Statutory profile, folded in from what used to be a modal on the
+     * Compensation screen. It belongs with the employee record: these are
+     * facts about the person, not a transaction, and splitting them across two
+     * screens is what made them hard to find in the first place.
+     */
+    public string $s_epf_number   = '';
+    public string $s_socso_number = '';
+    public string $s_tax_number   = '';
+    public bool   $s_is_malaysian = true;
+    public bool   $s_epf          = true;
+    public bool   $s_socso        = true;
+    public bool   $s_eis          = true;
+    public bool   $s_hrdf         = true;
+    public bool   $s_pcb          = true;
+    public string $s_epf_override = '';
+    public string $s_pcb_category = 'single';
+    public string $s_children     = '0';
+    public string $s_zakat        = '0';
+    public string $s_other_relief = '0';
     public bool   $f_is_active      = true;
 
     public function mount(?int $id = null): void
@@ -84,6 +111,8 @@ class EmployeeForm extends Component
         $this->f_email         = $emp->email ?? '';
         [$this->f_phone_code, $this->f_phone] = $this->splitPhone($emp->phone);
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
+        $this->f_ic_number     = $emp->ic_number ?? '';
+        $this->f_date_of_birth = $emp->date_of_birth?->format('Y-m-d') ?? '';
         $this->f_employment_status      = $emp->employment_status ?? '';
         $this->f_employment_status_date = $emp->employment_status_date?->format('Y-m-d') ?? '';
         $this->f_outsourcing_provider   = ($emp->outsourcing_company && strcasecmp($emp->outsourcing_company, 'Experiva') !== 0) ? 'others' : 'experiva';
@@ -118,6 +147,25 @@ class EmployeeForm extends Component
                 ? number_format((float) $emp->basic_salary, 2, '.', '')
                 : '';
             $this->f_pay_type = $emp->pay_type ?? '';
+            $this->f_bank_name       = $emp->bank_name ?? '';
+            $this->f_bank_account_no = $emp->bank_account_no ?? '';
+
+            $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
+            $this->s_epf_number   = $p->epf_number ?? '';
+            $this->s_socso_number = $p->socso_number ?? '';
+            $this->s_tax_number   = $p->income_tax_number ?? '';
+            $this->s_is_malaysian = (bool) $p->is_malaysian;
+            $this->s_epf          = (bool) $p->epf_enabled;
+            $this->s_socso        = (bool) $p->socso_enabled;
+            $this->s_eis          = (bool) $p->eis_enabled;
+            $this->s_hrdf         = (bool) $p->hrdf_enabled;
+            $this->s_pcb          = (bool) $p->pcb_enabled;
+            $this->s_epf_override = $p->epf_employee_rate_override !== null
+                ? (string) (float) $p->epf_employee_rate_override : '';
+            $this->s_pcb_category = $p->pcb_category ?: 'single';
+            $this->s_children     = (string) $p->children;
+            $this->s_zakat        = (string) (float) $p->monthly_zakat;
+            $this->s_other_relief = (string) (float) $p->annual_other_relief;
         }
         $this->f_is_active = (bool) $emp->is_active;
     }
@@ -157,6 +205,8 @@ class EmployeeForm extends Component
             'f_phone_code'     => 'nullable|in:' . implode(',', array_values(Employee::PHONE_COUNTRY_CODES)),
             'f_phone'          => 'nullable|string|max:50',
             'f_join_date'      => 'nullable|date',
+            'f_ic_number'      => 'nullable|string|max:20',
+            'f_date_of_birth'  => 'nullable|date|before:today',
             'f_employment_status' => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_STATUSES)),
             'f_employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
                 ? 'required|date'
@@ -183,6 +233,16 @@ class EmployeeForm extends Component
             // A blank means "use the roster's". 0 is a real answer (no paid
             // break), so it must stay distinguishable from blank.
             'f_break_minutes'       => 'nullable|integer|min:0|max:1440',
+            'f_bank_name'           => 'nullable|string|max:60',
+            'f_bank_account_no'     => 'nullable|string|max:40',
+            's_epf_number'   => 'nullable|string|max:30',
+            's_socso_number' => 'nullable|string|max:30',
+            's_tax_number'   => 'nullable|string|max:30',
+            's_epf_override' => 'nullable|numeric|min:0|max:100',
+            's_pcb_category' => 'required|in:' . implode(',', array_keys(\App\Models\StatutorySetting::PCB_CATEGORIES)),
+            's_children'     => 'required|integer|min:0|max:50',
+            's_zakat'        => 'required|numeric|min:0|max:1000000',
+            's_other_relief' => 'required|numeric|min:0|max:1000000',
             'f_certifications'                 => 'array|max:50',
             'f_certifications.*.type_id'       => [
                 'required',
@@ -285,6 +345,8 @@ class EmployeeForm extends Component
                 ? trim(($this->f_phone_code ?: $this->defaultPhoneCode()) . ' ' . trim($this->f_phone))
                 : null,
             'join_date'     => $this->f_join_date ?: null,
+            'ic_number'     => $this->f_ic_number ?: null,
+            'date_of_birth' => $this->f_date_of_birth ?: null,
             'employment_status' => $this->f_employment_status ?: null,
             // Date applies to probation/confirmed/extension; company to outsourcing.
             'employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
@@ -335,6 +397,8 @@ class EmployeeForm extends Component
             $data['pay_type'] = $this->f_basic_salary !== ''
                 ? ($this->f_pay_type ?: 'monthly')
                 : null;
+            $data['bank_name']       = $this->f_bank_name ?: null;
+            $data['bank_account_no'] = $this->f_bank_account_no ?: null;
         }
 
         if ($this->employeeId) {
@@ -350,8 +414,45 @@ class EmployeeForm extends Component
         }
 
         $this->syncCertifications($emp);
+        $this->syncStatutoryProfile($emp);
 
         $this->redirectRoute('hr.employees');
+    }
+
+    /**
+     * Write the statutory profile alongside the employee.
+     *
+     * Only for users who may see pay: the fields are not hydrated for anyone
+     * else, so writing them would blank a profile they cannot even read. That
+     * is the same rule the salary fields follow, for the same reason.
+     */
+    private function syncStatutoryProfile(Employee $employee): void
+    {
+        if (! $this->canViewPay()) {
+            return;
+        }
+
+        \App\Models\EmployeeStatutoryProfile::updateOrCreate(
+            ['employee_id' => $employee->id],
+            [
+                'company_id'        => $employee->company_id,
+                'epf_number'        => $this->s_epf_number ?: null,
+                'socso_number'      => $this->s_socso_number ?: null,
+                'income_tax_number' => $this->s_tax_number ?: null,
+                'is_malaysian'      => $this->s_is_malaysian,
+                'epf_enabled'       => $this->s_epf,
+                'socso_enabled'     => $this->s_socso,
+                'eis_enabled'       => $this->s_eis,
+                'hrdf_enabled'      => $this->s_hrdf,
+                'pcb_enabled'       => $this->s_pcb,
+                'epf_employee_rate_override' => $this->s_epf_override !== ''
+                    ? round((float) $this->s_epf_override, 2) : null,
+                'pcb_category'        => $this->s_pcb_category,
+                'children'            => (int) $this->s_children,
+                'monthly_zakat'       => round((float) $this->s_zakat, 2),
+                'annual_other_relief' => round((float) $this->s_other_relief, 2),
+            ]
+        );
     }
 
     /**

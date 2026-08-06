@@ -109,7 +109,9 @@
                             statutory rates unconfirmed
                         </span>
                     @endif
-                    <button wire:click="$set('showStatutory', true)" class="btn-secondary">Statutory details</button>
+                    {{-- Edited on the employee record, which is where these
+                         facts belong; this screen is for what is owed. --}}
+                    <a href="{{ route('hr.employees.edit', $employee->id) }}" class="btn-secondary">Statutory details</a>
                 </div>
             </div>
 
@@ -294,133 +296,11 @@
         @endteleport
     @endif
 
-    {{-- Statutory profile modal --}}
-    @if ($showStatutory)
-        @teleport('body')
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto" wire:click.self="$set('showStatutory', false)">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 my-8">
-                <h3 class="text-base font-semibold text-gray-800 mb-1">Statutory details</h3>
-                <p class="text-xs text-gray-600 mb-4">
-                    Scheme numbers, and the inputs no company-wide setting can answer.
-                    Rates themselves live on <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
-                </p>
-                <form wire:submit.prevent="saveStatutoryProfile" class="space-y-3">
-                    {{-- Payroll paperwork. Without these a payslip cannot identify
-                         the person, a submission file is rejected and a salary
-                         transfer has nowhere to go — so they are asked for here
-                         rather than discovered missing on the day payroll runs. --}}
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">IC / passport no.</label>
-                            <input type="text" maxlength="20" wire:model="s_ic_number"
-                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="880101-10-5555" />
-                            <p class="mt-1 text-[11px] text-gray-500">Identifies the employee on CP39, KWSP and SOCSO submissions.</p>
-                            <x-input-error :messages="$errors->get('s_ic_number')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Bank</label>
-                            <input type="text" maxlength="60" wire:model="s_bank_name"
-                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="Maybank" />
-                            <x-input-error :messages="$errors->get('s_bank_name')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Bank account no.</label>
-                            <input type="text" maxlength="40" wire:model="s_bank_account"
-                                   class="mt-1 w-full text-sm rounded-lg border-gray-300 font-mono" />
-                            <p class="mt-1 text-[11px] text-gray-500">Where the salary is transferred.</p>
-                            <x-input-error :messages="$errors->get('s_bank_account')" class="mt-1" />
-                        </div>
-                        <div></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Date of birth</label>
-                            <input type="date" wire:model="s_date_of_birth" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <p class="mt-1 text-[11px] text-gray-500">EPF and SOCSO rates change at 60.</p>
-                            <x-input-error :messages="$errors->get('s_date_of_birth')" class="mt-1" />
-                        </div>
-                        <div class="flex items-end pb-1">
-                            <label class="inline-flex items-center gap-2">
-                                <input type="checkbox" wire:model="s_is_malaysian" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                <span class="text-sm text-gray-700">Malaysian citizen / PR</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">EPF no.</label>
-                            <input type="text" wire:model="s_epf_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <x-input-error :messages="$errors->get('s_epf_number')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">SOCSO no.</label>
-                            <input type="text" wire:model="s_socso_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <x-input-error :messages="$errors->get('s_socso_number')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Tax no.</label>
-                            <input type="text" wire:model="s_tax_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <x-input-error :messages="$errors->get('s_tax_number')" class="mt-1" />
-                        </div>
-                    </div>
-
-                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <p class="text-xs font-semibold text-gray-600 mb-2">Contributes to</p>
-                        <div class="flex flex-wrap gap-x-5 gap-y-2">
-                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_epf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EPF</span></label>
-                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_socso" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">SOCSO</span></label>
-                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_eis" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EIS</span></label>
-                            <label class="inline-flex items-center gap-2" title="HRD Corp levy — paid by the employer, never deducted from this employee"><input type="checkbox" wire:model="s_hrdf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">HRDF</span></label>
-                            <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_pcb" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">PCB</span></label>
-                        </div>
-                        <div class="mt-3">
-                            <label class="text-xs font-semibold text-gray-600">EPF employee rate override (%)</label>
-                            <input type="number" step="0.01" wire:model="s_epf_override" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="statutory rate" />
-                            <p class="mt-1 text-[11px] text-gray-500">For a voluntary higher rate. It never lowers the statutory one.</p>
-                            <x-input-error :messages="$errors->get('s_epf_override')" class="mt-1" />
-                        </div>
-                    </div>
-
-                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
-                        <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Category</label>
-                            <select wire:model="s_pcb_category" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                                @foreach (\App\Models\StatutorySetting::PCB_CATEGORIES as $v => $l)
-                                    <option value="{{ $v }}">{{ $l }}</option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('s_pcb_category')" class="mt-1" />
-                        </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div>
-                                <label class="text-xs font-semibold text-gray-600">Children</label>
-                                <input type="number" min="0" wire:model="s_children" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                                <x-input-error :messages="$errors->get('s_children')" class="mt-1" />
-                            </div>
-                            <div>
-                                <label class="text-xs font-semibold text-gray-600">Monthly zakat</label>
-                                <input type="number" step="0.01" min="0" wire:model="s_zakat" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                                <x-input-error :messages="$errors->get('s_zakat')" class="mt-1" />
-                            </div>
-                            <div>
-                                <label class="text-xs font-semibold text-gray-600">Other relief / yr</label>
-                                <input type="number" step="0.01" min="0" wire:model="s_other_relief" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                                <x-input-error :messages="$errors->get('s_other_relief')" class="mt-1" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                        <button type="button" wire:click="$set('showStatutory', false)" class="btn-secondary">Cancel</button>
-                        <button type="submit" class="btn-primary">Save</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        @endteleport
-    @endif
+    {{-- Statutory details moved onto the employee record's own Statutory tab.
+         They are facts about the person, not a transaction on this screen, and
+         a tall form in an overlay was getting clipped at the top with no way to
+         scroll to its heading. One door onto the data, on the record it
+         describes. --}}
 
     {{-- Salary revision modal --}}
     @if ($showRevision)

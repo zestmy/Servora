@@ -1,6 +1,47 @@
-<div>
+@php
+    // Which tab each field belongs to, so a validation failure on a hidden tab
+    // can be flagged rather than leaving someone staring at a form that will
+    // not save with nothing visibly wrong on it.
+    $tabFields = [
+        'personal'   => ['f_name', 'f_ic_number', 'f_date_of_birth', 'f_email', 'f_phone', 'f_phone_code'],
+        'employment' => ['f_outlet_id', 'f_section_id', 'f_staff_id', 'f_designation', 'f_join_date',
+                         'f_employment_status', 'f_employment_status_date', 'f_outsourcing_provider',
+                         'f_outsourcing_company', 'f_break_minutes'],
+        'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points', 'f_bank_name', 'f_bank_account_no'],
+        'statutory'  => ['s_epf_number', 's_socso_number', 's_tax_number', 's_epf_override',
+                         's_pcb_category', 's_children', 's_zakat', 's_other_relief'],
+        'compliance' => ['f_food_handler_cert_no', 'f_food_handler_expired_on', 'f_typhoid_valid_from',
+                         'f_typhoid_expired_on', 'f_halal_training_date', 'f_halal_training_expired_on',
+                         'f_certifications'],
+    ];
+
+    $tabErrors = [];
+    foreach ($tabFields as $tabKey => $fields) {
+        $tabErrors[$tabKey] = collect($errors->keys())
+            ->contains(fn ($k) => collect($fields)->contains(fn ($f) => $k === $f || str_starts_with($k, $f . '.')));
+    }
+
+    $tabs = [
+        'personal'   => 'Personal',
+        'employment' => 'Employment',
+    ];
+    if ($canViewPay) {
+        $tabs['pay']       = 'Compensation';
+        $tabs['statutory'] = 'Statutory';
+    }
+    $tabs['compliance'] = 'Certifications';
+    if ($employeeId) {
+        $tabs['activity'] = 'Activity';
+    }
+
+    // Open on the first tab carrying an error, so a failed save lands where the
+    // problem is instead of on whichever tab happens to be first.
+    $openTab = collect(array_keys($tabs))->first(fn ($t) => $tabErrors[$t] ?? false) ?? 'personal';
+@endphp
+
+<div x-data="{ tab: @js($openTab) }">
     {{-- Header --}}
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-start gap-3">
             <a href="{{ route('hr.employees') }}" title="Back to Employees"
                class="mt-0.5 p-1.5 rounded-control text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">
@@ -11,11 +52,16 @@
             <div>
                 <p class="text-xs text-gray-600">HR / Employees</p>
                 <h2 class="text-lg font-semibold text-gray-700 mt-1">
-                    {{ $employeeId ? 'Edit Employee' : 'Add Employee' }}
+                    {{ $employeeId ? ($f_name ?: 'Edit Employee') : 'Add Employee' }}
                 </h2>
             </div>
         </div>
         <div class="flex items-center gap-2">
+            @if ($employeeId && $canViewPay)
+                <a href="{{ route('hr.compensation.employee', $employeeId) }}" class="btn-secondary">
+                    Allowances &amp; salary history
+                </a>
+            @endif
             <a href="{{ route('hr.employees') }}" class="btn-secondary">Cancel</a>
             <button type="submit" form="employee-form" class="btn-primary">Save</button>
         </div>
@@ -32,53 +78,63 @@
         </div>
     @endif
 
+    {{-- Tabs. Every panel stays in the DOM under x-show rather than @if, so a
+         value typed on one tab is still in the payload when Save is pressed
+         from another — unmounting the inputs would silently drop them. --}}
+    <div class="border-b border-gray-200 mb-4 overflow-x-auto">
+        <nav class="flex gap-1 min-w-max" aria-label="Employee sections">
+            @foreach ($tabs as $key => $label)
+                <button type="button" x-on:click="tab = @js($key)"
+                        :class="tab === @js($key)
+                            ? 'border-brand-600 text-brand-700'
+                            : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'"
+                        class="relative px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap">
+                    {{ $label }}
+                    @if ($tabErrors[$key] ?? false)
+                        <span title="This section has an error"
+                              class="absolute top-1.5 right-1 h-1.5 w-1.5 rounded-full bg-danger-500"></span>
+                    @endif
+                </button>
+            @endforeach
+        </nav>
+    </div>
+
     <form id="employee-form" wire:submit.prevent="save" class="space-y-4">
 
-        {{-- Basics --}}
-        <div class="card p-5 space-y-3">
-            <h3 class="text-sm font-semibold text-gray-700">Details</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">Outlet <span class="text-danger-500">*</span></label>
-                    <select wire:model="f_outlet_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                        <option value="">— Select —</option>
-                        @foreach ($outlets as $o)
-                            <option value="{{ $o->id }}">{{ $o->name }}</option>
-                        @endforeach
-                    </select>
-                    <x-input-error :messages="$errors->get('f_outlet_id')" class="mt-1" />
-                </div>
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">Staff ID</label>
-                    <input type="text" wire:model="f_staff_id" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. EMP-001" />
-                    <x-input-error :messages="$errors->get('f_staff_id')" class="mt-1" />
-                </div>
+        {{-- ── Personal ────────────────────────────────────────────────── --}}
+        <div x-show="tab === 'personal'" x-cloak class="card p-5 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Personal</h3>
+                <p class="text-xs text-gray-500">Who this person is. The IC and date of birth drive statutory rates and every submission.</p>
             </div>
+
             <div>
                 <label class="text-xs font-semibold text-gray-600">Employee Name <span class="text-danger-500">*</span></label>
                 <input type="text" wire:model="f_name" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                 <x-input-error :messages="$errors->get('f_name')" class="mt-1" />
             </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-xs font-semibold text-gray-600">Designation</label>
-                    <input type="text" wire:model="f_designation" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. Kitchen Helper" />
+                    <label class="text-xs font-semibold text-gray-600">IC / Passport No.</label>
+                    <input type="text" maxlength="20" wire:model="f_ic_number"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 880101-10-5555" />
+                    <p class="mt-1 text-[11px] text-gray-500">Identifies the employee on CP39, KWSP, SOCSO and the EA form.</p>
+                    <x-input-error :messages="$errors->get('f_ic_number')" class="mt-1" />
                 </div>
                 <div>
-                    <label class="text-xs font-semibold text-gray-600">Section</label>
-                    <select wire:model="f_section_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                        <option value="">— None —</option>
-                        @foreach ($sections as $s)
-                            <option value="{{ $s->id }}">{{ $s->name }}</option>
-                        @endforeach
-                    </select>
-                    <x-input-error :messages="$errors->get('f_section_id')" class="mt-1" />
+                    <label class="text-xs font-semibold text-gray-600">Date of Birth</label>
+                    <input type="date" wire:model="f_date_of_birth" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <p class="mt-1 text-[11px] text-gray-500">EPF and SOCSO rates change at 60, and EIS stops.</p>
+                    <x-input-error :messages="$errors->get('f_date_of_birth')" class="mt-1" />
                 </div>
             </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-semibold text-gray-600">E-mail</label>
                     <input type="email" wire:model="f_email" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <p class="mt-1 text-[11px] text-gray-500">Where their payslip is emailed, if you send them.</p>
                     <x-input-error :messages="$errors->get('f_email')" class="mt-1" />
                 </div>
                 <div>
@@ -95,6 +151,50 @@
                     <x-input-error :messages="$errors->get('f_phone')" class="mt-1" />
                 </div>
             </div>
+        </div>
+
+        {{-- ── Employment ──────────────────────────────────────────────── --}}
+        <div x-show="tab === 'employment'" x-cloak class="card p-5 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Employment</h3>
+                <p class="text-xs text-gray-500">Where they work, what they do, and their standing.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Outlet <span class="text-danger-500">*</span></label>
+                    <select wire:model="f_outlet_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">— Select —</option>
+                        @foreach ($outlets as $o)
+                            <option value="{{ $o->id }}">{{ $o->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('f_outlet_id')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Section</label>
+                    <select wire:model="f_section_id" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">— None —</option>
+                        @foreach ($sections as $s)
+                            <option value="{{ $s->id }}">{{ $s->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('f_section_id')" class="mt-1" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Staff ID</label>
+                    <input type="text" wire:model="f_staff_id" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. EMP-001" />
+                    <x-input-error :messages="$errors->get('f_staff_id')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Designation</label>
+                    <input type="text" wire:model="f_designation" class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. Kitchen Helper" />
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-semibold text-gray-600">Join Date</label>
@@ -123,12 +223,8 @@
                     @endif
                 </div>
             </div>
-        </div>
 
-        {{-- Employment --}}
-        <div class="card p-5 space-y-3">
-            <h3 class="text-sm font-semibold text-gray-700">Employment</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-100">
                 <div>
                     <label class="text-xs font-semibold text-gray-600">Employment Status</label>
                     <select wire:model.live="f_employment_status" class="mt-1 w-full text-sm rounded-lg border-gray-300">
@@ -164,6 +260,7 @@
                     </div>
                 @endif
             </div>
+
             <div class="sm:w-1/2 sm:pr-1.5">
                 <label class="text-xs font-semibold text-gray-600">Break Allowance (minutes)</label>
                 <input type="number" min="0" max="1440" wire:model="f_break_minutes"
@@ -178,69 +275,171 @@
             </div>
         </div>
 
-        {{-- Compensation — restricted to hr.compensation holders. --}}
+        {{-- ── Compensation ────────────────────────────────────────────── --}}
         @if ($canViewPay)
-            <div class="card p-5">
-                <div class="p-3 bg-warning-50/60 rounded-lg border border-warning-100 space-y-3">
-                    <p class="text-[11px] font-semibold text-warning-700 uppercase tracking-wide flex items-center gap-1.5">
-                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                        Compensation — restricted
+            <div x-show="tab === 'pay'" x-cloak class="card p-5 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700">Compensation</h3>
+                        <p class="text-xs text-gray-500">What they are paid and where it goes.</p>
+                    </div>
+                    <span class="badge-warning whitespace-nowrap">restricted</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="text-xs font-semibold text-gray-600">Basic Salary</label>
+                        <input type="number" step="0.01" min="0" wire:model.live="f_basic_salary"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 2500.00" />
+                        <x-input-error :messages="$errors->get('f_basic_salary')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Pay Type</label>
+                        <select wire:model="f_pay_type" @disabled($f_basic_salary === '')
+                                class="mt-1 w-full text-sm rounded-lg border-gray-300 disabled:bg-gray-100 disabled:text-gray-600">
+                            @foreach (\App\Models\Employee::PAY_TYPES as $ptValue => $ptLabel)
+                                <option value="{{ $ptValue }}">{{ $ptLabel }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('f_pay_type')" class="mt-1" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Service Points Entitlement</label>
+                        <input type="number" step="0.01" min="0" wire:model="f_service_points"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
+                        <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Bank</label>
+                        <input type="text" maxlength="60" wire:model="f_bank_name"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. Maybank" />
+                        <x-input-error :messages="$errors->get('f_bank_name')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Bank Account No.</label>
+                        <input type="text" maxlength="40" wire:model="f_bank_account_no"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300 font-mono" />
+                        <p class="mt-1 text-[11px] text-gray-500">Needed for the salary payment file.</p>
+                        <x-input-error :messages="$errors->get('f_bank_account_no')" class="mt-1" />
+                    </div>
+                </div>
+
+                {{-- Allowances and salary revisions are DATED and go through an
+                     approval, so they stay on their own screen rather than
+                     becoming a second door onto the same records. --}}
+                @if ($employeeId)
+                    <div class="pt-3 border-t border-gray-100">
+                        <a href="{{ route('hr.compensation.employee', $employeeId) }}"
+                           class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-800">
+                            Allowances, deductions &amp; salary history
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                        <p class="mt-0.5 text-[11px] text-gray-600">
+                            Dated allowances and deductions, and salary changes that need signing off.
+                        </p>
+                    </div>
+                @else
+                    <p class="pt-3 border-t border-gray-100 text-[11px] text-gray-600">
+                        Allowances and salary history become available once this employee is saved.
                     </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div class="sm:col-span-2">
-                            <label class="text-xs font-semibold text-gray-600">Basic Salary</label>
-                            <input type="number" step="0.01" min="0" wire:model.live="f_basic_salary"
-                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 2500.00" />
-                            <x-input-error :messages="$errors->get('f_basic_salary')" class="mt-1" />
-                        </div>
+                @endif
+            </div>
+
+            {{-- ── Statutory ───────────────────────────────────────────── --}}
+            <div x-show="tab === 'statutory'" x-cloak class="card p-5 space-y-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700">Statutory</h3>
+                        <p class="text-xs text-gray-500">
+                            Scheme numbers and the inputs no company-wide setting can answer. Rates live on
+                            <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
+                        </p>
+                    </div>
+                    <span class="badge-warning whitespace-nowrap">restricted</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">EPF No.</label>
+                        <input type="text" maxlength="30" wire:model="s_epf_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('s_epf_number')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">SOCSO No.</label>
+                        <input type="text" maxlength="30" wire:model="s_socso_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('s_socso_number')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Income Tax No.</label>
+                        <input type="text" maxlength="30" wire:model="s_tax_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('s_tax_number')" class="mt-1" />
+                    </div>
+                </div>
+
+                <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" wire:model="s_is_malaysian" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <span class="text-sm text-gray-700">Malaysian citizen / PR</span>
+                </label>
+
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                    <p class="text-xs font-semibold text-gray-600">Contributes to</p>
+                    <div class="flex flex-wrap gap-x-5 gap-y-2">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_epf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EPF</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_socso" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">SOCSO</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_eis" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EIS</span></label>
+                        <label class="inline-flex items-center gap-2" title="HRD Corp levy — paid by the employer, never deducted from this employee"><input type="checkbox" wire:model="s_hrdf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">HRDF</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_pcb" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">PCB</span></label>
+                    </div>
+                    <div class="sm:w-1/2">
+                        <label class="text-xs font-semibold text-gray-600">EPF employee rate override (%)</label>
+                        <input type="number" step="0.01" min="0" max="100" wire:model="s_epf_override"
+                               placeholder="statutory rate" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <p class="mt-1 text-[11px] text-gray-500">For a voluntary higher rate. It never lowers the statutory one.</p>
+                        <x-input-error :messages="$errors->get('s_epf_override')" class="mt-1" />
+                    </div>
+                </div>
+
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                    <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div>
-                            <label class="text-xs font-semibold text-gray-600">Pay Type</label>
-                            <select wire:model="f_pay_type" @disabled($f_basic_salary === '')
-                                    class="mt-1 w-full text-sm rounded-lg border-gray-300 disabled:bg-gray-100 disabled:text-gray-600">
-                                @foreach (\App\Models\Employee::PAY_TYPES as $ptValue => $ptLabel)
-                                    <option value="{{ $ptValue }}">{{ $ptLabel }}</option>
+                            <label class="text-xs font-semibold text-gray-600">Category</label>
+                            <select wire:model="s_pcb_category" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                @foreach (\App\Models\StatutorySetting::PCB_CATEGORIES as $pcValue => $pcLabel)
+                                    <option value="{{ $pcValue }}">{{ $pcLabel }}</option>
                                 @endforeach
                             </select>
-                            <x-input-error :messages="$errors->get('f_pay_type')" class="mt-1" />
+                            <x-input-error :messages="$errors->get('s_pcb_category')" class="mt-1" />
                         </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="text-xs font-semibold text-gray-600">Service Points Entitlement</label>
-                            <input type="number" step="0.01" min="0" wire:model="f_service_points"
-                                   class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
-                            <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
+                            <label class="text-xs font-semibold text-gray-600">Children</label>
+                            <input type="number" min="0" max="50" wire:model="s_children" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('s_children')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Monthly zakat</label>
+                            <input type="number" step="0.01" min="0" wire:model="s_zakat" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('s_zakat')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600">Other relief / yr</label>
+                            <input type="number" step="0.01" min="0" wire:model="s_other_relief" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                            <x-input-error :messages="$errors->get('s_other_relief')" class="mt-1" />
                         </div>
                     </div>
-
-                    {{-- Allowances, bank details and the statutory numbers are
-                         dated or scheme-specific, so they live on their own
-                         screen. Without this link they were findable only by
-                         knowing to go to HR → Compensation first. --}}
-                    @if ($employeeId)
-                        <div class="pt-3 border-t border-warning-100">
-                            <a href="{{ route('hr.compensation.employee', $employeeId) }}"
-                               class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-800">
-                                Allowances, bank account &amp; statutory details
-                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                            </a>
-                            <p class="mt-0.5 text-[11px] text-gray-600">
-                                Dated allowances and deductions, salary change history, bank account, IC,
-                                EPF / SOCSO / tax numbers and the per-employee statutory switches.
-                            </p>
-                        </div>
-                    @else
-                        <p class="pt-3 border-t border-warning-100 text-[11px] text-gray-600">
-                            Allowances, bank account and statutory details can be added once this employee is saved.
-                        </p>
-                    @endif
                 </div>
             </div>
         @endif
 
-        {{-- Certifications --}}
-        <div class="card p-5 space-y-3">
-            <h3 class="text-sm font-semibold text-gray-700">Certifications &amp; Training</h3>
+        {{-- ── Certifications ──────────────────────────────────────────── --}}
+        <div x-show="tab === 'compliance'" x-cloak class="card p-5 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Certifications &amp; Training</h3>
+                <p class="text-xs text-gray-500">What they hold, and what has to be renewed.</p>
+            </div>
 
             <label class="inline-flex items-center gap-2">
                 <input type="checkbox" wire:model.live="f_food_handler_certified" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
@@ -374,9 +573,9 @@
             </div>
         </div>
 
-        {{-- Recent activity (edit only) --}}
+        {{-- ── Activity (edit only) ────────────────────────────────────── --}}
         @if ($employeeId)
-            <div class="card p-5">
+            <div x-show="tab === 'activity'" x-cloak class="card p-5">
                 <x-audit-timeline :type="\App\Models\Employee::class" :id="$employeeId" title="Employee Activity" />
             </div>
         @endif
