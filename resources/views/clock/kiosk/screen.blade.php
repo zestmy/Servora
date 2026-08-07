@@ -47,6 +47,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Clock Kiosk">
     <link rel="manifest" href="{{ route('clock.kiosk.manifest') }}">
+    {{-- iOS reads these rather than the manifest's icons, and without them
+         "Add to Home Screen" on an iPad uses a screenshot of the page — which
+         for this screen is a photograph of whoever was standing in front of
+         the camera when somebody installed it. --}}
+    <link rel="apple-touch-icon" href="{{ asset('clock-app/staff-portal.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('clock-app/staff-portal.png') }}">
     <title>Clock Kiosk | {{ $outlet?->name ?? $brandName }}</title>
     @vite(['resources/css/app.css', 'resources/js/kiosk.js'])
     <style>

@@ -40,38 +40,28 @@ class ClockAppController extends Controller
             'background_color' => '#f9fafb',
             'theme_color'      => '#0b7677',
             /*
-             * The company's own logo when they have uploaded one, else the
-             * Servora mark. Not the clock glyph: the app holds leave and time
-             * off now, and staff pick this icon off a home screen full of
-             * others — their own brand is the fastest thing to find.
+             * The Staff Portal's own icon, for every company.
              *
-             * A logo is declared WITHOUT `sizes`, because we do not know its
-             * dimensions and claiming 512x512 for a 300px file makes Android
-             * upscale it into something blurry. "any" lets the browser use it
-             * at whatever size it needs.
+             * It was the tenant's brand logo when they had uploaded one, and
+             * that was the wrong asset for the job. A brand logo is drawn for a
+             * letterhead or a shopfront — wide, transparent, no background of
+             * its own — and a home screen gives it a square tile whether it
+             * suits one or not. This one is drawn as an app icon.
+             *
+             * Declared `any` and NOT maskable: the mark carries the SERVORA
+             * wordmark near its lower edge, and a maskable icon is cropped to
+             * whatever shape the launcher wants — a circle would take the word
+             * off. Without a maskable entry Android insets the whole icon on a
+             * tile of its own instead, which keeps it intact.
              */
-            'icons'            => $company?->logo
-                ? [[
-                    'src'     => \Illuminate\Support\Facades\Storage::disk('public')->url($company->logo),
+            'icons'            => [
+                [
+                    'src'     => asset('clock-app/staff-portal.png'),
                     'sizes'   => 'any',
+                    'type'    => 'image/png',
                     'purpose' => 'any',
-                ]]
-                : [
-                    [
-                        'src'     => asset('favicon.png'),
-                        'sizes'   => '300x300',
-                        'type'    => 'image/png',
-                        'purpose' => 'any',
-                    ],
-                    [
-                        // Android crops icons to its own shape; the maskable
-                        // one keeps its glyph inside the safe zone.
-                        'src'     => asset('clock-app/icon-maskable-512.png'),
-                        'sizes'   => '512x512',
-                        'type'    => 'image/png',
-                        'purpose' => 'maskable',
-                    ],
                 ],
+            ],
         ];
 
         return response(json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT))
@@ -111,25 +101,19 @@ class ClockAppController extends Controller
             'orientation' => 'landscape',
             'background_color' => '#0b1220',
             'theme_color'      => '#0b7677',
-            'icons'            => $company?->logo
-                ? [[
-                    'src'     => \Illuminate\Support\Facades\Storage::disk('public')->url($company->logo),
+            // The same tile as the Staff Portal, and deliberately so — see the
+            // note on that manifest for why it is not the tenant's logo. The
+            // two apps sit on different devices (a phone, a counter tablet)
+            // and are told apart by their NAME on the label under the icon,
+            // which is what a launcher shows for two icons that look alike.
+            'icons'            => [
+                [
+                    'src'     => asset('clock-app/staff-portal.png'),
                     'sizes'   => 'any',
+                    'type'    => 'image/png',
                     'purpose' => 'any',
-                ]]
-                : [
-                    [
-                        'src'   => asset('favicon.png'),
-                        'sizes' => '300x300',
-                        'type'  => 'image/png',
-                    ],
-                    [
-                        'src'     => asset('clock-app/icon-maskable-512.png'),
-                        'sizes'   => '512x512',
-                        'type'    => 'image/png',
-                        'purpose' => 'maskable',
-                    ],
                 ],
+            ],
         ];
 
         return response(json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT))

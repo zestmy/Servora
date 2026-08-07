@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PayrollRun;
 use App\Models\PayrollRunLine;
-use App\Models\StatutorySetting;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Payroll\PayslipPdf;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -55,24 +54,8 @@ class PayslipController extends Controller
 
     private function render(PayrollRun $run, $lines, string $filename)
     {
-        $company   = Auth::user()->company;
-        $statutory = StatutorySetting::forCompany($run->company_id);
-
-        $pdf = Pdf::loadView('pdf.payslip', [
-            'run'        => $run,
-            'lines'      => $lines,
-            'brandName'  => $company?->brand_name ?: $company?->name,
-            'logoBase64' => $company?->logoDataUri(),
-            // The legal entity as well as the trading name — a payslip records
-            // employment by a company, not by a brand.
-            'companyName' => $company?->name,
-            'companyReg' => $company?->registration_number,
-            'address'    => $company?->address,
-            'employerTaxNumber' => $statutory->employer_tax_number,
-            // A payslip must not present an estimate as a final figure.
-            'ratesConfirmed'    => (bool) $run->rates_were_confirmed,
-        ])->setPaper('a4', 'portrait');
-
-        return $pdf->stream($filename);
+        return app(PayslipPdf::class)
+            ->make($run, $lines, Auth::user()->company)
+            ->stream($filename);
     }
 }

@@ -4,8 +4,7 @@ namespace App\Mail;
 
 use App\Models\PayrollRun;
 use App\Models\PayrollRunLine;
-use App\Models\StatutorySetting;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Payroll\PayslipPdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -55,25 +54,14 @@ class PayslipMail extends Mailable
     /** @return array<int, Attachment> */
     public function attachments(): array
     {
-        $statutory = StatutorySetting::forCompany($this->run->company_id);
-
-        $pdf = Pdf::loadView('pdf.payslip', [
-            'run'               => $this->run,
-            'lines'             => collect([$this->line]),
-            'brandName'         => $this->brandName,
-            'logoBase64'        => $this->run->company?->logoDataUri(),
-            'companyName'       => $this->run->company?->name,
-            'companyReg'        => $this->run->company?->registration_number,
-            'address'           => $this->run->company?->address,
-            'employerTaxNumber' => $statutory->employer_tax_number,
-            'ratesConfirmed'    => (bool) $this->run->rates_were_confirmed,
-        ])->setPaper('a4', 'portrait');
-
-        $safeName = preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($this->line->employee_name));
+        $builder = app(PayslipPdf::class);
+        $pdf     = $builder->make($this->run, collect([$this->line]));
 
         return [
-            Attachment::fromData(fn () => $pdf->output(), "payslip-{$safeName}-{$this->run->reference}.pdf")
-                ->withMime('application/pdf'),
+            Attachment::fromData(
+                fn () => $pdf->output(),
+                $builder->filename($this->run, $this->line->employee_name),
+            )->withMime('application/pdf'),
         ];
     }
 }

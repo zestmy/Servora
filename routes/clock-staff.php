@@ -3,8 +3,10 @@
 use App\Http\Controllers\Hr\ClockAppController;
 use App\Http\Controllers\Hr\ClockSessionController;
 use App\Http\Controllers\Hr\KioskController;
+use App\Http\Controllers\Hr\StaffPayslipController;
 use App\Livewire\Clock\Staff\History as ClockHistory;
 use App\Livewire\Clock\Staff\Leave as ClockLeave;
+use App\Livewire\Clock\Staff\Payslips as ClockPayslips;
 use App\Livewire\Clock\Staff\TimeOff as ClockTimeOff;
 use App\Livewire\Clock\Staff\Login as ClockLogin;
 use App\Livewire\Clock\Staff\Punch as ClockPunch;
@@ -102,6 +104,13 @@ $group->group(function () {
         Route::get('/clock', ClockPunch::class)->name('clock.staff.punch');
         Route::get('/punches', ClockHistory::class)->name('clock.staff.history');
         Route::get('/roster', ClockRoster::class)->name('clock.staff.roster');
+        // The employee's own payslips, from approved and paid runs only.
+        // The PDF is a plain controller, not a Livewire action: it streams a
+        // document, and Livewire's response is a JSON payload.
+        Route::get('/payslips', ClockPayslips::class)->name('clock.staff.payslips');
+        Route::get('/payslips/{line}', [StaffPayslipController::class, 'show'])
+            ->whereNumber('line')
+            ->name('clock.staff.payslip');
         // Self-service leave and time off. Same PIN session as the clock —
         // the people who take leave mostly have a phone, not a manager login.
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');

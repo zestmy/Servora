@@ -13,11 +13,19 @@
 @php
     $brandCompany = app()->bound('currentCompany') ? app('currentCompany') : null;
     $brandName    = $brandCompany?->brand_name ?? $brandCompany?->name ?? 'Staff Portal';
-    // The company's own logo when they have uploaded one, else the Servora
-    // mark. Either beats a clock glyph on an app that is no longer just a clock.
-    $appIcon      = $brandCompany?->logo
-        ? \Illuminate\Support\Facades\Storage::disk('public')->url($brandCompany->logo)
-        : asset('favicon.png');
+    /*
+     * The Staff Portal's OWN icon, not the company's logo.
+     *
+     * It used to be the tenant's brand mark, on the reasoning that staff pick
+     * this off a home screen full of others and their own brand is the fastest
+     * thing to find. What that missed is what a brand logo IS: artwork drawn
+     * for a letterhead or a shopfront, usually wide, usually transparent, and
+     * with nothing behind it. Dropped onto a home screen it gets letterboxed
+     * into a white tile, and on a dark wallpaper a transparent one loses its
+     * own strokes. This is drawn as an app icon — square, its own background,
+     * legible at 48px — which is a different job from a logo.
+     */
+    $appIcon      = asset('clock-app/staff-portal.png');
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -147,6 +155,11 @@
                 // comments inside @php, and this array is PHP.)
                 ['route' => 'clock.staff.time-off', 'label' => 'Time off',
                  'icon'  => 'M13 10V3L4 14h7v7l9-11h-7z'],
+                // Banknote, not a document: at 24px a page-with-lines glyph is
+                // indistinguishable from the Punches clipboard three tabs to
+                // its left, and this bar is scanned rather than read.
+                ['route' => 'clock.staff.payslips', 'label' => 'Payslips',
+                 'icon'  => 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m3 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H10a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z'],
             ];
         @endphp
         {{-- The active tab is marked three ways — a rule above it, a heavier
@@ -160,7 +173,8 @@
             @php
                 $tabCols = match (count($tabs)) {
                     1 => 'grid-cols-1', 2 => 'grid-cols-2', 3 => 'grid-cols-3',
-                    4 => 'grid-cols-4', 5 => 'grid-cols-5', default => 'grid-cols-4',
+                    4 => 'grid-cols-4', 5 => 'grid-cols-5', 6 => 'grid-cols-6',
+                    default => 'grid-cols-4',
                 };
             @endphp
             <div class="grid {{ $tabCols }}">
