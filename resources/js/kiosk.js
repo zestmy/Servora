@@ -27,6 +27,7 @@
  *   ceremony here. That belongs to enrolment, which happens once.
  */
 
+import { beepError, beepSuccess, unlockSound } from './beep.js';
 import { ClockCamera, loadModels } from './clock.js';
 import { looksLikeFace } from './face-geometry.js';
 
@@ -91,6 +92,16 @@ const OFFER_MS = 12000;
 /** Heartbeat. Matches what the server treats as "recently seen". */
 const PING_MS = 60000;
 
+/**
+ * How long a tapped action stays armed with nobody recognised.
+ *
+ * Short, and it is the only thing standing between "pick your punch, then look
+ * at the camera" and a kiosk that clocks in whoever walks past it next. Long
+ * enough to tap, step forward and be seen; short enough that somebody who taps
+ * and then changes their mind has not left a trap for the next person.
+ */
+const ARM_MS = 20000;
+
 /* ── Element plumbing ─────────────────────────────────────────────────── */
 
 const el = (id) => document.getElementById(id);
@@ -110,6 +121,12 @@ const state = {
     shortlist: [],
     wakeLock: null,
     detecting: false,
+
+    // The action somebody tapped on the idle screen, and when it stops
+    // counting. Null means unarmed, which is the safe state: a recognised face
+    // then gets the confirm card and has to be told what to do.
+    armed: null,
+    armedUntil: 0,
 
     // Enrolment. `enrolling` gates the detect loop off entirely — a kiosk
     // recognising and offering to clock people in while a manager is holding
@@ -280,6 +297,7 @@ function notice(text, { offerPin = false, ms = null } = {}) {
     // Amber ring for as long as the message is up, so the outcome is legible
     // from further away than the sentence is.
     setScan('fail');
+    beepError();
 
     const offer   = el('kiosk-pin-offer');
     const showing = offerPin && pinAllowed();
@@ -291,7 +309,13 @@ function notice(text, { offerPin = false, ms = null } = {}) {
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => {
         if (state.mode === 'idle') {
-            setHint(defaultHint());
+            // Back to whichever idle this is. A failed scan does NOT disarm —
+            // somebody who tapped "Clock IN" and was not recognised wants to
+            // try again, not to tap it a second time — so the armed prompt has
+            // to come back rather than the generic one.
+            const intent = armedIntent();
+
+            setHint(intent ? `${ARM_LABELS[intent]} — look at the camera` : defaultHint());
             offer?.classList.add('hidden');
             setScan('idle');
         }
@@ -300,6 +324,76 @@ function notice(text, { offerPin = false, ms = null } = {}) {
 
 function defaultHint() {
     return 'Look at the camera to clock in';
+}
+
+/* ── Arming ───────────────────────────────────────────────────────────────
+ *
+ * "Say what you are doing, then be recognised" rather than "be recognised,
+ * then say what you are doing". The second order is one tap more per person
+ * and, worse, the tap comes AFTER the wait — so at a shift change the queue
+ * moves at the speed of people reading cards with their own names on.
+ *
+ * Armed, a recognised face is punched immediately. Unarmed, it gets the
+ * confirm card exactly as before, which is what keeps a kiosk in a doorway
+ * from recording everybody who walks past it.
+ */
+
+const ARM_LABELS = {
+    in:          'Clock IN',
+    out:         'Clock OUT',
+    break_start: 'Start break',
+    break_end:   'End break',
+};
+
+/** Whether the armed action is still good. Expiry is checked, never trusted. */
+function armedIntent() {
+    if (state.armed && Date.now() < state.armedUntil) {
+        return state.armed;
+    }
+
+    if (state.armed) {
+        disarm();
+    }
+
+    return null;
+}
+
+function arm(type) {
+    if (! ARM_LABELS[type]) return;
+
+    // Tapping the lit one again turns it off. Somebody who armed the wrong
+    // punch should not have to wait out the timer to undo it, and there is no
+    // other affordance on this screen for "never mind".
+    if (state.armed === type) {
+        disarm();
+
+        return;
+    }
+
+    state.armed      = type;
+    state.armedUntil = Date.now() + ARM_MS;
+
+    paintArmed();
+    setHint(`${ARM_LABELS[type]} — look at the camera`);
+    setText('kiosk-subhint', 'Recognised faces are recorded straight away.');
+}
+
+function disarm() {
+    state.armed      = null;
+    state.armedUntil = 0;
+
+    paintArmed();
+
+    if (state.mode === 'idle') {
+        setHint(defaultHint());
+        setText('kiosk-subhint', 'Tap what you are doing, then look at the camera.');
+    }
+}
+
+function paintArmed() {
+    document.querySelectorAll('[data-kiosk-arm]').forEach((node) => {
+        node.classList.toggle('kiosk-arm-on', node.dataset.kioskArm === state.armed);
+    });
 }
 
 /* ── Detection loop ───────────────────────────────────────────────────── */
@@ -441,6 +535,31 @@ async function identify() {
     syncPinAllowed(data);
 
     if (data.status === 'matched') {
+        // Recognised, and the one moment worth making a sound about — this is
+        // the only feedback that reaches somebody who is looking AT the camera
+        // rather than at the screen beside it.
+        beepSuccess();
+
+        const intent = armedIntent();
+
+        if (intent) {
+            /*
+             * Somebody already said what they were doing, so there is nothing
+             * left to ask. Straight to the punch, with the name on screen while
+             * it goes — the confirmation people actually read is the big green
+             * card at the end, not the card in the middle.
+             */
+            state.token = data.token || null;
+
+            setText('kiosk-name', firstName(data.employee?.name || ''));
+            setText('kiosk-full-name', data.employee?.name || '');
+            setScan('ok');
+
+            await punch(intent);
+
+            return;
+        }
+
         openConfirm(data);
 
         return;
@@ -496,15 +615,8 @@ function openConfirm(data) {
 
     setText('kiosk-name', firstName(name));
     setText('kiosk-full-name', name);
-    setText('kiosk-primary-label', data.next?.label || 'Clock in');
 
-    const breakButton = el('kiosk-break');
-
-    if (breakButton) {
-        const hasBreak = Boolean(data.next?.break);
-        breakButton.classList.toggle('hidden', ! hasBreak);
-        setText('kiosk-break-label', data.next?.break_label || '');
-    }
+    paintActions(data.options || [], data.next);
 
     show('confirm');
     // Recognised. The ring completes in green behind the name, which is the
@@ -517,6 +629,53 @@ function openConfirm(data) {
     confirmTimer = setTimeout(() => {
         if (state.mode === 'confirm') resetToIdle();
     }, CONFIRM_TIMEOUT_MS);
+}
+
+/**
+ * Draw the four punch buttons.
+ *
+ * The suggested one is filled and moved to the front, because the ordinary case
+ * has to stay a single tap on the obvious thing. The rest are outlined and the
+ * SAME SIZE — an override that is fiddlier to hit than the wrong answer is not
+ * an override, and the whole reason these exist is that the suggestion is
+ * sometimes wrong.
+ *
+ * Unavailable ones are shown dimmed rather than removed. A grid that changes
+ * shape between people is one staff have to re-read every time, and "End break"
+ * quietly missing is indistinguishable from a kiosk that has broken.
+ */
+function paintActions(options, next) {
+    const host = el('kiosk-actions');
+
+    if (! host) return;
+
+    // A server that sent nothing usable still has to leave a working screen,
+    // so fall back to the derived pair the old card used.
+    let rows = Array.isArray(options) && options.length ? options.slice() : [
+        { type: next?.type || 'in', label: next?.label || 'Clock IN', available: true, suggested: true },
+    ];
+
+    rows.sort((a, b) => (b.suggested === true) - (a.suggested === true));
+
+    host.textContent = '';
+
+    rows.forEach((row) => {
+        const button = document.createElement('button');
+
+        button.type = 'button';
+        button.dataset.kioskPunch = row.type;
+        button.disabled = row.available === false;
+        button.textContent = row.label;
+
+        button.className = row.suggested
+            ? 'min-h-[4.5rem] rounded-panel bg-brand-600 px-2 text-2xl font-bold text-white shadow-btn '
+              + 'hover:bg-brand-700 active:bg-brand-700'
+            : 'min-h-[4.5rem] rounded-panel border border-white/25 bg-gray-950/50 px-2 text-xl font-semibold '
+              + 'text-gray-100 hover:bg-gray-800 active:bg-gray-800 '
+              + 'disabled:opacity-35 disabled:hover:bg-gray-950/50';
+
+        host.appendChild(button);
+    });
 }
 
 /* ── PIN fallback ─────────────────────────────────────────────────────── */
@@ -626,7 +785,16 @@ async function punch(intent = 'shift') {
 
     const previous = state.mode;
     state.mode = 'busy';
-    setText('kiosk-primary-label', 'Recording…');
+
+    // Every action disabled and the pressed one renamed, so a second tap in
+    // the second before the server answers cannot become a second punch.
+    document.querySelectorAll('[data-kiosk-punch]').forEach((node) => {
+        node.disabled = true;
+
+        if (node.dataset.kioskPunch === intent) {
+            node.textContent = 'Recording…';
+        }
+    });
 
     let result;
 
@@ -683,6 +851,14 @@ function showResult(data) {
 
 function resetToIdle() {
     clearTimeout(confirmTimer);
+
+    // Disarmed after every punch, without exception. Twelve people clocking
+    // into the same shift is twelve taps, and that is the trade being made
+    // deliberately — the alternative is a screen left holding "Clock IN" for
+    // whoever walks past next, which is the failure this whole flow exists to
+    // avoid. The tap is also the cheap half: it can happen while the person in
+    // front is still being scanned.
+    disarm();
 
     state.token = null;
     state.selfie = null;
@@ -1089,14 +1265,21 @@ function bind() {
             return;
         }
 
-        if (target.closest('#kiosk-primary')) {
-            punch('shift');
+        const armButton = target.closest('[data-kiosk-arm]');
+
+        if (armButton) {
+            arm(armButton.dataset.kioskArm);
 
             return;
         }
 
-        if (target.closest('#kiosk-break')) {
-            punch('break');
+        const action = target.closest('[data-kiosk-punch]');
+
+        if (action) {
+            // The type the person chose. The server re-derives what it means
+            // against its own record either way — this says what was pressed,
+            // not what gets written.
+            punch(action.dataset.kioskPunch);
 
             return;
         }
@@ -1236,6 +1419,21 @@ function bind() {
     el('kiosk-enrol-input')?.addEventListener('input', (event) => {
         state.enrolCode = (event.target.value || '').toUpperCase();
         paintEnrolCode();
+    });
+
+    /*
+     * Audio needs a user gesture before it will make a sound, and a kiosk in a
+     * stand may go a while without one. Hooked to the FIRST touch or click of
+     * the session, whatever it was for — the context stays running for the life
+     * of the page after that, which on this screen is the whole shift.
+     *
+     * Consequence worth knowing: the very first scan after the tablet is set up
+     * is silent, because nothing has been touched yet. Every one after it is
+     * not. Capture phase, so it runs even where a handler below stops
+     * propagation.
+     */
+    ['pointerdown', 'touchstart', 'keydown'].forEach((event) => {
+        document.addEventListener(event, unlockSound, { once: true, capture: true, passive: true });
     });
 
     document.addEventListener('visibilitychange', revive);

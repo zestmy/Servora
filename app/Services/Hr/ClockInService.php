@@ -75,6 +75,7 @@ class ClockInService
         private ShiftResolver $shifts,
         private FaceMatcher $faces,
         private OwnDevicePolicy $ownDevice,
+        private PunchState $state,
     ) {
     }
 
@@ -119,10 +120,32 @@ class ClockInService
 
         $flags = [];
 
-        $shift    = $this->shifts->resolve($employee, $at, $type);
-        $workDate = $shift
-            ? Carbon::parse($shift['entry']->day_date->format('Y-m-d'))
-            : $at->copy()->startOfDay();
+        $shift = $this->shifts->resolve($employee, $at, $type);
+
+        /*
+         * THE DAY THIS PUNCH BELONGS TO, which is not always the day it
+         * happened on.
+         *
+         * A rostered punch takes its shift's date, as before. An unrostered one
+         * used to take today's, and that was wrong in the one case it mattered:
+         * a shift that crosses midnight. Somebody who clocked in at 9pm with no
+         * roster entry and clocked out at 2am produced an IN dated yesterday
+         * and an OUT dated today — two half-shifts, neither of which pairs up.
+         *
+         * Worse, it contradicted the screen they were standing at. PunchState
+         * reads a rolling day, so the kiosk correctly offered "Clock OUT"; this
+         * then looked for a clock-in on TODAY's date, found none, and flagged
+         * the punch "Clocked out without clocking in" — a punch the system
+         * itself had just proposed. So: when a shift is open, the punch closing
+         * it joins it.
+         */
+        $open = $type === ClockEvent::TYPE_IN ? null : $this->state->openPunch($employee);
+
+        $workDate = match (true) {
+            $shift !== null => Carbon::parse($shift['entry']->day_date->format('Y-m-d')),
+            $open !== null  => Carbon::parse($open->work_date->format('Y-m-d')),
+            default         => $at->copy()->startOfDay(),
+        };
 
         if (! $shift) {
             $flags[] = 'no_shift';
@@ -190,7 +213,12 @@ class ClockInService
                 $chargeable = 0;
                 $penalty    = 0.0;
             }
-        } elseif (! $this->countedPunches($employee, $workDate, ClockEvent::TYPE_IN)->first()) {
+        } elseif (! $open && ! $this->countedPunches($employee, $workDate, ClockEvent::TYPE_IN)->first()) {
+            // $open is asked FIRST and answers the actual question — "is there
+            // a clock-in this closes" — over a rolling day, the same window the
+            // screen used to decide what to offer. The work_date lookup stays
+            // behind it for the case a shift was resolved: a rostered punch
+            // belongs to its roster day whether or not the last 24 hours agree.
             $flags[] = 'no_open_punch';
         }
 

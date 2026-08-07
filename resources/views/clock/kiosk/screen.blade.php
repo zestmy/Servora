@@ -246,6 +246,20 @@
             .kiosk-stage, .kiosk-scrim-bottom, .kiosk-reticle { transition: none; }
         }
 
+        /* The armed action.
+
+           Filled rather than merely outlined-brighter, because this is a claim
+           about what the NEXT face to appear will be recorded as, and somebody
+           three people back in a queue has to be able to see which one is lit
+           from where they are standing. The ring under it goes brand-coloured
+           to match, so the two halves of the screen agree. */
+        .kiosk-arm-on {
+            background-color: #0d9488 !important;
+            border-color: #0d9488 !important;
+            color: #fff !important;
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.35);
+        }
+
         /* A recorded-but-flagged punch. Amber, not red: the punch WORKED and
            the person is clocked in. Red would read as failure and have them
            standing there tapping again. */
@@ -349,32 +363,81 @@
         {{-- ── State panels ──────────────────────────────────────────── --}}
         <section class="min-h-0 flex-1 overflow-hidden">
 
-            {{-- Idle --}}
-            <div id="kiosk-state-idle" class="h-full flex flex-col items-center justify-end gap-4 pb-2 text-center">
-                <div>
+            {{-- Idle.
+
+                 The four punches are on screen BEFORE anybody is recognised,
+                 and that is the whole shape of a shift change. Twelve people
+                 arriving at once all want the same thing; making each of them
+                 wait to be named, read a card and then tap it turns a queue
+                 into twelve conversations with a tablet.
+
+                 Tapping one ARMS it: the next face recognised is recorded as
+                 that punch and the screen goes straight to the confirmation.
+                 One tap and a look, per person, and the tap can happen while
+                 the person in front is still being scanned.
+
+                 It disarms after every punch and after twenty seconds of
+                 nothing, which is what keeps the old protection intact — a
+                 kiosk in a doorway sees the same people walk past all day, and
+                 an armed screen left armed would clock in whoever passed it
+                 next. Unarmed, a recognised face still gets the confirm card
+                 and still has to be told what to do, exactly as before. --}}
+            <div id="kiosk-state-idle"
+                 class="h-full flex flex-col justify-end gap-3 pb-1 text-center
+                        landscape:flex-row landscape:items-end landscape:text-left">
+                <div class="landscape:flex-1 landscape:min-w-0">
                     <p class="text-3xl font-semibold leading-snug drop-shadow-lg" id="kiosk-hint">Look at the camera to clock in</p>
-                    <p class="mt-2 text-base text-gray-300 drop-shadow">Stand about an arm's length away.</p>
+                    <p class="mt-2 text-base text-gray-300 drop-shadow" id="kiosk-subhint">
+                        Tap what you are doing, then look at the camera.
+                    </p>
+
+                    {{-- The fallback, and it starts HIDDEN.
+
+                         It used to be a permanent button on this screen,
+                         offered as an equal choice, and that was a mistake: a
+                         PIN is familiar and instant where a camera takes a
+                         second, so side by side the PIN wins every time — and a
+                         kiosk whose staff all clock in by PIN has bought
+                         nothing at all.
+
+                         kiosk.js reveals it only after a recognition has
+                         actually failed, and hides it again a few seconds
+                         later. So it is there for the person who needs it, at
+                         the moment they need it, and is not an option anybody
+                         browses to. --}}
+                    @if ($allowPin)
+                        <button type="button" data-kiosk-pin-open id="kiosk-pin-offer"
+                                class="hidden mt-3 min-h-[3.25rem] rounded-control border border-white/30
+                                       bg-gray-950/50 px-6 text-base font-semibold text-gray-100
+                                       hover:bg-gray-800 active:bg-gray-800">
+                            Use my PIN instead
+                        </button>
+                    @endif
                 </div>
 
-                {{-- The fallback, and it starts HIDDEN.
-
-                     It used to be a permanent button on this screen, offered
-                     as an equal choice, and that was a mistake: a PIN is
-                     familiar and instant where a camera takes a second, so
-                     side by side the PIN wins every time — and a kiosk whose
-                     staff all clock in by PIN has bought nothing at all.
-
-                     kiosk.js reveals it only after a recognition has actually
-                     failed, and hides it again a few seconds later. So it is
-                     there for the person who needs it, at the moment they need
-                     it, and is not an option anybody browses to. --}}
-                @if ($allowPin)
-                    <button type="button" data-kiosk-pin-open id="kiosk-pin-offer"
-                            class="hidden min-h-[3.5rem] rounded-control border border-gray-600 px-8 text-lg
-                                   font-semibold text-gray-200 hover:bg-gray-800 active:bg-gray-800">
-                        Use my PIN instead
-                    </button>
-                @endif
+                <div class="landscape:w-[26rem] landscape:shrink-0">
+                    <div class="grid grid-cols-2 gap-2.5">
+                        @foreach ([
+                            ['in',          'Clock IN'],
+                            ['out',         'Clock OUT'],
+                            ['break_start', 'Start break'],
+                            ['break_end',   'End break'],
+                        ] as [$type, $label])
+                            {{-- All four always enabled here, because this
+                                 screen does not know who is standing at it —
+                                 whether a break can be ended is a fact about a
+                                 person, and nobody has been named yet. The
+                                 server refuses the ones that do not apply, by
+                                 name: "You have no break running to end." --}}
+                            <button type="button" data-kiosk-arm="{{ $type }}"
+                                    class="kiosk-arm min-h-[4rem] rounded-panel border border-white/25 bg-gray-950/50
+                                           px-2 text-xl font-semibold text-gray-100
+                                           hover:bg-gray-800 active:bg-gray-800">
+                                {{ $label }}
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
             </div>
 
             {{-- Confirm.
@@ -393,25 +456,32 @@
                     <p class="mt-1 truncate text-base text-gray-300" id="kiosk-full-name"></p>
                 </div>
 
-                <div class="flex flex-col gap-3 landscape:w-[24rem] landscape:shrink-0">
-                    <button type="button" id="kiosk-primary"
-                            class="min-h-[5.5rem] w-full rounded-panel bg-brand-600 text-4xl font-bold
-                                   text-white shadow-btn hover:bg-brand-700 active:bg-brand-700">
-                        <span id="kiosk-primary-label">Clock IN</span>
-                    </button>
+                {{-- The four punches, named.
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <button type="button" id="kiosk-break"
-                                class="hidden min-h-[3.5rem] rounded-control border border-white/25 bg-gray-950/50
-                                       text-lg font-semibold text-gray-100 hover:bg-gray-800 active:bg-gray-800">
-                            <span id="kiosk-break-label">Start break</span>
-                        </button>
-                        <button type="button" data-kiosk-cancel
-                                class="col-start-2 min-h-[3.5rem] rounded-control border border-white/20 bg-gray-950/50
-                                       text-lg font-semibold text-gray-300 hover:bg-gray-800 active:bg-gray-800">
-                            Not me
-                        </button>
-                    </div>
+                     This was one big button whose label the server chose from
+                     the last day of punches, and when that guess was wrong
+                     there was nothing to do about it: somebody arriving for a
+                     shift was offered "Clock OUT" because of a punch from the
+                     night before, pressed the only button there was, and the
+                     record then said they had clocked out of a shift they had
+                     not started. The screen had decided something only the
+                     person standing at it could know.
+
+                     So all four are on screen and the person says which. The
+                     suggested one is filled and sits first, so the ordinary
+                     case is still one tap on a large target; the others are
+                     outlined but the same size, because an override that is
+                     harder to hit than the wrong answer is not an override.
+                     kiosk.js paints them from the options the server sent and
+                     disables the two that have nothing to attach to. --}}
+                <div class="flex flex-col gap-2.5 landscape:w-[26rem] landscape:shrink-0">
+                    <div id="kiosk-actions" class="grid grid-cols-2 gap-2.5"></div>
+
+                    <button type="button" data-kiosk-cancel
+                            class="min-h-[3.25rem] rounded-control border border-white/20 bg-gray-950/50
+                                   text-base font-semibold text-gray-300 hover:bg-gray-800 active:bg-gray-800">
+                        Not me
+                    </button>
                 </div>
             </div>
 

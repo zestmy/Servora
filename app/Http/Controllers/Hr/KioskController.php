@@ -528,6 +528,17 @@ class KioskController extends Controller
                     default                      => null,
                 },
             ],
+            /*
+             * All four, so the screen can offer the choice instead of making
+             * it. `next` above is kept because the staff phone app reads it,
+             * and the two agree — `suggested` here is the same answer.
+             *
+             * Sending the options is not the same as letting the tablet decide
+             * what gets recorded. Every one of them is re-derived from the
+             * record in punch(), against a token this server minted; the list
+             * is what the screen may OFFER, never what it may assert.
+             */
+            'options'  => $state->options($employee),
             'token' => $this->mintToken($employee, $device, $distance, FaceIdentifier::MATCHED),
         ];
     }
@@ -561,12 +572,28 @@ class KioskController extends Controller
             ], 422);
         }
 
-        $intent = $request->input('intent') === 'break' ? 'break' : 'shift';
+        /*
+         * What the person pressed.
+         *
+         * The four explicit types are the kiosk's buttons; 'shift' and 'break'
+         * are what the staff phone app still sends, and both are resolved by
+         * PunchState::typeFor(). Anything else falls back to 'shift', which is
+         * the derived answer — a request that names a type this server does
+         * not recognise gets the same treatment as one that names none.
+         */
+        $intent = in_array($request->input('intent'), [
+            ClockEvent::TYPE_IN, ClockEvent::TYPE_OUT,
+            ClockEvent::TYPE_BREAK_START, ClockEvent::TYPE_BREAK_END,
+            'break',
+        ], true) ? $request->input('intent') : 'shift';
 
         // Cooldown again, not only at identify. The token is short-lived but a
         // double tap fits comfortably inside it, and the consequence of one is
         // a clock-OUT thirty seconds into a shift.
-        if ($intent === 'shift') {
+        //
+        // Shift punches only, and now that the person names their own punch
+        // that means the two shift TYPES rather than the word "shift".
+        if (in_array($intent, [ClockEvent::TYPE_IN, ClockEvent::TYPE_OUT, 'shift'], true)) {
             $recent = $state->recentShiftPunch($employee, (int) $settings->kiosk_cooldown_minutes);
 
             if ($recent) {
@@ -583,9 +610,15 @@ class KioskController extends Controller
         $type = $state->typeFor($employee, $intent);
 
         if (! $type) {
+            // Only reachable for the two break punches with nothing to attach
+            // to, so the message can say which — "that is not something you can
+            // do right now" left somebody staring at a button they had just
+            // been shown.
             return response()->json([
                 'status'  => 'error',
-                'message' => 'That is not something you can do right now.',
+                'message' => $intent === ClockEvent::TYPE_BREAK_END
+                    ? 'You have no break running to end.'
+                    : 'Clock in first, then start your break.',
             ], 422);
         }
 

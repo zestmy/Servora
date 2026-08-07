@@ -20,6 +20,7 @@
  * puts it in front of a manager.
  */
 
+import { beepError, beepSuccess, unlockSound } from './beep.js';
 import { looksLikeFace } from './face-geometry.js';
 
 const MODEL_URL = document.querySelector('meta[name="face-models-url"]')?.content || '/face-models';
@@ -1155,10 +1156,16 @@ async function performPunch(wire, intent = 'shift') {
             paintRing(0);
 
             if (! face) {
+                beepError();
                 setStatus(captureProblem(screen.camera));
 
                 return;
             }
+
+            // A face was read. Said out loud for the same reason the kiosk does
+            // it: the person is looking at the camera, not at the status line
+            // underneath it, and a scan gives nothing to feel.
+            beepSuccess();
         }
 
         setStatus('Checking where you are…');
@@ -1343,6 +1350,16 @@ function appendCapture(result) {
 function boot() {
     // Proves to anyone reading the DOM that this module evaluated at all.
     document.documentElement.dataset.clockJs = 'ok';
+
+    /*
+     * Audio is blocked until the page has seen a gesture. On a phone that is
+     * not much of a constraint — the punch itself is a tap — but it has to be
+     * hooked before the tap rather than during it, and `once` means re-running
+     * boot() on a Livewire navigation costs nothing.
+     */
+    ['pointerdown', 'touchstart', 'keydown'].forEach((event) => {
+        document.addEventListener(event, unlockSound, { once: true, capture: true, passive: true });
+    });
 
     const found = findScreen();
 

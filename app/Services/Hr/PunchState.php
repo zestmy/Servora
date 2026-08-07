@@ -78,16 +78,79 @@ class PunchState
     /**
      * The punch a button press means.
      *
-     * The screen says which BUTTON was pressed — the shift one or the break
-     * one — and this decides what that means from the record. A stale tab
-     * offering "Clock in" to somebody who has already clocked in must not open
-     * a second shift.
+     * Two kinds of caller, and the difference is how much the screen knows.
+     *
+     *   'shift' / 'break' — the screen pressed A BUTTON and this works out
+     *      what it meant. The staff phone app does this: one primary control
+     *      whose label is derived, so a stale tab offering "Clock in" to
+     *      somebody already clocked in cannot open a second shift.
+     *
+     *   'in' / 'out' / 'break_start' / 'break_end' — THE PERSON SAID. Taken
+     *      at their word, and that is the point rather than a lapse. The
+     *      derived answer is a guess from a rolling day of punches, and when
+     *      it guesses wrong the person standing at the door is the one who
+     *      knows: a kiosk that decides you must be clocking out, because of
+     *      an hours-old punch you have already been paid for, cannot be
+     *      argued with. Nothing is skipped by saying so — a second clock-in
+     *      on one day is still flagged `duplicate`, a clock-out with nothing
+     *      open is still flagged `no_open_punch`, and both still reach a
+     *      manager. The difference is that the RECORD now says what the
+     *      person meant, which is the thing a manager needs in order to fix
+     *      it.
+     *
+     * A break_end with no break open, or a break_start before clocking in,
+     * still returns null: those are not a difference of opinion about the
+     * day, they are punches with nothing to attach to.
      */
     public function typeFor(Employee $employee, string $intent = 'shift'): ?string
     {
-        return $intent === 'break'
-            ? $this->nextBreakType($employee)
-            : $this->nextType($employee);
+        return match ($intent) {
+            'break' => $this->nextBreakType($employee),
+
+            ClockEvent::TYPE_IN, ClockEvent::TYPE_OUT => $intent,
+
+            ClockEvent::TYPE_BREAK_START => $this->openPunch($employee) && ! $this->onBreak($employee)
+                ? ClockEvent::TYPE_BREAK_START
+                : null,
+
+            ClockEvent::TYPE_BREAK_END => $this->onBreak($employee)
+                ? ClockEvent::TYPE_BREAK_END
+                : null,
+
+            default => $this->nextType($employee),
+        };
+    }
+
+    /**
+     * Every punch this person could make right now, for a screen that offers
+     * the choice rather than making it.
+     *
+     * `suggested` is what the record implies and is what the screen should put
+     * under the thumb; `available` is false for the two that genuinely have
+     * nothing to attach to, so they can be shown greyed rather than hidden —
+     * a button that vanishes is a button somebody hunts for.
+     *
+     * @return array<int, array{type: string, label: string, available: bool, suggested: bool}>
+     */
+    public function options(Employee $employee): array
+    {
+        $open       = $this->openPunch($employee) !== null;
+        $onBreak    = $this->onBreak($employee);
+        $suggested  = $onBreak ? ClockEvent::TYPE_BREAK_END : $this->nextType($employee);
+
+        $rows = [
+            [ClockEvent::TYPE_IN,          'Clock IN',    true],
+            [ClockEvent::TYPE_OUT,         'Clock OUT',   true],
+            [ClockEvent::TYPE_BREAK_START, 'Start break', $open && ! $onBreak],
+            [ClockEvent::TYPE_BREAK_END,   'End break',   $onBreak],
+        ];
+
+        return array_map(fn ($row) => [
+            'type'      => $row[0],
+            'label'     => $row[1],
+            'available' => $row[2],
+            'suggested' => $row[0] === $suggested,
+        ], $rows);
     }
 
     /**
