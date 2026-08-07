@@ -105,9 +105,14 @@
                 </p>
             @endif
 
-            @if ($lastEvent->flagLabels())
+            {{-- The reviewable reasons only, which also fixes what this block
+                 claimed: it appeared for ANY flag, so a punch whose only note
+                 was "Late" — already settled, already deducted, nothing for
+                 anybody to decide — told the employee their manager would be
+                 reviewing it. --}}
+            @if ($lastEvent->reviewFlagLabels())
                 <ul class="mt-2 space-y-0.5 text-sm text-amber-900">
-                    @foreach ($lastEvent->flagLabels() as $label)
+                    @foreach ($lastEvent->reviewFlagLabels() as $label)
                         <li>• {{ $label }}</li>
                     @endforeach
                 </ul>
@@ -441,9 +446,9 @@
                     @endif
                 @endif
 
-                @if ($lastEvent->flagLabels())
+                @if ($lastEvent->reviewFlagLabels())
                     <ul class="mt-3 space-y-0.5 text-sm {{ $skin['ink'] }}">
-                        @foreach ($lastEvent->flagLabels() as $label)
+                        @foreach ($lastEvent->reviewFlagLabels() as $label)
                             <li>• {{ $label }}</li>
                         @endforeach
                     </ul>

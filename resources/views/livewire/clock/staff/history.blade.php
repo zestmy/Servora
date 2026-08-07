@@ -82,7 +82,12 @@
                             </p>
                         @elseif ($event->needsReview())
                             <p class="mt-0.5 text-xs text-amber-700">
-                                Waiting for your manager{{ $event->flagLabels() ? ': ' . implode(', ', $event->flagLabels()) : '' }}
+                                {{-- Only the reasons a manager is actually
+                                     being asked about. "No rostered shift"
+                                     never sent a punch here and is usually
+                                     nobody's fault, but listed alongside the
+                                     real reason it reads as a second charge. --}}
+                                Waiting for your manager{{ $event->reviewFlagLabels() ? ': ' . implode(', ', $event->reviewFlagLabels()) : '' }}
                             </p>
                         @endif
                     </div>

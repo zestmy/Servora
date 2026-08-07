@@ -91,6 +91,32 @@ class ClockEvent extends Model
         'kiosk_down'         => 'Kiosk was offline',
     ];
 
+    /**
+     * Flags that are a RECORD of what happened rather than a problem to be
+     * reviewed. Anything else means a check could not be satisfied and a human
+     * has to look.
+     *
+     *   late     — the deduction is the consequence, and a manager who wants
+     *              to waive it can still find the punch.
+     *   no_shift — plenty of real punches have no roster entry: casual cover,
+     *              someone called in, a roster not built yet. It is still
+     *              recorded and still visible, but sending every one of them
+     *              to the review queue buried the punches that genuinely could
+     *              not be verified.
+     *   kiosk_down — the reason a phone punch was fine, not a problem with it.
+     *              A dead kiosk is worth surfacing on the DEVICES screen where
+     *              somebody can go and plug it in; here it would flag every
+     *              punch at the outlet for a fault none of those people caused.
+     *
+     * Lives on the model rather than in ClockInService because two things need
+     * it and they must not drift: the service decides STATUS from it, and the
+     * staff app explains that status from it. They disagreed — a punch flagged
+     * only for being a duplicate told the employee "No rostered shift, Already
+     * clocked in", listing a reason that had nothing to do with why a manager
+     * was being asked.
+     */
+    public const NON_REVIEWABLE_FLAGS = ['late', 'no_shift', 'kiosk_down'];
+
     protected $fillable = [
         'company_id', 'outlet_id', 'employee_id', 'roster_entry_id', 'type',
         'source', 'clock_device_id',
@@ -292,6 +318,27 @@ class ClockEvent extends Model
     public function flagLabels(): array
     {
         return collect($this->flags ?? [])
+            ->map(fn ($f) => self::FLAG_LABELS[$f] ?? null)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Only the reasons a manager is actually being asked about.
+     *
+     * For the employee's own screen. A manager wants everything — "late" and
+     * "no rostered shift" are context worth having in front of you while you
+     * decide — but to the person waiting on that decision they read as
+     * accusations, and they are the two that are usually nobody's fault. A
+     * punch held up purely for being a duplicate should say so and stop there.
+     *
+     * @return array<int, string>
+     */
+    public function reviewFlagLabels(): array
+    {
+        return collect($this->flags ?? [])
+            ->reject(fn ($f) => in_array($f, self::NON_REVIEWABLE_FLAGS, true))
             ->map(fn ($f) => self::FLAG_LABELS[$f] ?? null)
             ->filter()
             ->values()

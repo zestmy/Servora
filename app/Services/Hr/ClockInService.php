@@ -230,23 +230,10 @@ class ClockInService
 
         $selfiePath = $this->storeSelfie($employee, $input['selfie'] ?? null);
 
-        // Flags that are a RECORD of what happened rather than a problem to be
-        // reviewed. Anything else means a check could not be satisfied and a
-        // human has to look.
-        //
-        //   late     — the deduction is the consequence, and a manager who
-        //              wants to waive it can still find the punch.
-        //   no_shift — plenty of real punches have no roster entry: casual
-        //              cover, someone called in, a roster not built yet. It is
-        //              still recorded on the punch and still visible, but
-        //              sending every one of them to the review queue buried
-        //              the punches that genuinely could not be verified.
-        //   kiosk_down — the reason a phone punch was fine, not a problem with
-        //              it. The kiosk being dead is worth surfacing on the
-        //              DEVICES screen, where somebody can go and plug it in;
-        //              putting it here would flag every punch at the outlet
-        //              for a fault none of those people caused.
-        $reviewable = array_values(array_diff($flags, ['late', 'no_shift', 'kiosk_down']));
+        // Which flags actually send a punch to a human. The list is on the
+        // model, because the staff app explains this decision using the same
+        // one — see ClockEvent::NON_REVIEWABLE_FLAGS for what is on it and why.
+        $reviewable = array_values(array_diff($flags, ClockEvent::NON_REVIEWABLE_FLAGS));
 
         $event = ClockEvent::create([
             'company_id'      => $employee->company_id,
