@@ -743,6 +743,7 @@ function openPin(shortlist = []) {
     filterPinList('');
     paintPinStep();
     show('pin');
+    armPinTimeout();
 
     return true;
 }
@@ -761,6 +762,29 @@ function filterPinList(term) {
 }
 
 /** Which half of the fallback is showing: pick a name, or key the PIN. */
+/**
+ * A PIN screen nobody is using goes back to the camera.
+ *
+ * Two reasons, and the second is the one that matters. It is a dead kiosk —
+ * the next person to walk up gets a staff list where the camera should be, and
+ * either waits or hunts for the way out. And it is a list of everybody who
+ * works here, left on a screen on a public counter, which is not something to
+ * leave up because somebody wandered off mid-PIN.
+ *
+ * Generous, because it has to survive somebody reading thirty names.
+ */
+const PIN_IDLE_MS = 45000;
+
+let pinTimer = null;
+
+function armPinTimeout() {
+    clearTimeout(pinTimer);
+
+    pinTimer = setTimeout(() => {
+        if (state.mode === 'pin') resetToIdle();
+    }, PIN_IDLE_MS);
+}
+
 function paintPinStep() {
     const picking = ! state.pinEmployee;
 
@@ -863,6 +887,7 @@ function showResult(data) {
 
 function resetToIdle() {
     clearTimeout(confirmTimer);
+    clearTimeout(pinTimer);
 
     // Disarmed after every punch, without exception. Twelve people clocking
     // into the same shift is twelve taps, and that is the trade being made
@@ -1265,6 +1290,10 @@ function bind() {
         // The gesture Safari wants before it will play a stream it paused.
         state.camera?.resume();
 
+        // Anybody still tapping is still using it, so the PIN screen's own
+        // timeout restarts rather than firing under somebody mid-PIN.
+        if (state.mode === 'pin') armPinTimeout();
+
         const target = event.target;
 
         if (target.closest('#kiosk-camera-overlay')) {
@@ -1405,6 +1434,15 @@ function bind() {
             return;
         }
 
+        // Straight out, from either step. The other control below only steps
+        // back one, which is the right thing for "wrong person" and the wrong
+        // thing for "I did not mean to open this".
+        if (target.closest('[data-kiosk-pin-exit]')) {
+            resetToIdle();
+
+            return;
+        }
+
         if (target.closest('[data-kiosk-pin-cancel]')) {
             if (state.pinEmployee) {
                 state.pinEmployee = null;
@@ -1418,6 +1456,7 @@ function bind() {
 
     el('kiosk-pin-search')?.addEventListener('input', (event) => {
         filterPinList(event.target.value || '');
+        armPinTimeout();
     });
 
     el('kiosk-enrol-search')?.addEventListener('input', paintEnrolRoster);

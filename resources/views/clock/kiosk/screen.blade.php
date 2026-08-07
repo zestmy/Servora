@@ -105,7 +105,6 @@
             background: linear-gradient(to top,
                 rgba(3, 7, 18, 0.96) 42%, rgba(3, 7, 18, 0.72) 68%, rgba(3, 7, 18, 0));
             pointer-events: none;
-            transition: top 180ms ease;
         }
 
         .kiosk-header {
@@ -117,12 +116,29 @@
            Everything the screen says, anchored to the bottom edge. Given a
            definite top rather than a max-height, so the panels inside can be
            flex columns with their own scrollers and actually resolve. */
+        /*
+           NO TRANSITION ON `top`, and this is a correctness fix rather than a
+           taste one.
+
+           It animated 44% → 0 when a form took the screen, and that transition
+           never completed: `top` was left sitting at the 44% start value while
+           every other declaration in the same rule applied. The consequence was
+           not a missing animation — the PIN and enrolment panels never got the
+           full height they are laid out for, so their content overflowed the
+           bottom of the screen and the LAST thing in each panel fell off it.
+           The last thing in the PIN panel is the button that gets you out of
+           the PIN panel.
+
+           Percentage-to-length transitions on a positioned offset are fragile
+           in exactly this way, and the 180ms bought nothing worth a screen you
+           cannot leave. The stage snapping between modes is right anyway: this
+           is a mode change on a counter tablet, not a reveal.
+        */
         .kiosk-stage {
             position: absolute; left: 0; right: 0; bottom: 0; top: 44%;
             z-index: 2;
             display: flex; flex-direction: column; min-height: 0;
             padding: 0 clamp(1rem, 3vw, 2.5rem) calc(0.75rem + env(safe-area-inset-bottom, 0px));
-            transition: top 180ms ease;
         }
 
         /* A portrait tablet is somebody holding it, and holding it puts the
@@ -243,7 +259,7 @@
            animates continuously in front of people all day. */
         @media (prefers-reduced-motion: reduce) {
             .kiosk-bracket, .kiosk-ring-value { animation: none !important; }
-            .kiosk-stage, .kiosk-scrim-bottom, .kiosk-reticle { transition: none; }
+            .kiosk-reticle { transition: none; }
         }
 
         /* The armed action.
@@ -528,10 +544,16 @@
                         @endforelse
                     </div>
 
-                    <button type="button" data-kiosk-pin-cancel
-                            class="shrink-0 mt-3 min-h-[3.25rem] rounded-control border border-gray-700
-                                   text-base font-semibold text-gray-400 hover:bg-gray-800">
-                        Back
+                    {{-- Says where it goes, not which direction it is. "Back"
+                         on the first step of a two-step flow is ambiguous —
+                         back to what? — and this is the control somebody
+                         reaches for when they have opened the PIN list by
+                         mistake and want the camera again. --}}
+                    <button type="button" data-kiosk-pin-exit
+                            class="shrink-0 mt-3 min-h-[3.5rem] rounded-control border border-white/25
+                                   bg-gray-950/50 text-base font-semibold text-gray-100
+                                   hover:bg-gray-800 active:bg-gray-800">
+                        Cancel — back to the camera
                     </button>
                 </div>
 
@@ -560,10 +582,32 @@
                                        text-white shadow-btn hover:bg-brand-700 active:bg-brand-700">OK</button>
                     </div>
 
-                    <button type="button" data-kiosk-pin-cancel
-                            class="min-h-[3rem] px-6 text-base font-semibold text-gray-400 hover:text-gray-200">
-                        Not you?
-                    </button>
+                    {{-- TWO exits, and they are different exits.
+
+                         There was one — "Not you?", set as bare grey text with
+                         no border and no fill, at the bottom of a dark screen.
+                         It did not look like a control, and it only stepped
+                         back to the staff list, so the way out of the PIN
+                         screen was two low-contrast discoveries in a row.
+                         Somebody who opened this by accident, or keyed a wrong
+                         PIN and gave up, had no visible way back to the camera
+                         at all.
+
+                         So: one to change who this is, one to leave. Both look
+                         like buttons, both are 44px-plus, and the second says
+                         where it goes. --}}
+                    <div class="grid w-full max-w-xs grid-cols-2 gap-2">
+                        <button type="button" data-kiosk-pin-cancel
+                                class="min-h-[3.25rem] rounded-control border border-white/25 bg-gray-950/50
+                                       text-sm font-semibold text-gray-100 hover:bg-gray-800 active:bg-gray-800">
+                            Not you?
+                        </button>
+                        <button type="button" data-kiosk-pin-exit
+                                class="min-h-[3.25rem] rounded-control border border-white/25 bg-gray-950/50
+                                       text-sm font-semibold text-gray-100 hover:bg-gray-800 active:bg-gray-800">
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
             @endif
