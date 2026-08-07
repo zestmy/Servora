@@ -51,6 +51,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'staff/kiosk/identify',
             'staff/kiosk/punch',
             'staff/kiosk/ping',
+            'staff/kiosk/enrol/start',
+            'staff/kiosk/enrol/stop',
+            'staff/kiosk/enrol/capture',
         ]);
 
         // Force all non-LMS traffic to the main domain (must run early)

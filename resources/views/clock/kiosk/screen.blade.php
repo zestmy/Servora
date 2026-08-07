@@ -76,6 +76,12 @@
           punch outright when this is off — see KioskController::fromPin() —
           so this only stops the screen offering a door that is already shut. --}}
      data-allow-pin="{{ $allowPin ? '1' : '0' }}"
+     data-enrol-start="{{ route('clock.kiosk.enrol.start') }}"
+     data-enrol-stop="{{ route('clock.kiosk.enrol.stop') }}"
+     data-enrol-capture="{{ route('clock.kiosk.enrol.capture') }}"
+     {{-- Whether a manager already opened the window before this page loaded,
+          so a reload mid-session does not drop back to the punch screen. --}}
+     data-enrolling="{{ $device->enrolmentOpen() ? '1' : '0' }}"
      {{-- A copy of the device token, handed to the page deliberately so its
           scripts can send it as a header. The cookie itself stays httpOnly and
           unreadable, and the JSON endpoints accept ONLY the header — which is
@@ -88,9 +94,19 @@
                           width="max-w-[90px]" :alt="$brandName" />
             <p class="text-sm font-semibold truncate">{{ $outlet?->name }}</p>
         </div>
-        {{-- gray-400 reads at 6.99:1 on this surface, where it is the correct
-             muted step. The same class on a white card would fail AA. --}}
-        <p class="text-xs text-gray-400 truncate">{{ $device->name }}</p>
+        <div class="flex items-center gap-3 shrink-0">
+            {{-- gray-400 reads at 6.99:1 on this surface, where it is the
+                 correct muted step. On a white card it would fail AA. --}}
+            <p class="text-xs text-gray-400 truncate">{{ $device->name }}</p>
+            {{-- Deliberately plain and unlabelled-looking. It leads to a code
+                 prompt, not to enrolment, so it is not worth making prominent
+                 on a screen staff use forty times a day. --}}
+            <button type="button" data-kiosk-enrol-open
+                    class="min-h-[2.75rem] rounded-control border border-gray-700 px-3 text-xs
+                           font-medium text-gray-400 hover:bg-gray-800 active:bg-gray-800">
+                Enrol faces
+            </button>
+        </div>
     </header>
 
     <main class="flex-1 min-h-0 grid gap-4 p-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
@@ -243,6 +259,91 @@
                 </div>
             </div>
             @endif
+
+            {{-- ── Enrolment: the code ────────────────────────────────── --}}
+            <div id="kiosk-state-enrolcode" class="hidden h-full flex flex-col items-center justify-center gap-4 px-4 text-center">
+                <div>
+                    <p class="text-2xl font-semibold">Enrolment code</p>
+                    <p class="mt-2 text-sm text-gray-400">
+                        A manager issues this from HR &rsaquo; Clock kiosks &rsaquo; Enrol faces.
+                    </p>
+                </div>
+
+                <p id="kiosk-enrol-dots" class="text-4xl font-mono tracking-[0.4em] text-brand-300">······</p>
+                <p id="kiosk-enrol-error" class="min-h-[1.25rem] text-sm text-danger-300"></p>
+
+                <div class="grid grid-cols-3 gap-2 w-full max-w-xs">
+                    @foreach (['A','B','C','D','E','F','G','H','J'] as $ch)
+                        <button type="button" data-kiosk-enrol-key="{{ $ch }}"
+                                class="min-h-[3rem] rounded-control bg-gray-800 text-lg font-semibold text-white hover:bg-gray-700">{{ $ch }}</button>
+                    @endforeach
+                </div>
+
+                {{-- A full keyboard rather than the 9 shortcuts above: the code
+                     alphabet is 31 characters, so the grid is a convenience and
+                     this is the thing that actually works. --}}
+                <input id="kiosk-enrol-input" type="text" inputmode="latin" autocomplete="off"
+                       autocapitalize="characters" spellcheck="false" maxlength="12"
+                       placeholder="Type the code"
+                       class="w-full max-w-xs rounded-control border border-gray-600 bg-gray-800 px-4 py-3
+                              text-center text-2xl font-semibold uppercase tracking-[0.3em] text-white
+                              placeholder:text-sm placeholder:tracking-normal placeholder:text-gray-500">
+
+                <div class="grid grid-cols-2 gap-3 w-full max-w-xs">
+                    <button type="button" data-kiosk-enrol-cancel
+                            class="min-h-[3.25rem] rounded-control border border-gray-700 text-base font-semibold text-gray-400 hover:bg-gray-800">
+                        Cancel
+                    </button>
+                    <button type="button" data-kiosk-enrol-submit
+                            class="min-h-[3.25rem] rounded-control bg-brand-600 text-base font-bold text-white shadow-btn hover:bg-brand-700">
+                        Start
+                    </button>
+                </div>
+            </div>
+
+            {{-- ── Enrolment: pick a person, then scan ────────────────── --}}
+            <div id="kiosk-state-enrol" class="hidden h-full flex flex-col min-h-0">
+                <div class="shrink-0 flex items-center justify-between gap-2 pb-2">
+                    <p class="text-sm font-semibold">
+                        Enrolling <span class="text-gray-400" id="kiosk-enrol-left"></span>
+                    </p>
+                    <button type="button" data-kiosk-enrol-finish
+                            class="min-h-[2.75rem] rounded-control border border-gray-600 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800">
+                        Finish
+                    </button>
+                </div>
+
+                {{-- Who to enrol. The capture count is on every row because
+                     "have I done this person yet" is the question a manager
+                     working through a roster asks constantly. --}}
+                <div id="kiosk-enrol-picker" class="flex-1 min-h-0 flex flex-col">
+                    <input id="kiosk-enrol-search" type="search" inputmode="search" autocomplete="off"
+                           placeholder="Type a name to search"
+                           class="shrink-0 w-full rounded-control border border-gray-600 bg-gray-800 px-4 py-3
+                                  text-lg text-white placeholder:text-gray-500">
+                    <div id="kiosk-enrol-list" class="mt-3 flex-1 min-h-0 overflow-y-auto flex flex-wrap gap-2 content-start"></div>
+                </div>
+
+                {{-- The scan itself. Reuses the same five-pose ceremony as the
+                     HR enrolment screen, so a face captured here is measured
+                     exactly the way one captured there is. --}}
+                <div id="kiosk-enrol-scan" class="hidden flex-1 min-h-0 flex flex-col items-center justify-center gap-4 text-center">
+                    <p class="text-3xl font-bold" id="kiosk-enrol-who"></p>
+                    <p class="text-xl text-brand-300 min-h-[1.75rem]" id="kiosk-enrol-pose"></p>
+                    <p class="text-base text-gray-400 min-h-[1.5rem]" id="kiosk-enrol-progress"></p>
+
+                    <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
+                        <button type="button" data-kiosk-enrol-back
+                                class="min-h-[3.5rem] rounded-control border border-gray-700 text-base font-semibold text-gray-400 hover:bg-gray-800">
+                            Back to list
+                        </button>
+                        <button type="button" data-kiosk-enrol-scan
+                                class="min-h-[3.5rem] rounded-control bg-brand-600 text-base font-bold text-white shadow-btn hover:bg-brand-700">
+                            Start scan
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {{-- Result --}}
             <div id="kiosk-state-result" class="hidden h-full flex items-center justify-center px-2">

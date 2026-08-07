@@ -26,18 +26,37 @@
         <div class="panel mb-6 border-brand-200 bg-brand-50 p-5">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-brand-700">Pairing code</p>
-                    <p class="mt-2 font-mono text-4xl font-bold tracking-[0.3em] text-brand-800">{{ $issuedCode }}</p>
-                    <p class="help mt-3 max-w-xl">
-                        On the tablet, open
-                        @if ($pairUrl)
-                            <span class="font-semibold text-gray-900">{{ $pairUrl }}</span>
-                        @else
-                            the Staff Portal address followed by <span class="font-semibold">/kiosk/pair</span>
-                        @endif
-                        and key this in. It expires in {{ ClockDevice::PAIRING_TTL_MINUTES }} minutes,
-                        and it can only be used once.
+                    <p class="text-xs font-semibold uppercase tracking-wide text-brand-700">
+                        {{ $codeIsEnrol ? 'Enrolment code' : 'Pairing code' }}
                     </p>
+                    <p class="mt-2 font-mono text-4xl font-bold tracking-[0.3em] text-brand-800">{{ $issuedCode }}</p>
+
+                    @if ($codeIsEnrol)
+                        <p class="help mt-3 max-w-xl">
+                            On the kiosk, tap <strong>Enrol faces</strong> and key this in. It opens
+                            enrolment for {{ ClockDevice::ENROL_WINDOW_MINUTES }} minutes and then
+                            <strong>closes by itself</strong> — you do not have to remember to switch it off.
+                            The code expires in {{ ClockDevice::PAIRING_TTL_MINUTES }} minutes and works once.
+                        </p>
+                        {{-- Enrolment is what every later punch is matched
+                             against, so who is holding the tablet matters more
+                             here than anywhere else in the feature. --}}
+                        <p class="mt-2 max-w-xl text-xs text-warning-800">
+                            Whoever holds the tablet during this window decides whose face is recorded
+                            against which name. Stay with it.
+                        </p>
+                    @else
+                        <p class="help mt-3 max-w-xl">
+                            On the tablet, open
+                            @if ($pairUrl)
+                                <span class="font-semibold text-gray-900">{{ $pairUrl }}</span>
+                            @else
+                                the Staff Portal address followed by <span class="font-semibold">/kiosk/pair</span>
+                            @endif
+                            and key this in. It expires in {{ ClockDevice::PAIRING_TTL_MINUTES }} minutes,
+                            and it can only be used once.
+                        </p>
+                    @endif
                 </div>
                 <button type="button" wire:click="dismissCode" class="btn-ghost">Done</button>
             </div>
@@ -148,6 +167,19 @@
                                 <td class="px-3 py-2 text-right whitespace-nowrap">
                                     @can('hr.clock.manage')
                                         @unless ($device->isRevoked())
+                                            {{-- Only for a paired device: there is nothing to
+                                                 enrol on a tablet that has not been set up. --}}
+                                            @if ($device->isPaired())
+                                                @if ($device->enrolmentOpen())
+                                                    <button type="button" wire:click="endEnrolment({{ $device->id }})"
+                                                            class="btn-ghost px-2 py-1 text-xs text-warning-700">
+                                                        Enrolling ({{ $device->enrolmentMinutesLeft() }}m) — close
+                                                    </button>
+                                                @else
+                                                    <button type="button" wire:click="enrolCode({{ $device->id }})"
+                                                            class="btn-ghost px-2 py-1 text-xs text-brand-700">Enrol faces</button>
+                                                @endif
+                                            @endif
                                             <button type="button" wire:click="startRename({{ $device->id }})"
                                                     class="btn-ghost px-2 py-1 text-xs">Rename</button>
                                             <button type="button" wire:click="reissue({{ $device->id }})"

@@ -38,6 +38,10 @@ class ClockDevices extends Component
     #[Locked]
     public string $issuedCode = '';
 
+    /** Whether $issuedCode opens enrolment or pairs the device. */
+    #[Locked]
+    public bool $codeIsEnrol = false;
+
     #[Locked]
     public ?int $renamingId = null;
 
@@ -118,6 +122,46 @@ class ClockDevices extends Component
     {
         $this->issuedCode   = '';
         $this->codeDeviceId = null;
+        $this->codeIsEnrol  = false;
+    }
+
+    /**
+     * Authorise face enrolment on a kiosk.
+     *
+     * Its own code, separate from pairing, because they grant different
+     * things: pairing decides which outlet a device speaks for, enrolment
+     * decides whose face it will believe. A manager handing over one should
+     * not be handing over the other.
+     */
+    public function enrolCode(int $id, ClockDeviceService $devices): void
+    {
+        $this->authorizeManage();
+
+        $device = $this->find($id);
+
+        if (! $device || $device->isRevoked() || ! $device->isPaired()) {
+            return;
+        }
+
+        $this->issuedCode   = $devices->issueEnrolCode($device, Auth::user());
+        $this->codeDeviceId = $device->id;
+        $this->codeIsEnrol  = true;
+    }
+
+    /** Shut an open enrolment window from the office. */
+    public function endEnrolment(int $id, ClockDeviceService $devices): void
+    {
+        $this->authorizeManage();
+
+        $device = $this->find($id);
+
+        if (! $device) {
+            return;
+        }
+
+        $devices->stopEnrolment($device);
+
+        session()->flash('success', 'Enrolment closed on ' . $device->name . '.');
     }
 
     public function startRename(int $id): void

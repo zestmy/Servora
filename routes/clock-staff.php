@@ -81,6 +81,17 @@ $group->group(function () {
         Route::post('/kiosk/identify', [KioskController::class, 'identify'])->name('clock.kiosk.identify');
         Route::post('/kiosk/punch', [KioskController::class, 'punch'])->name('clock.kiosk.punch');
         Route::post('/kiosk/ping', [KioskController::class, 'ping'])->name('clock.kiosk.ping');
+
+        /*
+         * Enrolment. Same header authentication as the rest, plus a window on
+         * the device that a manager opened with a code — see
+         * ClockDeviceService::startEnrolment(). The capture route re-checks
+         * that window on every call rather than trusting the one that opened
+         * it, because this is what writes the root of trust.
+         */
+        Route::post('/kiosk/enrol/start', [KioskController::class, 'enrolStart'])->name('clock.kiosk.enrol.start');
+        Route::post('/kiosk/enrol/stop', [KioskController::class, 'enrolStop'])->name('clock.kiosk.enrol.stop');
+        Route::post('/kiosk/enrol/capture', [KioskController::class, 'enrolCapture'])->name('clock.kiosk.enrol.capture');
     });
 
     Route::middleware('clock.staff')->group(function () {

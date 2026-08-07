@@ -9,6 +9,7 @@ use App\Models\ClockEvent;
 use App\Models\ClockSetting;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\EmployeeFaceDescriptor;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\ClockDeviceService;
 use App\Services\Hr\ClockInException;
@@ -62,6 +63,15 @@ class KioskController extends Controller
 
     /** Identify calls allowed per device per minute. */
     private const IDENTIFY_PER_MINUTE = 120;
+
+    /**
+     * Captures per person. Mirrors FaceEnrolmentController deliberately — the
+     * two screens enrol into the same table and must not disagree on what
+     * "enough" means, or somebody enrolled on the tablet would read as
+     * incomplete on the HR screen.
+     */
+    private const MIN_CAPTURES = 3;
+    private const MAX_CAPTURES = 8;
 
     public function __construct(
         private ClockDeviceService $devices,
@@ -177,6 +187,203 @@ class KioskController extends Controller
         // route exists so that an idle kiosk still counts as online, and it
         // deliberately does nothing else.
         return response()->json(['ok' => true]);
+    }
+
+    /* ── Enrolment ───────────────────────────────────────────────────── */
+
+    /**
+     * Open the enrolment window with the code a manager read out.
+     *
+     * Throttled per device: the code is six characters, and this endpoint is
+     * the one that decides whose face the kiosk will believe from now on.
+     */
+    public function enrolStart(Request $request): JsonResponse
+    {
+        $device = $this->device();
+        $key    = 'kiosk-enrol:' . $device->id;
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Too many attempts. Wait ' . RateLimiter::availableIn($key) . ' seconds.',
+            ], 429);
+        }
+
+        if (! $this->devices->startEnrolment($device, (string) $request->input('code'))) {
+            RateLimiter::hit($key, 300);
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'That code is not valid, or it has expired. Ask for a new one.',
+            ], 422);
+        }
+
+        RateLimiter::clear($key);
+
+        return response()->json([
+            'status'       => 'ok',
+            'minutes_left' => $device->fresh()->enrolmentMinutesLeft(),
+            'employees'    => $this->enrolmentRoster($device),
+        ]);
+    }
+
+    public function enrolStop(): JsonResponse
+    {
+        $this->devices->stopEnrolment($this->device());
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Record one capture against a member of staff.
+     *
+     * The window is re-checked HERE on every capture, not once when it opened.
+     * A time box read only at the start is not a time box — this is the call
+     * that writes to the root of trust, so it is the call that has to be sure.
+     */
+    public function enrolCapture(Request $request, FaceIdentifier $identifier): JsonResponse
+    {
+        $device = $this->device();
+
+        if (! $device->enrolmentOpen()) {
+            return response()->json([
+                'status'  => 'closed',
+                'message' => 'The enrolment window has closed. Ask a manager for a new code.',
+            ], 403);
+        }
+
+        $employee = $this->employeeAtOutlet((int) $request->input('employee_id'), $device);
+
+        if (! $employee) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'That person is not at this outlet.',
+            ], 404);
+        }
+
+        $descriptor = $request->input('descriptor');
+
+        if (! EmployeeFaceDescriptor::isValidDescriptor($descriptor)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'That capture could not be read. Fill more of the frame and try again.',
+            ], 422);
+        }
+
+        $existing = EmployeeFaceDescriptor::withoutGlobalScope(CompanyScope::class)
+            ->where('employee_id', $employee->id)
+            ->where('model_version', EmployeeFaceDescriptor::MODEL_VERSION)
+            ->count();
+
+        if ($existing >= self::MAX_CAPTURES) {
+            return response()->json([
+                'status'  => 'full',
+                'message' => 'Already ' . self::MAX_CAPTURES . ' captures on file — plenty.',
+                'count'   => $existing,
+            ], 422);
+        }
+
+        /*
+         * Refuse a face that already belongs to SOMEBODY ELSE at this outlet.
+         *
+         * The one check that makes unattended-ish enrolment defensible. Without
+         * it the whole system can be defeated once, quietly, in advance:
+         * enrol your own face against a colleague's name and every punch
+         * afterwards is genuinely, verifiably that face. A manager holding the
+         * tablet is watching the person, not the screen, and would not catch
+         * the wrong name being selected.
+         *
+         * Uses the company's own kiosk threshold, so it is exactly as strict
+         * as the matching that will happen at the door.
+         */
+        $match = $identifier->identify(
+            $device->company_id, $device->outlet_id, $descriptor,
+            ClockSetting::forCompany($device->company_id)
+        );
+
+        if ($match['status'] === FaceIdentifier::MATCHED
+            && (int) $match['employee']->id !== (int) $employee->id) {
+            return response()->json([
+                'status'  => 'conflict',
+                'message' => sprintf(
+                    'That face is already enrolled as %s. Check you have the right person selected.',
+                    $match['employee']->name
+                ),
+            ], 422);
+        }
+
+        $capture = EmployeeFaceDescriptor::withoutGlobalScope(CompanyScope::class)->create([
+            'company_id'    => $employee->company_id,
+            'employee_id'   => $employee->id,
+            'descriptor'    => array_map('floatval', $descriptor),
+            'model_version' => EmployeeFaceDescriptor::MODEL_VERSION,
+            'photo_path'    => $this->storeEnrolPhoto($employee, $request->input('photo')),
+            // Nobody is signed in on a kiosk, so the capture is attributed to
+            // the manager who authorised the window.
+            'enrolled_by'   => $device->enrol_by,
+        ]);
+
+        return response()->json([
+            'status'       => 'ok',
+            'id'           => $capture->id,
+            'count'        => $existing + 1,
+            'enough'       => ($existing + 1) >= self::MIN_CAPTURES,
+            'minutes_left' => $device->enrolmentMinutesLeft(),
+        ]);
+    }
+
+    /** Everyone at this outlet, with how many captures they already have. */
+    private function enrolmentRoster(ClockDevice $device): array
+    {
+        $counts = EmployeeFaceDescriptor::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $device->company_id)
+            ->where('model_version', EmployeeFaceDescriptor::MODEL_VERSION)
+            ->selectRaw('employee_id, count(*) as c')
+            ->groupBy('employee_id')
+            ->pluck('c', 'employee_id');
+
+        return Employee::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $device->company_id)
+            ->where('outlet_id', $device->outlet_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($e) => [
+                'id'     => $e->id,
+                'name'   => $e->name,
+                'count'  => (int) ($counts[$e->id] ?? 0),
+                'enough' => (int) ($counts[$e->id] ?? 0) >= self::MIN_CAPTURES,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Keep the enrolment still. Private disk, never public — the same rule the
+     * punch selfies follow, for the same reason.
+     */
+    private function storeEnrolPhoto(Employee $employee, mixed $dataUrl): ?string
+    {
+        if (! is_string($dataUrl) || ! preg_match('#^data:image/(jpeg|jpg|png);base64,#', $dataUrl, $m)) {
+            return null;
+        }
+
+        if (strlen($dataUrl) > 2_500_000) {
+            return null;
+        }
+
+        $binary = base64_decode(substr($dataUrl, strpos($dataUrl, ',') + 1), true);
+
+        if ($binary === false || $binary === '' || ! @getimagesizefromstring($binary)) {
+            return null;
+        }
+
+        $path = sprintf(
+            'face-enrolments/%d/%s.%s',
+            $employee->company_id, Str::uuid(), $m[1] === 'png' ? 'png' : 'jpg'
+        );
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->put($path, $binary) ? $path : null;
     }
 
     /* ── Identify ────────────────────────────────────────────────────── */

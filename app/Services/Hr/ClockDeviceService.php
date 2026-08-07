@@ -126,6 +126,68 @@ class ClockDeviceService
     }
 
     /**
+     * Authorise enrolment on this kiosk, returning the code to read out.
+     *
+     * Separate from the pairing code and deliberately so: pairing decides
+     * WHICH OUTLET a device speaks for, enrolment decides WHOSE FACE it
+     * records. Sharing one code would mean a manager handing over the ability
+     * to do both when they meant one.
+     */
+    public function issueEnrolCode(ClockDevice $device, ?User $by = null): string
+    {
+        $code = $this->uniqueCode($device->company_id);
+
+        $device->forceFill([
+            'enrol_code'            => $code,
+            'enrol_code_expires_at' => now()->addMinutes(ClockDevice::PAIRING_TTL_MINUTES),
+            'enrol_by'              => $by?->id,
+        ])->save();
+
+        return $code;
+    }
+
+    /**
+     * Open the enrolment window on a kiosk that has been given the code.
+     *
+     * The code is consumed, exactly as at pairing: it authorises one window,
+     * not a standing ability to re-open one.
+     *
+     * @return bool whether the window is now open.
+     */
+    public function startEnrolment(ClockDevice $device, string $code): bool
+    {
+        $code = strtoupper(preg_replace('/[^A-Z0-9]/i', '', trim($code)) ?? '');
+
+        if ($code === '' || ! $device->hasLiveEnrolCode() || ! hash_equals((string) $device->enrol_code, $code)) {
+            return false;
+        }
+
+        $device->forceFill([
+            'enrol_code'            => null,
+            'enrol_code_expires_at' => null,
+            'enrol_until'           => now()->addMinutes(ClockDevice::ENROL_WINDOW_MINUTES),
+        ])->save();
+
+        return true;
+    }
+
+    /**
+     * Close the window immediately.
+     *
+     * The window closes by itself, so this is the "done, and I would rather
+     * not leave it open while I walk away" path — which is the one somebody
+     * standing at a counter with a queue behind them actually wants.
+     */
+    public function stopEnrolment(ClockDevice $device): void
+    {
+        $device->forceFill([
+            'enrol_code'            => null,
+            'enrol_code_expires_at' => null,
+            'enrol_until'           => null,
+        ])->save();
+    }
+
+    /**
      * The device holding this token, or null.
      *
      * Null for every way a token can stop being good — unknown, revoked,
@@ -221,6 +283,12 @@ class ClockDeviceService
             'token_hash'         => null,
             'pairing_code'       => null,
             'pairing_expires_at' => null,
+            // An open enrolment window is the last thing that should survive a
+            // revocation — a tablet taken out of service must not still be
+            // able to record faces on the way out.
+            'enrol_code'            => null,
+            'enrol_code_expires_at' => null,
+            'enrol_until'           => null,
         ])->save();
     }
 

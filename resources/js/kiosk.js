@@ -30,6 +30,21 @@
 import { ClockCamera, loadModels } from './clock.js';
 import { looksLikeFace } from './face-geometry.js';
 
+/**
+ * The enrolment ceremony, in the order it is walked.
+ *
+ * Five angles rather than one, and the same five the HR enrolment screen uses,
+ * because a face captured here has to be measured exactly the way one captured
+ * there is. One head-on shot stops working the week somebody grows a beard.
+ */
+const ENROL_POSES = [
+    ['centre', 'Look straight at the camera'],
+    ['left',   'Slowly turn your head to your LEFT'],
+    ['right',  'Slowly turn your head to your RIGHT'],
+    ['up',     'Lift your chin UP'],
+    ['down',   'Lower your chin DOWN'],
+];
+
 /* ── Tuning ───────────────────────────────────────────────────────────── */
 
 /** How often the cheap detector runs while waiting for somebody. */
@@ -95,6 +110,15 @@ const state = {
     shortlist: [],
     wakeLock: null,
     detecting: false,
+
+    // Enrolment. `enrolling` gates the detect loop off entirely — a kiosk
+    // recognising and offering to clock people in while a manager is holding
+    // it up to somebody's face would be chaos.
+    enrolling: false,
+    enrolCode: '',
+    enrolRoster: [],
+    enrolTarget: null,
+    enrolScanning: false,
 };
 
 function endpoint(name) {
@@ -179,7 +203,7 @@ async function api(url, body) {
 
 /* ── Screens ──────────────────────────────────────────────────────────── */
 
-const PANELS = ['idle', 'confirm', 'pin', 'result'];
+const PANELS = ['idle', 'confirm', 'pin', 'result', 'enrolcode', 'enrol'];
 
 function show(panel) {
     state.mode = panel;
@@ -272,9 +296,10 @@ async function detectLoop() {
         await sleep(DETECT_INTERVAL_MS);
 
         // Only ever scans on the idle screen. A confirm card up, a PIN
-        // half-keyed, or a result showing all mean somebody is mid-interaction
-        // and a second identification would talk over them.
-        if (state.mode !== 'idle' || Date.now() < state.pausedUntil) {
+        // half-keyed, a result showing, or an enrolment in progress all mean
+        // somebody is mid-interaction and a second identification would talk
+        // over them.
+        if (state.enrolling || state.mode !== 'idle' || Date.now() < state.pausedUntil) {
             state.stableSince = null;
             continue;
         }
@@ -618,6 +643,233 @@ function resetToIdle() {
     setHint(defaultHint());
 }
 
+/* ── Enrolment ────────────────────────────────────────────────────────────
+ *
+ * Gated by a window a manager opens with a code from HR. The server enforces
+ * it on EVERY capture, not just when the window opens — everything here is the
+ * screen following that, never the thing deciding it.
+ *
+ * Enrolment is the root of trust for the whole kiosk: a punch is only as good
+ * as the enrolment it matched. Which is why the window closes by itself, why
+ * the code is separate from the pairing code, and why the server refuses a
+ * face that already belongs to somebody else at the outlet.
+ */
+
+function openEnrolCode() {
+    state.enrolCode = '';
+    setText('kiosk-enrol-error', '');
+    paintEnrolCode();
+
+    const input = el('kiosk-enrol-input');
+
+    if (input) input.value = '';
+
+    show('enrolcode');
+}
+
+function paintEnrolCode() {
+    const dots = el('kiosk-enrol-dots');
+
+    if (dots) dots.textContent = (state.enrolCode || '').padEnd(6, '·');
+}
+
+async function startEnrolment() {
+    const typed = (el('kiosk-enrol-input')?.value || state.enrolCode || '').trim();
+
+    if (! typed) {
+        setText('kiosk-enrol-error', 'Key the code a manager gave you.');
+
+        return;
+    }
+
+    let result;
+
+    try {
+        result = await api(endpoint('enrolStart'), { code: typed });
+    } catch (error) {
+        setText('kiosk-enrol-error', 'Connection problem. Try again.');
+
+        return;
+    }
+
+    if (! result.ok || result.data?.status !== 'ok') {
+        setText('kiosk-enrol-error', result.data?.message || 'That code did not work.');
+        state.enrolCode = '';
+        paintEnrolCode();
+
+        return;
+    }
+
+    state.enrolling   = true;
+    state.enrolRoster = result.data.employees || [];
+    state.enrolTarget = null;
+
+    paintEnrolLeft(result.data.minutes_left);
+    paintEnrolRoster();
+    show('enrol');
+}
+
+async function finishEnrolment() {
+    // Told to the server rather than just forgotten, so a window is not left
+    // open on a tablet somebody has walked away from.
+    try {
+        await api(endpoint('enrolStop'));
+    } catch (error) {
+        // Closing is best-effort: the window expires on its own regardless.
+    }
+
+    state.enrolling     = false;
+    state.enrolTarget   = null;
+    state.enrolScanning = false;
+
+    resetToIdle();
+}
+
+function paintEnrolLeft(minutes) {
+    if (typeof minutes === 'number') {
+        setText('kiosk-enrol-left', minutes > 0 ? `— ${minutes} min left` : '— closing');
+    }
+}
+
+function paintEnrolRoster() {
+    const list = el('kiosk-enrol-list');
+
+    if (! list) return;
+
+    const needle = (el('kiosk-enrol-search')?.value || '').trim().toLowerCase();
+
+    list.innerHTML = '';
+
+    state.enrolRoster
+        .filter((p) => ! needle || p.name.toLowerCase().includes(needle))
+        .forEach((p) => {
+            const b = document.createElement('button');
+
+            b.type = 'button';
+            b.dataset.kioskEnrolPick = String(p.id);
+            b.className = 'min-h-[3.5rem] flex-auto basis-[calc(50%-0.25rem)] rounded-control border '
+                + 'px-4 text-left text-base font-semibold '
+                // Done is muted, not hidden: a manager needs to see the whole
+                // roster to know where they are up to, and a name that vanished
+                // when it was finished would read as a lost record.
+                + (p.enough
+                    ? 'border-success-700 bg-gray-800 text-success-300'
+                    : 'border-gray-700 bg-gray-800 text-gray-100');
+
+            b.innerHTML = `${p.name}<span class="block text-[11px] font-normal opacity-70">`
+                + (p.enough ? `${p.count} captures — done` : `${p.count} of 3`)
+                + '</span>';
+
+            list.appendChild(b);
+        });
+}
+
+function pickEnrolTarget(id) {
+    const person = state.enrolRoster.find((p) => String(p.id) === String(id));
+
+    if (! person) return;
+
+    state.enrolTarget = person;
+
+    setText('kiosk-enrol-who', person.name);
+    setText('kiosk-enrol-pose', '');
+    setText('kiosk-enrol-progress', person.enough
+        ? `${person.count} captures on file — scanning again adds more angles.`
+        : `${person.count} of 3 captures.`);
+
+    el('kiosk-enrol-picker')?.classList.add('hidden');
+    el('kiosk-enrol-scan')?.classList.remove('hidden');
+}
+
+function backToEnrolList() {
+    state.enrolScanning = false;
+    state.enrolTarget   = null;
+
+    el('kiosk-enrol-scan')?.classList.add('hidden');
+    el('kiosk-enrol-picker')?.classList.remove('hidden');
+
+    paintEnrolRoster();
+}
+
+/**
+ * Walk the five poses, saving each the moment it is held.
+ *
+ * A pose that cannot be reached is SKIPPED rather than retried forever — four
+ * good angles beat a scan somebody abandoned halfway through, and the person
+ * being enrolled is standing there while it happens.
+ */
+async function runEnrolScan() {
+    if (state.enrolScanning || ! state.enrolTarget || ! state.camera) return;
+
+    state.enrolScanning = true;
+
+    let saved = 0;
+    let stopped = null;
+
+    try {
+        for (const [pose, label] of ENROL_POSES) {
+            if (! state.enrolScanning) break;
+
+            setText('kiosk-enrol-pose', label);
+
+            const held = await state.camera.waitForPose(pose, (fraction, hint) => {
+                if (hint) setText('kiosk-enrol-pose', hint === 'Hold it…' ? 'Hold it…' : label);
+            });
+
+            if (! held) continue;
+
+            setText('kiosk-enrol-pose', 'Hold still…');
+
+            const face = await state.camera.capture();
+
+            if (! face) continue;
+
+            const result = await api(endpoint('enrolCapture'), {
+                employee_id: state.enrolTarget.id,
+                descriptor:  face.descriptor,
+                photo:       face.selfie,
+            });
+
+            const data = result.data || {};
+
+            if (result.ok && data.status === 'ok') {
+                saved++;
+                state.enrolTarget.count  = data.count;
+                state.enrolTarget.enough = data.enough;
+                paintEnrolLeft(data.minutes_left);
+                setText('kiosk-enrol-progress', `${data.count} captures saved.`);
+                continue;
+            }
+
+            // A refusal is worth stopping for, not pressing past: the window
+            // closed, the slate is full, or — the one that matters — this face
+            // is already enrolled as somebody else.
+            stopped = data.message || 'That capture was refused.';
+            break;
+        }
+    } catch (error) {
+        stopped = 'Connection problem. Try the scan again.';
+    } finally {
+        state.enrolScanning = false;
+
+        setText('kiosk-enrol-pose', '');
+        setText('kiosk-enrol-progress', stopped
+            ? stopped
+            : (saved
+                ? `Scan finished — ${saved} captures saved (${state.enrolTarget?.count ?? 0} on file).`
+                : 'Scan finished without a usable capture. Try again in better light.'));
+
+        // Refresh the roster row so the list shows the new count on return.
+        const target = state.enrolTarget;
+
+        if (target) {
+            const row = state.enrolRoster.find((p) => p.id === target.id);
+
+            if (row) { row.count = target.count; row.enough = target.enough; }
+        }
+    }
+}
+
 /* ── Camera and screen lifecycle ──────────────────────────────────────── */
 
 async function startCamera() {
@@ -700,6 +952,15 @@ async function holdWakeLock() {
 async function revive() {
     if (document.visibilityState !== 'visible') return;
 
+    // Mid-enrolment, only the camera needs reviving — resetToIdle() below
+    // would throw a manager out of a scan they are halfway through.
+    if (state.enrolling) {
+        await holdWakeLock();
+        state.camera?.resume();
+
+        return;
+    }
+
     await holdWakeLock();
 
     if (! state.camera?.playing) {
@@ -754,6 +1015,67 @@ function bind() {
 
         if (target.closest('[data-kiosk-cancel]')) {
             resetToIdle();
+
+            return;
+        }
+
+        /* ── Enrolment ────────────────────────────────────────────── */
+
+        if (target.closest('[data-kiosk-enrol-open]')) {
+            openEnrolCode();
+
+            return;
+        }
+
+        const enrolKey = target.closest('[data-kiosk-enrol-key]');
+
+        if (enrolKey) {
+            if (state.enrolCode.length < 12) {
+                state.enrolCode += enrolKey.dataset.kioskEnrolKey;
+
+                const input = el('kiosk-enrol-input');
+
+                if (input) input.value = state.enrolCode;
+            }
+            paintEnrolCode();
+
+            return;
+        }
+
+        if (target.closest('[data-kiosk-enrol-submit]')) {
+            startEnrolment();
+
+            return;
+        }
+
+        if (target.closest('[data-kiosk-enrol-cancel]')) {
+            resetToIdle();
+
+            return;
+        }
+
+        if (target.closest('[data-kiosk-enrol-finish]')) {
+            finishEnrolment();
+
+            return;
+        }
+
+        if (target.closest('[data-kiosk-enrol-back]')) {
+            backToEnrolList();
+
+            return;
+        }
+
+        if (target.closest('[data-kiosk-enrol-scan]')) {
+            runEnrolScan();
+
+            return;
+        }
+
+        const pick = target.closest('[data-kiosk-enrol-pick]');
+
+        if (pick) {
+            pickEnrolTarget(pick.dataset.kioskEnrolPick);
 
             return;
         }
@@ -819,6 +1141,15 @@ function bind() {
         filterPinList(event.target.value || '');
     });
 
+    el('kiosk-enrol-search')?.addEventListener('input', paintEnrolRoster);
+
+    // The typed code is the authoritative one — the 9-key grid is only a
+    // shortcut, and the alphabet is 31 characters wide.
+    el('kiosk-enrol-input')?.addEventListener('input', (event) => {
+        state.enrolCode = (event.target.value || '').toUpperCase();
+        paintEnrolCode();
+    });
+
     document.addEventListener('visibilitychange', revive);
     window.addEventListener('pageshow', revive);
 }
@@ -834,6 +1165,16 @@ async function boot() {
     await startCamera();
 
     detectLoop();
+
+    // A window a manager opened before this page loaded — a reload, or the
+    // service worker replacing the page mid-session. Without this the tablet
+    // would drop back to the punch screen and the manager would have to ask
+    // for another code for a window that is still open.
+    if (root()?.dataset.enrolling === '1') {
+        state.enrolling = true;
+        openEnrolCode();
+        setText('kiosk-enrol-error', 'Enrolment is still open — key the code again to carry on.');
+    }
 
     // The heartbeat. Without it a kiosk nobody has touched since lunch reads
     // as offline, and phone punches at that outlet quietly stop being flagged.

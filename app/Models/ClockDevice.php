@@ -50,18 +50,31 @@ class ClockDevice extends Model
      */
     public const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
+    /**
+     * How long enrolment mode stays open once a code is redeemed.
+     *
+     * Long enough to work through a shift's worth of staff without re-keying,
+     * short enough that a tablet left in enrolment mode closes itself before
+     * anybody could use it. It ends by itself deliberately: a mode somebody
+     * has to remember to switch off is a mode that is still on next Tuesday.
+     */
+    public const ENROL_WINDOW_MINUTES = 45;
+
     protected $fillable = [
         'company_id', 'outlet_id', 'name', 'token_hash',
         'pairing_code', 'pairing_expires_at', 'paired_at',
         'last_seen_at', 'last_seen_ip', 'user_agent',
         'revoked_at', 'revoked_by', 'created_by',
+        'enrol_code', 'enrol_code_expires_at', 'enrol_until', 'enrol_by',
     ];
 
     protected $casts = [
-        'pairing_expires_at' => 'datetime',
-        'paired_at'          => 'datetime',
-        'last_seen_at'       => 'datetime',
-        'revoked_at'         => 'datetime',
+        'pairing_expires_at'    => 'datetime',
+        'paired_at'             => 'datetime',
+        'last_seen_at'          => 'datetime',
+        'revoked_at'            => 'datetime',
+        'enrol_code_expires_at' => 'datetime',
+        'enrol_until'           => 'datetime',
     ];
 
     /**
@@ -138,6 +151,43 @@ class ClockDevice extends Model
             && $this->isPaired()
             && $this->last_seen_at !== null
             && $this->last_seen_at->gt(now()->subMinutes(self::HEARTBEAT_STALE_MINUTES));
+    }
+
+    /**
+     * Whether this kiosk may record faces right now.
+     *
+     * Checked on every capture rather than once when the window opens, so a
+     * window that expires mid-session stops the very next capture — the point
+     * of a time box is lost if it is only read at the start.
+     */
+    public function enrolmentOpen(): bool
+    {
+        return ! $this->isRevoked()
+            && $this->isPaired()
+            && $this->enrol_until !== null
+            && $this->enrol_until->isFuture();
+    }
+
+    /** Minutes left in the enrolment window, for the countdown on screen. */
+    public function enrolmentMinutesLeft(): int
+    {
+        return $this->enrolmentOpen()
+            ? (int) ceil(now()->diffInSeconds($this->enrol_until, false) / 60)
+            : 0;
+    }
+
+    /** Whether an enrolment code is still worth keying in. */
+    public function hasLiveEnrolCode(): bool
+    {
+        return ! $this->isRevoked()
+            && $this->enrol_code !== null
+            && $this->enrol_code_expires_at !== null
+            && $this->enrol_code_expires_at->isFuture();
+    }
+
+    public function enroller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'enrol_by');
     }
 
     /** Whether the pairing code on this row can still be redeemed. */
