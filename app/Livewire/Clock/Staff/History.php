@@ -27,6 +27,10 @@ class History extends StaffComponent
             ->where('company_id', $this->staff()->company_id)
             ->where('employee_id', $this->staff()->id)
             ->where('work_date', '>=', now()->subDays(self::DAYS)->toDateString())
+            // locationLabel() reads both of these. Left lazy they are two
+            // queries per PUNCH on a screen that lists a fortnight of them —
+            // sixty of each on a phone, over a kitchen's 4G.
+            ->with(['outlet:id,name', 'device:id,name'])
             ->orderByDesc('work_date')
             ->orderByDesc('happened_at')
             ->get()

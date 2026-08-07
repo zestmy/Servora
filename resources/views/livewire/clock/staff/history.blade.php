@@ -25,6 +25,39 @@
                             </span>
                         </div>
 
+                        {{-- Where it was recorded.
+
+                             The same sentence the manager's review screen
+                             shows, from the same method, and that is the point
+                             rather than a convenience: the location is the part
+                             of a punch an employee has no other way to check,
+                             and it is the part a disagreement is most often
+                             about. Somebody told their 4:15 was logged 800m
+                             from the outlet should be able to see that on their
+                             own phone rather than hear it secondhand a fortnight
+                             later.
+
+                             A pin for a location, a tablet for a kiosk — the
+                             glyph carries "which door did this come through"
+                             without a second line of text. --}}
+                        @if ($event->locationLabel())
+                            <p class="mt-0.5 flex items-start gap-1 text-xs text-gray-500">
+                                <svg class="mt-px h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor"
+                                     viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true">
+                                    @if ($event->fromKiosk())
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M9.75 17h4.5m-6.75 4h9a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0016.5 3h-9a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21z"/>
+                                    @else
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
+                                    @endif
+                                    </svg>
+                                <span>{{ $event->locationLabel() }}</span>
+                            </p>
+                        @endif
+
                         @if ($event->minutes_late > 0)
                             <p class="mt-0.5 text-xs text-amber-700">
                                 {{ $event->minutes_late }} {{ Str::plural('minute', $event->minutes_late) }} late
