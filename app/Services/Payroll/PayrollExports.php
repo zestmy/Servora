@@ -146,16 +146,33 @@ class PayrollExports
             ->map(fn ($l) => [
                 $l->bank_account_no,
                 $l->bank_name ?: '',
-                $l->employee_name,
+                // THE ACCOUNT HOLDER, not the employee, on the rare line where
+                // those differ. Banks match the name against the account and
+                // reject the pair when they disagree, so sending the employee's
+                // name to a spouse's or a parent's account fails the transfer —
+                // one line out of fifty, on payday, for a reason the file gave
+                // no hint of. Blank is the normal case and falls back to them.
+                $l->bank_account_name ?: $l->employee_name,
                 $l->ic_number ?: '',
                 number_format((float) $l->net, 2, '.', ''),
                 // A reference the employee will recognise on their statement.
                 'SALARY ' . strtoupper($run->period_month->format('M Y')),
+                // Last, and outside every bank's layout, so mapping the first
+                // six columns is unchanged. It exists so the file can still be
+                // reconciled against the payroll run by hand when the Name
+                // column is a spouse nobody in the office recognises.
+                $l->employee_name,
             ])
             ->values()
             ->all();
 
         $total = $payable->sum(fn ($l) => (float) $l->net);
+
+        // Called out rather than left to be discovered in the CSV. The Name
+        // column no longer matches the Employee column on these lines, which
+        // looks exactly like a bug to whoever checks the file before uploading
+        // it — and the one thing they must not do is "correct" it back.
+        $thirdParty = $payable->filter(fn ($l) => filled($l->bank_account_name));
 
         return [
             'filename' => "salary-payment-{$run->reference}.csv",
@@ -164,8 +181,12 @@ class PayrollExports
                 . ($unpayable->isNotEmpty()
                     ? ' EXCLUDED for having no bank account: ' . $unpayable->pluck('employee_name')->join(', ') . '.'
                     : '')
+                . ($thirdParty->isNotEmpty()
+                    ? ' Paid to an account in someone else\'s name (correct, not an error): '
+                        . $thirdParty->map(fn ($l) => $l->employee_name . ' → ' . $l->bank_account_name)->join('; ') . '.'
+                    : '')
                 . ' Generic field listing — map to your bank\'s own bulk transfer layout.',
-            'headers'  => ['Account No', 'Bank', 'Name', 'IC No', 'Amount (RM)', 'Reference'],
+            'headers'  => ['Account No', 'Bank', 'Name', 'IC No', 'Amount (RM)', 'Reference', 'Employee'],
             'rows'     => $rows,
             'excluded' => $unpayable->pluck('employee_name')->all(),
             'total'    => round($total, 2),

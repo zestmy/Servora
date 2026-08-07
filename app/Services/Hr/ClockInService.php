@@ -84,9 +84,11 @@ class ClockInService
      *     descriptor?: mixed, selfie?: ?string, reason?: ?string,
      *     device_label?: ?string, user_agent?: ?string, ip?: ?string,
      *     source?: ?string, device?: ?ClockDevice, identification?: ?string,
+     *     face_distance?: mixed,
      * }  $input  Raw observations from the device. Every value is untrusted
-     *            EXCEPT `device`, which the kiosk middleware resolved from a
-     *            token and is therefore a model rather than a claim.
+     *            EXCEPT `device`, `identification` and `face_distance`, which
+     *            the kiosk middleware and controller resolved from a token this
+     *            server minted — findings of ours, handed back, not claims.
      *
      * @throws ClockInException when the punch cannot be recorded at all.
      */
@@ -504,6 +506,33 @@ class ClockInService
      */
     private function assessFace(Employee $employee, array $input, ClockSetting $settings, array &$flags, bool $lenient = false, string $type = ClockEvent::TYPE_IN): array
     {
+        $identification = $input['identification'] ?? null;
+
+        /*
+         * A KIOSK MATCH IS ALREADY A VERIFIED FACE, and re-deriving it here is
+         * not possible: the tablet sends its descriptor to /identify, not to
+         * this punch, because identity has to be settled before there is a
+         * button to press at all.
+         *
+         * So the verdict is carried forward instead of recomputed, and that is
+         * safe for a reason worth stating, because the rule two hundred lines
+         * up says nothing here trusts a verdict computed by the device.
+         * Nothing here does. This distance was measured by FaceIdentifier on
+         * this server, against enrolments this server holds, and travels back
+         * in a token the server encrypted, bound to the device and good for
+         * sixty seconds. The tablet cannot read it, let alone author one.
+         *
+         * It also passed a STRICTER bar than anything below: kiosk_face_
+         * threshold, plus a margin against the runner-up out of the whole
+         * outlet. Treating that as an unverified face — which is what happened
+         * before, since a null descriptor lands in the no_face branch — flagged
+         * every clean kiosk punch in the company for review and sent managers
+         * to look at photographs of faces that had already matched.
+         */
+        if ($identification === FaceIdentifier::MATCHED && is_numeric($input['face_distance'] ?? null)) {
+            return ['distance' => (float) $input['face_distance'], 'verified' => true];
+        }
+
         $descriptor = $input['descriptor'] ?? null;
 
         if (! EmployeeFaceDescriptor::isValidDescriptor($descriptor)) {
@@ -513,7 +542,12 @@ class ClockInService
                 );
             }
 
-            $flags[] = 'no_face';
+            // Named for what actually happened. Both are a punch with no face
+            // behind it and both go to a manager, but "no face captured" on a
+            // kiosk punch that plainly has a photograph attached reads as a
+            // bug in the camera, and sends whoever is reviewing it looking for
+            // one. Somebody keyed a PIN; say that.
+            $flags[] = $identification === FaceIdentifier::PIN_FALLBACK ? 'pin_fallback' : 'no_face';
 
             return ['distance' => null, 'verified' => false];
         }

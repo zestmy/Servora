@@ -20,7 +20,7 @@ class PayrollRunLine extends Model
     protected $fillable = [
         'payroll_run_id', 'company_id', 'employee_id',
         'employee_name', 'staff_id', 'ic_number', 'designation',
-        'outlet_name', 'section_name', 'bank_name', 'bank_account_no',
+        'outlet_name', 'section_name', 'bank_name', 'bank_account_no', 'bank_account_name',
         'epf_number', 'socso_number', 'income_tax_number',
         'pay_type', 'basic', 'allowances', 'deductions', 'ot_hours', 'ot_amount',
         'service_charge', 'service_charge_detail',

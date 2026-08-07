@@ -43,6 +43,22 @@
 
     .note { margin-top: 6px; font-size: 6.5pt; color: #b45309; }
     .foot { margin-top: 6px; font-size: 6pt; color: #94a3b8; line-height: 1.4; }
+
+    /* ── Employer contributions ──────────────────────────────────────────
+       A section of its own, deliberately OUTSIDE the deductions column and
+       below the net pay box. Both placements were wrong before it had one:
+       a sixth of a person's EPF pot is contributed by the employer, and
+       sitting it beside the employee's own deductions invites it to be read
+       as money taken off the payslip. Below the net figure it can only be
+       read as what it is — pay that exists and never passed through here. */
+    .emp { margin-top: 8px; border: 1px solid #cbd5e1; border-top: 2px solid #475569; padding: 5px 8px 6px; }
+    .emp-title { font-size: 6.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; }
+    .emp-sub { font-size: 6pt; color: #64748b; margin-top: 1px; }
+    .emp table { margin-top: 3px; }
+    .emp th { font-size: 6pt; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;
+              color: #64748b; text-align: right; padding: 2px 5px 0 5px; }
+    .emp td { font-size: 8.5pt; text-align: right; padding: 0 5px 1px 5px; }
+    .emp .total th, .emp .total td { color: #0f172a; font-weight: bold; border-left: 1px solid #cbd5e1; }
 </style>
 </head>
 <body>
@@ -203,8 +219,56 @@
                 @if ($line->bank_account_no)
                     &middot; a/c {{ $line->bank_account_no }}
                 @endif
+                {{-- Said on the payslip because the employee is the one person
+                     who can tell us it is wrong, and the month they can still
+                     do something about it is this one. --}}
+                @if ($line->bank_account_name)
+                    &middot; in the name of {{ $line->bank_account_name }}
+                @endif
             </div>
         @endif
+
+        {{-- ── Employer contributions ──────────────────────────────────────
+             Its own section, because it is the part of the payslip people ask
+             about and it used to be six words of grey 6pt text under the
+             signature line. What it answers: your EPF statement will show more
+             than the figure deducted from you, and this is where the rest of
+             it comes from. Rendered even when every figure is zero — a blank
+             row says "nothing was contributed this period", where an absent
+             section says nothing at all and reads as an omission. --}}
+        @php
+            $employerRows = array_values(array_filter([
+                ['EPF (KWSP)',     (float) $line->epf_employer],
+                ['SOCSO',          (float) $line->socso_employer],
+                ['EIS (SIP)',      (float) $line->eis_employer],
+                // Only when it applies. HRD Corp is a levy on the employer's
+                // payroll, not a contribution to anything the employee holds,
+                // and most small operators are below the threshold entirely.
+                (float) $line->hrdf_employer > 0 ? ['HRD Corp levy', (float) $line->hrdf_employer] : null,
+            ]));
+            $employerTotal = array_sum(array_column($employerRows, 1));
+        @endphp
+        <div class="emp">
+            <div class="emp-title">Employer contributions</div>
+            <div class="emp-sub">
+                Paid by {{ $brandName }} on top of your pay for this period. Not deducted from you,
+                and not included in the net figure above.
+            </div>
+            <table>
+                <tr>
+                    @foreach ($employerRows as [$label, $amount])
+                        <th>{{ $label }}</th>
+                    @endforeach
+                    <th class="total">Total</th>
+                </tr>
+                <tr>
+                    @foreach ($employerRows as [$label, $amount])
+                        <td>{{ number_format($amount, 2) }}</td>
+                    @endforeach
+                    <td class="total">{{ number_format($employerTotal, 2) }}</td>
+                </tr>
+            </table>
+        </div>
 
         @foreach (($line->statutory_notes ?? []) as $note)
             <div class="note">{{ $note }}</div>
@@ -218,11 +282,6 @@
         @endunless
 
         <div class="foot">
-            Employer contributions this period (not deducted from you): EPF
-            {{ number_format((float) $line->epf_employer, 2) }} &middot; SOCSO
-            {{ number_format((float) $line->socso_employer, 2) }} &middot; EIS
-            {{ number_format((float) $line->eis_employer, 2) }}@if ((float) $line->hrdf_employer > 0) &middot; HRD Corp levy
-            {{ number_format((float) $line->hrdf_employer, 2) }}@endif.
             This is a computer-generated payslip and needs no signature.
         </div>
     </div>

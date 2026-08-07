@@ -10,9 +10,18 @@
       Nothing is smaller than 44px, and the buttons that matter are far bigger.
       Wet hands, gloved hands, and somebody in a hurry.
 
-      The camera preview is present but subordinate. People need to see that it
-      is looking at them — a black rectangle reads as broken — but the thing
-      they are here to read is their own name and one button.
+      The camera is the screen. It used to be a 22rem panel beside the content,
+      which on a tablet in landscape — the way every one of these is actually
+      mounted — left a third of the display showing a small video of somebody's
+      chest and the rest showing a sentence. Full-bleed makes the tablet behave
+      like the mirror people already treat it as: you walk up, you see yourself
+      framed, you know without being told where to stand. Everything the screen
+      has to SAY is overlaid along the bottom, within reach and out of the way
+      of your own face.
+
+    Landscape is the primary orientation and portrait is the fallback, which is
+    the reverse of the rest of this product. A counter kiosk sits in a landscape
+    stand; the only portrait tablets are the ones somebody is holding.
 
     No Livewire. The screen stays open for a fourteen-hour shift on a device
     nobody is watching, and a component that quietly stops re-rendering is a
@@ -46,7 +55,7 @@
         /* Pinned to all four edges rather than computed from a viewport unit —
            the same reason the staff shell does it. A tablet in a stand with a
            browser chrome bar is exactly where vh guesses wrong. */
-        .kiosk-shell { position: fixed; inset: 0; display: flex; flex-direction: column; }
+        .kiosk-shell { position: fixed; inset: 0; overflow: hidden; background: #000; }
 
         /* Nothing on this screen is selectable or long-pressable. A kiosk that
            pops a copy/paste bubble under a wet thumb is a kiosk somebody has
@@ -59,6 +68,177 @@
 
         /* The search box is the one exception — it has to accept text. */
         .kiosk-shell input { -webkit-user-select: text; user-select: text; }
+
+        /* ── The camera, filling the screen ──────────────────────────────
+           object-fit: cover, so a 4:3 sensor on a 16:10 tablet crops instead
+           of letterboxing into two black bars.
+
+           MIRRORED, and only here: the transform is on the preview element,
+           while face-api reads the <video> buffer and ClockCamera draws the
+           selfie onto its own canvas — neither of which a CSS transform
+           touches. So recognition and the stored photograph are unaffected,
+           and the person gets the mirror they expect. An unmirrored full-screen
+           self-view makes people lean the wrong way to centre themselves. */
+        .kiosk-video {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        /* Scrims, not panels. Text over a moving camera picture needs a floor
+           under it or it becomes unreadable the moment somebody in a white
+           chef's jacket walks past. */
+        .kiosk-scrim-top {
+            position: absolute; inset: 0 0 auto 0; height: 8rem;
+            background: linear-gradient(to bottom, rgba(3, 7, 18, 0.88), rgba(3, 7, 18, 0));
+            pointer-events: none;
+        }
+        .kiosk-scrim-bottom {
+            position: absolute; left: 0; right: 0; bottom: 0; top: 38%;
+            background: linear-gradient(to top,
+                rgba(3, 7, 18, 0.96) 42%, rgba(3, 7, 18, 0.72) 68%, rgba(3, 7, 18, 0));
+            pointer-events: none;
+            transition: top 180ms ease;
+        }
+
+        .kiosk-header {
+            position: absolute; inset: 0 0 auto 0; z-index: 3;
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+
+        /* ── The stage ───────────────────────────────────────────────────
+           Everything the screen says, anchored to the bottom edge. Given a
+           definite top rather than a max-height, so the panels inside can be
+           flex columns with their own scrollers and actually resolve. */
+        .kiosk-stage {
+            position: absolute; left: 0; right: 0; bottom: 0; top: 44%;
+            z-index: 2;
+            display: flex; flex-direction: column; min-height: 0;
+            padding: 0 clamp(1rem, 3vw, 2.5rem) calc(0.75rem + env(safe-area-inset-bottom, 0px));
+            transition: top 180ms ease;
+        }
+
+        /* A portrait tablet is somebody holding it, and holding it puts the
+           bottom of the screen nearer the thumb — so the band can be deeper. */
+        @media (orientation: portrait) {
+            .kiosk-stage        { top: 52%; }
+            .kiosk-scrim-bottom { top: 46%; }
+        }
+
+        /* Modes that are a FORM rather than a message take the whole screen.
+           A keypad or a staff list squeezed into a bottom third is a kiosk
+           somebody mis-taps, and none of these three states is one where
+           watching yourself on camera is doing any work. */
+        .kiosk-shell[data-mode="pin"]       .kiosk-stage,
+        .kiosk-shell[data-mode="enrol"]     .kiosk-stage,
+        .kiosk-shell[data-mode="enrolcode"] .kiosk-stage { top: 0; padding-top: 4.25rem; }
+
+        .kiosk-shell[data-mode="pin"]       .kiosk-scrim-bottom,
+        .kiosk-shell[data-mode="enrol"]     .kiosk-scrim-bottom,
+        .kiosk-shell[data-mode="enrolcode"] .kiosk-scrim-bottom {
+            top: 0; background: rgba(3, 7, 18, 0.93);
+        }
+
+        /* …except the enrolment SCAN, which is the one screen in the building
+           where seeing the camera is the whole job — a manager holding the
+           tablet up to somebody's face and walking five poses. Enrolment gets
+           the full screen for its staff list and hands it straight back here. */
+        .kiosk-shell[data-mode="enrol"][data-enrolstep="scan"] .kiosk-stage {
+            top: 44%; padding-top: 0;
+        }
+        .kiosk-shell[data-mode="enrol"][data-enrolstep="scan"] .kiosk-scrim-bottom {
+            top: 38%;
+            background: linear-gradient(to top,
+                rgba(3, 7, 18, 0.96) 42%, rgba(3, 7, 18, 0.72) 68%, rgba(3, 7, 18, 0));
+        }
+        @media (orientation: portrait) {
+            .kiosk-shell[data-mode="enrol"][data-enrolstep="scan"] .kiosk-stage       { top: 52%; }
+            .kiosk-shell[data-mode="enrol"][data-enrolstep="scan"] .kiosk-scrim-bottom { top: 46%; }
+        }
+
+        /* ── Scan reticle ────────────────────────────────────────────────
+           Centred in whatever the camera has left above the stage, so it moves
+           with the stage rather than colliding with it. */
+        .kiosk-reticle {
+            position: absolute; left: 0; right: 0; top: 0; bottom: 56%;
+            display: grid; place-items: center;
+            pointer-events: none; z-index: 1;
+            transition: opacity 200ms ease;
+        }
+        @media (orientation: portrait) { .kiosk-reticle { bottom: 48%; } }
+
+        .kiosk-shell[data-mode="pin"]       .kiosk-reticle,
+        .kiosk-shell[data-mode="enrolcode"] .kiosk-reticle,
+        .kiosk-shell[data-mode="result"]    .kiosk-reticle,
+        .kiosk-shell[data-scan="off"]       .kiosk-reticle { opacity: 0; }
+
+        /* The enrolment list is a list; its scan is a scan. */
+        .kiosk-shell[data-mode="enrol"] .kiosk-reticle { opacity: 0; }
+        .kiosk-shell[data-mode="enrol"][data-enrolstep="scan"] .kiosk-reticle { opacity: 1; }
+
+        .kiosk-ring {
+            width: min(42vh, 20rem); height: min(42vh, 20rem);
+            max-width: 60vw; max-height: 60vw;
+            overflow: visible;
+        }
+
+        /* Both circles share a geometry so one dash length serves both. r=52
+           on a 120 box → 2πr = 326.73. */
+        .kiosk-ring circle {
+            fill: none;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        .kiosk-ring-track { stroke: rgba(255, 255, 255, 0.18); stroke-width: 2.5; }
+        .kiosk-ring-value {
+            stroke: #14b8a6; stroke-width: 4;
+            stroke-dasharray: 326.73;
+            /* --kiosk-scan is written by kiosk.js, 0 → 1. */
+            stroke-dashoffset: calc(326.73 * (1 - var(--kiosk-scan, 0)));
+            transition: stroke-dashoffset 120ms linear, stroke 180ms ease;
+            filter: drop-shadow(0 0 6px rgba(20, 184, 166, 0.55));
+        }
+        .kiosk-bracket {
+            fill: none; stroke: rgba(255, 255, 255, 0.55);
+            stroke-width: 2.5; stroke-linecap: round;
+            transition: stroke 180ms ease;
+        }
+
+        /* Waiting: the brackets breathe so the screen never looks frozen, and
+           the ring sits at zero rather than hidden — an empty track tells you
+           there is something to fill. */
+        .kiosk-shell[data-scan="idle"] .kiosk-bracket { animation: kiosk-breathe 2.8s ease-in-out infinite; }
+
+        /* Thinking: the server has the descriptor and nothing local can say how
+           far along it is, so the ring becomes a chase rather than a lie. */
+        .kiosk-shell[data-scan="working"] .kiosk-ring-value {
+            stroke-dasharray: 82 245;
+            stroke-dashoffset: 0;
+            transition: none;
+            animation: kiosk-chase 1.05s linear infinite;
+        }
+
+        .kiosk-shell[data-scan="ok"]   .kiosk-ring-value { stroke: #22c55e; filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.6)); }
+        .kiosk-shell[data-scan="ok"]   .kiosk-bracket    { stroke: rgba(34, 197, 94, 0.85); }
+        .kiosk-shell[data-scan="fail"] .kiosk-ring-value { stroke: #f59e0b; filter: none; }
+        .kiosk-shell[data-scan="fail"] .kiosk-bracket    { stroke: rgba(245, 158, 11, 0.85); }
+
+        @keyframes kiosk-breathe {
+            0%, 100% { opacity: 0.45; }
+            50%      { opacity: 1; }
+        }
+        @keyframes kiosk-chase {
+            to { transform: rotate(270deg); }
+        }
+
+        /* The house rule, and it matters more here than anywhere: this screen
+           animates continuously in front of people all day. */
+        @media (prefers-reduced-motion: reduce) {
+            .kiosk-bracket, .kiosk-ring-value { animation: none !important; }
+            .kiosk-stage, .kiosk-scrim-bottom, .kiosk-reticle { transition: none; }
+        }
 
         /* A recorded-but-flagged punch. Amber, not red: the punch WORKED and
            the person is clocked in. Red would read as failure and have them
@@ -86,13 +266,55 @@
           scripts can send it as a header. The cookie itself stays httpOnly and
           unreadable, and the JSON endpoints accept ONLY the header — which is
           what makes them immune to CSRF and therefore safe to exempt from it. --}}
-     data-token="{{ $kioskToken }}">
+     data-token="{{ $kioskToken }}"
+     {{-- Both written by kiosk.js. `mode` lets the CSS give a form the whole
+          screen and a message only the bottom of it; `scan` drives the ring. --}}
+     data-mode="idle"
+     data-scan="idle"
+     data-enrolstep="list">
 
-    <header class="shrink-0 flex items-center justify-between gap-3 px-5 py-3 bg-gray-950/60">
+    {{-- ── The camera, underneath everything ─────────────────────────── --}}
+    <video id="kiosk-video" autoplay playsinline muted class="kiosk-video"></video>
+    <canvas id="kiosk-canvas" class="hidden"></canvas>
+
+    <div class="kiosk-scrim-top"></div>
+    <div class="kiosk-scrim-bottom"></div>
+
+    {{-- ── Scan reticle ──────────────────────────────────────────────────
+         Where to stand, and how far along the recognition is. The brackets
+         answer the first question without a sentence — people centre their
+         face in a frame on sight — and the ring answers the second, which
+         previously had no answer at all: the old screen went from "Look at the
+         camera" straight to a name, and the second and a half in between was
+         indistinguishable from a kiosk that had not noticed you. --}}
+    <div class="kiosk-reticle" aria-hidden="true">
+        <svg class="kiosk-ring" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            {{-- Corner brackets: a face-sized frame, drawn as four elbows
+                 rather than a closed box so it reads as a viewfinder and not
+                 as a border somebody forgot to style. --}}
+            <path class="kiosk-bracket" d="M28 44 V32 A4 4 0 0 1 32 28 H44" />
+            <path class="kiosk-bracket" d="M76 28 H88 A4 4 0 0 1 92 32 V44" />
+            <path class="kiosk-bracket" d="M92 76 V88 A4 4 0 0 1 88 92 H76" />
+            <path class="kiosk-bracket" d="M44 92 H32 A4 4 0 0 1 28 88 V76" />
+
+            <circle class="kiosk-ring-track" cx="60" cy="60" r="52" />
+            <circle class="kiosk-ring-value" cx="60" cy="60" r="52" />
+        </svg>
+    </div>
+
+    {{-- The whole screen is the retry target. A tap is the gesture iOS
+         reliably prompts for, so every camera failure recovers through the
+         thing covering the screen. --}}
+    <button type="button" id="kiosk-camera-overlay"
+            class="absolute inset-0 z-40 grid place-items-center bg-gray-950/95 px-6 text-center">
+        <span class="text-base text-gray-300">Starting camera…</span>
+    </button>
+
+    <header class="kiosk-header flex items-center justify-between gap-3 px-5 py-3">
         <div class="flex items-center gap-3 min-w-0">
             <x-brand-mark :company="$company" surface="dark" size="h-6"
                           width="max-w-[90px]" :alt="$brandName" />
-            <p class="text-sm font-semibold truncate">{{ $outlet?->name }}</p>
+            <p class="text-sm font-semibold truncate drop-shadow">{{ $outlet?->name }}</p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
             {{-- gray-400 reads at 6.99:1 on this surface, where it is the
@@ -102,41 +324,30 @@
                  prompt, not to enrolment, so it is not worth making prominent
                  on a screen staff use forty times a day. --}}
             <button type="button" data-kiosk-enrol-open
-                    class="min-h-[2.75rem] rounded-control border border-gray-700 px-3 text-xs
-                           font-medium text-gray-400 hover:bg-gray-800 active:bg-gray-800">
+                    class="min-h-[2.75rem] rounded-control border border-white/25 bg-gray-950/40 px-3 text-xs
+                           font-medium text-gray-300 hover:bg-gray-800 active:bg-gray-800">
                 Enrol faces
             </button>
         </div>
     </header>
 
-    <main class="flex-1 min-h-0 grid gap-4 p-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
+    <main class="kiosk-stage">
 
-        {{-- ── Camera ────────────────────────────────────────────────── --}}
-        <section class="relative overflow-hidden rounded-panel bg-black min-h-[10rem]">
-            <video id="kiosk-video" autoplay playsinline muted
-                   class="h-full w-full object-cover"></video>
-            <canvas id="kiosk-canvas" class="hidden"></canvas>
-
-            {{-- The whole overlay is the retry target. A tap is the gesture
-                 iOS reliably prompts for, so every camera failure recovers
-                 through the thing covering the screen. --}}
-            <button type="button" id="kiosk-camera-overlay"
-                    class="absolute inset-0 grid place-items-center bg-gray-900/90 px-6 text-center">
-                <span class="text-sm text-gray-300">Starting camera…</span>
-            </button>
-
-            <p id="kiosk-status"
-               class="hidden absolute inset-x-0 bottom-0 bg-gray-950/85 px-3 py-2 text-center text-xs text-warning-200"></p>
-        </section>
+        {{-- Camera trouble, and the one message that outranks whatever panel
+             is up: a kiosk with no camera can still take PINs, and saying so
+             is the difference between a queue and a phone call. --}}
+        <p id="kiosk-status"
+           class="hidden shrink-0 mb-2 rounded-control bg-gray-950/85 px-4 py-2 text-center
+                  text-sm text-warning-200"></p>
 
         {{-- ── State panels ──────────────────────────────────────────── --}}
-        <section class="min-h-0 overflow-hidden">
+        <section class="min-h-0 flex-1 overflow-hidden">
 
             {{-- Idle --}}
-            <div id="kiosk-state-idle" class="h-full flex flex-col items-center justify-center gap-6 text-center px-4">
+            <div id="kiosk-state-idle" class="h-full flex flex-col items-center justify-end gap-4 pb-2 text-center">
                 <div>
-                    <p class="text-3xl font-semibold leading-snug" id="kiosk-hint">Look at the camera to clock in</p>
-                    <p class="mt-3 text-base text-gray-400">Stand about an arm's length away.</p>
+                    <p class="text-3xl font-semibold leading-snug drop-shadow-lg" id="kiosk-hint">Look at the camera to clock in</p>
+                    <p class="mt-2 text-base text-gray-300 drop-shadow">Stand about an arm's length away.</p>
                 </div>
 
                 {{-- The fallback, and it starts HIDDEN.
@@ -160,31 +371,41 @@
                 @endif
             </div>
 
-            {{-- Confirm --}}
-            <div id="kiosk-state-confirm" class="hidden h-full flex flex-col justify-center gap-5 px-2">
-                <div class="text-center">
-                    <p class="text-xl text-gray-400">Hi</p>
-                    <p class="text-5xl font-bold leading-tight" id="kiosk-name"></p>
-                    <p class="mt-1 text-base text-gray-400" id="kiosk-full-name"></p>
+            {{-- Confirm.
+
+                 Name on the left, the button on the right, side by side in
+                 landscape and stacked in portrait. The name has to stay
+                 readable while the thumb is already moving towards the button,
+                 which a vertical stack in a bottom band cannot do — it pushes
+                 the name up behind the person's own chin. --}}
+            <div id="kiosk-state-confirm"
+                 class="hidden h-full flex flex-col justify-end gap-3 pb-1
+                        landscape:flex-row landscape:items-end">
+                <div class="min-w-0 text-center landscape:flex-1 landscape:text-left">
+                    <p class="text-lg text-gray-300">Hi</p>
+                    <p class="truncate text-5xl font-bold leading-tight drop-shadow-lg" id="kiosk-name"></p>
+                    <p class="mt-1 truncate text-base text-gray-300" id="kiosk-full-name"></p>
                 </div>
 
-                <button type="button" id="kiosk-primary"
-                        class="min-h-[6rem] w-full rounded-panel bg-brand-600 text-4xl font-bold
-                               text-white shadow-btn hover:bg-brand-700 active:bg-brand-700">
-                    <span id="kiosk-primary-label">Clock IN</span>
-                </button>
+                <div class="flex flex-col gap-3 landscape:w-[24rem] landscape:shrink-0">
+                    <button type="button" id="kiosk-primary"
+                            class="min-h-[5.5rem] w-full rounded-panel bg-brand-600 text-4xl font-bold
+                                   text-white shadow-btn hover:bg-brand-700 active:bg-brand-700">
+                        <span id="kiosk-primary-label">Clock IN</span>
+                    </button>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <button type="button" id="kiosk-break"
-                            class="hidden min-h-[3.5rem] rounded-control border border-gray-600
-                                   text-lg font-semibold text-gray-200 hover:bg-gray-800 active:bg-gray-800">
-                        <span id="kiosk-break-label">Start break</span>
-                    </button>
-                    <button type="button" data-kiosk-cancel
-                            class="col-start-2 min-h-[3.5rem] rounded-control border border-gray-700
-                                   text-lg font-semibold text-gray-400 hover:bg-gray-800 active:bg-gray-800">
-                        Not me
-                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" id="kiosk-break"
+                                class="hidden min-h-[3.5rem] rounded-control border border-white/25 bg-gray-950/50
+                                       text-lg font-semibold text-gray-100 hover:bg-gray-800 active:bg-gray-800">
+                            <span id="kiosk-break-label">Start break</span>
+                        </button>
+                        <button type="button" data-kiosk-cancel
+                                class="col-start-2 min-h-[3.5rem] rounded-control border border-white/20 bg-gray-950/50
+                                       text-lg font-semibold text-gray-300 hover:bg-gray-800 active:bg-gray-800">
+                            Not me
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -208,7 +429,13 @@
                             <button type="button"
                                     data-employee="{{ $person->id }}"
                                     data-name="{{ $person->name }}"
-                                    class="min-h-[3.5rem] flex-auto basis-[calc(50%-0.25rem)] rounded-control
+                                    {{-- Two across in portrait, three in
+                                         landscape: the same 44px-plus target
+                                         either way, and a roster of thirty
+                                         that does not need scrolling on a
+                                         counter tablet. --}}
+                                    class="min-h-[3.5rem] flex-auto basis-[calc(50%-0.25rem)]
+                                           landscape:basis-[calc(33.333%-0.34rem)] rounded-control
                                            border border-gray-700 bg-gray-800 px-4 text-lg font-semibold
                                            text-gray-100 ring-brand-500 hover:bg-gray-700 active:bg-gray-700">
                                 {{ $person->name }}
@@ -327,14 +554,22 @@
                 {{-- The scan itself. Reuses the same five-pose ceremony as the
                      HR enrolment screen, so a face captured here is measured
                      exactly the way one captured there is. --}}
-                <div id="kiosk-enrol-scan" class="hidden flex-1 min-h-0 flex flex-col items-center justify-center gap-4 text-center">
-                    <p class="text-3xl font-bold" id="kiosk-enrol-who"></p>
-                    <p class="text-xl text-brand-300 min-h-[1.75rem]" id="kiosk-enrol-pose"></p>
-                    <p class="text-base text-gray-400 min-h-[1.5rem]" id="kiosk-enrol-progress"></p>
+                {{-- Laid out like the confirm card, and for the same reason:
+                     the pose instruction has to stay readable while the manager
+                     is reaching for the button, and the person being enrolled
+                     needs the camera above it unobstructed. --}}
+                <div id="kiosk-enrol-scan"
+                     class="hidden flex-1 min-h-0 flex flex-col justify-end gap-3 pb-1
+                            landscape:flex-row landscape:items-end">
+                    <div class="min-w-0 text-center landscape:flex-1 landscape:text-left">
+                        <p class="truncate text-3xl font-bold drop-shadow-lg" id="kiosk-enrol-who"></p>
+                        <p class="mt-1 text-xl text-brand-300 min-h-[1.75rem] drop-shadow" id="kiosk-enrol-pose"></p>
+                        <p class="text-base text-gray-300 min-h-[1.5rem] drop-shadow" id="kiosk-enrol-progress"></p>
+                    </div>
 
-                    <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
+                    <div class="grid grid-cols-2 gap-3 w-full landscape:w-[22rem] landscape:shrink-0">
                         <button type="button" data-kiosk-enrol-back
-                                class="min-h-[3.5rem] rounded-control border border-gray-700 text-base font-semibold text-gray-400 hover:bg-gray-800">
+                                class="min-h-[3.5rem] rounded-control border border-white/20 bg-gray-950/50 text-base font-semibold text-gray-300 hover:bg-gray-800">
                             Back to list
                         </button>
                         <button type="button" data-kiosk-enrol-scan
@@ -345,14 +580,25 @@
                 </div>
             </div>
 
-            {{-- Result --}}
-            <div id="kiosk-state-result" class="hidden h-full flex items-center justify-center px-2">
+            {{-- Result.
+
+                 A solid card rather than another overlay. This is the one
+                 moment the screen is making a claim about what it just
+                 recorded, and it should not have somebody's face moving behind
+                 it while they read the time off it. --}}
+            <div id="kiosk-state-result" class="hidden h-full flex items-end justify-center pb-1">
                 <div id="kiosk-result-card"
-                     class="w-full rounded-panel bg-success-700 px-6 py-10 text-center shadow-e4">
-                    <p class="text-2xl font-medium text-white/80" id="kiosk-result-headline">Clock in</p>
-                    <p class="mt-2 text-5xl font-bold leading-tight text-white" id="kiosk-result-name"></p>
-                    <p class="mt-3 text-3xl font-semibold text-white/90" id="kiosk-result-at"></p>
-                    <p class="mt-4 hidden text-lg text-white/85" id="kiosk-result-note"></p>
+                     class="w-full rounded-panel bg-success-700 px-6 py-5 shadow-e4">
+                    <div class="flex flex-col items-center gap-1 text-center
+                                landscape:flex-row landscape:items-baseline landscape:justify-between
+                                landscape:gap-6 landscape:text-left">
+                        <div class="min-w-0 landscape:flex-1">
+                            <p class="text-xl font-medium text-white/80" id="kiosk-result-headline">Clock in</p>
+                            <p class="truncate text-5xl font-bold leading-tight text-white" id="kiosk-result-name"></p>
+                        </div>
+                        <p class="text-4xl font-semibold text-white/90 landscape:shrink-0" id="kiosk-result-at"></p>
+                    </div>
+                    <p class="mt-3 hidden text-center text-lg text-white/85" id="kiosk-result-note"></p>
                 </div>
             </div>
 

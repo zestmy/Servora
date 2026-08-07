@@ -34,7 +34,7 @@
                     <input type="month" wire:model.live="newMonth" class="input" />
                     {{-- The dates this month actually covers under the company's
                          pay cycle, shown before generating rather than after. --}}
-                    @if ($newRange)
+                    @if ($newRange && ! $customPeriod)
                         <p class="help">
                             Covers <strong>{{ $newRange[0]->format('j M Y') }} – {{ $newRange[1]->format('j M Y') }}</strong>
                             @if ($settings->hasCustomCycle())
@@ -62,6 +62,58 @@
                     </button>
                     <button wire:click="$set('showNew', false)" class="btn-ghost">Cancel</button>
                 </div>
+            </div>
+
+            {{-- The cycle-change escape hatch.
+
+                 Closed by default and one checkbox wide, because the ordinary
+                 month is a month and putting two date pickers in front of that
+                 invites somebody to change them. The month it earns its place
+                 is the one where a company moves its cycle: going to 26th–25th
+                 makes the last calendar month short (1–25 June) and the first
+                 new one start mid-month, and neither is something the cycle
+                 SETTING can say — a setting is the steady state, and this is
+                 the seam between two of them. The alternative was editing the
+                 setting, generating, and editing it back, which rewrites what
+                 every other screen thinks June meant. --}}
+            <div class="mt-3 pt-3 border-t border-gray-100">
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model.live="customPeriod"
+                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                    Use a different period for this run
+                </label>
+
+                @if ($customPeriod)
+                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="label">Period from</label>
+                            <input type="date" wire:model="newFrom" class="input" />
+                            <x-input-error :messages="$errors->get('newFrom')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="label">Period to</label>
+                            <input type="date" wire:model="newTo" class="input" />
+                            <x-input-error :messages="$errors->get('newTo')" class="mt-1" />
+                        </div>
+                        <div class="sm:col-span-1">
+                            <p class="help">
+                                Attendance, approved overtime and dated allowances are counted over
+                                these dates instead of the pay cycle. The run is still filed under the
+                                month above, and carries the range on its payslips.
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- Said here rather than left to be discovered on a
+                         payslip: a pool is matched on its EXACT dates, so a
+                         run over a range no pool was saved for pays no service
+                         charge at all rather than a pro-rated share. --}}
+                    <p class="mt-2 text-xs text-warning-700">
+                        Service charge is matched to a pool saved for exactly these dates. If you
+                        distribute a pool for this period, set it to the same range or the run will
+                        carry no service charge.
+                    </p>
+                @endif
             </div>
         </div>
     @endif

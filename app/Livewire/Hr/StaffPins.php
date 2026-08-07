@@ -115,7 +115,10 @@ class StaffPins extends Component
             'employees' => $employees,
             'outlets'   => Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get(),
             'labelsUrl' => $this->staffAppUrl('labels', 'labels-staff'),
-            'clockUrl'  => $this->staffAppUrl('clock', 'clock-staff'),
+            // /staff, not /clock. The old prefix still redirects, but this is
+            // the address a manager reads out loud and writes on a noticeboard,
+            // and one that arrives via a redirect outlives the redirect.
+            'clockUrl'  => $this->staffAppUrl('staff', 'staff'),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Staff PINs']);
     }
 

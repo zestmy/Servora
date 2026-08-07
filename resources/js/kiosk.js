@@ -211,6 +211,47 @@ function show(panel) {
     PANELS.forEach((name) => {
         el(`kiosk-state-${name}`)?.classList.toggle('hidden', name !== panel);
     });
+
+    // The stylesheet decides from this whether the panel gets the bottom band
+    // or the whole screen — a message overlays the camera, a keypad replaces
+    // it. Keeping that in CSS means one rule per state instead of a class list
+    // assembled here and drifting from the markup.
+    const shell = root();
+
+    if (shell) shell.dataset.mode = panel;
+
+    // Nothing to scan on a form.
+    if (panel === 'pin' || panel === 'enrolcode' || panel === 'result') setScan('off');
+}
+
+/* ── Scan reticle ─────────────────────────────────────────────────────── */
+
+/**
+ * The ring around the viewfinder.
+ *
+ * Its whole job is to make the second and a half between "somebody is standing
+ * there" and "here is your name" legible. Before this the screen said nothing
+ * during it, which reads as a kiosk that has not noticed you — and the reflex
+ * that follows is to lean in and wave, which moves the face and restarts the
+ * stability timer that was about to fire.
+ *
+ * @param {'off'|'idle'|'locking'|'working'|'ok'|'fail'} mode
+ * @param {number} fraction 0 → 1, only meaningful while locking.
+ */
+function setScan(mode, fraction = 0) {
+    const shell = root();
+
+    if (! shell) return;
+
+    shell.dataset.scan = mode;
+
+    // Held at full for the outcome states so the ring does not snap back to
+    // empty at the exact moment it is confirming something.
+    const value = mode === 'locking'
+        ? Math.max(0, Math.min(1, fraction))
+        : (mode === 'ok' || mode === 'fail' || mode === 'working' ? 1 : 0);
+
+    shell.style.setProperty('--kiosk-scan', String(value));
 }
 
 function setHint(text) {
@@ -236,6 +277,9 @@ let noticeTimer = null;
 function notice(text, { offerPin = false, ms = null } = {}) {
     show('idle');
     setHint(text);
+    // Amber ring for as long as the message is up, so the outcome is legible
+    // from further away than the sentence is.
+    setScan('fail');
 
     const offer   = el('kiosk-pin-offer');
     const showing = offerPin && pinAllowed();
@@ -249,6 +293,7 @@ function notice(text, { offerPin = false, ms = null } = {}) {
         if (state.mode === 'idle') {
             setHint(defaultHint());
             offer?.classList.add('hidden');
+            setScan('idle');
         }
     }, ms ?? (showing ? OFFER_MS : NOTICE_MS));
 }
@@ -306,6 +351,7 @@ async function detectLoop() {
 
         if (! state.camera?.playing) {
             state.stableSince = null;
+            setScan('idle');
             continue;
         }
 
@@ -324,12 +370,19 @@ async function detectLoop() {
 
         if (! real.ok || ! closeEnough(found.detection)) {
             state.stableSince = null;
+            setScan('idle');
             continue;
         }
 
         state.stableSince ??= Date.now();
 
-        if (Date.now() - state.stableSince >= STABLE_MS) {
+        const held = Date.now() - state.stableSince;
+
+        // The ring fills over exactly the window the loop is waiting out, so
+        // "hold still a moment longer" is shown rather than said.
+        setScan('locking', held / STABLE_MS);
+
+        if (held >= STABLE_MS) {
             state.stableSince = null;
             await identify();
         }
@@ -348,6 +401,9 @@ function closeEnough(detection) {
 async function identify() {
     show('idle');
     setHint('One moment…');
+    // Indeterminate from here: the descriptor is going to the server and
+    // nothing on this side knows how long that takes.
+    setScan('working');
 
     let face = null;
 
@@ -451,6 +507,9 @@ function openConfirm(data) {
     }
 
     show('confirm');
+    // Recognised. The ring completes in green behind the name, which is the
+    // one bit of feedback that survives being read from two metres back.
+    setScan('ok');
 
     // Nobody taps a card they have walked away from, and the next person must
     // not arrive at somebody else's name.
@@ -641,6 +700,7 @@ function resetToIdle() {
 
     show('idle');
     setHint(defaultHint());
+    setScan('idle');
 }
 
 /* ── Enrolment ────────────────────────────────────────────────────────────
@@ -706,6 +766,7 @@ async function startEnrolment() {
 
     paintEnrolLeft(result.data.minutes_left);
     paintEnrolRoster();
+    setEnrolStep('list');
     show('enrol');
 }
 
@@ -779,6 +840,12 @@ function pickEnrolTarget(id) {
 
     el('kiosk-enrol-picker')?.classList.add('hidden');
     el('kiosk-enrol-scan')?.classList.remove('hidden');
+
+    // Hands the screen back to the camera — see the [data-enrolstep] rules in
+    // the kiosk stylesheet. The staff list wanted the whole display; a manager
+    // aiming a tablet at somebody's face wants to see what it is aiming at.
+    setEnrolStep('scan');
+    setScan('idle');
 }
 
 function backToEnrolList() {
@@ -788,7 +855,15 @@ function backToEnrolList() {
     el('kiosk-enrol-scan')?.classList.add('hidden');
     el('kiosk-enrol-picker')?.classList.remove('hidden');
 
+    setEnrolStep('list');
     paintEnrolRoster();
+}
+
+/** @param {'list'|'scan'} step */
+function setEnrolStep(step) {
+    const shell = root();
+
+    if (shell) shell.dataset.enrolstep = step;
 }
 
 /**
@@ -814,15 +889,26 @@ async function runEnrolScan() {
 
             const held = await state.camera.waitForPose(pose, (fraction, hint) => {
                 if (hint) setText('kiosk-enrol-pose', hint === 'Hold it…' ? 'Hold it…' : label);
+                // The same ring, fed by the pose's own progress. Holding a
+                // head turned to one side for a second is much easier when
+                // something is counting it down in front of you.
+                setScan('locking', fraction);
             });
 
-            if (! held) continue;
+            if (! held) {
+                setScan('fail');
+                continue;
+            }
 
             setText('kiosk-enrol-pose', 'Hold still…');
+            setScan('working');
 
             const face = await state.camera.capture();
 
-            if (! face) continue;
+            if (! face) {
+                setScan('fail');
+                continue;
+            }
 
             const result = await api(endpoint('enrolCapture'), {
                 employee_id: state.enrolTarget.id,
@@ -834,6 +920,7 @@ async function runEnrolScan() {
 
             if (result.ok && data.status === 'ok') {
                 saved++;
+                setScan('ok');
                 state.enrolTarget.count  = data.count;
                 state.enrolTarget.enough = data.enough;
                 paintEnrolLeft(data.minutes_left);
@@ -852,6 +939,7 @@ async function runEnrolScan() {
     } finally {
         state.enrolScanning = false;
 
+        setScan(stopped ? 'fail' : 'idle');
         setText('kiosk-enrol-pose', '');
         setText('kiosk-enrol-progress', stopped
             ? stopped

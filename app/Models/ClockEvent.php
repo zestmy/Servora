@@ -67,6 +67,12 @@ class ClockEvent extends Model
         'no_outlet_fence'  => 'Outlet has no coordinates set',
         'face_mismatch'    => 'Face did not match',
         'no_face'          => 'No face captured',
+        // A kiosk punch where the camera never named anybody and the person
+        // keyed their PIN instead. Kept apart from no_face because the punch
+        // still carries a photograph, and telling a manager no face was
+        // captured while showing them one sends them hunting a camera fault
+        // that is not there.
+        'pin_fallback'     => 'Identified by PIN, not face',
         'not_enrolled'     => 'No enrolled face on file',
         'no_shift'         => 'No rostered shift',
         'too_early'        => 'Far earlier than the shift',

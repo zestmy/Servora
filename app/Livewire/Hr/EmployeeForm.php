@@ -13,6 +13,7 @@ use App\Models\Section;
 use App\Services\ImageStorageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -163,6 +164,9 @@ class EmployeeForm extends Component
     // deserves the same protection as the figure paid into it.
     public string $f_bank_name         = '';
     public string $f_bank_account_no   = '';
+    // Blank means the account is the employee's own, which is the usual case.
+    // Filled in only when the salary goes to somebody else's account.
+    public string $f_bank_account_name = '';
 
     /**
      * The bank name this employee was loaded with.
@@ -283,6 +287,7 @@ class EmployeeForm extends Component
             $this->f_bank_name       = $emp->bank_name ?? '';
             $this->originalBankName  = $this->f_bank_name;
             $this->f_bank_account_no = $emp->bank_account_no ?? '';
+            $this->f_bank_account_name = $emp->bank_account_name ?? '';
 
             $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
             $this->s_epf_number   = $p->epf_number ?? '';
@@ -435,6 +440,7 @@ class EmployeeForm extends Component
                 \Illuminate\Validation\Rule::in($this->bankOptions()->pluck('name')->all()),
             ],
             'f_bank_account_no'     => 'nullable|string|max:40',
+            'f_bank_account_name'   => 'nullable|string|max:120',
             's_epf_number'   => 'nullable|string|max:30',
             's_socso_number' => 'nullable|string|max:30',
             's_tax_number'   => 'nullable|string|max:30',
@@ -737,6 +743,17 @@ class EmployeeForm extends Component
                 : null;
             $data['bank_name']       = $this->f_bank_name ?: null;
             $data['bank_account_no'] = $this->f_bank_account_no ?: null;
+            // Stored only when it is genuinely a different person. Someone who
+            // types the employee's own name in — which is the obvious thing to
+            // do with a blank field labelled "account name" — should not have
+            // the record start claiming a third-party account.
+            // Uppercased on the way in, to match what the field shows and what
+            // a bulk transfer file carries. Stored that way rather than styled
+            // that way, so the CSV and the payslip do not have to remember.
+            $holder = trim($this->f_bank_account_name);
+            $data['bank_account_name'] = ($holder !== '' && mb_strtolower($holder) !== mb_strtolower(trim($this->f_name)))
+                ? Str::upper($holder)
+                : null;
         }
 
         // Stored before the row is written so a failed save leaves no file

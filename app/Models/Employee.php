@@ -19,7 +19,7 @@ class Employee extends Model
         'employment_status', 'employment_status_date', 'outsourcing_company',
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
-        'break_minutes', 'ic_number', 'bank_name', 'bank_account_no',
+        'break_minutes', 'ic_number', 'bank_name', 'bank_account_no', 'bank_account_name',
         'daily_working_hours', 'reports_to_id', 'allow_byod', 'allow_anywhere',
         'service_charge_outlet_id', 'overtime_as_time_off',
         // Particulars — each picked from a managed list, see HrOption::TYPES.
@@ -38,8 +38,31 @@ class Employee extends Model
         'service_points_entitlement', 'basic_salary', 'pay_type',
         // Where someone's salary is paid is pay data as much as the amount —
         // and a bank account number is worth protecting on its own account.
-        'bank_name', 'bank_account_no',
+        // The holder's name belongs here too: it is usually a family member,
+        // which is to say a third party who never consented to appearing on
+        // anybody's staff screen.
+        'bank_name', 'bank_account_no', 'bank_account_name',
     ];
+
+    /**
+     * The name to put on a salary transfer.
+     *
+     * Blank means "the account is their own", which is the normal case and the
+     * reason this is a fallback rather than a required field.
+     */
+    public function payeeName(): string
+    {
+        return filled($this->bank_account_name)
+            ? (string) $this->bank_account_name
+            : (string) $this->name;
+    }
+
+    /** Whether the account is held by somebody other than the employee. */
+    public function bankAccountIsThirdParty(): bool
+    {
+        return filled($this->bank_account_name)
+            && mb_strtolower(trim((string) $this->bank_account_name)) !== mb_strtolower(trim((string) $this->name));
+    }
 
     /**
      * Never mass-assignable and never serialised. The label PIN is written

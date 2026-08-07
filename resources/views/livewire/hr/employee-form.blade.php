@@ -10,7 +10,8 @@
         'employment' => ['f_outlet_id', 'f_section_id', 'f_staff_id', 'f_designation', 'f_join_date',
                          'f_employment_status', 'f_employment_status_date', 'f_outsourcing_provider',
                          'f_outsourcing_company', 'f_break_minutes', 'f_allow_byod', 'f_allow_anywhere'],
-        'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points', 'f_bank_name', 'f_bank_account_no'],
+        'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points', 'f_bank_name',
+                         'f_bank_account_no', 'f_bank_account_name'],
         'statutory'  => ['s_epf_number', 's_socso_number', 's_tax_number', 's_epf_override',
                          's_pcb_category', 's_children', 's_zakat', 's_other_relief'],
         'compliance' => ['f_food_handler_cert_no', 'f_food_handler_expired_on', 'f_typhoid_valid_from',
@@ -551,10 +552,21 @@
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-gray-600">Bank</label>
-                        <select wire:model.live="f_bank_name" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                            <option value="">— Select bank —</option>
+                        {{-- Shown uppercase, stored verbatim.
+
+                             The seeded IBG list has the casing of the published
+                             document, which is ragged — "Affin Bank" sits three
+                             rows above "AFFIN ISLAMIC BANK BHD" — and in a
+                             dropdown that reads as a list somebody half
+                             finished editing. The VALUE stays exactly as the
+                             banks table holds it, because it is matched against
+                             that table on save and against existing employee
+                             records on load; uppercasing the value would
+                             silently orphan every bank already on file. --}}
+                        <select wire:model.live="f_bank_name" class="mt-1 w-full text-sm rounded-lg border-gray-300 uppercase">
+                            <option value="" class="normal-case">— Select bank —</option>
                             @foreach ($banks as $bank)
-                                <option value="{{ $bank->name }}">{{ $bank->name }}</option>
+                                <option value="{{ $bank->name }}">{{ Str::upper($bank->name) }}</option>
                             @endforeach
                         </select>
                         @php $pickedBank = $banks->firstWhere('name', $f_bank_name); @endphp
@@ -575,6 +587,22 @@
                         <p class="mt-1 text-[11px] text-gray-500">Needed for the salary payment file.</p>
                         <x-input-error :messages="$errors->get('f_bank_account_no')" class="mt-1" />
                     </div>
+                </div>
+
+                {{-- Its own row, below the account number and not beside it, so
+                     the empty state reads as "nothing to do here" rather than
+                     as a third of a form somebody forgot to fill in. --}}
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Bank Account Name</label>
+                    <input type="text" maxlength="120" wire:model="f_bank_account_name"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300 uppercase"
+                           placeholder="Leave blank if the account is in {{ $f_name !== '' ? $f_name : 'the employee’s' }} own name" />
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        Only if the salary goes into someone else's account — a spouse's or a parent's.
+                        The bank matches this name against the account number and rejects the transfer
+                        if they disagree, so the employee's own name here would fail the payment.
+                    </p>
+                    <x-input-error :messages="$errors->get('f_bank_account_name')" class="mt-1" />
                 </div>
 
                 {{-- Allowances and salary revisions are DATED and go through an

@@ -70,10 +70,22 @@
         </div>
     @endif
 
+    {{-- min-w-0 on both children, and it is load-bearing on a phone.
+
+         A grid item's min-width is `auto`, which means "no narrower than my
+         own min-content" — and the min-content of the column below is a table
+         whose action cell is whitespace-nowrap, so it asks for 524px. On one
+         column that demand sets the TRACK, so the form got dragged to 524 too
+         and the page scrolled sideways with the header still at 343. The
+         overflow-x-auto on the table's box never fired, because nothing was
+         overflowing it: it had been handed all the width it asked for.
+
+         Releasing the floor lets the track be 343 again and hands the table
+         back to its own scroller, which is where a wide table belongs. --}}
     <div class="grid gap-6 lg:grid-cols-3">
 
         {{-- Add --}}
-        <div class="lg:col-span-1">
+        <div class="min-w-0 lg:col-span-1">
             <form wire:submit="add" class="panel p-5">
                 <h3 class="text-sm font-semibold text-gray-900">Add a kiosk</h3>
                 <p class="help mt-1">
@@ -113,7 +125,7 @@
         </div>
 
         {{-- List --}}
-        <div class="lg:col-span-2">
+        <div class="min-w-0 lg:col-span-2">
             <div class="panel overflow-x-auto">
                 <table class="table-surface">
                     <thead>

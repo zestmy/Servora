@@ -53,6 +53,14 @@ class FaceIdentifier
     public const NO_FACES   = 'no_enrolments';
     public const BAD_INPUT  = 'bad_input';
 
+    /**
+     * Not an outcome of identify() — the answer to the same question when the
+     * camera never got one. It lives here so the door and the punch use one
+     * vocabulary for "how did we decide who this is", rather than a bare
+     * string passed between two files that both have to remember it.
+     */
+    public const PIN_FALLBACK = 'pin';
+
     /** How many near misses to hand back, for the "is it one of these?" screen. */
     private const SHORTLIST = 3;
 

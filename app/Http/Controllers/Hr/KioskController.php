@@ -599,7 +599,14 @@ class KioskController extends Controller
                 'descriptor'     => null,
                 'selfie'         => is_string($request->input('selfie')) ? $request->input('selfie') : null,
                 'device'         => $device,
+                // The identification, and the distance it was made at, carried
+                // forward from /identify. The descriptor above stays null — the
+                // tablet sent it to that call, not this one — so without these
+                // two the punch would look to ClockInService like a face that
+                // was never captured, and every clean kiosk punch would be
+                // flagged for a manager who has nothing to decide.
                 'identification' => $identification,
+                'face_distance'  => $distance,
                 'device_label'   => $device->name,
                 'user_agent'     => $request->userAgent(),
                 'ip'             => $request->ip(),
@@ -714,10 +721,11 @@ class KioskController extends Controller
 
         RateLimiter::clear($key);
 
-        // 'pin' rather than a face status. ClockInService turns an ambiguous
-        // identification into a flag; a plain PIN punch has no face to speak
-        // of and is already flagged by the no_face path.
-        return [$employee, 'pin', null];
+        // A PIN, not a face status. This punch has no face behind it whatever
+        // the camera was pointed at, so it carries no distance and is flagged
+        // by ClockInService for a manager — deliberately. It is the weakest
+        // door in the room and it is the one thing here worth a human look.
+        return [$employee, FaceIdentifier::PIN_FALLBACK, null];
     }
 
     private function mintToken(Employee $employee, ClockDevice $device, ?float $distance, string $identification): string

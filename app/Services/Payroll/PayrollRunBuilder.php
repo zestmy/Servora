@@ -34,6 +34,8 @@ class PayrollRunBuilder
      * Build or rebuild a run for one month.
      *
      * @param  array<int, int>  $accessibleOutletIds
+     * @param  ?Carbon  $overrideFrom  An explicit period, replacing the cycle
+     * @param  ?Carbon  $overrideTo    for this run only. See below.
      * @throws \RuntimeException when the run is already approved
      */
     public function generate(
@@ -42,6 +44,8 @@ class PayrollRunBuilder
         Carbon $month,
         ?int $outletId,
         ?int $userId = null,
+        ?Carbon $overrideFrom = null,
+        ?Carbon $overrideTo = null,
     ): PayrollRun {
         $month = $month->copy()->startOfMonth();
 
@@ -61,12 +65,43 @@ class PayrollRunBuilder
             ->whereIn('outlet_id', $accessibleOutletIds ?: [0])
             ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId));
 
-        // The real range this month covers under the company's pay cycle. An
-        // existing draft keeps the range it was generated with rather than
-        // silently moving if the setting is changed mid-month.
-        [$from, $to] = $existing?->period_start && $existing?->period_end
-            ? [Carbon::parse($existing->period_start), Carbon::parse($existing->period_end)]
-            : \App\Models\CompensationSetting::forCompany($companyId)->cycleFor($month);
+        /*
+         * The real range this month covers.
+         *
+         * Three sources, in this order, and the order is the point:
+         *
+         *   1. AN EXPLICIT RANGE for this run, when the caller gives one. The
+         *      case it exists for is the month a company CHANGES its cycle.
+         *      Moving from calendar months to 26th–25th makes the last old
+         *      month short — 1–25 June, six days lighter — and the first new
+         *      one start mid-month. Neither is derivable from a setting,
+         *      because a setting describes the steady state and this is the
+         *      seam between two of them. Without this the choice was to run
+         *      June under the wrong cycle or to change the setting, run, and
+         *      change it back, which silently rewrites what "June" meant for
+         *      every screen that reads the cycle.
+         *
+         *   2. THE RANGE AN EXISTING DRAFT WAS BUILT WITH. Regenerating after
+         *      approving a few more OT claims must not silently move the
+         *      period because somebody edited the setting in between.
+         *
+         *   3. The company's pay cycle, which is the answer every ordinary
+         *      month.
+         *
+         * The range is stored on the run either way, so a run always says what
+         * it covered rather than leaving it to be re-derived from a setting
+         * that has since moved on.
+         */
+        [$from, $to] = match (true) {
+            $overrideFrom !== null && $overrideTo !== null => [$overrideFrom, $overrideTo],
+            (bool) ($existing?->period_start && $existing?->period_end)
+                => [Carbon::parse($existing->period_start), Carbon::parse($existing->period_end)],
+            default => \App\Models\CompensationSetting::forCompany($companyId)->cycleFor($month),
+        };
+
+        if ($from->gt($to)) {
+            throw new \RuntimeException('The period must start before it ends.');
+        }
 
         $data = $this->summary->forMonth($employees, $companyId, $month, $from, $to);
 
@@ -99,7 +134,7 @@ class PayrollRunBuilder
 
         $identity = Employee::withoutGlobalScopes()
             ->whereIn('id', $ids)
-            ->get(['id', 'ic_number', 'designation', 'bank_name', 'bank_account_no'])
+            ->get(['id', 'name', 'ic_number', 'designation', 'bank_name', 'bank_account_no', 'bank_account_name'])
             ->keyBy('id');
 
         return DB::transaction(function () use (
@@ -167,6 +202,10 @@ class PayrollRunBuilder
                     'section_name'       => $row['section'],
                     'bank_name'          => $emp?->bank_name,
                     'bank_account_no'    => $emp?->bank_account_no,
+                    // Only when it is genuinely somebody else. Storing a copy
+                    // of the employee's own name here would make every line
+                    // look like a third-party account to anyone reading them.
+                    'bank_account_name'  => $emp?->bankAccountIsThirdParty() ? $emp->bank_account_name : null,
                     'epf_number'         => $profile?->epf_number,
                     'socso_number'       => $profile?->socso_number,
                     'income_tax_number'  => $profile?->income_tax_number,
