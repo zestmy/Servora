@@ -450,10 +450,15 @@
             <div id="kiosk-state-confirm"
                  class="hidden h-full flex flex-col justify-end gap-3 pb-1
                         landscape:flex-row landscape:items-end">
+                {{-- Sized for a full Malay name over two lines rather than one
+                     first name at 48px. "NURUL MUHAMMAD FARHAN BIN JAILUDIN" is
+                     the ordinary case here, and truncating it to fit defeats
+                     the only thing this card is for — letting somebody check
+                     the kiosk has the right one of the four MOHDs on shift. --}}
                 <div class="min-w-0 text-center landscape:flex-1 landscape:text-left">
-                    <p class="text-lg text-gray-300">Hi</p>
-                    <p class="truncate text-5xl font-bold leading-tight drop-shadow-lg" id="kiosk-name"></p>
-                    <p class="mt-1 truncate text-base text-gray-300" id="kiosk-full-name"></p>
+                    <p class="text-base text-gray-300">Hi</p>
+                    <p class="line-clamp-2 text-3xl font-bold leading-tight drop-shadow-lg landscape:text-4xl"
+                       id="kiosk-name"></p>
                 </div>
 
                 {{-- The four punches, named.
@@ -670,7 +675,11 @@
                                 landscape:gap-6 landscape:text-left">
                         <div class="min-w-0 landscape:flex-1">
                             <p class="text-xl font-medium text-white/80" id="kiosk-result-headline">Clock in</p>
-                            <p class="truncate text-5xl font-bold leading-tight text-white" id="kiosk-result-name"></p>
+                            {{-- Same as the confirm card: the full name, wrapped
+                                 rather than cut. This is the record of what was
+                                 just written down. --}}
+                            <p class="line-clamp-2 text-3xl font-bold leading-tight text-white landscape:text-4xl"
+                               id="kiosk-result-name"></p>
                         </div>
                         <p class="text-4xl font-semibold text-white/90 landscape:shrink-0" id="kiosk-result-at"></p>
                     </div>

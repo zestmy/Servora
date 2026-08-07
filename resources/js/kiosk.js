@@ -522,7 +522,12 @@ async function identify() {
     let result;
 
     try {
-        result = await api(endpoint('identify'), { descriptor: face.descriptor });
+        result = await api(endpoint('identify'), {
+            descriptor: face.descriptor,
+            // Sent so the server can tell a break apart from a shift punch
+            // before it applies the shift cooldown. Nothing is recorded here.
+            intent: armedIntent(),
+        });
     } catch (error) {
         notice('Connection problem. Try again.');
 
@@ -551,8 +556,7 @@ async function identify() {
              */
             state.token = data.token || null;
 
-            setText('kiosk-name', firstName(data.employee?.name || ''));
-            setText('kiosk-full-name', data.employee?.name || '');
+            setText('kiosk-name', data.employee?.name || '');
             setScan('ok');
 
             await punch(intent);
@@ -613,8 +617,16 @@ function openConfirm(data) {
 
     const name = data.employee?.name || '';
 
-    setText('kiosk-name', firstName(name));
-    setText('kiosk-full-name', name);
+    /*
+     * The FULL name, not the first.
+     *
+     * "Hi Mohd" is a greeting; this is a receipt for something about to be
+     * written onto somebody's attendance record, and at this outlet a first
+     * name identifies about a third of the staff. The person has to be able to
+     * tell at a glance that the kiosk has the right one of them — which is the
+     * entire job of this card, and a shortened name cannot do it.
+     */
+    setText('kiosk-name', name);
 
     paintActions(data.options || [], data.next);
 
@@ -1246,10 +1258,6 @@ function setText(id, text) {
     const node = el(id);
 
     if (node) node.textContent = text ?? '';
-}
-
-function firstName(name) {
-    return String(name || '').trim().split(/\s+/)[0] || '';
 }
 
 function bind() {

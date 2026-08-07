@@ -425,7 +425,14 @@ class KioskController extends Controller
         if ($result['status'] === FaceIdentifier::MATCHED) {
             return response()->json(
                 ['allow_pin' => $allowPin]
-                + $this->matchedPayload($result['employee'], $result['distance'], $device, $settings, $state)
+                // What the screen says the person armed, used ONLY to decide
+                // whether the shift cooldown applies. It cannot cause a punch —
+                // this endpoint records nothing — and punch() re-reads the
+                // intent from its own request against its own token.
+                + $this->matchedPayload(
+                    $result['employee'], $result['distance'], $device, $settings, $state,
+                    is_string($request->input('intent')) ? $request->input('intent') : null,
+                )
             );
         }
 
@@ -494,16 +501,40 @@ class KioskController extends Controller
         ClockDevice $device,
         ClockSetting $settings,
         PunchState $state,
+        ?string $intent = null,
     ): array {
-        $recent = $state->recentShiftPunch($employee, (int) $settings->kiosk_cooldown_minutes);
+        /*
+         * The cooldown guards SHIFT punches, and now that the screen knows what
+         * the person came to do, it has to be told which.
+         *
+         * It exists because a kiosk sees the same face several times a minute
+         * and the second sighting would otherwise be a clock-OUT thirty seconds
+         * into a shift. A break is not that: starting one two minutes after
+         * clocking in is the normal way a shift begins for anybody who arrives
+         * early. Refusing it — which is what happened, with "you already clocked
+         * in at 4:31" in answer to somebody pressing Start break — blocked a
+         * punch that was never in danger of being an accident, and the message
+         * did not even mention breaks, so there was nothing to work out from it.
+         *
+         * Unknown or unarmed still gets the cooldown: an unannounced face is
+         * exactly the walking-past case this was built for.
+         */
+        $isBreakIntent = in_array($intent, [ClockEvent::TYPE_BREAK_START, ClockEvent::TYPE_BREAK_END, 'break'], true);
+
+        $recent = $isBreakIntent
+            ? null
+            : $state->recentShiftPunch($employee, (int) $settings->kiosk_cooldown_minutes);
 
         if ($recent) {
             return [
                 'status'   => 'cooldown',
                 'employee' => ['name' => $employee->name],
+                // Full name. On a shared screen at a counter the person reading
+                // this is checking it is about THEM, and "MOHD" is half the
+                // outlet — first names collide constantly here.
                 'message'  => sprintf(
                     '%s, you already %s at %s.',
-                    Str::before($employee->name, ' '),
+                    $employee->name,
                     $recent->type === ClockEvent::TYPE_IN ? 'clocked in' : 'clocked out',
                     $recent->happened_at->format('g:i a'),
                 ),
