@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Helpers\PermissionRegistry;
 use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\User;
@@ -51,32 +52,26 @@ class Users extends Component
     // Access level: an assignable role name, or 'custom' for a hand-picked set
     public string $accessRole = 'custom';
 
-    // Available modules (permission name => display label)
-    public const MODULES = [
-        'ingredients.view'     => 'Ingredients',
-        'recipes.view'         => 'Recipes',
-        'purchasing.view'      => 'Purchasing',
-        'sales.view'           => 'Sales',
-        'inventory.view'       => 'Inventory & Kitchen',
-        'hr.view'              => 'HR — Employees & Labour',
-        'hr.attendance'        => 'HR — Attendance & Service Charge',
-        'hr.claims'            => 'HR — Overtime Claims',
-        'hr.clock'             => 'HR — Clock-In Review',
-        'hr.clock.manage'      => 'HR — Clock-In Settings & Face Enrolment',
-        'staff.pins'           => 'HR — Staff PINs (staff app access)',
-        'hr.compensation'      => 'HR — Salary & Service Points (sensitive)',
-        'hr.documents.view'    => 'HR Documents (View)',
-        'hr.documents.manage'  => 'HR Documents (Manage)',
-        'roster.create'        => 'Duty Roster (Create)',
-        'roster.edit'          => 'Duty Roster (Edit/Submit)',
-        'roster.approve'       => 'Duty Roster (Approve)',
-        'roster.delete'        => 'Duty Roster (Delete)',
-        'roster.amend'         => 'Duty Roster (Amend Approved)',
-        'roster.settings'      => 'Duty Roster (Settings)',
-        'reports.view'         => 'Reports',
-        'audit.view'           => 'Audit Logs',
-        'settings.view'        => 'Settings',
-    ];
+    /**
+     * Grantable modules (permission name => display label).
+     *
+     * This was a hand-maintained 23-entry const, and it had quietly fallen nine
+     * permissions behind the `permissions` table — `hr.payroll`, `hr.leave`, the
+     * label abilities and more were enforced but appeared in no admin screen, so
+     * the only way to change who could run payroll was to write a migration.
+     * It now derives from config/permissions.php, and PermissionRegistryTest
+     * fails the build if the two ever diverge again.
+     *
+     * Capability-managed abilities (`users.manage`) are excluded, exactly as
+     * before: it is granted by the "Can manage users" checkbox below, and two
+     * controls writing one permission could disagree.
+     *
+     * @return array<string, string>
+     */
+    public static function modules(): array
+    {
+        return PermissionRegistry::titles();
+    }
 
     /**
      * Roles a company admin may assign, with a plain-language description.
@@ -141,7 +136,7 @@ class Users extends Component
         }
 
         $rolePerms = $this->rolePermMap()[$value] ?? [];
-        $this->moduleAccess = array_values(array_intersect($rolePerms, array_keys(self::MODULES)));
+        $this->moduleAccess = array_values(array_intersect($rolePerms, array_keys(self::modules())));
 
         $suggested = self::ROLE_CAPABILITIES[$value] ?? [];
         foreach (array_keys($this->capabilityFlags()) as $flag) {
@@ -388,11 +383,11 @@ class Users extends Component
         setPermissionsTeamId($companyId);
 
         try {
-            $valid = array_intersect($this->moduleAccess, array_keys(self::MODULES));
+            $valid = array_intersect($this->moduleAccess, array_keys(self::modules()));
 
             if (isset(self::ASSIGNABLE_ROLES[$this->accessRole])) {
                 $rolePerms = $this->rolePermMap()[$this->accessRole] ?? [];
-                $valid = array_merge($valid, array_intersect($rolePerms, array_keys(self::MODULES)));
+                $valid = array_merge($valid, array_intersect($rolePerms, array_keys(self::modules())));
                 if (! $user->isSystemRole()) {
                     $user->unsetRelation('roles');
                     $user->syncRoles([$this->accessRole]);
@@ -672,7 +667,10 @@ class Users extends Component
             $q->where('company_id', $currentUser->company_id)
         )->where('is_active', true)->orderBy('name')->get();
 
-        $modules = self::MODULES;
+        $modules = self::modules();
+        // Same abilities as $modules, but grouped by module for the checkbox grid:
+        // 33 flat checkboxes is a wall, 4 groups of related ones is a form.
+        $moduleGrid = PermissionRegistry::grid();
 
         // Separate regular outlets from kitchen outlets
         $kitchenOutletIds = \App\Models\CentralKitchen::when(! $isSuperAdmin, fn ($q) =>
@@ -701,7 +699,7 @@ class Users extends Component
 
         return view('livewire.settings.users', compact(
             'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules',
-            'assignableRoles', 'rolePermMap', 'roleDisplayMap', 'lastActive'
+            'moduleGrid', 'assignableRoles', 'rolePermMap', 'roleDisplayMap', 'lastActive'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
     }
 

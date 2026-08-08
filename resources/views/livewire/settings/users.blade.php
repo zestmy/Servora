@@ -245,22 +245,61 @@
                         $lockedPerms = $accessRole !== 'custom' ? ($rolePermMap[$accessRole] ?? []) : [];
                     @endphp
                     <label class="block text-xs font-medium text-gray-500 mb-2">Module Access</label>
-                    <div class="grid grid-cols-2 gap-2 border border-gray-200 rounded-lg p-3">
-                        @foreach ($modules as $perm => $label)
-                            @php $locked = in_array($perm, $lockedPerms, true); @endphp
-                            <label wire:key="mod-{{ $accessRole }}-{{ $perm }}"
-                                   class="flex items-center gap-2 px-2 py-1.5 rounded {{ $locked ? 'bg-brand-50/60 cursor-default' : 'hover:bg-gray-50 cursor-pointer' }}">
-                                @if ($locked)
-                                    <input type="checkbox" checked disabled
-                                           class="rounded border-gray-300 text-brand-400" />
-                                    <span class="text-sm text-gray-700">{{ $label }}</span>
-                                    <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-400 font-semibold">role</span>
-                                @else
-                                    <input type="checkbox" wire:model="moduleAccess" value="{{ $perm }}"
-                                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                    <span class="text-sm text-gray-700">{{ $label }}</span>
-                                @endif
-                            </label>
+                    {{-- Grouped by module: this grid grew from 23 to 33 abilities when it
+                         started reading the permission registry, and a flat two-column wall
+                         of 33 checkboxes is unreadable. Multi-ability modules (Payroll,
+                         Leave, Duty Roster) get a sub-heading so "view" and "approve" read
+                         as two halves of one decision rather than two unrelated ticks. --}}
+                    <div class="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                        @foreach ($moduleGrid as $groupLabel => $groupModules)
+                            <div class="p-3">
+                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">{{ $groupLabel }}</p>
+                                <div class="space-y-2">
+                                    @foreach ($groupModules as $moduleKey => $module)
+                                        @if ($module['single'])
+                                            @php
+                                                $ability = reset($module['abilities']);
+                                                $perm    = $ability['name'];
+                                                $locked  = in_array($perm, $lockedPerms, true);
+                                            @endphp
+                                            <label wire:key="mod-{{ $accessRole }}-{{ $perm }}"
+                                                   title="{{ $ability['help'] ?? '' }}"
+                                                   class="flex items-center gap-2 px-2 py-1.5 rounded {{ $locked ? 'bg-brand-50/60 cursor-default' : 'hover:bg-gray-50 cursor-pointer' }}">
+                                                <input type="checkbox" @disabled($locked) @checked($locked)
+                                                       @if (! $locked) wire:model="moduleAccess" value="{{ $perm }}" @endif
+                                                       class="rounded border-gray-300 {{ $locked ? 'text-brand-400' : 'text-brand-600 focus:ring-brand-500' }}" />
+                                                <span class="text-sm text-gray-700">{{ $module['label'] }}</span>
+                                                @if ($locked)
+                                                    <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-400 font-semibold">role</span>
+                                                @endif
+                                            </label>
+                                        @else
+                                            <div wire:key="modgrp-{{ $accessRole }}-{{ $moduleKey }}" class="px-2">
+                                                <p class="text-xs font-medium text-gray-600 mb-1">{{ $module['label'] }}</p>
+                                                <div class="grid grid-cols-2 gap-1">
+                                                    @foreach ($module['abilities'] as $ability)
+                                                        @php
+                                                            $perm   = $ability['name'];
+                                                            $locked = in_array($perm, $lockedPerms, true);
+                                                        @endphp
+                                                        <label wire:key="mod-{{ $accessRole }}-{{ $perm }}"
+                                                               title="{{ $ability['help'] ?? '' }}"
+                                                               class="flex items-center gap-2 px-2 py-1 rounded {{ $locked ? 'bg-brand-50/60 cursor-default' : 'hover:bg-gray-50 cursor-pointer' }}">
+                                                            <input type="checkbox" @disabled($locked) @checked($locked)
+                                                                   @if (! $locked) wire:model="moduleAccess" value="{{ $perm }}" @endif
+                                                                   class="rounded border-gray-300 {{ $locked ? 'text-brand-400' : 'text-brand-600 focus:ring-brand-500' }}" />
+                                                            <span class="text-sm text-gray-700">{{ $ability['label'] }}</span>
+                                                            @if ($locked)
+                                                                <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-400 font-semibold">role</span>
+                                                            @endif
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 </div>

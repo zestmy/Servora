@@ -22,8 +22,19 @@ class RoleTemplates extends Component
     /** roleId => [display_name, description, perms[]] */
     public array $edit = [];
 
-    /** Permissions this editor manages; anything else a role holds is kept as-is. */
-    public const EDITABLE_PERMS = SettingsUsers::MODULES;
+    /**
+     * Permissions this editor manages; anything else a role holds is kept as-is.
+     *
+     * Was `SettingsUsers::MODULES` — the same stale 23-entry const that drove the
+     * Users screen, which is why role templates could not grant payroll or leave
+     * either. Both screens now read the registry, so they cannot drift apart.
+     *
+     * @return array<string, string>
+     */
+    public static function editablePerms(): array
+    {
+        return SettingsUsers::modules();
+    }
 
     protected function assignableRoleRows()
     {
@@ -46,7 +57,7 @@ class RoleTemplates extends Component
             $this->edit[$role->id] = [
                 'display_name' => $role->display_name ?: $role->name,
                 'description'  => $role->description ?? '',
-                'perms'        => array_values(array_intersect($current, array_keys(self::EDITABLE_PERMS))),
+                'perms'        => array_values(array_intersect($current, array_keys(self::editablePerms()))),
             ];
         }
     }
@@ -76,10 +87,10 @@ class RoleTemplates extends Component
         // editor (e.g. roster.view) are preserved untouched.
         $selected = array_values(array_intersect(
             (array) ($this->edit[$roleId]['perms'] ?? []),
-            array_keys(self::EDITABLE_PERMS)
+            array_keys(self::editablePerms())
         ));
         $editableIds = DB::table('permissions')
-            ->whereIn('name', array_keys(self::EDITABLE_PERMS))
+            ->whereIn('name', array_keys(self::editablePerms()))
             ->where('guard_name', 'web')
             ->pluck('id', 'name');
 
@@ -111,7 +122,8 @@ class RoleTemplates extends Component
 
         return view('livewire.admin.role-templates', [
             'roles'      => $this->assignableRoleRows(),
-            'modules'    => self::EDITABLE_PERMS,
+            'modules'    => self::editablePerms(),
+            'moduleGrid' => \App\Helpers\PermissionRegistry::grid(),
             'userCounts' => $userCounts,
         ])->layout('layouts.app', ['title' => 'Role Templates']);
     }

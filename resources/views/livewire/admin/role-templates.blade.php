@@ -41,14 +41,27 @@
                         </button>
                     </div>
 
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-                        @foreach ($modules as $perm => $label)
-                            <label wire:key="rp-{{ $role->id }}-{{ $perm }}"
-                                   class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" wire:model="edit.{{ $role->id }}.perms" value="{{ $perm }}"
-                                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                                <span class="text-sm text-gray-700">{{ $label }}</span>
-                            </label>
+                    {{-- Grouped by module, matching Settings > Users. Both grids read the
+                         same registry, so a role can now be given payroll, leave and label
+                         access — which the old hand-maintained const silently omitted. --}}
+                    <div class="space-y-3">
+                        @foreach ($moduleGrid as $groupLabel => $groupModules)
+                            <div>
+                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">{{ $groupLabel }}</p>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                                    @foreach ($groupModules as $moduleKey => $module)
+                                        @foreach ($module['abilities'] as $ability)
+                                            <label wire:key="rp-{{ $role->id }}-{{ $ability['name'] }}"
+                                                   title="{{ $ability['help'] ?? '' }}"
+                                                   class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                                                <input type="checkbox" wire:model="edit.{{ $role->id }}.perms" value="{{ $ability['name'] }}"
+                                                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                <span class="text-sm text-gray-700">{{ $ability['title'] }}</span>
+                                            </label>
+                                        @endforeach
+                                    @endforeach
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 </div>
