@@ -112,4 +112,36 @@ class PayrollRunLine extends Model
 
         return $missing;
     }
+
+    /** Paid by the hour, whether or not any hours were found for the period. */
+    public function isHourly(): bool
+    {
+        return $this->pay_type === 'hourly';
+    }
+
+    /**
+     * Why an hourly line came out at nothing, if it did.
+     *
+     * Zero is a legitimate answer — somebody who did not work this period is
+     * owed nothing — but it is indistinguishable from a grid nobody filled in,
+     * and the two want opposite responses. Naming which of the two inputs is
+     * missing is the difference between "check this" and "check what".
+     *
+     * Null when there is nothing to say, so callers can filter on truthiness.
+     */
+    public function zeroHourReason(): ?string
+    {
+        if (! $this->isHourly() || (float) $this->basic > 0) {
+            return null;
+        }
+
+        $noHours = $this->paid_hours === null || (float) $this->paid_hours <= 0;
+        $noRate  = $this->pay_rate === null || (float) $this->pay_rate <= 0;
+
+        return match (true) {
+            $noHours && $noRate => 'no hours and no rate',
+            $noHours            => 'no hours entered',
+            default             => 'no hourly rate set',
+        };
+    }
 }

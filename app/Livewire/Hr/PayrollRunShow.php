@@ -260,6 +260,26 @@ class PayrollRunShow extends Component
             $warnings[] = $unpriced->count() . ' employee(s) have overtime that could not be priced: no salary on record.';
         }
 
+        /*
+         * An hourly employee who came out at nothing.
+         *
+         * Zero is a legitimate figure — somebody who did not work this period
+         * is owed nothing — but it looks identical to an attendance grid that
+         * nobody filled in, and only one of those is safe to approve. It is
+         * named here rather than blocked because a real zero has to stay
+         * payable; the run is stopped by a person, not by the software.
+         *
+         * Named individually. "3 employees have no hours" sends somebody
+         * hunting through a list of forty; the names are the actionable part.
+         */
+        $zeroHours = $lines->filter(fn ($l) => $l->zeroHourReason() !== null);
+
+        if ($zeroHours->isNotEmpty()) {
+            $warnings[] = $zeroHours->count() . ' hourly employee(s) are being paid nothing — '
+                . $zeroHours->map(fn ($l) => $l->employee_name . ' (' . $l->zeroHourReason() . ')')->join('; ')
+                . '. Check the attendance record for this period, then regenerate.';
+        }
+
         if (! $run->rates_were_confirmed) {
             $warnings[] = 'Statutory rates were not confirmed when this run was generated — EPF, SOCSO, EIS and PCB are estimates.';
         }

@@ -177,8 +177,28 @@
                                 @if ($line->missingForPayment())
                                     <span class="badge-warning mt-0.5">no {{ implode(', ', $line->missingForPayment()) }}</span>
                                 @endif
+                                {{-- The warning above the table names these people;
+                                     this is where somebody scrolling to find them
+                                     stops. Danger, not warning: a missing bank
+                                     account delays a payment, an unfilled grid pays
+                                     the wrong amount. --}}
+                                @if ($line->zeroHourReason())
+                                    <span class="badge-danger mt-0.5">{{ $line->zeroHourReason() }}</span>
+                                @endif
                             </td>
-                            <td class="px-2 py-1.5 text-right tabular-nums text-gray-700">{{ number_format((float) $line->basic, 2) }}</td>
+                            <td class="px-2 py-1.5 text-right tabular-nums text-gray-700">
+                                {{ number_format((float) $line->basic, 2) }}
+                                {{-- The working, so a figure can be checked against
+                                     the attendance grid without opening it. --}}
+                                @if ($line->paid_hours !== null)
+                                    <span class="block text-[10px] text-gray-500 whitespace-nowrap">
+                                        {{ rtrim(rtrim(number_format((float) $line->paid_hours, 2, '.', ''), '0'), '.') }}h
+                                        @if ((float) $line->pay_rate > 0)
+                                            &times; {{ number_format((float) $line->pay_rate, 2) }}
+                                        @endif
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-700">{{ (float) $line->allowances > 0 ? number_format((float) $line->allowances, 2) : '—' }}</td>
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-700">
                                 {{ (float) $line->ot_amount > 0 ? number_format((float) $line->ot_amount, 2) : '—' }}
