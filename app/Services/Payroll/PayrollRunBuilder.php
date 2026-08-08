@@ -210,6 +210,11 @@ class PayrollRunBuilder
                     'socso_number'       => $profile?->socso_number,
                     'income_tax_number'  => $profile?->income_tax_number,
                     'pay_type'           => $row['pay_type'],
+                    // The working behind basic, for hourly staff. Null for
+                    // everybody else, which is what lets the payslip show it
+                    // without having to ask the pay type.
+                    'paid_hours'         => $row['paid_hours'] ?? null,
+                    'pay_rate'           => $row['pay_rate'] ?? null,
                     'basic'              => $row['basic'],
                     'allowances'         => $row['allowances'],
                     'deductions'         => $row['deductions'],

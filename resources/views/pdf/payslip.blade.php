@@ -134,7 +134,19 @@
                     <table>
                         <tr><th>Earnings</th><th class="amt">RM</th></tr>
                         <tr>
-                            <td>Basic salary</td>
+                            <td>
+                                Basic salary
+                                {{-- The working, for anybody paid by the hour.
+                                     A part-timer checking a payslip is checking
+                                     the hours, not the total — the total is the
+                                     thing they cannot verify without them. --}}
+                                @if ($line->paid_hours !== null)
+                                    <span class="sub">
+                                        {{ rtrim(rtrim(number_format((float) $line->paid_hours, 2, '.', ''), '0'), '.') }} hrs
+                                        &times; RM {{ number_format((float) $line->pay_rate, 2) }}
+                                    </span>
+                                @endif
+                            </td>
                             <td class="amt">{{ number_format((float) $line->basic, 2) }}</td>
                         </tr>
                         @foreach ($allowances as $a)

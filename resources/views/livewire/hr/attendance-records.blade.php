@@ -53,8 +53,10 @@
                     <span class="hidden sm:inline">Service Charge</span>
                 </button>
             @endif
+            {{-- Says which table, because it only touches one. Hours are a
+                 quantity and "Present" is not one — see fillPresent(). --}}
             <button wire:click="fillPresent"
-                    wire:confirm="Mark every empty day in the visible grid as Present?"
+                    wire:confirm="Mark every empty day on the salaried table as Present? Hourly staff are not touched."
                     class="btn-primary">
                 Fill Empty with ✓
             </button>
@@ -151,6 +153,15 @@
     {{-- Grid --}}
     <div class="card overflow-hidden mb-4"
          wire:loading.class="opacity-60" wire:target="setCell, fillPresent, clearRange">
+        {{-- Headed only when there is a second table to tell it apart from.
+             A lone table on a screen called Attendance Record does not need a
+             label saying it is the attendance record. --}}
+        @if ($hourlyEmployees->isNotEmpty())
+            <div class="px-3 py-2 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-sm font-semibold text-gray-800">Salaried staff</h3>
+                <p class="help">Marked with a code — present, off, MC. Pay does not depend on these.</p>
+            </div>
+        @endif
         <div class="overflow-x-auto">
             <table class="table-surface border-collapse">
                 <thead>
@@ -188,7 +199,7 @@
                                $wire.reorderRows(ids);
                            }
                        })">
-                    @forelse ($employees as $emp)
+                    @forelse ($monthlyEmployees as $emp)
                         <tr wire:key="row-{{ $emp->id }}" data-employee-id="{{ $emp->id }}" class="hover:bg-gray-50/70">
                             <td class="px-2 py-1.5 text-gray-600 text-xs whitespace-nowrap">
                                 <span class="row-drag-handle inline-flex align-middle cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-900"
@@ -244,6 +255,134 @@
             </table>
         </div>
     </div>
+
+    {{-- ── Hourly staff ──────────────────────────────────────────────────
+         Its own table, present only when somebody is on it.
+
+         A monthly row asks "were you here" and answers with a tick. An hourly
+         row asks "how long for" and answers with a number that gets multiplied
+         by a rate. Interleaving them put ticks and hours under one heading with
+         totals underneath that could not mean anything for both — and the
+         column that decides somebody's pay would have looked exactly like the
+         column that does not.
+
+         The cell takes EITHER, typed: "4.5" for hours, "MC" for a code. See
+         AttendanceRecords::setHourlyCell() for why it is one input and not a
+         number field beside a palette. --}}
+    @if ($hourlyEmployees->isNotEmpty())
+        <div class="card overflow-hidden mb-4" wire:loading.class="opacity-60" wire:target="setHourlyCell">
+            <div class="px-3 py-2 border-b border-gray-200 bg-gray-50 flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-800">Hourly staff</h3>
+                    <p class="help">
+                        Type the hours worked — <span class="font-mono">4.5</span>, <span class="font-mono">6</span> —
+                        or a code such as <span class="font-mono">MC</span> for a day not worked. Blank is unpaid.
+                    </p>
+                </div>
+                @if ($canViewPay)
+                    <p class="text-xs text-gray-600">
+                        These hours are what payroll multiplies by the hourly rate.
+                    </p>
+                @endif
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="table-surface border-collapse">
+                    <thead>
+                        <tr>
+                            <th class="px-2 py-2 text-left w-8 border-b border-gray-200">#</th>
+                            <th class="px-3 py-2 text-left min-w-[170px] border-b border-gray-200 sticky left-0 bg-gray-50 z-10">Name</th>
+                            <th class="px-2 py-2 text-left min-w-[90px] border-b border-gray-200">Position</th>
+                            <th class="px-2 py-2 text-left min-w-[70px] border-b border-gray-200">Emp ID</th>
+                            <th class="px-2 py-2 text-left min-w-[90px] border-b border-gray-200">Outlet</th>
+                            <th class="px-2 py-2 text-left min-w-[64px] border-b border-gray-200">Section</th>
+                            <th class="px-2 py-2 text-left min-w-[76px] border-b border-gray-200">Date Join</th>
+                            @if ($canViewPay)
+                                <th class="px-2 py-2 text-right min-w-[54px] border-b border-gray-200">Svc Pts</th>
+                                <th class="px-2 py-2 text-right min-w-[86px] border-b border-gray-200">Rate</th>
+                            @endif
+                            @foreach ($dates as $d)
+                                <th wire:key="hh-{{ $d->format('Ymd') }}"
+                                    class="px-0 py-1.5 text-center w-9 min-w-[38px] border-b border-l border-gray-200 {{ $d->isSunday() ? 'bg-danger-50 text-danger-500' : ($d->isSaturday() ? 'bg-warning-50/60 text-warning-600' : '') }} {{ $d->isToday() ? '!bg-brand-50 !text-brand-600' : '' }}">
+                                    <div class="text-[11px] font-bold leading-tight">{{ $d->day }}</div>
+                                    <div class="text-[9px] font-normal leading-tight">{{ $d->format('D') }}</div>
+                                </th>
+                            @endforeach
+                            <th class="px-2 py-2 text-center min-w-[44px] border-b border-l-2 border-gray-200" title="Days with hours entered">Days</th>
+                            <th class="px-2 py-2 text-center min-w-[58px] border-b border-gray-200" title="Total hours this period">Hours</th>
+                            @if ($canViewPay)
+                                <th class="px-2 py-2 text-right min-w-[86px] border-b border-gray-200" title="Hours × rate">Pay</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($hourlyEmployees as $emp)
+                            @php
+                                $totalHours = $hourTotals[$emp->id] ?? 0;
+                                $daysWorked = collect($dates)->filter(fn ($d) => isset($hoursMap[$emp->id . ':' . $d->format('Y-m-d')]))->count();
+                                $rate       = $emp->basic_salary !== null ? (float) $emp->basic_salary : null;
+                            @endphp
+                            <tr wire:key="hrow-{{ $emp->id }}" class="hover:bg-gray-50/70">
+                                <td class="px-2 py-1.5 text-gray-600 text-xs whitespace-nowrap">{{ $loop->iteration }}</td>
+                                <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap sticky left-0 bg-white z-10">{{ $emp->name }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->designation ?? '—' }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->outlet?->name ?? '—' }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 text-xs">{{ $emp->section?->name ?? '—' }}</td>
+                                <td class="px-2 py-1.5 text-gray-500 text-xs whitespace-nowrap">{{ $emp->join_date?->format('d M y') ?? '—' }}</td>
+                                @if ($canViewPay)
+                                    <td class="px-2 py-1.5 text-gray-500 text-xs text-right tabular-nums">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '—' }}</td>
+                                    <td class="px-2 py-1.5 text-gray-500 text-xs text-right tabular-nums whitespace-nowrap">
+                                        {{-- Named as a rate, because on this table that is what
+                                             basic_salary is. Showing "Basic Salary 12.00" over a row
+                                             of hours invites somebody to read 12 as the month. --}}
+                                        @if ($rate !== null)
+                                            {{ number_format($rate, 2) }}<span class="text-[10px] text-gray-600 ml-0.5">/ hr</span>
+                                        @else
+                                            <span class="text-danger-600" title="No rate on file — payroll cannot price these hours">— set a rate</span>
+                                        @endif
+                                    </td>
+                                @endif
+                                @foreach ($dates as $d)
+                                    @php
+                                        $key    = $emp->id . ':' . $d->format('Y-m-d');
+                                        $hours  = $hoursMap[$key] ?? null;
+                                        $codeId = $cellMap[$key] ?? null;
+                                        $code   = $codeId ? ($codesById[$codeId] ?? null) : null;
+                                        $meta   = $code?->colorMeta();
+                                        // Trailing zeros dropped: a column of "4.50" is harder to
+                                        // scan than one of "4.5", and these are read down a page.
+                                        $shown  = $hours !== null
+                                            ? rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.')
+                                            : ($code?->code ?? '');
+                                    @endphp
+                                    <td wire:key="hc-{{ $emp->id }}-{{ $d->format('Ymd') }}"
+                                        class="p-0 border-l border-gray-100 text-center {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-danger-50/40' : '') }}">
+                                        <input type="text" inputmode="decimal" autocomplete="off"
+                                               value="{{ $shown }}"
+                                               title="{{ $emp->name }} · {{ $d->format('D, d M Y') }} — hours, or a code such as MC"
+                                               x-on:change="$wire.setHourlyCell({{ $emp->id }}, '{{ $d->format('Y-m-d') }}', $event.target.value)"
+                                               x-on:focus="$event.target.select()"
+                                               class="w-full h-8 border-0 bg-transparent p-0 text-center text-[11px] font-semibold
+                                                      text-gray-800 focus:bg-brand-50 focus:ring-1 focus:ring-inset focus:ring-brand-500">
+                                    </td>
+                                @endforeach
+                                <td class="px-2 py-1.5 text-center text-xs font-semibold text-gray-700 border-l-2 border-gray-200">{{ $daysWorked ?: '—' }}</td>
+                                <td class="px-2 py-1.5 text-center text-xs font-bold tabular-nums {{ $totalHours > 0 ? 'text-brand-700' : 'text-gray-500' }}">
+                                    {{ $totalHours > 0 ? rtrim(rtrim(number_format($totalHours, 2, '.', ''), '0'), '.') : '—' }}
+                                </td>
+                                @if ($canViewPay)
+                                    <td class="px-2 py-1.5 text-right text-xs font-semibold tabular-nums whitespace-nowrap {{ $rate === null ? 'text-danger-600' : 'text-gray-800' }}">
+                                        {{ $rate !== null ? number_format($totalHours * $rate, 2) : '—' }}
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 
     {{-- Service Charge distribution --}}
     @if ($showServiceCharge && $serviceCharge)
@@ -556,7 +695,10 @@
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Legend</h3>
             <button wire:click="clearRange"
-                    wire:confirm="Remove EVERY attendance mark in the visible grid ({{ $from->format('d M Y') }} – {{ $to->format('d M Y') }})? This cannot be undone."
+                    {{-- Names the hours explicitly. This one DOES clear both
+                         tables, and deleting a part-timer's month of hours is a
+                         different order of loss from clearing some ticks. --}}
+                    wire:confirm="Remove EVERY attendance mark in the visible period ({{ $from->format('d M Y') }} – {{ $to->format('d M Y') }})?{{ $hourlyEmployees->isNotEmpty() ? ' This includes all hours entered for hourly staff.' : '' }} This cannot be undone."
                     class="text-xs text-danger-500 hover:text-danger-700 underline">
                 Clear all marks in this period
             </button>

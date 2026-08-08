@@ -192,6 +192,92 @@ class AttendanceRecords extends Component
         );
     }
 
+    /**
+     * One cell on the hourly table, typed rather than tapped.
+     *
+     * ONE INPUT, TWO KINDS OF ANSWER, and that is deliberate. A part-timer's
+     * month is mostly numbers — "4.5", "6", "8" — with the occasional MC or
+     * annual leave among them. Splitting those into a number field and a code
+     * palette would mean moving between two controls to fill one row, on the
+     * screen whose entry speed is the whole reason it exists. So the cell takes
+     * whatever is typed and works out which it was:
+     *
+     *   "4.5" → hours worked
+     *   "MC"  → the MC code, matched case-insensitively against the palette
+     *   ""    → the cell is cleared
+     *
+     * Anything else is ignored rather than guessed at. Silently storing zero
+     * hours for a typo would be a paid day quietly turned into an unpaid one.
+     */
+    public function setHourlyCell(int $employeeId, string $date, string $raw): void
+    {
+        $employee = Employee::find($employeeId);
+        if (! $employee || ! in_array((int) $employee->outlet_id, $this->accessibleOutletIds(), true)) {
+            return;
+        }
+
+        [$from, $to] = $this->period();
+        try {
+            $day = Carbon::parse($date)->startOfDay();
+        } catch (\Throwable $e) {
+            return;
+        }
+        if ($day->lt($from) || $day->gt($to)) return;
+
+        $value = trim($raw);
+        $keys  = ['employee_id' => $employee->id, 'work_date' => $day->format('Y-m-d')];
+
+        if ($value === '') {
+            AttendanceRecord::where('employee_id', $employee->id)
+                ->whereDate('work_date', $day)
+                ->delete();
+
+            return;
+        }
+
+        $base = [
+            'company_id' => Auth::user()->company_id,
+            'outlet_id'  => $employee->outlet_id,
+        ];
+
+        // A number, in any of the ways somebody writes one: 4, 4.5, 4,5.
+        $numeric = str_replace(',', '.', $value);
+
+        if (is_numeric($numeric)) {
+            $hours = round((float) $numeric, 2);
+
+            // Zero is not "worked no hours", it is a mistake or a clearing —
+            // and 24 is the ceiling because a day is. Both drop the row rather
+            // than storing a figure payroll would then multiply by a rate.
+            if ($hours <= 0 || $hours > 24) {
+                AttendanceRecord::where('employee_id', $employee->id)
+                    ->whereDate('work_date', $day)
+                    ->delete();
+
+                return;
+            }
+
+            AttendanceRecord::updateOrCreate($keys, $base + [
+                'hours'              => $hours,
+                'attendance_code_id' => null,
+            ]);
+
+            return;
+        }
+
+        // Not a number, so it has to be a code somebody knows the letters of.
+        $code = AttendanceCode::whereRaw('UPPER(TRIM(code)) = ?', [mb_strtoupper($value)])->first();
+
+        if (! $code) {
+            return;
+        }
+
+        AttendanceRecord::updateOrCreate($keys, $base + [
+            'attendance_code_id' => $code->id,
+            'hours'              => null,
+        ]);
+    }
+
     /** Persist a drag-and-drop row order; ids outside the user's outlets are ignored. */
     public function reorderRows(array $orderedIds): void
     {
@@ -207,14 +293,24 @@ class AttendanceRecords extends Component
         }
     }
 
-    /** Mark every empty cell in the visible grid as Present. */
+    /**
+     * Mark every empty cell in the SALARIED grid as Present.
+     *
+     * Hourly staff are excluded, and that is the difference between a
+     * convenience and a payroll incident. "Present" says nothing about how long
+     * somebody was here, so stamping it across a part-timer's month would fill
+     * every blank day with a code — and a coded day is a day with no hours,
+     * which is a day that pays nothing. The button would have quietly written
+     * off the days nobody had got round to entering yet.
+     */
     public function fillPresent(): void
     {
         $presentId = AttendanceCode::where('system_key', 'present')->value('id');
         if (! $presentId) return;
 
         [$from, $to] = $this->period();
-        $employees = $this->employeesQuery()->get();
+        $employees = $this->employeesQuery()->get()
+            ->reject(fn ($e) => $e->pay_type === 'hourly');
         $companyId = Auth::user()->company_id;
 
         $existing = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
@@ -243,7 +339,7 @@ class AttendanceRecords extends Component
             AttendanceRecord::insert($chunk);
         }
 
-        session()->flash('success', count($rows) . ' day(s) marked as Present.');
+        session()->flash('success', count($rows) . ' day(s) marked as Present on the salaried table.');
     }
 
     /** Remove every mark in the visible grid (guarded by wire:confirm). */
@@ -582,11 +678,22 @@ class AttendanceRecords extends Component
             ->employedDuring($periodFrom->toDateString())
             ->inListOrder();
 
-        // Never load pay columns for users without hr.compensation.
+        /*
+         * Never load pay columns for users without hr.compensation — except
+         * pay_type, which decides WHICH TABLE a person's row belongs on.
+         *
+         * It is on the sensitive list because it qualifies a salary figure, and
+         * beside an amount that is right. On its own it is a rostering fact:
+         * this person's day is counted in hours. An HR clerk marking attendance
+         * has to know that to mark it at all, and withholding it did not
+         * protect anything — it just put a part-timer on the salaried table
+         * with nowhere to enter their hours. The rate itself stays hidden; the
+         * columns that would show it are gated on $canViewPay in the view.
+         */
         if (! $this->canViewPay()) {
             $query->select(array_values(array_diff(
                 \Illuminate\Support\Facades\Schema::getColumnListing('employees'),
-                Employee::SENSITIVE_PAY_ATTRIBUTES
+                array_diff(Employee::SENSITIVE_PAY_ATTRIBUTES, ['pay_type'])
             )));
         }
 
@@ -647,11 +754,44 @@ class AttendanceRecords extends Component
         $activeCodes = $codes->where('is_active', true);
         $codesById   = $codes->keyBy('id');
 
-        // "empId:Y-m-d" → attendance_code_id
-        $cellMap = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
+        $records = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
             ->whereBetween('work_date', [$from, $to])
-            ->get()
+            ->get();
+
+        /*
+         * TWO MAPS, from one read, and they must stay separate.
+         *
+         * $cellMap is the codes and only the codes — its shape is a contract
+         * with ServiceChargePeriod::distribute(), which counts MC and absent
+         * days out of it. An hours cell has no code, so it must not appear
+         * there at all rather than appear as a null somebody later compares
+         * against.
+         */
+        // "empId:Y-m-d" → attendance_code_id
+        $cellMap = $records
+            ->filter(fn ($r) => $r->attendance_code_id !== null)
             ->mapWithKeys(fn ($r) => [$r->employee_id . ':' . $r->work_date->format('Y-m-d') => $r->attendance_code_id]);
+
+        // "empId:Y-m-d" → hours worked
+        $hoursMap = $records
+            ->filter(fn ($r) => $r->hours !== null)
+            ->mapWithKeys(fn ($r) => [$r->employee_id . ':' . $r->work_date->format('Y-m-d') => (float) $r->hours]);
+
+        $hourTotals = [];
+        foreach ($hoursMap as $key => $hours) {
+            $empId = (int) strtok($key, ':');
+            $hourTotals[$empId] = round(($hourTotals[$empId] ?? 0) + $hours, 2);
+        }
+
+        /*
+         * Two rosters, because they are two different documents that happen to
+         * cover the same month. A monthly row asks "were you here"; an hourly
+         * row asks "how long for". Interleaving them put a column of ticks and
+         * a column of numbers under one heading, where the totals underneath
+         * could not mean anything for both.
+         */
+        $hourlyEmployees  = $employees->filter(fn ($e) => $e->pay_type === 'hourly')->values();
+        $monthlyEmployees = $employees->reject(fn ($e) => $e->pay_type === 'hourly')->values();
 
         $presentId = $codes->firstWhere('system_key', 'present')?->id;
         $absentId  = $codes->firstWhere('system_key', 'absent')?->id;
@@ -700,8 +840,10 @@ class AttendanceRecords extends Component
 
         return view('livewire.hr.attendance-records', compact(
             'lateRatePerMinute',
-            'employees', 'outlets', 'sections', 'canViewAll',
+            'employees', 'monthlyEmployees', 'hourlyEmployees',
+            'outlets', 'sections', 'canViewAll',
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
+            'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }

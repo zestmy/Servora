@@ -108,6 +108,30 @@ class CompensationSummary
             ->get()
             ->groupBy('employee_id');
 
+        /*
+         * Hours worked, for anybody paid by them.
+         *
+         * Read from the attendance grid rather than from the roster or the
+         * clock, and that is a deliberate choice rather than the easy one. The
+         * roster is a plan — it pays a shift somebody left two hours early. The
+         * clock is the truth but an incomplete one: a missing clock-out is a
+         * review item today, and making it a payroll blocker would stop a run
+         * over one forgotten punch. The grid is where a human has already
+         * looked at both and written down what to pay for.
+         *
+         * One query for the whole outlet, keyed by employee. Rows carrying a
+         * code rather than hours (MC, absent) contribute nothing here — that is
+         * what makes a blank or coded day unpaid.
+         */
+        $hoursByEmployee = \App\Models\AttendanceRecord::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->whereIn('employee_id', $staff->pluck('id'))
+            ->whereNotNull('hours')
+            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw('employee_id, SUM(hours) as total')
+            ->groupBy('employee_id')
+            ->pluck('total', 'employee_id');
+
         // Year to date from COMMITTED runs, for the PCB MTD formula. One query
         // for everyone rather than one per employee inside the map.
         $ytd = $calculator
@@ -119,8 +143,29 @@ class CompensationSummary
                 ->forMonth($companyId, $staff->pluck('id')->all(), $month->copy()->startOfMonth())
             : collect();
 
-        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to, $ytd) {
-            $basic = $employee->basic_salary !== null ? (float) $employee->basic_salary : 0.0;
+        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to, $ytd, $hoursByEmployee) {
+            /*
+             * BASIC, and what basic_salary means depends on the pay type.
+             *
+             * For monthly and daily staff it is the figure itself. For hourly
+             * staff it is a RATE, and the month's basic is that rate times the
+             * hours on the attendance grid. Before this it was used verbatim
+             * whatever the pay type — a part-timer on RM12/hr was paid RM12 for
+             * the month, with EPF, SOCSO, EIS and PCB all computed on RM12,
+             * because every one of those starts from this number.
+             *
+             * Hourly with no hours entered comes to zero, which is correct and
+             * is also why the payroll screen lists who that is before a run:
+             * zero is indistinguishable from "nobody has filled the grid in
+             * yet", and the two need very different responses.
+             */
+            $isHourly   = $employee->pay_type === 'hourly';
+            $paidHours  = $isHourly ? round((float) ($hoursByEmployee[$employee->id] ?? 0), 2) : null;
+            $hourlyRate = $isHourly && $employee->basic_salary !== null ? (float) $employee->basic_salary : null;
+
+            $basic = $isHourly
+                ? round((float) $paidHours * (float) $hourlyRate, 2)
+                : ($employee->basic_salary !== null ? (float) $employee->basic_salary : 0.0);
 
             $components = ($assignments[$employee->id] ?? collect())
                 ->filter(fn ($a) => $a->component !== null)
@@ -172,6 +217,10 @@ class CompensationSummary
                 'section'     => $employee->section?->name,
                 'pay_type'    => $employee->pay_type,
                 'basic'       => $basic,
+                // The working behind `basic`, for the payslip and for anyone
+                // checking it. Null for everybody not paid by the hour.
+                'paid_hours'  => $paidHours,
+                'pay_rate'    => $hourlyRate,
                 'hourly_rate' => $rate,
                 'components'  => $components,
                 'allowances'  => $allowances,

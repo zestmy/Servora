@@ -21,6 +21,9 @@
         .meta { font-size: 7px; color: #6b7280; margin-top: 2px; }
 
         table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        /* Only rendered when there are two tables to tell apart. */
+        .table-title { font-size: 8pt; font-weight: bold; color: #334155;
+                       margin: 10px 0 3px; text-transform: uppercase; letter-spacing: 0.6px; }
         table.grid th, table.grid td { border: 0.6px solid #cbd5e1; overflow: hidden; }
 
         thead th {
@@ -105,6 +108,10 @@
         </div>
     </div>
 
+    @if ($hourlyEmployees->isNotEmpty())
+        <div class="table-title">Salaried staff</div>
+    @endif
+
     <table class="grid">
         <thead>
             <tr>
@@ -129,7 +136,7 @@
         </thead>
         <tbody>
             @php $n = 0; @endphp
-            @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $groupName => $group)
+            @foreach ($monthlyEmployees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $groupName => $group)
                 <tr class="outlet-row">
                     <td colspan="{{ ($canViewPay ? 10 : 8) + count($dates) }}">{{ $groupName }} ({{ $group->count() }})</td>
                 </tr>
@@ -173,11 +180,100 @@
                     </tr>
                 @endforeach
             @endforeach
-            @if ($employees->isEmpty())
+            @if ($monthlyEmployees->isEmpty())
                 <tr><td colspan="{{ ($canViewPay ? 10 : 8) + count($dates) }}" style="text-align: center; color: #94a3b8; padding: 10px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>
+
+    {{-- ── Hourly staff ──────────────────────────────────────────────────
+         A second table rather than more rows on the first, because the day
+         columns mean something different: a number here is what gets
+         multiplied by a rate. The row totals are hours and pay, not ticks. --}}
+    @if ($hourlyEmployees->isNotEmpty())
+        <div class="table-title">Hourly staff — hours worked</div>
+
+        <table class="grid">
+            <thead>
+                <tr>
+                    <th style="width: 2%;">#</th>
+                    <th class="info" style="width: 13%;">Name</th>
+                    <th class="info" style="width: 7.5%;">Position</th>
+                    <th class="info" style="width: 4.5%;">Emp ID</th>
+                    <th class="info" style="width: 4.5%;">Section</th>
+                    <th class="info" style="width: 5%;">Date Join</th>
+                    @if ($canViewPay)
+                        <th style="width: 3.5%;">Svc Pts</th>
+                        <th style="width: 6%;">Rate</th>
+                    @endif
+                    @foreach ($dates as $d)
+                        <th style="width: {{ $dayW }};" class="{{ $d->isSunday() ? 'sun' : ($d->isSaturday() ? 'sat' : '') }}">
+                            {{ $d->day }}<span class="dow">{{ substr($d->format('D'), 0, 2) }}</span>
+                        </th>
+                    @endforeach
+                    <th style="width: 3%;">Days</th>
+                    <th style="width: 3.5%;">Hours</th>
+                    @if ($canViewPay)
+                        <th style="width: 5%;">Pay</th>
+                    @endif
+                </tr>
+            </thead>
+            <tbody>
+                @php $hn = 0; @endphp
+                @foreach ($hourlyEmployees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $groupName => $group)
+                    <tr class="outlet-row">
+                        <td colspan="{{ ($canViewPay ? 11 : 9) + count($dates) }}">{{ $groupName }} ({{ $group->count() }})</td>
+                    </tr>
+                    @foreach ($group as $emp)
+                        @php
+                            $hn++;
+                            $total = $hourTotals[$emp->id] ?? 0;
+                            $days  = 0;
+                            $rate  = $emp->basic_salary !== null ? (float) $emp->basic_salary : null;
+                        @endphp
+                        <tr>
+                            <td class="num">{{ $hn }}</td>
+                            <td class="info name">{{ $emp->name }}</td>
+                            <td class="info">{{ $emp->designation }}</td>
+                            <td class="info">{{ $emp->staff_id }}</td>
+                            <td class="info">{{ $emp->section?->name }}</td>
+                            <td class="info">{{ $emp->join_date?->format('d/m/y') }}</td>
+                            @if ($canViewPay)
+                                <td class="num">{{ $emp->service_points_entitlement !== null ? number_format((float) $emp->service_points_entitlement, 2) : '' }}</td>
+                                <td class="pay">
+                                    @if ($rate !== null)
+                                        {{ number_format($rate, 2) }}<span class="suffix">/ hr</span>
+                                    @endif
+                                </td>
+                            @endif
+                            @foreach ($dates as $d)
+                                @php
+                                    $key    = $emp->id . ':' . $d->format('Y-m-d');
+                                    $hours  = $hoursMap[$key] ?? null;
+                                    $codeId = $cellMap[$key] ?? null;
+                                    $code   = $codeId ? ($codesById[$codeId] ?? null) : null;
+                                    $meta   = $code?->colorMeta();
+                                    if ($hours !== null) $days++;
+                                @endphp
+                                @if ($hours !== null)
+                                    <td class="day">{{ rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.') }}</td>
+                                @elseif ($code)
+                                    <td class="day" style="background: {{ $meta['bg'] }}; color: {{ $meta['text'] }};">{{ $code->code }}</td>
+                                @else
+                                    <td class="day {{ $d->isSunday() ? 'sun-empty' : '' }}"></td>
+                                @endif
+                            @endforeach
+                            <td class="total">{{ $days ?: '' }}</td>
+                            <td class="total" style="color: #0f766e;">{{ $total > 0 ? rtrim(rtrim(number_format($total, 2, '.', ''), '0'), '.') : '' }}</td>
+                            @if ($canViewPay)
+                                <td class="pay">{{ $rate !== null && $total > 0 ? number_format($total * $rate, 2) : '' }}</td>
+                            @endif
+                        </tr>
+                    @endforeach
+                @endforeach
+            </tbody>
+        </table>
+    @endif
 
     @if (! empty($serviceCharge) && $serviceCharge['row'])
         @php

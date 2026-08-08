@@ -108,10 +108,13 @@ class AttendanceExportController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name');
 
+        // pay_type is kept even without hr.compensation — it decides which of
+        // the two tables a row goes on, and is a rostering fact rather than a
+        // pay figure. See the same carve-out in AttendanceRecords.
         if (! Employee::canViewPay($user)) {
             $query->select(array_values(array_diff(
                 Schema::getColumnListing('employees'),
-                Employee::SENSITIVE_PAY_ATTRIBUTES
+                array_diff(Employee::SENSITIVE_PAY_ATTRIBUTES, ['pay_type'])
             )));
         }
 
@@ -152,10 +155,31 @@ class AttendanceExportController extends Controller
         $codes     = AttendanceCode::orderBy('sort_order')->orderBy('code')->get();
         $codesById = $codes->keyBy('id');
 
-        $cellMap = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
+        $records = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
             ->whereBetween('work_date', [$from, $to])
-            ->get()
+            ->get();
+
+        // Codes only — the shape ServiceChargePeriod::distribute() expects. An
+        // hours cell carries no code and must not appear here as a null.
+        $cellMap = $records
+            ->filter(fn ($r) => $r->attendance_code_id !== null)
             ->mapWithKeys(fn ($r) => [$r->employee_id . ':' . $r->work_date->format('Y-m-d') => $r->attendance_code_id]);
+
+        $hoursMap = $records
+            ->filter(fn ($r) => $r->hours !== null)
+            ->mapWithKeys(fn ($r) => [$r->employee_id . ':' . $r->work_date->format('Y-m-d') => (float) $r->hours]);
+
+        $hourTotals = [];
+        foreach ($hoursMap as $key => $hours) {
+            $empId = (int) strtok($key, ':');
+            $hourTotals[$empId] = round(($hourTotals[$empId] ?? 0) + $hours, 2);
+        }
+
+        // Two tables on the page, for the same reason the screen has two: one
+        // is a register of who was in, the other is the count that gets
+        // multiplied by a rate.
+        $hourlyEmployees  = $employees->filter(fn ($e) => $e->pay_type === 'hourly')->values();
+        $monthlyEmployees = $employees->reject(fn ($e) => $e->pay_type === 'hourly')->values();
 
         $dates = [];
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
@@ -215,7 +239,8 @@ class AttendanceExportController extends Controller
         }
 
         return compact(
-            'employees', 'dates', 'from', 'to', 'codesById', 'cellMap',
+            'employees', 'monthlyEmployees', 'hourlyEmployees',
+            'dates', 'from', 'to', 'codesById', 'cellMap', 'hoursMap', 'hourTotals',
             'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel',
             'serviceCharge', 'canViewPay'
         );
