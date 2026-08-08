@@ -376,38 +376,21 @@
                 </div>
                 @endif
 
-                {{-- Capabilities --}}
+                {{-- Outlet scope. The other six capability checkboxes that used to live
+                     here — manage users, approve POs, approve PRs, delete records, receive
+                     GRN, manage invoices — became permissions in Phase 1 and are ticked in
+                     Module Access above. "Delete records" in particular was one switch
+                     covering Sales, Purchasing, Inventory, Clock-In and Overtime Claims;
+                     it is now five separate abilities. This one is not a capability: it
+                     says WHERE the abilities apply, which is why it sits with the outlets. --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-2">Capabilities</label>
-                    <div class="grid grid-cols-2 gap-2 border border-gray-200 rounded-lg p-3">
-                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" wire:model="can_manage_users" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Manage users</span>
-                        </label>
-                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" wire:model="can_approve_po" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Approve POs</span>
-                        </label>
-                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" wire:model="can_approve_pr" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Approve PRs</span>
-                        </label>
-                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" wire:model="can_delete_records" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Delete records</span>
-                        </label>
+                    <label class="block text-xs font-medium text-gray-500 mb-2">Outlet Scope</label>
+                    <div class="border border-gray-200 rounded-lg p-3">
                         <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
                             <input type="checkbox" wire:model="can_view_all_outlets" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                             <span class="text-sm text-gray-700">View all outlets</span>
                         </label>
-                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" wire:model="can_receive_grn" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Receive goods (GRN)</span>
-                        </label>
-                        <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" wire:model="can_manage_invoices" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                            <span class="text-sm text-gray-700">Manage invoices & payments</span>
-                        </label>
+                        <p class="help mt-1 px-2">Applies to every outlet in this company, including ones added later.</p>
                     </div>
                 </div>
             </div>

@@ -84,7 +84,7 @@ class CompanyCreate extends Component
     {
         $user = Auth::user();
 
-        return $user && ($user->isSystemRole() || $user->hasCapability('can_manage_users'));
+        return $user && ($user->isSystemRole() || $user->canDo('users.manage'));
     }
 
     public function render()

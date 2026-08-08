@@ -265,20 +265,41 @@ class User extends Authenticatable
     /** @var bool|null request-lifetime memo for isSystemRole() */
     protected ?bool $memoIsSystemRole = null;
 
-    /** Check a capability flag (system roles always have all capabilities). */
-    public function hasCapability(string $capability): bool
+    /**
+     * A permission check that system roles always pass.
+     *
+     * This replaced `hasCapability()`, which took one of seven boolean columns on
+     * `company_user` and had two problems. It was coarse — `can_delete_records` was a
+     * single switch checked in Sales, Purchasing, Inventory, Clock Events and Overtime
+     * Claims, so you could not let someone void a wastage record without also letting
+     * them delete purchase orders. And it was a second, parallel authority system:
+     * `can_manage_users` wrote both a pivot flag AND the `users.manage` permission, while
+     * reads went through a cached column on `users` rather than the pivot the writes
+     * landed on. Phase 1 folded all of it into ordinary permissions.
+     *
+     * Why this exists rather than plain `can()`: `Gate::before` only bypasses for Super
+     * Admin, but `hasCapability()` returned true for System Admin too — and System Admin
+     * must hold in EVERY company, which a team-scoped role assignment does not. Dropping
+     * to `can()` at the call sites would have quietly stripped System Admin's rights
+     * everywhere, so the short-circuit is preserved here instead of being scattered.
+     *
+     * `can_view_all_outlets` is deliberately NOT part of this: it says which outlets a
+     * user's abilities apply to, not what they may do. It stays a flag, next to the outlet
+     * picker — see canViewAllOutlets().
+     */
+    public function canDo(string $permission): bool
     {
         if ($this->isSystemRole()) return true;
-        return (bool) ($this->{$capability} ?? false);
+        return $this->can($permission);
     }
 
     /**
      * Can this user bypass the Ingredients / Recipes list locks?
-     * System admins and users with the "manage users" capability can.
+     * System admins and users who can manage users can.
      */
     public function canBypassLock(): bool
     {
-        return $this->isSystemRole() || $this->hasCapability('can_manage_users');
+        return $this->canDo('users.manage');
     }
 
     public function displayDesignation(): string

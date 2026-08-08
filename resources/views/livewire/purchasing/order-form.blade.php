@@ -270,7 +270,7 @@
              detailed is the default for users who approve POs. --}}
         @if (count($lines))
             <div x-data="{
-                    detailed: (localStorage.getItem('po_view') ?? '{{ auth()->user()->hasCapability('can_approve_po') ? '1' : '0' }}') === '1',
+                    detailed: (localStorage.getItem('po_view') ?? '{{ auth()->user()->canDo('purchasing.approve') ? '1' : '0' }}') === '1',
                     toggleView() { this.detailed = ! this.detailed; localStorage.setItem('po_view', this.detailed ? '1' : '0'); }
                  }">
                 <div class="flex justify-end mb-2">

@@ -88,7 +88,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->canDelete = Auth::user()->isSystemRole() || Auth::user()->hasCapability('can_delete_records');
+        $this->canDelete = Auth::user()->canDo('sales.delete');
         $this->setQuickRange('today');
 
         // Set default outlet filter to the active session outlet

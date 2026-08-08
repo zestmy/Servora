@@ -39,7 +39,7 @@ class Index extends Component
     {
         $user              = Auth::user();
         $isSystemLevel     = $user->isSystemRole();
-        $isBusinessLevel   = $user->hasCapability('can_manage_users');
+        $isBusinessLevel   = $user->canDo('users.manage');
         $hasSettingsAccess = $user->hasPermissionTo('settings.view');
 
         $groups = $this->filter(

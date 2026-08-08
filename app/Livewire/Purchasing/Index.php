@@ -185,7 +185,7 @@ class Index extends Component
             return;
         }
 
-        if (! Auth::user()->hasCapability('can_approve_pr')) {
+        if (! Auth::user()->canDo('purchasing.request')) {
             session()->flash('error', 'You do not have permission to approve purchase requests.');
             return;
         }
@@ -214,7 +214,7 @@ class Index extends Component
             return;
         }
 
-        if (! Auth::user()->hasCapability('can_approve_pr')) {
+        if (! Auth::user()->canDo('purchasing.request')) {
             session()->flash('error', 'You do not have permission to reject purchase requests.');
             return;
         }
@@ -279,7 +279,7 @@ class Index extends Component
 
         if ($pr->status !== 'draft'
             && ! $user->isSystemRole()
-            && ! $user->hasCapability('can_delete_records')) {
+            && ! $user->canDo('purchasing.delete')) {
             session()->flash('error', 'You do not have permission to delete records.');
             return;
         }
@@ -332,7 +332,7 @@ class Index extends Component
             return;
         }
 
-        if (! Auth::user()->hasCapability('can_approve_po')) {
+        if (! Auth::user()->canDo('purchasing.approve')) {
             session()->flash('error', 'You do not have permission to approve purchase orders.');
             return;
         }
@@ -368,7 +368,7 @@ class Index extends Component
             return;
         }
 
-        if (! Auth::user()->hasCapability('can_approve_po')) {
+        if (! Auth::user()->canDo('purchasing.approve')) {
             session()->flash('error', 'You do not have permission to reject purchase orders.');
             return;
         }
@@ -517,7 +517,7 @@ class Index extends Component
     public function rollbackPo(int $id): void
     {
         $user = Auth::user();
-        if (! $user->isSystemRole() && ! $user->hasCapability('can_delete_records')) {
+        if (! $user->canDo('purchasing.delete')) {
             session()->flash('error', 'Unauthorized.');
             return;
         }
@@ -685,9 +685,9 @@ class Index extends Component
         $isPrApprover = $this->isPrApprover();
 
         // Role-based: purchasing exec / admin / finance see everything
-        $isAdvancedUser = $seesAll || $isPurchasing || $user->hasCapability('can_manage_invoices');
-        $canManageInvoices = $user->hasCapability('can_manage_invoices');
-        $canReceiveGrn = $user->hasCapability('can_receive_grn');
+        $isAdvancedUser = $seesAll || $isPurchasing || $user->canDo('purchasing.invoice');
+        $canManageInvoices = $user->canDo('purchasing.invoice');
+        $canReceiveGrn = $user->canDo('purchasing.receive');
 
         // Tab & button visibility per ordering mode + role
         $canCreatePo  = ! $cpuMode || $isAdvancedUser;
@@ -731,7 +731,7 @@ class Index extends Component
         $showPrice = (bool) ($user->company?->show_price_on_do_grn ?? false);
 
         $isSystemAdmin = $user->isSystemRole();
-        $canRollbackPo = $user->isSystemRole() || $user->hasCapability('can_delete_records');
+        $canRollbackPo = $user->canDo('purchasing.delete');
 
         $approverAssignments = $isAppointed ? $this->approverAssignments() : [];
 

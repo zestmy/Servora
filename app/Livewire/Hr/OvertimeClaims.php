@@ -375,7 +375,7 @@ class OvertimeClaims extends Component
 
         // Admins (can_delete_records) can remove any claim regardless of status.
         // Everyone else can only delete drafts or rejected claims.
-        $isAdminDelete = $user->hasCapability('can_delete_records');
+        $isAdminDelete = $user->canDo('hr.claims.delete');
         if (! $isAdminDelete && ! in_array($claim->status, ['draft', 'rejected'])) {
             session()->flash('error', 'Only drafts or rejected claims can be deleted. Ask an admin to remove approved claims.');
             return;
@@ -588,7 +588,7 @@ class OvertimeClaims extends Component
         $sections = Section::active()->ordered()->get();
 
         // Company Admin / Business Manager / system roles can delete at any status.
-        $canDeleteAny = $user->hasCapability('can_delete_records');
+        $canDeleteAny = $user->canDo('hr.claims.delete');
 
         // Stats - use date range filters if set, otherwise current month
         $statsDateFrom = $this->dateFrom ?: now()->startOfMonth()->toDateString();

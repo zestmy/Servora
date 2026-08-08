@@ -32,17 +32,21 @@
  *               single-ability modules, "Module (Ability)" otherwise — which reproduces
  *               the pre-registry wording exactly.
  *   help        one-line explanation shown under the checkbox.
- *   managed_by  'capability' — real and enforced, but granted through a capability flag
+ *   managed_by  'capability' — real and enforced, but granted through some other control
  *               rather than the module grid. Excluded from the grid, still registry-known
- *               so the drift test accounts for it. Phase 1 removes this.
+ *               so the drift test accounts for it. CURRENTLY UNUSED: `users.manage` was the
+ *               only entry and Phase 1 folded the capability flags into permissions, so it
+ *               is now an ordinary grid ability. The mechanism is kept for the next time one
+ *               permission has two controls, because that is what makes them disagree.
  *   enforced    false — declared and granted, but gates nothing today. Must carry a note.
  *               The drift test permits only explicitly-declared exceptions.
  *
- * Scope note: this registry covers the ~33 abilities that are enforced TODAY. The wider
- * ~172-ability target (View/Create/Edit/Delete/Approve per sub-module) lands in Phase 4,
- * one module at a time, as the enforcement for each is actually written. Declaring the
- * full target here now would put 139 checkboxes in front of admins that gate nothing —
- * and would hole the drift-test invariant on day one. See docs/rbac-revamp-proposal.md.
+ * Scope note: this registry covers only abilities that are enforced TODAY — 42 after Phase 1
+ * folded the capability flags in. The wider ~172-ability target (View/Create/Edit/Delete/
+ * Approve per sub-module) lands in Phase 4, one module at a time, as the enforcement for each
+ * is actually written. Declaring the full target here now would put ~130 checkboxes in front
+ * of admins that gate nothing — and would hole the drift-test invariant on day one.
+ * See docs/rbac-revamp-proposal.md.
  */
 
 return [
@@ -88,8 +92,41 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'purchasing.view',
-                    'label' => 'Purchasing',
-                    'help'  => 'Purchase orders and requests, goods receipt, supplier invoices and credit notes.',
+                    'label' => 'View & create',
+                    // Explicit: adding abilities below would otherwise turn this into
+                    // "Purchasing (View & create)" and change every existing badge.
+                    'title' => 'Purchasing',
+                    'help'  => 'Purchase orders, requests, transfers and the supplier directory.',
+                ],
+                'approve' => [
+                    'name'  => 'purchasing.approve',
+                    'label' => 'Approve orders',
+                    'title' => 'Purchasing (Approve Orders)',
+                    'help'  => 'Approve or reject a submitted purchase order.',
+                ],
+                'request' => [
+                    'name'  => 'purchasing.request',
+                    'label' => 'Approve requests',
+                    'title' => 'Purchasing (Approve Requests)',
+                    'help'  => 'Approve or reject a purchase request before it becomes an order.',
+                ],
+                'receive' => [
+                    'name'  => 'purchasing.receive',
+                    'label' => 'Receive goods',
+                    'title' => 'Purchasing (Receive Goods)',
+                    'help'  => 'Record goods received against an order (GRN), and receive stock transfers.',
+                ],
+                'invoice' => [
+                    'name'  => 'purchasing.invoice',
+                    'label' => 'Invoices & credit notes',
+                    'title' => 'Purchasing (Invoices)',
+                    'help'  => 'Supplier invoices, payments and credit notes.',
+                ],
+                'delete' => [
+                    'name'  => 'purchasing.delete',
+                    'label' => 'Delete & roll back',
+                    'title' => 'Purchasing (Delete)',
+                    'help'  => 'Delete purchasing documents and roll back an approved order.',
                 ],
             ],
         ],
@@ -100,8 +137,15 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'sales.view',
-                    'label' => 'Sales',
+                    'label' => 'View & record',
+                    'title' => 'Sales',
                     'help'  => 'Sales records, daily closures and sales imports.',
+                ],
+                'delete' => [
+                    'name'  => 'sales.delete',
+                    'label' => 'Delete',
+                    'title' => 'Sales (Delete)',
+                    'help'  => 'Delete sales records and closures.',
                 ],
             ],
         ],
@@ -112,8 +156,15 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'inventory.view',
-                    'label' => 'Inventory & Kitchen',
+                    'label' => 'View & record',
+                    'title' => 'Inventory & Kitchen',
                     'help'  => 'Stock takes, wastage, transfers, staff meals and prep items.',
+                ],
+                'delete' => [
+                    'name'  => 'inventory.delete',
+                    'label' => 'Delete',
+                    'title' => 'Inventory & Kitchen (Delete)',
+                    'help'  => 'Delete stock takes, wastage, transfers, staff meals and prep items.',
                 ],
             ],
         ],
@@ -175,8 +226,15 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'hr.claims',
-                    'label' => 'HR — Overtime Claims',
+                    'label' => 'View & settle',
+                    'title' => 'HR — Overtime Claims',
                     'help'  => 'Submit, review and settle overtime claims.',
+                ],
+                'delete' => [
+                    'name'  => 'hr.claims.delete',
+                    'label' => 'Delete any claim',
+                    'title' => 'HR — Overtime Claims (Delete)',
+                    'help'  => 'Remove any overtime claim regardless of its status.',
                 ],
             ],
         ],
@@ -196,6 +254,12 @@ return [
                     'label' => 'Settings & enrolment',
                     'title' => 'HR — Clock-In Settings & Face Enrolment',
                     'help'  => 'Clock settings, kiosk devices and face enrolment.',
+                ],
+                'delete' => [
+                    'name'  => 'hr.clock.delete',
+                    'label' => 'Delete punches',
+                    'title' => 'HR — Clock-In (Delete Punches)',
+                    'help'  => 'Delete a recorded clock-in or clock-out punch.',
                 ],
             ],
         ],
@@ -380,14 +444,9 @@ return [
             'group'     => 'admin',
             'abilities' => [
                 'manage' => [
-                    'name'       => 'users.manage',
-                    'label'      => 'Manage users',
-                    'help'       => 'Create users, set their access, and edit company details.',
-                    'managed_by' => 'capability',
-                    'note'       => 'Granted by the "Can manage users" capability checkbox, which writes both '
-                                  . 'the company_user pivot flag and this permission. Kept out of the module '
-                                  . 'grid so the two controls cannot disagree; Phase 1 folds the flag away '
-                                  . 'and this becomes an ordinary grid ability.',
+                    'name'  => 'users.manage',
+                    'label' => 'Users & Access',
+                    'help'  => 'Create users, set their access, and edit company details.',
                 ],
             ],
         ],

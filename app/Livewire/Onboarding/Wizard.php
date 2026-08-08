@@ -144,28 +144,23 @@ class Wizard extends Component
                 match ($invite['role']) {
                     'Company Admin' => (function () use ($user, $company) {
                         $user->update(['designation' => 'Company Admin']);
-                        $user->setCapabilitiesForCompany($company->id, [
-                            'can_manage_users'     => true,
-                            'can_approve_po'       => true,
-                            'can_approve_pr'       => true,
-                            'can_delete_records'   => true,
-                            'can_view_all_outlets' => true,
-                        ]);
+                        // Outlet scope stays a flag; the old capability flags are
+                        // permissions from Phase 1 onward.
+                        $user->setCapabilitiesForCompany($company->id, ['can_view_all_outlets' => true]);
                         $user->givePermissionTo([
                             'ingredients.view', 'recipes.view', 'sales.view',
                             'inventory.view', 'purchasing.view', 'reports.view',
                             'settings.view', 'users.manage',
+                            'purchasing.approve', 'purchasing.request', 'purchasing.delete',
+                            'sales.delete', 'inventory.delete', 'hr.clock.delete', 'hr.claims.delete',
                         ]);
                     })(),
                     'Outlet Manager' => (function () use ($user, $company) {
                         $user->update(['designation' => 'Outlet Manager']);
-                        $user->setCapabilitiesForCompany($company->id, [
-                            'can_approve_po' => true,
-                            'can_approve_pr' => true,
-                        ]);
                         $user->givePermissionTo([
                             'ingredients.view', 'recipes.view', 'sales.view',
                             'inventory.view', 'purchasing.view', 'reports.view',
+                            'purchasing.approve', 'purchasing.request',
                         ]);
                     })(),
                     default => (function () use ($user) {

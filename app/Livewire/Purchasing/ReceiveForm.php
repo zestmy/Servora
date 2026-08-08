@@ -132,7 +132,7 @@ class ReceiveForm extends Component
 
     public function confirm(): void
     {
-        if (! Auth::user()->hasCapability('can_receive_grn')) {
+        if (! Auth::user()->canDo('purchasing.receive')) {
             session()->flash('error', 'You do not have permission to receive goods.');
             return;
         }

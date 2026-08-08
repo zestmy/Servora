@@ -203,11 +203,10 @@ class ClockEvents extends Component
     /**
      * Whether this user may delete punches at all.
      *
-     * `can_delete_records` is the capability the company admin and business
-     * manager roles carry, and the same gate duty rosters and overtime claims
-     * already use — deliberately not a new permission, because a fourth way
-     * to express "the boss can remove things" is a fourth thing to keep in
-     * step. hasCapability() also lets system roles through, as everywhere.
+     * This used to be `can_delete_records`, one global flag shared with Sales,
+     * Purchasing, Inventory and Overtime Claims — so granting the right to void a
+     * mistaken punch also granted the right to delete purchase orders. Phase 1 split
+     * it per module; canDo() still lets system roles through, as everywhere.
      *
      * Reviewing a punch and deleting one are different powers on purpose: an
      * outlet manager with hr.clock can approve and reject all day and still
@@ -215,7 +214,7 @@ class ClockEvents extends Component
      */
     public function canDelete(): bool
     {
-        return Auth::user()?->hasCapability('can_delete_records') ?? false;
+        return Auth::user()?->canDo('hr.clock.delete') ?? false;
     }
 
     /**

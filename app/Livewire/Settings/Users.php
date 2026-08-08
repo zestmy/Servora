@@ -38,14 +38,14 @@ class Users extends Component
     public string  $kitchenMode = 'none'; // none, all, all_except, selected
     public array   $kitchenIds  = [];
 
-    // Capabilities
-    public bool    $can_manage_users    = false;
-    public bool    $can_approve_po      = false;
-    public bool    $can_approve_pr      = false;
-    public bool    $can_delete_records  = false;
+    /**
+     * The last capability flag. The other six (manage users, approve PO/PR, receive GRN,
+     * manage invoices, delete records) became ordinary permissions in Phase 1 and are now
+     * ticked in the module grid above. This one stays because it is not a capability at
+     * all — it says which outlets the user's abilities apply to, so it belongs with the
+     * outlet picker it sits next to.
+     */
     public bool    $can_view_all_outlets = false;
-    public bool    $can_receive_grn     = false;
-    public bool    $can_manage_invoices = false;
 
     public string  $search     = '';
 
@@ -93,18 +93,34 @@ class Users extends Component
         'Staff'              => 'No modules by default — add only what this person needs.',
     ];
 
-    /** Capability flags suggested when a role is picked (all editable after). */
-    public const ROLE_CAPABILITIES = [
-        'Company Admin'      => ['can_manage_users', 'can_approve_po', 'can_approve_pr', 'can_delete_records', 'can_view_all_outlets', 'can_receive_grn', 'can_manage_invoices'],
-        'Business Manager'   => ['can_manage_users', 'can_approve_po', 'can_approve_pr', 'can_view_all_outlets', 'can_manage_invoices'],
-        'Operations Manager' => ['can_view_all_outlets', 'can_approve_pr'],
-        'Branch Manager'     => ['can_receive_grn'],
+    /**
+     * Abilities suggested when a role is picked, on top of the role's own permission set.
+     *
+     * These were capability flags until Phase 1; they are permissions now, so they are
+     * suggested into $moduleAccess rather than into a separate row of checkboxes. They
+     * stay a suggestion rather than moving onto the roles themselves because the flags
+     * were always per-user: baking them into role_has_permissions would hand PO approval
+     * to every Company Admin who has it unticked today.
+     */
+    public const ROLE_SUGGESTED_ABILITIES = [
+        'Company Admin'      => ['users.manage', 'purchasing.approve', 'purchasing.request', 'purchasing.receive', 'purchasing.invoice', 'purchasing.delete', 'sales.delete', 'inventory.delete', 'hr.clock.delete', 'hr.claims.delete'],
+        'Business Manager'   => ['users.manage', 'purchasing.approve', 'purchasing.request', 'purchasing.invoice'],
+        'Operations Manager' => ['purchasing.request'],
+        'Branch Manager'     => ['purchasing.receive'],
         'Outlet Manager'     => [],
         'Chef'               => [],
         'Purchasing'         => [],
-        'Finance'            => ['can_manage_invoices'],
+        'Finance'            => ['purchasing.invoice'],
         'HR Manager'         => [],
         'Staff'              => [],
+    ];
+
+    /**
+     * Roles whose suggestion set includes "see every outlet". Outlet scope is not a
+     * permission, so it cannot ride in the list above.
+     */
+    public const ROLE_SUGGESTS_ALL_OUTLETS = [
+        'Company Admin', 'Business Manager', 'Operations Manager',
     ];
 
     public function updatedSearch(): void { $this->resetPage(); }
@@ -135,23 +151,18 @@ class Users extends Component
             return;
         }
 
+        $grantable = array_keys(self::modules());
         $rolePerms = $this->rolePermMap()[$value] ?? [];
-        $this->moduleAccess = array_values(array_intersect($rolePerms, array_keys(self::modules())));
 
-        $suggested = self::ROLE_CAPABILITIES[$value] ?? [];
-        foreach (array_keys($this->capabilityFlags()) as $flag) {
-            $this->{$flag} = in_array($flag, $suggested, true);
-        }
-        // users.manage rides on the role where defined — mirror the flag.
-        if (in_array('users.manage', $rolePerms, true)) {
-            $this->can_manage_users = true;
-        }
-    }
+        $this->moduleAccess = array_values(array_unique(array_intersect(
+            array_merge($rolePerms, self::ROLE_SUGGESTED_ABILITIES[$value] ?? []),
+            $grantable
+        )));
 
-    public function updatedAllOutlets(): void
-    {
-        if ($this->allOutlets) {
-            $this->can_view_all_outlets = true;
+        $this->can_view_all_outlets = in_array($value, self::ROLE_SUGGESTS_ALL_OUTLETS, true);
+        if ($this->can_view_all_outlets) {
+            $this->outletMode = 'all';
+            $this->outletIds  = [];
         }
     }
 
@@ -185,13 +196,7 @@ class Users extends Component
             : (int) $currentUser->company_id;
         $flags = $contextCompanyId ? $user->capabilitiesForCompany($contextCompanyId) : null;
 
-        $this->can_manage_users    = $flags['can_manage_users']     ?? $user->can_manage_users;
-        $this->can_approve_po      = $flags['can_approve_po']       ?? $user->can_approve_po;
-        $this->can_approve_pr      = $flags['can_approve_pr']       ?? $user->can_approve_pr;
-        $this->can_delete_records  = $flags['can_delete_records']   ?? $user->can_delete_records;
         $this->can_view_all_outlets = $flags['can_view_all_outlets'] ?? $user->can_view_all_outlets;
-        $this->can_receive_grn     = $flags['can_receive_grn']      ?? $user->can_receive_grn;
-        $this->can_manage_invoices = $flags['can_manage_invoices']  ?? $user->can_manage_invoices;
 
         // Access level: the user's assignable role in this company (teams
         // pivot), or Custom when they have none / only a system role.
@@ -398,9 +403,6 @@ class Users extends Component
                 $user->syncRoles([]);
             }
 
-            if ($this->can_manage_users) {
-                $valid[] = 'users.manage';
-            }
             $user->unsetRelation('permissions');
             $user->syncPermissions(array_values(array_unique($valid)));
         } finally {
@@ -410,18 +412,14 @@ class Users extends Component
         $user->unsetRelation('roles')->unsetRelation('permissions');
     }
 
-    /** The modal's capability checkboxes as a flags array. */
+    /**
+     * The modal's remaining flag. The other six became permissions in Phase 1; their
+     * pivot columns are left in place but are no longer written or read, and are dropped
+     * in a later phase once nothing has referenced them for a while.
+     */
     private function capabilityFlags(): array
     {
-        return [
-            'can_manage_users'     => $this->can_manage_users,
-            'can_approve_po'       => $this->can_approve_po,
-            'can_approve_pr'       => $this->can_approve_pr,
-            'can_delete_records'   => $this->can_delete_records,
-            'can_view_all_outlets' => $this->can_view_all_outlets,
-            'can_receive_grn'      => $this->can_receive_grn,
-            'can_manage_invoices'  => $this->can_manage_invoices,
-        ];
+        return ['can_view_all_outlets' => $this->can_view_all_outlets];
     }
 
     /**
@@ -717,13 +715,7 @@ class Users extends Component
         $this->outletIds = [];
         $this->kitchenMode = 'none';
         $this->kitchenIds = [];
-        $this->can_manage_users = false;
-        $this->can_approve_po = false;
-        $this->can_approve_pr = false;
-        $this->can_delete_records = false;
         $this->can_view_all_outlets = false;
-        $this->can_receive_grn = false;
-        $this->can_manage_invoices = false;
         $this->resetValidation();
     }
 }

@@ -43,8 +43,7 @@ class Index extends Component
     /** Users with the Delete Record capability (or system admins) may remove finalised records. */
     private function canDeleteRecords(): bool
     {
-        $user = auth()->user();
-        return $user->isSystemRole() || $user->hasCapability('can_delete_records');
+        return auth()->user()->canDo('inventory.delete');
     }
 
     public function deleteStockTake(int $id): void

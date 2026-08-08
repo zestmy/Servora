@@ -301,6 +301,37 @@ Two known consequences to carry into later phases:
    its pre-registry handling. Enforcing it is a real behaviour change (Chef, Purchasing, Finance
    and Staff would lose roster visibility) and needs a decision, not a refactor.
 
+### Phase 1 — the dual-read plan was wrong, and what replaced it
+
+This document originally specified `can($perm) || $legacyFlag` during a transition window.
+**That is unsafe and was not built.** It traps the revoke: an admin unticks "Approve orders",
+the permission is removed, the stale `company_user` flag is still `true`, the `||` still
+returns true, and the revoke silently fails — with the UI showing it as revoked.
+
+A full copy has no such window. The flags and Spatie are *both already per-company* (pivot
+columns vs. `team_id`), so the migration is a row-for-row copy of `company_user` into
+`model_has_permissions` — nothing can be missed, so there is nothing to fall back to.
+Permissions became the sole authority in the same deploy.
+
+Verified against the untouched pivot rather than a snapshot: 90 (user × company × ability)
+checks, 0 mismatches. Then the case that matters — a user whose legacy `can_approve_po` flag
+is still `true`, with the permission revoked through the UI, correctly returns **false**.
+
+**`hasCapability()` → `canDo()`.** Not a rename: `Gate::before` only bypasses for Super Admin,
+but `hasCapability()` also returned true for System Admin, whose authority must hold in *every*
+company — which a team-scoped role assignment does not give. Dropping call sites to plain
+`can()` would have quietly stripped System Admin's rights everywhere. `canDo()` keeps that
+short-circuit in one place while putting the real permission name at the call site, where the
+drift test can see it.
+
+**The six flag columns are now inert**, deliberately left on `company_user` and `users` so the
+migration is reversible. Nothing reads or writes them. Drop them in a later phase, once they
+have been unreferenced long enough to be sure.
+
+**`can_view_all_outlets` was not folded in.** It is not a capability — it says *where* a user's
+abilities apply, not what they are. It stays a flag and moved to its own "Outlet Scope" section
+next to the outlet picker.
+
 ---
 
 ## 7. Decisions — all settled 2026-08-08
@@ -403,7 +434,7 @@ matrix is designed around them.
 | Phase | Work | Ships |
 |---|---|---|
 | **0** ✅ | **DONE 2026-08-08.** Registry (`config/permissions.php`), `PermissionRegistry`, `permissions:sync`, `PermissionRegistryTest`, both admin screens repointed and regrouped. | **8 orphan permissions became grantable, incl. payroll and leave.** 23 → 31 abilities in the grid; `users.manage` and `roster.view` deliberately excluded (see below). No behaviour change, no migration. F1, F2 closed |
-| **1** | Capability flags → permissions, dual-read during transition. `can_delete_records` splits per module. | F4, F5 closed |
+| **1** ✅ | **DONE 2026-08-08.** Six capability flags → permissions; `can_delete_records` split into five. `hasCapability()` replaced by `canDo()`. Migration copies the pivot. **NOT dual-read** — see below. | 41 grantable abilities; delete is per-module. F4, F5, F11, F12 closed |
 | **2** | Settings › Roles & Access: the matrix, the user drawer, the effective-access tab. Old modal retired. | Usability; F11, F12 closed |
 | **3** | Per-company roles (`team_id`), resolve-by-ID everywhere, allow/deny overrides, stop copying role perms into direct. Backfill preserves effective access exactly. | F6, F7 closed |
 | **4** | Granular abilities rolled out module by module — Purchasing first, then HR/Payroll, then Inventory. Everyone holding `x.view` is granted `view+create+edit` so no access is lost. | F3 closed |

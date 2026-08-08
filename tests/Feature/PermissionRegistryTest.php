@@ -56,8 +56,12 @@ class PermissionRegistryTest extends TestCase
         // PHP: ->can('hr.payroll'), hasPermissionTo('settings.view'), hasAnyPermission([...])
         "/(?:->|\b)can\(\s*'([a-z][a-z_]*(?:\.[a-z_]+)+)'\s*[,)]/",
         "/hasPermissionTo\(\s*'([a-z][a-z_]*(?:\.[a-z_]+)+)'/",
-        // Nav arrays: 'permission' => 'labels.print'
+        // User::canDo() — a permission check system roles always pass. See the method
+        // docblock for why it exists rather than plain can().
+        "/canDo\(\s*'([a-z][a-z_]*(?:\.[a-z_]+)+)'/",
+        // Nav arrays: 'permission' => 'labels.print', 'capability' => 'users.manage'
         "/'permission'\s*=>\s*'([a-z][a-z_]*(?:\.[a-z_]+)+)'/",
+        "/'capability'\s*=>\s*'([a-z][a-z_]*(?:\.[a-z_]+)+)'/",
         // Settings tiles: 'can' => 'hr.leave.approve'
         "/'can'\s*=>\s*'([a-z][a-z_]*(?:\.[a-z_]+)+)'/",
     ];
@@ -156,26 +160,31 @@ class PermissionRegistryTest extends TestCase
         ));
     }
 
-    public function test_permissions_declared_unenforced_explain_themselves(): void
+    /**
+     * Both kinds of exception to the drift check must say why they exist, or they are
+     * indistinguishable from a mistake. Asserted together so the test still carries an
+     * assertion when one of the two sets is empty — `capabilityManaged()` emptied out in
+     * Phase 1 when the capability flags became ordinary permissions.
+     */
+    public function test_declared_exceptions_explain_themselves(): void
     {
-        foreach (PermissionRegistry::unenforced() as $name => $ability) {
-            $this->assertNotEmpty(
-                $ability['note'] ?? '',
-                "{$name} is declared 'enforced' => false but carries no note. An exception to the "
-                . 'drift check has to say why it exists, or it is indistinguishable from a mistake.'
-            );
-        }
-    }
+        $exceptions = PermissionRegistry::unenforced() + PermissionRegistry::capabilityManaged();
 
-    public function test_capability_managed_permissions_explain_themselves(): void
-    {
-        foreach (PermissionRegistry::capabilityManaged() as $name => $ability) {
-            $this->assertNotEmpty(
-                $ability['note'] ?? '',
-                "{$name} is declared 'managed_by' => '{$ability['managed_by']}' but carries no note "
-                . 'explaining which control grants it.'
-            );
-        }
+        $undocumented = array_keys(array_filter(
+            $exceptions,
+            fn (array $a) => empty($a['note'])
+        ));
+
+        $this->assertSame([], $undocumented, $undocumented === [] ? '' : sprintf(
+            "These registry entries opt out of the drift check but carry no note explaining why:\n  %s",
+            implode("\n  ", $undocumented)
+        ));
+
+        $this->assertNotEmpty(
+            $exceptions,
+            'No declared exceptions at all — if that is now true, delete the exception '
+            . 'mechanism from PermissionRegistry rather than leaving an unused escape hatch.'
+        );
     }
 
     public function test_permission_names_are_unique_across_modules(): void

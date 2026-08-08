@@ -32,7 +32,7 @@ class InvoiceShow extends Component
 
     public function openPaymentModal(): void
     {
-        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+        if (! Auth::user()->canDo('purchasing.invoice')) {
             session()->flash('error', 'You do not have permission to manage invoice payments.');
             return;
         }
@@ -50,7 +50,7 @@ class InvoiceShow extends Component
 
     public function recordPayment(): void
     {
-        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+        if (! Auth::user()->canDo('purchasing.invoice')) {
             session()->flash('error', 'You do not have permission to manage invoice payments.');
             return;
         }
@@ -88,7 +88,7 @@ class InvoiceShow extends Component
 
     public function deletePayment(int $paymentId): void
     {
-        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+        if (! Auth::user()->canDo('purchasing.invoice')) {
             session()->flash('error', 'You do not have permission to manage invoice payments.');
             return;
         }
@@ -100,7 +100,7 @@ class InvoiceShow extends Component
 
     public function markPaid(): void
     {
-        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+        if (! Auth::user()->canDo('purchasing.invoice')) {
             session()->flash('error', 'You do not have permission to manage invoice payments.');
             return;
         }
@@ -111,7 +111,7 @@ class InvoiceShow extends Component
 
     public function cancelInvoice(): void
     {
-        if (! Auth::user()->hasCapability('can_manage_invoices')) {
+        if (! Auth::user()->canDo('purchasing.invoice')) {
             session()->flash('error', 'You do not have permission to cancel invoices.');
             return;
         }

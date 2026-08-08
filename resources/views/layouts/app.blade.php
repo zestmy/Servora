@@ -174,7 +174,7 @@
 
                 // Filter helper
                 $canSee = function($item) use ($authUser) {
-                    if (!empty($item['capability']) && !$authUser->hasCapability($item['capability'])) return false;
+                    if (!empty($item['capability']) && !$authUser->canDo($item['capability'])) return false;
                     if (($item['permission'] ?? null) !== null && !$authUser->hasPermissionTo($item['permission'])) return false;
                     // 'anyPermission': shown when the user holds ANY of them.
                     // The per-module Settings links need this — a module's
@@ -312,7 +312,7 @@
                             // user actually administers, and shows an empty state
                             // to anyone who administers none.
                             ['route' => 'settings.index',            'label' => 'All Settings'],
-                            ['route' => 'billing.index',             'label' => 'Billing',          'permission' => null, 'capability' => 'can_manage_users'],
+                            ['route' => 'billing.index',             'label' => 'Billing',          'permission' => null, 'capability' => 'users.manage'],
                             ['route' => 'referral.dashboard',        'label' => 'Refer & Earn',     'permission' => null],
                         ],
                     ],

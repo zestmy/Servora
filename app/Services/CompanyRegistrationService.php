@@ -50,19 +50,18 @@ class CompanyRegistrationService
             // per-company (pivot); this also mirrors to the users-table cache
             // since the new company is the user's active one.
             $user->update(['designation' => 'Company Admin']);
-            $user->setCapabilitiesForCompany($company->id, [
-                'can_manage_users'     => true,
-                'can_approve_po'       => true,
-                'can_approve_pr'       => true,
-                'can_delete_records'   => true,
-                'can_view_all_outlets' => true,
-            ]);
+            // Outlet scope is still a flag — it says where these abilities apply, not
+            // what they are. Everything else the founder gets is a permission.
+            $user->setCapabilitiesForCompany($company->id, ['can_view_all_outlets' => true]);
             $user->givePermissionTo([
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
                 'settings.view', 'users.manage', 'hr.view',
                 'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage', 'staff.pins',
                 'hr.documents.view', 'hr.documents.manage',
+                // Were capability flags before Phase 1: approve PO/PR, delete records.
+                'purchasing.approve', 'purchasing.request', 'purchasing.delete',
+                'sales.delete', 'inventory.delete', 'hr.clock.delete', 'hr.claims.delete',
             ]);
 
             // Create default outlet

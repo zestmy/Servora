@@ -73,12 +73,12 @@ class Dashboard extends Component
         $approverOutletIds = PoApprover::approverOutletIds($user->id);
         $isAppointed = count($approverOutletIds) > 0;
 
-        // isSystemRole must be checked FIRST: hasCapability() returns true for
-        // system roles, so the capability arm would otherwise shadow the
-        // platform dashboard and send system admins to the business one.
+        // isSystemRole must be checked FIRST: canDo() returns true for system
+        // roles, so the users.manage arm would otherwise shadow the platform
+        // dashboard and send system admins to the business one.
         $data = match (true) {
             $user->isSystemRole()                                                                      => $this->systemDashboard($user),
-            $user->hasCapability('can_manage_users')                                                  => $this->businessManagerDashboard($user),
+            $user->canDo('users.manage')                                                               => $this->businessManagerDashboard($user),
             $user->hasPermissionTo('purchasing.view') && ! $user->hasPermissionTo('sales.view')        => $this->purchasingDashboard($user),
             $user->hasPermissionTo('reports.view') && ! $user->hasPermissionTo('purchasing.view')      => $this->financeDashboard($user),
             $user->hasPermissionTo('recipes.view') && ! $user->hasPermissionTo('sales.view') && ! $isAppointed => $this->chefDashboard($user),
