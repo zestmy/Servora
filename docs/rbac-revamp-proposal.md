@@ -271,7 +271,7 @@ This is the answer to "why can't Ali see payroll?", which today requires a DB qu
 | **1** | Split capability flags into permissions. Dual-read (`can()` OR legacy flag) during transition; migration copies flags → permissions. | Low | F4, F5 closed |
 | **2** ✅ | **DONE 2026-08-09.** Settings › Roles & Access — three tabs. Role Guide modal retired. | Low | Usability; access is now explainable |
 | **3** | `company_id` on roles; allow/deny overrides; stop copying role perms into direct. Backfill: derive each user's current direct set into overrides so effective access is byte-identical on deploy. | **Medium** — the backfill is the risky step | F6, F7 closed |
-| **4** ◐ | **4a DONE 2026-08-09 (Purchasing).** Writes split out of `purchasing.view`, which is now genuinely read-only; 6 new abilities, backfilled so nobody lost access. 4b Inventory and 4c HR/Payroll outstanding. | Medium | F3 closed for Purchasing |
+| **4** ◐ | **4a+4b DONE 2026-08-09 (Purchasing, Inventory).** Writes split out of `purchasing.view`, which is now genuinely read-only; 6 new abilities, backfilled so nobody lost access. 4c HR/Payroll outstanding. | Medium | F3 closed for Purchasing and Inventory |
 | **5** | Split `settings.view` per area; audit-log permission changes; delete the orphan `Manager` role; populate `display_name` / `description`. | Low | F8, F9, F10 closed |
 
 Phase 0 alone fixes the two critical findings and is a day's work. Each later phase ships and
@@ -479,8 +479,56 @@ Then the point of the whole exercise, demonstrated: denying just "Raise orders" 
 `purchasing.view` **true** and `orders.edit` **true**, while `orders.create` goes false and
 `OrderForm::save()` returns 403. Read-only purchasing access now exists.
 
-**4b (Inventory) and 4c (HR/Payroll) follow the same pattern** and are not done. Inventory is
-the larger one — six document types behind `inventory.view`.
+### Phase 4b — Inventory, and four destructive actions that were never gated at all
+
+Same additive shape as Purchasing, but Inventory splits more cleanly: every document type
+already has its **own form component** and its **own delete method**, so recording and
+deleting both land on real seams. `inventory.view` stays module-level read (one screen lists
+every type); recording splits six ways; deleting splits six ways.
+
+**A hole the original audit missed.** `inventory.delete` existed, but only
+`deleteStockTake()` and `deleteTransfer()` ever consulted it. `deleteWastage()`,
+`deleteStaffMeal()`, `deletePurchase()` and `deletePrepItem()` had **no permission check
+whatsoever** — anyone who could open Inventory could delete those records outright, and the
+buttons rendered for everybody. All six are guarded now, and the view hides what the user
+cannot do.
+
+The backfill had to mirror **two different realities** to preserve access exactly:
+
+| Held today | Receives | Because |
+|---|---|---|
+| `inventory.view` | all six `*.record` | that is what view already allowed |
+| `inventory.view` | wastage / staff_meals / purchases / prep_items `*.delete` | those deletes were **ungated**, so every viewer could already do them |
+| `inventory.delete` | stock_takes / transfers `*.delete` | the only two it actually gated |
+
+Verified against the grant rows: the two formerly-gated deletes went to exactly the 4 users
+holding `inventory.delete`, and the four formerly-ungated ones mirror `inventory.view`'s 7
+role grants precisely. `inventory.delete` is retired.
+
+> **Worth a deliberate decision:** preserving access exactly means the four previously-ungated
+> deletes are now granted to every `inventory.view` holder. That is the agreed posture and
+> nobody lost anything — but it carries a pre-existing hole forward. The difference is that it
+> is now **visible and revocable** on the Roles tab, which it was not before. Tightening
+> "Wastage — delete" and friends is a one-click change per role.
+
+**The drift test earned its keep twice here.** `canDeleteType()` was first written as
+`canDo("inventory.{$type}.delete")` — the names never appear as literals, so the guardrail
+could not see them and failed the build. Rewritten so each `match` arm calls `canDo()` with a
+literal. A permission name assembled at runtime is a permission the drift check cannot
+protect.
+
+It also gained a **third check**: `test_every_granted_permission_name_exists` scans
+`givePermissionTo()` / `syncPermissions()` arrays for names not in the registry. Retiring
+`inventory.delete` left three of them still granting it — in company registration and
+onboarding — where Spatie would have thrown `PermissionDoesNotExist` for the next customer to
+sign up.
+
+**A Phase 1 miss, found in passing:** `CompanyRegistrationService::registerAdditionalCompany()`
+still wrote the capability flags Phase 1 made inert and never received the replacement
+permissions, so anyone creating a *second* company landed there without approve or delete
+rights. Fixed.
+
+**4c (HR/Payroll) is not done** and follows the same pattern.
 
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
@@ -598,7 +646,7 @@ matrix is designed around them.
 | **1** ✅ | **DONE 2026-08-08.** Six capability flags → permissions; `can_delete_records` split into five. `hasCapability()` replaced by `canDo()`. Migration copies the pivot. **NOT dual-read** — see below. | 41 grantable abilities; delete is per-module. F4, F5, F11, F12 closed |
 | **2** ✅ | **DONE 2026-08-09.** Three tabs: Users / Roles / Effective access. Role Guide retired; fine-tuning collapsed to a delta summary. Column matrix deferred to Phase 4 — see below. | Usability; "why can they see payroll?" answerable without a query |
 | **3** ✅ | **DONE 2026-08-09**, split 3a/3b. Denials via their own table + `checkPermissionTo` (NOT `Gate::before` — see below); stopped copying role perms into direct, 45 duplicates dropped; per-company roles via the existing `roles.team_id`; resolve-by-ID everywhere. | F6, F7 closed |
-| **4** ◐ | **4a DONE 2026-08-09 (Purchasing)** — see below. 4b Inventory and 4c HR/Payroll outstanding. | F3 closed for Purchasing |
+| **4** ◐ | **4a+4b DONE 2026-08-09 (Purchasing, Inventory)** — see below. 4c HR/Payroll outstanding. | F3 closed for Purchasing and Inventory |
 | **5** | Settings split per page; audit-log role/permission pivot changes; delete the orphan `Manager` role; populate `display_name`/`description`. | F8, F9, F10 closed |
 
 ---

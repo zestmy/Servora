@@ -197,17 +197,65 @@ return [
             'label'     => 'Inventory & Kitchen',
             'group'     => 'operations',
             'abilities' => [
+                // Module-level read, like Purchasing: the Inventory index is one screen
+                // listing every document type together.
                 'view' => [
                     'name'  => 'inventory.view',
-                    'label' => 'View & record',
+                    'label' => 'View (read-only)',
                     'title' => 'Inventory & Kitchen',
-                    'help'  => 'Stock takes, wastage, transfers, staff meals and prep items.',
+                    'help'  => 'See stock takes, wastage, transfers, staff meals, prep items and purchases. Read-only on its own.',
                 ],
-                'delete' => [
-                    'name'  => 'inventory.delete',
-                    'label' => 'Delete',
-                    'title' => 'Inventory & Kitchen (Delete)',
-                    'help'  => 'Delete stock takes, wastage, transfers, staff meals and prep items.',
+
+                // Recording and deleting split per document type. Unlike Purchasing, each
+                // type here has its own form component and its own delete method, so the
+                // split lands on real seams rather than needing anything restructured.
+                'stock_takes_record' => [
+                    'name' => 'inventory.stock_takes.record', 'label' => 'Stock takes — record',
+                    'title' => 'Inventory (Record Stock Takes)', 'help' => 'Start and complete stock takes.',
+                ],
+                'stock_takes_delete' => [
+                    'name' => 'inventory.stock_takes.delete', 'label' => 'Stock takes — delete',
+                    'title' => 'Inventory (Delete Stock Takes)', 'help' => 'Delete a completed stock take, reversing its effect on stock.',
+                ],
+                'wastage_record' => [
+                    'name' => 'inventory.wastage.record', 'label' => 'Wastage — record',
+                    'title' => 'Inventory (Record Wastage)', 'help' => 'Record and amend wastage.',
+                ],
+                'wastage_delete' => [
+                    'name' => 'inventory.wastage.delete', 'label' => 'Wastage — delete',
+                    'title' => 'Inventory (Delete Wastage)', 'help' => 'Delete a wastage record.',
+                ],
+                'transfers_record' => [
+                    'name' => 'inventory.transfers.record', 'label' => 'Transfers — record',
+                    'title' => 'Inventory (Record Transfers)', 'help' => 'Create and amend outlet transfers.',
+                ],
+                'transfers_delete' => [
+                    'name' => 'inventory.transfers.delete', 'label' => 'Transfers — delete',
+                    'title' => 'Inventory (Delete Transfers)', 'help' => 'Delete a transfer that is no longer a draft.',
+                ],
+                'staff_meals_record' => [
+                    'name' => 'inventory.staff_meals.record', 'label' => 'Staff meals — record',
+                    'title' => 'Inventory (Record Staff Meals)', 'help' => 'Record and amend staff meals.',
+                ],
+                'staff_meals_delete' => [
+                    'name' => 'inventory.staff_meals.delete', 'label' => 'Staff meals — delete',
+                    'title' => 'Inventory (Delete Staff Meals)', 'help' => 'Delete a staff meal record.',
+                ],
+                'prep_items_record' => [
+                    'name' => 'inventory.prep_items.record', 'label' => 'Prep items — record',
+                    'title' => 'Inventory (Record Prep Items)', 'help' => 'Create and amend prep items.',
+                ],
+                'prep_items_delete' => [
+                    'name' => 'inventory.prep_items.delete', 'label' => 'Prep items — delete',
+                    'title' => 'Inventory (Delete Prep Items)', 'help' => 'Delete a prep item and its synced ingredient.',
+                ],
+                'purchases_record' => [
+                    'name' => 'inventory.purchases.record', 'label' => 'Purchases — record',
+                    'title' => 'Inventory (Record Purchases)', 'help' => 'Capture and amend direct purchases.',
+                ],
+                'purchases_delete' => [
+                    'name' => 'inventory.purchases.delete', 'label' => 'Purchases — delete',
+                    'title' => 'Inventory (Delete Purchases)', 'help' => 'Delete a captured purchase.',
                 ],
             ],
         ],

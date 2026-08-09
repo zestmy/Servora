@@ -567,6 +567,9 @@ class PrepItemForm extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('inventory.prep_items.record'), 403);
+
         $user = Auth::user();
         if ($user?->company?->recipes_locked && ! $user->canBypassLock()) {
             session()->flash('error', 'Prep items are locked. Ask a company admin to unlock in Settings → Company Details.');

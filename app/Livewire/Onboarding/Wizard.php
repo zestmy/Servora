@@ -152,7 +152,13 @@ class Wizard extends Component
                             'inventory.view', 'purchasing.view', 'reports.view',
                             'settings.view', 'users.manage',
                             'purchasing.approve', 'purchasing.request', 'purchasing.delete',
-                            'sales.delete', 'inventory.delete', 'hr.clock.delete', 'hr.claims.delete',
+                            'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
+                            'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                            'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
+                            'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
+                            'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',
+                            'purchasing.orders.create', 'purchasing.orders.edit', 'purchasing.requests.create',
+                            'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
                         ]);
                     })(),
                     'Outlet Manager' => (function () use ($user, $company) {

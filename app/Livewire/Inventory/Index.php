@@ -40,19 +40,46 @@ class Index extends Component
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void   { $this->resetPage(); }
 
-    /** Users with the Delete Record capability (or system admins) may remove finalised records. */
-    private function canDeleteRecords(): bool
+    /**
+     * Deleting is now gated per document type.
+     *
+     * It used to be one `inventory.delete` for the whole module — and, worse, only
+     * deleteStockTake() and deleteTransfer() actually consulted it. Wastage, staff meals,
+     * captured purchases and prep items had NO check at all: anyone who could open
+     * Inventory could delete them outright. All six are guarded now, and each type is
+     * revocable on its own, so letting someone void a mistaken wastage line no longer
+     * also lets them reverse a completed stock take.
+     */
+    private function canDeleteType(string $type): bool
     {
-        return auth()->user()->canDo('inventory.delete');
+        // Each arm calls canDo() with a literal rather than interpolating
+        // "inventory.{$type}.delete", because PermissionRegistryTest greps the source for
+        // enforcement — a permission name assembled at runtime is invisible to it, and a
+        // permission the drift check cannot see is one that can silently rot. The test
+        // caught this method twice while it was being written.
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return match ($type) {
+            'stock_takes' => $user->canDo('inventory.stock_takes.delete'),
+            'wastage'     => $user->canDo('inventory.wastage.delete'),
+            'transfers'   => $user->canDo('inventory.transfers.delete'),
+            'staff_meals' => $user->canDo('inventory.staff_meals.delete'),
+            'prep_items'  => $user->canDo('inventory.prep_items.delete'),
+            'purchases'   => $user->canDo('inventory.purchases.delete'),
+        };
     }
 
     public function deleteStockTake(int $id): void
     {
         $stockTake = StockTake::findOrFail($id);
 
-        // Drafts are freely deletable; completed stock takes require the
-        // Delete Record capability to reverse.
-        if ($stockTake->status !== 'draft' && ! $this->canDeleteRecords()) {
+        // Drafts stay freely deletable — nothing has hit stock yet. Reversing a completed
+        // count is the part that needs the ability.
+        if ($stockTake->status !== 'draft' && ! $this->canDeleteType('stock_takes')) {
             session()->flash('error', 'You do not have permission to delete a completed stock take.');
             return;
         }
@@ -63,12 +90,22 @@ class Index extends Component
 
     public function deleteWastage(int $id): void
     {
+        if (! $this->canDeleteType('wastage')) {
+            session()->flash('error', 'You do not have permission to delete wastage records.');
+            return;
+        }
+
         WastageRecord::findOrFail($id)->delete();
         session()->flash('success', 'Wastage record deleted.');
     }
 
     public function deleteStaffMeal(int $id): void
     {
+        if (! $this->canDeleteType('staff_meals')) {
+            session()->flash('error', 'You do not have permission to delete staff meal records.');
+            return;
+        }
+
         StaffMealRecord::findOrFail($id)->delete();
         session()->flash('success', 'Staff meal record deleted.');
     }
@@ -76,8 +113,8 @@ class Index extends Component
     public function deleteTransfer(int $id): void
     {
         $transfer = OutletTransfer::findOrFail($id);
-        if ($transfer->status !== 'draft' && ! $this->canDeleteRecords()) {
-            session()->flash('error', 'Only draft transfers can be deleted without the Delete Record permission.');
+        if ($transfer->status !== 'draft' && ! $this->canDeleteType('transfers')) {
+            session()->flash('error', 'Only draft transfers can be deleted without the delete permission.');
             return;
         }
         $transfer->delete();
@@ -86,12 +123,22 @@ class Index extends Component
 
     public function deletePurchase(int $id): void
     {
+        if (! $this->canDeleteType('purchases')) {
+            session()->flash('error', 'You do not have permission to delete captured purchases.');
+            return;
+        }
+
         PurchaseCapture::findOrFail($id)->delete();
         session()->flash('success', 'Purchase deleted.');
     }
 
     public function deletePrepItem(int $recipeId): void
     {
+        if (! $this->canDeleteType('prep_items')) {
+            session()->flash('error', 'You do not have permission to delete prep items.');
+            return;
+        }
+
         $recipe = Recipe::with('ingredient')->findOrFail($recipeId);
         // Also soft-delete the synced ingredient record
         $recipe->ingredient?->delete();
@@ -322,12 +369,19 @@ class Index extends Component
         }
 
         $filterOutlets = $this->filterableOutlets();
-        $canDeleteRecords = $this->canDeleteRecords();
+        // Per document type now, so the view can hide a delete button the user cannot
+        // actually use — the four unguarded ones used to render for everybody.
+        $canDelete = collect(['stock_takes', 'wastage', 'transfers', 'staff_meals', 'prep_items', 'purchases'])
+            ->mapWithKeys(fn (string $t) => [$t => $this->canDeleteType($t)])
+            ->all();
+
+        // Kept for the stock-take and transfer rows, whose drafts stay deletable regardless.
+        $canDeleteRecords = $canDelete['stock_takes'];
 
         return view('livewire.inventory.index', compact(
             'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers', 'purchases',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets', 'canDeleteRecords'
+            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets', 'canDeleteRecords', 'canDelete'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
     }
 }

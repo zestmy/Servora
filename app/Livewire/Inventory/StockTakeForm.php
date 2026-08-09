@@ -220,6 +220,9 @@ class StockTakeForm extends Component
 
     public function save(string $action = 'save'): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('inventory.stock_takes.record'), 403);
+
         $this->validate();
 
         $newStatus = ($action === 'complete') ? 'completed' : $this->status;

@@ -79,6 +79,9 @@ class PurchaseCaptureForm extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('inventory.purchases.record'), 403);
+
         $this->validate();
 
         // Resolve supplier: a real id links by FK; 'other' stores a free-text name.

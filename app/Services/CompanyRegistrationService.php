@@ -61,7 +61,14 @@ class CompanyRegistrationService
                 'hr.documents.view', 'hr.documents.manage',
                 // Were capability flags before Phase 1: approve PO/PR, delete records.
                 'purchasing.approve', 'purchasing.request', 'purchasing.delete',
-                'sales.delete', 'inventory.delete', 'hr.clock.delete', 'hr.claims.delete',
+                'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
+                // Phase 4b split inventory.delete per document type.
+                'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
+                'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
+                'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',
+                'purchasing.orders.create', 'purchasing.orders.edit', 'purchasing.requests.create',
+                'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
             ]);
 
             // Create default outlet
@@ -128,19 +135,25 @@ class CompanyRegistrationService
             // switchToCompany() re-sets the team afterwards.
             setPermissionsTeamId($company->id);
             $user->assignRole('Company Admin');
-            $user->setCapabilitiesForCompany($company->id, [
-                'can_manage_users'     => true,
-                'can_approve_po'       => true,
-                'can_approve_pr'       => true,
-                'can_delete_records'   => true,
-                'can_view_all_outlets' => true,
-            ]);
+            // Only outlet scope is still a flag. The other five columns were left here
+            // when Phase 1 turned the capability flags into permissions — they are inert
+            // now, so this path was quietly handing founders of a SECOND company none of
+            // the approve or delete rights that register() grants for their first.
+            $user->setCapabilitiesForCompany($company->id, ['can_view_all_outlets' => true]);
             $user->givePermissionTo([
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
                 'settings.view', 'users.manage', 'hr.view',
                 'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage', 'staff.pins',
                 'hr.documents.view', 'hr.documents.manage',
+                'purchasing.approve', 'purchasing.request', 'purchasing.delete',
+                'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
+                'purchasing.orders.create', 'purchasing.orders.edit', 'purchasing.requests.create',
+                'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
+                'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
+                'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',
+                'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
             ]);
 
             $outlet = Outlet::create([

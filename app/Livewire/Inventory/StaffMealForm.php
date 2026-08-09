@@ -248,6 +248,9 @@ class StaffMealForm extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('inventory.staff_meals.record'), 403);
+
         $this->validate();
 
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));

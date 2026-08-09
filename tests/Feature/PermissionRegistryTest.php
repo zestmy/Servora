@@ -187,6 +187,48 @@ class PermissionRegistryTest extends TestCase
         );
     }
 
+    /**
+     * Permission names handed to givePermissionTo() must exist.
+     *
+     * Enforcement and granting are different verbs, so this cannot ride on the patterns
+     * above — a granted-but-unenforced permission would then pass the dead-permission
+     * check. It needs its own test because the failure is nasty and silent until it is
+     * not: Spatie throws PermissionDoesNotExist, and these calls sit in company creation
+     * and onboarding, so the first person to hit it is a new customer signing up.
+     *
+     * Phase 4b retired `inventory.delete` and three of these arrays still granted it.
+     */
+    public function test_every_granted_permission_name_exists(): void
+    {
+        $unknown = [];
+
+        foreach ($this->sourceFiles() as $relative => $path) {
+            $contents = file_get_contents($path);
+
+            // givePermissionTo([...]) / syncPermissions([...]), including multi-line arrays.
+            if (! preg_match_all('/(?:givePermissionTo|syncPermissions)\(\s*\[(.*?)\]\s*\)/s', $contents, $blocks)) {
+                continue;
+            }
+
+            foreach ($blocks[1] as $block) {
+                preg_match_all("/'([a-z][a-z_]*(?:\.[a-z_]+)+)'/", $block, $names);
+                foreach ($names[1] as $name) {
+                    if (! PermissionRegistry::has($name)) {
+                        $unknown[$name][] = $relative;
+                    }
+                }
+            }
+        }
+
+        $unknown = array_map(fn (array $f) => array_values(array_unique($f)), $unknown);
+
+        $this->assertSame([], $unknown, $unknown === [] ? '' : sprintf(
+            "These permission names are granted in code but are not in the registry, so the "
+            . "grant will throw PermissionDoesNotExist at runtime:\n%s",
+            collect($unknown)->map(fn ($f, $n) => "  {$n}\n    " . implode("\n    ", $f))->implode("\n")
+        ));
+    }
+
     public function test_permission_names_are_unique_across_modules(): void
     {
         $seen = [];

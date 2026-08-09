@@ -133,6 +133,9 @@ class TransferForm extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('inventory.transfers.record'), 403);
+
         if ($this->status !== 'draft') {
             return;
         }
