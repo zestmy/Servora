@@ -216,7 +216,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/pdf/{type}/{id}', PurchaseDocumentPdfController::class)->name('purchasing.pdf')->middleware('can:purchasing.view');
     Route::get('/purchasing/requests/create', PurchasingRequestForm::class)->name('purchasing.requests.create')->middleware('can:purchasing.requests.create');
     Route::get('/purchasing/requests/{id}/edit', PurchasingRequestForm::class)->name('purchasing.requests.edit')->middleware('can:purchasing.requests.edit');
-    Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.orders.create');
+    Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.consolidate');
     Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.transfers.create');
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices/receive', PurchasingInvoiceReceive::class)->name('purchasing.invoices.receive')->middleware('can:purchasing.view');

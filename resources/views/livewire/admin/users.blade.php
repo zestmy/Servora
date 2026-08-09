@@ -222,15 +222,31 @@
                             <p class="text-xs font-medium text-gray-500 mb-2">Role per company</p>
                             <div class="space-y-2">
                                 @foreach ($e_companies as $company)
-                                    <div wire:key="erole-{{ $company['id'] }}" class="flex items-center gap-3">
-                                        <span class="text-sm text-gray-700 flex-1 min-w-0 truncate" title="{{ $company['name'] }}">{{ $company['name'] }}</span>
-                                        <select wire:model="e_roles.{{ $company['id'] }}"
-                                                class="rounded-lg border-gray-300 text-sm w-48 shrink-0">
-                                            <option value="">No role — custom access</option>
-                                            @foreach ($e_roleOptions[$company['id']] ?? [] as $roleId => $label)
-                                                <option value="{{ $roleId }}">{{ $label }}</option>
-                                            @endforeach
-                                        </select>
+                                    <div wire:key="erole-{{ $company['id'] }}" class="space-y-1">
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-sm text-gray-700 flex-1 min-w-0 truncate" title="{{ $company['name'] }}">{{ $company['name'] }}</span>
+                                            <select wire:model="e_roles.{{ $company['id'] }}"
+                                                    class="rounded-lg border-gray-300 text-sm w-48 shrink-0">
+                                                <option value="">No role — custom access</option>
+                                                @foreach ($e_roleOptions[$company['id']] ?? [] as $roleId => $label)
+                                                    <option value="{{ $roleId }}">{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        {{-- Abilities pinned to this person outlive the role they replace, which is
+                                             why changing a role can otherwise look like it did nothing. --}}
+                                        @if (($e_extras[$company['id']] ?? 0) > 0)
+                                            <label class="flex items-start gap-2 pl-1">
+                                                <input type="checkbox" wire:model="e_resetToRole.{{ $company['id'] }}"
+                                                       class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                <span class="text-[11px] text-gray-600">
+                                                    Replace their access with the role's —
+                                                    clears <span class="font-medium text-danger-600">{{ $e_extras[$company['id']] }}</span>
+                                                    {{ \Illuminate\Support\Str::plural('ability', $e_extras[$company['id']]) }}
+                                                    granted to them individually. Leave unticked to keep those on top of the new role.
+                                                </span>
+                                            </label>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>

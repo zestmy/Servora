@@ -182,6 +182,16 @@ return [
                     'title' => 'Purchasing (Raise Transfers)',
                     'help'  => 'Create a stock transfer order between outlets.',
                 ],
+                // Consolidating turns many outstanding requests into purchase orders in one
+                // action, across outlets. Raising a single order and sweeping up everyone's
+                // requests into committed spend are different decisions, so it is granted
+                // separately rather than riding on purchasing.orders.create.
+                'consolidate' => [
+                    'name'  => 'purchasing.consolidate',
+                    'label' => 'Consolidate requests',
+                    'title' => 'Purchasing (Consolidate Requests)',
+                    'help'  => 'Turn outstanding purchase requests into orders in bulk.',
+                ],
                 'suppliers_manage' => [
                     'name'  => 'purchasing.suppliers.manage',
                     'label' => 'Manage suppliers',

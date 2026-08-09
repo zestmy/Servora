@@ -141,6 +141,10 @@ class ConsolidateForm extends Component
 
     public function consolidate()
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request,
+        // and this one commits many requests to spend in a single call.
+        abort_unless(auth()->user()?->canDo('purchasing.consolidate'), 403);
+
         if (empty($this->selectedPrIds)) {
             session()->flash('error', 'Select at least one purchase request.');
             return;

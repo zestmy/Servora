@@ -67,6 +67,29 @@ class Users extends Component
     /** Assignable roles per company: company id => [role id => label]. */
     public array $e_roleOptions = [];
 
+    /**
+     * Abilities pinned to this person on top of their role, per company.
+     *
+     * Surfaced because they are the reason changing a role can look like it did nothing:
+     * a direct grant outlives the role that was replaced, so somebody moved from Business
+     * Manager to Chef keeps everything that was ever ticked for them personally.
+     *
+     * @var array<int, int>
+     */
+    public array $e_extras = [];
+
+    /**
+     * Replace the person's access with the role's, per company.
+     *
+     * Defaults to ON wherever extras exist, because "make them a Chef" almost always means
+     * make them a Chef — not "make them a Chef plus whatever they happened to accumulate".
+     * It stays a visible choice rather than an implicit one: clearing somebody's
+     * hand-granted exceptions is not something to do silently.
+     *
+     * @var array<int, bool>
+     */
+    public array $e_resetToRole = [];
+
     public function openEdit(int $userId): void
     {
         if (! Auth::user()->isSystemRole()) return;
@@ -89,6 +112,7 @@ class Users extends Component
     private function loadAccess(User $user): void
     {
         $this->e_roles = $this->e_companies = $this->e_roleOptions = [];
+        $this->e_extras = $this->e_resetToRole = [];
 
         $companyIds = $user->companies()->pluck('companies.id')
             ->merge($user->company_id ? [$user->company_id] : [])
@@ -111,6 +135,21 @@ class Users extends Component
             $this->e_roleOptions[$companyId] = RoleCatalogue::forCompany($companyId)
                 ->mapWithKeys(fn ($r) => [(string) $r->id => $r->label . ($r->is_preset ? '' : ' (this company)')])
                 ->all();
+
+            // Abilities granted to this person on top of whatever their role gives.
+            $rolePerms = $current
+                ? (RoleCatalogue::permissionsByRoleId([$current->id])[$current->id] ?? [])
+                : [];
+
+            $this->e_extras[$companyId] = DB::table('model_has_permissions')
+                ->join('permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
+                ->where('model_has_permissions.model_type', User::class)
+                ->where('model_has_permissions.model_id', $user->id)
+                ->where('model_has_permissions.team_id', $companyId)
+                ->when($rolePerms, fn ($q) => $q->whereNotIn('permissions.name', $rolePerms))
+                ->count();
+
+            $this->e_resetToRole[$companyId] = $this->e_extras[$companyId] > 0;
         }
     }
 
@@ -209,6 +248,26 @@ class Users extends Component
                     ? []
                     : [\Spatie\Permission\Models\Role::findById((int) $wanted)]);
 
+                // Without this, changing a role can look like it did nothing: abilities
+                // pinned to the person outlive the role that was replaced, so somebody
+                // moved from Business Manager to Chef keeps everything ever ticked for
+                // them. Clearing them is what makes "make them a Chef" mean it.
+                if (($this->e_resetToRole[$companyId] ?? false)) {
+                    DB::table('model_has_permissions')
+                        ->where('model_type', User::class)
+                        ->where('model_id', $user->id)
+                        ->where('team_id', $companyId)
+                        ->delete();
+
+                    DB::table('permission_denials')
+                        ->where('model_type', User::class)
+                        ->where('model_id', $user->id)
+                        ->where('team_id', $companyId)
+                        ->delete();
+
+                    $user->unsetRelation('permissions');
+                }
+
                 AuditLogService::log($user, 'access_changed',
                     ['role' => $wanted === '' ? null : $valid->firstWhere('id', (int) $wanted)->name, 'company_id' => $companyId],
                     ['role' => $current?->name, 'company_id' => $companyId]
@@ -225,6 +284,7 @@ class Users extends Component
         $this->showEdit = false;
         $this->editId   = null;
         $this->e_roles  = $this->e_companies = $this->e_roleOptions = [];
+        $this->e_extras = $this->e_resetToRole = [];
         $this->resetValidation();
     }
 
