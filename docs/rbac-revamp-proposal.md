@@ -405,11 +405,22 @@ instrument, not a way to trim a platform account.
 because it is consulted on every gate check — a missing table there would not break one
 feature, it would 500 every page in the app.
 
-**Still owed: a regression test.** The denial path is security-critical and currently proven
-only by a scratch script. A feature test needs a database, and the suite's 25 pre-existing
-failures are exactly that — MySQL-only migrations under SQLite. Once that is fixed, denials
-and the `checkPermissionTo` override should get proper coverage; a future refactor
-"simplifying" the trait alias would otherwise silently reopen the grant.
+**The regression test now exists** — `tests/Feature/PermissionDenialTest.php`, 9 tests. Getting
+there meant fixing the suite first; see "The test suite could not build a database" below.
+
+It covers: a denial beating a role grant on all three check paths (`canDo()`, `can()`,
+`Gate::allows`), beating a direct grant, staying surgical (the rest of the role survives, and
+the user keeps the role), lifting cleanly, applying only to the company it was made in, *not*
+clipping a system account, and — the integration-level proof — `can:` route middleware
+returning 403.
+
+The ninth is a reflection assertion that `User::checkPermissionTo()` is still overridden,
+because that is the load-bearing seam and its connection to the feature is not obvious.
+
+**Negative-controlled.** Neutering the wrapper the way a "simplification" would fails **6 of
+the 9**. The three that survive are correct to: one involves no denial, one is the
+system-account short-circuit, and the reflection test guards the method's *existence* rather
+than its body. Behaviour and seam are covered separately, on purpose.
 
 ### Phase 3b — per-company roles
 
@@ -755,3 +766,60 @@ matrix is designed around them.
   finding F3 reappearing one level up.
 
 Everything else is settled and Phase 0 is ready to start on approval.
+
+---
+
+## 11. The test suite could not build a database — and neither could a fresh install
+
+Every phase above was verified with scratch scripts against the dev database, because the
+test suite had 25 failures that all shared one cause: migrations written in MySQL-only SQL,
+which the SQLite connection in `phpunit.xml` could not execute. Tests died while building
+their schema, before reaching an assertion.
+
+Nine migrations were made driver-agnostic — not guarded behind `if (driver === 'mysql')`,
+which would have left them silently *wrong* on SQLite, but rewritten to say the same thing in
+portable form:
+
+| Construct | Was | Now |
+|---|---|---|
+| `ALTER TABLE … MODIFY COLUMN … ENUM` | raw SQL, MySQL-only | `$table->enum(...)->change()` — ENUM on MySQL, CHECK-constrained varchar on SQLite |
+| `MODIFY … NULL / NOT NULL` | raw SQL | `->nullable()->change()` |
+| `information_schema.statistics` | index-existence probe | `Schema::hasIndex()` |
+| `information_schema.TABLE_CONSTRAINTS` | FK-existence probe | `Schema::getForeignKeys()` |
+| `SHOW INDEX FROM` | index-existence probe | `Schema::hasIndex()` |
+| `UPDATE a JOIN b SET …` (×3) | MySQL multi-table update | correlated subquery / chunked builder update |
+| `NOW()`, `LAST_DAY()`, `GREATEST()` | MySQL functions | PHP-side values and `CASE WHEN` |
+| joined `UPDATE` with a `DB::raw` from the joined table | worked only on MySQL | correlated subquery |
+
+### The finding underneath it
+
+`2026_07_23_000002_add_teams_to_permission_tables` added `roles.team_id` and the pivot
+`team_id` columns unconditionally. But `permission.teams` is **now true**, and Spatie's own
+`create_permission_tables` migration already builds that shape when it is. So on any database
+created from scratch the migration hit **"duplicate column name: team_id"** — *on MySQL as
+much as SQLite*.
+
+**Servora could not be installed from scratch.** Production has never noticed because its
+database predates the teams flip and the migration has long since run there.
+
+It is now idempotent, and takes a different path when Spatie has already built the teams
+shape: that shape has `team_id` **NOT NULL and inside the primary key**, whereas this app
+needs it **nullable with no PK**, because system accounts hold team-NULL assignment rows that
+`isSystemRole()` reads team-agnostically. A primary key cannot contain a nullable column, and
+SQLite cannot drop a PK in place, so on that path the pivot is rebuilt into the target shape —
+guarded to refuse outright if the table holds any rows, since it is only ever correct on a
+fresh database.
+
+### Two stale skeleton tests
+
+Both predated the app they were testing:
+
+- `ExampleTest` had `use RefreshDatabase` **commented out**, so it asserted 200 from the
+  marketing home page against a database with no tables. The page reads `plans`; it 500'd.
+- `AuthenticationTest::test_navigation_menu_can_be_rendered` built a user with no company and
+  asserted 200 from `/dashboard`, which sits behind `company.scope` — that has redirected a
+  companyless user since multi-tenancy landed. It also asserted a Volt component
+  (`layout.navigation`) that the dashboard does not render; the product uses its own sidebar.
+
+**Result: 25 failed / 91 passed → 125 passed, 0 failed.** Future phases can be verified by
+tests rather than by scratch scripts against dev.
