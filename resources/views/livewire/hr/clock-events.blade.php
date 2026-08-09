@@ -220,7 +220,13 @@
              A max-h-[92vh] panel is taller than what iOS actually shows once
              the browser chrome is counted, so its lower half — including
              Approve and Reject — sat below the fold with no way to reach it. --}}
-        <div class="fixed inset-0 z-40 bg-gray-900/50 overflow-y-auto"
+        {{-- Teleported to the body, like every other modal here. `main` is
+             `flex-1 overflow-y-auto` inside an `h-screen overflow-hidden` shell, and a
+             fixed overlay rendered inside it got clipped by that scroll container —
+             the panel was cut off mid-content with Approve and Reject unreachable, and
+             the page's own toolbar drew on top of the dimmed backdrop. --}}
+        @teleport('body')
+        <div class="fixed inset-0 z-[100] bg-gray-900/50 overflow-y-auto"
              wire:key="panel-{{ $viewing->id }}">
             <div class="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div class="bg-white w-full sm:max-w-2xl sm:rounded-xl shadow-xl">
@@ -441,5 +447,6 @@
             </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>

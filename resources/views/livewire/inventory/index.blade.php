@@ -211,6 +211,19 @@
                         @endforeach
                     </select>
                 @endif
+                {{-- Wastage only: department is a column on the record, so it filters
+                     cleanly. "No department" is offered explicitly because older records
+                     predate the field and would otherwise be unreachable by filter. --}}
+                @if ($tab === 'wastage' && $wastageDepartments->isNotEmpty())
+                    <select wire:model.live="departmentFilter"
+                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">All Departments</option>
+                        @foreach ($wastageDepartments as $d)
+                            <option value="{{ $d->id }}">{{ $d->name }}</option>
+                        @endforeach
+                        <option value="none">— No department —</option>
+                    </select>
+                @endif
                 @if ($tab === 'transfers')
                     <select wire:model.live="statusFilter"
                             class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
@@ -572,6 +585,8 @@
                     <tr>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Reference</th>
+                        <th class="px-4 py-3 text-left">Department</th>
+                        <th class="px-4 py-3 text-left">Reason</th>
                         <th class="px-4 py-3 text-center">Items</th>
                         <th class="px-4 py-3 text-right">Total Cost (RM)</th>
                         <th class="px-4 py-3 text-center">Actions</th>
@@ -587,6 +602,18 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-gray-500">{{ $record->reference_number ?: '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ $record->department?->name ?: '—' }}</td>
+                            {{-- Reason lives on the LINES, so one record can carry several.
+                                 Distinct values, first two with a count for the rest — enough
+                                 to scan the table without turning a cell into a list. --}}
+                            <td class="px-4 py-3 text-gray-600">
+                                @php $reasons = $record->lines->pluck('reason')->filter()->unique()->values(); @endphp
+                                @if ($reasons->isEmpty())
+                                    <span class="text-gray-400">—</span>
+                                @else
+                                    <span title="{{ $reasons->implode(', ') }}">{{ $reasons->take(2)->implode(', ') }}@if ($reasons->count() > 2)<span class="text-gray-400"> +{{ $reasons->count() - 2 }}</span>@endif</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-center text-gray-600">{{ $record->lines_count }}</td>
                             <td class="px-4 py-3 text-right tabular-nums font-medium text-danger-600">
                                 {{ number_format($record->total_cost, 2) }}
@@ -614,7 +641,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-12 text-center text-gray-600">
+                            <td colspan="7" class="px-4 py-12 text-center text-gray-600">
                                 <div class="text-3xl mb-2">🗑️</div>
                                 <p class="font-medium">No wastage records yet</p>
                                 <p class="text-xs mt-1">
@@ -628,7 +655,7 @@
                 @if ($wastageRecords->count() > 0)
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold text-gray-700">
                         <tr>
-                            <td colspan="3" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
+                            <td colspan="5" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
                                 Page total ({{ $wastageRecords->count() }} records)
                             </td>
                             <td class="px-4 py-3 text-right tabular-nums text-danger-600">

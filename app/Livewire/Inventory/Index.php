@@ -24,6 +24,8 @@ class Index extends Component
     public string $dateTo       = '';
     public string $statusFilter = '';
     public string $outletFilter = '';
+    /** Wastage tab only: narrow to one department. */
+    public string $departmentFilter = '';
 
     public function mount(): void
     {
@@ -36,6 +38,7 @@ class Index extends Component
     public function updatedTab(): void      { $this->resetPage(); $this->search = ''; $this->dateFrom = ''; $this->dateTo = ''; $this->statusFilter = ''; }
     public function updatedStatusFilter(): void { $this->resetPage(); }
     public function updatedOutletFilter(): void { $this->resetPage(); }
+    public function updatedDepartmentFilter(): void { $this->resetPage(); }
     public function updatedSearch(): void   { $this->resetPage(); }
     public function updatedDateFrom(): void { $this->resetPage(); }
     public function updatedDateTo(): void   { $this->resetPage(); }
@@ -167,8 +170,17 @@ class Index extends Component
             : collect();
 
         // ── Wastage Records ───────────────────────────────────────────────
-        $wastageQuery = WastageRecord::withCount('lines');
+        // department for its column; lines only for their reasons, which is a short
+        // string each — loading them here keeps the table off one query per row.
+        $wastageQuery = WastageRecord::withCount('lines')
+            ->with(['department:id,name', 'lines:id,wastage_record_id,reason']);
         $this->scopeByOutletFilter($wastageQuery, $this->outletFilter);
+
+        if ($this->departmentFilter !== '' && $this->tab === 'wastage') {
+            $this->departmentFilter === 'none'
+                ? $wastageQuery->whereNull('department_id')
+                : $wastageQuery->where('department_id', (int) $this->departmentFilter);
+        }
 
         if ($this->search && $this->tab === 'wastage') {
             $wastageQuery->where('reference_number', 'like', '%' . $this->search . '%');
@@ -179,6 +191,10 @@ class Index extends Component
         if ($this->dateTo && $this->tab === 'wastage') {
             $wastageQuery->where('wastage_date', '<=', $this->dateTo);
         }
+
+        $wastageDepartments = $this->tab === 'wastage'
+            ? \App\Models\Department::orderBy('name')->get(['id', 'name'])
+            : collect();
 
         $wastageRecords = $this->tab === 'wastage'
             ? $wastageQuery->orderByDesc('wastage_date')->orderByDesc('id')->paginate(15)
@@ -381,7 +397,7 @@ class Index extends Component
         return view('livewire.inventory.index', compact(
             'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers', 'purchases',
             'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets', 'canDeleteRecords', 'canDelete'
+            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets', 'canDeleteRecords', 'canDelete', 'wastageDepartments'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
     }
 }
