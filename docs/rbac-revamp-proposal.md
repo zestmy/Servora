@@ -364,6 +364,46 @@ Two things worth knowing:
    platform — F7, open until Phase 3. The tab shows what a role grants and says who can change
    it; editing stays in Admin › Role Templates. **When Phase 3 lands, this tab is where
    per-company role editing belongs.**
+### Phase 3a — denials, and role edits that finally reach their holders
+
+Split from 3b (per-company roles) so each half could be verified on its own; this is the
+riskier half, because it carries the backfill.
+
+**F6 is closed.** `syncAccessLevel()` no longer merges a role's permissions into the user's
+direct grants. It now derives the split from effective access: `granted` = ticked minus what
+the role gives, `denied` = the role's abilities that were unticked. The migration deleted the
+**45 existing direct grants that merely duplicated their holder's role** (97 rows → 52).
+
+That deletion cannot change anyone's access — the role still grants every one of them, which
+is precisely what made them duplicates — and it was verified that way: effective access for
+every (user, company) was dumped to JSON before and after, and the two files are identical.
+What it changes is where a grant *comes from*, so a role edit now reaches its holders.
+Demonstrated: removing `reports.view` from the Finance role flips its holder's `canDo()` to
+false, where before Phase 3 they kept a private copy.
+
+**Denials could not be implemented in `Gate::before`, which is what the plan assumed.**
+Spatie registers its own `$gate->before()` that returns `true` the moment the user holds the
+permission, and Laravel takes the **first non-null** before-callback — so whichever provider
+registers first wins, and ours lost. `Gate::after` is no escape either: it merges with
+`$result ??= $afterResult`, so it cannot overturn a `true`.
+
+The seam that does work is Spatie's own `checkPermissionTo()`, aliased out of the trait and
+wrapped on the User model. Returning false there turns Spatie's `?: null` into `null`, the
+Gate falls through to normal resolution, and the ability is denied — through `can:` route
+middleware, `@can` and `can()` alike, with no call site needing to know. Verified across all
+three paths. Denials do **not** clip Super Admin or System Admin: they are a company-level
+instrument, not a way to trim a platform account.
+
+`deniedPermissions()` is memoised per request per team and guards on `Schema::hasTable`,
+because it is consulted on every gate check — a missing table there would not break one
+feature, it would 500 every page in the app.
+
+**Still owed: a regression test.** The denial path is security-critical and currently proven
+only by a scratch script. A feature test needs a database, and the suite's 25 pre-existing
+failures are exactly that — MySQL-only migrations under SQLite. Once that is fixed, denials
+and the `checkPermissionTo` override should get proper coverage; a future refactor
+"simplifying" the trait alias would otherwise silently reopen the grant.
+
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
    abilities per user rather than onto roles (preserve-exactly). That is correct, but it means
@@ -459,7 +499,10 @@ left to confirm before Phase 0** — see §10.
 
 - `permissions` — seeded from the registry by `permissions:sync`. Add nullable `module`,
   `ability`, `label`, `group`, `sort` columns so the matrix renders from the table, not a const.
-- `model_has_permissions` — add `type` enum(`allow`,`deny`) default `allow`.
+- ~~`model_has_permissions` — add `type` enum(`allow`,`deny`)~~ **Wrong — do not do this.**
+  Spatie's `HasPermissions::permissions()` filters on `team_id` and nothing else, so a row
+  marked `deny` in that table is read straight back as a **grant**. Phase 3a uses a separate
+  `permission_denials` table instead.
 - `roles` — no change (`team_id` already present, see §3.3).
 - No change to `role_has_permissions`, `model_has_roles`, `outlet_user`, `kitchen_users`.
 

@@ -209,11 +209,24 @@ class Users extends Component
             ->value('roles.name');
         $this->accessRole = $roleName ?: 'custom';
 
-        // Load current permissions as module access
-        $this->moduleAccess = $user->getDirectPermissions()->pluck('name')->toArray();
-        // Also include role-based permissions for display
-        $allPerms = $user->getAllPermissions()->pluck('name')->toArray();
-        $this->moduleAccess = array_values(array_unique(array_merge($this->moduleAccess, $allPerms)));
+        // The grid shows EFFECTIVE access: (role ∪ granted) − denied. Ticking is
+        // therefore "what this person can do", and save() works out afterwards which
+        // side of the role each tick falls on. Scoped to the company being edited —
+        // a system admin editing someone in another company must not read the
+        // permissions of their own.
+        $prevTeam = getPermissionsTeamId();
+        setPermissionsTeamId($contextCompanyId);
+
+        try {
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+            $effective = $user->getAllPermissions()->pluck('name')->all();
+            $denied    = $user->deniedPermissions();
+        } finally {
+            setPermissionsTeamId($prevTeam);
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+        }
+
+        $this->moduleAccess = array_values(array_diff(array_unique($effective), $denied));
 
         // Outlet access — determine mode
         $assignedOutletIds = $user->outlets->pluck('id')->toArray();
@@ -376,11 +389,21 @@ class Users extends Component
     }
 
     /**
-     * Apply the chosen access level for ONE company: the assignable role
-     * (teams-scoped, so other companies' assignments survive) plus direct
-     * module permissions. Role-granted modules are always merged into the
-     * direct set so ticked access can never silently fall below the role's
-     * baseline; system roles are never assigned or removed here.
+     * Apply the ticked access for ONE company, as `(role ∪ granted) − denied`.
+     *
+     * $moduleAccess is EFFECTIVE access — what this person should be able to do — so the
+     * split is derived here rather than asked of the admin:
+     *   granted = ticked, minus whatever the role already gives  (genuine extras)
+     *   denied  = the role's abilities that were UNticked        ("this role, but not X")
+     *
+     * Before Phase 3 the role's permissions were merged into the user's direct grants on
+     * every save. That made a role edit one-way: removing a module from a role left every
+     * existing holder with their own copy of it, so the Role Templates screen's promise
+     * that a change "applies to every user holding this role" was only true for additions.
+     * Nothing is copied now — the role is the source, and editing it reaches its holders.
+     *
+     * Teams-scoped throughout, so a multi-company user's other companies survive; system
+     * roles are never assigned or removed here.
      */
     private function syncAccessLevel(User $user, int $companyId): void
     {
@@ -388,11 +411,15 @@ class Users extends Component
         setPermissionsTeamId($companyId);
 
         try {
-            $valid = array_intersect($this->moduleAccess, array_keys(self::modules()));
+            $grantable = array_keys(self::modules());
+            $wanted    = array_values(array_intersect($this->moduleAccess, $grantable));
+            $rolePerms = [];
 
             if (isset(self::ASSIGNABLE_ROLES[$this->accessRole])) {
-                $rolePerms = $this->rolePermMap()[$this->accessRole] ?? [];
-                $valid = array_merge($valid, array_intersect($rolePerms, array_keys(self::modules())));
+                $rolePerms = array_values(array_intersect(
+                    $this->rolePermMap()[$this->accessRole] ?? [],
+                    $grantable
+                ));
                 if (! $user->isSystemRole()) {
                     $user->unsetRelation('roles');
                     $user->syncRoles([$this->accessRole]);
@@ -403,8 +430,12 @@ class Users extends Component
                 $user->syncRoles([]);
             }
 
+            $granted = array_values(array_diff($wanted, $rolePerms));
+            $denied  = array_values(array_diff($rolePerms, $wanted));
+
             $user->unsetRelation('permissions');
-            $user->syncPermissions(array_values(array_unique($valid)));
+            $user->syncPermissions($granted);
+            $user->syncDenials($companyId, $denied);
         } finally {
             setPermissionsTeamId($prevTeam);
         }

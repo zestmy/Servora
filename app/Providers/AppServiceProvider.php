@@ -100,9 +100,28 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // Super Admin bypasses all permission checks (team-agnostic: with
-        // Spatie teams mode, hasRole only sees the active company's rows)
+        // Spatie teams mode, hasRole only sees the active company's rows).
+        //
+        // Denials are applied in the same hook, and deliberately AFTER that bypass:
+        // they are a company-level instrument ("Branch Manager, but not delete"), not a
+        // way to clip a platform account. Returning false here — rather than filtering
+        // Spatie's own lookup — is what makes a denial bite on `can:` route middleware,
+        // @can in Blade and can() in PHP alike, instead of only wherever we remembered
+        // to check. Returning null falls through to Spatie's normal resolution.
         Gate::before(function ($user, $ability) {
-            return method_exists($user, 'hasGlobalRole') && $user->hasGlobalRole('Super Admin') ? true : null;
+            if (! method_exists($user, 'hasGlobalRole')) {
+                return null;
+            }
+
+            if ($user->hasGlobalRole('Super Admin')) {
+                return true;
+            }
+
+            if (is_string($ability) && $user->isDenied($ability)) {
+                return false;
+            }
+
+            return null;
         });
 
         // @feature('analytics') ... @endfeature

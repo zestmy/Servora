@@ -12,7 +12,38 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, Notifiable;
+
+    /**
+     * Spatie's permission check, aliased so denials can wrap it — see
+     * checkPermissionTo() below for why that is the only seam that works.
+     */
+    use HasRoles {
+        checkPermissionTo as protected spatieCheckPermissionTo;
+    }
+
+    /**
+     * Spatie's own hook, wrapped so an explicit denial beats a grant.
+     *
+     * Denials cannot be enforced from our Gate::before. Spatie registers its own
+     * `$gate->before()` that returns TRUE as soon as the user holds the permission, and
+     * Laravel's Gate takes the first non-null before-callback result — so whichever of the
+     * two is registered first wins, and ours lost. Gate::after is no help either: it
+     * merges with `$result ??= $afterResult`, so it cannot overturn a true.
+     *
+     * This method is what Spatie's before-callback actually calls. Returning false here
+     * turns its `?: null` into null, the Gate falls through to normal resolution, and the
+     * ability is denied — through `can:` middleware, @can and can() alike, without us
+     * having to remember to check anywhere.
+     */
+    public function checkPermissionTo($permission, $guardName = null): bool
+    {
+        if (is_string($permission) && $this->isDenied($permission)) {
+            return false;
+        }
+
+        return $this->spatieCheckPermissionTo($permission, $guardName);
+    }
 
     protected $fillable = [
         'name', 'email', 'password', 'company_id', 'outlet_id', 'timezone',
@@ -131,6 +162,7 @@ class User extends Authenticatable
         setPermissionsTeamId($companyId);
         $this->unsetRelation('roles');
         $this->unsetRelation('permissions');
+        $this->memoDenied = [];
 
         // Capability cache columns follow the active company
         $this->refreshCapabilityCache();
@@ -291,6 +323,92 @@ class User extends Authenticatable
     {
         if ($this->isSystemRole()) return true;
         return $this->can($permission);
+    }
+
+    /**
+     * Abilities explicitly taken away from this user in the active company.
+     *
+     * Denials express "this role, but not that one bit" — the single most common real
+     * request, which before Phase 3 forced a whole new role. They live in their own table
+     * rather than as a flag on `model_has_permissions` because Spatie's permissions()
+     * relation filters on team_id and nothing else, so a "deny" row parked there would be
+     * read back as a grant.
+     *
+     * Memoised per request and per team: Gate::before consults this on EVERY gate check,
+     * including policy checks that have nothing to do with the registry, so it has to be
+     * free after the first call. switchToCompany() clears the memo.
+     *
+     * @return list<string>
+     */
+    public function deniedPermissions(): array
+    {
+        $team = (int) (getPermissionsTeamId() ?: $this->company_id);
+
+        if (array_key_exists($team, $this->memoDenied)) {
+            return $this->memoDenied[$team];
+        }
+
+        // Gate::before consults this on every permission check, so a missing table would
+        // not fail one feature — it would 500 every page in the app. That can happen on a
+        // environment whose migrations have not caught up with its code, which is exactly
+        // when you least want the site down. Checked once per process, not per call.
+        static $tableExists = null;
+        $tableExists ??= \Illuminate\Support\Facades\Schema::hasTable('permission_denials');
+
+        if (! $tableExists) {
+            return $this->memoDenied[$team] = [];
+        }
+
+        return $this->memoDenied[$team] = DB::table('permission_denials')
+            ->join('permissions', 'permissions.id', '=', 'permission_denials.permission_id')
+            ->where('permission_denials.model_type', self::class)
+            ->where('permission_denials.model_id', $this->id)
+            ->where('permission_denials.team_id', $team)
+            ->pluck('permissions.name')
+            ->all();
+    }
+
+    /** @var array<int, list<string>> team id => denied permission names */
+    protected array $memoDenied = [];
+
+    /** Is this ability explicitly denied for this user in the active company? */
+    public function isDenied(string $permission): bool
+    {
+        return in_array($permission, $this->deniedPermissions(), true);
+    }
+
+    /**
+     * Replace this user's denials for ONE company. Anything not listed is un-denied;
+     * other companies are untouched, matching how roles and grants behave here.
+     *
+     * @param  list<string>  $permissionNames
+     */
+    public function syncDenials(int $companyId, array $permissionNames): void
+    {
+        $ids = $permissionNames
+            ? DB::table('permissions')->whereIn('name', $permissionNames)
+                ->where('guard_name', 'web')->pluck('id')->all()
+            : [];
+
+        DB::table('permission_denials')
+            ->where('model_type', self::class)
+            ->where('model_id', $this->id)
+            ->where('team_id', $companyId)
+            ->when($ids, fn ($q) => $q->whereNotIn('permission_id', $ids))
+            ->delete();
+
+        foreach ($ids as $permissionId) {
+            DB::table('permission_denials')->insertOrIgnore([
+                'permission_id' => $permissionId,
+                'model_type'    => self::class,
+                'model_id'      => $this->id,
+                'team_id'       => $companyId,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+        }
+
+        unset($this->memoDenied[$companyId]);
     }
 
     /**

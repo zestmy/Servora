@@ -131,17 +131,28 @@ class RolesAccess extends Component
 
         $isSystem = $subject->isSystemRole();
 
+        $denied = DB::table('permission_denials')
+            ->join('permissions', 'permissions.id', '=', 'permission_denials.permission_id')
+            ->where('permission_denials.model_type', User::class)
+            ->where('permission_denials.model_id', $subject->id)
+            ->where('permission_denials.team_id', $companyId)
+            ->pluck('permissions.name')->all();
+
         $sources = [];
         foreach (array_keys(PermissionRegistry::titles()) as $name) {
             $inRole   = in_array($name, $rolePerms, true);
             $inDirect = in_array($name, $directPerms, true);
 
             $sources[$name] = match (true) {
-                $inRole            => 'role',
-                $inDirect          => 'direct',
+                // Denials win over everything except a platform account, exactly as
+                // Gate::before resolves them — otherwise this tab would cheerfully
+                // report access the user does not actually have.
+                in_array($name, $denied, true) && ! $isSystem => 'denied',
+                $inRole                                       => 'role',
+                $inDirect                                     => 'direct',
                 // A system role passes canDo() for everything without holding a row.
-                $isSystem          => 'system',
-                default            => null,
+                $isSystem                                     => 'system',
+                default                                       => null,
             };
         }
 
@@ -151,9 +162,11 @@ class RolesAccess extends Component
             'roleLabel' => $roleRow ? ($roleRow->display_name ?: $roleRow->name) : null,
             'isSystem'  => $isSystem,
             'sources'   => $sources,
-            'granted'   => count(array_filter($sources)),
+            // 'denied' is a source, not a grant — it must not count toward the total.
+            'granted'   => count(array_filter($sources, fn ($s) => $s !== null && $s !== 'denied')),
             'total'     => count($sources),
             'added'     => array_keys(array_filter($sources, fn ($s) => $s === 'direct')),
+            'removed'   => array_keys(array_filter($sources, fn ($s) => $s === 'denied')),
             'outlets'   => $subject->canViewAllOutlets()
                 ? 'All outlets in this company'
                 : ($subject->accessibleOutlets()->pluck('name')->implode(', ') ?: 'No outlets assigned'),

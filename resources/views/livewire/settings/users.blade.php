@@ -202,22 +202,32 @@
                     $lockedPerms = $accessRole !== 'custom' ? ($rolePermMap[$accessRole] ?? []) : [];
                     $grantable   = array_keys($modules);
                     $fromRole    = array_values(array_intersect($lockedPerms, $grantable));
-                    $addedOnTop  = array_values(array_diff(array_intersect($moduleAccess, $grantable), $fromRole));
+                    $ticked      = array_intersect($moduleAccess, $grantable);
+                    $addedOnTop  = array_values(array_diff($ticked, $fromRole));
+                    $removed     = array_values(array_diff($fromRole, $ticked));
                 @endphp
                 {{-- Picking a role is the whole job for most people, so the 41-checkbox grid
                      starts collapsed behind a one-line summary of how this person differs
                      from their role. It opens automatically when there is no role to fall
-                     back on, or when someone has already been fine-tuned — those are the two
-                     cases where the detail is the point. The counts are recomputed in Alpine
-                     from the checkboxes themselves, because wire:model here is deferred and a
-                     server round-trip per tick would make a 41-box grid crawl. --}}
+                     back on, or when someone has already been fine-tuned.
+
+                     The grid shows EFFECTIVE access, so a role's abilities are ticked here
+                     like any other — and unticking one is how you say "this role, but not
+                     that". Before Phase 3 they were rendered disabled, which is why removing
+                     one bit of a role used to mean inventing a whole new role.
+
+                     Counts are recomputed in Alpine from the checkboxes, because wire:model
+                     here is deferred and a round-trip per tick would make the grid crawl.
+                     Role-derived boxes carry data-role so the two tallies stay separable. --}}
                 <div x-data="{
-                        open: @js($accessRole === 'custom' || count($addedOnTop) > 0),
+                        open: @js($accessRole === 'custom' || count($addedOnTop) > 0 || count($removed) > 0),
                         added: @js(count($addedOnTop)),
+                        removed: @js(count($removed)),
                         recount() {
-                            this.added = this.$refs.grid
-                                ? this.$refs.grid.querySelectorAll('input[type=checkbox]:checked:not([disabled])').length
-                                : this.added;
+                            const g = this.$refs.grid;
+                            if (! g) return;
+                            this.added   = g.querySelectorAll('input[type=checkbox]:checked:not([data-role])').length;
+                            this.removed = g.querySelectorAll('input[type=checkbox][data-role]:not(:checked)').length;
                         }
                      }">
                     <div class="flex items-center justify-between gap-3 mb-2">
@@ -239,7 +249,7 @@
                             <p class="text-sm text-gray-800"><span class="font-medium">Custom</span> <span class="text-gray-600">— no role attached</span></p>
                         @endif
                         <p class="help mt-0.5">
-                            <span x-text="added"></span> granted on top of that.
+                            <span x-text="added"></span> added<template x-if="removed > 0"><span>, <span class="text-danger-600 font-medium" x-text="removed"></span> removed from the role</span></template>.
                             <span class="text-gray-500">Open Customise to change which.</span>
                         </p>
                     </div>
@@ -255,17 +265,17 @@
                                             @php
                                                 $ability = reset($module['abilities']);
                                                 $perm    = $ability['name'];
-                                                $locked  = in_array($perm, $lockedPerms, true);
+                                                $fromRole = in_array($perm, $lockedPerms, true);
                                             @endphp
                                             <label wire:key="mod-{{ $accessRole }}-{{ $perm }}"
                                                    title="{{ $ability['help'] ?? '' }}"
-                                                   class="flex items-center gap-2 px-2 py-1.5 rounded {{ $locked ? 'bg-brand-50/60 cursor-default' : 'hover:bg-gray-50 cursor-pointer' }}">
-                                                <input type="checkbox" @disabled($locked) @checked($locked)
-                                                       @if (! $locked) wire:model="moduleAccess" value="{{ $perm }}" @endif
-                                                       class="rounded border-gray-300 {{ $locked ? 'text-brand-400' : 'text-brand-600 focus:ring-brand-500' }}" />
+                                                   class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer {{ $fromRole ? 'bg-brand-50/60' : '' }}">
+                                                <input type="checkbox" wire:model="moduleAccess" value="{{ $perm }}"
+                                                       @if ($fromRole) data-role="1" @endif
+                                                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                                 <span class="text-sm text-gray-700">{{ $module['label'] }}</span>
-                                                @if ($locked)
-                                                    <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-400 font-semibold">role</span>
+                                                @if ($fromRole)
+                                                    <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-500 font-semibold">role</span>
                                                 @endif
                                             </label>
                                         @else
@@ -274,18 +284,18 @@
                                                 <div class="grid grid-cols-2 gap-1">
                                                     @foreach ($module['abilities'] as $ability)
                                                         @php
-                                                            $perm   = $ability['name'];
-                                                            $locked = in_array($perm, $lockedPerms, true);
+                                                            $perm     = $ability['name'];
+                                                            $fromRole = in_array($perm, $lockedPerms, true);
                                                         @endphp
                                                         <label wire:key="mod-{{ $accessRole }}-{{ $perm }}"
                                                                title="{{ $ability['help'] ?? '' }}"
-                                                               class="flex items-center gap-2 px-2 py-1 rounded {{ $locked ? 'bg-brand-50/60 cursor-default' : 'hover:bg-gray-50 cursor-pointer' }}">
-                                                            <input type="checkbox" @disabled($locked) @checked($locked)
-                                                                   @if (! $locked) wire:model="moduleAccess" value="{{ $perm }}" @endif
-                                                                   class="rounded border-gray-300 {{ $locked ? 'text-brand-400' : 'text-brand-600 focus:ring-brand-500' }}" />
+                                                               class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer {{ $fromRole ? 'bg-brand-50/60' : '' }}">
+                                                            <input type="checkbox" wire:model="moduleAccess" value="{{ $perm }}"
+                                                                   @if ($fromRole) data-role="1" @endif
+                                                                   class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                                                             <span class="text-sm text-gray-700">{{ $ability['label'] }}</span>
-                                                            @if ($locked)
-                                                                <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-400 font-semibold">role</span>
+                                                            @if ($fromRole)
+                                                                <span class="ml-auto text-[9px] uppercase tracking-wider text-brand-500 font-semibold">role</span>
                                                             @endif
                                                         </label>
                                                     @endforeach

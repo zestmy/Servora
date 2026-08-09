@@ -160,6 +160,9 @@
                             @if (count($effective['added']))
                                 <span class="badge-info">{{ count($effective['added']) }} granted individually</span>
                             @endif
+                            @if (count($effective['removed']))
+                                <span class="badge-danger">{{ count($effective['removed']) }} removed from their role</span>
+                            @endif
                         </div>
                     </div>
                     <div class="text-right">
@@ -201,6 +204,9 @@
                                                         @break
                                                     @case('system')
                                                         <span class="badge-warning shrink-0" title="System accounts pass every permission check">system</span>
+                                                        @break
+                                                    @case('denied')
+                                                        <span class="badge-danger shrink-0" title="Their role grants this, but it was removed for this person specifically">removed</span>
                                                         @break
                                                     @default
                                                         <span class="text-xs text-gray-500 shrink-0" aria-label="not granted">—</span>
