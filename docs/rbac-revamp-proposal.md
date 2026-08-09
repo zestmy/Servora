@@ -436,9 +436,15 @@ dropping the assignment silently would strip access with no trace of why.
 it would have listed — and let a platform admin silently rewrite — roles that individual
 companies created for themselves.
 
-**Not verified end-to-end: cross-company isolation.** The dev database has one company, so the
-`whereNull(team_id) OR team_id = ?` filter is structurally right but was not exercised against
-a second tenant. Worth a look on production, where several exist.
+**Cross-company isolation is verified.** The dev database has one company, so it was exercised
+by creating a second tenant in a rolled-back transaction and giving *both* a role named `chef`
+— which the `(team_id, name, guard_name)` index permits. Each company sees its own and not the
+other's, and company 1 correctly sees **two** roles called "chef" with distinct IDs: the global
+preset and its own. That is precisely the case that would have collapsed under name-keying.
+
+Production carries 5 companies and 0 company-owned roles so far, so nothing has leaked there
+either. The Phase 3a backfill dropped **96 duplicated direct grants** on production (versus 45
+on dev), with no 5xx outside the deploy's own maintenance window.
 
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
