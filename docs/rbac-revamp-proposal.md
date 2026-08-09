@@ -269,7 +269,7 @@ This is the answer to "why can't Ali see payroll?", which today requires a DB qu
 |---|---|---|---|
 | **0** | Registry + `permissions:sync` + drift test. Point the existing UI at the registry instead of the const. | None — no behaviour change | **The 10 orphan permissions become manageable immediately.** F1, F2 closed |
 | **1** | Split capability flags into permissions. Dual-read (`can()` OR legacy flag) during transition; migration copies flags → permissions. | Low | F4, F5 closed |
-| **2** | Build Settings › Roles & Access. Retire the old modal. | Low | Usability; F11, F12 closed |
+| **2** ✅ | **DONE 2026-08-09.** Settings › Roles & Access — three tabs. Role Guide modal retired. | Low | Usability; access is now explainable |
 | **3** | `company_id` on roles; allow/deny overrides; stop copying role perms into direct. Backfill: derive each user's current direct set into overrides so effective access is byte-identical on deploy. | **Medium** — the backfill is the risky step | F6, F7 closed |
 | **4** | Granular abilities module by module, starting Purchasing then HR/Payroll. Everyone holding `x.view` today is granted `view + create + edit`, so **no one loses access on deploy**; admins tighten afterwards. | Medium | F3 closed |
 | **5** | Split `settings.view` per area; audit-log permission changes; delete the orphan `Manager` role; populate `display_name` / `description`. | Low | F8, F9, F10 closed |
@@ -331,6 +331,46 @@ have been unreferenced long enough to be sure.
 **`can_view_all_outlets` was not folded in.** It is not a capability — it says *where* a user's
 abilities apply, not what they are. It stays a flag and moved to its own "Outlet Scope" section
 next to the outlet picker.
+
+### Phase 2 — what shipped, and the column matrix that did not
+
+Settings › Roles & Access is three tabs across two routes, joined by `<x-access-tabs>`:
+**Users** (`Settings\Users`, unchanged responsibilities) and **Roles** + **Effective access**
+(`Settings\RolesAccess`, new). Splitting them keeps the Users component from passing a thousand
+lines; `wire:navigate` makes the seam invisible.
+
+**The V/C/E/D/A column matrix in §4 was not built, because that spine does not exist yet.**
+Today's registry has `print`, `receive`, `amend`, `settings`, `log`, `request` — abilities that
+do not fit five columns. Rendering fake columns would have meant either inventing empty cells or
+hiding real abilities. The Roles tab shows the true grouped ability set per role instead, with a
+granted/partial/none state per module and an *n*/41 counter. **The column matrix becomes possible
+in Phase 4**, when the spine is actually uniform, and should be built then.
+
+**Fine-tuning is collapsed by default.** Picking a role is the whole job for most people, so the
+41-checkbox grid hides behind a one-line summary — "Finance — 4 abilities from this role, 0
+granted on top". It auto-opens only when there is no role, or when the person has already been
+fine-tuned. The count is recomputed in Alpine from the checkboxes, because `wire:model` here is
+deferred and a round-trip per tick would make a 41-box grid crawl.
+
+**Effective access answers the question the old screen could not.** Every ability, with
+provenance: `from role` / `added for them` / `system` / `—`. Resolved from `role_has_permissions`
+and `model_has_permissions` directly, then cross-checked against `canDo()` — 7 users × 41
+abilities, 0 disagreements.
+
+Two things worth knowing:
+
+1. **Role editing is deliberately absent from the tenant screen.** Role rows are still global
+   (`team_id` NULL), so a company admin saving "Chef" would change it for every company on the
+   platform — F7, open until Phase 3. The tab shows what a role grants and says who can change
+   it; editing stays in Admin › Role Templates. **When Phase 3 lands, this tab is where
+   per-company role editing belongs.**
+2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
+   Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
+   abilities per user rather than onto roles (preserve-exactly). That is correct, but it means
+   a *newly* created Company Admin gets fewer purchasing rights than an existing one unless the
+   admin ticks them. `ROLE_SUGGESTED_ABILITIES` covers the Settings › Users path; adding them to
+   the role templates properly is a judgement call for the account owner, and the tab now makes
+   the gap visible enough to make it.
 
 ---
 
@@ -435,7 +475,7 @@ matrix is designed around them.
 |---|---|---|
 | **0** ✅ | **DONE 2026-08-08.** Registry (`config/permissions.php`), `PermissionRegistry`, `permissions:sync`, `PermissionRegistryTest`, both admin screens repointed and regrouped. | **8 orphan permissions became grantable, incl. payroll and leave.** 23 → 31 abilities in the grid; `users.manage` and `roster.view` deliberately excluded (see below). No behaviour change, no migration. F1, F2 closed |
 | **1** ✅ | **DONE 2026-08-08.** Six capability flags → permissions; `can_delete_records` split into five. `hasCapability()` replaced by `canDo()`. Migration copies the pivot. **NOT dual-read** — see below. | 41 grantable abilities; delete is per-module. F4, F5, F11, F12 closed |
-| **2** | Settings › Roles & Access: the matrix, the user drawer, the effective-access tab. Old modal retired. | Usability; F11, F12 closed |
+| **2** ✅ | **DONE 2026-08-09.** Three tabs: Users / Roles / Effective access. Role Guide retired; fine-tuning collapsed to a delta summary. Column matrix deferred to Phase 4 — see below. | Usability; "why can they see payroll?" answerable without a query |
 | **3** | Per-company roles (`team_id`), resolve-by-ID everywhere, allow/deny overrides, stop copying role perms into direct. Backfill preserves effective access exactly. | F6, F7 closed |
 | **4** | Granular abilities rolled out module by module — Purchasing first, then HR/Payroll, then Inventory. Everyone holding `x.view` is granted `view+create+edit` so no access is lost. | F3 closed |
 | **5** | Settings split per page; audit-log role/permission pivot changes; delete the orphan `Manager` role; populate `display_name`/`description`. | F8, F9, F10 closed |

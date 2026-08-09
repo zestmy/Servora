@@ -12,62 +12,20 @@
             <a data-back href="{{ route('settings.index') }}" class="text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <h2 class="page-title">Users</h2>
+            <div>
+                <p class="page-eyebrow">Settings</p>
+                <h2 class="page-title mt-1">Roles &amp; Access</h2>
+            </div>
         </div>
-        <div class="flex items-center gap-2" x-data>
-            <button @click="$dispatch('open-role-guide')"
-                    class="btn-secondary">
-                Role Guide
-            </button>
+        <div class="flex items-center gap-2">
             <button wire:click="openCreate" class="btn-primary">+ Add User</button>
         </div>
     </div>
 
-    {{-- Role guide: what each access level includes --}}
-    <div x-data="{ open: false }" @open-role-guide.window="open = true">
-        <template x-teleport="body">
-            <div x-show="open" x-cloak @keydown.escape.window="open = false" class="fixed inset-0 z-[100] overflow-y-auto">
-                <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
-                <div class="relative min-h-full flex items-start justify-center p-4">
-                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-3xl my-8" @click.stop>
-                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-800">Role Guide — what each access level includes</h3>
-                            <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
-                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                        </div>
-                        <div class="p-5 max-h-[70vh] overflow-y-auto divide-y divide-gray-50">
-                            @foreach ($assignableRoles as $roleName => $desc)
-                                <div class="py-3 first:pt-0 last:pb-0">
-                                    <div class="flex items-start justify-between gap-3 flex-wrap">
-                                        <div class="min-w-[200px]">
-                                            <p class="text-sm font-semibold text-gray-800">{{ $roleDisplayMap[$roleName] ?? $roleName }}</p>
-                                            <p class="text-xs text-gray-500 mt-0.5">{{ $desc }}</p>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1 max-w-md justify-end">
-                                            @forelse (array_intersect($rolePermMap[$roleName] ?? [], array_keys($modules)) as $perm)
-                                                <span class="px-1.5 py-0.5 bg-brand-50 text-brand-600 text-[10px] rounded font-medium whitespace-nowrap">{{ $modules[$perm] }}</span>
-                                            @empty
-                                                <span class="text-[11px] text-gray-500">No modules — add manually</span>
-                                            @endforelse
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                            <div class="py-3">
-                                <p class="text-sm font-semibold text-gray-800">Custom</p>
-                                <p class="text-xs text-gray-500 mt-0.5">No role attached — the user gets exactly the modules you tick, nothing more.</p>
-                            </div>
-                        </div>
-                        <p class="px-5 pb-4 text-[11px] text-gray-600">
-                            A role guarantees its listed modules; you can grant extra modules on top of a role, and every capability
-                            (approvals, deleting records, GRN, invoices…) stays individually adjustable per user per company.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </template>
-    </div>
+    {{-- The Role Guide modal that used to live here is now the Roles tab: it listed a
+         role's modules as an unstructured wall of badges, which stopped being readable
+         at 41 abilities. --}}
+    <x-access-tabs current="users" />
 
     {{-- Search --}}
     <div class="mb-4">
@@ -240,17 +198,54 @@
                 </div>
 
                 {{-- Module Access --}}
-                <div>
-                    @php
-                        $lockedPerms = $accessRole !== 'custom' ? ($rolePermMap[$accessRole] ?? []) : [];
-                    @endphp
-                    <label class="block text-xs font-medium text-gray-500 mb-2">Module Access</label>
-                    {{-- Grouped by module: this grid grew from 23 to 33 abilities when it
-                         started reading the permission registry, and a flat two-column wall
-                         of 33 checkboxes is unreadable. Multi-ability modules (Payroll,
-                         Leave, Duty Roster) get a sub-heading so "view" and "approve" read
-                         as two halves of one decision rather than two unrelated ticks. --}}
-                    <div class="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                @php
+                    $lockedPerms = $accessRole !== 'custom' ? ($rolePermMap[$accessRole] ?? []) : [];
+                    $grantable   = array_keys($modules);
+                    $fromRole    = array_values(array_intersect($lockedPerms, $grantable));
+                    $addedOnTop  = array_values(array_diff(array_intersect($moduleAccess, $grantable), $fromRole));
+                @endphp
+                {{-- Picking a role is the whole job for most people, so the 41-checkbox grid
+                     starts collapsed behind a one-line summary of how this person differs
+                     from their role. It opens automatically when there is no role to fall
+                     back on, or when someone has already been fine-tuned — those are the two
+                     cases where the detail is the point. The counts are recomputed in Alpine
+                     from the checkboxes themselves, because wire:model here is deferred and a
+                     server round-trip per tick would make a 41-box grid crawl. --}}
+                <div x-data="{
+                        open: @js($accessRole === 'custom' || count($addedOnTop) > 0),
+                        added: @js(count($addedOnTop)),
+                        recount() {
+                            this.added = this.$refs.grid
+                                ? this.$refs.grid.querySelectorAll('input[type=checkbox]:checked:not([disabled])').length
+                                : this.added;
+                        }
+                     }">
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <label class="block text-xs font-medium text-gray-500">Module Access</label>
+                        <button type="button" @click="open = ! open"
+                                class="text-xs font-medium text-brand-600 hover:text-brand-700">
+                            <span x-show="! open">Customise</span>
+                            <span x-show="open" x-cloak>Hide detail</span>
+                        </button>
+                    </div>
+
+                    <div x-show="! open" class="rounded-control border border-gray-200 bg-gray-50 px-3 py-2.5">
+                        @if ($accessRole !== 'custom')
+                            <p class="text-sm text-gray-800">
+                                <span class="font-medium">{{ $roleDisplayMap[$accessRole] ?? $accessRole }}</span>
+                                <span class="text-gray-600">— {{ count($fromRole) }} {{ \Illuminate\Support\Str::plural('ability', count($fromRole)) }} from this role</span>
+                            </p>
+                        @else
+                            <p class="text-sm text-gray-800"><span class="font-medium">Custom</span> <span class="text-gray-600">— no role attached</span></p>
+                        @endif
+                        <p class="help mt-0.5">
+                            <span x-text="added"></span> granted on top of that.
+                            <span class="text-gray-500">Open Customise to change which.</span>
+                        </p>
+                    </div>
+
+                    <div x-show="open" x-cloak x-ref="grid" @change="recount()"
+                         class="border border-gray-200 rounded-lg divide-y divide-gray-100">
                         @foreach ($moduleGrid as $groupLabel => $groupModules)
                             <div class="p-3">
                                 <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">{{ $groupLabel }}</p>
