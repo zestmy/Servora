@@ -49,6 +49,9 @@
                 <option value="{{ $c->id }}">{{ $c->name }}</option>
             @endforeach
         </select>
+        <button wire:click="toggleAllAccessTags" class="btn-secondary btn-sm whitespace-nowrap order-last sm:order-none">
+            {{ $accessTagsOpen ? 'Hide access tags' : 'Show access tags' }}
+        </button>
         <select wire:model.live="roleFilter" class="rounded-md border-gray-300 shadow-sm text-sm">
             <option value="">All Roles</option>
             @foreach ($roleOptions as $r)
@@ -80,7 +83,11 @@
                 </thead>
                 <tbody>
                     @forelse ($users as $u)
-                        <tr wire:key="au-{{ $u->id }}" class="hover:bg-gray-50 transition">
+                        @php
+                            $roleTags = collect($rolesByUser[$u->id] ?? []);
+                            $showTags = $accessTagsOpen || ($expandedAccess[$u->id] ?? false);
+                        @endphp
+                        <tr wire:key="au-{{ $u->id }}" class="hover:bg-gray-50 transition {{ $showTags ? 'border-b-0' : '' }}">
                             <td class="px-4 py-3">
                                 <p class="font-medium text-gray-800">
                                     {{ $u->name }}
@@ -110,17 +117,21 @@
                                     @endif
                                 </div>
                             </td>
+                            {{-- Just the switch. The tags themselves open as a full-width row
+                                 below: a 180px column turns a handful of badges into a ragged
+                                 stack, which is worse than the wall it was meant to tidy. --}}
                             <td class="px-4 py-3">
-                                <div class="flex flex-wrap gap-1 max-w-[180px]">
-                                    @forelse ($rolesByUser[$u->id] ?? [] as $role)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap
-                                                     {{ in_array($role->name, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600' }}">
-                                            {{ $role->label }}
-                                        </span>
-                                    @empty
-                                        <span class="text-xs text-gray-500">—</span>
-                                    @endforelse
-                                </div>
+                                @if ($roleTags->isEmpty())
+                                    <span class="text-xs text-gray-500">—</span>
+                                @else
+                                    <button wire:click="toggleAccess({{ $u->id }})"
+                                            class="inline-flex items-center gap-1 text-[11px] font-medium whitespace-nowrap
+                                                   {{ $showTags ? 'text-gray-500 hover:text-gray-700' : 'text-brand-600 hover:text-brand-700' }}">
+                                        <span class="transition-transform {{ $showTags ? 'rotate-90' : '' }}">&rsaquo;</span>
+                                        {{ $showTags ? 'Hide' : 'Show' }} access
+                                        <span class="text-gray-500">({{ $roleTags->count() }})</span>
+                                    </button>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-center">
                                 @if ($u->email_verified_at)
@@ -169,6 +180,24 @@
                                 </div>
                             </td>
                         </tr>
+
+                        {{-- Tags open here, across the whole table, so they read as a line
+                             rather than a stack squeezed into one column. --}}
+                        @if ($showTags)
+                            <tr wire:key="au-tags-{{ $u->id }}" class="bg-brand-50/40">
+                                <td colspan="7" class="px-4 pb-3 pt-0">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mr-1">Roles</span>
+                                        @foreach ($roleTags as $role)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap
+                                                         {{ in_array($role->name, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600' }}">
+                                                {{ $role->label }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr><td colspan="7" class="px-4 py-10 text-center text-gray-600">No users match the selected filters.</td></tr>
                     @endforelse

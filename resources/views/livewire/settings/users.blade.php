@@ -57,7 +57,16 @@
             </thead>
             <tbody>
                 @forelse ($users as $u)
-                    <tr class="hover:bg-gray-50">
+                    @php
+                        $showTags = $accessTagsOpen || ($expandedAccess[$u->id] ?? false);
+                        // Only resolved for rows actually showing them: getAllPermissions()
+                        // is a query per row.
+                        $heldTags = $showTags
+                            ? collect($u->getAllPermissions()->pluck('name'))
+                                ->filter(fn ($p) => isset($modules[$p]))->values()
+                            : collect();
+                    @endphp
+                    <tr wire:key="su-{{ $u->id }}" class="hover:bg-gray-50">
                         <td class="px-5 py-3 font-medium text-gray-800">{{ $u->name }}</td>
                         <td class="px-5 py-3 text-gray-500 text-xs">{{ $u->email }}</td>
                         @if ($isSuperAdmin)
@@ -79,31 +88,15 @@
                                 <p class="text-[11px] text-gray-600 mt-0.5">{{ $u->designation }}</p>
                             @endif
                         </td>
+                        {{-- Just the switch; the abilities open as a full-width row below.
+                             At 81 of them a column is the wrong container entirely. --}}
                         <td class="px-5 py-3">
-                            {{-- Only resolved when actually shown: getAllPermissions() is a
-                                 query per row, and at 81 abilities the badges were burying
-                                 every other column. --}}
-                            @php $showTags = $accessTagsOpen || ($expandedAccess[$u->id] ?? false); @endphp
-                            @if ($showTags)
-                                @php
-                                    $held = collect($u->getAllPermissions()->pluck('name'))
-                                        ->filter(fn ($p) => isset($modules[$p]))->values();
-                                @endphp
-                                <div class="flex flex-wrap gap-1 max-w-md">
-                                    @forelse ($held as $perm)
-                                        <span class="px-1.5 py-0.5 bg-brand-50 text-brand-600 text-[10px] rounded font-medium">{{ $modules[$perm] }}</span>
-                                    @empty
-                                        <span class="text-xs text-gray-500">No modules</span>
-                                    @endforelse
-                                </div>
-                                <button wire:click="toggleAccess({{ $u->id }})"
-                                        class="mt-1 text-[11px] text-gray-500 hover:text-gray-700">Hide</button>
-                            @else
-                                <button wire:click="toggleAccess({{ $u->id }})"
-                                        class="text-[11px] font-medium text-brand-600 hover:text-brand-700">
-                                    Show access
-                                </button>
-                            @endif
+                            <button wire:click="toggleAccess({{ $u->id }})"
+                                    class="inline-flex items-center gap-1 text-[11px] font-medium whitespace-nowrap
+                                           {{ $showTags ? 'text-gray-500 hover:text-gray-700' : 'text-brand-600 hover:text-brand-700' }}">
+                                <span class="transition-transform {{ $showTags ? 'rotate-90' : '' }}">&rsaquo;</span>
+                                {{ $showTags ? 'Hide' : 'Show' }} access
+                            </button>
                         </td>
                         <td class="px-5 py-3">
                             @php
@@ -141,6 +134,20 @@
                             @endif
                         </td>
                     </tr>
+                    @if ($showTags)
+                        <tr wire:key="su-tags-{{ $u->id }}" class="bg-brand-50/40">
+                            <td colspan="{{ $isSuperAdmin ? 9 : 8 }}" class="px-5 pb-3 pt-0">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mr-1">Access</span>
+                                    @forelse ($heldTags as $perm)
+                                        <span class="px-1.5 py-0.5 bg-brand-50 text-brand-600 text-[10px] rounded font-medium">{{ $modules[$perm] }}</span>
+                                    @empty
+                                        <span class="text-xs text-gray-500">No modules</span>
+                                    @endforelse
+                                </div>
+                            </td>
+                        </tr>
+                    @endif
                 @empty
                     <tr><td colspan="{{ $isSuperAdmin ? 9 : 8 }}" class="px-5 py-8 text-center text-gray-600">No users found.</td></tr>
                 @endforelse

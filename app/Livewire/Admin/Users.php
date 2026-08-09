@@ -37,6 +37,31 @@ class Users extends Component
     public string  $e_password    = '';
     public bool    $e_verified    = true;
 
+    /**
+     * Which rows show their role tags, and whether every row does.
+     *
+     * Mirrors Settings > Roles & Access, so the two user lists behave the same way. Here
+     * the tags are ROLES rather than abilities, and they are already fetched for the whole
+     * page in one query — so this is about the list being scannable, not about queries: an
+     * account in five companies carries a role badge for each, and those wrap into tall
+     * ragged rows that push Verified, Last Active and Joined out of alignment.
+     *
+     * @var array<int, bool>
+     */
+    public array $expandedAccess = [];
+    public bool  $accessTagsOpen = false;
+
+    public function toggleAccess(int $userId): void
+    {
+        $this->expandedAccess[$userId] = ! ($this->expandedAccess[$userId] ?? false);
+    }
+
+    public function toggleAllAccessTags(): void
+    {
+        $this->accessTagsOpen = ! $this->accessTagsOpen;
+        $this->expandedAccess = [];
+    }
+
     public function updatingSearch(): void        { $this->resetPage(); }
     public function updatingCompanyFilter(): void { $this->resetPage(); }
     public function updatingRoleFilter(): void    { $this->resetPage(); }
