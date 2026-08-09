@@ -207,21 +207,21 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/recipes/{id}/edit', RecipesForm::class)->name('recipes.edit')->middleware('can:recipes.view');
     Route::get('/recipes/{id}/cost-pdf', [RecipeCostPdfController::class, 'single'])->name('recipes.cost-pdf')->middleware('can:recipes.view');
     Route::get('/purchasing', PurchasingIndex::class)->name('purchasing.index')->middleware('can:purchasing.view');
-    Route::get('/purchasing/orders/create', PurchasingOrderForm::class)->name('purchasing.orders.create')->middleware('can:purchasing.view');
-    Route::get('/purchasing/orders/{id}/edit', PurchasingOrderForm::class)->name('purchasing.orders.edit')->middleware('can:purchasing.view');
+    Route::get('/purchasing/orders/create', PurchasingOrderForm::class)->name('purchasing.orders.create')->middleware('can:purchasing.orders.create');
+    Route::get('/purchasing/orders/{id}/edit', PurchasingOrderForm::class)->name('purchasing.orders.edit')->middleware('can:purchasing.orders.edit');
     Route::get('/purchasing/orders/{id}/receive', PurchasingReceiveForm::class)->name('purchasing.orders.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/receive', PurchasingReceiveForm::class)->name('purchasing.receive')->middleware('can:purchasing.view');
-    Route::get('/purchasing/orders/{id}/convert-to-do', PurchasingConvertToDoForm::class)->name('purchasing.convert-to-do')->middleware('can:purchasing.view');
+    Route::get('/purchasing/orders/{id}/convert-to-do', PurchasingConvertToDoForm::class)->name('purchasing.convert-to-do')->middleware('can:purchasing.orders.edit');
     Route::get('/purchasing/grn/{id}/receive', PurchasingGrnReceiveForm::class)->name('purchasing.grn.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/pdf/{type}/{id}', PurchaseDocumentPdfController::class)->name('purchasing.pdf')->middleware('can:purchasing.view');
-    Route::get('/purchasing/requests/create', PurchasingRequestForm::class)->name('purchasing.requests.create')->middleware('can:purchasing.view');
-    Route::get('/purchasing/requests/{id}/edit', PurchasingRequestForm::class)->name('purchasing.requests.edit')->middleware('can:purchasing.view');
-    Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.view');
-    Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.view');
+    Route::get('/purchasing/requests/create', PurchasingRequestForm::class)->name('purchasing.requests.create')->middleware('can:purchasing.requests.create');
+    Route::get('/purchasing/requests/{id}/edit', PurchasingRequestForm::class)->name('purchasing.requests.edit')->middleware('can:purchasing.requests.edit');
+    Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.orders.create');
+    Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.transfers.create');
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices/receive', PurchasingInvoiceReceive::class)->name('purchasing.invoices.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices/{id}', PurchasingInvoiceShow::class)->name('purchasing.invoices.show')->middleware('can:purchasing.view');
-    Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware('can:purchasing.view');
+    Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware('can:purchasing.suppliers.manage');
     Route::get('/purchasing/credit-notes', \App\Livewire\Purchasing\CreditNoteIndex::class)->name('purchasing.credit-notes.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/credit-notes/create', \App\Livewire\Purchasing\CreditNoteForm::class)->name('purchasing.credit-notes.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/credit-notes/{id}', \App\Livewire\Purchasing\CreditNoteForm::class)->name('purchasing.credit-notes.edit')->middleware('can:purchasing.view');
@@ -306,13 +306,13 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // keeps its own middleware. Gating the whole page instead hid a module's
     // settings from the person who administers that module.
     Route::get('/settings', SettingsIndex::class)->name('settings.index');
-    Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:purchasing.view');
+    Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:ingredients.view');
     Route::get('/settings/recipe-categories', SettingsRecipeCategories::class)->name('settings.recipe-categories')->middleware('can:recipes.view');
     Route::get('/settings/price-classes', \App\Livewire\Settings\PriceClasses::class)->name('settings.price-classes')->middleware('can:recipes.view');
     Route::get('/settings/sales-categories', SettingsSalesCategories::class)->name('settings.sales-categories')->middleware('can:sales.view');
-    Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:purchasing.view');
-    Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:purchasing.view');
+    Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:purchasing.suppliers.manage');
+    Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.view');
     Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\App\Http\Middleware\SystemAdminOnly::class);
     Route::get('/settings/users', SettingsUsers::class)->name('settings.users')->middleware('can:users.manage');
@@ -340,10 +340,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.view');
     Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.view');
     Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.view');
-    Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:purchasing.view');
-    Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:purchasing.view');
-    Route::get('/settings/price-alerts/export-pdf', [\App\Http\Controllers\PriceHistoryExportController::class, 'pdf'])->name('settings.price-alerts.export-pdf')->middleware('can:purchasing.view');
-    Route::get('/settings/price-alerts/export-excel', [\App\Http\Controllers\PriceHistoryExportController::class, 'excel'])->name('settings.price-alerts.export-excel')->middleware('can:purchasing.view');
+    Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:purchasing.suppliers.manage');
+    Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:purchasing.suppliers.manage');
+    Route::get('/settings/price-alerts/export-pdf', [\App\Http\Controllers\PriceHistoryExportController::class, 'pdf'])->name('settings.price-alerts.export-pdf')->middleware('can:purchasing.suppliers.manage');
+    Route::get('/settings/price-alerts/export-excel', [\App\Http\Controllers\PriceHistoryExportController::class, 'excel'])->name('settings.price-alerts.export-excel')->middleware('can:purchasing.suppliers.manage');
     // Label printing — HACCP food safety labels. See docs/label-printing-plan.md
     Route::get('/labels', \App\Livewire\Labels\PrintScreen::class)->name('labels.print')->middleware('can:labels.print');
     Route::get('/labels/sets', \App\Livewire\Labels\Sets::class)->name('labels.sets')->middleware('can:labels.print');

@@ -90,13 +90,56 @@ return [
             'label'     => 'Purchasing',
             'group'     => 'operations',
             'abilities' => [
+                // Module-level read. Deliberately NOT split per document type: the
+                // Purchasing index is a single tabbed Livewire component showing orders,
+                // requests, GRNs and invoices together, so "view orders but not invoices"
+                // is not enforceable without splitting that component — a much larger
+                // change than this phase. Writes split instead, which is where F3 actually
+                // bit: this one permission used to grant raising POs, receiving goods and
+                // processing invoices as well as reading them.
                 'view' => [
                     'name'  => 'purchasing.view',
-                    'label' => 'View & create',
+                    'label' => 'View (read-only)',
                     // Explicit: adding abilities below would otherwise turn this into
-                    // "Purchasing (View & create)" and change every existing badge.
+                    // "Purchasing (View (read-only))" and change every existing badge.
                     'title' => 'Purchasing',
-                    'help'  => 'Purchase orders, requests, transfers and the supplier directory.',
+                    'help'  => 'See purchase orders, requests, goods receipts and invoices. Read-only on its own.',
+                ],
+                'orders_create' => [
+                    'name'  => 'purchasing.orders.create',
+                    'label' => 'Raise orders',
+                    'title' => 'Purchasing (Raise Orders)',
+                    'help'  => 'Create a purchase order, including by consolidating requests.',
+                ],
+                'orders_edit' => [
+                    'name'  => 'purchasing.orders.edit',
+                    'label' => 'Amend orders',
+                    'title' => 'Purchasing (Amend Orders)',
+                    'help'  => 'Change an existing purchase order, or convert one to a delivery order.',
+                ],
+                'requests_create' => [
+                    'name'  => 'purchasing.requests.create',
+                    'label' => 'Raise requests',
+                    'title' => 'Purchasing (Raise Requests)',
+                    'help'  => 'Create a purchase request.',
+                ],
+                'requests_edit' => [
+                    'name'  => 'purchasing.requests.edit',
+                    'label' => 'Amend requests',
+                    'title' => 'Purchasing (Amend Requests)',
+                    'help'  => 'Change an existing purchase request.',
+                ],
+                'transfers_create' => [
+                    'name'  => 'purchasing.transfers.create',
+                    'label' => 'Raise transfers',
+                    'title' => 'Purchasing (Raise Transfers)',
+                    'help'  => 'Create a stock transfer order between outlets.',
+                ],
+                'suppliers_manage' => [
+                    'name'  => 'purchasing.suppliers.manage',
+                    'label' => 'Manage suppliers',
+                    'title' => 'Purchasing (Manage Suppliers)',
+                    'help'  => 'Supplier directory and mapping, price alerts and order form templates.',
                 ],
                 'approve' => [
                     'name'  => 'purchasing.approve',

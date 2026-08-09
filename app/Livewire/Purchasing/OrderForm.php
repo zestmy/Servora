@@ -20,6 +20,15 @@ class OrderForm extends Component
 {
     public ?int $orderId = null;
 
+    /** Raising a new order and amending an existing one are separate abilities. */
+    private function authorizeWrite(): void
+    {
+        abort_unless(
+            Auth::user()?->canDo($this->orderId ? 'purchasing.orders.edit' : 'purchasing.orders.create'),
+            403
+        );
+    }
+
     // Read-only header info
     public string $poNumber = '';
     public string $status   = 'draft';
@@ -350,6 +359,13 @@ class OrderForm extends Component
 
     public function save(string $action = 'save'): void
     {
+        // Route middleware already gates reaching this screen, but a Livewire action is
+        // its own request to /livewire/update — so the write is re-checked here rather
+        // than trusted to how the component was first loaded. Raising and amending are
+        // separate abilities: a clerk may be allowed to draft a new order without being
+        // allowed to change one that already exists.
+        $this->authorizeWrite();
+
         $this->validate();
 
         $user     = Auth::user();

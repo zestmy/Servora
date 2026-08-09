@@ -16,6 +16,15 @@ class StockTransferForm extends Component
 {
     public ?int $stoId = null;
 
+    /** Creating a transfer is gated; amending an existing one rides on order amendment. */
+    private function authorizeWrite(): void
+    {
+        abort_unless(
+            Auth::user()?->canDo($this->stoId ? 'purchasing.orders.edit' : 'purchasing.transfers.create'),
+            403
+        );
+    }
+
     public ?int   $cpu_id           = null;
     public ?int   $to_outlet_id     = null;
     public ?int   $purchase_order_id = null;
@@ -95,6 +104,9 @@ class StockTransferForm extends Component
 
     public function save(string $action = 'draft')
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        $this->authorizeWrite();
+
         $this->validate();
 
         $data = [

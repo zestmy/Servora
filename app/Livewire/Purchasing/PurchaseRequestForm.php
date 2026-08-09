@@ -18,6 +18,15 @@ class PurchaseRequestForm extends Component
 {
     public ?int $requestId = null;
 
+    /** Raising a request and amending an existing one are separate abilities. */
+    private function authorizeWrite(): void
+    {
+        abort_unless(
+            Auth::user()?->canDo($this->requestId ? 'purchasing.requests.edit' : 'purchasing.requests.create'),
+            403
+        );
+    }
+
     public string $prNumber = '';
     public string $status   = 'draft';
 
@@ -195,6 +204,9 @@ class PurchaseRequestForm extends Component
 
     public function save(string $action = 'save')
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        $this->authorizeWrite();
+
         $this->validate();
 
         // A prep item must resolve to a central kitchen before it can be submitted,

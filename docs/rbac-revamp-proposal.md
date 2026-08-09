@@ -271,7 +271,7 @@ This is the answer to "why can't Ali see payroll?", which today requires a DB qu
 | **1** | Split capability flags into permissions. Dual-read (`can()` OR legacy flag) during transition; migration copies flags → permissions. | Low | F4, F5 closed |
 | **2** ✅ | **DONE 2026-08-09.** Settings › Roles & Access — three tabs. Role Guide modal retired. | Low | Usability; access is now explainable |
 | **3** | `company_id` on roles; allow/deny overrides; stop copying role perms into direct. Backfill: derive each user's current direct set into overrides so effective access is byte-identical on deploy. | **Medium** — the backfill is the risky step | F6, F7 closed |
-| **4** | Granular abilities module by module, starting Purchasing then HR/Payroll. Everyone holding `x.view` today is granted `view + create + edit`, so **no one loses access on deploy**; admins tighten afterwards. | Medium | F3 closed |
+| **4** ◐ | **4a DONE 2026-08-09 (Purchasing).** Writes split out of `purchasing.view`, which is now genuinely read-only; 6 new abilities, backfilled so nobody lost access. 4b Inventory and 4c HR/Payroll outstanding. | Medium | F3 closed for Purchasing |
 | **5** | Split `settings.view` per area; audit-log permission changes; delete the orphan `Manager` role; populate `display_name` / `description`. | Low | F8, F9, F10 closed |
 
 Phase 0 alone fixes the two critical findings and is a day's work. Each later phase ships and
@@ -446,6 +446,42 @@ Production carries 5 companies and 0 company-owned roles so far, so nothing has 
 either. The Phase 3a backfill dropped **96 duplicated direct grants** on production (versus 45
 on dev), with no 5xx outside the deploy's own maintenance window.
 
+### Phase 4a — Purchasing: read stops meaning write
+
+F3's worst case was Purchasing: `purchasing.view` gated **19 routes**, covering raising
+purchase orders and requests, converting and consolidating them, creating stock transfers,
+and maintaining suppliers, price alerts and order form templates. There was no way to let
+someone read the numbers without letting them commit the company to spending money.
+
+**The split is additive, not a rename.** `purchasing.view` keeps its name and becomes
+genuinely read-only. Renaming a permission held broadly in production is a grant migration
+with nothing to gain, and §8's plan to split *view* per document type turned out not to be
+enforceable anyway: the Purchasing index is a **single tabbed Livewire component** rendering
+orders, requests, GRNs and invoices together, so "read orders but not invoices" needs that
+component split first. View stays module-level; the **writes** split, which is where F3 bit.
+
+Six new abilities: `orders.create`, `orders.edit`, `requests.create`, `requests.edit`,
+`transfers.create`, `suppliers.manage` — alongside Phase 1's `approve`, `request`, `receive`,
+`invoice` and `delete`.
+
+**Enforced twice, on purpose.** Routes carry the new abilities, and the three write forms
+(`OrderForm`, `PurchaseRequestForm`, `StockTransferForm`) re-check in `save()`. A Livewire
+action is its own request to `/livewire/update`, so trusting how the component was first
+loaded is not the same as authorising the write.
+
+**Backfill preserved access exactly**: every role and user holding `purchasing.view` received
+all six write abilities, because that is precisely what `purchasing.view` already let them do.
+Verified as an invariant — *has a new write ability* ⟺ *had `purchasing.view`* — across every
+(user, company), 0 mismatches, with pre-existing abilities byte-identical once the six new
+ones are set aside.
+
+Then the point of the whole exercise, demonstrated: denying just "Raise orders" leaves
+`purchasing.view` **true** and `orders.edit` **true**, while `orders.create` goes false and
+`OrderForm::save()` returns 403. Read-only purchasing access now exists.
+
+**4b (Inventory) and 4c (HR/Payroll) follow the same pattern** and are not done. Inventory is
+the larger one — six document types behind `inventory.view`.
+
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
    abilities per user rather than onto roles (preserve-exactly). That is correct, but it means
@@ -562,7 +598,7 @@ matrix is designed around them.
 | **1** ✅ | **DONE 2026-08-08.** Six capability flags → permissions; `can_delete_records` split into five. `hasCapability()` replaced by `canDo()`. Migration copies the pivot. **NOT dual-read** — see below. | 41 grantable abilities; delete is per-module. F4, F5, F11, F12 closed |
 | **2** ✅ | **DONE 2026-08-09.** Three tabs: Users / Roles / Effective access. Role Guide retired; fine-tuning collapsed to a delta summary. Column matrix deferred to Phase 4 — see below. | Usability; "why can they see payroll?" answerable without a query |
 | **3** ✅ | **DONE 2026-08-09**, split 3a/3b. Denials via their own table + `checkPermissionTo` (NOT `Gate::before` — see below); stopped copying role perms into direct, 45 duplicates dropped; per-company roles via the existing `roles.team_id`; resolve-by-ID everywhere. | F6, F7 closed |
-| **4** | Granular abilities rolled out module by module — Purchasing first, then HR/Payroll, then Inventory. Everyone holding `x.view` is granted `view+create+edit` so no access is lost. | F3 closed |
+| **4** ◐ | **4a DONE 2026-08-09 (Purchasing)** — see below. 4b Inventory and 4c HR/Payroll outstanding. | F3 closed for Purchasing |
 | **5** | Settings split per page; audit-log role/permission pivot changes; delete the orphan `Manager` role; populate `display_name`/`description`. | F8, F9, F10 closed |
 
 ---
