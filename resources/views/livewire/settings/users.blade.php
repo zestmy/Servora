@@ -17,14 +17,20 @@
                 <h2 class="page-title mt-1">Roles &amp; Access</h2>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button wire:click="openCreate" class="btn-primary">+ Add User</button>
-        </div>
+        @unless ($showModal)
+            <div class="flex items-center gap-2">
+                <button wire:click="toggleAllAccessTags" class="btn-secondary btn-sm">
+                    {{ $accessTagsOpen ? 'Hide access tags' : 'Show access tags' }}
+                </button>
+                <button wire:click="openCreate" class="btn-primary">+ Add User</button>
+            </div>
+        @endunless
     </div>
 
     {{-- The Role Guide modal that used to live here is now the Roles tab: it listed a
          role's modules as an unstructured wall of badges, which stopped being readable
          at 41 abilities. --}}
+    @unless ($showModal)
     <x-access-tabs current="users" />
 
     {{-- Search --}}
@@ -74,13 +80,30 @@
                             @endif
                         </td>
                         <td class="px-5 py-3">
-                            <div class="flex flex-wrap gap-1">
-                                @foreach ($u->getAllPermissions()->pluck('name') as $perm)
-                                    @if (isset($modules[$perm]))
+                            {{-- Only resolved when actually shown: getAllPermissions() is a
+                                 query per row, and at 81 abilities the badges were burying
+                                 every other column. --}}
+                            @php $showTags = $accessTagsOpen || ($expandedAccess[$u->id] ?? false); @endphp
+                            @if ($showTags)
+                                @php
+                                    $held = collect($u->getAllPermissions()->pluck('name'))
+                                        ->filter(fn ($p) => isset($modules[$p]))->values();
+                                @endphp
+                                <div class="flex flex-wrap gap-1 max-w-md">
+                                    @forelse ($held as $perm)
                                         <span class="px-1.5 py-0.5 bg-brand-50 text-brand-600 text-[10px] rounded font-medium">{{ $modules[$perm] }}</span>
-                                    @endif
-                                @endforeach
-                            </div>
+                                    @empty
+                                        <span class="text-xs text-gray-500">No modules</span>
+                                    @endforelse
+                                </div>
+                                <button wire:click="toggleAccess({{ $u->id }})"
+                                        class="mt-1 text-[11px] text-gray-500 hover:text-gray-700">Hide</button>
+                            @else
+                                <button wire:click="toggleAccess({{ $u->id }})"
+                                        class="text-[11px] font-medium text-brand-600 hover:text-brand-700">
+                                    Show access
+                                </button>
+                            @endif
                         </td>
                         <td class="px-5 py-3">
                             @php
@@ -129,13 +152,23 @@
         @endif
     </div>
 
-    {{-- Create/Edit Modal --}}
+    @endunless
+
+    {{-- Editor --}}
+    {{-- Editor. A PAGE, not a modal: the form carries basic details, a role, an
+         81-ability grid, outlets and kitchens — more than a dialog can show without
+         its own scrollbar, which is what it had. Driven by ?edit= so it is
+         addressable, survives a refresh and answers the browser's back button. --}}
     @if ($showModal)
-    @teleport('body')
-    <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4" x-data>
-        <div class="absolute inset-0 bg-gray-900/50" wire:click="closeModal"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-xl z-10 p-6 mt-8 mb-8">
-            <h3 class="text-lg font-semibold text-gray-700 mb-5">{{ $editingId ? 'Edit' : 'New' }} User</h3>
+        <div class="card p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-gray-100">
+                <div>
+                    <p class="page-eyebrow">{{ $editingId ? 'Editing access' : 'New user' }}</p>
+                    <h3 class="text-lg font-semibold text-gray-800 mt-0.5">{{ $editingId ? ($name ?: 'User') : 'Add a user' }}</h3>
+                </div>
+                <button wire:click="closeModal" class="btn-secondary btn-sm">&larr; Back to list</button>
+            </div>
+
 
             <div class="space-y-5">
                 {{-- Basic Info --}}
@@ -419,8 +452,7 @@
                     {{ $editingId ? 'Update' : 'Create' }}
                 </button>
             </div>
+            </div>
         </div>
-    </div>
-    @endteleport
     @endif
 </div>

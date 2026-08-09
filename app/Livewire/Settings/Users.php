@@ -21,7 +21,21 @@ class Users extends Component
     use WithPagination;
 
     public bool    $showModal  = false;
+
+    /**
+     * Bound to ?edit= so the editor is a real page: refreshable, linkable, and answering
+     * the browser's back button. It was a modal, which none of those things are true of.
+     */
+    #[\Livewire\Attributes\Url(as: 'edit', except: null)]
     public ?int    $editingId  = null;
+
+    public function mount(): void
+    {
+        // Arriving on ?edit=… loads that person straight into the editor.
+        if ($this->editingId) {
+            $this->openEdit($this->editingId);
+        }
+    }
 
     public string  $name       = '';
     public string  $email      = '';
@@ -50,6 +64,30 @@ class Users extends Component
     public bool    $can_view_all_outlets = false;
 
     public string  $search     = '';
+
+    /**
+     * Which rows show their access tags, and whether every row does.
+     *
+     * The Modules column used to print every ability a person holds on every row — at 81
+     * abilities that is a wall of badges that pushes the actual columns off screen, and it
+     * cost a getAllPermissions() query per row to draw. Collapsed by default, opened per
+     * row, with one switch for the whole table when an overview really is what you want.
+     *
+     * @var array<int, bool>
+     */
+    public array $expandedAccess = [];
+    public bool  $accessTagsOpen = false;
+
+    public function toggleAccess(int $userId): void
+    {
+        $this->expandedAccess[$userId] = ! ($this->expandedAccess[$userId] ?? false);
+    }
+
+    public function toggleAllAccessTags(): void
+    {
+        $this->accessTagsOpen = ! $this->accessTagsOpen;
+        $this->expandedAccess = [];
+    }
 
     // Access level: an assignable role name, or 'custom' for a hand-picked set
     public string $accessRole = 'custom';
