@@ -131,6 +131,11 @@ class Employees extends Component
 
     public function delete(int $id): void
     {
+        // Outlet access alone used to be the whole check here, so anyone who could open
+        // the staff list could delete records outright. Deleting an employee is its own
+        // ability now; the outlet check still applies on top of it.
+        abort_unless(Auth::user()?->canDo('hr.employees.delete'), 403);
+
         $emp = Employee::findOrFail($id);
         if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
             session()->flash('error', 'You do not have access to this employee.');

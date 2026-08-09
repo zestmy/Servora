@@ -271,7 +271,7 @@ This is the answer to "why can't Ali see payroll?", which today requires a DB qu
 | **1** | Split capability flags into permissions. Dual-read (`can()` OR legacy flag) during transition; migration copies flags → permissions. | Low | F4, F5 closed |
 | **2** ✅ | **DONE 2026-08-09.** Settings › Roles & Access — three tabs. Role Guide modal retired. | Low | Usability; access is now explainable |
 | **3** | `company_id` on roles; allow/deny overrides; stop copying role perms into direct. Backfill: derive each user's current direct set into overrides so effective access is byte-identical on deploy. | **Medium** — the backfill is the risky step | F6, F7 closed |
-| **4** ◐ | **4a+4b DONE 2026-08-09 (Purchasing, Inventory).** Writes split out of `purchasing.view`, which is now genuinely read-only; 6 new abilities, backfilled so nobody lost access. 4c HR/Payroll outstanding. | Medium | F3 closed for Purchasing and Inventory |
+| **4** ✅ | **4a+4b+4c DONE (Purchasing, Inventory, HR).** Writes split out of `purchasing.view`, which is now genuinely read-only; 6 new abilities, backfilled so nobody lost access. Sales/Recipes/Ingredients deferred — not F3 examples. | Medium | F3 closed where it mattered |
 | **5** | Split `settings.view` per area; audit-log permission changes; delete the orphan `Manager` role; populate `display_name` / `description`. | Low | F8, F9, F10 closed |
 
 Phase 0 alone fixes the two critical findings and is a day's work. Each later phase ships and
@@ -528,7 +528,43 @@ still wrote the capability flags Phase 1 made inert and never received the repla
 permissions, so anyone creating a *second* company landed there without approve or delete
 rights. Fixed.
 
-**4c (HR/Payroll) is not done** and follows the same pattern.
+### Phase 4c — HR: the two permissions earlier phases had left coarse
+
+Most of HR was already split by earlier work — payroll, leave and compensation each carry
+their own approve ability, clock has manage and delete, documents have view and manage. Two
+were still doing double duty.
+
+**`hr.view` gated creating, editing *and* deleting employee records** as well as reading the
+list. Those records carry IC numbers, bank details and the link to payroll. And
+`Employees::delete()` checked only that the employee sat in an outlet the user could reach —
+**no permission check on the deletion at all**, the same shape as the four ungated inventory
+deletes found in 4b.
+
+**`hr.attendance` gated editing the attendance grid** — marking present or absent, filling
+and clearing ranges, reordering, and managing attendance codes — behind what reads as a read
+permission. Attendance feeds payroll, so those are financially material writes.
+
+Three new abilities: `hr.employees.manage`, `hr.employees.delete`, `hr.attendance.record`.
+Seven attendance write actions and both employee write paths are now guarded in the component
+as well as on the route.
+
+Service charge was deliberately **not** touched: `saveServiceCharge()` already aborts unless
+the user passes `Employee::canViewPay()`, which is the stricter compensation gate.
+
+Backfill preserved access exactly — `hr.view` holders received manage and delete,
+`hr.attendance` holders received record. Verified across every (user, company): 0 mismatches,
+nothing pre-existing lost. Unlike 4a, the dev data had real variation here (3 holders of
+`hr.view` against 6 without), so the invariant was exercised in both directions locally.
+
+Demonstrated: denying "Delete staff" and "Edit attendance" leaves `hr.view`,
+`hr.employees.manage` and `hr.attendance` **true**, while `Employees::delete()` returns 403
+and the row survives, `setCell()` and `fillPresent()` return 403, and the attendance screen
+still renders.
+
+**Phase 4 is now complete for Purchasing, Inventory and HR.** Sales, Recipes and Ingredients
+still have `.view` meaning write; they were never the F3 examples and none of their writes are
+financially material in the way a purchase order, a stock adjustment or an attendance mark is,
+so they are left for a later pass rather than done reflexively.
 
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
@@ -646,7 +682,7 @@ matrix is designed around them.
 | **1** ✅ | **DONE 2026-08-08.** Six capability flags → permissions; `can_delete_records` split into five. `hasCapability()` replaced by `canDo()`. Migration copies the pivot. **NOT dual-read** — see below. | 41 grantable abilities; delete is per-module. F4, F5, F11, F12 closed |
 | **2** ✅ | **DONE 2026-08-09.** Three tabs: Users / Roles / Effective access. Role Guide retired; fine-tuning collapsed to a delta summary. Column matrix deferred to Phase 4 — see below. | Usability; "why can they see payroll?" answerable without a query |
 | **3** ✅ | **DONE 2026-08-09**, split 3a/3b. Denials via their own table + `checkPermissionTo` (NOT `Gate::before` — see below); stopped copying role perms into direct, 45 duplicates dropped; per-company roles via the existing `roles.team_id`; resolve-by-ID everywhere. | F6, F7 closed |
-| **4** ◐ | **4a+4b DONE 2026-08-09 (Purchasing, Inventory)** — see below. 4c HR/Payroll outstanding. | F3 closed for Purchasing and Inventory |
+| **4** ✅ | **4a+4b+4c DONE (Purchasing, Inventory, HR)** — see below. Sales/Recipes/Ingredients deferred — not F3 examples. | F3 closed where it mattered |
 | **5** | Settings split per page; audit-log role/permission pivot changes; delete the orphan `Manager` role; populate `display_name`/`description`. | F8, F9, F10 closed |
 
 ---

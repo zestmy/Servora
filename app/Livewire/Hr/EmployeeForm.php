@@ -638,6 +638,10 @@ class EmployeeForm extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request,
+        // and this form writes IC numbers, bank details and the payroll linkage.
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
+
         $this->validate();
         $user = Auth::user();
 

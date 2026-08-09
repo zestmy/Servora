@@ -159,6 +159,11 @@ class AttendanceRecords extends Component
     /** Apply the selected code to (employee, date); eraser clears the cell. */
     public function setCell(int $employeeId, string $date): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $employee = Employee::find($employeeId);
         if (! $employee || ! in_array((int) $employee->outlet_id, $this->accessibleOutletIds(), true)) {
             return;
@@ -211,6 +216,11 @@ class AttendanceRecords extends Component
      */
     public function setHourlyCell(int $employeeId, string $date, string $raw): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $employee = Employee::find($employeeId);
         if (! $employee || ! in_array((int) $employee->outlet_id, $this->accessibleOutletIds(), true)) {
             return;
@@ -281,6 +291,11 @@ class AttendanceRecords extends Component
     /** Persist a drag-and-drop row order; ids outside the user's outlets are ignored. */
     public function reorderRows(array $orderedIds): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $allowed = Employee::whereIn('id', $orderedIds)
             ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
             ->pluck('id')
@@ -305,6 +320,11 @@ class AttendanceRecords extends Component
      */
     public function fillPresent(): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $presentId = AttendanceCode::where('system_key', 'present')->value('id');
         if (! $presentId) return;
 
@@ -345,6 +365,11 @@ class AttendanceRecords extends Component
     /** Remove every mark in the visible grid (guarded by wire:confirm). */
     public function clearRange(): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         [$from, $to] = $this->period();
         $count = AttendanceRecord::whereIn('employee_id', $this->employeesQuery()->pluck('id'))
             ->whereBetween('work_date', [$from, $to])
@@ -587,6 +612,11 @@ class AttendanceRecords extends Component
 
     public function saveCode(): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $this->validate([
             'c_code'  => 'required|string|max:10',
             'c_label' => 'required|string|max:100',
@@ -628,6 +658,11 @@ class AttendanceRecords extends Component
 
     public function deleteCode(int $id): void
     {
+        // Marking attendance feeds straight into payroll, so editing the grid is a
+        // separate ability from reading it. Re-checked here because a Livewire action
+        // is its own request, not a re-entry through the route.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $code = AttendanceCode::findOrFail($id);
         if ($code->system_key) {
             session()->flash('error', 'Built-in codes cannot be deleted.');

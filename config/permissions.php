@@ -293,8 +293,25 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'hr.view',
-                    'label' => 'HR — Employees & Labour',
-                    'help'  => 'Employee records, departments, shifts and labour cost.',
+                    'label' => 'View (read-only)',
+                    'title' => 'HR — Employees & Labour',
+                    'help'  => 'See employee records, departments, shifts and labour cost, and export them.',
+                ],
+                // Employee records carry IC numbers, bank details and the link to payroll,
+                // so creating and editing them is not something "can open the staff list"
+                // should imply. Deleting is separate again — it was previously gated by
+                // nothing at all beyond outlet access.
+                'manage' => [
+                    'name'  => 'hr.employees.manage',
+                    'label' => 'Add & edit staff',
+                    'title' => 'HR — Employees (Add & Edit)',
+                    'help'  => 'Create employee records and change their details, including bank and identity fields.',
+                ],
+                'delete' => [
+                    'name'  => 'hr.employees.delete',
+                    'label' => 'Delete staff',
+                    'title' => 'HR — Employees (Delete)',
+                    'help'  => 'Delete an employee record.',
                 ],
             ],
         ],
@@ -305,8 +322,18 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'hr.attendance',
-                    'label' => 'HR — Attendance & Service Charge',
-                    'help'  => 'Attendance records and service charge distribution.',
+                    'label' => 'View (read-only)',
+                    'title' => 'HR — Attendance & Service Charge',
+                    'help'  => 'See the attendance grid, service charge distribution and exports.',
+                ],
+                // Marking someone present or absent feeds straight into payroll, so
+                // editing the grid is a separate ability from reading it. Service charge
+                // itself stays gated on hr.compensation, which is stricter again.
+                'record' => [
+                    'name'  => 'hr.attendance.record',
+                    'label' => 'Edit attendance',
+                    'title' => 'HR — Attendance (Edit)',
+                    'help'  => 'Mark attendance, fill or clear a range, reorder rows, and manage attendance codes.',
                 ],
             ],
         ],

@@ -382,8 +382,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/employee-documents/{document}', [\App\Http\Controllers\Hr\EmployeeDocumentController::class, 'show'])->name('hr.employee-documents.show')->middleware('can:hr.view');
     Route::get('/hr/employee-documents/{document}/download', [\App\Http\Controllers\Hr\EmployeeDocumentController::class, 'download'])->name('hr.employee-documents.download')->middleware('can:hr.view');
     // Add / edit is a full page, not a modal — the form is too tall for a dialog.
-    Route::get('/hr/employees/create', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.create')->middleware('can:hr.view');
-    Route::get('/hr/employees/{id}/edit', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.edit')->middleware('can:hr.view');
+    Route::get('/hr/employees/create', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.create')->middleware('can:hr.employees.manage');
+    Route::get('/hr/employees/{id}/edit', \App\Livewire\Hr\EmployeeForm::class)->name('hr.employees.edit')->middleware('can:hr.employees.manage');
     // Compensation sits behind hr.compensation — the same gate that hides
     // salary on the Employees list and the exports.
     Route::get('/hr/compensation', \App\Livewire\Hr\Compensation::class)->name('hr.compensation')->middleware('can:hr.compensation');
