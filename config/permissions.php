@@ -372,6 +372,22 @@ return [
                     'title' => 'HR — Employees (Delete)',
                     'help'  => 'Delete an employee record.',
                 ],
+                // Someone's standing — probation, confirmation, resignation, whether they
+                // are still active — is a different order of information from where they
+                // work and what they are called. It sits behind its own ability for the
+                // same reason pay does, and is protected the same way: the fields are
+                // hidden, and a submitted value is ignored rather than trusted.
+                //
+                // Deliberately NOT the whole Employment tab. Outlet is required to save an
+                // employee and lives there, so hiding all of it would hand anyone who can
+                // edit staff a form they cannot submit, failing on a field they cannot see.
+                'employment' => [
+                    'name'  => 'hr.employment',
+                    'label' => 'Employment standing',
+                    'title' => 'HR — Employment Standing',
+                    'help'  => 'See and change employment status, join and resignation dates, '
+                             . 'active/inactive and outsourcing. Placement fields stay open to anyone who can edit staff.',
+                ],
             ],
         ],
 
@@ -583,8 +599,19 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'reports.view',
-                    'label' => 'Reports',
-                    'help'  => 'The reports hub, report exports and scheduled subscriptions.',
+                    'label' => 'View & export',
+                    'title' => 'Reports',
+                    'help'  => 'The reports hub and report exports.',
+                ],
+                // Reading a report on screen and mailing it out on a schedule are
+                // different powers. A subscription sends company figures to whatever
+                // address is configured, on repeat, without anyone watching — closer to
+                // data egress than to reporting, so it is granted separately.
+                'schedule' => [
+                    'name'  => 'reports.schedule',
+                    'label' => 'Schedule by email',
+                    'title' => 'Reports (Scheduled Subscriptions)',
+                    'help'  => 'Create and change scheduled report subscriptions, which email figures out on a recurring basis.',
                 ],
             ],
         ],

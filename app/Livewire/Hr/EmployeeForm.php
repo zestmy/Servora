@@ -329,6 +329,24 @@ class EmployeeForm extends Component
     }
 
     /**
+     * Employment standing — status, join and resignation dates, active, outsourcing.
+     *
+     * Someone's standing is a different order of information from where they work and
+     * what they are called, so it carries its own ability and is protected exactly the
+     * way pay is: the fields are hidden, and any value submitted without the ability is
+     * ignored rather than trusted, which keeps a forged Livewire payload from marking
+     * somebody resigned.
+     *
+     * Scoped to the standing fields rather than the whole Employment tab on purpose:
+     * outlet is required to save and lives in that tab, so hiding all of it would hand
+     * anyone who can edit staff a form they cannot submit.
+     */
+    protected function canEditEmployment(): bool
+    {
+        return Auth::user()?->canDo('hr.employment') ?? false;
+    }
+
+    /**
      * The banks this employee may be paid into: the company's active list, plus
      * the name already on the record if that has since been retired or was
      * typed in before the picker existed.
@@ -670,21 +688,12 @@ class EmployeeForm extends Component
             'phone'         => trim($this->f_phone)
                 ? trim(($this->f_phone_code ?: $this->defaultPhoneCode()) . ' ' . trim($this->f_phone))
                 : null,
-            'join_date'     => $this->f_join_date ?: null,
             'ic_number'     => $this->f_ic_number ?: null,
             'date_of_birth' => $this->f_date_of_birth ?: null,
             'emergency_contact_name'      => $this->f_emergency_contact_name ?: null,
             'emergency_contact_phone'     => $this->f_emergency_contact_phone ?: null,
             'emergency_contact_phone_alt' => $this->f_emergency_contact_phone_alt ?: null,
             'emergency_contact_address'   => $this->f_emergency_contact_address ?: null,
-            'employment_status' => $this->f_employment_status ?: null,
-            // Date applies to probation/confirmed/extension; company to outsourcing.
-            'employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
-                ? ($this->f_employment_status_date ?: null)
-                : null,
-            'outsourcing_company' => $this->f_employment_status === 'outsourcing'
-                ? ($this->f_outsourcing_provider === 'others' ? ($this->f_outsourcing_company ?: null) : 'Experiva')
-                : null,
             'food_handler_certified' => $this->f_food_handler_certified,
             // Cert number only applies while the certified box is ticked —
             // unticking clears it, same as the typhoid validity dates.
@@ -703,12 +712,6 @@ class EmployeeForm extends Component
             // active the person keeps appearing on every future attendance
             // grid and roster. Future-dated resignations stay active until the
             // day arrives — hr:apply-resignations flips those overnight.
-            'is_active'     => $this->f_is_active && ! Employee::resignationTookEffect(
-                $this->f_employment_status ?: null,
-                array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
-                    ? ($this->f_employment_status_date ?: null)
-                    : null,
-            ),
             // Blank means "use the roster's allowance"; 0 is a real answer.
             'break_minutes' => $this->f_break_minutes !== '' ? (int) $this->f_break_minutes : null,
             // Blank follows the company default rather than storing a copy.
@@ -732,6 +735,36 @@ class EmployeeForm extends Component
         ];
 
         // Pay fields are omitted entirely for users without hr.compensation, so
+        // Employment standing, written only by someone who may see it — same rule as
+        // pay just below. Without this, an ordinary editor saving an unrelated change
+        // would blank someone's employment status, or a forged payload could quietly
+        // mark them resigned.
+        if ($this->canEditEmployment()) {
+            $data['join_date']         = $this->f_join_date ?: null;
+            $data['employment_status'] = $this->f_employment_status ?: null;
+
+            // Date applies to probation/confirmed/extension; company to outsourcing.
+            $data['employment_status_date'] = array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
+                ? ($this->f_employment_status_date ?: null)
+                : null;
+
+            $data['outsourcing_company'] = $this->f_employment_status === 'outsourcing'
+                ? ($this->f_outsourcing_provider === 'others' ? ($this->f_outsourcing_company ?: null) : 'Experiva')
+                : null;
+
+            // A past leaving date wins over the Active toggle: nobody thinks to untick it
+            // when recording a resignation, and while the row stays active the person keeps
+            // appearing on every future attendance grid and roster. Future-dated
+            // resignations stay active until the day arrives — hr:apply-resignations flips
+            // those overnight.
+            $data['is_active'] = $this->f_is_active && ! Employee::resignationTookEffect(
+                $this->f_employment_status ?: null,
+                array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
+                    ? ($this->f_employment_status_date ?: null)
+                    : null,
+            );
+        }
+
         // an ordinary HR user editing an employee leaves salary and service
         // points untouched rather than blanking values they can't even see.
         if ($this->canViewPay()) {
@@ -882,6 +915,7 @@ class EmployeeForm extends Component
 
         $sections   = Section::active()->ordered()->get();
         $canViewPay = $this->canViewPay();
+        $canEditEmployment = $this->canEditEmployment();
         $banks      = $canViewPay ? $this->bankOptions() : collect();
 
         // Keyed by type so the blade asks for the list by name rather than
@@ -908,7 +942,7 @@ class EmployeeForm extends Component
         $availableCertifications = $this->availableCertificationTypes();
 
         return view('livewire.hr.employee-form', compact(
-            'outlets', 'sections', 'canViewPay', 'banks', 'particulars', 'documents',
+            'outlets', 'sections', 'canViewPay', 'canEditEmployment', 'banks', 'particulars', 'documents',
             'certificationTypes', 'availableCertifications', 'complianceSettings', 'superiors'
         ))
             ->layout('layouts.app', ['title' => $this->employeeId ? 'Edit Employee' : 'Add Employee']);

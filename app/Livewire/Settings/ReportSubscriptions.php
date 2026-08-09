@@ -109,6 +109,10 @@ class ReportSubscriptions extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request,
+        // and a subscription mails company figures out on repeat.
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $this->validate();
 
         $recipientEmails = $this->parseRecipientEmails();
@@ -140,6 +144,10 @@ class ReportSubscriptions extends Component
 
     public function toggleActive(int $id): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request,
+        // and a subscription mails company figures out on repeat.
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $subscription = ReportSubscription::findOrFail($id);
         $subscription->update(['is_active' => !$subscription->is_active]);
         session()->flash('success', $subscription->is_active ? 'Subscription activated.' : 'Subscription paused.');
@@ -147,6 +155,10 @@ class ReportSubscriptions extends Component
 
     public function delete(int $id): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request,
+        // and a subscription mails company figures out on repeat.
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         ReportSubscription::findOrFail($id)->delete();
         session()->flash('success', 'Report subscription deleted.');
     }
@@ -176,6 +188,10 @@ class ReportSubscriptions extends Component
 
     public function sendTestReport(ReportGeneratorService $reportService): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request,
+        // and a subscription mails company figures out on repeat.
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $this->testResult = '';
         $this->testSuccess = false;
         $this->testSending = true;

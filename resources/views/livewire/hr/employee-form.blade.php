@@ -317,6 +317,12 @@
                 </div>
             </div>
 
+            {{-- Employment standing — status, resignation date, join date, active and
+                 outsourcing. Behind hr.employment, the same way Compensation sits behind
+                 hr.compensation. The placement fields above stay open on purpose: outlet
+                 is required to save, so hiding those too would leave anyone who can edit
+                 staff with a form they cannot submit. --}}
+            @if ($canEditEmployment)
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-semibold text-gray-600">Join Date</label>
@@ -382,6 +388,7 @@
                     </div>
                 @endif
             </div>
+            @endif
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
