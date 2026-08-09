@@ -27,8 +27,23 @@ return new class extends Migration
 
         // Backfill every membership with the user's current (account-global)
         // flags so effective access is unchanged at deploy time.
-        $sets = implode(', ', array_map(fn ($c) => "cu.$c = u.$c", self::CAPABILITIES));
-        DB::statement("UPDATE company_user cu JOIN users u ON u.id = cu.user_id SET $sets");
+        //
+        // A multi-table "UPDATE ... JOIN ... SET" is MySQL syntax that SQLite rejects,
+        // which meant this migration could not build the test suite's database. Done
+        // row-by-row through the query builder instead: chunked so it stays flat in
+        // memory, and driver-agnostic.
+        DB::table('users')
+            ->whereIn('id', DB::table('company_user')->select('user_id'))
+            ->orderBy('id')
+            ->chunkById(500, function ($users) {
+                foreach ($users as $user) {
+                    DB::table('company_user')
+                        ->where('user_id', $user->id)
+                        ->update(collect(self::CAPABILITIES)
+                            ->mapWithKeys(fn ($c) => [$c => $user->{$c}])
+                            ->all());
+                }
+            });
     }
 
     public function down(): void

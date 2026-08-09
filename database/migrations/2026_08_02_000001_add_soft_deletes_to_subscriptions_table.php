@@ -34,13 +34,18 @@ return new class extends Migration
 
         // Existing orphans: adopt them into the cascade so they come back if
         // their company is ever restored.
+        //
+        // A joined UPDATE only keeps both tables in scope on MySQL. SQLite compiles it to
+        // "update subscriptions ... where rowid in (select ... join companies ...)", which
+        // leaves `companies.deleted_at` unresolvable in the SET clause — so the statement
+        // failed and the test suite could not build its database. A correlated subquery
+        // says the same thing on both drivers.
         DB::table('subscriptions')
-            ->join('companies', 'companies.id', '=', 'subscriptions.company_id')
-            ->whereNotNull('companies.deleted_at')
-            ->whereNull('subscriptions.deleted_at')
+            ->whereNull('deleted_at')
+            ->whereIn('company_id', DB::table('companies')->whereNotNull('deleted_at')->select('id'))
             ->update([
-                'subscriptions.deleted_at'           => DB::raw('companies.deleted_at'),
-                'subscriptions.deleted_with_company' => true,
+                'deleted_at'           => DB::raw('(select deleted_at from companies where companies.id = subscriptions.company_id)'),
+                'deleted_with_company' => true,
             ]);
     }
 

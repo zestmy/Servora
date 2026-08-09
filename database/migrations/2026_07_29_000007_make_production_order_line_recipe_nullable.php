@@ -18,12 +18,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('ALTER TABLE production_order_lines MODIFY recipe_id BIGINT UNSIGNED NULL');
+        // MODIFY is MySQL-only. change() is portable and does the same thing.
+        Schema::table('production_order_lines', function (Blueprint $table) {
+            $table->unsignedBigInteger('recipe_id')->nullable()->change();
+        });
 
         // The batch log has the same constraint, and needs to record which
         // production recipe a batch came from so the history and yield
         // reports can name it.
-        DB::statement('ALTER TABLE production_logs MODIFY recipe_id BIGINT UNSIGNED NULL');
+        Schema::table('production_logs', function (Blueprint $table) {
+            $table->unsignedBigInteger('recipe_id')->nullable()->change();
+        });
 
         if (! Schema::hasColumn('production_logs', 'production_recipe_id')) {
             Schema::table('production_logs', function (Blueprint $table) {
@@ -43,9 +48,13 @@ return new class extends Migration
         // Rows belonging to a production recipe have no prep-item counterpart,
         // so they must go before the columns can be NOT NULL again.
         DB::table('production_logs')->whereNull('recipe_id')->delete();
-        DB::statement('ALTER TABLE production_logs MODIFY recipe_id BIGINT UNSIGNED NOT NULL');
+        Schema::table('production_logs', function (Blueprint $table) {
+            $table->unsignedBigInteger('recipe_id')->nullable(false)->change();
+        });
 
         DB::table('production_order_lines')->whereNull('recipe_id')->delete();
-        DB::statement('ALTER TABLE production_order_lines MODIFY recipe_id BIGINT UNSIGNED NOT NULL');
+        Schema::table('production_order_lines', function (Blueprint $table) {
+            $table->unsignedBigInteger('recipe_id')->nullable(false)->change();
+        });
     }
 };

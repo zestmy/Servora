@@ -30,10 +30,10 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
-        return DB::selectOne(
-            'SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? LIMIT 1',
-            [$table, $index]
-        ) !== null;
+        // Schema::hasIndex rather than information_schema: the latter is MySQL-only,
+        // which made this migration unrunnable on the SQLite connection the test suite
+        // uses, so every RefreshDatabase test died before its first assertion.
+        return Schema::hasIndex($table, $index);
     }
 
     private function addIndex(string $table, array $columns, string $index): void

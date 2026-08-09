@@ -27,12 +27,20 @@ return new class extends Migration
         });
 
         // New status for invoices with some, but not all, of the balance paid.
-        DB::statement("ALTER TABLE procurement_invoices MODIFY COLUMN status ENUM('draft', 'issued', 'partial', 'paid', 'cancelled', 'overdue') NOT NULL DEFAULT 'draft'");
+        // See the note in update_purchase_order_statuses: MODIFY COLUMN is MySQL-only.
+        Schema::table('procurement_invoices', function (Blueprint $table) {
+            $table->enum('status', ['draft', 'issued', 'partial', 'paid', 'cancelled', 'overdue'])
+                ->default('draft')->nullable(false)->change();
+        });
 
         // Backfill balance_due (was only set once a credit note applied):
         // settled/cancelled invoices owe nothing; the rest owe total minus credit.
         DB::statement("UPDATE procurement_invoices SET balance_due = 0 WHERE status IN ('paid', 'cancelled') AND balance_due IS NULL");
-        DB::statement("UPDATE procurement_invoices SET balance_due = GREATEST(0, total_amount - credit_applied) WHERE balance_due IS NULL");
+        // GREATEST() is MySQL-only; SQLite spells the scalar form MAX(). Expressed with
+        // the query builder so neither driver sees syntax it does not know.
+        DB::table('procurement_invoices')->whereNull('balance_due')->update([
+            'balance_due' => DB::raw('CASE WHEN total_amount - credit_applied > 0 THEN total_amount - credit_applied ELSE 0 END'),
+        ]);
     }
 
     public function down(): void
@@ -40,6 +48,9 @@ return new class extends Migration
         Schema::dropIfExists('procurement_invoice_payments');
 
         DB::statement("UPDATE procurement_invoices SET status = 'issued' WHERE status = 'partial'");
-        DB::statement("ALTER TABLE procurement_invoices MODIFY COLUMN status ENUM('draft', 'issued', 'paid', 'cancelled', 'overdue') NOT NULL DEFAULT 'draft'");
+        Schema::table('procurement_invoices', function (Blueprint $table) {
+            $table->enum('status', ['draft', 'issued', 'paid', 'cancelled', 'overdue'])
+                ->default('draft')->nullable(false)->change();
+        });
     }
 };

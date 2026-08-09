@@ -20,20 +20,70 @@ return new class extends Migration
     public function up(): void
     {
         // ── roles: allow (future) team-scoped role definitions ──
-        Schema::table('roles', function (Blueprint $table) {
-            $table->unsignedBigInteger('team_id')->nullable()->after('id');
-            $table->index('team_id', 'roles_team_foreign_key_index');
-            $table->dropUnique('roles_name_guard_name_unique');
-            $table->unique(['team_id', 'name', 'guard_name'], 'roles_team_name_guard_unique');
-        });
+        //
+        // Every step here is conditional, because `permission.teams` is now TRUE and
+        // Spatie's own create_permission_tables migration already builds most of this
+        // shape on a fresh database. Unconditionally adding `team_id` made this migration
+        // fail with "duplicate column name" on ANY fresh install — MySQL as well as the
+        // SQLite connection the tests use. Production never hit it because its database
+        // predates the teams flip and this migration has already run there.
+        if (! Schema::hasColumn('roles', 'team_id')) {
+            Schema::table('roles', function (Blueprint $table) {
+                $table->unsignedBigInteger('team_id')->nullable()->after('id');
+                $table->index('team_id', 'roles_team_foreign_key_index');
+            });
+        }
+
+        if (Schema::hasIndex('roles', 'roles_name_guard_name_unique')) {
+            Schema::table('roles', fn (Blueprint $table) => $table->dropUnique('roles_name_guard_name_unique'));
+        }
+
+        if (! Schema::hasIndex('roles', 'roles_team_name_guard_unique')) {
+            Schema::table('roles', fn (Blueprint $table) =>
+                $table->unique(['team_id', 'name', 'guard_name'], 'roles_team_name_guard_unique'));
+        }
 
         // ── assignment pivots ──
         foreach ([
-            ['table' => 'model_has_roles', 'pivot' => 'role_id'],
-            ['table' => 'model_has_permissions', 'pivot' => 'permission_id'],
+            ['table' => 'model_has_roles', 'pivot' => 'role_id', 'references' => 'roles'],
+            ['table' => 'model_has_permissions', 'pivot' => 'permission_id', 'references' => 'permissions'],
         ] as $cfg) {
             $tableName = $cfg['table'];
             $pivot     = $cfg['pivot'];
+
+            if (Schema::hasColumn($tableName, 'team_id')) {
+                // Fresh database: Spatie built the teams shape itself, but with team_id
+                // NOT NULL and inside the primary key. This app needs it NULLABLE — system
+                // accounts hold team-NULL assignment rows, which isSystemRole() reads
+                // team-agnostically — and a primary key cannot contain a nullable column.
+                //
+                // Dropping a primary key is not something SQLite can do in place, so the
+                // table is rebuilt into the target shape instead. Only ever reached on a
+                // fresh install, and refused outright if there is data to lose.
+                if (DB::table($tableName)->exists()) {
+                    throw new RuntimeException(
+                        "Refusing to rebuild {$tableName}: it already holds rows. This branch is "
+                        . 'only meant for a fresh database where Spatie created the teams shape.'
+                    );
+                }
+
+                Schema::drop($tableName);
+                Schema::create($tableName, function (Blueprint $table) use ($tableName, $pivot, $cfg) {
+                    $table->unsignedBigInteger($pivot);
+                    $table->unsignedBigInteger('team_id')->nullable();
+                    $table->string('model_type');
+                    $table->unsignedBigInteger('model_id');
+
+                    $table->index(['model_id', 'model_type'], $tableName . '_model_id_model_type_index');
+                    $table->index('team_id', $tableName . '_team_foreign_key_index');
+                    $table->index($pivot, $tableName . '_' . $pivot . '_index');
+                    $table->unique(['team_id', $pivot, 'model_id', 'model_type'], $tableName . '_team_' . $pivot . '_model_unique');
+
+                    $table->foreign($pivot)->references('id')->on($cfg['references'])->cascadeOnDelete();
+                });
+
+                continue; // nothing to backfill on a fresh database
+            }
 
             Schema::table($tableName, function (Blueprint $table) use ($tableName, $pivot) {
                 $table->unsignedBigInteger('team_id')->nullable()->after($pivot);

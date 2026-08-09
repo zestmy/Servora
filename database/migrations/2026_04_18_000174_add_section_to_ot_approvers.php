@@ -30,14 +30,8 @@ return new class extends Migration
 
         // Release the outlet_id FK so we can drop the unique index it was
         // piggy-backing on for enforcement.
-        $outletFk = DB::select("
-            SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'overtime_claim_approvers'
-              AND CONSTRAINT_NAME = 'overtime_claim_approvers_outlet_id_foreign'
-            LIMIT 1
-        ");
-        if (! empty($outletFk)) {
+        $outletFk = $this->foreignKeyExists('overtime_claim_approvers', 'overtime_claim_approvers_outlet_id_foreign');
+        if ($outletFk) {
             Schema::table('overtime_claim_approvers', function (Blueprint $table) {
                 $table->dropForeign(['outlet_id']);
             });
@@ -94,4 +88,28 @@ return new class extends Migration
             $table->foreign('outlet_id')->references('id')->on('outlets')->nullOnDelete();
         });
     }
+
+    /**
+     * Driver-agnostic foreign-key lookup.
+     *
+     * This was a query against information_schema.TABLE_CONSTRAINTS, which exists only on
+     * MySQL — so the migration could not run on the SQLite connection the test suite uses,
+     * and every RefreshDatabase test failed while building its database rather than on any
+     * assertion of its own.
+     */
+    private function foreignKeyExists(string $table, string $constraint): bool
+    {
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        foreach (Schema::getForeignKeys($table) as $fk) {
+            if (($fk['name'] ?? null) === $constraint) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 };

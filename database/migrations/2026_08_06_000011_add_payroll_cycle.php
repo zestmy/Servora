@@ -37,12 +37,24 @@ return new class extends Migration
         // Existing runs were all calendar months, so their range is exactly
         // that. Backfilled rather than left null so nothing has to cope with
         // a run that cannot say what it covered.
-        \Illuminate\Support\Facades\DB::statement(
-            'UPDATE payroll_runs
-                SET period_start = period_month,
-                    period_end   = LAST_DAY(period_month)
-              WHERE period_start IS NULL'
-        );
+        // LAST_DAY() is MySQL-only, so the end of the month is computed in PHP and the
+        // rows updated in chunks. Driver-agnostic, and the arithmetic is easier to read
+        // than either dialect's date functions.
+        \Illuminate\Support\Facades\DB::table('payroll_runs')
+            ->whereNull('period_start')
+            ->orderBy('id')
+            ->chunkById(500, function ($runs) {
+                foreach ($runs as $run) {
+                    $month = \Illuminate\Support\Carbon::parse($run->period_month);
+
+                    \Illuminate\Support\Facades\DB::table('payroll_runs')
+                        ->where('id', $run->id)
+                        ->update([
+                            'period_start' => $month->copy()->startOfMonth()->toDateString(),
+                            'period_end'   => $month->copy()->endOfMonth()->toDateString(),
+                        ]);
+                }
+            });
     }
 
     public function down(): void

@@ -26,10 +26,15 @@ return new class extends Migration
             });
 
             // Owning company comes from the kitchen the stock sits in.
+            // Correlated subquery rather than "UPDATE ... JOIN ... SET", which is MySQL
+            // syntax SQLite rejects — it stopped the test suite building its database.
+            // Both drivers accept this form.
             DB::statement('
-                UPDATE kitchen_inventory ki
-                JOIN central_kitchens ck ON ck.id = ki.kitchen_id
-                SET ki.company_id = ck.company_id
+                UPDATE kitchen_inventory
+                SET company_id = (
+                    SELECT ck.company_id FROM central_kitchens ck WHERE ck.id = kitchen_inventory.kitchen_id
+                )
+                WHERE kitchen_id IS NOT NULL
             ');
         }
 
@@ -42,9 +47,11 @@ return new class extends Migration
 
             // Owning company comes from the order the log belongs to.
             DB::statement('
-                UPDATE production_logs pl
-                JOIN production_orders po ON po.id = pl.production_order_id
-                SET pl.company_id = po.company_id
+                UPDATE production_logs
+                SET company_id = (
+                    SELECT po.company_id FROM production_orders po WHERE po.id = production_logs.production_order_id
+                )
+                WHERE production_order_id IS NOT NULL
             ');
         }
     }

@@ -18,10 +18,25 @@ return new class extends Migration
         });
 
         // Backfill: every user's current company becomes their first membership.
-        DB::statement(
-            'INSERT INTO company_user (company_id, user_id, created_at, updated_at)
-             SELECT company_id, id, NOW(), NOW() FROM users WHERE company_id IS NOT NULL'
-        );
+        //
+        // The timestamp comes from PHP rather than SQL's NOW(), which SQLite does not
+        // have — the raw statement made this migration MySQL-only and so unrunnable on
+        // the test suite's connection.
+        $now = now();
+
+        DB::table('users')
+            ->whereNotNull('company_id')
+            ->orderBy('id')
+            ->chunkById(500, function ($users) use ($now) {
+                DB::table('company_user')->insertOrIgnore(
+                    $users->map(fn ($u) => [
+                        'company_id' => $u->company_id,
+                        'user_id'    => $u->id,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->all()
+                );
+            });
     }
 
     public function down(): void

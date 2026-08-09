@@ -37,10 +37,9 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
-        return DB::selectOne(
-            'SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? LIMIT 1',
-            [$table, $index]
-        ) !== null;
+        // Driver-agnostic: information_schema is MySQL-only and broke the SQLite
+        // test connection. See the note in add_name_index_to_ingredients.
+        return Schema::hasIndex($table, $index);
     }
 
     private function addIndex(string $table, array $columns, string $index): void

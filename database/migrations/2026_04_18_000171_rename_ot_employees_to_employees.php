@@ -15,13 +15,7 @@ return new class extends Migration
     public function up(): void
     {
         // Drop the FK from overtime_claims first so the table rename is allowed.
-        $fkExists = DB::select("
-            SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'overtime_claims'
-              AND CONSTRAINT_NAME = 'overtime_claims_employee_id_foreign'
-            LIMIT 1
-        ");
+        $fkExists = $this->foreignKeyExists('overtime_claims', 'overtime_claims_employee_id_foreign');
         if ($fkExists) {
             Schema::table('overtime_claims', function (Blueprint $table) {
                 $table->dropForeign(['employee_id']);
@@ -81,4 +75,28 @@ return new class extends Migration
             $table->foreign('employee_id')->references('id')->on('ot_employees')->cascadeOnDelete();
         });
     }
+
+    /**
+     * Driver-agnostic foreign-key lookup.
+     *
+     * This was a query against information_schema.TABLE_CONSTRAINTS, which exists only on
+     * MySQL — so the migration could not run on the SQLite connection the test suite uses,
+     * and every RefreshDatabase test failed while building its database rather than on any
+     * assertion of its own.
+     */
+    private function foreignKeyExists(string $table, string $constraint): bool
+    {
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        foreach (Schema::getForeignKeys($table) as $fk) {
+            if (($fk['name'] ?? null) === $constraint) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 };

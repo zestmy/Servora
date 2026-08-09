@@ -69,9 +69,7 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
-        return count(Schema::getConnection()->select(
-            "SHOW INDEX FROM `{$table}` WHERE Key_name = ?",
-            [$index]
-        )) > 0;
+        // SHOW INDEX is MySQL-only; Schema::hasIndex works on both drivers.
+        return Schema::hasIndex($table, $index);
     }
 };
