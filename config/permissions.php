@@ -548,11 +548,52 @@ return [
             'label'     => 'Settings',
             'group'     => 'admin',
             'abilities' => [
-                'view' => [
-                    'name'  => 'settings.view',
-                    'label' => 'Settings',
-                    'help'  => 'Company settings: outlets, suppliers, categories, tax rates and more. '
-                             . 'One switch covers roughly 40 pages today — Phase 5 splits it per page.',
+                // Every page below was behind a single `settings.view` until Phase 5:
+                // granting someone tax rates also handed
+                // them branches, departments, central kitchens and every approver list.
+                // Pages that belong to another module were already gated by it — pay
+                // components and banks on hr.compensation, leave types on
+                // hr.leave.approve, scheduled reports on reports.view, suppliers on
+                // purchasing.suppliers.manage — and are deliberately not duplicated here.
+                'outlets' => [
+                    'name' => 'settings.outlets', 'label' => 'Branches',
+                    'title' => 'Settings (Branches)', 'help' => 'Create and edit outlets.',
+                ],
+                'outlet_groups' => [
+                    'name' => 'settings.outlet_groups', 'label' => 'Outlet groups',
+                    'title' => 'Settings (Outlet Groups)', 'help' => 'Group outlets for reporting and access.',
+                ],
+                'tax_rates' => [
+                    'name' => 'settings.tax_rates', 'label' => 'Tax rates',
+                    'title' => 'Settings (Tax Rates)', 'help' => 'Tax rates applied to purchasing and sales.',
+                ],
+                'sections' => [
+                    'name' => 'settings.sections', 'label' => 'Sections',
+                    'title' => 'Settings (Sections)', 'help' => 'FOH/BOH sections used by the duty roster.',
+                ],
+                'certifications' => [
+                    'name' => 'settings.certifications', 'label' => 'Certifications',
+                    'title' => 'Settings (Certifications)', 'help' => 'Certification and training types for staff.',
+                ],
+                'ot_approvers' => [
+                    'name' => 'settings.ot_approvers', 'label' => 'OT approvers',
+                    'title' => 'Settings (OT Approvers)', 'help' => 'Who approves overtime claims, per outlet.',
+                ],
+                'po_approvers' => [
+                    'name' => 'settings.po_approvers', 'label' => 'PO approvers',
+                    'title' => 'Settings (PO Approvers)', 'help' => 'Who approves purchase orders, per outlet.',
+                ],
+                'departments' => [
+                    'name' => 'settings.departments', 'label' => 'Departments',
+                    'title' => 'Settings (Departments)', 'help' => 'Purchasing departments and their budgets.',
+                ],
+                'cpu' => [
+                    'name' => 'settings.cpu', 'label' => 'Central purchasing',
+                    'title' => 'Settings (Central Purchasing)', 'help' => 'Central purchasing units and their outlets.',
+                ],
+                'kitchens' => [
+                    'name' => 'settings.kitchens', 'label' => 'Central kitchens',
+                    'title' => 'Settings (Central Kitchens)', 'help' => 'Central kitchens, their members and linked outlets.',
                 ],
             ],
         ],

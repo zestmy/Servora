@@ -4,6 +4,7 @@ namespace App\Livewire\Settings;
 
 use App\Helpers\PermissionRegistry;
 use App\Helpers\RoleCatalogue;
+use App\Services\AuditLogService;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +134,10 @@ class RolesAccess extends Component
     public function saveRole(): void
     {
         $companyId = $this->companyId();
+        $wasNew    = ! $this->editingRoleId;
+        $abilitiesBefore = $this->editingRoleId
+            ? ['abilities' => RoleCatalogue::permissionsByRoleId([$this->editingRoleId])[$this->editingRoleId] ?? []]
+            : null;
 
         $this->validate([
             'roleLabel' => 'required|string|max:100',
@@ -193,6 +198,17 @@ class RolesAccess extends Component
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        // Role definitions decide access for everyone holding them, so a change here is
+        // worth as much of an audit trail as changing one person's grants.
+        if ($roleModel = \Spatie\Permission\Models\Role::find($roleId)) {
+            AuditLogService::log(
+                $roleModel,
+                $wasNew ? 'role_created' : 'role_updated',
+                ['name' => trim($this->roleLabel), 'abilities' => $selected],
+                $wasNew ? null : $abilitiesBefore
+            );
+        }
+
         $this->editingRoleId = null;
         $this->dispatch('close-role-editor');
         session()->flash('success', 'Role "' . trim($this->roleLabel) . '" saved — it applies to everyone holding it, immediately.');
@@ -219,6 +235,13 @@ class RolesAccess extends Component
             session()->flash('error', 'This role is still assigned to ' . $holders . ' '
                 . Str::plural('person', $holders) . '. Move them to another role first.');
             return;
+        }
+
+        if ($roleModel = \Spatie\Permission\Models\Role::find($roleId)) {
+            AuditLogService::log($roleModel, 'role_deleted', null, [
+                'name'      => $role->label,
+                'abilities' => RoleCatalogue::permissionsByRoleId([$roleId])[$roleId] ?? [],
+            ]);
         }
 
         DB::table('role_has_permissions')->where('role_id', $roleId)->delete();

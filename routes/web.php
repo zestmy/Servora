@@ -313,19 +313,19 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/sales-categories', SettingsSalesCategories::class)->name('settings.sales-categories')->middleware('can:sales.view');
     Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:purchasing.suppliers.manage');
-    Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.view');
+    Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.outlets');
     Route::get('/settings/api-keys', SettingsApiKeys::class)->name('settings.api-keys')->middleware(\App\Http\Middleware\SystemAdminOnly::class);
     Route::get('/settings/users', SettingsUsers::class)->name('settings.users')->middleware('can:users.manage');
     // The Roles and Effective-access halves of the same screen — see x-access-tabs.
     Route::get('/settings/roles-access', \App\Livewire\Settings\RolesAccess::class)->name('settings.roles-access')->middleware('can:users.manage');
     Route::get('/company/create', \App\Livewire\CompanyCreate::class)->name('company.create'); // gated in component (can_manage_users)
-    Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.view');
+    Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.po_approvers');
     Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:users.manage');
     Route::get('/settings/calendar-events', SettingsCalendarEvents::class)->name('settings.calendar-events')->middleware('can:reports.view');
     Route::get('/settings/sales-targets', SettingsSalesTargets::class)->name('settings.sales-targets')->middleware('can:sales.view');
-    Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.view');
-    Route::get('/settings/sections', \App\Livewire\Settings\Sections::class)->name('settings.sections')->middleware('can:settings.view');
-    Route::get('/settings/certifications', \App\Livewire\Settings\CertificationTypes::class)->name('settings.certifications')->middleware('can:settings.view');
+    Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.departments');
+    Route::get('/settings/sections', \App\Livewire\Settings\Sections::class)->name('settings.sections')->middleware('can:settings.sections');
+    Route::get('/settings/certifications', \App\Livewire\Settings\CertificationTypes::class)->name('settings.certifications')->middleware('can:settings.certifications');
     Route::get('/settings/pay-components', \App\Livewire\Settings\PayComponents::class)->name('settings.pay-components')->middleware('can:hr.compensation');
     Route::get('/settings/statutory', \App\Livewire\Settings\StatutoryRates::class)->name('settings.statutory')->middleware('can:hr.compensation');
     Route::get('/settings/banks', \App\Livewire\Settings\Banks::class)->name('settings.banks')->middleware('can:hr.compensation');
@@ -334,12 +334,12 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/leave-approvers', \App\Livewire\Settings\LeaveApprovers::class)->name('settings.leave-approvers')->middleware('can:hr.leave.approve');
     Route::get('/settings/public-holidays', \App\Livewire\Settings\PublicHolidays::class)->name('settings.public-holidays')->middleware('can:hr.leave.approve');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:inventory.view');
-    Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.view');
+    Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.outlet_groups');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:hr.view');
     Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:hr.view');
-    Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.view');
-    Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.view');
-    Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.view');
+    Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.cpu');
+    Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.kitchens');
+    Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.tax_rates');
     Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/price-alerts/export-pdf', [\App\Http\Controllers\PriceHistoryExportController::class, 'pdf'])->name('settings.price-alerts.export-pdf')->middleware('can:purchasing.suppliers.manage');
@@ -432,7 +432,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/roster-approvers', \App\Livewire\Hr\RosterApprovers::class)->name('hr.roster-approvers')->middleware('can:roster.settings');
     Route::get('/hr/roster-email-recipients', \App\Livewire\Hr\RosterEmailRecipients::class)->name('hr.roster-email-recipients')->middleware('can:roster.settings');
     Route::get('/hr/roster-settings', \App\Livewire\Hr\RosterSettings::class)->name('hr.roster-settings')->middleware('can:roster.settings');
-    Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.view');
+    Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.ot_approvers');
     Route::get('/settings/document-folders', \App\Livewire\Settings\DocumentFolders::class)->name('settings.document-folders')->middleware('can:hr.documents.manage');
     Route::get('/settings/reports', \App\Livewire\Settings\ReportSubscriptions::class)->name('settings.reports')->middleware('can:reports.view');
     Route::get('/settings/reports/log/{logId}/pdf', [\App\Http\Controllers\ReportPdfController::class, 'download'])->name('settings.reports.log-pdf')->middleware('can:reports.view');

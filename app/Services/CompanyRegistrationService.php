@@ -56,7 +56,10 @@ class CompanyRegistrationService
             $user->givePermissionTo([
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
-                'settings.view', 'users.manage', 'hr.view',
+                'users.manage', 'hr.view',
+                'settings.outlets', 'settings.outlet_groups', 'settings.tax_rates',
+                'settings.sections', 'settings.certifications', 'settings.ot_approvers',
+                'settings.po_approvers', 'settings.departments', 'settings.cpu', 'settings.kitchens',
                 'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage', 'staff.pins',
                 'hr.documents.view', 'hr.documents.manage',
                 // Were capability flags before Phase 1: approve PO/PR, delete records.
@@ -143,7 +146,7 @@ class CompanyRegistrationService
             $user->givePermissionTo([
                 'ingredients.view', 'recipes.view', 'sales.view',
                 'inventory.view', 'purchasing.view', 'reports.view',
-                'settings.view', 'users.manage', 'hr.view',
+                'users.manage', 'hr.view',
                 'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage', 'staff.pins',
                 'hr.documents.view', 'hr.documents.manage',
                 'purchasing.approve', 'purchasing.request', 'purchasing.delete',

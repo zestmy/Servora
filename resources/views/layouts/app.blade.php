@@ -213,11 +213,11 @@
                         'items' => [
                             ['route' => 'purchasing.index',          'label' => 'Orders & Requests', 'permission' => 'purchasing.view'],
                             ['route' => 'settings.suppliers',       'label' => 'Suppliers',           'permission' => 'purchasing.view'],
-                            ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.view'],
-                            ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.view'],
-                            ['route' => 'settings.price-alerts',    'label' => 'Price Alerts',       'permission' => 'purchasing.view'],
+                            ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.suppliers.manage'],
+                            ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.suppliers.manage'],
+                            ['route' => 'settings.price-alerts',    'label' => 'Price Alerts',       'permission' => 'purchasing.suppliers.manage'],
                             ['route' => 'settings.index', 'query' => 'module=procurement', 'label' => 'Procurement Settings',
-                             'anyPermission' => ['settings.view']],
+                             'anyPermission' => ['settings.po_approvers', 'settings.departments', 'settings.cpu']],
                         ],
                     ],
                     [
@@ -233,7 +233,7 @@
                             ['route' => 'settings.par-levels',        'label' => 'Par Levels',       'permission' => 'inventory.view'],
                             ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.view'],
                             ['route' => 'settings.index', 'query' => 'module=kitchen-production', 'label' => 'Kitchen Settings',
-                             'anyPermission' => ['settings.view']],
+                             'anyPermission' => ['settings.kitchens']],
                         ],
                     ],
                     [
@@ -290,7 +290,7 @@
                             // settings.view, or the person who administers pay
                             // would have no way in.
                             ['route' => 'settings.index', 'query' => 'module=hr-people', 'label' => 'HR Settings',
-                             'anyPermission' => ['settings.view', 'hr.compensation', 'hr.documents.manage', 'hr.clock.manage'],
+                             'anyPermission' => ['settings.sections', 'settings.certifications', 'settings.ot_approvers', 'hr.compensation', 'hr.documents.manage', 'hr.clock.manage'],
                              'section' => 'Configure'],
                         ],
                     ],

@@ -21,7 +21,9 @@ components, `@can` in Blade (13 sites), `'permission' =>` keys on 59 nav items, 
 
 **Roles in the DB:** Super Admin, System Admin *(system-level, `Gate::before` bypass for Super Admin)*;
 Company Admin, Business Manager, Operations Manager, Branch Manager, Outlet Manager, Chef,
-Purchasing, Finance, HR Manager, Staff *(assignable)*; **Manager** *(orphan — superseded, never deleted)*.
+Purchasing, Finance, HR Manager, Staff *(assignable)*. Twelve rows, and that is all — an earlier
+draft of this line claimed a thirteenth orphaned `Manager` role, which does not exist; see the
+correction under F8.
 
 ---
 
@@ -97,10 +99,15 @@ company on the platform simultaneously. Only System Admin can do it, which is wh
 caused an incident — but it also means **no company can define a role that fits its own
 structure.** A 3-outlet café and a 40-outlet group get the same ten roles.
 
-### F8 — the role catalogue has drifted · **Medium**
+### F8 — the role catalogue has drifted · **Medium** — *partly wrong, see correction*
 
-- `Manager` (from the original 2026-03 migration) is orphaned — superseded by Branch/Operations
-  Manager, never deleted, still assignable in the DB.
+> **Correction (Phase 5).** The first bullet was wrong. I read the `Manager` role out of the
+> 2026-03 migration file rather than the `roles` table, and asserted it was still there. It is
+> not: neither dev nor production has a role named `Manager` — both hold exactly the 12 listed
+> above. It had already been removed. The remaining bullets stand, but they are cosmetic.
+
+- ~~`Manager` (from the original 2026-03 migration) is orphaned — superseded by Branch/Operations
+  Manager, never deleted, still assignable in the DB.~~ **Does not exist. Audit error.**
 - The leave migration grants `hr.leave` to **"Area Manager"**, a role that does not exist. That
   grant silently no-oped.
 - `display_name` and `description` are `NULL` on **all 12 rows**, so the editable-label feature
@@ -272,7 +279,7 @@ This is the answer to "why can't Ali see payroll?", which today requires a DB qu
 | **2** ✅ | **DONE 2026-08-09.** Settings › Roles & Access — three tabs. Role Guide modal retired. | Low | Usability; access is now explainable |
 | **3** | `company_id` on roles; allow/deny overrides; stop copying role perms into direct. Backfill: derive each user's current direct set into overrides so effective access is byte-identical on deploy. | **Medium** — the backfill is the risky step | F6, F7 closed |
 | **4** ✅ | **4a+4b+4c DONE (Purchasing, Inventory, HR).** Writes split out of `purchasing.view`, which is now genuinely read-only; 6 new abilities, backfilled so nobody lost access. Sales/Recipes/Ingredients deferred — not F3 examples. | Medium | F3 closed where it mattered |
-| **5** | Split `settings.view` per area; audit-log permission changes; delete the orphan `Manager` role; populate `display_name` / `description`. | Low | F8, F9, F10 closed |
+| **5** ✅ | **DONE 2026-08-10.** `settings.view` split into 10 page abilities and retired; role/permission changes audited; F8 corrected — the `Manager` orphan never existed. | Low | F9, F10 closed; F8 corrected |
 
 Phase 0 alone fixes the two critical findings and is a day's work. Each later phase ships and
 deploys independently.
@@ -566,6 +573,52 @@ still have `.view` meaning write; they were never the F3 examples and none of th
 financially material in the way a purchase order, a stock adjustment or an attendance mark is,
 so they are left for a later pass rather than done reflexively.
 
+### Phase 5 — the settings split, and an answer to "who granted this?"
+
+**F9 closed.** `settings.view` was one switch over ten unrelated screens: branches, outlet
+groups, tax rates, sections, certifications, OT approvers, PO approvers, departments, central
+purchasing and central kitchens. One ability per page now, as agreed. Pages belonging to
+another module were already gated by it — pay components and banks on `hr.compensation`, leave
+types on `hr.leave.approve`, clock settings on `hr.clock.manage`, scheduled reports on
+`reports.view`, suppliers and form templates on `purchasing.suppliers.manage` — and were
+deliberately not duplicated.
+
+**`settings.view` is retired, not kept as an umbrella.** Once the ten pages carry their own
+abilities it gates nothing: the Settings index has no route middleware (it is a list of links,
+each tile carrying its own permission), and the three sidebar links into it now name the
+abilities of the group they open. A permission that gates nothing is one that quietly rots.
+Backfill mirrored it onto all ten pages first — 0 mismatches, nothing else lost.
+
+Two things surfaced while doing it. The `$hasSettingsAccess` parameter threaded into
+`companyGroups()` was already dead — the early return it fed had been removed earlier — so
+`settings.view` was **already** vestigial in the index and only the route gates kept it alive.
+And Phase 4a had left a **nav/route mismatch**: Product Mapping, Form Templates and Price
+Alerts still advertised themselves on `purchasing.view` while their routes had moved to
+`purchasing.suppliers.manage`, so the links rendered and then 403'd. Both fixed.
+
+**F10 closed.** Role and permission changes are now audited. The pivot tables
+(`model_has_roles`, `model_has_permissions`, `permission_denials`, `role_has_permissions`) have
+no Eloquent observer, so the existing audit observer never saw them — who gained payroll access
+and when was recorded nowhere. Four write points now log through `AuditLogService`:
+
+| Event | Where | Records |
+|---|---|---|
+| `access_changed` | `Settings\Users::syncAccessLevel()` | role, granted and denied, before and after |
+| `role_created` / `role_updated` | `RolesAccess::saveRole()` | name and ability set |
+| `role_deleted` | `RolesAccess::deleteRole()` | what the role was, before it went |
+| `role_template_updated` | `Admin\RoleTemplates::save()` | a preset change, which touches every company |
+
+The snapshot is read from the grant tables rather than through `can()`, so the entry records
+stored state rather than a resolved answer, and it only writes when something actually moved —
+re-saving a user with no change produces no entry. Verified: adding `hr.payroll` to someone
+whose role lacks it logs `granted: 4 → 5, added: hr.payroll`.
+
+**F8 was mostly an audit error — see the correction on the finding.** The `Manager` orphan does
+not exist. The "Area Manager" grant that no-oped is historical and has nothing to fix.
+`display_name` is genuinely NULL on all 12 presets, but every screen resolves
+`display_name ?: name`, so it is cosmetic and was left alone rather than filled with the same
+strings the fallback already produces.
+
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
    abilities per user rather than onto roles (preserve-exactly). That is correct, but it means
@@ -683,7 +736,7 @@ matrix is designed around them.
 | **2** ✅ | **DONE 2026-08-09.** Three tabs: Users / Roles / Effective access. Role Guide retired; fine-tuning collapsed to a delta summary. Column matrix deferred to Phase 4 — see below. | Usability; "why can they see payroll?" answerable without a query |
 | **3** ✅ | **DONE 2026-08-09**, split 3a/3b. Denials via their own table + `checkPermissionTo` (NOT `Gate::before` — see below); stopped copying role perms into direct, 45 duplicates dropped; per-company roles via the existing `roles.team_id`; resolve-by-ID everywhere. | F6, F7 closed |
 | **4** ✅ | **4a+4b+4c DONE (Purchasing, Inventory, HR)** — see below. Sales/Recipes/Ingredients deferred — not F3 examples. | F3 closed where it mattered |
-| **5** | Settings split per page; audit-log role/permission pivot changes; delete the orphan `Manager` role; populate `display_name`/`description`. | F8, F9, F10 closed |
+| **5** ✅ | **DONE 2026-08-10.** `settings.view` split into 10 page abilities and retired; role/permission changes audited; F8 corrected — the `Manager` orphan never existed. | Low | F9, F10 closed; F8 corrected |
 
 ---
 

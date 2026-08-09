@@ -150,7 +150,10 @@ class Wizard extends Component
                         $user->givePermissionTo([
                             'ingredients.view', 'recipes.view', 'sales.view',
                             'inventory.view', 'purchasing.view', 'reports.view',
-                            'settings.view', 'users.manage',
+                            'users.manage',
+                            'settings.outlets', 'settings.outlet_groups', 'settings.tax_rates',
+                            'settings.sections', 'settings.certifications', 'settings.ot_approvers',
+                            'settings.po_approvers', 'settings.departments', 'settings.cpu', 'settings.kitchens',
                             'purchasing.approve', 'purchasing.request', 'purchasing.delete',
                             'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
                             'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',

@@ -4,6 +4,7 @@ namespace App\Livewire\Settings;
 
 use App\Helpers\PermissionRegistry;
 use App\Helpers\RoleCatalogue;
+use App\Services\AuditLogService;
 use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\User;
@@ -450,6 +451,13 @@ class Users extends Component
         $prevTeam = getPermissionsTeamId();
         setPermissionsTeamId($companyId);
 
+        // Captured before anything is written, so the audit entry can say what actually
+        // changed rather than just what the new state is. Who gained payroll access and
+        // when was previously recorded nowhere: model_has_roles, model_has_permissions
+        // and permission_denials are pivot tables with no Eloquent observer, so the audit
+        // observer never saw them.
+        $auditBefore = $this->accessSnapshot($user, $companyId);
+
         try {
             $grantable = array_keys(self::modules());
             $wanted    = array_values(array_intersect($this->moduleAccess, $grantable));
@@ -485,6 +493,46 @@ class Users extends Component
         }
 
         $user->unsetRelation('roles')->unsetRelation('permissions');
+
+        $auditAfter = $this->accessSnapshot($user, $companyId);
+
+        if ($auditBefore !== $auditAfter) {
+            AuditLogService::log($user, 'access_changed', $auditAfter, $auditBefore);
+        }
+    }
+
+    /**
+     * The three things that decide what a user may do in one company: their role, the
+     * abilities granted on top of it, and the ones taken away. Read straight from the
+     * grant tables rather than through can(), so the audit entry records the stored
+     * state and not a resolved answer.
+     *
+     * @return array{role: ?string, granted: list<string>, denied: list<string>}
+     */
+    private function accessSnapshot(User $user, int $companyId): array
+    {
+        $role = DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_type', User::class)
+            ->where('model_has_roles.model_id', $user->id)
+            ->where('model_has_roles.team_id', $companyId)
+            ->value('roles.name');
+
+        $granted = DB::table('model_has_permissions')
+            ->join('permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
+            ->where('model_has_permissions.model_type', User::class)
+            ->where('model_has_permissions.model_id', $user->id)
+            ->where('model_has_permissions.team_id', $companyId)
+            ->pluck('permissions.name')->sort()->values()->all();
+
+        $denied = DB::table('permission_denials')
+            ->join('permissions', 'permissions.id', '=', 'permission_denials.permission_id')
+            ->where('permission_denials.model_type', User::class)
+            ->where('permission_denials.model_id', $user->id)
+            ->where('permission_denials.team_id', $companyId)
+            ->pluck('permissions.name')->sort()->values()->all();
+
+        return ['role' => $role, 'granted' => $granted, 'denied' => $denied];
     }
 
     /**

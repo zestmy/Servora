@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Livewire\Settings\Users as SettingsUsers;
+use App\Services\AuditLogService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Spatie\Permission\PermissionRegistrar;
@@ -91,6 +92,10 @@ class RoleTemplates extends Component
             'updated_at'   => now(),
         ]);
 
+        $abilitiesBefore = DB::table('role_has_permissions')
+            ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
+            ->where('role_id', $roleId)->pluck('permissions.name')->sort()->values()->all();
+
         // Replace only the editable module set; permissions outside this
         // editor (e.g. roster.view) are preserved untouched.
         $selected = array_values(array_intersect(
@@ -113,6 +118,17 @@ class RoleTemplates extends Component
                     'role_id'       => $roleId,
                 ]);
             }
+        }
+
+        // A preset is shared by every company, so who changed it and when matters more
+        // here than anywhere else in the access system.
+        if ($roleModel = \Spatie\Permission\Models\Role::find($roleId)) {
+            AuditLogService::log(
+                $roleModel,
+                'role_template_updated',
+                ['name' => trim($this->edit[$roleId]['display_name']), 'abilities' => $selected],
+                ['abilities' => $abilitiesBefore]
+            );
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
