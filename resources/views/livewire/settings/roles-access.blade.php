@@ -74,6 +74,10 @@
                                             wire:confirm="Delete the role “{{ $role['label'] }}”?"
                                             class="btn-ghost btn-sm text-danger-600">Delete</button>
                                 @endif
+                                @if ($role['users'] > 0)
+                                    <button wire:click="previewApply({{ $role['id'] }})" class="btn-ghost btn-sm whitespace-nowrap"
+                                            title="Clear individually-granted abilities so this role is the only source">Apply to holders</button>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -144,6 +148,43 @@
 
                     @if ($shown === 0)
                         <p class="help">No abilities match “{{ $search }}”.</p>
+                    @endif
+
+                    {{-- Inline rather than a dialog: this is a decision about THIS role, and
+                         it reads better under the abilities it is about than floating over
+                         them. Names are listed, not just counted — this changes real access
+                         for several people at once. --}}
+                    @if ($applyRoleId === $role['id'])
+                        @php $affected = collect($applyPreview)->where('extras', '>', 0); @endphp
+                        <div class="mt-4 rounded-surface border border-warning-200 bg-warning-50 p-4">
+                            @if ($affected->isEmpty())
+                                <p class="text-sm text-warning-900">
+                                    Every holder of <span class="font-semibold">{{ $role['label'] }}</span> already has
+                                    exactly what the role gives. Nothing to clear.
+                                </p>
+                            @else
+                                <p class="text-sm text-warning-900">
+                                    This clears abilities granted to these people individually, so
+                                    <span class="font-semibold">{{ $role['label'] }}</span> becomes the only source of
+                                    what they can do. It does not change the role itself, and only affects this company.
+                                </p>
+                                <ul class="mt-2 space-y-0.5">
+                                    @foreach ($affected as $person)
+                                        <li class="text-sm text-warning-900">
+                                            <span class="font-medium">{{ $person['name'] }}</span>
+                                            <span class="text-warning-800">— loses {{ $person['extras'] }}
+                                                {{ \Illuminate\Support\Str::plural('personal ability', $person['extras']) }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            <div class="flex items-center gap-2 mt-3">
+                                <button wire:click="applyRoleToHolders" class="btn-primary btn-sm">
+                                    {{ $affected->isEmpty() ? 'Close' : 'Apply to ' . $affected->count() . ' ' . \Illuminate\Support\Str::plural('person', $affected->count()) }}
+                                </button>
+                                <button wire:click="cancelApply" class="btn-ghost btn-sm">Cancel</button>
+                            </div>
+                        </div>
                     @endif
                 </div>
             @endforeach

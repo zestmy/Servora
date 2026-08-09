@@ -218,6 +218,150 @@ class RolesAccess extends Component
      * Delete one of this company's roles. Refused while anyone still holds it: dropping
      * the assignment silently would strip their access with no trace of why.
      */
+    // ------------------------------------------- applying a role to its holders
+
+    /**
+     * The role whose "apply to all holders" confirmation is open, and what it would do.
+     *
+     * Editing a role template already reaches every holder — nothing needs pushing. The
+     * exception is an ability granted to somebody individually: that is a deliberate
+     * personal exception, so it outlives the role and shadows a REMOVAL from it. This is
+     * how you clear those in one go and make the role the only source again.
+     */
+    public ?int $applyRoleId = null;
+
+    /** @var array<int, array{name: string, extras: int}> */
+    public array $applyPreview = [];
+
+    public function previewApply(int $roleId): void
+    {
+        $companyId = $this->companyId();
+        $role      = RoleCatalogue::forCompany($companyId)->firstWhere('id', $roleId);
+
+        if (! $role) {
+            return;
+        }
+
+        $rolePerms = RoleCatalogue::permissionsByRoleId([$roleId])[$roleId] ?? [];
+
+        // Holders in THIS company only. A preset is shared with every other company, and
+        // clearing someone's exceptions in a company you are not administering is not
+        // something this screen should be able to do.
+        $holderIds = DB::table('model_has_roles')
+            ->where('model_type', User::class)
+            ->where('role_id', $roleId)
+            ->where('team_id', $companyId)
+            ->pluck('model_id');
+
+        $this->applyPreview = [];
+
+        foreach (User::whereIn('id', $holderIds)->orderBy('name')->get() as $holder) {
+            $extras = DB::table('model_has_permissions')
+                ->join('permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
+                ->where('model_has_permissions.model_type', User::class)
+                ->where('model_has_permissions.model_id', $holder->id)
+                ->where('model_has_permissions.team_id', $companyId)
+                ->when($rolePerms, fn ($q) => $q->whereNotIn('permissions.name', $rolePerms))
+                ->count();
+
+            $denials = DB::table('permission_denials')
+                ->where('model_type', User::class)
+                ->where('model_id', $holder->id)
+                ->where('team_id', $companyId)
+                ->count();
+
+            $this->applyPreview[] = [
+                'name'   => $holder->name,
+                'extras' => $extras + $denials,
+            ];
+        }
+
+        $this->applyRoleId = $roleId;
+    }
+
+    public function cancelApply(): void
+    {
+        $this->applyRoleId  = null;
+        $this->applyPreview = [];
+    }
+
+    /**
+     * Clear every holder's own grants and denials for this company, so what they can do is
+     * exactly what the role says. Audited per person — this changes real access for
+     * several people at once, and "who did that and when" should not need guessing.
+     */
+    public function applyRoleToHolders(): void
+    {
+        $companyId = $this->companyId();
+        $roleId    = $this->applyRoleId;
+        $role      = $roleId ? RoleCatalogue::forCompany($companyId)->firstWhere('id', $roleId) : null;
+
+        if (! $role) {
+            $this->cancelApply();
+            return;
+        }
+
+        $holderIds = DB::table('model_has_roles')
+            ->where('model_type', User::class)
+            ->where('role_id', $roleId)
+            ->where('team_id', $companyId)
+            ->pluck('model_id');
+
+        $cleared = 0;
+
+        foreach (User::whereIn('id', $holderIds)->get() as $holder) {
+            // A platform account's access is not this screen's business, and it holds
+            // grants that have nothing to do with this company's role.
+            if ($holder->isSystemRole()) {
+                continue;
+            }
+
+            $before = DB::table('model_has_permissions')
+                ->join('permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
+                ->where('model_has_permissions.model_type', User::class)
+                ->where('model_has_permissions.model_id', $holder->id)
+                ->where('model_has_permissions.team_id', $companyId)
+                ->pluck('permissions.name')->sort()->values()->all();
+
+            $deniedBefore = DB::table('permission_denials')
+                ->join('permissions', 'permissions.id', '=', 'permission_denials.permission_id')
+                ->where('permission_denials.model_type', User::class)
+                ->where('permission_denials.model_id', $holder->id)
+                ->where('permission_denials.team_id', $companyId)
+                ->pluck('permissions.name')->sort()->values()->all();
+
+            if (! $before && ! $deniedBefore) {
+                continue;
+            }
+
+            DB::table('model_has_permissions')
+                ->where('model_type', User::class)->where('model_id', $holder->id)
+                ->where('team_id', $companyId)->delete();
+
+            DB::table('permission_denials')
+                ->where('model_type', User::class)->where('model_id', $holder->id)
+                ->where('team_id', $companyId)->delete();
+
+            AuditLogService::log(
+                $holder,
+                'access_changed',
+                ['role' => $role->name, 'granted' => [], 'denied' => [], 'applied_role_to_holders' => true],
+                ['role' => $role->name, 'granted' => $before, 'denied' => $deniedBefore]
+            );
+
+            $cleared++;
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->cancelApply();
+
+        session()->flash('success', $cleared === 0
+            ? 'Nothing to change — every holder of "' . $role->label . '" already has exactly what the role gives.'
+            : 'Applied "' . $role->label . '" to ' . $cleared . ' ' . Str::plural('person', $cleared)
+              . '. Their access is now exactly what the role grants.');
+    }
+
     public function deleteRole(int $roleId): void
     {
         $companyId = $this->companyId();
