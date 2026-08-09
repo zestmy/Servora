@@ -9,17 +9,26 @@
 
     {{-- ------------------------------------------------------------------ Roles --}}
     @if ($tab !== 'effective')
+        @if (session()->has('error'))
+            <div class="alert-danger mb-4"><x-icon name="warning" class="h-5 w-5 shrink-0" /><p>{{ session('error') }}</p></div>
+        @endif
+        @if (session()->has('success'))
+            <div class="alert-success mb-4"><x-icon name="check" class="h-5 w-5 shrink-0" /><p>{{ session('success') }}</p></div>
+        @endif
+
         <div class="alert-info mb-4">
             <x-icon name="info" class="h-5 w-5 shrink-0" />
             <div>
-                <p class="font-medium">Roles are shared across every company on Servora.</p>
+                <p class="font-medium">A role is a starting point, not a cage.</p>
                 <p class="help mt-0.5 text-brand-800/80">
-                    A role is a starting point: it guarantees the abilities ticked below, and you can grant
-                    extra ones per person on the Users tab. Because one definition is shared by all companies,
-                    only a Servora system administrator can change what a role includes.
-                    @if ($canEditRoles)
+                    It grants the abilities listed below to everyone holding it. On the Users tab you can add
+                    more for one person, or untick one of the role's own abilities to take it away from them
+                    alone. <span class="font-medium">System roles are shared with every company on Servora</span>,
+                    so they can only be changed by a Servora administrator.
+                    @if ($canEditPresets)
                         <a href="{{ route('admin.role-templates') }}" wire:navigate class="underline font-medium">Edit role templates</a>.
                     @endif
+                    Roles you create belong to this company only.
                 </p>
             </div>
         </div>
@@ -28,6 +37,7 @@
             <input type="text" wire:model.live.debounce.200ms="search" class="input max-w-xs"
                    placeholder="Filter abilities…" aria-label="Filter abilities" />
             <span class="help">{{ count($roles) }} roles · {{ count($titles) }} abilities</span>
+            <button wire:click="newRole" class="btn-primary btn-sm ml-auto">+ New role</button>
         </div>
 
         <div class="space-y-4">
@@ -41,12 +51,30 @@
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h2 class="text-sm font-semibold text-gray-800">{{ $role['label'] }}</h2>
                                 <span class="badge-brand">{{ $role['users'] }} {{ \Illuminate\Support\Str::plural('user', $role['users']) }}</span>
+                                @if ($role['is_preset'])
+                                    <span class="badge-neutral" title="Shared with every company on Servora">system role</span>
+                                @else
+                                    <span class="badge-success" title="Created by this company, invisible to others">your role</span>
+                                @endif
                             </div>
                             <p class="help mt-1 max-w-2xl">{{ $role['description'] }}</p>
                         </div>
-                        <div class="text-right">
-                            <p class="stat-value text-lg">{{ count($held) }}<span class="text-gray-600 text-sm">/{{ count($titles) }}</span></p>
-                            <p class="stat-label">abilities</p>
+                        <div class="flex items-start gap-4">
+                            <div class="text-right">
+                                <p class="stat-value text-lg">{{ count($held) }}<span class="text-gray-600 text-sm">/{{ count($titles) }}</span></p>
+                                <p class="stat-label">abilities</p>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                @if ($role['is_preset'])
+                                    <button wire:click="newRole({{ $role['id'] }})" class="btn-secondary btn-sm whitespace-nowrap"
+                                            title="Create a role for this company starting from this one">Copy &amp; edit</button>
+                                @else
+                                    <button wire:click="editRole({{ $role['id'] }})" class="btn-secondary btn-sm">Edit</button>
+                                    <button wire:click="deleteRole({{ $role['id'] }})"
+                                            wire:confirm="Delete the role “{{ $role['label'] }}”?"
+                                            class="btn-ghost btn-sm text-danger-600">Delete</button>
+                                @endif
+                            </div>
                         </div>
                     </div>
 
@@ -119,6 +147,89 @@
                     @endif
                 </div>
             @endforeach
+        </div>
+
+        {{-- Role editor. Only ever edits this company's own roles: a preset is one shared
+             row, so "Copy & edit" clones it into a company role rather than changing it
+             for every tenant on the platform. --}}
+        <div x-data="{ open: false }"
+             @open-role-editor.window="open = true"
+             @close-role-editor.window="open = false">
+            <template x-teleport="body">
+                <div x-show="open" x-cloak @keydown.escape.window="open = false" class="fixed inset-0 z-[100] overflow-y-auto">
+                    <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                    <div class="relative min-h-full flex items-start justify-center p-4">
+                        <div class="relative bg-white rounded-panel shadow-e4 w-full max-w-2xl my-8" @click.stop>
+                            <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                                <h3 class="text-sm font-semibold text-gray-800">
+                                    {{ $editingRoleId ? 'Edit role' : 'New role for this company' }}
+                                </h3>
+                                <button @click="open = false" class="icon-btn" aria-label="Close">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+
+                            <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                                <div>
+                                    <label for="roleLabel" class="label label-req">Role name</label>
+                                    <input id="roleLabel" type="text" wire:model="roleLabel" maxlength="100"
+                                           class="input @error('roleLabel') input-error @enderror" placeholder="e.g. Shift Supervisor" />
+                                    @error('roleLabel') <p class="error-text">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label for="roleDesc" class="label">Description</label>
+                                    <input id="roleDesc" type="text" wire:model="roleDesc" maxlength="255"
+                                           class="input" placeholder="Shown when someone picks this role" />
+                                    @error('roleDesc') <p class="error-text">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div>
+                                    <p class="label mb-2">Abilities</p>
+                                    <div class="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                                        @foreach ($moduleGrid as $groupLabel => $groupModules)
+                                            <div class="p-3">
+                                                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">{{ $groupLabel }}</p>
+                                                <div class="space-y-2">
+                                                    @foreach ($groupModules as $moduleKey => $module)
+                                                        @if ($module['single'])
+                                                            @php $a = reset($module['abilities']); @endphp
+                                                            <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer"
+                                                                   title="{{ $a['help'] ?? '' }}">
+                                                                <input type="checkbox" wire:model="roleAbilities" value="{{ $a['name'] }}"
+                                                                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                                <span class="text-sm text-gray-700">{{ $module['label'] }}</span>
+                                                            </label>
+                                                        @else
+                                                            <div class="px-2">
+                                                                <p class="text-xs font-medium text-gray-600 mb-1">{{ $module['label'] }}</p>
+                                                                <div class="grid grid-cols-2 gap-1">
+                                                                    @foreach ($module['abilities'] as $a)
+                                                                        <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer"
+                                                                               title="{{ $a['help'] ?? '' }}">
+                                                                            <input type="checkbox" wire:model="roleAbilities" value="{{ $a['name'] }}"
+                                                                                   class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                                            <span class="text-sm text-gray-700">{{ $a['label'] }}</span>
+                                                                        </label>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-3 px-5 py-4 border-t border-gray-100">
+                                <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                                <button wire:click="saveRole" class="btn-primary">Save role</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
     @endif
 

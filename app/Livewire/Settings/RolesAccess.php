@@ -3,12 +3,14 @@
 namespace App\Livewire\Settings;
 
 use App\Helpers\PermissionRegistry;
-use App\Livewire\Settings\Users as SettingsUsers;
+use App\Helpers\RoleCatalogue;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Settings > Roles & Access — the two read-and-explain halves of the access screen.
@@ -45,50 +47,185 @@ class RolesAccess extends Component
         $this->userId = (string) $id;
     }
 
-    /** Roles assignable in this install, with display name, description and user count. */
+    /** Presets plus this company's own roles, with user counts and ability sets. */
     private function roles(): array
     {
-        $names = array_keys(SettingsUsers::ASSIGNABLE_ROLES);
+        $companyId = $this->companyId();
+        $rows      = RoleCatalogue::forCompany($companyId);
+        $perms     = RoleCatalogue::permissionsByRoleId($rows->pluck('id'));
 
-        $rows = DB::table('roles')
-            ->whereIn('name', $names)
-            // Global presets only. A company row would need the team filter Phase 3 adds;
-            // until then there are none, and matching on name alone would merge them.
-            ->whereNull('team_id')
-            ->orderByRaw("FIELD(name, '" . implode("','", $names) . "')")
-            ->get(['id', 'name', 'display_name', 'description']);
-
-        $user      = Auth::user();
-        $isSystem  = $user->isSystemRole();
-
-        // Holders of each role. A company admin should see their own company's headcount,
-        // not the platform's — model_has_roles.team_id is the company (Spatie teams mode).
-        $counts = DB::table('model_has_roles')
-            ->where('model_type', User::class)
-            ->when(! $isSystem, fn ($q) => $q->where('team_id', $user->company_id))
-            ->selectRaw('role_id, COUNT(DISTINCT model_id) c')
-            ->groupBy('role_id')
-            ->pluck('c', 'role_id');
-
-        $perms = DB::table('role_has_permissions')
-            ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
-            ->whereIn('role_has_permissions.role_id', $rows->pluck('id'))
-            ->select('role_has_permissions.role_id', 'permissions.name')
-            ->get()->groupBy('role_id')
-            ->map(fn ($r) => $r->pluck('name')->all());
+        // A company admin should see their own company's headcount, not the platform's.
+        $counts = RoleCatalogue::userCounts(
+            Auth::user()->isSystemRole() ? null : $companyId
+        );
 
         $grantable = array_keys(PermissionRegistry::titles());
 
         return $rows->map(fn ($r) => [
             'id'          => $r->id,
             'name'        => $r->name,
-            'label'       => $r->display_name ?: $r->name,
-            'description' => $r->description ?: (SettingsUsers::ASSIGNABLE_ROLES[$r->name] ?? ''),
+            'label'       => $r->label,
+            'description' => $r->description,
+            'is_preset'   => $r->is_preset,
             'users'       => (int) ($counts[$r->id] ?? 0),
             // Intersected with the registry: a role may still hold roster.view, which
             // gates nothing and is not shown anywhere else either.
             'abilities'   => array_values(array_intersect($perms[$r->id] ?? [], $grantable)),
         ])->all();
+    }
+
+    /** The company whose roles this screen manages. */
+    private function companyId(): int
+    {
+        return (int) Auth::user()->company_id;
+    }
+
+    // ---------------------------------------------------------------- role editing
+
+    public ?int   $editingRoleId = null;
+    public string $roleLabel     = '';
+    public string $roleDesc      = '';
+    public array  $roleAbilities = [];
+
+    /** Start a new role for this company, optionally seeded from an existing one. */
+    public function newRole(?int $cloneFromId = null): void
+    {
+        $source = $cloneFromId
+            ? RoleCatalogue::forCompany($this->companyId())->firstWhere('id', $cloneFromId)
+            : null;
+
+        $this->editingRoleId = null;
+        $this->roleLabel     = $source ? $source->label . ' (copy)' : '';
+        $this->roleDesc      = $source->description ?? '';
+        $this->roleAbilities = $source
+            ? array_values(array_intersect(
+                RoleCatalogue::permissionsByRoleId([$source->id])[$source->id] ?? [],
+                array_keys(PermissionRegistry::titles())
+            ))
+            : [];
+
+        $this->resetValidation();
+        $this->dispatch('open-role-editor');
+    }
+
+    /** Edit one of this company's own roles. Presets are never editable here. */
+    public function editRole(int $roleId): void
+    {
+        $role = RoleCatalogue::forCompany($this->companyId())->firstWhere('id', $roleId);
+
+        if (! $role || $role->is_preset) {
+            session()->flash('error', 'System roles are shared with every company and cannot be edited here.');
+            return;
+        }
+
+        $this->editingRoleId = $role->id;
+        $this->roleLabel     = $role->label;
+        $this->roleDesc      = $role->description;
+        $this->roleAbilities = array_values(array_intersect(
+            RoleCatalogue::permissionsByRoleId([$role->id])[$role->id] ?? [],
+            array_keys(PermissionRegistry::titles())
+        ));
+
+        $this->resetValidation();
+        $this->dispatch('open-role-editor');
+    }
+
+    public function saveRole(): void
+    {
+        $companyId = $this->companyId();
+
+        $this->validate([
+            'roleLabel' => 'required|string|max:100',
+            'roleDesc'  => 'nullable|string|max:255',
+        ], [], ['roleLabel' => 'role name', 'roleDesc' => 'description']);
+
+        // The internal `name` is the stable key. It is derived from the label once, at
+        // creation, and then frozen — renaming a role must not orphan its assignments.
+        // Uniqueness is per company, which the (team_id, name, guard_name) index enforces.
+        if ($this->editingRoleId) {
+            $role = RoleCatalogue::forCompany($companyId)->firstWhere('id', $this->editingRoleId);
+            if (! $role || $role->is_preset) {
+                session()->flash('error', 'That role cannot be edited here.');
+                return;
+            }
+            $roleId = $role->id;
+
+            DB::table('roles')->where('id', $roleId)->update([
+                'display_name' => trim($this->roleLabel),
+                'description'  => trim($this->roleDesc) ?: null,
+                'updated_at'   => now(),
+            ]);
+        } else {
+            $key  = Str::slug(trim($this->roleLabel), '_') ?: 'role';
+            $name = $key;
+            $n    = 2;
+            while (DB::table('roles')->where('team_id', $companyId)
+                    ->where('name', $name)->where('guard_name', 'web')->exists()) {
+                $name = $key . '_' . $n++;
+            }
+
+            $roleId = DB::table('roles')->insertGetId([
+                'team_id'      => $companyId,
+                'name'         => $name,
+                'display_name' => trim($this->roleLabel),
+                'description'  => trim($this->roleDesc) ?: null,
+                'guard_name'   => 'web',
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ]);
+        }
+
+        $selected = array_values(array_intersect(
+            $this->roleAbilities,
+            array_keys(PermissionRegistry::titles())
+        ));
+
+        $permIds = DB::table('permissions')
+            ->whereIn('name', $selected)->where('guard_name', 'web')->pluck('id');
+
+        DB::table('role_has_permissions')->where('role_id', $roleId)->delete();
+        foreach ($permIds as $permissionId) {
+            DB::table('role_has_permissions')->insertOrIgnore([
+                'permission_id' => $permissionId,
+                'role_id'       => $roleId,
+            ]);
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->editingRoleId = null;
+        $this->dispatch('close-role-editor');
+        session()->flash('success', 'Role "' . trim($this->roleLabel) . '" saved — it applies to everyone holding it, immediately.');
+    }
+
+    /**
+     * Delete one of this company's roles. Refused while anyone still holds it: dropping
+     * the assignment silently would strip their access with no trace of why.
+     */
+    public function deleteRole(int $roleId): void
+    {
+        $companyId = $this->companyId();
+        $role      = RoleCatalogue::forCompany($companyId)->firstWhere('id', $roleId);
+
+        if (! $role || $role->is_preset) {
+            session()->flash('error', 'System roles are shared with every company and cannot be deleted here.');
+            return;
+        }
+
+        $holders = DB::table('model_has_roles')
+            ->where('role_id', $roleId)->where('team_id', $companyId)->count();
+
+        if ($holders > 0) {
+            session()->flash('error', 'This role is still assigned to ' . $holders . ' '
+                . Str::plural('person', $holders) . '. Move them to another role first.');
+            return;
+        }
+
+        DB::table('role_has_permissions')->where('role_id', $roleId)->delete();
+        DB::table('roles')->where('id', $roleId)->where('team_id', $companyId)->delete();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        session()->flash('success', 'Role deleted.');
     }
 
     /**
@@ -204,7 +341,9 @@ class RolesAccess extends Component
             'titles'     => PermissionRegistry::titles(),
             'users'      => $this->selectableUsers(),
             'effective'  => $this->effective($subject),
-            'canEditRoles' => Auth::user()->isSystemRole(),
+            // Presets stay editable only by a Servora system administrator, because one
+            // row is shared by every company. A company's own roles are its own business.
+            'canEditPresets' => Auth::user()->isSystemRole(),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Roles & Access']);
     }
 }

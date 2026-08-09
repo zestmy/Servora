@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Helpers\PermissionRegistry;
+use App\Helpers\RoleCatalogue;
 use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\User;
@@ -125,41 +126,80 @@ class Users extends Component
 
     public function updatedSearch(): void { $this->resetPage(); }
 
-    /** Module permissions each assignable role grants (from the roles table). */
-    protected function rolePermMap(): array
+    /** The company whose roles and access this screen is editing. */
+    protected function contextCompanyId(): int
     {
-        static $map = null;
-        return $map ??= DB::table('role_has_permissions')
-            ->join('roles', 'roles.id', '=', 'role_has_permissions.role_id')
-            ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
-            ->whereIn('roles.name', array_keys(self::ASSIGNABLE_ROLES))
-            ->select('roles.name as role_name', 'permissions.name as perm')
-            ->get()
-            ->groupBy('role_name')
-            ->map(fn ($rows) => $rows->pluck('perm')->values()->all())
-            ->all();
+        $current = Auth::user();
+
+        return (int) ($current->isSystemRole()
+            ? ($this->company_id ?: $current->company_id)
+            : $current->company_id);
     }
 
     /**
-     * Picking an access level applies that role's template: its module set
-     * (rendered locked in the modal) plus suggested capability flags. Both
-     * remain editable — switching to Custom keeps the ticks for fine-tuning.
+     * Roles assignable here: the system presets plus this company's own.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    protected function assignableRoles()
+    {
+        return RoleCatalogue::forCompany($this->contextCompanyId());
+    }
+
+    /**
+     * Module permissions each assignable role grants, keyed by role ID.
+     *
+     * Keyed by ID rather than name because a company may create its own "Chef" beside the
+     * global preset — the unique index is (team_id, name, guard_name), so both can exist.
+     * The previous version grouped by role NAME, which would have silently merged the two
+     * roles' permission sets into one.
+     *
+     * @return array<int, list<string>>
+     */
+    protected function rolePermMap(): array
+    {
+        return RoleCatalogue::permissionsByRoleId($this->assignableRoles()->pluck('id'));
+    }
+
+    /** The chosen role row, or null when the access level is Custom. */
+    protected function selectedRole(): ?object
+    {
+        if ($this->accessRole === 'custom') {
+            return null;
+        }
+
+        return $this->assignableRoles()->firstWhere('id', (int) $this->accessRole);
+    }
+
+    /**
+     * Picking an access level pre-fills the grid with what that role grants, plus the
+     * abilities that used to be capability flags. Everything stays editable — including
+     * unticking one of the role's own abilities, which becomes a denial on save.
      */
     public function updatedAccessRole(string $value): void
     {
-        if ($value === 'custom' || ! isset(self::ASSIGNABLE_ROLES[$value])) {
+        $role = $this->selectedRole();
+
+        if (! $role) {
             return;
         }
 
         $grantable = array_keys(self::modules());
-        $rolePerms = $this->rolePermMap()[$value] ?? [];
+        $rolePerms = $this->rolePermMap()[$role->id] ?? [];
+
+        // Suggestions are keyed by preset name; a company's own role has no suggestions.
+        $suggested = $role->is_preset
+            ? (self::ROLE_SUGGESTED_ABILITIES[$role->name] ?? [])
+            : [];
 
         $this->moduleAccess = array_values(array_unique(array_intersect(
-            array_merge($rolePerms, self::ROLE_SUGGESTED_ABILITIES[$value] ?? []),
+            array_merge($rolePerms, $suggested),
             $grantable
         )));
 
-        $this->can_view_all_outlets = in_array($value, self::ROLE_SUGGESTS_ALL_OUTLETS, true);
+        $this->can_view_all_outlets = $role->is_preset
+            && in_array($role->name, self::ROLE_SUGGESTS_ALL_OUTLETS, true);
+
         if ($this->can_view_all_outlets) {
             $this->outletMode = 'all';
             $this->outletIds  = [];
@@ -198,16 +238,10 @@ class Users extends Component
 
         $this->can_view_all_outlets = $flags['can_view_all_outlets'] ?? $user->can_view_all_outlets;
 
-        // Access level: the user's assignable role in this company (teams
-        // pivot), or Custom when they have none / only a system role.
-        $roleName = DB::table('model_has_roles')
-            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-            ->where('model_has_roles.model_type', User::class)
-            ->where('model_has_roles.model_id', $user->id)
-            ->where('model_has_roles.team_id', $contextCompanyId)
-            ->whereIn('roles.name', array_keys(self::ASSIGNABLE_ROLES))
-            ->value('roles.name');
-        $this->accessRole = $roleName ?: 'custom';
+        // Access level: the user's role in this company (teams pivot), by ID — a company
+        // may have its own role sharing a preset's name, so the name is not an identity.
+        $role = RoleCatalogue::roleFor($user->id, $contextCompanyId);
+        $this->accessRole = $role ? (string) $role->id : 'custom';
 
         // The grid shows EFFECTIVE access: (role ∪ granted) − denied. Ticking is
         // therefore "what this person can do", and save() works out afterwards which
@@ -414,15 +448,19 @@ class Users extends Component
             $grantable = array_keys(self::modules());
             $wanted    = array_values(array_intersect($this->moduleAccess, $grantable));
             $rolePerms = [];
+            $role      = $this->selectedRole();
 
-            if (isset(self::ASSIGNABLE_ROLES[$this->accessRole])) {
+            if ($role) {
                 $rolePerms = array_values(array_intersect(
-                    $this->rolePermMap()[$this->accessRole] ?? [],
+                    $this->rolePermMap()[$role->id] ?? [],
                     $grantable
                 ));
                 if (! $user->isSystemRole()) {
                     $user->unsetRelation('roles');
-                    $user->syncRoles([$this->accessRole]);
+                    // By model, not name: syncRoles('Chef') would resolve through
+                    // Role::findByName()->first(), which cannot tell a company's own
+                    // "Chef" from the global preset.
+                    $user->syncRoles([\Spatie\Permission\Models\Role::findById($role->id)]);
                 }
             } elseif (! $user->isSystemRole()) {
                 // Custom: access is exactly the ticked set, no role attached.
@@ -710,26 +748,19 @@ class Users extends Component
             $q->where('company_id', $currentUser->company_id)
         )->where('is_active', true)->orderBy('name')->get();
 
-        // Only offer roles that actually exist in this install. Display name
-        // and description come from the roles table (editable in Admin > Role
-        // Templates); the const description is the fallback for legacy rows.
-        $roleRows = DB::table('roles')
-            ->whereIn('name', array_keys(self::ASSIGNABLE_ROLES))
-            ->get(['name', 'display_name', 'description']);
-        $assignableRoles = [];
-        $roleDisplayMap  = [];
-        foreach (array_keys(self::ASSIGNABLE_ROLES) as $name) {
-            $row = $roleRows->firstWhere('name', $name);
-            if (! $row) continue;
-            $assignableRoles[$name] = $row->description ?: self::ASSIGNABLE_ROLES[$name];
-            $roleDisplayMap[$name]  = $row->display_name ?: $name;
-        }
-        $rolePermMap = $this->rolePermMap();
+        // Presets plus this company's own roles, keyed by ID throughout — see
+        // RoleCatalogue for why name is a label here and not an identity.
+        $assignableRoles = $this->assignableRoles();
+        $rolePermMap     = $this->rolePermMap();
+
+        // Role label per user row in the list, resolved by the role each user actually
+        // holds rather than by name lookup.
+        $roleDisplayMap = $assignableRoles->pluck('label', 'id')->all();
 
         return view('livewire.settings.users', compact(
             'users', 'companies', 'outlets', 'regularOutlets', 'kitchens', 'isSuperAdmin', 'modules',
             'moduleGrid', 'assignableRoles', 'rolePermMap', 'roleDisplayMap', 'lastActive'
-        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Users']);
+        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Roles & Access']);
     }
 
     private function resetForm(): void

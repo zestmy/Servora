@@ -36,9 +36,17 @@ class RoleTemplates extends Component
         return SettingsUsers::modules();
     }
 
+    /**
+     * The system presets only — `team_id IS NULL`.
+     *
+     * Without that filter this screen would also list (and let a Servora admin silently
+     * rewrite) roles that individual companies created for themselves, since Phase 3b
+     * lets a company make a role sharing a preset's name.
+     */
     protected function assignableRoleRows()
     {
         return DB::table('roles')
+            ->whereNull('team_id')
             ->whereIn('name', array_keys(SettingsUsers::ASSIGNABLE_ROLES))
             ->orderByRaw("FIELD(name, '" . implode("','", array_keys(SettingsUsers::ASSIGNABLE_ROLES)) . "')")
             ->get(['id', 'name', 'display_name', 'description']);
@@ -64,9 +72,9 @@ class RoleTemplates extends Component
 
     public function save(int $roleId): void
     {
-        $role = DB::table('roles')->where('id', $roleId)->first(['id', 'name']);
+        $role = DB::table('roles')->whereNull('team_id')->where('id', $roleId)->first(['id', 'name']);
         if (! $role || ! isset(SettingsUsers::ASSIGNABLE_ROLES[$role->name]) || ! isset($this->edit[$roleId])) {
-            return; // unknown or system role — never editable here
+            return; // unknown, company-owned or system role — never editable here
         }
 
         $this->validate([

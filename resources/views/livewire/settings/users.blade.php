@@ -58,11 +58,13 @@
                             <td class="px-5 py-3 text-xs text-gray-600">{{ $u->company?->name ?? '—' }}</td>
                         @endif
                         <td class="px-5 py-3">
-                            @php $rowRole = $u->roles->first()?->name; @endphp
+                            {{-- The role model, not its name: $roleDisplayMap is keyed by id
+                                 because a company's own role may share a preset's name. --}}
+                            @php $rowRole = $u->roles->first(); @endphp
                             @if ($rowRole)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap
-                                             {{ in_array($rowRole, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-brand-100 text-brand-700' }}">
-                                    {{ $roleDisplayMap[$rowRole] ?? $u->roles->first()?->display_name ?? $rowRole }}
+                                             {{ in_array($rowRole->name, ['Super Admin', 'System Admin'], true) ? 'bg-purple-100 text-purple-700' : 'bg-brand-100 text-brand-700' }}">
+                                    {{ $roleDisplayMap[$rowRole->id] ?? $rowRole->display_name ?: $rowRole->name }}
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">Custom</span>
@@ -180,26 +182,37 @@
                 {{-- Access Level (role template) --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Access Level</label>
+                    @php $selectedRole = $assignableRoles->firstWhere('id', (int) $accessRole); @endphp
+                    {{-- Values are role IDs, not names: a company may have its own role
+                         sharing a preset's name, so the name is a label here. --}}
                     <select wire:model.live="accessRole" class="w-full rounded-lg border-gray-300 text-sm">
-                        @foreach ($assignableRoles as $roleName => $desc)
-                            <option value="{{ $roleName }}">{{ $roleDisplayMap[$roleName] ?? $roleName }}</option>
+                        @foreach ($assignableRoles->where('is_preset', true) as $role)
+                            <option value="{{ $role->id }}">{{ $role->label }}</option>
                         @endforeach
-                        <option value="custom">Custom — pick modules manually</option>
+                        @if ($assignableRoles->where('is_preset', false)->isNotEmpty())
+                            <optgroup label="This company's own roles">
+                                @foreach ($assignableRoles->where('is_preset', false) as $role)
+                                    <option value="{{ $role->id }}">{{ $role->label }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                        <option value="custom">Custom — pick abilities manually</option>
                     </select>
                     <p class="text-[11px] text-gray-600 mt-1">
-                        @if ($accessRole !== 'custom' && isset($assignableRoles[$accessRole]))
-                            {{ $assignableRoles[$accessRole] }}
+                        @if ($selectedRole)
+                            {{ $selectedRole->description }}
                             <span class="text-gray-500">·</span>
-                            The role's modules are locked below — add extras on top, or switch to Custom to fine-tune freely.
+                            Its abilities are ticked below — add more on top, or untick one to take it
+                            away from this person only.
                         @else
-                            No role attached — this user gets exactly the modules ticked below.
+                            No role attached — this user gets exactly the abilities ticked below.
                         @endif
                     </p>
                 </div>
 
                 {{-- Module Access --}}
                 @php
-                    $lockedPerms = $accessRole !== 'custom' ? ($rolePermMap[$accessRole] ?? []) : [];
+                    $lockedPerms = $selectedRole ? ($rolePermMap[$selectedRole->id] ?? []) : [];
                     $grantable   = array_keys($modules);
                     $fromRole    = array_values(array_intersect($lockedPerms, $grantable));
                     $ticked      = array_intersect($moduleAccess, $grantable);
@@ -240,9 +253,9 @@
                     </div>
 
                     <div x-show="! open" class="rounded-control border border-gray-200 bg-gray-50 px-3 py-2.5">
-                        @if ($accessRole !== 'custom')
+                        @if ($selectedRole)
                             <p class="text-sm text-gray-800">
-                                <span class="font-medium">{{ $roleDisplayMap[$accessRole] ?? $accessRole }}</span>
+                                <span class="font-medium">{{ $selectedRole->label }}</span>
                                 <span class="text-gray-600">— {{ count($fromRole) }} {{ \Illuminate\Support\Str::plural('ability', count($fromRole)) }} from this role</span>
                             </p>
                         @else

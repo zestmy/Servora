@@ -404,6 +404,42 @@ failures are exactly that — MySQL-only migrations under SQLite. Once that is f
 and the `checkPermissionTo` override should get proper coverage; a future refactor
 "simplifying" the trait alias would otherwise silently reopen the grant.
 
+### Phase 3b — per-company roles
+
+**No schema change was needed**, as §3.3 predicted: `roles.team_id` already existed with a
+`(team_id, name, guard_name)` unique index, and Spatie resolves
+`team_id IS NULL OR team_id = current` natively. A company role is simply a row with
+`team_id` set.
+
+| `team_id` | Meaning | Editable by |
+|---|---|---|
+| `NULL` | System preset, shared by every company | Servora system admin, in Admin › Role Templates |
+| `<company_id>` | That company's own role, invisible to others | That company's admins, in Settings › Roles |
+
+Company admins get **New role**, **Copy & edit** on a preset (clones it rather than touching
+the shared row), **Edit** and **Delete** on their own.
+
+**The footgun §3.3 warned about was real and is now closed.** `rolePermMap()` grouped by role
+*name*; with a company free to create its own "Chef" beside the preset, that would have
+**merged two different roles' permission sets into one**. Everything now keys on role ID:
+`RoleCatalogue` is ID-keyed throughout, `$accessRole` holds an ID, and `syncRoles()` is passed
+a `Role` model rather than a name string (`Role::findByName()` ends in `->first()` and cannot
+tell the two apart). Verified by deliberately creating a colliding "Chef": the two roles kept
+separate ability sets, and the user was assigned the right one by ID.
+
+Guards were tested against a **forged Livewire payload**, not just the UI path — forcing
+`editingRoleId` to a preset's ID leaves its abilities and display name untouched, and
+`deleteRole` on a preset refuses. Deleting a role that anyone still holds is refused too:
+dropping the assignment silently would strip access with no trace of why.
+
+`RoleTemplates` (the Servora-admin screen) is now filtered to `team_id IS NULL`. Without that
+it would have listed — and let a platform admin silently rewrite — roles that individual
+companies created for themselves.
+
+**Not verified end-to-end: cross-company isolation.** The dev database has one company, so the
+`whereNull(team_id) OR team_id = ?` filter is structurally right but was not exercised against
+a second tenant. Worth a look on production, where several exist.
+
 2. **The Roles tab makes visible that roles are now thin on the Phase 1 abilities.** Company
    Admin reads "Purchasing 1/6", because Phase 1 deliberately granted the ex-capability
    abilities per user rather than onto roles (preserve-exactly). That is correct, but it means
@@ -519,7 +555,7 @@ matrix is designed around them.
 | **0** ✅ | **DONE 2026-08-08.** Registry (`config/permissions.php`), `PermissionRegistry`, `permissions:sync`, `PermissionRegistryTest`, both admin screens repointed and regrouped. | **8 orphan permissions became grantable, incl. payroll and leave.** 23 → 31 abilities in the grid; `users.manage` and `roster.view` deliberately excluded (see below). No behaviour change, no migration. F1, F2 closed |
 | **1** ✅ | **DONE 2026-08-08.** Six capability flags → permissions; `can_delete_records` split into five. `hasCapability()` replaced by `canDo()`. Migration copies the pivot. **NOT dual-read** — see below. | 41 grantable abilities; delete is per-module. F4, F5, F11, F12 closed |
 | **2** ✅ | **DONE 2026-08-09.** Three tabs: Users / Roles / Effective access. Role Guide retired; fine-tuning collapsed to a delta summary. Column matrix deferred to Phase 4 — see below. | Usability; "why can they see payroll?" answerable without a query |
-| **3** | Per-company roles (`team_id`), resolve-by-ID everywhere, allow/deny overrides, stop copying role perms into direct. Backfill preserves effective access exactly. | F6, F7 closed |
+| **3** ✅ | **DONE 2026-08-09**, split 3a/3b. Denials via their own table + `checkPermissionTo` (NOT `Gate::before` — see below); stopped copying role perms into direct, 45 duplicates dropped; per-company roles via the existing `roles.team_id`; resolve-by-ID everywhere. | F6, F7 closed |
 | **4** | Granular abilities rolled out module by module — Purchasing first, then HR/Payroll, then Inventory. Everyone holding `x.view` is granted `view+create+edit` so no access is lost. | F3 closed |
 | **5** | Settings split per page; audit-log role/permission pivot changes; delete the orphan `Manager` role; populate `display_name`/`description`. | F8, F9, F10 closed |
 
