@@ -214,9 +214,34 @@
                         <input type="checkbox" wire:model="e_verified" class="rounded border-gray-300 text-brand-600" />
                         Email verified
                     </label>
-                    <p class="text-[11px] text-gray-600">
-                        Per-company access (role, modules, outlets, capabilities) is managed in that company's Settings &gt; Users.
-                    </p>
+                    {{-- Role per company. Roles are per-company (Spatie teams mode), so an
+                         account in two companies genuinely has two — a single dropdown here
+                         would be a lie for anyone with more than one membership. --}}
+                    @if (count($e_companies))
+                        <div class="pt-3 border-t border-gray-100">
+                            <p class="text-xs font-medium text-gray-500 mb-2">Role per company</p>
+                            <div class="space-y-2">
+                                @foreach ($e_companies as $company)
+                                    <div wire:key="erole-{{ $company['id'] }}" class="flex items-center gap-3">
+                                        <span class="text-sm text-gray-700 flex-1 min-w-0 truncate" title="{{ $company['name'] }}">{{ $company['name'] }}</span>
+                                        <select wire:model="e_roles.{{ $company['id'] }}"
+                                                class="rounded-lg border-gray-300 text-sm w-48 shrink-0">
+                                            <option value="">No role — custom access</option>
+                                            @foreach ($e_roleOptions[$company['id']] ?? [] as $roleId => $label)
+                                                <option value="{{ $roleId }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="text-[11px] text-gray-600 mt-2">
+                                Changing a role rewrites what this account can do in that company, immediately.
+                                Abilities granted or removed for this person specifically are left alone — adjust those
+                                in that company's <span class="font-medium">Settings &rsaquo; Roles &amp; Access</span>,
+                                where the change is visible next to the role it modifies.
+                            </p>
+                        </div>
+                    @endif
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button wire:click="closeEdit" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>

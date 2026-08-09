@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Admin;
 
+use App\Helpers\RoleCatalogue;
 use App\Models\Company;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -50,6 +52,21 @@ class Users extends Component
             ->select('model_has_roles.model_id');
     }
 
+    /**
+     * Role per company for the account being edited: company id => role id, or '' for none.
+     * Roles are per-company (Spatie teams mode), so one account genuinely has one of these
+     * per membership — a single "role" field would be a lie for anyone in two companies.
+     *
+     * @var array<int, string>
+     */
+    public array $e_roles = [];
+
+    /** Companies the edited account belongs to: [id, name], for the modal. */
+    public array $e_companies = [];
+
+    /** Assignable roles per company: company id => [role id => label]. */
+    public array $e_roleOptions = [];
+
     public function openEdit(int $userId): void
     {
         if (! Auth::user()->isSystemRole()) return;
@@ -62,7 +79,39 @@ class Users extends Component
         $this->e_designation = $user->designation ?? '';
         $this->e_password    = '';
         $this->e_verified    = $user->email_verified_at !== null;
+
+        $this->loadAccess($user);
+
         $this->showEdit      = true;
+    }
+
+    /** Current role and the options for it, per company this account belongs to. */
+    private function loadAccess(User $user): void
+    {
+        $this->e_roles = $this->e_companies = $this->e_roleOptions = [];
+
+        $companyIds = $user->companies()->pluck('companies.id')
+            ->merge($user->company_id ? [$user->company_id] : [])
+            ->unique()->values();
+
+        $names = Company::whereIn('id', $companyIds)->pluck('name', 'id');
+
+        foreach ($companyIds as $companyId) {
+            $companyId = (int) $companyId;
+
+            $this->e_companies[] = ['id' => $companyId, 'name' => $names[$companyId] ?? ('Company #' . $companyId)];
+
+            $current = RoleCatalogue::roleFor($user->id, $companyId);
+            $this->e_roles[$companyId] = $current ? (string) $current->id : '';
+
+            // Presets plus that company's own roles. System roles are deliberately absent:
+            // Super Admin and System Admin are platform-level, not company access, and
+            // offering them in a per-company dropdown would make an accidental platform
+            // escalation a two-click mistake.
+            $this->e_roleOptions[$companyId] = RoleCatalogue::forCompany($companyId)
+                ->mapWithKeys(fn ($r) => [(string) $r->id => $r->label . ($r->is_preset ? '' : ' (this company)')])
+                ->all();
+        }
     }
 
     public function saveEdit(): void
@@ -98,6 +147,8 @@ class Users extends Component
             'email_verified_at' => $this->e_verified ? ($user->email_verified_at ?? now()) : null,
         ])->save();
 
+        $this->saveRoles($user);
+
         Log::info('Admin edited user account', [
             'admin_id' => Auth::id(), 'target_id' => $user->id,
             'password_reset' => $this->e_password !== '',
@@ -108,10 +159,72 @@ class Users extends Component
         session()->flash('success', 'User "' . $user->name . '" updated.');
     }
 
+    /**
+     * Apply the role picked for each company.
+     *
+     * Changing a role genuinely rewrites what the account can do, which only became true
+     * once Phase 3 stopped copying a role's permissions into the holder's direct grants —
+     * before that a role change left the old copies behind and mostly did nothing.
+     *
+     * Per-user grants and denials are deliberately NOT touched here. This screen sets
+     * standing across companies; the ability-level detail belongs on Settings > Roles &
+     * Access, where the effect is visible next to the role it modifies.
+     */
+    private function saveRoles(User $user): void
+    {
+        if ($user->hasGlobalRole(['Super Admin', 'System Admin'])) {
+            // A platform account's standing is not company access and is not editable here.
+            return;
+        }
+
+        $prevTeam = getPermissionsTeamId();
+
+        try {
+            foreach ($this->e_companies as $company) {
+                $companyId = (int) $company['id'];
+
+                if (! array_key_exists($companyId, $this->e_roles)) {
+                    continue;
+                }
+
+                $wanted  = (string) $this->e_roles[$companyId];
+                $current = RoleCatalogue::roleFor($user->id, $companyId);
+                $currentId = $current ? (string) $current->id : '';
+
+                if ($wanted === $currentId) {
+                    continue;
+                }
+
+                // Only a role this company may actually assign — the posted value is not
+                // trusted just because the actor is an administrator.
+                $valid = RoleCatalogue::forCompany($companyId);
+                if ($wanted !== '' && ! $valid->firstWhere('id', (int) $wanted)) {
+                    continue;
+                }
+
+                setPermissionsTeamId($companyId);
+                $user->unsetRelation('roles')->unsetRelation('permissions');
+
+                $user->syncRoles($wanted === ''
+                    ? []
+                    : [\Spatie\Permission\Models\Role::findById((int) $wanted)]);
+
+                AuditLogService::log($user, 'access_changed',
+                    ['role' => $wanted === '' ? null : $valid->firstWhere('id', (int) $wanted)->name, 'company_id' => $companyId],
+                    ['role' => $current?->name, 'company_id' => $companyId]
+                );
+            }
+        } finally {
+            setPermissionsTeamId($prevTeam);
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+        }
+    }
+
     public function closeEdit(): void
     {
         $this->showEdit = false;
         $this->editId   = null;
+        $this->e_roles  = $this->e_companies = $this->e_roleOptions = [];
         $this->resetValidation();
     }
 
