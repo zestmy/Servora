@@ -537,6 +537,11 @@ PROMPT;
 
     public function confirmMapping(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.import'), 403);
+
         if (empty($this->columnMapping['recipe_name'])) {
             $this->addError('mapping', 'The "Recipe Name" field must be mapped.');
             return;
@@ -806,6 +811,11 @@ PROMPT;
 
     public function createIngredientForLine(int $recipeIdx, int $lineIdx, array $data): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.import'), 403);
+
         if (! isset($this->recipes[$recipeIdx]['lines'][$lineIdx])) return;
 
         $name = trim($data['name'] ?? '');
@@ -912,6 +922,11 @@ PROMPT;
 
     public function createCategoryFromPreview(int $recipeIdx): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.import'), 403);
+
         if (! isset($this->recipes[$recipeIdx])) return;
         $name     = trim($this->recipes[$recipeIdx]['new_cat_name'] ?? '');
         $parentId = $this->recipes[$recipeIdx]['new_cat_parent_id'] ?? null;
@@ -920,6 +935,11 @@ PROMPT;
 
     public function createCategory(int $recipeIdx, string $name, ?int $parentId = null): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.import'), 403);
+
         $name = trim($name);
         if (! $name || ! isset($this->recipes[$recipeIdx])) return;
 
@@ -1014,6 +1034,11 @@ PROMPT;
 
     public function import(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.import'), 403);
+
         $user = Auth::user();
         if ($user?->company?->recipes_locked && ! $user->canBypassLock()) {
             session()->flash('error', 'Recipes are locked. Ask a company admin to unlock in Settings → Company Details.');

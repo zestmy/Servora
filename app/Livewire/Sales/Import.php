@@ -338,6 +338,11 @@ class Import extends Component
 
     public function import(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('sales.import'), 403);
+
         $user      = Auth::user();
         $companyId = $user->company_id;
         $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $companyId)->value('id');

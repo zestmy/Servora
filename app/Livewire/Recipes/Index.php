@@ -115,6 +115,11 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.delete'), 403);
+
         if (! $this->assertUnlocked()) return;
         $recipe = Recipe::findOrFail($id);
 
@@ -284,6 +289,11 @@ class Index extends Component
      */
     public function updatePrice(int $recipeId, int $priceClassId, $value): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.price'), 403);
+
         if (! $this->assertUnlocked()) return;
 
         $value = trim((string) $value);

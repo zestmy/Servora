@@ -482,6 +482,11 @@ PROMPT;
 
     public function confirmMapping(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.import'), 403);
+
         if (empty($this->columnMapping['name'])) {
             $this->addError('mapping', 'The "Name" field must be mapped to a column.');
             return;
@@ -946,6 +951,11 @@ PROMPT;
 
     public function import(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.import'), 403);
+
         $user = Auth::user();
         if ($user?->company?->ingredients_locked && ! $user->canBypassLock()) {
             session()->flash('error', 'Products are locked. Ask a company admin to unlock in Settings → Company Details.');

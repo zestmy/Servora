@@ -126,6 +126,11 @@ class SalesForm extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('sales.record'), 403);
+
         $this->validate();
 
         $totalRevenue = collect($this->lines)->sum(fn ($l) => floatval($l['revenue']));

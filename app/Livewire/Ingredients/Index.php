@@ -261,6 +261,11 @@ class Index extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.manage'), 403);
+
         if (! $this->assertUnlocked()) return;
         $this->validate();
 
@@ -361,6 +366,11 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.delete'), 403);
+
         if (! $this->assertUnlocked()) return;
         Ingredient::findOrFail($id)->delete();
         session()->flash('success', 'Product deleted.');
@@ -582,6 +592,11 @@ class Index extends Component
 
     public function saveCategory(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.manage'), 403);
+
         $this->validate([
             'catName' => 'required|string|max:100',
             'catColor' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
@@ -610,6 +625,11 @@ class Index extends Component
 
     public function deleteCategory(int $id): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.delete'), 403);
+
         $cat = IngredientCategory::withCount('ingredients')->findOrFail($id);
 
         if ($cat->ingredients_count > 0) {
@@ -1043,6 +1063,11 @@ class Index extends Component
 
     public function saveQuickEdit(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('ingredients.manage'), 403);
+
         $user = Auth::user();
         if ($user?->company?->ingredients_locked && ! $user->canBypassLock()) {
             session()->flash('error', 'Products are locked.');

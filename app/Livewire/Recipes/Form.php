@@ -605,6 +605,11 @@ class Form extends Component
 
     public function save(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request
+        // to /livewire/update, so how the component was first loaded does not authorise
+        // the write.
+        abort_unless(auth()->user()?->canDo('recipes.manage'), 403);
+
         $user = Auth::user();
         if ($user?->company?->recipes_locked && ! $user->canBypassLock()) {
             session()->flash('error', 'Recipes are locked. Ask a company admin to unlock in Settings → Company Details.');

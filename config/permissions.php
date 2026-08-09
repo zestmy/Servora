@@ -68,8 +68,27 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'ingredients.view',
-                    'label' => 'Ingredients',
-                    'help'  => 'Ingredient list, costs, categories, imports and document scanning.',
+                    'label' => 'View (read-only)',
+                    'title' => 'Ingredients',
+                    'help'  => 'See the ingredient list and costs, and export them. Read-only on its own.',
+                ],
+                'manage' => [
+                    'name'  => 'ingredients.manage',
+                    'label' => 'Add & edit',
+                    'title' => 'Ingredients (Add & Edit)',
+                    'help'  => 'Create and change ingredients, their costs and categories.',
+                ],
+                'delete' => [
+                    'name'  => 'ingredients.delete',
+                    'label' => 'Delete',
+                    'title' => 'Ingredients (Delete)',
+                    'help'  => 'Delete an ingredient or a category.',
+                ],
+                'import' => [
+                    'name'  => 'ingredients.import',
+                    'label' => 'Import & scan',
+                    'title' => 'Ingredients (Import)',
+                    'help'  => 'Bulk import ingredients and review scanned supplier documents.',
                 ],
             ],
         ],
@@ -80,8 +99,36 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'recipes.view',
-                    'label' => 'Recipes',
-                    'help'  => 'Recipes, costings, price classes and SOP exports.',
+                    'label' => 'View (read-only)',
+                    'title' => 'Recipes',
+                    'help'  => 'See recipes and costings, and export cost sheets and SOPs.',
+                ],
+                'manage' => [
+                    'name'  => 'recipes.manage',
+                    'label' => 'Add & edit',
+                    'title' => 'Recipes (Add & Edit)',
+                    'help'  => 'Create and change recipes, prep items and recipe categories.',
+                ],
+                // Separated from editing the recipe itself for the same reason salary is
+                // separated from employee records: the person who maintains a method is
+                // not necessarily the person who decides what it sells for.
+                'price' => [
+                    'name'  => 'recipes.price',
+                    'label' => 'Set selling prices',
+                    'title' => 'Recipes (Set Prices)',
+                    'help'  => 'Change selling prices per price class, which drives revenue and margin.',
+                ],
+                'delete' => [
+                    'name'  => 'recipes.delete',
+                    'label' => 'Delete',
+                    'title' => 'Recipes (Delete)',
+                    'help'  => 'Delete a recipe or prep item.',
+                ],
+                'import' => [
+                    'name'  => 'recipes.import',
+                    'label' => 'Import',
+                    'title' => 'Recipes (Import)',
+                    'help'  => 'Bulk import recipes, creating ingredients and categories as it goes.',
                 ],
             ],
         ],
@@ -180,9 +227,21 @@ return [
             'abilities' => [
                 'view' => [
                     'name'  => 'sales.view',
-                    'label' => 'View & record',
+                    'label' => 'View (read-only)',
                     'title' => 'Sales',
-                    'help'  => 'Sales records, daily closures and sales imports.',
+                    'help'  => 'See sales records and daily closures, and export them. Read-only on its own.',
+                ],
+                'record' => [
+                    'name'  => 'sales.record',
+                    'label' => 'Record & close',
+                    'title' => 'Sales (Record)',
+                    'help'  => 'Enter and amend sales records, close the day, and manage sales categories and targets.',
+                ],
+                'import' => [
+                    'name'  => 'sales.import',
+                    'label' => 'Import',
+                    'title' => 'Sales (Import)',
+                    'help'  => 'Bulk import sales, which can overwrite a period in one action.',
                 ],
                 'delete' => [
                     'name'  => 'sales.delete',

@@ -178,25 +178,25 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/ingredients', IngredientsIndex::class)->name('ingredients.index')->middleware('can:ingredients.view');
     Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
     Route::get('/ingredients/pdf', \App\Http\Controllers\IngredientPdfController::class)->name('ingredients.pdf')->middleware('can:ingredients.view');
-    Route::get('/ingredients/import', IngredientsImport::class)->name('ingredients.import')->middleware('can:ingredients.view');
+    Route::get('/ingredients/import', IngredientsImport::class)->name('ingredients.import')->middleware('can:ingredients.import');
     // Price Watcher — two-step flow:
     // 1) Scan Documents: upload / photograph a supplier document; AI extracts
     //    the supplier, date, and line items and stages it for review.
     // 2) Review Documents: match the extracted items against existing
     //    ingredients and import. Opens per-document review pages.
     Route::get('/ingredients/scan-document', \App\Livewire\Ingredients\ScanDocument::class)
-        ->name('ingredients.scan-document')->middleware('can:ingredients.view');
+        ->name('ingredients.scan-document')->middleware('can:ingredients.import');
     Route::get('/ingredients/review-documents', \App\Livewire\Ingredients\ReviewDocuments::class)
-        ->name('ingredients.review-documents')->middleware('can:ingredients.view');
+        ->name('ingredients.review-documents')->middleware('can:ingredients.import');
     Route::get('/ingredients/review-documents/{document}', \App\Livewire\Ingredients\ReviewDocument::class)
-        ->name('ingredients.review-documents.show')->middleware('can:ingredients.view');
+        ->name('ingredients.review-documents.show')->middleware('can:ingredients.import');
 
     // Legacy redirects so old bookmarks / links keep working.
     Route::redirect('/ingredients/price-watcher', '/ingredients/scan-document');
     Route::redirect('/ingredients/supplier-match', '/ingredients/scan-document');
     Route::get('/recipes', RecipesIndex::class)->name('recipes.index')->middleware('can:recipes.view');
-    Route::get('/recipes/import', RecipesImport::class)->name('recipes.import')->middleware('can:recipes.view');
-    Route::get('/recipes/create', RecipesForm::class)->name('recipes.create')->middleware('can:recipes.view');
+    Route::get('/recipes/import', RecipesImport::class)->name('recipes.import')->middleware('can:recipes.import');
+    Route::get('/recipes/create', RecipesForm::class)->name('recipes.create')->middleware('can:recipes.manage');
     Route::get('/recipes/cost-pdf/all', [RecipeCostPdfController::class, 'all'])->name('recipes.cost-pdf-all')->middleware('can:recipes.view');
     Route::get('/recipes/cost-pdf/summary', [RecipeCostPdfController::class, 'summary'])->name('recipes.cost-pdf-summary')->middleware('can:recipes.view');
     Route::get('/recipes/prep/cost-pdf/all', [RecipeCostPdfController::class, 'prepAll'])->name('recipes.prep-cost-pdf-all')->middleware('can:recipes.view');
@@ -204,7 +204,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/recipes/cost-excel', [RecipeCostExcelController::class, 'all'])->name('recipes.cost-excel')->middleware('can:recipes.view');
     Route::get('/recipes/prep/cost-excel', [RecipeCostExcelController::class, 'prepAll'])->name('recipes.prep-cost-excel')->middleware('can:recipes.view');
     Route::get('/recipes/{id}', RecipesShow::class)->name('recipes.show')->middleware('can:recipes.view');
-    Route::get('/recipes/{id}/edit', RecipesForm::class)->name('recipes.edit')->middleware('can:recipes.view');
+    Route::get('/recipes/{id}/edit', RecipesForm::class)->name('recipes.edit')->middleware('can:recipes.manage');
     Route::get('/recipes/{id}/cost-pdf', [RecipeCostPdfController::class, 'single'])->name('recipes.cost-pdf')->middleware('can:recipes.view');
     Route::get('/purchasing', PurchasingIndex::class)->name('purchasing.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/orders/create', PurchasingOrderForm::class)->name('purchasing.orders.create')->middleware('can:purchasing.orders.create');
@@ -251,9 +251,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     });
 
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
-    Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.view');
-    Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.view');
-    Route::get('/sales/{id}/edit', SalesForm::class)->name('sales.edit')->middleware('can:sales.view');
+    Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.record');
+    Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.import');
+    Route::get('/sales/{id}/edit', SalesForm::class)->name('sales.edit')->middleware('can:sales.record');
     Route::get('/inventory', InventoryIndex::class)->name('inventory.index')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/create', StockTakeForm::class)->name('inventory.stock-takes.create')->middleware('can:inventory.stock_takes.record');
     Route::get('/inventory/stock-takes/{id}', StockTakeForm::class)->name('inventory.stock-takes.show')->middleware('can:inventory.stock_takes.record');
@@ -307,10 +307,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // settings from the person who administers that module.
     Route::get('/settings', SettingsIndex::class)->name('settings.index');
     Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:purchasing.suppliers.manage');
-    Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:ingredients.view');
-    Route::get('/settings/recipe-categories', SettingsRecipeCategories::class)->name('settings.recipe-categories')->middleware('can:recipes.view');
-    Route::get('/settings/price-classes', \App\Livewire\Settings\PriceClasses::class)->name('settings.price-classes')->middleware('can:recipes.view');
-    Route::get('/settings/sales-categories', SettingsSalesCategories::class)->name('settings.sales-categories')->middleware('can:sales.view');
+    Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:ingredients.manage');
+    Route::get('/settings/recipe-categories', SettingsRecipeCategories::class)->name('settings.recipe-categories')->middleware('can:recipes.manage');
+    Route::get('/settings/price-classes', \App\Livewire\Settings\PriceClasses::class)->name('settings.price-classes')->middleware('can:recipes.price');
+    Route::get('/settings/sales-categories', SettingsSalesCategories::class)->name('settings.sales-categories')->middleware('can:sales.record');
     Route::get('/settings/form-templates', SettingsFormTemplates::class)->name('settings.form-templates')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/form-templates/{id}/edit', SettingsFormTemplateEdit::class)->name('settings.form-templates.edit')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/outlets', SettingsOutlets::class)->name('settings.outlets')->middleware('can:settings.outlets');
@@ -322,7 +322,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/po-approvers', SettingsPoApprovers::class)->name('settings.po-approvers')->middleware('can:settings.po_approvers');
     Route::get('/settings/company-details', SettingsCompanyDetails::class)->name('settings.company-details')->middleware('can:users.manage');
     Route::get('/settings/calendar-events', SettingsCalendarEvents::class)->name('settings.calendar-events')->middleware('can:reports.view');
-    Route::get('/settings/sales-targets', SettingsSalesTargets::class)->name('settings.sales-targets')->middleware('can:sales.view');
+    Route::get('/settings/sales-targets', SettingsSalesTargets::class)->name('settings.sales-targets')->middleware('can:sales.record');
     Route::get('/settings/departments', SettingsDepartments::class)->name('settings.departments')->middleware('can:settings.departments');
     Route::get('/settings/sections', \App\Livewire\Settings\Sections::class)->name('settings.sections')->middleware('can:settings.sections');
     Route::get('/settings/certifications', \App\Livewire\Settings\CertificationTypes::class)->name('settings.certifications')->middleware('can:settings.certifications');
