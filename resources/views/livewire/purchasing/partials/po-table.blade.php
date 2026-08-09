@@ -73,7 +73,9 @@
                 <p class="font-medium">No purchase orders yet</p>
                 <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
                 @if ($canCreatePo ?? false)
+                    @canDo('purchasing.orders.create')
                     <a href="{{ route('purchasing.orders.create') }}" class="btn-primary mt-3">+ Create your first order</a>
+                    @endcanDo
                 @endif
             </div>
         @endforelse
@@ -245,7 +247,9 @@
                         <p class="font-medium">No purchase orders yet</p>
                         <p class="text-xs mt-1">A purchase order is the confirmed order sent to a supplier — goods are delivered and received against it.</p>
                         @if ($canCreatePo ?? false)
+                            @canDo('purchasing.orders.create')
                             <a href="{{ route('purchasing.orders.create') }}" class="btn-primary mt-3">+ Create your first order</a>
+                            @endcanDo
                         @endif
                     </td>
                 </tr>

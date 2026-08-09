@@ -12,30 +12,40 @@
         <h2 class="page-title">Inventory</h2>
         <div class="flex items-center gap-2">
             @if ($tab === 'stock-takes')
+                @canDo('inventory.stock_takes.record')
                 <a href="{{ route('inventory.stock-takes.create') }}"
                    class="btn-primary">
                     + New Stock Take
                 </a>
+                @endcanDo
             @elseif ($tab === 'wastage')
+                @canDo('inventory.wastage.record')
                 <a href="{{ route('inventory.wastage.create') }}"
                    class="btn-primary">
                     + Record Wastage
                 </a>
+                @endcanDo
             @elseif ($tab === 'staff-meals')
+                @canDo('inventory.staff_meals.record')
                 <a href="{{ route('inventory.staff-meals.create') }}"
                    class="btn-primary">
                     + Record Staff Meal
                 </a>
+                @endcanDo
             @elseif ($tab === 'transfers')
+                @canDo('inventory.transfers.record')
                 <a href="{{ route('inventory.transfers.create') }}"
                    class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
                     + New Transfer
                 </a>
+                @endcanDo
             @elseif ($tab === 'purchases')
+                @canDo('inventory.purchases.record')
                 <a href="{{ route('inventory.purchases.create') }}"
                    class="btn-primary">
                     + Record Purchase
                 </a>
+                @endcanDo
             @endif
         </div>
     </div>
@@ -320,7 +330,9 @@
                                 <div class="text-3xl mb-2">📋</div>
                                 <p class="font-medium">No stock takes yet</p>
                                 <p class="text-xs mt-1">
+                                    @canDo('inventory.stock_takes.record')
                                     <a href="{{ route('inventory.stock-takes.create') }}" class="text-brand-500 underline">Start a new stock take</a>
+                                    @endcanDo
                                 </p>
                             </td>
                         </tr>
@@ -392,7 +404,9 @@
                                 <div class="text-3xl mb-2">🧾</div>
                                 <p class="font-medium">No purchases recorded yet</p>
                                 <p class="text-xs mt-1">
+                                    @canDo('inventory.purchases.record')
                                     <a href="{{ route('inventory.purchases.create') }}" class="text-brand-500 underline">Record a purchase</a>
+                                    @endcanDo
                                 </p>
                             </td>
                         </tr>
@@ -462,7 +476,9 @@
                                 <div class="text-3xl mb-2">🍽️</div>
                                 <p class="font-medium">No staff meal records yet</p>
                                 <p class="text-xs mt-1">
+                                    @canDo('inventory.staff_meals.record')
                                     <a href="{{ route('inventory.staff-meals.create') }}" class="text-brand-500 underline">Record today's staff meals</a>
+                                    @endcanDo
                                 </p>
                             </td>
                         </tr>
@@ -561,7 +577,9 @@
                                 <div class="text-3xl mb-2">🔄</div>
                                 <p class="font-medium">No transfers yet</p>
                                 <p class="text-xs mt-1">
+                                    @canDo('inventory.transfers.record')
                                     <a href="{{ route('inventory.transfers.create') }}" class="text-teal-600 underline">Create your first transfer</a>
+                                    @endcanDo
                                 </p>
                             </td>
                         </tr>
@@ -645,7 +663,9 @@
                                 <div class="text-3xl mb-2">🗑️</div>
                                 <p class="font-medium">No wastage records yet</p>
                                 <p class="text-xs mt-1">
+                                    @canDo('inventory.wastage.record')
                                     <a href="{{ route('inventory.wastage.create') }}" class="text-brand-500 underline">Record today's wastage</a>
+                                    @endcanDo
                                 </p>
                             </td>
                         </tr>

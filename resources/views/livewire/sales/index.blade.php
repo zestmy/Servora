@@ -58,11 +58,13 @@
                 <span class="hidden sm:inline">Zeoniq Excel</span>
                 <span class="sm:hidden">Excel</span>
             </button>
+            @canDo('sales.record')
             <a href="{{ route('sales.create') }}"
                class="btn-primary">
                 <span class="sm:hidden">+ New</span>
                 <span class="hidden sm:inline">+ New Entry</span>
             </a>
+            @endcanDo
         </div>
     </div>
 
@@ -256,11 +258,13 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-gray-600">{{ $md['label'] }}</span>
+                                    @canDo('sales.record')
                                     <button wire:click="openClosureModal('{{ $md['date'] }}')"
                                             class="opacity-0 group-hover:opacity-100 text-brand-400 hover:text-brand-600 transition"
                                             title="{{ $md['reason'] ? 'Edit reason' : 'Add reason' }}">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                     </button>
+                                    @endcanDo
                                 </div>
                                 @if ($md['reason'])
                                     <span class="text-blue-600 font-medium">{{ $md['reason'] }}</span>
@@ -673,7 +677,9 @@
                             <div class="text-3xl mb-2">💰</div>
                             <p class="font-medium">No sales records yet</p>
                             <p class="text-xs mt-1">
+                                @canDo('sales.record')
                                 <a href="{{ route('sales.create') }}" class="text-brand-500 underline">Record today's sales</a>
+                                @endcanDo
                             </p>
                         </td>
                     </tr>

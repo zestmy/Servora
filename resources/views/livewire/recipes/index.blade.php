@@ -72,6 +72,7 @@
                         Locked
                     </span>
                 @else
+                    @canDo('recipes.import')
                     <a href="{{ route('recipes.import') }}"
                        title="Import"
                        class="btn-secondary">
@@ -80,11 +81,14 @@
                         </svg>
                         <span class="hidden sm:inline">Import</span>
                     </a>
+                    @endcanDo
+                    @canDo('recipes.manage')
                     <a href="{{ route('recipes.create') }}"
                        class="btn-primary">
                         <span class="sm:hidden">+ New</span>
                         <span class="hidden sm:inline">+ New Recipe</span>
                     </a>
+                    @endcanDo
                 @endif
             @else
                 {{-- PDF dropdown for Prep Items --}}
@@ -127,6 +131,7 @@
                         Locked
                     </span>
                 @else
+                    @canDo('recipes.import')
                     <a href="{{ route('recipes.import', ['type' => 'prep']) }}"
                        title="Import"
                        class="btn-secondary">
@@ -135,6 +140,7 @@
                         </svg>
                         <span class="hidden sm:inline">Import</span>
                     </a>
+                    @endcanDo
                     <a href="{{ route('inventory.prep-items.create') }}"
                        class="btn-primary">
                         <span class="sm:hidden">+ New</span>
@@ -520,6 +526,7 @@
                                     </svg>
                                 </button>
                                 @endif
+                                @canDo('recipes.delete')
                                 <button wire:click="delete({{ $recipe->id }})"
                                         wire:confirm="Delete '{{ $recipe->name }}'? This cannot be undone."
                                         title="Delete"
@@ -528,6 +535,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                 </button>
+                                @endcanDo
                                 @endif
                             </div>
                         </td>
@@ -541,7 +549,9 @@
                                 @if ($isPrep)
                                     <a href="{{ route('inventory.prep-items.create') }}" class="text-brand-500 underline">Create your first prep item</a>
                                 @else
+                                    @canDo('recipes.manage')
                                     <a href="{{ route('recipes.create') }}" class="text-brand-500 underline">Create your first recipe</a>
+                                    @endcanDo
                                 @endif
                             </p>
                         </td>

@@ -124,6 +124,24 @@ class AppServiceProvider extends ServiceProvider
             return null;
         });
 
+        /*
+         * @canDo('purchasing.orders.create') … @endcanDo
+         *
+         * Mirrors User::canDo(), so what a screen SHOWS matches what it will ALLOW. Plain
+         * @can is not the same test: Gate::before only bypasses for Super Admin, while
+         * canDo() also lets System Admin through, so @can would hide controls from a
+         * platform account that the guard behind them would happily have permitted.
+         *
+         * Use this wherever a button or link leads to a guarded action. Offering someone a
+         * control that answers 403 is worse than not offering it: they cannot tell a
+         * permission problem from a broken page.
+         */
+        Blade::if('canDo', function (string $permission) {
+            $user = Auth::user();
+
+            return $user && method_exists($user, 'canDo') && $user->canDo($permission);
+        });
+
         // @feature('analytics') ... @endfeature
         Blade::if('feature', function (string $feature) {
             $user = Auth::user();

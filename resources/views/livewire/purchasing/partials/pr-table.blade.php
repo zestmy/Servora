@@ -55,10 +55,12 @@
                     @elseif ($pr->status === 'submitted')
                         <span class="flex-1 text-xs text-yellow-600 text-center">Awaiting approval</span>
                     @elseif ($pr->status === 'approved')
+                        @canDo('purchasing.orders.create')
                         <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}"
                            class="flex-1 text-center px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100">
                             Convert to PO
                         </a>
+                        @endcanDo
                     @endif
                     @if ($canDeleteRecords && in_array($pr->status, ['cancelled', 'rejected']))
                         <button wire:click="deletePr({{ $pr->id }})" wire:confirm="Permanently remove this {{ $pr->status }} request?"
@@ -71,7 +73,9 @@
                 <p class="font-medium">No purchase requests yet</p>
                 <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                 @if ($canCreatePr ?? false)
+                    @canDo('purchasing.requests.create')
                     <a href="{{ route('purchasing.requests.create') }}" class="btn-primary mt-3">+ Create your first request</a>
+                    @endcanDo
                 @endif
             </div>
         @endforelse
@@ -184,10 +188,12 @@
 
                             {{-- Approved: Convert to PO / Revert to Draft --}}
                             @if ($pr->status === 'approved')
+                                @canDo('purchasing.orders.create')
                                 <a href="{{ route('purchasing.orders.create', ['pr_id' => $pr->id]) }}" title="Turn this approved request into a purchase order to send to a supplier"
                                    class="text-brand-500 hover:text-brand-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                 </a>
+                                @endcanDo
                                 <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
                                         title="Revert to Draft" class="text-gray-600 hover:text-warning-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
@@ -231,7 +237,9 @@
                         <p class="font-medium">No purchase requests yet</p>
                         <p class="text-xs mt-1">A purchase request lists what your outlet needs — it goes for approval before an order is placed.</p>
                         @if ($canCreatePr ?? false)
+                            @canDo('purchasing.requests.create')
                             <a href="{{ route('purchasing.requests.create') }}" class="btn-primary mt-3">+ Create your first request</a>
+                            @endcanDo
                         @endif
                     </td>
                 </tr>

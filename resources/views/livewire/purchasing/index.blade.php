@@ -35,30 +35,38 @@
         <h2 class="page-title">Purchasing</h2>
         <div class="flex flex-wrap gap-2">
             @if ($canCreatePr)
+                @canDo('purchasing.requests.create')
                 <a href="{{ route('purchasing.requests.create') }}"
                    class="px-3 md:px-4 py-2 {{ $canCreatePo ? 'bg-white text-brand-600 border border-brand-200 hover:bg-brand-50' : 'bg-brand-600 text-white hover:bg-brand-700' }} text-sm font-medium rounded-lg transition">
                     <span class="sm:hidden">+ PR</span>
                     <span class="hidden sm:inline">+ Purchase Request</span>
                 </a>
+                @endcanDo
             @endif
             @if ($canCreatePo)
+                @canDo('purchasing.orders.create')
                 <a href="{{ route('purchasing.orders.create') }}"
                    class="btn-primary">
                     <span class="sm:hidden">+ PO</span>
                     <span class="hidden sm:inline">+ New Purchase Order</span>
                 </a>
+                @endcanDo
             @endif
             @if ($cpuMode && $isCpuUser)
+                @canDo('purchasing.consolidate')
                 <a href="{{ route('purchasing.consolidate') }}"
                    class="px-3 md:px-4 py-2 bg-white text-brand-600 text-sm font-medium rounded-lg border border-brand-200 hover:bg-brand-50 transition">
                     <span class="sm:hidden">Consolidate</span>
                     <span class="hidden sm:inline">Consolidate PRs</span>
                 </a>
+                @endcanDo
+                @canDo('purchasing.transfers.create')
                 <a href="{{ route('purchasing.transfers.create') }}"
                    class="px-3 md:px-4 py-2 bg-white text-brand-600 text-sm font-medium rounded-lg border border-brand-200 hover:bg-brand-50 transition">
                     <span class="sm:hidden">+ Transfer</span>
                     <span class="hidden sm:inline">+ Stock Transfer</span>
                 </a>
+                @endcanDo
             @endif
         </div>
     </div>
@@ -124,10 +132,12 @@
                 </a>
             @endif
             @if ($showSupplierTab)
+                @canDo('purchasing.suppliers.manage')
                 <a href="{{ route('purchasing.suppliers.directory') }}"
                    class="pb-3 px-1 text-sm font-medium border-b-2 transition {{ request()->routeIs('purchasing.suppliers.*') ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
                     Suppliers
                 </a>
+                @endcanDo
             @endif
         </nav>
     </div>

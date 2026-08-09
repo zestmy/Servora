@@ -2,9 +2,15 @@
      Vars: $recipe, $priceClassId (0 = legacy recipes.selling_price), $value (float|null), $locked --}}
 @php
     $display = floatval($value) > 0 ? number_format(floatval($value), 2, '.', '') : '';
+
+    // Read-only when the list is locked OR the viewer cannot set prices. The number stays
+    // visible either way — seeing what something sells for comes with recipes.view; it is
+    // changing it that needs recipes.price. Showing an editable field that answers 403 on
+    // blur would look like the save silently failed.
+    $readOnly = $locked || ! (auth()->user()?->canDo('recipes.price') ?? false);
 @endphp
 <td class="px-4 py-3 text-right tabular-nums text-gray-700" wire:key="price-{{ $recipe->id }}-{{ $priceClassId }}">
-    @if ($locked)
+    @if ($readOnly)
         @if ($display !== '')
             {{ number_format(floatval($display), 2) }}
         @else
