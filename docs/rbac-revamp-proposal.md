@@ -523,11 +523,23 @@ Verified against the grant rows: the two formerly-gated deletes went to exactly 
 holding `inventory.delete`, and the four formerly-ungated ones mirror `inventory.view`'s 7
 role grants precisely. `inventory.delete` is retired.
 
-> **Worth a deliberate decision:** preserving access exactly means the four previously-ungated
-> deletes are now granted to every `inventory.view` holder. That is the agreed posture and
-> nobody lost anything — but it carries a pre-existing hole forward. The difference is that it
-> is now **visible and revocable** on the Roles tab, which it was not before. Tightening
-> "Wastage — delete" and friends is a one-click change per role.
+> **Decided 2026-08-10 — two of the four tightened.** Preserving access exactly meant the four
+> previously-ungated deletes went to every `inventory.view` holder, carrying the old breadth
+> forward. `inventory.purchases.delete` and `inventory.prep_items.delete` now mirror
+> `inventory.stock_takes.delete` exactly: a captured purchase feeds costing, and deleting a prep
+> item also soft-deletes its synced ingredient, so both deserve the same standing as reversing a
+> stock take.
+>
+> **Wastage and staff meals stay broad, deliberately.** Voiding a mistyped wastage line is a
+> same-day correction by the person who recorded it. Making a chef find an admin for it would
+> push them towards not recording wastage at all, which is a worse outcome than the risk being
+> managed.
+>
+> Impact was measured on production *before* applying: 8 users lose the two tightened abilities,
+> 9 were unaffected because they already held the stock-take delete. This is the only migration
+> in the project that removes access from anyone — every other one preserved it exactly — so the
+> set was mirrored from an existing ability rather than hand-picked, and `down()` restores the
+> previous breadth.
 
 **The drift test earned its keep twice here.** `canDeleteType()` was first written as
 `canDo("inventory.{$type}.delete")` — the names never appear as literals, so the guardrail
