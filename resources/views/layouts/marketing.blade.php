@@ -155,58 +155,104 @@
     {{-- ── Footer ───────────────────────────────────────────────────────── --}}
     <footer class="mt-24 bg-gray-950 text-gray-400">
         <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-            <div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
 
-                <div class="max-w-xs">
+            @php
+                /* The static columns as data.
+
+                   The Product column had quietly become a dumping ground —
+                   nine links, four of them tools — while Company held one and
+                   Legal two. Columns of 9/1/2 do not read as columns; they read
+                   as a list that ran out of room. Grouping by what a visitor is
+                   trying to DO puts four or five in each. */
+                $footerColumns = [
+                    'Product' => [
+                        ['route' => 'features',      'label' => 'Features'],
+                        ['route' => 'pricing',       'label' => 'Pricing'],
+                        ['route' => 'marketplace',   'label' => 'Marketplace'],
+                        ['route' => 'for-suppliers', 'label' => 'For Suppliers'],
+                    ],
+                    'Free tools' => [
+                        ['route' => 'tools.recipe-cost', 'label' => 'Recipe Cost Calculator'],
+                        ['route' => 'tools.food-cost',   'label' => 'Food Cost Calculator'],
+                        ['route' => 'tools.menu-matrix', 'label' => 'Menu Engineering Matrix'],
+                        ['route' => 'tools.salary',      'label' => 'Salary Calculator'],
+                        ['route' => 'tools.index',       'label' => 'All free tools', 'muted' => true],
+                    ],
+                ];
+
+                /* One list per column, and `other` is the exact complement of
+                   the two, so a CMS page can never fall out of the footer by
+                   being given a slug nobody anticipated. */
+                $companySlugs = ['about', 'about-us', 'contact', 'contact-us', 'careers'];
+                $legalSlugs   = ['privacy-policy', 'privacy', 'terms', 'terms-of-use', 'terms-of-service', 'refund-policy'];
+
+                $companyPages = $footerPages->filter(fn ($p) => in_array($p->slug, $companySlugs));
+                $legalPages   = $footerPages->filter(fn ($p) => in_array($p->slug, $legalSlugs));
+                $otherPages   = $footerPages->reject(fn ($p) => in_array($p->slug, array_merge($companySlugs, $legalSlugs)));
+            @endphp
+
+            {{-- Four equal link columns rather than three uneven ones. Brand
+                 sits above them until there is room to put it alongside: two
+                 by two on a tablet (three columns would strand the fourth on
+                 a row of its own), all five in a line from lg. --}}
+            <div class="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.6fr_repeat(4,1fr)]">
+
+                <div class="max-w-xs md:col-span-2 lg:col-span-1">
                     <img src="{{ asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8 w-auto">
-                    <p class="mt-4 text-sm leading-relaxed text-gray-400">
-                        Costing, purchasing, inventory and training for F&B operators who need to know
+                    <p class="mt-4 text-sm leading-relaxed">
+                        Costing, purchasing, inventory and training for F&amp;B operators who need to know
                         their numbers before month end.
                     </p>
+                    <a href="{{ route('saas.register') }}"
+                       class="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-300 transition-colors hover:text-brand-200">
+                        Start your free trial
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
                 </div>
 
-                <div>
-                    <h2 class="text-sm font-semibold text-white">Product</h2>
-                    <ul class="mt-4 space-y-3 text-sm">
-                        <li><a href="{{ route('features') }}" class="transition-colors hover:text-white">Features</a></li>
-                        <li><a href="{{ route('pricing') }}" class="transition-colors hover:text-white">Pricing</a></li>
-                        <li><a href="{{ route('marketplace') }}" class="transition-colors hover:text-white">Marketplace</a></li>
-                        <li><a href="{{ route('for-suppliers') }}" class="transition-colors hover:text-white">For Suppliers</a></li>
-                        <li><a href="{{ route('referral.program') }}" class="transition-colors hover:text-white">Refer &amp; Earn</a></li>
-                        {{-- A free tool earns its place in the footer: it is the
-                             one page here somebody can use without deciding
-                             anything first. --}}
-                        <li><a href="{{ route('tools.recipe-cost') }}" class="transition-colors hover:text-white">Recipe Cost Calculator</a></li>
-                        <li><a href="{{ route('tools.food-cost') }}" class="transition-colors hover:text-white">Food Cost Calculator</a></li>
-                        <li><a href="{{ route('tools.menu-matrix') }}" class="transition-colors hover:text-white">Menu Engineering Matrix</a></li>
-                        <li><a href="{{ route('tools.salary') }}" class="transition-colors hover:text-white">Salary Calculator</a></li>
-                    </ul>
-                </div>
+                @foreach ($footerColumns as $heading => $links)
+                    <div>
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-white">{{ $heading }}</h2>
+                        <ul class="mt-4 space-y-2.5 text-sm">
+                            @foreach ($links as $link)
+                                <li>
+                                    <a href="{{ route($link['route']) }}"
+                                       class="transition-colors hover:text-white {{ ($link['muted'] ?? false) ? 'text-gray-500' : '' }}">
+                                        {{ $link['label'] }}
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endforeach
 
                 <div>
-                    <h2 class="text-sm font-semibold text-white">Company</h2>
-                    <ul class="mt-4 space-y-3 text-sm">
-                        @php $companyPages = $footerPages->filter(fn ($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us'])); @endphp
-                        @forelse ($companyPages as $cp)
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-white">Company</h2>
+                    <ul class="mt-4 space-y-2.5 text-sm">
+                        @foreach ($companyPages as $cp)
                             <li><a href="{{ $cp->url() }}" target="{{ $cp->linkTarget() }}" class="transition-colors hover:text-white">{{ $cp->title }}</a></li>
-                        @empty
-                            <li><a href="#" class="transition-colors hover:text-white">About</a></li>
-                        @endforelse
+                        @endforeach
+
+                        {{-- A referral programme is something you join, not a
+                             product you buy — it reads oddly under Product. --}}
+                        <li><a href="{{ route('referral.program') }}" class="transition-colors hover:text-white">Refer &amp; Earn</a></li>
+                        <li><a href="{{ route('login') }}" class="transition-colors hover:text-white">Log in</a></li>
                     </ul>
                 </div>
 
                 <div>
-                    <h2 class="text-sm font-semibold text-white">Legal</h2>
-                    <ul class="mt-4 space-y-3 text-sm">
-                        @php $legalPages = $footerPages->filter(fn ($p) => in_array($p->slug, ['privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-white">Legal</h2>
+                    <ul class="mt-4 space-y-2.5 text-sm">
                         @forelse ($legalPages as $lp)
                             <li><a href="{{ $lp->url() }}" target="{{ $lp->linkTarget() }}" class="transition-colors hover:text-white">{{ $lp->title }}</a></li>
                         @empty
-                            <li><a href="#" class="transition-colors hover:text-white">Privacy Policy</a></li>
-                            <li><a href="#" class="transition-colors hover:text-white">Terms of Service</a></li>
+                            {{-- Placeholders, so the column is never empty on a
+                                 fresh install and it is obvious what belongs
+                                 here once the pages exist. --}}
+                            <li><span class="text-gray-600">Privacy Policy</span></li>
+                            <li><span class="text-gray-600">Terms of Service</span></li>
                         @endforelse
 
-                        @php $otherPages = $footerPages->reject(fn ($p) => in_array($p->slug, ['about', 'about-us', 'contact', 'contact-us', 'privacy-policy', 'privacy', 'terms-of-use', 'terms', 'terms-of-service'])); @endphp
                         @foreach ($otherPages as $op)
                             <li><a href="{{ $op->url() }}" target="{{ $op->linkTarget() }}" class="transition-colors hover:text-white">{{ $op->title }}</a></li>
                         @endforeach
@@ -214,11 +260,9 @@
                 </div>
             </div>
 
-            <div class="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div class="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <p>{!! \App\Models\AppSetting::get('footer_copyright', '&copy; ' . date('Y') . ' Servora. All rights reserved.') !!}</p>
-                <a href="{{ route('saas.register') }}" class="font-medium text-brand-300 transition-colors hover:text-brand-200">
-                    Start your free trial
-                </a>
+                <p class="text-gray-500">Made for F&amp;B operators in Malaysia.</p>
             </div>
         </div>
     </footer>

@@ -14,6 +14,7 @@
             'id'    => 'ingredients',
             'icon'  => 'ingredient',
             'title' => 'Ingredients and recipe costing',
+            'nav'   => 'Ingredients & costing',
             'desc'  => 'The foundation of food cost control. Every ingredient tracked, every recipe costed, food cost percentage current as prices move.',
             'items' => [
                 'Ingredient database with UOM conversions (kg, g, L, ml, pcs and more)',
@@ -32,6 +33,7 @@
             'id'    => 'ai',
             'icon'  => 'sparkles',
             'title' => 'AI document capture and analysis',
+            'nav'   => 'AI capture',
             'desc'  => 'The typing is the reason costing goes stale. Photograph the invoice and the numbers walk themselves in, with a review step before anything lands.',
             'items' => [
                 'Supplier invoices and delivery orders read from a photo or PDF',
@@ -48,6 +50,7 @@
             'id'    => 'purchasing',
             'icon'  => 'cart',
             'title' => 'Purchasing, RFQ and receiving',
+            'nav'   => 'Purchasing',
             'desc'  => 'Request through to invoice, fully tracked. Nothing lost between the order, the delivery and what you were billed.',
             'items' => [
                 'Purchase requests with an approval gate',
@@ -68,6 +71,7 @@
             'id'    => 'inventory',
             'icon'  => 'database',
             'title' => 'Inventory and stock control',
+            'nav'   => 'Inventory',
             'desc'  => 'What you hold and where it went. Counts, wastage, transfers and staff meals all land in the same ledger.',
             'items' => [
                 'Stock takes as a per-ingredient variance count or a single summary total',
@@ -84,6 +88,7 @@
             'id'    => 'kitchen',
             'icon'  => 'clipboard',
             'title' => 'Central kitchen and production',
+            'nav'   => 'Central kitchen',
             'desc'  => 'For operations that produce centrally and distribute. Batch production planned, executed and measured against what it should have yielded.',
             'items' => [
                 'Batch production orders raised against target outlets',
@@ -98,6 +103,7 @@
             'id'    => 'labels',
             'icon'  => 'printer',
             'title' => 'Food safety labelling',
+            'nav'   => 'Labelling',
             'desc'  => 'HACCP date labels printed at the bench, with the shelf life worked out for you and a record of every label that came off the printer.',
             'items' => [
                 'Date labels printed to network label printers via PrintNode',
@@ -116,6 +122,7 @@
             'id'    => 'sales',
             'icon'  => 'currency',
             'title' => 'Sales and revenue',
+            'nav'   => 'Sales',
             'desc'  => 'Every ringgit from every outlet, with Z-report capture so the daily numbers do not have to be typed twice.',
             'items' => [
                 'Daily sales entry by meal period with pax counts',
@@ -130,6 +137,7 @@
             'id'    => 'reports',
             'icon'  => 'chart',
             'title' => 'Reports and analytics',
+            'nav'   => 'Reports',
             'desc'  => 'Monthly cost summary, stock movement, purchasing behaviour, and a written review of what actually moved and why.',
             'items' => [
                 'Cost summary with COGS and month-to-date comparison',
@@ -149,6 +157,7 @@
             'id'    => 'people',
             'icon'  => 'clock',
             'title' => 'People, attendance and claims',
+            'nav'   => 'People & HR',
             'desc'  => 'The staff side of the cost line: who worked, who is owed, and the paperwork that comes with it.',
             'items' => [
                 'Employee records filtered by outlet, section and status',
@@ -165,6 +174,7 @@
             'id'    => 'training',
             'icon'  => 'academic',
             'title' => 'Training portal',
+            'nav'   => 'Training',
             'desc'  => 'Standardise how a dish is made across every outlet, in a portal that carries your branding rather than ours.',
             'items' => [
                 'SOP per recipe with step-by-step method',
@@ -180,6 +190,7 @@
             'id'    => 'suppliers',
             'icon'  => 'device',
             'title' => 'Supplier portal and marketplace',
+            'nav'   => 'Suppliers',
             'desc'  => 'Your suppliers get a login of their own, so quoting and acknowledging orders stops happening over WhatsApp.',
             'items' => [
                 'Suppliers sign in separately from your team',
@@ -195,6 +206,7 @@
             'id'    => 'control',
             'icon'  => 'shield',
             'title' => 'Multi-outlet, roles and control',
+            'nav'   => 'Multi-outlet',
             'desc'  => 'One outlet or twenty, on shared data with access scoped to the people who should see it, and a record of who changed what.',
             'items' => [
                 'Shared ingredient and recipe data across outlets',
@@ -227,23 +239,37 @@
     </section>
 
     {{-- ── 2. Jump nav ─────────────────────────────────────────────────────
-         This page is long by nature. A horizontal index beats making people
-         scroll to find the one area they came to read about.
+         This page is long by nature. An index beats making people scroll to
+         find the one area they came to read about.
+
+         It used to scroll horizontally with the scrollbar hidden, so the
+         first and last entries were simply cut off with nothing on screen to
+         say so. Two changes: the index uses each group's SHORT label, not its
+         full section heading — twelve five-word titles fit on no screen made
+         — and on desktop it wraps instead of clipping. Narrow screens keep
+         the scroll (wrapping there is a wall of pills) with an edge fade to
+         show there is more.
     --}}
     <nav class="sticky top-16 z-sticky border-y border-gray-200 bg-white/90 backdrop-blur-md"
          aria-label="Feature areas">
-        <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <ul class="hide-scrollbar flex gap-1 overflow-x-auto py-2">
+        <div class="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <ul class="hide-scrollbar flex gap-1 overflow-x-auto py-2
+                       lg:flex-wrap lg:justify-center lg:overflow-x-visible">
                 @foreach ($groups as $g)
                     <li class="flex-none">
                         <a href="#{{ $g['id'] }}"
-                           class="block whitespace-nowrap rounded-control px-3 py-2 text-[13px] font-medium
+                           title="{{ $g['title'] }}"
+                           class="block whitespace-nowrap rounded-control px-2.5 py-2 text-[13px] font-medium
                                   text-gray-600 transition-colors hover:bg-brand-50 hover:text-brand-800">
-                            {{ $g['title'] }}
+                            {{ $g['nav'] ?? $g['title'] }}
                         </a>
                     </li>
                 @endforeach
             </ul>
+
+            {{-- Edge fades: only meaningful while the list still scrolls. --}}
+            <div class="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white to-transparent lg:hidden"></div>
+            <div class="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white to-transparent lg:hidden"></div>
         </div>
     </nav>
 
@@ -254,11 +280,14 @@
 
          scroll-mt clears both the site header and the sticky index above,
          otherwise an anchor jump lands with the heading hidden behind them.
+         Sized for the index at TWO rows, which is what it takes between the
+         lg breakpoint and the point where all twelve fit on one line; on a
+         wide screen it just leaves a little more air above the heading.
     --}}
     <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         @foreach ($groups as $i => $g)
             <section id="{{ $g['id'] }}"
-                     class="scroll-mt-32 border-b border-gray-200 py-14 last:border-b-0 lg:py-16">
+                     class="scroll-mt-40 border-b border-gray-200 py-14 last:border-b-0 lg:py-16">
                 <div class="grid gap-8 lg:grid-cols-12 lg:gap-12">
 
                     <div class="lg:col-span-4">
