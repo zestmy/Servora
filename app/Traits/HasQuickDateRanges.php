@@ -18,8 +18,30 @@ use Carbon\Carbon;
  */
 trait HasQuickDateRanges
 {
-    /** The named range currently applied, or '' when the dates were typed. */
-    public string $quickRange = 'last_30';
+    /**
+     * The named range currently applied.
+     *
+     * Empty means either "the dates were typed by hand" or "nothing chosen
+     * yet" — mount() tells them apart by whether the dates are empty too. A
+     * trait cannot carry a default a component is allowed to disagree with,
+     * and Audit does disagree: it opens on the last 7 days, not 30.
+     */
+    public string $quickRange = '';
+
+    /** Overridable: what this screen means by "recently". */
+    protected function defaultQuickRange(): string
+    {
+        return 'last_30';
+    }
+
+    /** Apply the screen's default unless a range or explicit dates are set. */
+    protected function bootQuickRange(): void
+    {
+        if ($this->dateFrom === '' && $this->dateTo === '') {
+            $this->quickRange = $this->quickRange ?: $this->defaultQuickRange();
+            $this->applyQuickRange($this->quickRange);
+        }
+    }
 
     /** @return array<string, string> range key => the words on the badge */
     public static function quickRangeOptions(): array

@@ -33,15 +33,55 @@ class Index extends Component
     public string $rejectReason = '';
     public string $dateTo = '';
 
+    /**
+     * What each tab is made of.
+     *
+     * Five tabs had five near-identical filter blocks that had already drifted —
+     * only Orders applied the supplier filter, and only Orders searched supplier
+     * names. Describing the differences as data means the filters are written
+     * once, and the cards above the table can be built from the same query the
+     * table is, which is what stops the two disagreeing.
+     */
+    private const TABS = [
+        'pr' => [
+            'label' => 'Requests', 'model' => PurchaseRequest::class,
+            'search' => ['pr_number'], 'date' => 'requested_date',
+            'amount' => null, 'outlet' => 'outlet_id',
+            'waiting' => 'submitted', 'waitingLabel' => 'Awaiting approval',
+        ],
+        'po' => [
+            'label' => 'Orders', 'model' => PurchaseOrder::class,
+            'search' => ['po_number', 'supplier.name'], 'date' => 'order_date',
+            'amount' => 'total_amount', 'outlet' => 'outlet_id',
+            'waiting' => 'submitted', 'waitingLabel' => 'Awaiting approval',
+        ],
+        'do' => [
+            'label' => 'Deliveries', 'model' => DeliveryOrder::class,
+            'search' => ['do_number'], 'date' => 'delivery_date',
+            'amount' => 'total_amount', 'outlet' => 'outlet_id',
+            'waiting' => 'pending', 'waitingLabel' => 'Pending receipt',
+        ],
+        'grn' => [
+            'label' => 'Goods received', 'model' => GoodsReceivedNote::class,
+            'search' => ['grn_number'], 'date' => 'received_date',
+            'amount' => 'total_amount', 'outlet' => 'outlet_id',
+            'waiting' => 'pending', 'waitingLabel' => 'Pending confirmation',
+        ],
+        'sto' => [
+            'label' => 'Transfers', 'model' => StockTransferOrder::class,
+            'search' => ['sto_number'], 'date' => 'transfer_date',
+            'amount' => 'total_amount', 'outlet' => 'to_outlet_id',
+            'waiting' => 'in_transit', 'waitingLabel' => 'In transit',
+        ],
+    ];
+
     protected $queryString = ['tab', 'quickRange'];
 
     public function mount(): void
     {
         // Same default as Stock Management, so the two modules answer "recently"
         // with the same span when somebody compares them.
-        if ($this->dateFrom === '' && $this->dateTo === '') {
-            $this->applyQuickRange($this->quickRange ?: 'last_30');
-        }
+        $this->bootQuickRange();
     }
 
     /**
@@ -72,7 +112,7 @@ class Index extends Component
         $this->statusFilter = '';
         $this->supplierFilter = '';
         $this->outletFilter = '';
-        $this->setQuickRange('last_30');
+        $this->setQuickRange($this->defaultQuickRange());
     }
 
     private function isPurchasingRole(): bool
@@ -769,6 +809,7 @@ class Index extends Component
             'canCreatePo'        => $canCreatePo,
             'canCreatePr'        => $canCreatePr,
             'stats'              => $stats,
+            'tabStats'           => isset(self::TABS[$this->tab]) ? $this->tabStats($this->tab) : null,
             'requirePoApproval'  => $requirePoApproval,
             'showPrice'          => $showPrice,
             'isSystemAdmin'      => $isSystemAdmin,
@@ -804,27 +845,7 @@ class Index extends Component
     private function getDoData(bool $seesAll): array
     {
         $query = DeliveryOrder::with(['supplier', 'outlet', 'purchaseOrder'])->withCount('lines');
-
-        if ($seesAll) {
-            if ($this->outletFilter) {
-                $query->where('outlet_id', $this->outletFilter);
-            }
-        } else {
-            $this->scopeByOutletFilter($query, $this->outletFilter);
-        }
-
-        if ($this->search) {
-            $query->where('do_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->statusFilter) {
-            $query->where('status', $this->statusFilter);
-        }
-        if ($this->dateFrom) {
-            $query->where('delivery_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $query->where('delivery_date', '<=', $this->dateTo);
-        }
+        $this->applyTabFilters($query, 'do');
 
         $deliveryOrders = $query->orderByDesc('delivery_date')->orderByDesc('id')->paginate(15);
 
@@ -834,27 +855,7 @@ class Index extends Component
     private function getGrnData(bool $seesAll): array
     {
         $query = GoodsReceivedNote::with(['supplier', 'outlet', 'deliveryOrder'])->withCount('lines');
-
-        if ($seesAll) {
-            if ($this->outletFilter) {
-                $query->where('outlet_id', $this->outletFilter);
-            }
-        } else {
-            $this->scopeByOutletFilter($query, $this->outletFilter);
-        }
-
-        if ($this->search) {
-            $query->where('grn_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->statusFilter) {
-            $query->where('status', $this->statusFilter);
-        }
-        if ($this->dateFrom) {
-            $query->where('received_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $query->where('received_date', '<=', $this->dateTo);
-        }
+        $this->applyTabFilters($query, 'grn');
 
         $grns = $query->orderByDesc('created_at')->orderByDesc('id')->paginate(15);
 
@@ -864,27 +865,7 @@ class Index extends Component
     private function getPrData(bool $seesAll, bool $isCpuUser): array
     {
         $query = PurchaseRequest::with(['outlet', 'createdBy'])->withCount('lines');
-
-        if ($isCpuUser || $seesAll) {
-            if ($this->outletFilter) {
-                $query->where('outlet_id', $this->outletFilter);
-            }
-        } else {
-            $this->scopeByOutletFilter($query, $this->outletFilter);
-        }
-
-        if ($this->search) {
-            $query->where('pr_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->statusFilter) {
-            $query->where('status', $this->statusFilter);
-        }
-        if ($this->dateFrom) {
-            $query->where('requested_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $query->where('requested_date', '<=', $this->dateTo);
-        }
+        $this->applyTabFilters($query, 'pr');
 
         $purchaseRequests = $query->orderByDesc('requested_date')->orderByDesc('id')->paginate(15);
 
@@ -894,25 +875,7 @@ class Index extends Component
     private function getStoData(bool $seesAll): array
     {
         $query = StockTransferOrder::with(['cpu', 'toOutlet'])->withCount('lines');
-
-        if (! $seesAll) {
-            $this->scopeByOutletFilter($query, $this->outletFilter, 'to_outlet_id');
-        } elseif ($this->outletFilter) {
-            $query->where('to_outlet_id', $this->outletFilter);
-        }
-
-        if ($this->search) {
-            $query->where('sto_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->statusFilter) {
-            $query->where('status', $this->statusFilter);
-        }
-        if ($this->dateFrom) {
-            $query->where('transfer_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $query->where('transfer_date', '<=', $this->dateTo);
-        }
+        $this->applyTabFilters($query, 'sto');
 
         $stockTransfers = $query->orderByDesc('transfer_date')->orderByDesc('id')->paginate(15);
 
@@ -921,34 +884,124 @@ class Index extends Component
 
     private function applyPoFilters($query): void
     {
-        $seesAll = $this->seesAllOutlets();
+        $this->applyTabFilters($query, 'po');
+    }
+
+    /**
+     * Every filter on this screen, applied in one place.
+     *
+     * @param  string|null  $from  overrides the date window, for asking the same
+     *                             question of the period before this one
+     */
+    private function applyTabFilters($query, string $tab, ?string $from = null, ?string $to = null): void
+    {
+        $config = self::TABS[$tab];
+        $from ??= $this->dateFrom;
+        $to   ??= $this->dateTo;
+
+        $seesAll = $this->seesAllOutlets()
+            || ($tab === 'pr' && ($this->isCpuUser() || $this->seesAllOutlets()));
 
         if ($seesAll) {
             if ($this->outletFilter) {
-                $query->where('outlet_id', $this->outletFilter);
+                $query->where($config['outlet'], $this->outletFilter);
             }
         } else {
-            $this->scopeByOutletFilter($query, $this->outletFilter);
+            $this->scopeByOutletFilter($query, $this->outletFilter, $config['outlet']);
         }
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('po_number', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('supplier', fn ($s) => $s->where('name', 'like', '%' . $this->search . '%'));
+            $query->where(function ($q) use ($config) {
+                foreach ($config['search'] as $i => $column) {
+                    // A dotted column is a relation to search through, which is
+                    // how Orders finds a PO by its supplier's name.
+                    if (str_contains($column, '.')) {
+                        [$relation, $field] = explode('.', $column);
+                        $q->orWhereHas($relation, fn ($r) => $r->where($field, 'like', '%' . $this->search . '%'));
+
+                        continue;
+                    }
+
+                    $i === 0
+                        ? $q->where($column, 'like', '%' . $this->search . '%')
+                        : $q->orWhere($column, 'like', '%' . $this->search . '%');
+                }
             });
         }
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
         }
-        if ($this->supplierFilter) {
+        if ($this->supplierFilter && in_array('supplier_id', $this->columnsOn($config['model']), true)) {
             $query->where('supplier_id', $this->supplierFilter);
         }
-        if ($this->dateFrom) {
-            $query->where('order_date', '>=', $this->dateFrom);
+        if ($from) {
+            $query->whereDate($config['date'], '>=', $from);
         }
-        if ($this->dateTo) {
-            $query->where('order_date', '<=', $this->dateTo);
+        if ($to) {
+            $query->whereDate($config['date'], '<=', $to);
         }
+    }
+
+    /** @return array<int, string> cached per model, since render asks repeatedly */
+    private function columnsOn(string $model): array
+    {
+        static $cache = [];
+
+        return $cache[$model] ??= \Illuminate\Support\Facades\Schema::getColumnListing((new $model)->getTable());
+    }
+
+    /** The active tab's records under the current filters. */
+    private function filtered(string $tab, ?string $from = null, ?string $to = null)
+    {
+        $query = self::TABS[$tab]['model']::query();
+        $this->applyTabFilters($query, $tab, $from, $to);
+
+        return $query;
+    }
+
+    /**
+     * Cards about the tab you are on, under the filters you have set.
+     *
+     * They used to be three role-shaped numbers about the whole module that no
+     * filter touched — useful, but never an answer to the question the person
+     * had just asked with the date range in front of them.
+     *
+     * @return array<string, mixed>
+     */
+    private function tabStats(string $tab): array
+    {
+        $config = self::TABS[$tab];
+
+        $count = $this->filtered($tab)->count();
+        $value = $config['amount'] ? (float) $this->filtered($tab)->sum($config['amount']) : null;
+
+        $previousCount = null;
+        $previousValue = null;
+
+        if ($this->dateFrom !== '' && $this->dateTo !== '') {
+            $fromDate = \Carbon\Carbon::parse($this->dateFrom);
+            $days     = $fromDate->diffInDays(\Carbon\Carbon::parse($this->dateTo)) + 1;
+            $prevFrom = $fromDate->copy()->subDays($days)->toDateString();
+            $prevTo   = $fromDate->copy()->subDay()->toDateString();
+
+            $previousCount = $this->filtered($tab, $prevFrom, $prevTo)->count();
+            $previousValue = $config['amount']
+                ? (float) $this->filtered($tab, $prevFrom, $prevTo)->sum($config['amount'])
+                : null;
+        }
+
+        return [
+            'label'         => $config['label'],
+            'rangeLabel'    => $this->rangeLabel(),
+            'count'         => $count,
+            'value'         => $value,
+            'previousCount' => $previousCount,
+            'previousValue' => $previousValue,
+            'waitingLabel'  => $config['waitingLabel'],
+            // Deliberately NOT date-filtered: "what is waiting on me" is a queue,
+            // and a queue narrowed to last week is not a queue.
+            'waiting'       => $this->filtered($tab, '', '')->where('status', $config['waiting'])->count(),
+        ];
     }
 
     private function getStats(bool $isPurchasing, bool $isAppointed, array $approverOutletIds): array

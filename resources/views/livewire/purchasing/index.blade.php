@@ -30,56 +30,102 @@
         </div>
     @endif
 
-    {{-- Header --}}
+    {{-- Header. The action belongs to the tab you are standing on: five create
+         buttons in one row made you read them to find the one for the document
+         in front of you, and offered "+ Stock Transfer" while you were looking
+         at goods received. --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 class="page-title">Purchasing</h2>
+        <div>
+            <p class="page-eyebrow">Procurement</p>
+            <h1 class="page-title mt-1">Purchasing</h1>
+        </div>
+
         <div class="flex flex-wrap gap-2">
-            @if ($canCreatePr)
-                @canDo('purchasing.requests.create')
-                <a href="{{ route('purchasing.requests.create') }}"
-                   class="px-3 md:px-4 py-2 {{ $canCreatePo ? 'bg-white text-brand-600 border border-brand-200 hover:bg-brand-50' : 'bg-brand-600 text-white hover:bg-brand-700' }} text-sm font-medium rounded-lg transition">
-                    <span class="sm:hidden">+ PR</span>
-                    <span class="hidden sm:inline">+ Purchase Request</span>
-                </a>
-                @endcanDo
-            @endif
-            @if ($canCreatePo)
-                @canDo('purchasing.orders.create')
-                <a href="{{ route('purchasing.orders.create') }}"
-                   class="btn-primary">
-                    <span class="sm:hidden">+ PO</span>
-                    <span class="hidden sm:inline">+ New Purchase Order</span>
-                </a>
-                @endcanDo
-            @endif
-            @if ($cpuMode && $isCpuUser)
-                @canDo('purchasing.consolidate')
-                <a href="{{ route('purchasing.consolidate') }}"
-                   class="px-3 md:px-4 py-2 bg-white text-brand-600 text-sm font-medium rounded-lg border border-brand-200 hover:bg-brand-50 transition">
-                    <span class="sm:hidden">Consolidate</span>
-                    <span class="hidden sm:inline">Consolidate PRs</span>
-                </a>
-                @endcanDo
-                @canDo('purchasing.transfers.create')
-                <a href="{{ route('purchasing.transfers.create') }}"
-                   class="px-3 md:px-4 py-2 bg-white text-brand-600 text-sm font-medium rounded-lg border border-brand-200 hover:bg-brand-50 transition">
-                    <span class="sm:hidden">+ Transfer</span>
-                    <span class="hidden sm:inline">+ Stock Transfer</span>
-                </a>
-                @endcanDo
+            @if ($tab === 'pr')
+                @if ($canCreatePr)
+                    @canDo('purchasing.requests.create')
+                        <a href="{{ route('purchasing.requests.create') }}" class="btn-primary">
+                            <span class="sm:hidden">+ PR</span>
+                            <span class="hidden sm:inline">+ New Purchase Request</span>
+                        </a>
+                    @endcanDo
+                @endif
+                {{-- Consolidating acts on requests, so it lives with them. --}}
+                @if ($cpuMode && $isCpuUser)
+                    @canDo('purchasing.consolidate')
+                        <a href="{{ route('purchasing.consolidate') }}" class="btn-secondary">
+                            <span class="sm:hidden">Consolidate</span>
+                            <span class="hidden sm:inline">Consolidate Requests</span>
+                        </a>
+                    @endcanDo
+                @endif
+            @elseif ($tab === 'po')
+                @if ($canCreatePo)
+                    @canDo('purchasing.orders.create')
+                        <a href="{{ route('purchasing.orders.create') }}" class="btn-primary">
+                            <span class="sm:hidden">+ PO</span>
+                            <span class="hidden sm:inline">+ New Purchase Order</span>
+                        </a>
+                    @endcanDo
+                @endif
+                <button wire:click="exportCsv" class="btn-secondary">Export CSV</button>
+            @elseif ($tab === 'sto')
+                @if ($cpuMode && $isCpuUser)
+                    @canDo('purchasing.transfers.create')
+                        <a href="{{ route('purchasing.transfers.create') }}" class="btn-primary">
+                            <span class="sm:hidden">+ Transfer</span>
+                            <span class="hidden sm:inline">+ New Stock Transfer</span>
+                        </a>
+                    @endcanDo
+                @endif
             @endif
         </div>
     </div>
 
-    {{-- Stats --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        @foreach ($stats as $stat)
-            <div class="card p-5">
-                <p class="text-xs text-gray-600 uppercase tracking-wider">{{ $stat['label'] }}</p>
-                <p class="text-2xl font-bold text-gray-800 mt-1">{{ $stat['value'] }}</p>
+    {{-- Stats: about the tab you are on, under the filters you have set.
+
+         Three role-shaped numbers about the whole module used to sit here, and
+         no filter touched them — useful, but never an answer to the question
+         the person had just asked with the date range in front of them. --}}
+    @if ($tabStats)
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div class="stat">
+                <p class="stat-label">{{ $tabStats['label'] }} {{ $tabStats['rangeLabel'] }}</p>
+                <p class="stat-value">{{ number_format($tabStats['count']) }}</p>
+                @if ($tabStats['previousCount'] !== null)
+                    @php $delta = $tabStats['count'] - $tabStats['previousCount']; @endphp
+                    {{-- Uncoloured on purpose: more orders and more pending
+                         receipts are the same arithmetic and different news. --}}
+                    <p class="text-xs text-gray-600 mt-1 tabular-nums">
+                        {{ $delta > 0 ? '▲' : ($delta < 0 ? '▼' : '—') }}
+                        {{ $delta === 0 ? 'no change' : abs($delta) . ' vs the period before' }}
+                    </p>
+                @endif
             </div>
-        @endforeach
-    </div>
+
+            @if ($tabStats['value'] !== null)
+                <div class="stat">
+                    <p class="stat-label">Value {{ $tabStats['rangeLabel'] }}</p>
+                    <p class="stat-value tabular-nums">RM {{ number_format($tabStats['value'], 2) }}</p>
+                    @if ($tabStats['previousValue'] !== null)
+                        <p class="text-xs text-gray-600 mt-1 tabular-nums">
+                            Previous period: RM {{ number_format($tabStats['previousValue'], 2) }}
+                        </p>
+                    @endif
+                </div>
+            @endif
+
+            <div class="stat">
+                <p class="stat-label">{{ $tabStats['waitingLabel'] }}</p>
+                <p class="stat-value {{ $tabStats['waiting'] > 0 ? 'text-warning-600' : '' }}">
+                    {{ number_format($tabStats['waiting']) }}
+                </p>
+                {{-- Not narrowed by the date range: a queue cut to last week is
+                     not a queue, and this is the number you act on. --}}
+                <p class="text-xs text-gray-600 mt-1">across all dates</p>
+            </div>
+        </div>
+    @endif
 
     {{-- Tabs --}}
     <div class="border-b border-gray-200 mb-4">
@@ -250,11 +296,6 @@
                 <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
 
-            @if ($tab === 'po')
-                <button wire:click="exportCsv" class="btn-secondary">
-                    Export CSV
-                </button>
-            @endif
         </div>
     </div>
 

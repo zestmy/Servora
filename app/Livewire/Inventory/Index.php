@@ -122,9 +122,7 @@ class Index extends Component
             $this->tab = $tab;
         }
 
-        if ($this->dateFrom === '' && $this->dateTo === '') {
-            $this->applyQuickRange($this->quickRange ?: 'last_30');
-        }
+        $this->bootQuickRange();
     }
 
     /**
@@ -165,7 +163,7 @@ class Index extends Component
     public function resetFilters(): void
     {
         $this->reset(['search', 'outletFilter', 'departmentFilter', 'supplierFilter', 'statusFilter']);
-        $this->setQuickRange('last_30');
+        $this->setQuickRange($this->defaultQuickRange());
     }
 
     /** @return array<string, mixed> */

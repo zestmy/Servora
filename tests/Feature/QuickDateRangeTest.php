@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Audit\Index as Audit;
 use App\Livewire\Inventory\Index as StockManagement;
 use App\Livewire\Purchasing\Index as Purchasing;
 use App\Models\Company;
@@ -53,6 +54,7 @@ class QuickDateRangeTest extends TestCase
         return [
             'stock management' => [StockManagement::class],
             'purchasing'       => [Purchasing::class],
+            'audit'            => [Audit::class],
         ];
     }
 
@@ -80,6 +82,17 @@ class QuickDateRangeTest extends TestCase
             ->call('setQuickRange', 'last_7')
             ->set('dateFrom', today()->subDays(3)->toDateString())
             ->assertSet('quickRange', '');
+    }
+
+    /**
+     * Audit opens on a week, the others on a month — a log answers "what just
+     * happened" and a month of every change in the company is a wall. The trait
+     * carries no default of its own for exactly this reason.
+     */
+    public function test_a_screen_may_keep_its_own_idea_of_recently(): void
+    {
+        Livewire::actingAs($this->user)->test(Audit::class)->assertSet('quickRange', 'last_7');
+        Livewire::actingAs($this->user)->test(StockManagement::class)->assertSet('quickRange', 'last_30');
     }
 
     /**

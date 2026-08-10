@@ -13,7 +13,7 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use WithPagination, ScopesToActiveOutlet;
+    use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -23,9 +23,6 @@ class Index extends Component
 
     #[Url]
     public string $dateTo = '';
-
-    #[Url]
-    public string $quickRange = 'last_7';
 
     #[Url]
     public string $userFilter = '';
@@ -41,11 +38,24 @@ class Index extends Component
 
     public int $perPage = 50;
 
+    /** The trait owns $quickRange, so its URL binding is declared here. */
+    protected $queryString = ['quickRange'];
+
     public function mount(): void
     {
-        if ($this->dateFrom === '' && $this->dateTo === '') {
-            $this->applyQuickRange($this->quickRange ?: 'last_7');
-        }
+        $this->bootQuickRange();
+    }
+
+    /**
+     * Audit opens on the last week, not the last month.
+     *
+     * A log is read to answer "what just happened", and a month of every change
+     * in the company is a wall. The other screens using these ranges are asking
+     * about volumes over a period, where 30 days is the useful default.
+     */
+    protected function defaultQuickRange(): string
+    {
+        return 'last_7';
     }
 
     public function updatedSearch(): void       { $this->resetPage(); }
@@ -56,34 +66,10 @@ class Index extends Component
     public function updatedDateFrom(): void       { $this->quickRange = ''; $this->resetPage(); }
     public function updatedDateTo(): void         { $this->quickRange = ''; $this->resetPage(); }
 
-    public function setQuickRange(string $range): void
-    {
-        $this->quickRange = $range;
-        $this->applyQuickRange($range);
-        $this->resetPage();
-    }
-
-    private function applyQuickRange(string $range): void
-    {
-        $today = Carbon::today();
-
-        [$from, $to] = match ($range) {
-            'today'      => [$today, $today],
-            'last_7'     => [$today->copy()->subDays(6), $today],
-            'last_30'    => [$today->copy()->subDays(29), $today],
-            'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
-            'last_month' => [$today->copy()->subMonthNoOverflow()->startOfMonth(), $today->copy()->subMonthNoOverflow()->endOfMonth()],
-            default      => [null, null], // 'all'
-        };
-
-        $this->dateFrom = $from?->toDateString() ?? '';
-        $this->dateTo   = $to?->toDateString() ?? '';
-    }
-
     public function resetFilters(): void
     {
         $this->reset(['search', 'userFilter', 'outletFilter', 'typeFilter', 'eventFilter']);
-        $this->setQuickRange('last_7');
+        $this->setQuickRange($this->defaultQuickRange());
     }
 
     /** Current filter state as a plain array (for the service + export links). */

@@ -23,7 +23,7 @@
     <div class="card p-4 mb-4">
         {{-- Quick ranges --}}
         <div class="flex items-center gap-1.5 mb-3 flex-wrap">
-            @foreach (['today' => 'Today', 'last_7' => 'Last 7 Days', 'last_30' => 'Last 30 Days', 'this_month' => 'This Month', 'last_month' => 'Last Month', 'all' => 'All Time'] as $key => $label)
+            @foreach (\App\Livewire\Audit\Index::quickRangeOptions() as $key => $label)
                 <button wire:click="setQuickRange('{{ $key }}')"
                         class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
                                {{ $quickRange === $key ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' }}">
