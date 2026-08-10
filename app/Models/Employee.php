@@ -229,6 +229,18 @@ class Employee extends Model
     }
 
     /**
+     * The same idea as labelPinFingerprint(), for sessions opened by email.
+     *
+     * Changing the address on someone's record ends the sessions opened with the
+     * old one — the analogue of a reissued PIN ending the sessions opened with
+     * the one before it.
+     */
+    public function emailFingerprint(): ?string
+    {
+        return filled($this->email) ? hash('sha256', mb_strtolower(trim((string) $this->email))) : null;
+    }
+
+    /**
      * Phone dial codes for the form's country selector, keyed by ISO-2.
      * Dial values are unique so an edited number maps back to one entry.
      */
@@ -333,6 +345,7 @@ class Employee extends Model
         'break_minutes'              => 'integer',
         'basic_salary'               => 'decimal:2',
         'label_pin_set_at'           => 'datetime',
+        'pin_login_disabled_at'      => 'datetime',
     ];
 
     protected static function booted(): void

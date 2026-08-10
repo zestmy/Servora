@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Scopes\CompanyScope;
+use App\Services\Staff\EmailLoginCode;
 use App\Services\Staff\StaffSession;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
@@ -39,6 +40,41 @@ abstract class StaffLogin extends Component
     public string $pin = '';
 
     public string $error = '';
+
+    /*
+     * The second way in.
+     *
+     * 52 of 53 active employees have an email address on file and 7 have a PIN,
+     * so most of the workforce could not reach the staff app at all — a manager
+     * has to enrol each person by hand, and until they do, that person is
+     * locked out of clocking in. A code sent to an address already on their
+     * record proves the same thing a PIN does.
+     *
+     * 'pin' or 'email'. The PIN keypad stays the default: it is faster, it works
+     * on the outlet tablet with no phone in hand, and it is what the people who
+     * already have one expect to see.
+     */
+    public string $method = 'pin';
+
+    public string $loginEmail = '';
+
+    public string $emailCode = '';
+
+    /** Set once a code has gone out, so the screen can move to the code step. */
+    public bool $codeSent = false;
+
+    public string $notice = '';
+
+    /**
+     * Offered immediately after an email sign-in, and only then.
+     *
+     * Turning off your own PIN is a change to how you get in, so it asks to be
+     * made by the person themselves — but from a screen where they have just
+     * proved they are that person. Offering it on the way IN, to anyone who can
+     * name a colleague, would let a stranger lock somebody out of clocking in
+     * without ever signing in as them.
+     */
+    public bool $offerPinSwitch = false;
 
     /** Attempts allowed before a name is locked out briefly. */
     private const MAX_ATTEMPTS = 5;
@@ -107,6 +143,122 @@ abstract class StaffLogin extends Component
         $this->employeeId = null;
         $this->pin        = '';
         $this->error      = '';
+    }
+
+    // ── Signing in by email ───────────────────────────────────────────────
+
+    public function useEmail(): void
+    {
+        $this->method   = 'email';
+        $this->error    = '';
+        $this->notice   = '';
+        $this->pin      = '';
+        $this->codeSent = false;
+    }
+
+    public function usePin(): void
+    {
+        $this->method    = 'pin';
+        $this->error     = '';
+        $this->notice    = '';
+        $this->emailCode = '';
+        $this->codeSent  = false;
+    }
+
+    /**
+     * Send a code — and say the same thing whether or not the address is ours.
+     *
+     * An honest "no such employee" here would turn the sign-in screen into a
+     * way of asking who works at a company, one address at a time.
+     */
+    public function sendCode(EmailLoginCode $codes): void
+    {
+        $this->error  = '';
+        $this->notice = '';
+
+        if (trim($this->loginEmail) === '') {
+            $this->error = 'Enter your email address.';
+
+            return;
+        }
+
+        $companyId = $this->companyId();
+
+        if (! $companyId) {
+            $this->error = 'This link is missing its company. Ask your manager for the right address.';
+
+            return;
+        }
+
+        $employee = $codes->employeeFor($companyId, $this->loginEmail);
+
+        if (! $codes->send($employee, $this->loginEmail, request()->ip())) {
+            $this->error = 'Too many codes requested. Wait a few minutes and try again.';
+
+            return;
+        }
+
+        $this->codeSent  = true;
+        $this->emailCode = '';
+        $this->notice    = 'If that address is on file, a code is on its way. It lasts '
+            . EmailLoginCode::TTL_MINUTES . ' minutes.';
+    }
+
+    public function submitCode(EmailLoginCode $codes, StaffSession $session)
+    {
+        $this->error = '';
+
+        $companyId = $this->companyId();
+        $employee  = $companyId ? $codes->employeeFor($companyId, $this->loginEmail) : null;
+
+        // Wrong code and unknown address are one message: the pair of them would
+        // otherwise answer the question the send step refused to.
+        if (! $employee || ! $codes->verify($employee, $this->emailCode)) {
+            $this->error     = 'That code is wrong or has expired. Ask for a new one.';
+            $this->emailCode = '';
+
+            return null;
+        }
+
+        $session->signIn($employee, 'email');
+
+        // Stay on the screen just long enough to offer the switch, but only to
+        // someone who actually has a PIN to turn off.
+        if ($employee->hasLabelPin() && ! $employee->pin_login_disabled_at) {
+            $this->employeeId     = $employee->id;
+            $this->offerPinSwitch = true;
+            $this->notice         = 'Signed in.';
+
+            return null;
+        }
+
+        return $this->redirect($this->destination(), navigate: false);
+    }
+
+    /**
+     * The employee's own decision, made having just proved who they are.
+     *
+     * Their PIN is left in place rather than cleared: to a manager, somebody who
+     * chose email must not look like somebody who was never enrolled, and
+     * changing their mind should not need a credential reissued.
+     */
+    public function disablePinLogin()
+    {
+        $employee = \App\Models\Employee::withoutGlobalScope(\App\Scopes\CompanyScope::class)
+            ->find($this->employeeId);
+
+        if (! $employee || ! $this->offerPinSwitch) {
+            return $this->redirect($this->destination(), navigate: false);
+        }
+
+        $employee->forceFill(['pin_login_disabled_at' => now()])->save();
+
+        return $this->redirect($this->destination(), navigate: false);
+    }
+
+    public function keepPinLogin()
+    {
+        return $this->redirect($this->destination(), navigate: false);
     }
 
     /** Number pad. */
@@ -249,6 +401,9 @@ abstract class StaffLogin extends Component
             ->where('outlet_id', $this->outletId)
             ->where('is_active', true)
             ->whereNotNull('label_pin')
+            // Somebody who has moved to email is not offered a keypad they have
+            // switched off — the name would be there and the PIN would refuse.
+            ->whereNull('pin_login_disabled_at')
             ->orderBy('name')
             ->get();
     }
@@ -266,12 +421,13 @@ abstract class StaffLogin extends Component
     public function render()
     {
         return view('livewire.staff.login', [
-            'outlets'  => $this->outlets(),
+            'outlets'   => $this->outlets(),
             'employees' => $this->employees(),
-            'selected' => $this->employee(),
-            'company'  => Company::find($this->companyId()),
-            'tagline'  => $this->tagline(),
-            'iconPath' => $this->iconPath(),
+            'selected'  => $this->employee(),
+            'company'   => Company::find($this->companyId()),
+            'tagline'   => $this->tagline(),
+            'iconPath'  => $this->iconPath(),
+            'codeTtl'   => EmailLoginCode::TTL_MINUTES,
         ])->layout($this->layoutName(), ['title' => 'Sign in']);
     }
 }

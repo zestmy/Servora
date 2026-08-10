@@ -35,7 +35,10 @@ class StaffSession
      */
     protected const KEY = 'label_staff';
 
-    public function signIn(Employee $employee): void
+    /**
+     * @param  'pin'|'email'  $via  which credential opened this session
+     */
+    public function signIn(Employee $employee, string $via = 'pin'): void
     {
         // New session id on sign-in: a fixated session from before the PIN
         // was entered must not carry over into an authenticated one.
@@ -44,7 +47,10 @@ class StaffSession
         Session::put(static::KEY, [
             'employee_id' => $employee->id,
             'company_id'  => $employee->company_id,
-            'fingerprint' => $employee->labelPinFingerprint(),
+            'via'         => $via,
+            'fingerprint' => $via === 'email'
+                ? $employee->emailFingerprint()
+                : $employee->labelPinFingerprint(),
         ]);
     }
 
@@ -80,11 +86,29 @@ class StaffSession
             ->where('is_active', true)
             ->first();
 
-        if (! $employee || ! $employee->hasLabelPin()) {
+        /*
+         * Validate against the credential that actually opened the session.
+         *
+         * This used to demand a PIN of everybody, which was fine while a PIN was
+         * the only way in. It is not: on a real company 45 of 53 staff have an
+         * email and no PIN, and requiring one here would sign them in and then
+         * bounce them on their very next request — the session would look valid
+         * to the screen that created it and invalid to every screen after.
+         *
+         * Sessions predating this carry no 'via' and are treated as PIN
+         * sessions, so nobody already signed in is thrown out by the change.
+         */
+        $via = $data['via'] ?? 'pin';
+
+        $fingerprint = $via === 'email'
+            ? $employee->emailFingerprint()
+            : ($employee->hasLabelPin() ? $employee->labelPinFingerprint() : null);
+
+        if ($fingerprint === null) {
             return null;
         }
 
-        if (! hash_equals((string) $employee->labelPinFingerprint(), (string) ($data['fingerprint'] ?? ''))) {
+        if (! hash_equals((string) $fingerprint, (string) ($data['fingerprint'] ?? ''))) {
             return null;
         }
 

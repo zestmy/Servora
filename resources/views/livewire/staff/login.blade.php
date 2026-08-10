@@ -13,7 +13,7 @@
             </div>
         @else
             {{-- No brand set: fall back to the app's own mark. --}}
-            <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center mb-3">
+            <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center mb-3 shadow-btn">
                 <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $iconPath }}"/>
                 </svg>
@@ -25,7 +25,109 @@
         <p class="mt-0.5 text-sm text-gray-600">{{ $tagline }}</p>
     </div>
 
-    @if (! $selected)
+    {{-- Just signed in by email, and there is still a PIN on the account.
+         Offered here rather than on the way in: turning off your own PIN is a
+         change to how you get in, so it is made by the person themselves — but
+         from a screen where they have just proved they are that person. --}}
+    @if ($offerPinSwitch)
+        <div class="panel p-5">
+            <h2 class="text-base font-semibold text-gray-900">You are signed in</h2>
+            <p class="mt-1 text-sm text-gray-600">
+                You also have a PIN for this app. Would you like to stop using it and
+                sign in by email from now on?
+            </p>
+
+            <div class="mt-5 grid gap-2">
+                <button type="button" wire:click="disablePinLogin"
+                        class="btn-primary min-h-[3.25rem] w-full justify-center">
+                    Use email only from now on
+                </button>
+                <button type="button" wire:click="keepPinLogin"
+                        class="btn-secondary min-h-[3.25rem] w-full justify-center">
+                    Keep my PIN as well
+                </button>
+            </div>
+
+            <p class="mt-3 text-xs text-gray-600">
+                Your PIN is not deleted either way — your manager can switch it back on
+                for you if you change your mind.
+            </p>
+        </div>
+
+    @elseif ($method === 'email')
+        {{-- Email route: address, then the code that lands in it. --}}
+        <div class="panel p-5">
+            @if (! $codeSent)
+                <h2 class="text-base font-semibold text-gray-900">Sign in by email</h2>
+                <p class="mt-1 text-sm text-gray-600">
+                    We will send a {{ $codeTtl }}-minute code to the address your manager has on file.
+                </p>
+
+                <label for="staff-email" class="mt-4 block text-sm font-semibold text-gray-900 mb-1.5">
+                    Your email
+                </label>
+                <input id="staff-email" type="email" inputmode="email" autocomplete="email"
+                       wire:model="loginEmail" wire:keydown.enter="sendCode"
+                       placeholder="you@example.com"
+                       class="w-full min-h-[3.25rem] rounded-control border-gray-300 text-base" />
+
+                @if ($error)
+                    <p class="mt-2 text-sm font-medium text-danger-700" role="alert" aria-live="assertive">{{ $error }}</p>
+                @endif
+
+                <button type="button" wire:click="sendCode"
+                        wire:loading.attr="disabled" wire:target="sendCode"
+                        class="btn-primary mt-4 min-h-[3.25rem] w-full justify-center">
+                    <span wire:loading.remove wire:target="sendCode">Email me a code</span>
+                    <span wire:loading wire:target="sendCode">Sending…</span>
+                </button>
+            @else
+                <button type="button" wire:click="$set('codeSent', false)"
+                        class="-ml-2 mb-2 flex min-h-[2.75rem] items-center gap-1 rounded-control px-2 text-xs font-medium text-gray-600 active:bg-gray-100">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    Different address
+                </button>
+
+                <h2 class="text-base font-semibold text-gray-900">Enter your code</h2>
+
+                @if ($notice)
+                    <p class="mt-1 text-sm text-gray-600" aria-live="polite">{{ $notice }}</p>
+                @endif
+
+                {{-- One wide field rather than six boxes: six inputs fight every
+                     mobile keyboard and autofill, and a code pasted from the
+                     notification has to land somewhere. --}}
+                <input type="text" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="6" wire:model="emailCode" wire:keydown.enter="submitCode"
+                       placeholder="000000"
+                       class="mt-4 w-full min-h-[3.75rem] rounded-control border-gray-300 text-center text-2xl font-semibold tracking-[0.5em] tabular-nums" />
+
+                @if ($error)
+                    <p class="mt-2 text-sm font-medium text-danger-700" role="alert" aria-live="assertive">{{ $error }}</p>
+                @endif
+
+                <button type="button" wire:click="submitCode"
+                        wire:loading.attr="disabled" wire:target="submitCode"
+                        class="btn-primary mt-4 min-h-[3.25rem] w-full justify-center">
+                    <span wire:loading.remove wire:target="submitCode">Sign in</span>
+                    <span wire:loading wire:target="submitCode">Checking…</span>
+                </button>
+
+                <button type="button" wire:click="sendCode" wire:loading.attr="disabled" wire:target="sendCode"
+                        class="mt-2 min-h-[2.75rem] w-full rounded-control text-sm font-medium text-brand-700 active:bg-brand-50">
+                    Send another code
+                </button>
+            @endif
+
+            <button type="button" wire:click="usePin"
+                    class="mt-4 min-h-[2.75rem] w-full rounded-control border-t border-gray-100 pt-4 text-sm font-medium text-gray-600 active:bg-gray-50">
+                Use my PIN instead
+            </button>
+        </div>
+
+    @elseif (! $selected)
         {{-- Step one: where are you, and who are you --}}
         <div class="panel p-5">
             @if ($outlets->isEmpty())
@@ -70,11 +172,21 @@
 
                 @if ($outletId && $employees->isEmpty())
                     <p class="mt-2 text-sm text-gray-600">
-                        Nobody at this outlet has a PIN yet. Ask your manager.
+                        Nobody at this outlet has a PIN yet — sign in by email instead.
                     </p>
                 @endif
             @endif
         </div>
+
+        {{-- The way in for everyone without a PIN, which on a real company is
+             most of the staff. Deliberately below the fold of the panel rather
+             than beside it: the tablet on the counter is the common case and
+             its users have a PIN. --}}
+        <button type="button" wire:click="useEmail"
+                class="mt-3 min-h-[3.25rem] w-full rounded-control border border-gray-200 bg-white text-sm font-medium text-gray-700 active:bg-gray-50">
+            No PIN? Email me a code
+        </button>
+
     @else
         {{-- Step two: PIN --}}
         <div class="panel p-5">
@@ -130,6 +242,11 @@
                     </svg>
                 </button>
             </div>
+
+            <button type="button" wire:click="useEmail"
+                    class="mt-4 min-h-[2.75rem] w-full rounded-control border-t border-gray-100 pt-4 text-sm font-medium text-gray-600 active:bg-gray-50">
+                Forgotten your PIN? Email me a code
+            </button>
         </div>
     @endif
 </div>
