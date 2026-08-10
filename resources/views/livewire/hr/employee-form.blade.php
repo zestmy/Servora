@@ -121,18 +121,58 @@
 
             {{-- Photograph and name sit together: it is how anyone checks they
                  have opened the right record. --}}
+            @php
+                /* Resolved once: the thumbnail and the enlarged view must be the
+                   same image, and a freshly-uploaded photo has a different source
+                   from a stored one. */
+                $photoSrc = $photo
+                    ? $photo->temporaryUrl()
+                    : (($photoPath && $employeeId && (auth()->user()?->canDo('hr.view') ?? false))
+                        ? route('hr.employees.photo', $employeeId)
+                        : null);
+            @endphp
+
             <div class="flex items-start gap-4">
-                <div class="flex-shrink-0 text-center">
+                <div class="flex-shrink-0 text-center" x-data="{ zoom: false }">
                     <div class="h-20 w-20 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
-                        @if ($photo)
-                            <img src="{{ $photo->temporaryUrl() }}" alt="" class="h-full w-full object-cover" />
-                        @elseif ($photoPath && $employeeId && (auth()->user()?->canDo('hr.view') ?? false))
-                            <img src="{{ route('hr.employees.photo', $employeeId) }}" alt="" class="h-full w-full object-cover" />
+                        @if ($photoSrc)
+                            {{-- 80px of face is enough to know you have the right
+                                 record and not enough to check it against the person
+                                 in front of you, which is what this is for. --}}
+                            <button type="button" @click="zoom = true"
+                                    title="{{ $f_name ? 'View ' . $f_name . '’s photo larger' : 'View the photo larger' }}"
+                                    class="h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                                <img src="{{ $photoSrc }}" alt="" class="h-full w-full object-cover" />
+                            </button>
                         @else
                             <x-icon name="users" class="h-7 w-7 text-gray-400" />
                         @endif
                     </div>
                     <div wire:loading wire:target="photo" class="mt-1 text-[11px] text-gray-500">Uploading…</div>
+
+                    @if ($photoSrc)
+                        {{-- Teleported to body at z-[100], like every other modal in
+                             HR: this form sits inside an overflow-y-auto main, which
+                             clips a fixed overlay, and the sidebar is z-50. --}}
+                        <template x-teleport="body">
+                            <div x-show="zoom" x-cloak @keydown.escape.window="zoom = false"
+                                 class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                <div class="fixed inset-0 bg-black/70" @click="zoom = false"></div>
+                                <div class="relative max-h-full" @click.stop>
+                                    <img src="{{ $photoSrc }}" alt="{{ $f_name ?: 'Employee photo' }}"
+                                         class="max-h-[80vh] max-w-[90vw] rounded-panel shadow-e4 object-contain bg-white" />
+                                    <button type="button" @click="zoom = false"
+                                            title="Close"
+                                            class="absolute -top-3 -right-3 h-9 w-9 rounded-full bg-white text-gray-700 shadow-e2 flex items-center justify-center hover:text-gray-900">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                    @if ($f_name)
+                                        <p class="mt-3 text-center text-sm text-white/90">{{ $f_name }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                        </template>
+                    @endif
                 </div>
 
                 <div class="flex-1 min-w-0">
