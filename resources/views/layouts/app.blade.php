@@ -295,7 +295,12 @@
                             // settings.view, or the person who administers pay
                             // would have no way in.
                             ['route' => 'settings.index', 'query' => 'module=hr-people', 'label' => 'HR Settings',
-                             'anyPermission' => ['settings.sections', 'settings.certifications', 'settings.ot_approvers', 'hr.compensation', 'hr.documents.manage', 'hr.clock.manage'],
+                             // Configuration abilities only. It used to include
+                             // hr.compensation, hr.documents.manage and
+                             // hr.clock.manage, which every Chef and Branch
+                             // Manager holds — so the link was offered to almost
+                             // everybody in the company.
+                             'anyPermission' => ['settings.hr', 'settings.sections', 'settings.certifications', 'settings.ot_approvers'],
                              'section' => 'Configure'],
                         ],
                     ],

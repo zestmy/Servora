@@ -68,7 +68,7 @@
     @if (! $settings->kiosk_enabled)
         <div class="alert-warning mb-6">
             Kiosk clock-in is switched off for this company, so paired tablets will refuse to work.
-            Turn it on under <a href="{{ route('hr.clock-settings') }}" wire:navigate class="font-semibold underline">Clock-in settings</a>.
+            Turn it on under @canDo('settings.hr')<a href="{{ route('hr.clock-settings') }}" wire:navigate class="font-semibold underline">Clock-in settings</a>@else<span class="font-semibold">Clock-in settings</span>@endcanDo.
         </div>
     @endif
 

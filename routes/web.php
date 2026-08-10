@@ -338,10 +338,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/pay-components', \App\Livewire\Settings\PayComponents::class)->name('settings.pay-components')->middleware('can:hr.compensation');
     Route::get('/settings/statutory', \App\Livewire\Settings\StatutoryRates::class)->name('settings.statutory')->middleware('can:hr.compensation');
     Route::get('/settings/banks', \App\Livewire\Settings\Banks::class)->name('settings.banks')->middleware('can:hr.compensation');
-    Route::get('/settings/employee-particulars', \App\Livewire\Settings\EmployeeParticulars::class)->name('settings.employee-particulars')->middleware('can:hr.view');
-    Route::get('/settings/leave-types', \App\Livewire\Settings\LeaveTypes::class)->name('settings.leave-types')->middleware('can:hr.leave.approve');
-    Route::get('/settings/leave-approvers', \App\Livewire\Settings\LeaveApprovers::class)->name('settings.leave-approvers')->middleware('can:hr.leave.approve');
-    Route::get('/settings/public-holidays', \App\Livewire\Settings\PublicHolidays::class)->name('settings.public-holidays')->middleware('can:hr.leave.approve');
+    Route::get('/settings/employee-particulars', \App\Livewire\Settings\EmployeeParticulars::class)->name('settings.employee-particulars')->middleware('can:settings.hr');
+    Route::get('/settings/leave-types', \App\Livewire\Settings\LeaveTypes::class)->name('settings.leave-types')->middleware('can:settings.hr');
+    Route::get('/settings/leave-approvers', \App\Livewire\Settings\LeaveApprovers::class)->name('settings.leave-approvers')->middleware('can:settings.hr');
+    Route::get('/settings/public-holidays', \App\Livewire\Settings\PublicHolidays::class)->name('settings.public-holidays')->middleware('can:settings.hr');
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:inventory.view');
     Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.outlet_groups');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:hr.view');
@@ -420,7 +420,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // these are the manager-facing review, policy and enrolment screens.
     Route::get('/hr/clock-ins', \App\Livewire\Hr\ClockEvents::class)->name('hr.clock-ins')->middleware('can:hr.clock');
     Route::get('/hr/clock-ins/{event}/selfie', [\App\Http\Controllers\Hr\ClockImageController::class, 'selfie'])->name('hr.clock-ins.selfie')->middleware('can:hr.clock');
-    Route::get('/hr/clock-settings', \App\Livewire\Hr\ClockSettings::class)->name('hr.clock-settings')->middleware('can:hr.clock.manage');
+    Route::get('/hr/clock-settings', \App\Livewire\Hr\ClockSettings::class)->name('hr.clock-settings')->middleware('can:settings.hr');
     // Kiosk tablets. Same gate as the geofence and face enrolment rather than
     // a permission of its own: pairing a device that can vouch for an outlet
     // is the same kind of trust, and a fourth way to say "manages the clock"

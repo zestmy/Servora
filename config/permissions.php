@@ -675,6 +675,12 @@ return [
                     'name' => 'settings.ot_approvers', 'label' => 'OT approvers',
                     'title' => 'Settings (OT Approvers)', 'help' => 'Who approves overtime claims, per outlet.',
                 ],
+                'hr' => [
+                    'name' => 'settings.hr', 'label' => 'HR configuration',
+                    'title' => 'Settings (HR)',
+                    'help'  => 'Leave types, holidays, approvers, particulars and clock-in rules — '
+                        . 'company-wide HR setup, not approving one leave request.',
+                ],
                 'po_approvers' => [
                     'name' => 'settings.po_approvers', 'label' => 'PO approvers',
                     'title' => 'Settings (PO Approvers)', 'help' => 'Who approves purchase orders, per outlet.',

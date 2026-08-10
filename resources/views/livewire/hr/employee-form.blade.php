@@ -270,7 +270,7 @@
                 </div>
                 <p class="mt-2 text-[11px] text-gray-500">
                     Missing an option?
-                    @canDo('hr.view')<a href="{{ route('settings.employee-particulars') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage these lists</a>@endcanDo
+                    @canDo('settings.hr')<a href="{{ route('settings.employee-particulars') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage these lists</a>@endcanDo
                 </p>
             </div>
         </div>
@@ -455,7 +455,7 @@
                     <p class="mt-1 text-[11px] text-gray-500">
                         Their superior. Leave and time off requests are emailed to this person for approval.
                         With nobody set, requests fall back to
-                        @canDo('hr.leave.approve')<a href="{{ route('settings.leave-approvers') }}" class="text-brand-600 hover:underline">Settings → Leave Approvers</a>@else<span>the company default</span>@endcanDo.
+                        @canDo('settings.hr')<a href="{{ route('settings.leave-approvers') }}" class="text-brand-600 hover:underline">Settings → Leave Approvers</a>@else<span>the company default</span>@endcanDo.
                     </p>
                     <x-input-error :messages="$errors->get('f_reports_to_id')" class="mt-1" />
                 </div>

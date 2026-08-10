@@ -25,7 +25,9 @@
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('hr.clock-devices') }}" wire:navigate class="btn-secondary">Kiosks</a>
                 <a href="{{ route('hr.face-enrolment') }}" wire:navigate class="btn-secondary">Face Enrolment</a>
+                @canDo('settings.hr')
                 <a href="{{ route('hr.clock-settings') }}" wire:navigate class="btn-secondary">Settings</a>
+                @endcanDo
             </div>
         @endcan
     </div>
