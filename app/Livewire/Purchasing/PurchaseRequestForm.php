@@ -132,6 +132,97 @@ class PurchaseRequestForm extends Component
         }
     }
 
+    /*
+     * Loading a form template.
+     *
+     * A stock-take or order form IS the list somebody walks the store with, in
+     * the order they walk it. Retyping one into a request is transcription, and
+     * transcription is where items go missing.
+     */
+    public bool $showTemplateImport = false;
+
+    public ?int $importTemplateId = null;
+
+    /** Only a draft can still be changed — the one place that decides it. */
+    public function isEditable(): bool
+    {
+        return in_array($this->status, ['draft', ''], true);
+    }
+
+    public function openTemplateImport(): void
+    {
+        $this->importTemplateId  = null;
+        $this->showTemplateImport = true;
+    }
+
+    public function closeTemplateImport(): void
+    {
+        $this->showTemplateImport = false;
+    }
+
+    /**
+     * Copy a template's items onto this request.
+     *
+     * QUANTITIES DO carry here, unlike the label sets that import the same
+     * templates: a form's default quantity is how much to order or count, which
+     * is exactly what a request line is asking for. Only ingredient lines come
+     * across — a request orders ingredients, and a template's recipe lines have
+     * nothing to buy behind them.
+     *
+     * Items already on the request are skipped rather than duplicated, so
+     * loading twice is safe and loading again after the form grew adds only
+     * what is new.
+     */
+    public function importTemplate(): void
+    {
+        if (! $this->isEditable() || ! $this->importTemplateId) {
+            return;
+        }
+
+        $template = \App\Models\FormTemplate::with('lines')->find($this->importTemplateId);
+
+        if (! $template) {
+            return;
+        }
+
+        $before  = count($this->lines);
+        $skipped = 0;
+
+        foreach ($template->lines as $line) {
+            if ($line->item_type !== 'ingredient' || ! $line->ingredient_id) {
+                $skipped++;
+                continue;
+            }
+
+            $countBefore = count($this->lines);
+            $this->addIngredient((int) $line->ingredient_id);
+
+            // addIngredient() returns quietly on a duplicate, so the quantity is
+            // written only when a line was actually appended.
+            if (count($this->lines) > $countBefore && (float) $line->default_quantity > 0) {
+                $this->lines[count($this->lines) - 1]['quantity'] = (float) $line->default_quantity;
+            }
+        }
+
+        $added = count($this->lines) - $before;
+        $this->showTemplateImport = false;
+        $this->ingredientSearch   = '';
+
+        session()->flash('success', $this->importSummary($template->name, $added, $skipped));
+    }
+
+    /** Says what happened to every line, including the ones that did nothing. */
+    private function importSummary(string $template, int $added, int $skipped): string
+    {
+        $parts = [sprintf('%d item%s added from “%s”', $added, $added === 1 ? '' : 's', $template)];
+
+        if ($skipped) {
+            $parts[] = sprintf('%d skipped — recipes have nothing to order', $skipped);
+        }
+
+        return implode('. ', $parts) . '.';
+    }
+
     public function addIngredient(int $ingredientId): void
     {
         // Prevent duplicate
@@ -324,7 +415,7 @@ class PurchaseRequestForm extends Component
 
     public function render()
     {
-        $isEditable = in_array($this->status, ['draft', '']);
+        $isEditable = $this->isEditable();
 
         $searchResults = [];
         if (strlen($this->ingredientSearch) >= 2) {
@@ -355,6 +446,12 @@ class PurchaseRequestForm extends Component
             'uoms'          => $uoms,
             'isEditable'    => $isEditable,
             'outlets'       => $outlets,
+            // Only forms with something to order on them: a template of nothing
+            // but recipes would load as an empty request.
+            'formTemplates' => \App\Models\FormTemplate::active()->ordered()
+                ->withCount(['lines' => fn ($q) => $q->where('item_type', 'ingredient')])
+                ->get()
+                ->filter(fn ($t) => $t->lines_count > 0),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $this->requestId ? 'Edit Purchase Request' : 'New Purchase Request']);
     }
 }

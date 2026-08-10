@@ -54,9 +54,17 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Left: Details --}}
-        <div class="lg:col-span-2 space-y-6">
+    {{-- Full width, not two thirds.
+
+         The lines table lived in a lg:col-span-2 column with the summary taking
+         the last third, which left Product, Quantity, UOM, Tax and Preferred
+         Supplier fighting over about half a screen — the product name wrapped to
+         two lines and the supplier column was cut off. The summary is four
+         numbers; it does not need a third of the width, and it is more useful
+         above the lines than beside them, where it stays in view as you scroll
+         through fifty items. --}}
+    <div class="space-y-6">
+        <div class="space-y-6">
             {{-- Order Info --}}
             <div class="card p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Request Details</h3>
@@ -113,7 +121,47 @@
             {{-- Search + Add Products --}}
             @if ($isEditable)
                 <div class="card p-6">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Add Products</h3>
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <h3 class="text-sm font-semibold text-gray-700">Add Products</h3>
+
+                        {{-- A form template is the list somebody walks the store
+                             with, in the order they walk it. Retyping one into a
+                             request is transcription, and transcription is where
+                             items go missing. --}}
+                        @if ($formTemplates->isNotEmpty())
+                            <button type="button" wire:click="openTemplateImport" class="btn-secondary">
+                                Load from a form
+                            </button>
+                        @endif
+                    </div>
+
+                    @if ($showTemplateImport)
+                        <div class="mb-4 rounded-control border border-brand-200 bg-brand-50/60 p-4">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Which form?</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <select wire:model="importTemplateId" class="input flex-1">
+                                    <option value="">Choose a form…</option>
+                                    @foreach ($formTemplates as $t)
+                                        <option value="{{ $t->id }}">
+                                            {{ $t->name }} — {{ $t->formTypeLabel() }}, {{ $t->lines_count }} item{{ $t->lines_count === 1 ? '' : 's' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <button type="button" wire:click="importTemplate"
+                                        wire:loading.attr="disabled" wire:target="importTemplate"
+                                        class="btn-primary whitespace-nowrap">
+                                    <span wire:loading.remove wire:target="importTemplate">Load items</span>
+                                    <span wire:loading wire:target="importTemplate">Loading…</span>
+                                </button>
+                                <button type="button" wire:click="closeTemplateImport" class="btn-ghost">Cancel</button>
+                            </div>
+                            <p class="help mt-2">
+                                Items and their default quantities come across. Anything already on this
+                                request is left alone, so loading twice is safe.
+                            </p>
+                        </div>
+                    @endif
+
                     <div class="relative">
                         <input type="text" wire:model.live.debounce.300ms="ingredientSearch"
                                placeholder="Search ingredients by name or code..."
@@ -137,6 +185,40 @@
                     </div>
                 </div>
             @endif
+
+            {{-- Summary, above the lines and stuck to the top of the scroll
+                 area — a running total you can still see on the fortieth row is
+                 worth more than one parked beside the first. z-10 clears the
+                 table header; the page scrolls inside <main>, so top-0 sticks
+                 to that rather than to the viewport. --}}
+            <div class="sticky top-0 z-10 -mx-1 px-1 py-2 bg-gray-50/95 backdrop-blur supports-[backdrop-filter]:bg-gray-50/80">
+                <div class="card px-5 py-3">
+                    <div class="flex flex-wrap items-center gap-x-8 gap-y-2">
+                        <div>
+                            <p class="stat-label">PR Number</p>
+                            <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ $prNumber }}</p>
+                        </div>
+                        <div>
+                            <p class="stat-label">Items</p>
+                            <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ count($lines) }}</p>
+                        </div>
+                        <div>
+                            <p class="stat-label">Total quantity</p>
+                            <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format(collect($lines)->sum('quantity'), 2) }}</p>
+                        </div>
+                        <div>
+                            <p class="stat-label">Suppliers</p>
+                            <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ collect($lines)->pluck('preferred_supplier_id')->filter()->unique()->count() }}</p>
+                        </div>
+
+                        @unless ($isEditable)
+                            <p class="ml-auto text-xs text-gray-600">
+                                This request is {{ $status }} and cannot be edited.
+                            </p>
+                        @endunless
+                    </div>
+                </div>
+            </div>
 
             {{-- Lines Table --}}
             <div class="card overflow-hidden">
@@ -239,38 +321,5 @@
             </div>
         </div>
 
-        {{-- Right: Summary --}}
-        <div class="space-y-6">
-            <div class="card p-6 sticky top-6">
-                <h3 class="text-sm font-semibold text-gray-700 mb-4">Summary</h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">PR Number</span>
-                        <span class="font-medium text-gray-700">{{ $prNumber }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Total Items</span>
-                        <span class="font-medium text-gray-700">{{ count($lines) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Total Quantity</span>
-                        <span class="font-medium text-gray-700">{{ number_format(collect($lines)->sum('quantity'), 2) }}</span>
-                    </div>
-                    @php
-                        $supplierCount = collect($lines)->pluck('preferred_supplier_id')->filter()->unique()->count();
-                    @endphp
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Suppliers</span>
-                        <span class="font-medium text-gray-700">{{ $supplierCount }}</span>
-                    </div>
-                </div>
-
-                @if (!$isEditable)
-                    <div class="mt-6 pt-4 border-t border-gray-100">
-                        <p class="text-xs text-gray-600">This request is {{ $status }} and cannot be edited.</p>
-                    </div>
-                @endif
-            </div>
-        </div>
     </div>
 </div>
