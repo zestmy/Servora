@@ -113,12 +113,12 @@
                         ['route' => 'kitchen.index', 'label' => 'Inventory', 'query' => 'tab=inventory'],
                     ]],
                     ['label' => 'Procurement', 'items' => [
-                        ['route' => 'ingredients.index', 'label' => 'Market List'],
-                        ['route' => 'purchasing.index', 'label' => 'Purchasing'],
+                        ['route' => 'ingredients.index', 'label' => 'Market List', 'permission' => 'ingredients.view'],
+                        ['route' => 'purchasing.index', 'label' => 'Purchasing', 'permission' => 'purchasing.view'],
                     ]],
                     ['label' => 'Operations', 'items' => [
-                        ['route' => 'inventory.index', 'label' => 'Stock Takes'],
-                        ['route' => 'inventory.transfers.create', 'label' => 'New Transfer'],
+                        ['route' => 'inventory.index', 'label' => 'Stock Takes', 'permission' => 'inventory.view'],
+                        ['route' => 'inventory.transfers.create', 'label' => 'New Transfer', 'permission' => 'inventory.transfers.record'],
                     ]],
                     ['label' => 'Labels', 'items' => [
                         ['route' => 'labels.print', 'label' => 'Print Labels', 'permission' => 'labels.print'],
@@ -127,13 +127,13 @@
                         ['route' => 'labels.log', 'label' => 'Print Log', 'permission' => 'labels.view_log'],
                     ]],
                     ['label' => 'Insights', 'items' => [
-                        ['route' => 'reports.production-history', 'label' => 'Production History'],
-                        ['route' => 'reports.yield-analysis', 'label' => 'Yield Analysis'],
+                        ['route' => 'reports.production-history', 'label' => 'Production History', 'permission' => 'reports.view'],
+                        ['route' => 'reports.yield-analysis', 'label' => 'Yield Analysis', 'permission' => 'reports.view'],
                     ]],
                     ['label' => 'System', 'items' => [
                         // Kitchen keeps its own production category list, so it
                         // needs a way in that isn't the outlet sidebar.
-                        ['route' => 'settings.recipe-categories', 'label' => 'Production Categories', 'permission' => 'recipes.view'],
+                        ['route' => 'settings.recipe-categories', 'label' => 'Production Categories', 'permission' => 'recipes.manage'],
                         ['route' => 'settings.index', 'label' => 'Settings'],
                     ]],
                 ];

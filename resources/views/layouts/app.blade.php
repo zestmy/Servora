@@ -137,7 +137,7 @@
         <div class="flex-shrink-0 space-y-1.5" :class="sidebarExpanded ? 'px-3 pt-3' : 'px-2 pt-3'">
 
             {{-- Scan Invoices — Price Watcher entry point --}}
-            @if (Auth::user()->hasPermissionTo('ingredients.view'))
+            @if (Auth::user()->can('ingredients.import'))
                 <a href="{{ route('ingredients.scan-document') }}"
                    title="Scan a supplier invoice, quotation, or price list"
                    class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
@@ -151,7 +151,7 @@
             @endif
 
             {{-- Zeoniq Excel Import — Sales Zeoniq Excel import entry point --}}
-            @if (Auth::user()->hasPermissionTo('sales.view'))
+            @if (Auth::user()->can('sales.import'))
                 <a href="{{ route('sales.index') }}?import=zeoniq-excel"
                    title="Import Zeoniq Excel"
                    class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
@@ -175,7 +175,12 @@
                 // Filter helper
                 $canSee = function($item) use ($authUser) {
                     if (!empty($item['capability']) && !$authUser->canDo($item['capability'])) return false;
-                    if (($item['permission'] ?? null) !== null && !$authUser->hasPermissionTo($item['permission'])) return false;
+                    // can(), not hasPermissionTo(): `can:` middleware on the route
+                    // goes through the Gate, so denials and the Super Admin bypass
+                    // apply. Spatie's own lookup skips both — a denied ability still
+                    // drew its link and 403'd on arrival — and throws on a permission
+                    // that has since been retired.
+                    if (($item['permission'] ?? null) !== null && !$authUser->can($item['permission'])) return false;
                     // 'anyPermission': shown when the user holds ANY of them.
                     // The per-module Settings links need this — a module's
                     // settings are worth offering to whoever can open any one
@@ -212,7 +217,7 @@
                         'label' => 'Procurement',
                         'items' => [
                             ['route' => 'purchasing.index',          'label' => 'Orders & Requests', 'permission' => 'purchasing.view'],
-                            ['route' => 'settings.suppliers',       'label' => 'Suppliers',           'permission' => 'purchasing.view'],
+                            ['route' => 'settings.suppliers',       'label' => 'Suppliers',           'permission' => 'purchasing.suppliers.manage'],
                             ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.suppliers.manage'],
                             ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.suppliers.manage'],
                             ['route' => 'settings.price-alerts',    'label' => 'Price Alerts',       'permission' => 'purchasing.suppliers.manage'],
@@ -224,14 +229,14 @@
                         'label' => 'Inventory & Recipes',
                         'items' => [
                             ['route' => 'ingredients.index',          'label' => 'Market List',      'permission' => 'ingredients.view'],
-                            ['route' => 'settings.categories',        'label' => 'Product Categories', 'permission' => 'ingredients.view'],
+                            ['route' => 'settings.categories',        'label' => 'Product Categories', 'permission' => 'ingredients.manage'],
                             ['route' => 'recipes.index',              'label' => 'Recipes',          'permission' => 'recipes.view'],
-                            ['route' => 'settings.recipe-categories', 'label' => 'Recipe Categories', 'permission' => 'recipes.view'],
+                            ['route' => 'settings.recipe-categories', 'label' => 'Recipe Categories', 'permission' => 'recipes.manage'],
                             ['route' => 'recipes.index',              'label' => 'Prep Items',       'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                            ['route' => 'settings.price-classes',     'label' => 'Price Classes',    'permission' => 'recipes.view'],
+                            ['route' => 'settings.price-classes',     'label' => 'Price Classes',    'permission' => 'recipes.price'],
                             ['route' => 'inventory.index',            'label' => 'Stocks Management',     'permission' => 'inventory.view'],
                             ['route' => 'settings.par-levels',        'label' => 'Par Levels',       'permission' => 'inventory.view'],
-                            ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.view'],
+                            ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.import'],
                             ['route' => 'settings.index', 'query' => 'module=kitchen-production', 'label' => 'Kitchen Settings',
                              'anyPermission' => ['settings.kitchens']],
                         ],
@@ -253,8 +258,8 @@
                         'label' => 'Sales',
                         'items' => [
                             ['route' => 'sales.index',              'label' => 'Sales Records',  'permission' => 'sales.view'],
-                            ['route' => 'settings.sales-categories', 'label' => 'Sales Categories', 'permission' => 'sales.view'],
-                            ['route' => 'settings.sales-targets',   'label' => 'Sales Targets',  'permission' => 'sales.view'],
+                            ['route' => 'settings.sales-categories', 'label' => 'Sales Categories', 'permission' => 'sales.record'],
+                            ['route' => 'settings.sales-targets',   'label' => 'Sales Targets',  'permission' => 'sales.record'],
                         ],
                     ],
                     [
