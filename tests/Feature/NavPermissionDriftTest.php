@@ -321,17 +321,15 @@ class NavPermissionDriftTest extends TestCase
             }
         }
 
-        // The backlog is a fixture, not silence: the assertion is that it never
-        // grows. Every entry was measured against production and bites nobody
-        // today; the file's own header explains the two ways to clear one.
-        $known = array_values(array_filter(
-            array_map('trim', file(base_path('tests/Fixtures/known-inpage-link-drift.txt'), FILE_IGNORE_NEW_LINES)),
-            fn (string $l) => $l !== '' && ! str_starts_with($l, '#')
-        ));
-
-        $new = array_values(array_diff_key($drift, array_flip($known)));
-
-        $this->assertSame([], $new, "New in-page links that lead to a 403:\n" . implode("\n", $new));
+        // This began as a 40-entry backlog in a fixture, asserted only never to
+        // grow. It is empty now: the record-form family went when recording
+        // started implying viewing, and the cross-module remainder was gated by
+        // hand. The fixture is gone and the bar is simply zero.
+        $this->assertSame(
+            [],
+            array_values($drift),
+            "In-page links that lead to a 403:\n" . implode("\n", $drift)
+        );
     }
 
     /** @return array<int, string> */

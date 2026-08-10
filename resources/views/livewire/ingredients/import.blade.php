@@ -523,10 +523,12 @@
                     View Market List
                 </a>
                 @if ($prepCreatedCount > 0)
+                    @canDo('inventory.view')
                     <a href="{{ route('inventory.index') }}"
                        class="px-4 py-2 text-sm text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition">
                         Go to Prep Items
                     </a>
+                    @endcanDo
                 @endif
                 <button wire:click="restart"
                         class="btn-secondary">

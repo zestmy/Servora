@@ -22,7 +22,9 @@
                 <h2 class="text-lg font-semibold text-gray-700 mt-1">{{ $employee->name }}</h2>
             </div>
         </div>
+        @canDo('hr.employees.manage')
         <a href="{{ route('hr.employees.edit', $employee->id) }}" class="btn-secondary">Employee record</a>
+        @endcanDo
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -111,7 +113,9 @@
                     @endif
                     {{-- Edited on the employee record, which is where these
                          facts belong; this screen is for what is owed. --}}
+                    @canDo('hr.employees.manage')
                     <a href="{{ route('hr.employees.edit', $employee->id) }}" class="btn-secondary">Statutory details</a>
+                    @endcanDo
                 </div>
             </div>
 

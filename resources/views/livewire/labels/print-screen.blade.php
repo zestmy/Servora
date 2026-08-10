@@ -35,7 +35,7 @@
                 @if ($printers->isEmpty())
                     <p class="mt-1 text-xs font-medium text-warning-800">
                         No printers set up.
-                        <a href="{{ route('labels.printers') }}" class="underline">Add one</a> before printing.
+                        @canDo('labels.manage')<a href="{{ route('labels.printers') }}" class="underline">Add one</a>@else<span>ask an administrator to add one</span>@endcanDo before printing.
                     </p>
                 @elseif ($selectedPrinter = $printers->firstWhere('id', $printerId))
                     {{-- Only once a printer is chosen: a status for something

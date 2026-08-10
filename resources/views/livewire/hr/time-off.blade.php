@@ -1,7 +1,9 @@
 <div>
     <x-page-header title="Time Off" eyebrow="HR">
         <x-slot:actions>
+            @canDo('hr.claims')
             <a href="{{ route('hr.overtime-claims') }}" class="btn-secondary">Overtime claims</a>
+            @endcanDo
             <button wire:click="openApply" class="btn-primary">Apply for time off</button>
         </x-slot:actions>
     </x-page-header>

@@ -413,8 +413,10 @@
                                     @endif
                                 </div>
                                 <div class="text-right text-xs flex-shrink-0 ml-4">
+                                    @canDo('ingredients.view')
                                     <a href="{{ route('ingredients.index') }}" target="_blank"
                                        class="text-danger-400 hover:text-danger-600 hover:underline pointer-events-auto">Activate →</a>
+                                    @endcanDo
                                 </div>
                             </div>
                         @endif
@@ -426,7 +428,7 @@
 
             <p class="mt-2 text-xs text-gray-600">
                 Can't find it?
-                <a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>
+                @canDo('ingredients.view')<a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>@endcanDo
             </p>
 
             <x-input-error :messages="$errors->get('lines')" class="mt-2" />

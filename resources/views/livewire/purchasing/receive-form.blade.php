@@ -214,7 +214,7 @@
                 @endif
                 <p class="mt-2 text-xs text-gray-600">
                     Can't find it?
-                    <a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>
+                    @canDo('ingredients.view')<a href="{{ route('ingredients.index') }}" target="_blank" class="text-brand-500 hover:underline">+ Add new ingredient</a>@endcanDo
                 </p>
 
                 <x-input-error :messages="$errors->get('lines')" class="mt-2" />

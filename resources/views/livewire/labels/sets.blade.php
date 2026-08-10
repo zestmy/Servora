@@ -23,10 +23,12 @@
         </div>
         <div class="flex items-center gap-2">
             @if ($sets->count())
+                @canDo('labels.manage')
                 <a href="{{ route('labels.sets.qr-sheet', ['outlet' => $outletId]) }}" target="_blank"
                    class="px-3 py-2 text-sm text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50">
                     Print QR sheet
                 </a>
+                @endcanDo
             @endif
             <button wire:click="openCreate" class="btn-primary">
                 + New set
@@ -222,9 +224,11 @@
                         </div>
                         <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100">
                             <button wire:click="closeQr" class="btn-secondary">Close</button>
+                            @canDo('labels.manage')
                             <a href="{{ route('labels.sets.qr-sheet', ['outlet' => $outletId, 'set' => $qrSet?->id]) }}"
                                target="_blank"
                                class="btn-primary">Print</a>
+                            @endcanDo
                         </div>
                     </div>
                 </div>

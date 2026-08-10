@@ -275,7 +275,7 @@
                 @if (count($cpus) === 0)
                     <div class="px-3 py-2.5 bg-warning-50 border border-warning-200 rounded-lg text-xs text-warning-700">
                         No CPU configured yet — orders can't be consolidated without one.
-                        <a href="{{ route('settings.cpu-management') }}" class="font-semibold underline hover:text-warning-900">Create a CPU</a>
+                        @canDo('settings.cpu')<a href="{{ route('settings.cpu-management') }}" class="font-semibold underline hover:text-warning-900">Create a CPU</a>@else<span>ask an administrator to create one</span>@endcanDo
                     </div>
                 @else
                     <select wire:model="cpuId" class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">

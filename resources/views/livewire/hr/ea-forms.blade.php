@@ -88,7 +88,7 @@
             <p class="text-sm">
                 No <strong>employer's number (E)</strong> is set, so every form will print "NOT SET" where
                 LHDN expects it. Add it under
-                <a href="{{ route('settings.statutory') }}" class="underline font-medium">Settings → Statutory Rates</a>.
+                @canDo('hr.compensation')<a href="{{ route('settings.statutory') }}" class="underline font-medium">Settings → Statutory Rates</a>@else<span>Settings → Statutory Rates</span>@endcanDo.
             </p>
         </div>
     @endif

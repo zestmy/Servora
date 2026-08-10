@@ -235,7 +235,7 @@
                         <x-input-label for="lc_ot" value="Overtime *" />
                         <x-text-input id="lc_ot" wire:model="overtime" type="number" step="0.01" min="0" class="mt-1 block w-full" />
                         <x-input-error :messages="$errors->get('overtime')" class="mt-1" />
-                        <p class="text-[10px] text-gray-600 mt-1">Total overtime payout for the month. You can sum approved OT claims from <a href="{{ route('hr.overtime-claims') }}" class="text-brand-600 hover:underline">HR → Overtime Claims</a>.</p>
+                        <p class="text-[10px] text-gray-600 mt-1">Total overtime payout for the month. You can sum approved OT claims from @canDo('hr.claims')<a href="{{ route('hr.overtime-claims') }}" class="text-brand-600 hover:underline">HR → Overtime Claims</a>@else<span>HR → Overtime Claims</span>@endcanDo.</p>
                     </div>
 
                     {{-- Allowances --}}
