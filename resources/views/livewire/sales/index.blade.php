@@ -99,18 +99,7 @@
 
     {{-- Quick Range --}}
     <div class="flex items-center gap-1.5 mb-3 flex-wrap">
-        @foreach ([
-            'today'      => 'Today',
-            'yesterday'  => 'Yesterday',
-            'last_7'     => 'Last 7 Days',
-            'this_week'  => 'This Week',
-            'last_week'  => 'Last Week',
-            'this_month' => 'This Month',
-            'last_month' => 'Last Month',
-            'this_year'  => 'This Year',
-            'last_year'  => 'Last Year',
-            'all'        => 'All',
-        ] as $rangeKey => $rangeLabel)
+        @foreach (\App\Livewire\Sales\Index::quickRangeOptions() as $rangeKey => $rangeLabel)
             <button wire:click="setQuickRange('{{ $rangeKey }}')"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg border transition
                            {{ $quickRange === $rangeKey

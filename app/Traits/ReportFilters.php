@@ -9,6 +9,15 @@ use Illuminate\Support\Facades\Auth;
 
 trait ReportFilters
 {
+    /*
+     * Every report gets the named ranges, from the one definition the rest of
+     * the product uses. Twenty-one screens share this trait, and each of them
+     * had two bare date boxes and a month-to-date default — so "last week" on a
+     * report meant typing two dates while the list screen beside it had a
+     * button for it.
+     */
+    use HasQuickDateRanges;
+
     public string $dateFrom = '';
     public string $dateTo = '';
     public ?int $outletFilter = null;
@@ -16,12 +25,21 @@ trait ReportFilters
 
     public function mountReportFilters(): void
     {
-        $this->dateFrom = now()->startOfMonth()->toDateString();
-        $this->dateTo = now()->toDateString();
+        $this->bootQuickRange();
     }
 
-    public function updatedDateFrom(): void { $this->resetPage(); }
-    public function updatedDateTo(): void { $this->resetPage(); }
+    /**
+     * Reports opened month-to-date before the named ranges arrived, and still
+     * do — a report is usually read against the month you are closing.
+     */
+    protected function defaultQuickRange(): string
+    {
+        return 'this_month';
+    }
+
+    // A typed date is nobody's named range any more.
+    public function updatedDateFrom(): void { $this->quickRange = ''; $this->resetPage(); }
+    public function updatedDateTo(): void { $this->quickRange = ''; $this->resetPage(); }
     public function updatedOutletFilter(): void { $this->resetPage(); }
     public function updatedSupplierFilter(): void { $this->resetPage(); }
 

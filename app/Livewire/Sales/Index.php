@@ -23,14 +23,13 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use WithPagination, ScopesToActiveOutlet;
+    use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     public string $search           = '';
     public string $dateFrom         = '';
     public string $dateTo           = '';
     public string $mealPeriodFilter = '';
     public string $outletFilter     = '';
-    public string $quickRange       = 'today';
     public string $comparisonWeek   = '';  // For weekly comparison (e.g., '2026-W18')
 
     public array $selected   = [];
@@ -51,8 +50,10 @@ class Index extends Component
     public ?string $predictionError  = null;
 
     public function updatedSearch(): void           { $this->resetPage(); }
-    public function updatedDateFrom(): void         { $this->quickRange = 'custom'; $this->resetPrediction(); $this->resetPage(); }
-    public function updatedDateTo(): void           { $this->quickRange = 'custom'; $this->resetPrediction(); $this->resetPage(); }
+    // '' rather than 'custom': one word for "no named range" across every
+    // screen, and the badge row already reads it that way.
+    public function updatedDateFrom(): void         { $this->quickRange = ''; $this->resetPrediction(); $this->resetPage(); }
+    public function updatedDateTo(): void           { $this->quickRange = ''; $this->resetPrediction(); $this->resetPage(); }
     public function updatedMealPeriodFilter(): void { $this->resetPage(); }
     public function updatedOutletFilter(): void     { $this->resetPrediction(); $this->resetPage(); }
 
@@ -62,34 +63,33 @@ class Index extends Component
         $this->predictionError = null;
     }
 
-    public function setQuickRange(string $range): void
+    /**
+     * Sales is read a day at a time — "what did we take today" — so it opens on
+     * today, where the stock and purchasing lists open on the last 30 days.
+     */
+    protected function defaultQuickRange(): string
     {
-        $this->quickRange = $range;
+        return 'today';
+    }
 
-        $today = now();
-        match ($range) {
-            'today'      => [$this->dateFrom, $this->dateTo] = [$today->format('Y-m-d'), $today->format('Y-m-d')],
-            'yesterday'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDay()->format('Y-m-d'), $today->copy()->subDay()->format('Y-m-d')],
-            'last_7'     => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDays(6)->format('Y-m-d'), $today->format('Y-m-d')],
-            'last_30'    => [$this->dateFrom, $this->dateTo] = [$today->copy()->subDays(29)->format('Y-m-d'), $today->format('Y-m-d')],
-            'this_week'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfWeek()->format('Y-m-d'), $today->format('Y-m-d')],
-            'last_week'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->subWeek()->startOfWeek()->format('Y-m-d'), $today->copy()->subWeek()->endOfWeek()->format('Y-m-d')],
-            'this_month' => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfMonth()->format('Y-m-d'), $today->format('Y-m-d')],
-            'last_month' => [$this->dateFrom, $this->dateTo] = [$today->copy()->subMonth()->startOfMonth()->format('Y-m-d'), $today->copy()->subMonth()->endOfMonth()->format('Y-m-d')],
-            'last_year'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->subYear()->startOfYear()->format('Y-m-d'), $today->copy()->subYear()->endOfYear()->format('Y-m-d')],
-            'this_year'  => [$this->dateFrom, $this->dateTo] = [$today->copy()->startOfYear()->format('Y-m-d'), $today->format('Y-m-d')],
-            'all'        => [$this->dateFrom, $this->dateTo] = ['', ''],
-            default      => null,
-        };
-
-        $this->resetPrediction();
-        $this->resetPage();
+    /**
+     * A takings screen asks about yesterday and about the year; a stock list
+     * does not, and a row of eleven pills is a row you read instead of scan.
+     *
+     * @return array<int, string>
+     */
+    protected static function offeredQuickRanges(): array
+    {
+        return [
+            'today', 'yesterday', 'last_7', 'this_week', 'last_week',
+            'last_30', 'this_month', 'last_month', 'this_year', 'last_year', 'all',
+        ];
     }
 
     public function mount(): void
     {
         $this->canDelete = Auth::user()->canDo('sales.delete');
-        $this->setQuickRange('today');
+        $this->bootQuickRange();
 
         // Set default outlet filter to the active session outlet
         $activeOutletId = session('active_outlet_id');
@@ -771,23 +771,18 @@ class Index extends Component
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
+    /**
+     * The period in words, for the header and the AI prediction prompt.
+     *
+     * Reads the label out of the shared list rather than keeping a second copy:
+     * this one had already drifted to Title Case while the badges beside it
+     * were sentence case, and it still knew about 'custom' after the rest of
+     * the product settled on '' for a hand-typed range.
+     */
     private function getPeriodLabel(): string
     {
-        return match ($this->quickRange) {
-            'today'      => 'Today',
-            'yesterday'  => 'Yesterday',
-            'last_7'     => 'Last 7 Days',
-            'last_30'    => 'Last 30 Days',
-            'this_week'  => 'This Week',
-            'last_week'  => 'Last Week',
-            'this_month' => 'This Month',
-            'last_month' => 'Last Month',
-            'last_year'  => 'Last Year',
-            'this_year'  => 'This Year',
-            'all'        => 'All Time',
-            'custom'     => 'Custom Range',
-            default      => 'Today',
-        };
+        return self::allQuickRanges()[$this->quickRange]
+            ?? (($this->dateFrom !== '' || $this->dateTo !== '') ? 'Custom Range' : 'Today');
     }
 
     private function getMissingDatesWithClosures($records): array

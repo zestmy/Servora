@@ -10,6 +10,8 @@
 
     {{-- Filters --}}
     <div class="card p-4 mb-4">
+        <x-quick-ranges :options="$this::quickRangeOptions()" :current="$quickRange" class="mb-3" />
+
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             <div class="flex items-center gap-1">
                 <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
