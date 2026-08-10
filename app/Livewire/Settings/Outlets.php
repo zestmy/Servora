@@ -5,7 +5,9 @@ namespace App\Livewire\Settings;
 use App\Models\CentralKitchen;
 use App\Models\CentralPurchasingUnit;
 use App\Models\Outlet;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -86,11 +88,82 @@ class Outlets extends Component
             $outlet->update($data);
             session()->flash('success', 'Branch updated.');
         } else {
-            Outlet::create($data);
+            $outlet = Outlet::create($data);
+
+            /*
+             * Give the branch to the people who already had every other one.
+             *
+             * Outlet access is an explicit list per user, so a branch nobody is
+             * attached to is invisible to everyone except the "all outlets"
+             * accounts — including the person who just created it. Reported as a
+             * new branch missing from the employee form's picker; it was missing
+             * from every outlet dropdown in the product, because they all read
+             * User::accessibleOutlets().
+             *
+             * Attaching the creator alone would not be enough: an owner and an
+             * operations manager who each held all four branches would end up
+             * holding four of five, silently losing sight of the newest one. So
+             * anyone with COMPLETE coverage before keeps complete coverage —
+             * which includes the creator, who cannot make a branch they cannot
+             * see. Everyone else is unchanged: a branch manager on one outlet
+             * does not inherit a second one because head office opened it.
+             */
+            $this->grantToWhoeverHadThemAll($outlet);
+
             session()->flash('success', 'Branch created.');
         }
 
         $this->closeModal();
+    }
+
+    /**
+     * Attach a new outlet to every company user who held all the previous ones.
+     *
+     * "All outlets" users are skipped: their flag already covers the new branch,
+     * and writing pivot rows for them would make the list say something the flag
+     * does not depend on. The creator is included by the same rule they are
+     * measured against — they held every outlet that existed a moment ago, or
+     * they could not have reached this screen's own outlet scope.
+     */
+    private function grantToWhoeverHadThemAll(Outlet $outlet): void
+    {
+        $others = Outlet::where('company_id', $outlet->company_id)
+            ->where('id', '!=', $outlet->id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $users = User::where('company_id', $outlet->company_id)
+            ->where('can_view_all_outlets', false)
+            ->get();
+
+        foreach ($users as $user) {
+            $held = DB::table('outlet_user')
+                ->join('outlets', 'outlets.id', '=', 'outlet_user.outlet_id')
+                ->where('outlet_user.user_id', $user->id)
+                ->where('outlets.company_id', $outlet->company_id)
+                ->pluck('outlets.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            // The first branch in a company has no "all the others" to compare
+            // against, so nobody qualifies by coverage — the creator does.
+            $hadThemAll = $others
+                ? ! array_diff($others, $held)
+                : $user->id === Auth::id();
+
+            if ($hadThemAll) {
+                $user->outlets()->syncWithoutDetaching([$outlet->id]);
+            }
+        }
+
+        // Belt and braces: whoever made it can always reach it. Skipped for an
+        // "all outlets" account, whose flag already covers it.
+        $creator = Auth::user();
+
+        if ($creator && ! $creator->can_view_all_outlets) {
+            $creator->outlets()->syncWithoutDetaching([$outlet->id]);
+        }
     }
 
     public function toggleActive(int $id): void
