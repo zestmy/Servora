@@ -193,29 +193,78 @@ class SalaryCalculatorTest extends TestCase
     }
 
     /**
-     * The hourly rate is built on basic PLUS fixed allowances — those are the
-     * wages owed for normal hours. Bare basic understates every overtime hour
-     * for anybody on an allowance, which is most of a kitchen.
+     * The overtime rate is basic salary alone — NOT the EPF/SOCSO wage base.
+     *
+     * This shipped the other way and was corrected on 2026-08-11: allowances
+     * are paid for being there, not for the hours, so folding them into the
+     * hourly rate inflates every overtime hour. The two bases genuinely differ,
+     * which is what this pins.
      */
-    public function test_a_fixed_allowance_raises_the_overtime_hourly_rate(): void
+    public function test_allowances_do_not_change_the_overtime_hourly_rate(): void
     {
         $bare = $this->figuresFor(['basic' => 2600, 'otHours' => ['normal' => 1]]);
-        $withAllowance = $this->figuresFor([
+
+        foreach (['fixed', 'variable', 'reimbursement'] as $type) {
+            $with = $this->figuresFor([
+                'basic' => 2600,
+                'allowances' => [['label' => 'Transport', 'amount' => 800, 'type' => $type]],
+                'otHours' => ['normal' => 1],
+            ]);
+
+            $this->assertEqualsWithDelta(
+                $bare['hourly_rate'],
+                $with['hourly_rate'],
+                0.01,
+                'A ' . $type . ' allowance must not move the overtime rate.'
+            );
+        }
+
+        // Still on the EPF base, where a fixed allowance does belong.
+        $epfBase = $this->figuresFor([
             'basic' => 2600,
-            'allowances' => [['label' => 'Transport', 'amount' => 260, 'type' => 'fixed']],
-            'otHours' => ['normal' => 1],
+            'allowances' => [['label' => 'Transport', 'amount' => 800, 'type' => 'fixed']],
         ]);
 
-        $this->assertGreaterThan($bare['hourly_rate'], $withAllowance['hourly_rate']);
+        $this->assertEqualsWithDelta(3400, $epfBase['epf_wage'], 0.01);
+    }
 
-        // A variable allowance is not wages for normal hours, so it must not.
-        $withVariable = $this->figuresFor([
-            'basic' => 2600,
-            'allowances' => [['label' => 'Incentive', 'amount' => 260, 'type' => 'variable']],
-            'otHours' => ['normal' => 1],
-        ]);
+    /**
+     * A day not worked is a day not earned, and EPF, SOCSO, EIS and PCB all
+     * follow the wages actually payable rather than the contractual figure.
+     */
+    public function test_unpaid_leave_comes_off_basic_and_lowers_every_contribution(): void
+    {
+        $full  = $this->figuresFor(['basic' => 2600]);
+        $short = $this->figuresFor(['basic' => 2600, 'unpaidLeaveDays' => 2]);
 
-        $this->assertEqualsWithDelta($bare['hourly_rate'], $withVariable['hourly_rate'], 0.01);
+        // RM 2,600 over 26 days is RM 100 a day.
+        $this->assertEqualsWithDelta(100.00, $short['daily_rate'], 0.01);
+        $this->assertEqualsWithDelta(200.00, $short['unpaid_leave'], 0.01);
+        $this->assertEqualsWithDelta(2400.00, $short['paid_basic'], 0.01);
+        $this->assertEqualsWithDelta(2400.00, $short['epf_wage'], 0.01);
+
+        $this->assertLessThan($full['epf_employee'], $short['epf_employee']);
+        $this->assertLessThan($full['socso_employee'], $short['socso_employee']);
+        $this->assertLessThan($full['net'], $short['net']);
+    }
+
+    /** The contractual rate is what an hour is worth, whatever was drawn. */
+    public function test_unpaid_leave_does_not_change_the_overtime_rate(): void
+    {
+        $full  = $this->figuresFor(['basic' => 2600, 'otHours' => ['normal' => 4]]);
+        $short = $this->figuresFor(['basic' => 2600, 'unpaidLeaveDays' => 3, 'otHours' => ['normal' => 4]]);
+
+        $this->assertEqualsWithDelta($full['hourly_rate'], $short['hourly_rate'], 0.01);
+        $this->assertEqualsWithDelta($full['overtime'], $short['overtime'], 0.01);
+    }
+
+    /** More unpaid days than the month holds must not create negative pay. */
+    public function test_unpaid_leave_cannot_take_more_than_the_basic(): void
+    {
+        $f = $this->figuresFor(['basic' => 2600, 'unpaidLeaveDays' => 40]);
+
+        $this->assertEqualsWithDelta(2600, $f['unpaid_leave'], 0.01);
+        $this->assertEqualsWithDelta(0, $f['paid_basic'], 0.01);
     }
 
     /** Overtime from hours is still overtime: SOCSO and EIS, never EPF. */

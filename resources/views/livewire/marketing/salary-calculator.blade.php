@@ -114,6 +114,13 @@
                     <p class="help mt-1">Used with 26 days a month to get the hourly rate.</p>
                 </div>
                 <div>
+                    <label for="unpaid" class="label">Unpaid leave (days)</label>
+                    <input id="unpaid" type="number" min="0" step="0.5"
+                           wire:model.live.debounce.400ms="unpaidLeaveDays"
+                           class="input mt-1 w-32 tabular-nums" />
+                    <p class="help mt-1">Deducted from basic at the same 26-day daily rate.</p>
+                </div>
+                <div>
                     <label for="overtime" class="label">Other overtime paid</label>
                     <div class="mt-1 flex items-center gap-2">
                         <span class="text-sm text-gray-600">RM</span>
@@ -202,13 +209,29 @@
                 </table>
             </div>
 
+            @if ($figures['unpaid_leave'] > 0)
+                <div class="alert-warning mt-6">
+                    <p class="font-medium">
+                        {{ rtrim(rtrim(number_format($figures['unpaid_days'], 1), '0'), '.') }}
+                        day{{ $figures['unpaid_days'] == 1 ? '' : 's' }} unpaid —
+                        RM {{ number_format($figures['unpaid_leave'], 2) }} off basic
+                    </p>
+                    <p class="mt-1 text-sm">
+                        At RM {{ number_format($figures['daily_rate'], 2) }} a day, leaving basic of
+                        RM {{ number_format($figures['paid_basic'], 2) }}. EPF, SOCSO, EIS and PCB all
+                        follow the wages actually payable, so every figure below is lower for it.
+                    </p>
+                </div>
+            @endif
+
             @if ($figures['ot_lines'])
                 <div class="mt-6 rounded-panel border border-gray-200 bg-gray-50 p-5">
                     <h2 class="text-sm font-semibold text-gray-800">Overtime working</h2>
                     <p class="help mt-1">
-                        Hourly rate RM {{ number_format($figures['hourly_rate'], 2) }} —
-                        RM {{ number_format($figures['ot_wages'], 2) }} over 26 days over
+                        Hourly rate RM {{ number_format($figures['hourly_rate'], 2) }} — basic salary
+                        RM {{ number_format($figures['basic'], 2) }} over 26 days over
                         {{ rtrim(rtrim(number_format($normalHoursPerDay, 1), '0'), '.') }} hours.
+                        Allowances are not part of the overtime rate.
                     </p>
                     <ul class="mt-3 space-y-1.5">
                         @foreach ($figures['ot_lines'] as $line)

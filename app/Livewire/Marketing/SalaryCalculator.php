@@ -92,8 +92,21 @@ class SalaryCalculator extends Component
         ],
     ];
 
-    /** Days a month used to derive the ordinary rate of pay, per the Act. */
+    /**
+     * Days a month used for every daily-rate calculation here — the ordinary
+     * rate of pay for overtime, and the deduction for a day not worked.
+     */
     private const DAYS_PER_MONTH = 26;
+
+    /**
+     * Days of unpaid leave in the month.
+     *
+     * Deducted from basic at the same 26-day daily rate, and deducted BEFORE
+     * the statutory contributions: EPF, SOCSO, EIS and PCB are calculated on
+     * the wages actually payable for the month, not on the contractual figure.
+     * A month with a week of unpaid leave therefore lowers all four.
+     */
+    public float $unpaidLeaveDays = 0;
 
     /** @var array<string, float> hours worked, by overtime type */
     public array $otHours = ['normal' => 0, 'rest_day' => 0, 'public_holiday' => 0];
@@ -161,17 +174,21 @@ class SalaryCalculator extends Component
         }
 
         /*
-         * The ordinary rate of pay, per the Employment Act: monthly wages over
-         * 26 days, then over the normal hours in a day.
+         * The ordinary rate of pay: BASIC SALARY over 26 days, then over the
+         * normal hours in a day.
          *
-         * Built on basic PLUS FIXED ALLOWANCES, because those are the wages the
-         * employee is entitled to for their normal hours — the same base EPF
-         * uses. Basing it on bare basic understates every overtime hour for
-         * anybody on an allowance, which is most of a kitchen.
+         * Basic alone — not basic plus allowances, which is how EPF and SOCSO
+         * wages are built. This shipped the other way and was corrected on
+         * 2026-08-11: allowances are paid for being there, not for the hours,
+         * and folding them into the hourly rate inflates every overtime hour.
+         * The two bases genuinely differ, which is why they are computed
+         * separately rather than one reusing the other.
+         *
+         * Unpaid leave does NOT reduce it: the contractual rate is what an hour
+         * is worth, whatever was drawn that month.
          */
-        $otWages    = $basic + $allowances['epf'];
         $hoursInDay = max(1.0, (float) $this->normalHoursPerDay);
-        $hourlyRate = $otWages > 0 ? $otWages / self::DAYS_PER_MONTH / $hoursInDay : 0.0;
+        $hourlyRate = $basic > 0 ? $basic / self::DAYS_PER_MONTH / $hoursInDay : 0.0;
 
         $otLines = [];
         $otFromHours = 0.0;
@@ -196,16 +213,35 @@ class SalaryCalculator extends Component
 
         $ot = $otFromHours + max(0.0, (float) $this->overtime);
 
-        $gross = $basic + $allowances['total'] + $ot + $svc;
+        // A day not worked is a day not earned, at the same 26-day daily rate.
+        // Taken off basic only: allowances are their own arrangement, and the
+        // tool would be guessing which of them a company prorates.
+        $unpaidDays  = max(0.0, (float) $this->unpaidLeaveDays);
+        $dailyRate   = $basic > 0 ? $basic / self::DAYS_PER_MONTH : 0.0;
+        $unpaidLeave = min($basic, round($unpaidDays * $dailyRate, 2));
 
-        if ($gross <= 0) {
+        $paidBasic = $basic - $unpaidLeave;
+
+        /*
+         * Readiness is about what was ENTERED, not what was earned.
+         *
+         * Basing it on the figure after unpaid leave meant a month wiped out by
+         * leave fell back to the "nothing entered yet" empty state, which reads
+         * as a broken page rather than as the answer — and the answer, that the
+         * month pays nothing, is exactly what somebody in that position came to
+         * find out.
+         */
+        if ($basic + $allowances['total'] + $ot + $svc <= 0) {
             return ['ready' => false];
         }
 
-        // Each base excludes exactly what the law says it excludes.
-        $epfWage   = $basic + $allowances['epf'];
-        $socsoWage = $basic + $allowances['socso'] + $ot;
-        $taxable   = $basic + $allowances['taxable'] + $ot + $svc;
+        $gross = $paidBasic + $allowances['total'] + $ot + $svc;
+
+        // Each base excludes exactly what the law says it excludes, and all of
+        // them start from the basic ACTUALLY PAYABLE after unpaid leave.
+        $epfWage   = $paidBasic + $allowances['epf'];
+        $socsoWage = $paidBasic + $allowances['socso'] + $ot;
+        $taxable   = $paidBasic + $allowances['taxable'] + $ot + $svc;
 
         // ---- EPF -------------------------------------------------------------
         [$epfEmpRate, $epfErRate] = match (true) {
@@ -249,11 +285,14 @@ class SalaryCalculator extends Component
             'ready'          => true,
             'gross'          => round($gross, 2),
             'basic'          => round($basic, 2),
+            'paid_basic'     => round($paidBasic, 2),
+            'unpaid_leave'   => round($unpaidLeave, 2),
+            'unpaid_days'    => $unpaidDays,
+            'daily_rate'     => round($dailyRate, 2),
             'allowances'     => round($allowances['total'], 2),
             'overtime'       => round($ot, 2),
             'ot_lines'       => $otLines,
             'hourly_rate'    => round($hourlyRate, 2),
-            'ot_wages'       => round($otWages, 2),
             'service_charge' => round($svc, 2),
             'epf_wage'       => round($epfWage, 2),
             'socso_wage'     => round($socsoWage, 2),
