@@ -63,6 +63,10 @@ class StaffPins extends Component
 
     public function openManual(int $id): void
     {
+        // Guarded here as well as on save: a panel that opens and then refuses
+        // reads as a broken screen rather than a boundary.
+        $this->employee($id);
+
         $this->settingFor = $id;
         $this->manualPin  = '';
         $this->justIssued = [];
@@ -105,6 +109,7 @@ class StaffPins extends Component
     public function render()
     {
         $employees = Employee::where('is_active', true)
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
             ->when($this->outletFilter, fn ($q) => $q->where('outlet_id', $this->outletFilter))
             ->when($this->search !== '', fn ($q) => $q->where('name', 'like', '%' . $this->search . '%'))
             ->with('outlet')
@@ -113,7 +118,10 @@ class StaffPins extends Component
 
         return view('livewire.hr.staff-pins', [
             'employees' => $employees,
-            'outlets'   => Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get(),
+            // The filter cannot offer a branch whose staff the list will not
+            // show, or it reads as an empty branch rather than one that is
+            // none of your business.
+            'outlets'   => Auth::user()->accessibleOutlets()->orderBy('name')->get(),
             'labelsUrl' => $this->staffAppUrl('labels', 'labels-staff'),
             // /staff, not /clock. The old prefix still redirects, but this is
             // the address a manager reads out loud and writes on a noticeboard,
@@ -140,9 +148,41 @@ class StaffPins extends Component
         return 'https://' . $company->slug . '.' . $domain . '/' . $path;
     }
 
-    /** Scoped by the model's CompanyScope — never trust a posted id alone. */
+    /**
+     * Outlets whose staff this person may administer.
+     *
+     * "All outlets" accounts and system roles get the whole company through
+     * User::accessibleOutlets(), which is what makes a head-office manager work
+     * without a special case here.
+     *
+     * @return array<int, int>
+     */
+    protected function accessibleOutletIds(): array
+    {
+        return Auth::user()->accessibleOutletIds();
+    }
+
+    /**
+     * Scoped by CompanyScope AND by outlet — never trust a posted id alone.
+     *
+     * Every write on this screen funnels through here, which is the point: a PIN
+     * opens clock-in as well as label printing, so issuing one for another
+     * branch's staff means putting attendance for a shift you do not run into
+     * somebody's hands. The list was already company-wide, so a manager of one
+     * branch could revoke a PIN across town — no forged request needed, just a
+     * scroll. Mirrors HR > Employees, which has always scoped both its list and
+     * its writes this way.
+     */
     private function employee(int $id): Employee
     {
-        return Employee::findOrFail($id);
+        $employee = Employee::findOrFail($id);
+
+        abort_unless(
+            in_array((int) $employee->outlet_id, $this->accessibleOutletIds(), true),
+            403,
+            'You do not have access to this employee.'
+        );
+
+        return $employee;
     }
 }
