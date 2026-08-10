@@ -385,6 +385,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/staff-pins', \App\Livewire\Hr\StaffPins::class)->name('hr.staff-pins')->middleware('can:staff.pins');
     Route::get('/hr/employees/export-pdf', [\App\Http\Controllers\EmployeeExportController::class, 'pdf'])->name('hr.employees.export-pdf')->middleware('can:hr.view');
     Route::get('/hr/employees/export-excel', [\App\Http\Controllers\EmployeeExportController::class, 'excel'])->name('hr.employees.export-excel')->middleware('can:hr.view');
+    // One employee as a form. Outlet scope and the pay/standing gates are
+    // enforced in the controller, the same way the edit screen does it.
+    Route::get('/hr/employees/{employee}/pdf', [\App\Http\Controllers\EmployeeExportController::class, 'detailsPdf'])->name('hr.employees.details-pdf')->middleware('can:hr.view');
     // Staff photos and scanned paperwork live on the private disk; the
     // controller re-checks outlet access on every request.
     Route::get('/hr/employees/{employee}/photo', [\App\Http\Controllers\Hr\EmployeeDocumentController::class, 'photo'])->name('hr.employees.photo')->middleware('can:hr.view');

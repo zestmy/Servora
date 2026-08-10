@@ -70,6 +70,15 @@
                     Allowances &amp; salary history
                 </a>
             @endif
+            @if ($employeeId)
+                {{-- Opens in a tab rather than downloading: this is usually
+                     printed to be signed, and a tab is one step closer to a
+                     printer than a file in Downloads. --}}
+                <a href="{{ route('hr.employees.details-pdf', $employeeId) }}" target="_blank" rel="noopener"
+                   class="btn-secondary">
+                    Print details
+                </a>
+            @endif
             @canDo('hr.view')
             <a href="{{ route('hr.employees') }}" class="btn-secondary">Cancel</a>
             @endcanDo

@@ -42,6 +42,64 @@ class EmployeeExportController extends Controller
         return $pdf->stream('Employees-' . now()->format('Y-m-d') . '.pdf');
     }
 
+    /**
+     * One employee, as a form.
+     *
+     * Laid out like a job application rather than like the list export: this is
+     * read a field at a time by somebody checking a record, filing it, or
+     * asking the person to sign it — not scanned for a total.
+     *
+     * The same field-level gates the edit screen applies apply here. Pay needs
+     * hr.compensation and employment standing needs hr.employment, because a
+     * PDF that prints what the screen hides would undo both gates with a button.
+     */
+    public function detailsPdf(Employee $employee)
+    {
+        abort_unless(
+            in_array((int) $employee->outlet_id, Auth::user()->accessibleOutletIds(), true),
+            403,
+            'You do not have access to this employee.'
+        );
+
+        $employee->load(['outlet', 'section', 'superior']);
+
+        $company = Auth::user()->company;
+
+        $pdf = Pdf::loadView('pdf.employee-details', [
+            'employee'         => $employee,
+            'brandName'        => $company?->brand_name ?: $company?->name,
+            'logoBase64'       => $company?->logoDataUri(),
+            'photoBase64'      => $this->photoDataUri($employee),
+            'canViewPay'       => Employee::canViewPay(),
+            'canViewEmployment' => Auth::user()->canDo('hr.employment'),
+            'generatedBy'      => Auth::user()->name,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream(
+            'Employee-' . \Illuminate\Support\Str::slug($employee->name) . '.pdf'
+        );
+    }
+
+    /**
+     * The photograph, inlined.
+     *
+     * dompdf fetches remote images over HTTP by default, which on a company
+     * subdomain means the PDF renderer authenticating to our own app — it
+     * cannot, so the frame would come out empty. Reading the file and inlining
+     * it keeps the request inside this process.
+     */
+    private function photoDataUri(Employee $employee): ?string
+    {
+        if (blank($employee->photo_path) || ! Storage::disk('public')->exists($employee->photo_path)) {
+            return null;
+        }
+
+        $contents = Storage::disk('public')->get($employee->photo_path);
+        $mime     = Storage::disk('public')->mimeType($employee->photo_path) ?: 'image/jpeg';
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
     public function excel(Request $request)
     {
         [$employees, $filters] = $this->fetch($request);
