@@ -12,7 +12,9 @@
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Clock-In Settings</h2>
         </div>
         <div class="flex items-center gap-2">
+            @canDo('hr.clock')
             <a href="{{ route('hr.clock-ins') }}" wire:navigate class="btn-secondary">Back to Clock-Ins</a>
+            @endcanDo
             <button wire:click="save" class="btn-primary">Save</button>
         </div>
     </div>

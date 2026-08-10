@@ -214,9 +214,13 @@
                     <tr wire:key="h-{{ $h->id }}" class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ \Carbon\Carbon::parse($h->effective_date)->format('d M Y') }}</td>
                         <td class="px-4 py-3">
+                            @canDo('reports.view')
                             <a href="{{ route('reports.price-history', ['search' => $h->ingredient_name]) }}"
                                title="View full price history for {{ $h->ingredient_name }}"
                                class="font-medium text-gray-700 hover:text-brand-600 hover:underline">{{ $h->ingredient_name }}</a>
+                            @else
+                            <span class="font-medium text-gray-700">{{ $h->ingredient_name }}</span>
+                            @endcanDo
                             @if ($h->uom_abbr)
                                 <span class="text-[11px] text-gray-600">/ {{ $h->uom_abbr }}</span>
                             @endif
@@ -273,11 +277,15 @@
                                 @if (! $n->is_read)
                                     <span class="inline-block w-2 h-2 bg-warning-500 rounded-full flex-shrink-0" title="Unread"></span>
                                 @endif
+                                @canDo('reports.view')
                                 <a href="{{ route('reports.price-history', ['search' => $n->ingredient?->name]) }}"
                                    title="View full price history for {{ $n->ingredient?->name }}"
                                    class="font-medium text-gray-700 hover:text-brand-600 hover:underline">
                                     {{ $n->ingredient?->name ?? '—' }}
                                 </a>
+                                @else
+                                <span class="font-medium text-gray-700">{{ $n->ingredient?->name ?? '—' }}</span>
+                                @endcanDo
                             </div>
                         </td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $n->supplier?->name ?? '—' }}</td>

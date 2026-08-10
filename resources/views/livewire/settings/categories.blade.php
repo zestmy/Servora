@@ -66,7 +66,7 @@
 
             <p class="text-xs text-blue-600">
                 <strong>P&amp;L cost chain:</strong> <a href="{{ route('settings.departments') }}" class="underline">Departments</a> &rarr;
-                <a href="{{ route('settings.sales-categories') }}" class="underline">Sales Categories</a> &rarr; P&amp;L report
+                @canDo('sales.record')<a href="{{ route('settings.sales-categories') }}" class="underline">Sales Categories</a>@else<span>Sales Categories</span>@endcanDo &rarr; P&amp;L report
             </p>
         </div>
     </div>

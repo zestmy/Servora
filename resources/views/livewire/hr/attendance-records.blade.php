@@ -466,6 +466,7 @@
                     Save &amp; Calculate
                 </button>
                 @if ($serviceCharge['row'])
+                    @canDo('hr.compensation')
                     <x-download-link :href="route('hr.attendance.payout-pdf', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter, 'section' => $sectionFilter,
@@ -478,6 +479,7 @@
                         </svg>
                         Payout slips
                     </x-download-link>
+                    @endcanDo
                 @endif
                 @if ($serviceCharge['row'])
                     <div class="flex flex-wrap items-center gap-2 ml-auto text-xs">

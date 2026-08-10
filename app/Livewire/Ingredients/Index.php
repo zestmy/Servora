@@ -986,8 +986,16 @@ class Index extends Component
 
     // ── Quick Edit ──────────────────────────────────────────────────────
 
+    /** Whether this person may edit at all — quick edit is an edit, not a view. */
+    public function getCanManageProperty(): bool
+    {
+        return Auth::user()?->canDo('ingredients.manage') ?? false;
+    }
+
     public function enterQuickEdit(): void
     {
+        abort_unless(Auth::user()?->canDo('ingredients.manage'), 403);
+
         $companyId = Auth::user()->company_id;
 
         $ingredients = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions', 'ingredientCategory'])

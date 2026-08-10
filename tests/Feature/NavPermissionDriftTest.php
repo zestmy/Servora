@@ -213,4 +213,129 @@ class NavPermissionDriftTest extends TestCase
             'The sidebar shortcuts must use can() for the same reason as the filter.'
         );
     }
+
+    /**
+     * Sites where the gate is a boolean the component computed, so the ability
+     * is not spelled in the view. Each was read and confirmed by hand.
+     *
+     * @var array<int, string>
+     */
+    private const GATED_BY_A_COMPUTED_FLAG = [
+        // $canViewPay, from Employee::canViewPay(), which is can('hr.compensation').
+        'resources/views/livewire/hr/employees.blade.php|hr.compensation',
+    ];
+
+    /**
+     * The same rule one level down: a link INSIDE a page must not lead somewhere
+     * the page's own visitors cannot go.
+     *
+     * The page's route gates are the baseline — a "Back to Recipes" link on a
+     * screen that already demanded `recipes.view` cannot refuse anyone standing
+     * on it. Anything the target needs BEYOND that baseline has to be gated in
+     * the view, or the person meets a 403 for clicking what they were offered.
+     *
+     * Only pages with a gate of their own are checked: an ungated page tells us
+     * nothing about who is standing on it.
+     */
+    public function test_no_page_offers_a_link_it_cannot_deliver(): void
+    {
+        $viewOfClass = [];
+        foreach ($this->phpFilesIn(app_path('Livewire')) as $file) {
+            $src = file_get_contents($file);
+            if (! preg_match_all("/view\(\s*'(livewire\.[a-z0-9._-]+)'/i", $src, $m)) {
+                continue;
+            }
+            $tail = substr(str_replace(DIRECTORY_SEPARATOR, '/', $file), strlen(str_replace(DIRECTORY_SEPARATOR, '/', app_path('Livewire')) . '/'), -4);
+            $cls = 'App' . chr(92) . 'Livewire' . chr(92) . str_replace('/', chr(92), $tail);
+            $viewOfClass[$cls] = ['views' => array_unique($m[1]), 'src' => $src];
+        }
+
+        $baselineOfView = [];
+        $sourceOfView   = [];
+        foreach (Route::getRoutes() as $route) {
+            $action = $route->getActionName();
+            $cls = str_contains($action, '@') ? explode('@', $action)[0] : $action;
+            if (! isset($viewOfClass[$cls])) {
+                continue;
+            }
+            foreach ($viewOfClass[$cls]['views'] as $view) {
+                $baselineOfView[$view] = array_unique(array_merge(
+                    $baselineOfView[$view] ?? [],
+                    $route->getName() ? $this->gatesOn($route->getName()) : []
+                ));
+                $sourceOfView[$view] = ($sourceOfView[$view] ?? '') . $viewOfClass[$cls]['src'];
+            }
+        }
+
+        $drift = [];
+        foreach ($this->bladeFilesIn(resource_path('views/livewire')) as $file) {
+            $src = file_get_contents($file);
+            $rel = str_replace(DIRECTORY_SEPARATOR, '/', substr($file, strlen(base_path()) + 1));
+            $view = str_replace('/', '.', substr($rel, strlen('resources/views/'), -strlen('.blade.php')));
+
+            $baseline = $baselineOfView[$view] ?? [];
+            if (! $baseline) {
+                continue;
+            }
+
+            foreach (explode("\n", $src) as $n => $line) {
+                if (! preg_match_all("/route\(\s*'([a-z0-9._-]+)'/i", $line, $m)) {
+                    continue;
+                }
+                foreach ($m[1] as $target) {
+                    foreach (array_diff($this->gatesOn($target), $baseline) as $need) {
+                        // Named in the view, or in the component that renders it,
+                        // means someone gated it — a stricter check would have to
+                        // understand Blade nesting, which is not worth the recall.
+                        if (str_contains($src, "'" . $need . "'")) { continue; }
+                        if (str_contains($sourceOfView[$view] ?? '', "'" . $need . "'")) { continue; }
+                        if (in_array($rel . '|' . $need, self::GATED_BY_A_COMPUTED_FLAG, true)) { continue; }
+
+                        $drift[$rel . '|' . $target . '|' . $need] = sprintf(
+                            '%s:%d links to %s, which needs %s — the page only requires %s',
+                            $rel, $n + 1, $target, $need, implode('+', $baseline)
+                        );
+                    }
+                }
+            }
+        }
+
+        // The backlog is a fixture, not silence: the assertion is that it never
+        // grows. Every entry was measured against production and bites nobody
+        // today; the file's own header explains the two ways to clear one.
+        $known = array_values(array_filter(
+            array_map('trim', file(base_path('tests/Fixtures/known-inpage-link-drift.txt'), FILE_IGNORE_NEW_LINES)),
+            fn (string $l) => $l !== '' && ! str_starts_with($l, '#')
+        ));
+
+        $new = array_values(array_diff_key($drift, array_flip($known)));
+
+        $this->assertSame([], $new, "New in-page links that lead to a 403:\n" . implode("\n", $new));
+    }
+
+    /** @return array<int, string> */
+    private function phpFilesIn(string $dir): array
+    {
+        return $this->filesIn($dir, '.php');
+    }
+
+    /** @return array<int, string> */
+    private function bladeFilesIn(string $dir): array
+    {
+        return $this->filesIn($dir, '.blade.php');
+    }
+
+    /** @return array<int, string> */
+    private function filesIn(string $dir, string $ext): array
+    {
+        $out = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir)) as $f) {
+            if ($f->isFile() && str_ends_with($f->getFilename(), $ext)) {
+                $out[] = $f->getPathname();
+            }
+        }
+        sort($out);
+
+        return $out;
+    }
 }

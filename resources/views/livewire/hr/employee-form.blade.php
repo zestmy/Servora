@@ -49,12 +49,14 @@
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-start gap-3">
+            @canDo('hr.view')
             <a data-back href="{{ route('hr.employees') }}" title="Back to Employees"
                class="mt-0.5 p-1.5 rounded-control text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
             </a>
+            @endcanDo
             <div>
                 <p class="text-xs text-gray-600">HR / Employees</p>
                 <h2 class="text-lg font-semibold text-gray-700 mt-1">
@@ -68,7 +70,9 @@
                     Allowances &amp; salary history
                 </a>
             @endif
+            @canDo('hr.view')
             <a href="{{ route('hr.employees') }}" class="btn-secondary">Cancel</a>
+            @endcanDo
             <button type="submit" form="employee-form" class="btn-primary">Save</button>
         </div>
     </div>
@@ -122,7 +126,7 @@
                     <div class="h-20 w-20 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
                         @if ($photo)
                             <img src="{{ $photo->temporaryUrl() }}" alt="" class="h-full w-full object-cover" />
-                        @elseif ($photoPath && $employeeId)
+                        @elseif ($photoPath && $employeeId && (auth()->user()?->canDo('hr.view') ?? false))
                             <img src="{{ route('hr.employees.photo', $employeeId) }}" alt="" class="h-full w-full object-cover" />
                         @else
                             <x-icon name="users" class="h-7 w-7 text-gray-400" />
@@ -217,7 +221,7 @@
                 </div>
                 <p class="mt-2 text-[11px] text-gray-500">
                     Missing an option?
-                    <a href="{{ route('settings.employee-particulars') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage these lists</a>
+                    @canDo('hr.view')<a href="{{ route('settings.employee-particulars') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage these lists</a>@endcanDo
                 </p>
             </div>
         </div>
@@ -402,7 +406,7 @@
                     <p class="mt-1 text-[11px] text-gray-500">
                         Their superior. Leave and time off requests are emailed to this person for approval.
                         With nobody set, requests fall back to
-                        <a href="{{ route('settings.leave-approvers') }}" class="text-brand-600 hover:underline">Settings → Leave Approvers</a>.
+                        @canDo('hr.leave.approve')<a href="{{ route('settings.leave-approvers') }}" class="text-brand-600 hover:underline">Settings → Leave Approvers</a>@else<span>the company default</span>@endcanDo.
                     </p>
                     <x-input-error :messages="$errors->get('f_reports_to_id')" class="mt-1" />
                 </div>
@@ -950,10 +954,12 @@
                                                 @if ($doc->uploader) by {{ $doc->uploader->name }} @endif
                                             </p>
                                         </div>
+                                        @canDo('hr.view')
                                         <a href="{{ route('hr.employee-documents.show', $doc) }}" target="_blank" rel="noopener"
                                            class="text-xs font-medium text-brand-600 hover:text-brand-800">View</a>
                                         <a href="{{ route('hr.employee-documents.download', $doc) }}"
                                            class="text-xs font-medium text-gray-600 hover:text-gray-900">Download</a>
+                                        @endcanDo
                                         <button type="button" wire:click="deleteDocument({{ $doc->id }})"
                                                 wire:confirm="Delete this document? The file is removed for good."
                                                 class="text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
@@ -974,7 +980,9 @@
         @endif
 
         <div class="flex items-center justify-end gap-2">
+            @canDo('hr.view')
             <a href="{{ route('hr.employees') }}" class="btn-secondary">Cancel</a>
+            @endcanDo
             <button type="submit" class="btn-primary">Save</button>
         </div>
     </form>

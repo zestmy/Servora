@@ -41,10 +41,12 @@
                     class="btn-secondary">
                 Summary Report
             </button>
+            @canDo('hr.view')
             <a href="{{ route('hr.employees') }}"
                class="btn-secondary">
                 Employee List
             </a>
+            @endcanDo
             <button wire:click="openAddEmployee"
                     class="btn-secondary">
                 + Add Employee

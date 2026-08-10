@@ -79,9 +79,9 @@ class Dashboard extends Component
         $data = match (true) {
             $user->isSystemRole()                                                                      => $this->systemDashboard($user),
             $user->canDo('users.manage')                                                               => $this->businessManagerDashboard($user),
-            $user->hasPermissionTo('purchasing.view') && ! $user->hasPermissionTo('sales.view')        => $this->purchasingDashboard($user),
-            $user->hasPermissionTo('reports.view') && ! $user->hasPermissionTo('purchasing.view')      => $this->financeDashboard($user),
-            $user->hasPermissionTo('recipes.view') && ! $user->hasPermissionTo('sales.view') && ! $isAppointed => $this->chefDashboard($user),
+            $user->can('purchasing.view') && ! $user->can('sales.view')        => $this->purchasingDashboard($user),
+            $user->can('reports.view') && ! $user->can('purchasing.view')      => $this->financeDashboard($user),
+            $user->can('recipes.view') && ! $user->can('sales.view') && ! $isAppointed => $this->chefDashboard($user),
             default                                                                                    => $isAppointed
                                                                                                           ? $this->appointedDashboard($user, $approverOutletIds)
                                                                                                           : $this->managerDashboard($user),

@@ -141,11 +141,13 @@
                         <span class="hidden sm:inline">Import</span>
                     </a>
                     @endcanDo
+                    @canDo('inventory.prep_items.record')
                     <a href="{{ route('inventory.prep-items.create') }}"
                        class="btn-primary">
                         <span class="sm:hidden">+ New</span>
                         <span class="hidden sm:inline">+ New Prep Item</span>
                     </a>
+                    @endcanDo
                 @endif
             @endif
         </div>
@@ -403,7 +405,11 @@
                             @endunless
                         </td>
                         <td class="px-4 py-3">
-                            <a href="{{ $tab === 'prep-items' ? route('inventory.prep-items.show', $recipe->id) : route('recipes.show', $recipe->id) }}" class="font-medium text-gray-800 hover:text-brand-600 transition">{{ $recipe->name }}</a>
+                            @if ($tab === 'prep-items' && ! (auth()->user()?->canDo('inventory.prep_items.record') ?? false))
+                                <span class="font-medium text-gray-800">{{ $recipe->name }}</span>
+                            @else
+                                <a href="{{ $tab === 'prep-items' ? route('inventory.prep-items.show', $recipe->id) : route('recipes.show', $recipe->id) }}" class="font-medium text-gray-800 hover:text-brand-600 transition">{{ $recipe->name }}</a>
+                            @endif
                             @if ($recipe->code)
                                 <div class="text-xs text-gray-600">{{ $recipe->code }}</div>
                             @endif
@@ -502,12 +508,14 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
+                                @if (! ($tab === 'prep-items' && ! (auth()->user()?->canDo('inventory.prep_items.record') ?? false)))
                                 <a href="{{ $tab === 'prep-items' ? route('inventory.prep-items.show', $recipe->id) : route('recipes.edit', $recipe->id) }}" title="Edit"
                                    class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
+                                @endif
                                 @if (! $this->locked)
                                 <button wire:click="toggleActive({{ $recipe->id }})"
                                         title="{{ $recipe->is_active ? 'Deactivate' : 'Activate' }}"
@@ -547,7 +555,9 @@
                             <p class="font-medium">No {{ $isPrep ? 'prep items' : 'recipes' }} yet</p>
                             <p class="text-xs mt-1">
                                 @if ($isPrep)
+                                    @canDo('inventory.prep_items.record')
                                     <a href="{{ route('inventory.prep-items.create') }}" class="text-brand-500 underline">Create your first prep item</a>
+                                    @endcanDo
                                 @else
                                     @canDo('recipes.manage')
                                     <a href="{{ route('recipes.create') }}" class="text-brand-500 underline">Create your first recipe</a>

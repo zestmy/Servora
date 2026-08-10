@@ -15,7 +15,9 @@
             <p class="text-xs text-gray-600">HR / Face Enrolment</p>
             <h2 class="text-lg font-semibold text-gray-700 mt-1">Face Enrolment</h2>
         </div>
+        @canDo('hr.clock')
         <a href="{{ route('hr.clock-ins') }}" wire:navigate class="btn-secondary">Back to Clock-Ins</a>
+        @endcanDo
     </div>
 
     <div class="panel p-4 mb-4 text-xs text-gray-700">

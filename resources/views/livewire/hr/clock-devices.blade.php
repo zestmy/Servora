@@ -11,7 +11,9 @@
 
     <x-page-header eyebrow="HR / Clock-Ins" title="Clock kiosks">
         <x-slot:actions>
+            @canDo('hr.clock')
             <a href="{{ route('hr.clock-ins') }}" wire:navigate class="btn-secondary">Back to clock-ins</a>
+            @endcanDo
             <a href="{{ route('hr.clock-settings') }}" wire:navigate class="btn-secondary">Settings</a>
         </x-slot:actions>
     </x-page-header>

@@ -1112,7 +1112,7 @@
         @else
             <div class="card p-12 text-center text-gray-600">
                 <p class="font-medium">No labour cost data for {{ $periodLabel }}</p>
-                <p class="text-xs mt-1">Enter labour costs in <a href="{{ route('settings.labour-costs') }}" class="text-brand-500 hover:underline">Settings &gt; Labour Costs</a></p>
+                <p class="text-xs mt-1">Enter labour costs in @canDo('hr.view')<a href="{{ route('settings.labour-costs') }}" class="text-brand-500 hover:underline">Settings &gt; Labour Costs</a>@else<span>Settings &gt; Labour Costs</span>@endcanDo</p>
             </div>
         @endif
     @endif

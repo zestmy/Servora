@@ -121,7 +121,7 @@
                         <div class="alert-warning mt-1 text-xs">
                             No unused replacement days. Every one earned is either already booked or past its
                             claim window — check the
-                            <a href="{{ route('settings.public-holidays') }}" class="underline font-medium">holiday register</a>.
+                            @canDo('hr.leave.approve')<a href="{{ route('settings.public-holidays') }}" class="underline font-medium">holiday register</a>@else<span>holiday register</span>@endcanDo.
                         </div>
                     @else
                         <select wire:model.live="a_holiday" class="input">

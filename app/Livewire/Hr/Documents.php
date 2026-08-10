@@ -169,7 +169,7 @@ class Documents extends Component
         }
 
         // Check permission
-        if (!Auth::user()->hasPermissionTo('hr.documents.manage')) {
+        if (!Auth::user()->can('hr.documents.manage')) {
             session()->flash('error', 'You do not have permission to upload files.');
             $this->uploadFiles = [];
             return;
@@ -221,7 +221,7 @@ class Documents extends Component
 
     public function deleteFile(string $fileId): void
     {
-        if (!Auth::user()->hasPermissionTo('hr.documents.manage')) {
+        if (!Auth::user()->can('hr.documents.manage')) {
             session()->flash('error', 'You do not have permission to delete files.');
             return;
         }
@@ -257,7 +257,7 @@ class Documents extends Component
     {
         $folders = DocumentFolder::active()->ordered()->get();
         $currentFolder = $this->getActiveDocumentFolder();
-        $canManage = Auth::user()->hasPermissionTo('hr.documents.manage');
+        $canManage = Auth::user()->can('hr.documents.manage');
         $isConfigured = $this->driveService->isConfigured();
         $canUpload = $canManage && $currentFolder && $currentFolder->allow_upload;
 

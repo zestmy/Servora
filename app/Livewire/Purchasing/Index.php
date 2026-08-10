@@ -55,7 +55,7 @@ class Index extends Component
 
     private function isPurchasingRole(): bool
     {
-        return Auth::user()->hasPermissionTo('purchasing.view');
+        return Auth::user()->can('purchasing.view');
     }
 
     private function seesAllOutlets(): bool

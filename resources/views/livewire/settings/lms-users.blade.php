@@ -117,9 +117,9 @@
                 </div>
             </div>
             @if ($company?->brand_name)
-                <p class="text-xs text-gray-600 mt-3">Portal branding: <span class="font-medium text-gray-600">{{ $company->brand_name }}</span> — change in <a href="{{ route('settings.company-details') }}" class="text-brand-500 hover:underline">Company Details</a></p>
+                <p class="text-xs text-gray-600 mt-3">Portal branding: <span class="font-medium text-gray-600">{{ $company->brand_name }}</span> — change in @canDo('users.manage')<a href="{{ route('settings.company-details') }}" class="text-brand-500 hover:underline">Company Details</a>@else<span>Company Details</span>@endcanDo</p>
             @else
-                <p class="text-xs text-gray-600 mt-3">No brand name set — portal will show "{{ $company?->name }}". Set a brand name in <a href="{{ route('settings.company-details') }}" class="text-brand-500 hover:underline">Company Details</a></p>
+                <p class="text-xs text-gray-600 mt-3">No brand name set — portal will show "{{ $company?->name }}". Set a brand name in @canDo('users.manage')<a href="{{ route('settings.company-details') }}" class="text-brand-500 hover:underline">Company Details</a>@else<span>Company Details</span>@endcanDo</p>
             @endif
         </div>
     @endif
@@ -215,7 +215,9 @@
             <p class="text-xs text-gray-600 mt-3">
                 Click a category to export its SOPs as a PDF, or use <span class="font-medium text-gray-500">Full SOP Handbook</span> above for everything.
                 Only recipes with preparation steps appear in the LMS.
+                @canDo('recipes.view')
                 <a href="{{ route('recipes.index') }}" class="text-brand-500 hover:underline">Manage recipes</a>
+                @endcanDo
             </p>
         </div>
     @else
@@ -223,7 +225,9 @@
             <p class="text-sm text-warning-700 font-medium">No SOPs available yet</p>
             <p class="text-xs text-warning-600 mt-1">
                 Add preparation steps to recipes to make them available in the Training Portal.
+                @canDo('recipes.view')
                 <a href="{{ route('recipes.index') }}" class="underline hover:no-underline">Go to Recipes</a>
+                @endcanDo
             </p>
         </div>
     @endif

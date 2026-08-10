@@ -10,14 +10,16 @@
 
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
+        @canDo('recipes.view')
         <a data-back href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </a>
+        @endcanDo
         <div class="flex-1 min-w-0">
             <p class="text-xs text-gray-600">
-                <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="hover:underline">Prep Items</a>
+                @canDo('recipes.view')<a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="hover:underline">Prep Items</a>@else<span>Prep Items</span>@endcanDo
                 / {{ $recipeId ? ($name ?: 'Edit') : 'New Prep Item' }}
             </p>
         </div>
@@ -131,7 +133,7 @@
                         </select>
                         @if ($recipeCategories->isEmpty())
                             <p class="mt-0.5 text-xs text-gray-600">
-                                <a href="{{ route('settings.recipe-categories') }}" class="text-brand-500 hover:underline" target="_blank">Add recipe categories</a> in Settings.
+                                @canDo('recipes.manage')<a href="{{ route('settings.recipe-categories') }}" class="text-brand-500 hover:underline" target="_blank">Add recipe categories</a>@else<span>Add recipe categories</span>@endcanDo in Settings.
                             </p>
                         @else
                             <p class="mt-0.5 text-xs text-gray-600">Same categories as recipes.</p>
@@ -557,7 +559,11 @@
         @endif
 
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+            @canDo('recipes.view')
             <a href="{{ route('recipes.index', ['tab' => 'prep-items']) }}" class="text-sm text-gray-500 hover:text-gray-700 transition">Cancel</a>
+            @else
+            <span></span>
+            @endcanDo
             <button wire:click="save" wire:loading.attr="disabled" wire:target="save"
                     class="btn-primary">
                 <span wire:loading.remove wire:target="save">Save Prep Item</span>

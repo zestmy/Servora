@@ -21,7 +21,7 @@
                     <span class="hidden sm:inline">Activity</span>
                 </button>
             @endcan
-            @if (! $this->locked && ! $quickEdit)
+            @if (! $this->locked && ! $quickEdit && ($this->canManage ?? false))
                 <button wire:click="enterQuickEdit"
                         title="Quick Edit"
                         class="px-2.5 md:px-3 py-2 text-sm font-medium text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition flex items-center gap-1.5">

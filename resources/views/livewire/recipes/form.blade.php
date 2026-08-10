@@ -171,7 +171,7 @@
                 @if ($priceClasses->isNotEmpty())
                     <div class="border-t border-gray-100 pt-4">
                         <x-input-label value="Selling Prices" />
-                        <p class="text-xs text-gray-600 mt-0.5 mb-3">Set different selling prices per price class. <a href="{{ route('settings.price-classes') }}" target="_blank" class="text-brand-500 hover:underline">Manage classes</a></p>
+                        <p class="text-xs text-gray-600 mt-0.5 mb-3">Set different selling prices per price class. @canDo('recipes.price')<a href="{{ route('settings.price-classes') }}" target="_blank" class="text-brand-500 hover:underline">Manage classes</a>@endcanDo</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             @foreach ($priceClasses as $pc)
                                 <div>

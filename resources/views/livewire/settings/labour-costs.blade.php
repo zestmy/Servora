@@ -149,7 +149,7 @@
                         <p class="text-xs text-gray-600 mt-0.5">
                             Monthly sales: <span class="font-semibold text-gray-600 tabular-nums">RM {{ number_format($monthlySales, 2) }}</span>
                             @if ($monthlySales === 0.0)
-                                · <a href="{{ route('sales.index') }}" class="text-brand-600 hover:underline">no sales recorded yet</a>
+                                · @canDo('sales.view')<a href="{{ route('sales.index') }}" class="text-brand-600 hover:underline">no sales recorded yet</a>@else<span>no sales recorded yet</span>@endcanDo
                             @endif
                         </p>
                     </div>
