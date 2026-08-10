@@ -48,6 +48,10 @@
             ['route' => 'features',         'label' => 'Features'],
             ['route' => 'pricing',          'label' => 'Pricing'],
             ['route' => 'marketplace',      'label' => 'Marketplace'],
+            // Third, not last: it is the only item here somebody can use
+            // without deciding anything first, and the nav is read left to
+            // right until something looks free.
+            ['route' => 'tools.recipe-cost', 'label' => 'Free Tools'],
             ['route' => 'for-suppliers',    'label' => 'For Suppliers'],
             ['route' => 'referral.program', 'label' => 'Refer & Earn'],
         ];
