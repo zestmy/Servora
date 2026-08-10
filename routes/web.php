@@ -120,6 +120,8 @@ Route::get('/tools/menu-engineering-matrix', App\Livewire\Marketing\MenuEngineer
     ->name('tools.menu-matrix');
 Route::get('/tools/salary-calculator', App\Livewire\Marketing\SalaryCalculator::class)
     ->name('tools.salary');
+Route::get('/tools/ea-form-generator', App\Livewire\Marketing\EaFormGenerator::class)
+    ->name('tools.ea-form');
 
 // Public video share (loginless, QR from printed SOP PDF)
 Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');

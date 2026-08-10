@@ -176,6 +176,7 @@
                         ['route' => 'tools.food-cost',   'label' => 'Food Cost Calculator'],
                         ['route' => 'tools.menu-matrix', 'label' => 'Menu Engineering Matrix'],
                         ['route' => 'tools.salary',      'label' => 'Salary Calculator'],
+                        ['route' => 'tools.ea-form',     'label' => 'Borang EA Generator'],
                         ['route' => 'tools.index',       'label' => 'All free tools', 'muted' => true],
                     ],
                 ];

@@ -30,6 +30,7 @@ class MarketingPagesTest extends TestCase
             'marketplace'   => ['/marketplace'],
             'for suppliers' => ['/for-suppliers'],
             'free tools'    => ['/tools'],
+            'ea form'       => ['/tools/ea-form-generator'],
         ];
     }
 
@@ -43,7 +44,7 @@ class MarketingPagesTest extends TestCase
     {
         $response = $this->get('/');
 
-        foreach (['tools.index', 'tools.recipe-cost', 'tools.food-cost', 'tools.menu-matrix', 'tools.salary'] as $name) {
+        foreach (['tools.index', 'tools.recipe-cost', 'tools.food-cost', 'tools.menu-matrix', 'tools.salary', 'tools.ea-form'] as $name) {
             $response->assertSee(route($name), escape: false);
         }
     }
