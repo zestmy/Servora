@@ -11,10 +11,10 @@
     <div class="card mt-8 p-6">
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
-                <label for="salary" class="label">Monthly gross salary</label>
+                <label for="basic" class="label">Basic salary</label>
                 <div class="mt-1 flex items-center gap-2">
                     <span class="text-sm text-gray-600">RM</span>
-                    <input id="salary" type="number" min="0" step="50" wire:model.live.debounce.400ms="salary"
+                    <input id="basic" type="number" min="0" step="50" wire:model.live.debounce.400ms="basic"
                            class="input tabular-nums" />
                 </div>
             </div>
@@ -46,6 +46,62 @@
                         Aged 60 or above
                     </label>
                 </div>
+            </div>
+        </div>
+
+        {{-- Allowances. Three named cases rather than three checkboxes: an
+             operator can answer "fixed or variable?" and cannot answer "is this
+             SOCSO-applicable?" — which is the same question in the language of
+             the Act rather than the language of a payslip. --}}
+        <div class="mt-6">
+            <div class="flex items-center justify-between gap-3">
+                <span class="label">Allowances</span>
+                <button type="button" wire:click="addAllowance" class="btn-secondary btn-sm">+ Add allowance</button>
+            </div>
+
+            @if ($allowances)
+                <div class="mt-2 space-y-2">
+                    @foreach ($allowances as $i => $line)
+                        <div wire:key="allow-{{ $i }}" class="grid gap-2 sm:grid-cols-12">
+                            <input type="text" wire:model.live.debounce.500ms="allowances.{{ $i }}.label"
+                                   placeholder="e.g. Transport" class="input sm:col-span-4" />
+                            <select wire:model.live="allowances.{{ $i }}.type" class="input sm:col-span-4">
+                                @foreach ($allowanceTypes as $key => $type)
+                                    <option value="{{ $key }}">{{ $type['label'] }}</option>
+                                @endforeach
+                            </select>
+                            <input type="number" min="0" step="10" wire:model.live.debounce.400ms="allowances.{{ $i }}.amount"
+                                   class="input tabular-nums sm:col-span-3" />
+                            <button type="button" wire:click="removeAllowance({{ $i }})"
+                                    aria-label="Remove allowance {{ $i + 1 }}"
+                                    class="icon-btn text-danger-400 hover:text-danger-600 sm:col-span-1">&times;</button>
+                        </div>
+                        <p class="help">{{ $allowanceTypes[$line['type'] ?? 'fixed']['note'] }}</p>
+                    @endforeach
+                </div>
+            @else
+                <p class="help mt-1">Housing, transport, position — anything paid on top of basic.</p>
+            @endif
+        </div>
+
+        <div class="mt-6 grid gap-4 sm:grid-cols-2">
+            <div>
+                <label for="overtime" class="label">Overtime this month</label>
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="text-sm text-gray-600">RM</span>
+                    <input id="overtime" type="number" min="0" step="10" wire:model.live.debounce.400ms="overtime"
+                           class="input tabular-nums" />
+                </div>
+                <p class="help mt-1">Counts for SOCSO and EIS. Never for EPF.</p>
+            </div>
+            <div>
+                <label for="service" class="label">Service charge</label>
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="text-sm text-gray-600">RM</span>
+                    <input id="service" type="number" min="0" step="10" wire:model.live.debounce.400ms="serviceCharge"
+                           class="input tabular-nums" />
+                </div>
+                <p class="help mt-1">Taxable, but not wages for EPF, SOCSO or EIS.</p>
             </div>
         </div>
 
@@ -113,6 +169,37 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- The three bases, shown rather than assumed.
+
+                 Once a service charge or overtime is on the payslip the reader
+                 will ask why EPF did not move, and a calculator that will not
+                 show its own workings gets closed. --}}
+            @if ($figures['epf_wage'] !== $figures['gross'] || $figures['socso_wage'] !== $figures['gross'])
+                <div class="mt-6 rounded-panel border border-gray-200 bg-gray-50 p-5">
+                    <h2 class="text-sm font-semibold text-gray-800">What each contribution is calculated on</h2>
+                    <p class="help mt-1">
+                        Malaysian law does not have one idea of "pay" — each scheme excludes something different.
+                    </p>
+                    <dl class="mt-3 grid gap-3 sm:grid-cols-3">
+                        <div>
+                            <dt class="text-xs uppercase tracking-wide text-gray-500">EPF wages</dt>
+                            <dd class="text-sm font-semibold tabular-nums text-gray-800">RM {{ number_format($figures['epf_wage'], 2) }}</dd>
+                            <dd class="text-xs text-gray-600">basic + fixed allowances</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs uppercase tracking-wide text-gray-500">SOCSO &amp; EIS wages</dt>
+                            <dd class="text-sm font-semibold tabular-nums text-gray-800">RM {{ number_format($figures['socso_wage'], 2) }}</dd>
+                            <dd class="text-xs text-gray-600">plus overtime, capped</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs uppercase tracking-wide text-gray-500">Taxable pay</dt>
+                            <dd class="text-sm font-semibold tabular-nums text-gray-800">RM {{ number_format($figures['taxable_wage'], 2) }}</dd>
+                            <dd class="text-xs text-gray-600">plus service charge</dd>
+                        </div>
+                    </dl>
+                </div>
+            @endif
 
             {{-- Says what this is and is not. A salary figure people plan around
                  deserves to be honest about its own precision. --}}

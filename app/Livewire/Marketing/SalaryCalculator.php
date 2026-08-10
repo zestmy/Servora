@@ -8,24 +8,80 @@ use Livewire\Component;
 /**
  * Monthly take-home after EPF, SOCSO, EIS and PCB.
  *
- * THE NUMBERS COME FROM THE PAYROLL ENGINE'S OWN DEFAULTS —
- * StatutorySetting::defaults() and ::DEFAULT_TAX_BANDS, the same constants a
- * customer's payroll run starts from. A second copy of the rates on a public
- * page is a second thing to update when KWSP or LHDN move, and the copy nobody
- * remembers is the one strangers are reading.
+ * THE RATES COME FROM THE PAYROLL ENGINE'S OWN DEFAULTS —
+ * StatutorySetting::defaults() and ::DEFAULT_TAX_BANDS, the same numbers a
+ * customer's payroll run starts from. A second copy on a public page is a
+ * second thing to update when KWSP or LHDN move, and the copy nobody remembers
+ * is the one strangers are reading.
  *
- * PCB HERE IS AN ESTIMATE AND SAYS SO. The real MTD schedule takes the year to
- * date, every relief actually claimed, zakat, rebates and prior deductions.
- * This applies the standard reliefs to an annualised salary and divides by
- * twelve, which is the right shape and the wrong precision — close enough to
- * plan with, not close enough to file. The page states that rather than
- * implying a payslip.
+ * THREE DIFFERENT WAGES, WHICH IS THE WHOLE POINT ONCE ALLOWANCES EXIST.
+ * Malaysian statutory law does not have a single idea of "pay":
+ *
+ *   EPF wages    basic + fixed allowances. EXCLUDES overtime and service
+ *                charge — both are named exclusions in the EPF Act's
+ *                definition of wages, and both get added by mistake often.
+ *   SOCSO / EIS  basic + fixed allowances + overtime. EXCLUDES service charge.
+ *   Taxable      all of that PLUS service charge, which is employment income
+ *                even though it is not "wages" for any of the three funds.
+ *
+ * So a service charge raises the tax and nothing else, and a heavy overtime
+ * month moves SOCSO but never EPF. This mirrors the internal
+ * StatutoryCalculator, which takes those three bases as separate arguments for
+ * exactly this reason.
+ *
+ * PCB HERE IS AN ESTIMATE AND SAYS SO ON THE PAGE.
  */
 class SalaryCalculator extends Component
 {
-    public float $salary = 0;
+    /**
+     * How each added line is treated.
+     *
+     * The three flags mirror PayComponent's own — is_taxable, epf_applicable,
+     * socso_applicable — rather than inventing a second vocabulary for the same
+     * three questions. Offered as three named cases rather than three
+     * checkboxes because "fixed or variable?" is a question an operator can
+     * answer and "is this SOCSO-applicable?" is not.
+     */
+    public const ALLOWANCE_TYPES = [
+        'fixed' => [
+            'label' => 'Fixed allowance',
+            'note'  => 'Paid every month as part of the package — housing, transport, position.',
+            'epf' => true, 'socso' => true, 'taxable' => true,
+        ],
+        'variable' => [
+            'label' => 'Variable allowance',
+            'note'  => 'Changes month to month. Taxable, but outside the statutory wage base.',
+            'epf' => false, 'socso' => false, 'taxable' => true,
+        ],
+        'reimbursement' => [
+            'label' => 'Reimbursement',
+            'note'  => 'Money back for something already spent. Not wages and not taxable.',
+            'epf' => false, 'socso' => false, 'taxable' => false,
+        ],
+    ];
 
-    /** Under 60 and over 60 are different rates for all three schemes. */
+    public float $basic = 0;
+
+    /** @var array<int, array{label: string, amount: float, type: string}> */
+    public array $allowances = [];
+
+    /**
+     * Overtime: SOCSO and EIS, but never EPF.
+     *
+     * A named exclusion in the EPF Act, and one of the commonest payroll
+     * mistakes in the trade — a busy month quietly overstates EPF for everyone
+     * who worked it.
+     */
+    public float $overtime = 0;
+
+    /**
+     * Service charge: taxable, but not wages for any of the three funds.
+     *
+     * In an F&B payroll this is often the largest line after basic, so treating
+     * it as wages is not a rounding error.
+     */
+    public float $serviceCharge = 0;
+
     public bool $isSenior = false;
 
     public bool $isMalaysian = true;
@@ -35,47 +91,78 @@ class SalaryCalculator extends Component
 
     public int $children = 0;
 
+    public function addAllowance(): void
+    {
+        $this->allowances[] = ['label' => '', 'amount' => 0, 'type' => 'fixed'];
+    }
+
+    public function removeAllowance(int $index): void
+    {
+        unset($this->allowances[$index]);
+        $this->allowances = array_values($this->allowances);
+    }
+
     /** @return array<string, mixed> */
     public function figures(): array
     {
         $d     = StatutorySetting::defaults();
-        $wage  = max(0.0, (float) $this->salary);
+        $basic = max(0.0, (float) $this->basic);
+        $ot    = max(0.0, (float) $this->overtime);
+        $svc   = max(0.0, (float) $this->serviceCharge);
 
-        if ($wage <= 0) {
+        $allowances = ['epf' => 0.0, 'socso' => 0.0, 'taxable' => 0.0, 'total' => 0.0];
+
+        foreach ($this->allowances as $line) {
+            $amount = max(0.0, (float) ($line['amount'] ?? 0));
+            $rules  = self::ALLOWANCE_TYPES[$line['type'] ?? 'fixed'] ?? self::ALLOWANCE_TYPES['fixed'];
+
+            $allowances['total'] += $amount;
+
+            foreach (['epf', 'socso', 'taxable'] as $basis) {
+                if ($rules[$basis]) {
+                    $allowances[$basis] += $amount;
+                }
+            }
+        }
+
+        $gross = $basic + $allowances['total'] + $ot + $svc;
+
+        if ($gross <= 0) {
             return ['ready' => false];
         }
 
-        // ---- EPF ---------------------------------------------------------
-        // A non-citizen contributes at the foreign rate; over-60s at the senior
-        // rate; and the employer's share steps down above the wage threshold.
+        // Each base excludes exactly what the law says it excludes.
+        $epfWage   = $basic + $allowances['epf'];
+        $socsoWage = $basic + $allowances['socso'] + $ot;
+        $taxable   = $basic + $allowances['taxable'] + $ot + $svc;
+
+        // ---- EPF -------------------------------------------------------------
         [$epfEmpRate, $epfErRate] = match (true) {
             ! $this->isMalaysian => [$d['epf_employee_rate_foreign'], $d['epf_employer_rate_foreign']],
             $this->isSenior      => [$d['epf_employee_rate_senior'], $d['epf_employer_rate_senior']],
             default              => [
                 $d['epf_employee_rate'],
-                $wage > $d['epf_wage_threshold'] ? $d['epf_employer_rate_high'] : $d['epf_employer_rate_low'],
+                $epfWage > $d['epf_wage_threshold'] ? $d['epf_employer_rate_high'] : $d['epf_employer_rate_low'],
             ],
         };
 
         // KWSP rounds a contribution up to the next whole ringgit, which is why
         // a payslip never shows cents against EPF.
-        $epfEmployee = ceil($wage * $epfEmpRate / 100);
-        $epfEmployer = ceil($wage * $epfErRate / 100);
+        $epfEmployee = ceil($epfWage * $epfEmpRate / 100);
+        $epfEmployer = ceil($epfWage * $epfErRate / 100);
 
-        // ---- SOCSO and EIS ------------------------------------------------
-        // Both are capped, and both stop or change at 60.
-        $socsoWage = min($wage, (float) $d['socso_ceiling']);
-        $eisWage   = min($wage, (float) $d['eis_ceiling']);
+        // ---- SOCSO and EIS ---------------------------------------------------
+        $socsoCapped = min($socsoWage, (float) $d['socso_ceiling']);
+        $eisCapped   = min($socsoWage, (float) $d['eis_ceiling']);
 
-        $socsoEmployee = $this->isSenior ? 0.0 : round($socsoWage * $d['socso_employee_rate'] / 100, 2);
-        $socsoEmployer = round($socsoWage * ($this->isSenior ? $d['socso_employer_rate_senior'] : $d['socso_employer_rate']) / 100, 2);
+        $socsoEmployee = $this->isSenior ? 0.0 : round($socsoCapped * $d['socso_employee_rate'] / 100, 2);
+        $socsoEmployer = round($socsoCapped * ($this->isSenior ? $d['socso_employer_rate_senior'] : $d['socso_employer_rate']) / 100, 2);
 
-        // EIS does not apply from the age ceiling upward.
-        $eisEmployee = $this->isSenior ? 0.0 : round($eisWage * $d['eis_employee_rate'] / 100, 2);
-        $eisEmployer = $this->isSenior ? 0.0 : round($eisWage * $d['eis_employer_rate'] / 100, 2);
+        $eisEmployee = $this->isSenior ? 0.0 : round($eisCapped * $d['eis_employee_rate'] / 100, 2);
+        $eisEmployer = $this->isSenior ? 0.0 : round($eisCapped * $d['eis_employer_rate'] / 100, 2);
 
-        // ---- PCB estimate --------------------------------------------------
-        $annual  = $wage * 12;
+        // ---- PCB estimate ----------------------------------------------------
+        $annual  = $taxable * 12;
         $reliefs = (float) $d['pcb_relief_individual']
             + min($epfEmployee * 12, (float) $d['pcb_relief_epf_cap'])
             + ($this->category === 'spouse_not_working' ? (float) $d['pcb_relief_spouse'] : 0)
@@ -89,7 +176,14 @@ class SalaryCalculator extends Component
 
         return [
             'ready'          => true,
-            'gross'          => round($wage, 2),
+            'gross'          => round($gross, 2),
+            'basic'          => round($basic, 2),
+            'allowances'     => round($allowances['total'], 2),
+            'overtime'       => round($ot, 2),
+            'service_charge' => round($svc, 2),
+            'epf_wage'       => round($epfWage, 2),
+            'socso_wage'     => round($socsoWage, 2),
+            'taxable_wage'   => round($taxable, 2),
             'epf_employee'   => $epfEmployee,
             'epf_employer'   => $epfEmployer,
             'epf_rate'       => $epfEmpRate,
@@ -100,10 +194,10 @@ class SalaryCalculator extends Component
             'pcb'            => $pcb,
             'chargeable'     => round($chargeable, 2),
             'deductions'     => round($deductions, 2),
-            'net'            => round($wage - $deductions, 2),
-            // What the employee costs, which is the number an owner budgets on
-            // and the one a salary negotiation usually forgets.
-            'employer_cost'  => round($wage + $epfEmployer + $socsoEmployer + $eisEmployer, 2),
+            'net'            => round($gross - $deductions, 2),
+            // What the person costs, which an owner budgets on and a salary
+            // negotiation usually forgets.
+            'employer_cost'  => round($gross + $epfEmployer + $socsoEmployer + $eisEmployer, 2),
         ];
     }
 
@@ -130,8 +224,9 @@ class SalaryCalculator extends Component
     public function render()
     {
         return view('livewire.marketing.salary-calculator', [
-            'figures'    => $this->figures(),
-            'categories' => StatutorySetting::PCB_CATEGORIES,
+            'figures'        => $this->figures(),
+            'categories'     => StatutorySetting::PCB_CATEGORIES,
+            'allowanceTypes' => self::ALLOWANCE_TYPES,
         ])->layout('layouts.marketing', [
             'title' => 'Free Salary Calculator — EPF, SOCSO, EIS & PCB',
         ]);
