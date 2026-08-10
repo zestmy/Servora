@@ -111,8 +111,11 @@ Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
 
 // Free tools. Public on purpose: useful before anything is asked for.
+Route::get('/tools', App\Livewire\Marketing\ToolsIndex::class)->name('tools.index');
 Route::get('/tools/recipe-cost-calculator', App\Livewire\Marketing\RecipeCostCalculator::class)
     ->name('tools.recipe-cost');
+Route::get('/tools/food-cost-calculator', App\Livewire\Marketing\FoodCostCalculator::class)
+    ->name('tools.food-cost');
 
 // Public video share (loginless, QR from printed SOP PDF)
 Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');

@@ -51,7 +51,7 @@
             // Third, not last: it is the only item here somebody can use
             // without deciding anything first, and the nav is read left to
             // right until something looks free.
-            ['route' => 'tools.recipe-cost', 'label' => 'Free Tools'],
+            ['route' => 'tools.index',      'label' => 'Free Tools'],
             ['route' => 'for-suppliers',    'label' => 'For Suppliers'],
             ['route' => 'referral.program', 'label' => 'Refer & Earn'],
         ];
@@ -177,6 +177,7 @@
                              one page here somebody can use without deciding
                              anything first. --}}
                         <li><a href="{{ route('tools.recipe-cost') }}" class="transition-colors hover:text-white">Recipe Cost Calculator</a></li>
+                        <li><a href="{{ route('tools.food-cost') }}" class="transition-colors hover:text-white">Food Cost Calculator</a></li>
                     </ul>
                 </div>
 

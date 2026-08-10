@@ -88,7 +88,14 @@
          nothing to show: an empty ticker is worse than no ticker.
     --}}
     @if ($tickerItems->isNotEmpty())
-        <section class="bg-gray-900 py-4" aria-label="Recent ingredient prices">
+        {{-- Sticks under the header as the page scrolls.
+
+             top-16 is the header's own height (h-16), so the two meet exactly
+             rather than overlapping or leaving a gap. z-19 is deliberately one
+             BELOW the header's z-sticky (20): the ticker rides with it, and if
+             either has to win it must be the nav, whose mobile sheet opens
+             downward across this strip. --}}
+        <section class="sticky top-16 z-[19] bg-gray-900 py-4" aria-label="Recent ingredient prices">
             <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center gap-3">
                     <span class="hidden shrink-0 items-center gap-2 sm:flex">
