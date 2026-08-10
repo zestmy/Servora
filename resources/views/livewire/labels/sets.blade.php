@@ -30,6 +30,9 @@
                 </a>
                 @endcanDo
             @endif
+            <button wire:click="openImport" class="btn-secondary">
+                Import a form
+            </button>
             <button wire:click="openCreate" class="btn-primary">
                 + New set
             </button>
@@ -230,6 +233,94 @@
                                class="btn-primary">Print</a>
                             @endcanDo
                         </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {{-- Import a Form Template as a set.
+
+         A stock-take or order form is already a walk down the shelf, written
+         out in the order someone actually moves through it — which is exactly
+         what a print set's order means. Retyping one is transcription, and
+         transcription is where items go missing. --}}
+    <div x-data="{ open: @entangle('showImport') }">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak @keydown.escape.window="open = false" class="fixed inset-0 z-[100] overflow-y-auto">
+                <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-800">Import a form as a print set</h3>
+                            <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <form wire:submit.prevent="importTemplate" class="p-5 space-y-4">
+                            @if ($formTemplates->isEmpty())
+                                <p class="text-sm text-gray-600">
+                                    There are no form templates yet. They are built under
+                                    Procurement, and any stock take, order or wastage form can be
+                                    brought over here.
+                                </p>
+                            @else
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600">Form template <span class="text-danger-500">*</span></label>
+                                    <select wire:model.live="importTemplateId" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                        <option value="">Choose a form…</option>
+                                        @foreach ($formTemplates as $t)
+                                            <option value="{{ $t->id }}">
+                                                {{ $t->name }} — {{ $t->formTypeLabel() }}, {{ $t->lines_count }} item{{ $t->lines_count === 1 ? '' : 's' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('importTemplateId')" class="mt-1" />
+                                </div>
+
+                                @if ($set)
+                                    <div class="space-y-2">
+                                        <p class="text-xs font-semibold text-gray-600">Put the items in</p>
+                                        <label class="flex items-start gap-2 text-sm text-gray-700">
+                                            <input type="radio" wire:model.live="importTarget" value="current" class="mt-0.5">
+                                            <span>The set you have open — <strong>{{ $set->name }}</strong></span>
+                                        </label>
+                                        <label class="flex items-start gap-2 text-sm text-gray-700">
+                                            <input type="radio" wire:model.live="importTarget" value="new" class="mt-0.5">
+                                            <span>A new set</span>
+                                        </label>
+                                    </div>
+                                @endif
+
+                                @if (! $set || $importTarget === 'new')
+                                    <div>
+                                        <label class="text-xs font-semibold text-gray-600">Name the new set <span class="text-danger-500">*</span></label>
+                                        <input type="text" wire:model="importName" class="mt-1 w-full text-sm rounded-lg border-gray-300"
+                                               placeholder="e.g. Chiller 1, Grill Station" />
+                                        <x-input-error :messages="$errors->get('importName')" class="mt-1" />
+                                    </div>
+                                @endif
+
+                                <p class="help">
+                                    The items and their order come across. Quantities do not — a form's
+                                    quantity is how much to order or count, not how much is in the
+                                    container you are labelling. Anything already in the set is left
+                                    alone, so importing twice is safe.
+                                </p>
+                            @endif
+
+                            <div class="flex justify-end gap-2 pt-1">
+                                <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                                @if ($formTemplates->isNotEmpty())
+                                    <button type="submit" class="btn-primary"
+                                            wire:loading.attr="disabled" wire:target="importTemplate">
+                                        <span wire:loading.remove wire:target="importTemplate">Import</span>
+                                        <span wire:loading wire:target="importTemplate">Importing…</span>
+                                    </button>
+                                @endif
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>

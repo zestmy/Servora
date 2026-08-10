@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Labels;
 
+use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\LabelSet;
 use App\Models\LabelSetLine;
@@ -44,6 +45,23 @@ class Sets extends Component
     public string $description = '';
 
     public ?int $qrSetId = null;
+
+    /*
+     * Importing a Form Template as a set.
+     *
+     * A stock-take or order form IS a walk down the shelf already written out —
+     * the same items in the same order a chef would label them in. Retyping one
+     * into a print set is transcription, and transcription is where items go
+     * missing.
+     */
+    public bool $showImport = false;
+
+    public ?int $importTemplateId = null;
+
+    public string $importName = '';
+
+    /** 'new' or 'current' — only offered when a set is open. */
+    public string $importTarget = 'new';
 
     public bool $showStorage = true;
 
@@ -126,6 +144,134 @@ class Sets extends Component
         }
 
         $this->showModal = false;
+    }
+
+    // ── Import from a Form Template ───────────────────────────────────────
+
+    public function openImport(): void
+    {
+        $this->importTemplateId = null;
+        $this->importName       = '';
+        $this->importTarget     = $this->editingSetId ? 'current' : 'new';
+        $this->resetValidation();
+        $this->showImport = true;
+    }
+
+    public function closeImport(): void
+    {
+        $this->showImport = false;
+    }
+
+    /** Name the set after the template unless the person has typed their own. */
+    public function updatedImportTemplateId($value): void
+    {
+        $template = $value ? FormTemplate::find($value) : null;
+
+        if ($template && trim($this->importName) === '') {
+            $this->importName = $template->name;
+        }
+    }
+
+    /**
+     * Copy a template's items into a print set.
+     *
+     * Order is carried over deliberately: a form template is already sequenced
+     * the way the person walks the store, and that sequence is exactly what a
+     * print set's order means.
+     *
+     * QUANTITIES ARE NOT CARRIED. A template line's default quantity is how much
+     * to order or count; a print set's is how much is in the container being
+     * labelled, and the template has no unit attached to disambiguate. Importing
+     * the number would print a confident wrong figure on food.
+     *
+     * Items already in the target set are skipped rather than duplicated, so
+     * importing the same template twice is safe and re-importing after the
+     * template grew adds only what is new.
+     */
+    public function importTemplate(): void
+    {
+        $this->validate(
+            [
+                'importTemplateId' => 'required|integer|exists:form_templates,id',
+                'importName'       => 'required_if:importTarget,new|nullable|string|max:100',
+                'outletId'         => 'required|integer|exists:outlets,id',
+            ],
+            ['importTemplateId.required' => 'Choose a template to import.']
+        );
+
+        $template = FormTemplate::with('lines')->findOrFail($this->importTemplateId);
+
+        $set = $this->importTarget === 'current' && $this->editingSet()
+            ? $this->editingSet()
+            : LabelSet::create([
+                'company_id'  => Auth::user()->company_id,
+                'outlet_id'   => $this->outletId,
+                'name'        => $this->importName,
+                'description' => 'Imported from ' . $template->name,
+                'created_by'  => Auth::id(),
+            ]);
+
+        $existing = $set->lines()
+            ->whereNotNull('labelable_type')
+            ->get()
+            ->map(fn ($l) => $l->labelable_type . ':' . $l->labelable_id)
+            ->all();
+
+        $added = 0;
+        $skipped = 0;
+        $missing = 0;
+
+        foreach ($template->lines as $line) {
+            [$type, $id] = $line->item_type === 'recipe'
+                ? [Recipe::class, $line->recipe_id]
+                : [Ingredient::class, $line->ingredient_id];
+
+            if (! $id) {
+                $missing++;
+                continue;
+            }
+
+            // The template outlives the items on it, so a line pointing at a
+            // deleted ingredient is normal rather than exceptional.
+            if (! $type::find($id)) {
+                $missing++;
+                continue;
+            }
+
+            if (in_array($type . ':' . $id, $existing, true)) {
+                $skipped++;
+                continue;
+            }
+
+            $this->createLine($set, $type, (int) $id, null);
+            $existing[] = $type . ':' . $id;
+            $added++;
+        }
+
+        $this->editingSetId = $set->id;
+        $this->showImport   = false;
+
+        session()->flash('success', $this->importSummary($template->name, $set->name, $added, $skipped, $missing));
+    }
+
+    /** Says what happened to every line, including the ones that did nothing. */
+    private function importSummary(string $template, string $set, int $added, int $skipped, int $missing): string
+    {
+        if ($added === 0 && $skipped === 0 && $missing === 0) {
+            return '“' . $template . '” has no items to import.';
+        }
+
+        $parts = [sprintf('%d item%s added to “%s” from “%s”', $added, $added === 1 ? '' : 's', $set, $template)];
+
+        if ($skipped) {
+            $parts[] = sprintf('%d already there', $skipped);
+        }
+
+        if ($missing) {
+            $parts[] = sprintf('%d skipped — the item no longer exists', $missing);
+        }
+
+        return implode('. ', $parts) . '.';
     }
 
     public function deleteSet(int $id): void
@@ -274,6 +420,13 @@ class Sets extends Component
             'lines'      => $set ? $set->lines()->with(['labelable', 'uom'])->get() : collect(),
             'results'    => $this->searchResults(),
             'labelTypes' => LabelTemplate::LABEL_TYPES,
+            // Company-wide, unlike sets — the same stock-take form is a print
+            // set at every branch that uses it. Offered under this screen's own
+            // ability rather than the Form Templates one: a template is a list
+            // of ingredients and recipes, every one of which the search box two
+            // panels over already finds, so requiring purchasing admin to build
+            // a print set would gate nothing and block a chef.
+            'formTemplates' => FormTemplate::active()->ordered()->withCount('lines')->get(),
             'states'     => ShelfLifeRule::STORAGE_STATES,
             // This company's ranges, so the picker shows what will actually
             // print rather than the built-in defaults.
