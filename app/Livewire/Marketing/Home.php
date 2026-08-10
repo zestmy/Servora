@@ -19,7 +19,12 @@ class Home extends Component
     {
         $trialDays = Plan::active()->ordered()->value('trial_days') ?? 30;
 
-        return view('livewire.marketing.home', compact('trialDays'))
+        // Cached for an hour inside the service: a marketing page is the most
+        // requested URL in the product and this is the only query on it that
+        // touches every company's price history.
+        $tickerItems = app(\App\Services\Marketing\MarketPriceTicker::class)->items();
+
+        return view('livewire.marketing.home', compact('trialDays', 'tickerItems'))
             ->layout('layouts.marketing', ['title' => 'F&B Management Platform']);
     }
 }

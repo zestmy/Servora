@@ -77,6 +77,72 @@
         </div>
     </section>
 
+    {{-- ── 1b. Price ticker ─────────────────────────────────────────────
+         A market strip directly under the hero: real ingredient prices, moving,
+         with the direction called out. It is the one thing on this page that is
+         evidence rather than claim — a visitor can check a number against what
+         they paid this week.
+
+         Dark, unlike everything around it, because that is what a ticker looks
+         like and the contrast is the point. Hidden entirely when there is
+         nothing to show: an empty ticker is worse than no ticker.
+    --}}
+    @if ($tickerItems->isNotEmpty())
+        <section class="bg-gray-900 py-4" aria-label="Recent ingredient prices">
+            <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center gap-3">
+                    <span class="hidden shrink-0 items-center gap-2 sm:flex">
+                        <span class="relative flex h-2 w-2">
+                            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-success-400 opacity-75"></span>
+                            <span class="relative inline-flex h-2 w-2 rounded-full bg-success-500"></span>
+                        </span>
+                        <span class="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+                            Market
+                        </span>
+                    </span>
+
+                    <div class="mask-edges min-w-0 flex-1 overflow-hidden">
+                        <ul class="flex w-max animate-marquee items-center gap-8">
+                            {{-- Duplicated once so the loop has no visible seam;
+                                 the copy is aria-hidden so a screen reader does
+                                 not read every price twice. --}}
+                            @foreach ([false, true] as $isDuplicate)
+                                @foreach ($tickerItems as $item)
+                                    <li class="flex items-center gap-2 whitespace-nowrap"
+                                        @if ($isDuplicate) aria-hidden="true" @endif>
+                                        <span class="text-sm font-medium text-white">{{ $item['item'] }}</span>
+
+                                        <span class="text-sm tabular-nums text-gray-300">
+                                            RM {{ number_format($item['price'], 2) }}@if ($item['unit'])<span class="text-gray-500">/{{ $item['unit'] }}</span>@endif
+                                        </span>
+
+                                        @if ($item['direction'] === 'up')
+                                            <span class="text-xs font-semibold tabular-nums text-danger-400">
+                                                &#9650; {{ number_format(abs($item['change']), 1) }}%
+                                            </span>
+                                        @elseif ($item['direction'] === 'down')
+                                            <span class="text-xs font-semibold tabular-nums text-success-400">
+                                                &#9660; {{ number_format(abs($item['change']), 1) }}%
+                                            </span>
+                                        @else
+                                            <span class="text-xs font-semibold text-gray-500">&mdash;</span>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+
+                {{-- Says where the numbers come from. A ticker with no
+                     provenance is decoration; one with it is evidence. --}}
+                <p class="mt-2 text-center text-[11px] text-gray-500 sm:text-left">
+                    Median prices paid by kitchens running on Servora &middot; updated hourly &middot; suppliers not identified
+                </p>
+            </div>
+        </section>
+    @endif
+
     {{-- ── 2. Who it is for ────────────────────────────────────────────────
          The trust strip, in its own section under the hero. Marquee on
          narrow screens so the full list is reachable without a wrapped,
