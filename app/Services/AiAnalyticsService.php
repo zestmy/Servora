@@ -558,6 +558,7 @@ class AiAnalyticsService
             'prev_period_label'  => $prevPeriodLabel,
             'cost_summary'       => $costSummary,
             'prev_summary'       => $prevSummary,
+            'matched_periods'    => $this->matchedPeriods($startOfMonth, $endOfMonth, $outletId),
             'daily_sales'        => $dailySales,
             'week_data'          => $weekData,
             'events'             => $events,
@@ -584,6 +585,99 @@ class AiAnalyticsService
         ];
     }
 
+    /**
+     * The same span of days, a month ago and a year ago.
+     *
+     * WHY THIS EXISTS: the only comparison the context carried was the WHOLE
+     * previous month. Ask on the 9th of August "how are we doing" and the model
+     * was handed nine days of August against thirty-one days of July, so every
+     * percentage it could compute was wrong by a factor of three — and there was
+     * no year-ago figure at all, so any statement about last year had to be
+     * invented. No amount of prompting fixes an absent number.
+     *
+     * Day-of-month aligned rather than day-count aligned: an operator comparing
+     * 1–9 August means the 1st to the 9th, not "the first nine days ending
+     * whenever". The end is clamped so a 31st never becomes the 1st of the next
+     * month in a 30-day month.
+     *
+     * @return array<string, mixed>
+     */
+    private function matchedPeriods(Carbon $start, Carbon $end, ?int $outletId): array
+    {
+        // For a month in progress, "so far" is what anybody means; for a month
+        // already closed it is the whole of it.
+        $today = Carbon::today();
+        $rangeEnd = $end->copy();
+
+        if ($today->between($start, $end)) {
+            $rangeEnd = $today->copy();
+        }
+
+        $windows = [
+            'current'    => [$start->copy(), $rangeEnd->copy()],
+            'last_month' => $this->shiftWindow($start, $rangeEnd, 'subMonthNoOverflow'),
+            'last_year'  => $this->shiftWindow($start, $rangeEnd, 'subYear'),
+        ];
+
+        $out = ['days' => $start->diffInDays($rangeEnd) + 1];
+
+        foreach ($windows as $key => [$from, $to]) {
+            $out[$key] = $this->salesTotals($from, $to, $outletId) + [
+                'label' => $from->format('j M') . ' – ' . $to->format('j M Y'),
+            ];
+        }
+
+        foreach (['last_month', 'last_year'] as $key) {
+            $base = $out['current']['revenue'];
+            $was  = $out[$key]['revenue'];
+
+            $out[$key]['change_pct'] = $was > 0 ? round((($base - $was) / $was) * 100, 1) : null;
+        }
+
+        return $out;
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private function shiftWindow(Carbon $start, Carbon $end, string $shift): array
+    {
+        $from = $start->copy()->{$shift}();
+
+        // Same day numbers, clamped: 1–31 Mar shifted back is 1–28/29 Feb, not
+        // 1–3 Mar, which is what a naive subMonth() on the 31st produces.
+        $to = $from->copy()->day(min((int) $end->format('j'), (int) $from->copy()->endOfMonth()->format('j')));
+
+        return [$from->startOfDay(), $to->endOfDay()];
+    }
+
+    /** @return array<string, float|int> */
+    private function salesTotals(Carbon $from, Carbon $to, ?int $outletId): array
+    {
+        $query = SalesRecord::whereBetween('sale_date', [$from, $to]);
+
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        $row = $query->selectRaw(
+            'COALESCE(SUM(total_revenue), 0) AS revenue,'
+            . ' COALESCE(SUM(pax), 0) AS pax,'
+            . ' COALESCE(SUM(transactions), 0) AS transactions,'
+            . ' COALESCE(SUM(total_cost), 0) AS cost'
+        )->first();
+
+        $revenue = round((float) $row->revenue, 2);
+        $pax     = (int) $row->pax;
+
+        return [
+            'revenue'      => $revenue,
+            'pax'          => $pax,
+            'transactions' => (int) $row->transactions,
+            'cost'         => round((float) $row->cost, 2),
+            'avg_check'    => $pax > 0 ? round($revenue / $pax, 2) : 0.0,
+            'food_cost_pct' => $revenue > 0 ? round(((float) $row->cost / $revenue) * 100, 1) : 0.0,
+        ];
+    }
+
     private function systemPrompt(array $context): string
     {
         $isMultiOutlet = !empty($context['is_multi_outlet']);
@@ -597,10 +691,22 @@ class AiAnalyticsService
             $outletInstruction = "";
         }
 
-        return "You are an expert Food & Beverage operations analyst for \"{$context['company_name']}\" — {$context['outlet_name']}. "
+        return "You are the Chief Operating Officer of \"{$context['company_name']}\", writing up {$context['outlet_name']} "
+            . "for the weekly management meeting. You have run F&B operations for twenty years across multiple outlets. "
             . $outletInstruction
-            . "Analyze operational data and provide actionable insights to help maximize revenue and profit. "
-            . "Be specific with numbers, percentages, and comparisons. Identify patterns and correlations with calendar events. "
+            . "\n\nHOW YOU WRITE:\n"
+            . "- Lead with the decision, not the data. An operator does not need to be told revenue moved; they need to know what to do on Monday.\n"
+            . "- Every number you state must come from the data given to you. If a figure is not there, say it is not there. "
+            . "NEVER estimate, extrapolate, or infer a number you were not given — a confident wrong figure in a board pack is worse than an absent one.\n"
+            . "- Compare like with like. If the data provides a matched date-range comparison, use it and name the exact dates. "
+            . "Never compare a part-month against a full month.\n"
+            . "- Quantify in ringgit before percentages: \"RM 4,200 lower (-12%)\" beats \"down 12%\", because RM 4,200 is what gets acted on.\n"
+            . "- Separate what happened from why. State the movement, then your read on the cause, and mark the read as a hypothesis when the data cannot confirm it.\n"
+            . "- Be specific about actions: who does what, by when, and what it is worth. \"Improve margins\" is not an action; "
+            . "\"drop the two lowest-margin lunch items and re-cost the set menu before the 20th\" is.\n"
+            . "- Say plainly when a period was too short, too quiet, or too incomplete to draw a conclusion from. Restraint reads as judgement.\n"
+            . "- No filler, no praise, no restating the question. A COO's summary is read in ninety seconds.\n"
+            . "\nThe output is going onto presentation slides, so every string must survive being read aloud from the back of a room.\n\n"
             . "Format your response as JSON with the following structure:\n"
             . "{\n"
             . "  \"headline\": \"Brief one-line summary of overall performance (max 100 chars)\",\n"
@@ -623,13 +729,67 @@ class AiAnalyticsService
                 ? ". MUST include a dedicated '## [Outlet Name] Analysis' section for EACH outlet with their individual revenue, pax, cost %, best/worst days, and specific recommendations. End with a '## Cross-Outlet Comparison' section."
                 : " with ## headers for sections") . "\"\n"
             . "}\n"
-            . "Keep insights brief and actionable. Use Malaysian Ringgit (RM) for currency.";
+            . "\nRULES FOR EACH FIELD:\n"
+            . "- headline: the one sentence you would open the meeting with. A finding, not a topic.\n"
+            . "- key_metrics: 4-6 metrics that carry the story. Include the comparison basis in the note, e.g. \"vs same 9 days last month\".\n"
+            . "- highlights / concerns: each one a complete thought with its number attached. Two to four each. If there is nothing real to report, return fewer rather than padding.\n"
+            . "- recommendations: ranked by money at stake, not by ease. Each description says the action, the expected effect, and roughly what it is worth.\n"
+            . "- detailed_analysis: the written brief. Open with the like-for-like comparison and the exact dates it covers.\n"
+            . "\nUse Malaysian Ringgit (RM) throughout. Write in plain English an owner-operator reads without a glossary.";
     }
 
     public function buildPrompt(array $context, string $analysisType, ?string $customQuestion): string
     {
         $sections = [];
         $prevPeriodLabel = $context['prev_period_label'] ?? 'Previous Month';
+
+        /*
+         * Like-for-like first, because it is the comparison an operator means.
+         *
+         * Placed at the top of the prompt deliberately: when somebody asks
+         * "how are we doing this month", the honest answer compares the same
+         * span of days, not nine days against a whole month. The old context
+         * offered only the full previous month, which made every percentage
+         * wrong by the ratio of the two spans.
+         */
+        if (! empty($context['matched_periods'])) {
+            $m = $context['matched_periods'];
+
+            $sections[] = "## Like-for-like comparison ({$m['days']} days)";
+            $sections[] = 'These three windows cover THE SAME DAYS OF THE MONTH. Use them for any '
+                . 'month-on-month or year-on-year statement. Do NOT compare a part-month against a full month.';
+            $sections[] = '';
+            $sections[] = '| Window | Period | Revenue | Pax | Avg check | Food cost % |';
+            $sections[] = '|--------|--------|---------|-----|-----------|-------------|';
+
+            foreach ([
+                'current'    => 'This period',
+                'last_month' => 'Same days last month',
+                'last_year'  => 'Same days last year',
+            ] as $key => $label) {
+                $w = $m[$key];
+                $sections[] = sprintf(
+                    '| %s | %s | RM %s | %s | RM %s | %s%% |',
+                    $label,
+                    $w['label'],
+                    number_format($w['revenue'], 2),
+                    number_format($w['pax']),
+                    number_format($w['avg_check'], 2),
+                    number_format($w['food_cost_pct'], 1)
+                );
+            }
+
+            foreach (['last_month' => 'vs same days last month', 'last_year' => 'vs same days last year'] as $key => $label) {
+                $pct = $m[$key]['change_pct'];
+
+                $sections[] = $pct === null
+                    // Said explicitly. A model handed a blank cell fills it in.
+                    ? "- Revenue {$label}: no sales recorded in that window, so no comparison is possible. Say so rather than estimating."
+                    : sprintf('- Revenue %s: %s%s%%', $label, $pct >= 0 ? '+' : '', number_format($pct, 1));
+            }
+
+            $sections[] = '';
+        }
 
         // Revenue summary
         $totals = $context['cost_summary']['totals'];
@@ -740,7 +900,14 @@ class AiAnalyticsService
             }
 
             // P&L overview with explicit period labels
-            $sections[] = "## Profit & Loss Summary";
+            $sections[] = "## Profit & Loss Summary (FULL calendar months)";
+            // Spelled out because both comparisons are in this prompt and the
+            // model must not mix them: the like-for-like table above covers the
+            // same days of each month, this one covers whole months. A
+            // part-month against a full month is the error that started this.
+            $sections[] = "These columns are WHOLE MONTHS. If the current month is still in progress, "
+                . "this column is a partial month against a complete one — do NOT quote a percentage from it. "
+                . "For any month-on-month or year-on-year claim, use the like-for-like table at the top.";
             $sections[] = "| Metric | {$context['period_label']} | {$prevPeriodLabel} | Change |";
             $sections[] = "|--------|" . str_repeat('-', strlen($context['period_label']) + 2) . "|" . str_repeat('-', strlen($prevPeriodLabel) + 2) . "|--------|";
 
