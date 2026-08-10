@@ -105,8 +105,26 @@ abstract class StaffLogin extends Component
     /** SVG path for the fallback mark, when a company has no logo. */
     abstract protected function iconPath(): string;
 
-    public function mount(): void
+    public function mount()
     {
+        /*
+         * Already signed in? Go in.
+         *
+         * Reported as "the email login sends me back to the login page". It
+         * does not — this screen simply never asked whether the person was
+         * already through the door, so a reload, a back button or reopening the
+         * installed app showed a sign-in form to somebody holding a live
+         * session, with nothing on it saying so.
+         *
+         * The email route made it certain rather than occasional: it parks you
+         * HERE, signed in, to ask about your PIN, so any reload during that
+         * question stranded you. The PIN route had the same hole and hid it,
+         * because it redirects the instant the last digit lands.
+         */
+        if (app(StaffSession::class)->check($this->companyId())) {
+            return $this->redirect($this->destination(), navigate: false);
+        }
+
         $outlets = $this->outlets();
 
         $remembered = session(self::OUTLET_KEY);
