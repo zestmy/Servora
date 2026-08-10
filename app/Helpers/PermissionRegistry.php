@@ -188,4 +188,61 @@ class PermissionRegistry
             fn (array $a) => isset($a['managed_by'])
         );
     }
+
+    /**
+     * Doing something in a module implies being able to see it.
+     *
+     * Splitting the write abilities out of each module's view ability created a
+     * state nobody wants: someone who can record a stock take but cannot open the
+     * stock list, so every form's way back is a 403 and the module vanishes from
+     * their sidebar. Recording implies viewing — decided 2026-08-10.
+     *
+     * Derived from the registry's own shape rather than a hand-kept list, so a new
+     * ability inherits the rule by being declared in a module that has a view. The
+     * module boundaries are what make this safe: HR is several modules here, so
+     * `hr.documents.manage` implies `hr.documents.view` and NOT `hr.view`.
+     *
+     * Only the module's own view ability is implied. Nothing implies a write.
+     *
+     * @return array<string, array<int, string>> view ability => abilities that imply it
+     */
+    public static function impliedViews(): array
+    {
+        static $map = null;
+
+        if ($map !== null) {
+            return $map;
+        }
+
+        $map = [];
+
+        foreach (self::modules() as $module) {
+            $names = array_column($module['abilities'] ?? [], 'name');
+            $views = array_values(array_filter($names, fn (string $n) => str_ends_with($n, '.view')));
+
+            // A module with no view ability, or more than one, has no single thing
+            // "seeing it" means — leave those alone rather than guess.
+            if (count($views) !== 1) {
+                continue;
+            }
+
+            $others = array_values(array_diff($names, $views));
+
+            if ($others) {
+                $map[$views[0]] = $others;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The abilities that grant `$permission` by implication, if any.
+     *
+     * @return array<int, string>
+     */
+    public static function impliedBy(string $permission): array
+    {
+        return self::impliedViews()[$permission] ?? [];
+    }
 }

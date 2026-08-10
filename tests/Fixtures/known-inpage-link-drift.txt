@@ -1,54 +1,29 @@
 # Links inside a page that lead to a route the page's own visitors may not be
 # able to open. One line per (view, target route, ability), not per occurrence.
 #
-# These are LATENT, not broken: measured against production, nobody currently
-# holds the page's ability without the link's, so nobody meets a 403 today. They
-# exist because splitting a module's write abilities out of its view ability left
-# every record form linking back to a list it no longer guarantees you can open —
-# a Stock Take form needs inventory.stock_takes.record, and its Back to Stocks
-# link needs inventory.view. One role edit makes any of these real.
+# These are LATENT, not broken: measured against production, nobody holds the
+# page's ability without the link's, so nobody meets a 403 today.
+#
+# What is left is CROSS-MODULE — a purchasing form linking to the ingredient
+# list, an HR page linking to a different HR module. The record-form family that
+# made up most of this file is gone: recording in a module now implies being able
+# to see it (2026-08-10), so a Stock Take form linking back to the stock list is
+# covered by the rule rather than by a line here.
 #
 # The test asserts this list never GROWS. A new dead link fails the build; fixing
-# one means deleting its line here. Two ways to clear a line: gate the link with
-# @canDo, or decide that recording in a module implies seeing it and widen the
-# index route — the second is a permission-model decision, not a UI fix.
+# one means deleting its line. Nothing here is covered by implication, so each
+# needs either an @canDo on the link or a deliberate widening of the target route.
 resources/views/livewire/hr/ea-forms.blade.php|settings.statutory|hr.compensation
 resources/views/livewire/hr/employee-compensation.blade.php|hr.employees.edit|hr.employees.manage
 resources/views/livewire/hr/time-off.blade.php|hr.overtime-claims|hr.claims
-resources/views/livewire/ingredients/import.blade.php|ingredients.index|ingredients.view
 resources/views/livewire/ingredients/import.blade.php|inventory.index|inventory.view
-resources/views/livewire/ingredients/scan-document.blade.php|ingredients.index|ingredients.view
 resources/views/livewire/inventory/prep-item-form.blade.php|ingredients.index|ingredients.view
-resources/views/livewire/inventory/purchase-capture-form.blade.php|inventory.index|inventory.view
-resources/views/livewire/inventory/staff-meal-form.blade.php|inventory.index|inventory.view
 resources/views/livewire/inventory/stock-take-form.blade.php|ingredients.index|ingredients.view
-resources/views/livewire/inventory/stock-take-form.blade.php|inventory.index|inventory.view
-resources/views/livewire/inventory/stock-take-form.blade.php|inventory.stock-takes.count-sheet|inventory.view
-resources/views/livewire/inventory/transfer-form.blade.php|inventory.index|inventory.view
-resources/views/livewire/inventory/wastage-form.blade.php|inventory.index|inventory.view
 resources/views/livewire/labels/print-screen.blade.php|labels.printers|labels.manage
 resources/views/livewire/labels/sets.blade.php|labels.sets.qr-sheet|labels.manage
-resources/views/livewire/purchasing/consolidate-form.blade.php|purchasing.index|purchasing.view
 resources/views/livewire/purchasing/consolidate-form.blade.php|settings.cpu-management|settings.cpu
 resources/views/livewire/purchasing/convert-to-do.blade.php|ingredients.index|ingredients.view
-resources/views/livewire/purchasing/convert-to-do.blade.php|purchasing.index|purchasing.view
 resources/views/livewire/purchasing/order-form.blade.php|ingredients.index|ingredients.view
-resources/views/livewire/purchasing/order-form.blade.php|purchasing.index|purchasing.view
-resources/views/livewire/purchasing/purchase-request-form.blade.php|purchasing.index|purchasing.view
 resources/views/livewire/purchasing/receive-form.blade.php|ingredients.index|ingredients.view
-resources/views/livewire/purchasing/stock-transfer-form.blade.php|purchasing.index|purchasing.view
-resources/views/livewire/purchasing/supplier-directory.blade.php|purchasing.index|purchasing.view
 resources/views/livewire/recipes/form.blade.php|ingredients.index|ingredients.view
-resources/views/livewire/recipes/form.blade.php|recipes.cost-pdf|recipes.view
-resources/views/livewire/recipes/form.blade.php|recipes.index|recipes.view
-resources/views/livewire/recipes/smart-import.blade.php|recipes.index|recipes.view
-resources/views/livewire/sales/import.blade.php|sales.index|sales.view
-resources/views/livewire/sales/sales-form.blade.php|sales.index|sales.view
-resources/views/livewire/settings/document-folders.blade.php|hr.documents|hr.documents.view
-resources/views/livewire/settings/form-template-edit.blade.php|purchasing.index|purchasing.view
-resources/views/livewire/settings/form-templates.blade.php|purchasing.index|purchasing.view
 resources/views/livewire/settings/labour-costs.blade.php|hr.overtime-claims|hr.claims
-resources/views/livewire/settings/price-alerts.blade.php|purchasing.index|purchasing.view
-resources/views/livewire/settings/sales-targets.blade.php|sales.index|sales.view
-resources/views/livewire/settings/supplier-product-mapping.blade.php|purchasing.index|purchasing.view
-resources/views/livewire/settings/suppliers.blade.php|purchasing.index|purchasing.view

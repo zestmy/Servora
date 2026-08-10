@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Helpers\PermissionRegistry;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -80,6 +81,22 @@ class NavPermissionDriftTest extends TestCase
         return $items;
     }
 
+    /**
+     * Does anything in $held satisfy $need — directly, or by implying it?
+     *
+     * Doing something in a module implies being able to see it, so a page that
+     * demanded `inventory.stock_takes.record` can link to the stock list without
+     * gating it: nobody standing on that page lacks `inventory.view`.
+     */
+    private function covers(array $held, string $need): bool
+    {
+        if (in_array($need, $held, true)) {
+            return true;
+        }
+
+        return (bool) array_intersect($held, PermissionRegistry::impliedBy($need));
+    }
+
     /** @return array<int, string> the abilities a route's own middleware demands */
     private function gatesOn(string $name): array
     {
@@ -110,7 +127,10 @@ class NavPermissionDriftTest extends TestCase
         $drift = [];
 
         foreach ($items as $item) {
-            $needs = array_values(array_diff($this->gatesOn($item['route']), $baseline));
+            $needs = array_values(array_filter(
+                $this->gatesOn($item['route']),
+                fn (string $g) => ! $this->covers($baseline, $g)
+            ));
 
             if (! $needs) {
                 continue;
@@ -283,7 +303,8 @@ class NavPermissionDriftTest extends TestCase
                     continue;
                 }
                 foreach ($m[1] as $target) {
-                    foreach (array_diff($this->gatesOn($target), $baseline) as $need) {
+                    foreach ($this->gatesOn($target) as $need) {
+                        if ($this->covers($baseline, $need)) { continue; }
                         // Named in the view, or in the component that renders it,
                         // means someone gated it — a stricter check would have to
                         // understand Blade nesting, which is not worth the recall.

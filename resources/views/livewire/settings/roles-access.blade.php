@@ -360,6 +360,9 @@
                                                     @case('denied')
                                                         <span class="badge-danger shrink-0" title="Their role grants this, but it was removed for this person specifically">removed</span>
                                                         @break
+                                                    @case('implied')
+                                                        <span class="badge-neutral shrink-0" title="Comes with what they can DO in this module — recording something means being able to see it">comes with the work</span>
+                                                        @break
                                                     @default
                                                         <span class="text-xs text-gray-500 shrink-0" aria-label="not granted">—</span>
                                                 @endswitch

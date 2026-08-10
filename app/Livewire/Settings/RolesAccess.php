@@ -447,6 +447,15 @@ class RolesAccess extends Component
             $inRole   = in_array($name, $rolePerms, true);
             $inDirect = in_array($name, $directPerms, true);
 
+            // Doing something in a module implies being able to see it, so a
+            // module's view ability can be held without a row behind it. Ranked
+            // below a real grant: the row is the stronger statement, and losing
+            // the write would take the implied view with it.
+            $implied = ! $inRole && ! $inDirect && array_intersect(
+                PermissionRegistry::impliedBy($name),
+                array_diff(array_merge($rolePerms, $directPerms), $denied)
+            );
+
             $sources[$name] = match (true) {
                 // Denials win over everything except a platform account, exactly as
                 // Gate::before resolves them — otherwise this tab would cheerfully
@@ -456,6 +465,7 @@ class RolesAccess extends Component
                 $inDirect                                     => 'direct',
                 // A system role passes canDo() for everything without holding a row.
                 $isSystem                                     => 'system',
+                (bool) $implied                               => 'implied',
                 default                                       => null,
             };
         }

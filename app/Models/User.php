@@ -42,7 +42,62 @@ class User extends Authenticatable
             return false;
         }
 
-        return $this->spatieCheckPermissionTo($permission, $guardName);
+        if ($this->spatieCheckPermissionTo($permission, $guardName)) {
+            return true;
+        }
+
+        return is_string($permission) && $this->holdsSomethingImplying($permission, $guardName);
+    }
+
+    /** Guards the one-level implication lookup against re-entering itself. */
+    protected bool $resolvingImplication = false;
+
+    /**
+     * Does a module ability this person holds imply the one being asked for?
+     *
+     * See PermissionRegistry::impliedViews() for the rule and why it is derived
+     * rather than listed. Three things are deliberate here:
+     *
+     * An explicit DENIAL still wins — checked above, before we get here — because a
+     * denial is a considered exception and inheriting the ability back through a
+     * side door would make it unenforceable.
+     *
+     * A denied IMPLIER cannot imply. Take away someone's `inventory.wastage.record`
+     * and it stops standing in for `inventory.view`, or a denial would leave a
+     * shadow of the ability behind it.
+     *
+     * One level only. Nothing implies a write ability today, so a chain cannot
+     * form — the flag is there so that stays true if that ever changes.
+     */
+    protected function holdsSomethingImplying(string $permission, $guardName = null): bool
+    {
+        if ($this->resolvingImplication) {
+            return false;
+        }
+
+        $impliers = \App\Helpers\PermissionRegistry::impliedBy($permission);
+
+        if (! $impliers) {
+            return false;
+        }
+
+        $this->resolvingImplication = true;
+
+        try {
+            foreach ($impliers as $implier) {
+                if ($this->isDenied($implier)) {
+                    continue;
+                }
+
+                if ($this->spatieCheckPermissionTo($implier, $guardName)) {
+                    return true;
+                }
+            }
+        } finally {
+            $this->resolvingImplication = false;
+        }
+
+        return false;
     }
 
     protected $fillable = [
