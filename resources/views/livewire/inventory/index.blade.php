@@ -106,6 +106,7 @@
             @foreach ([
                 'today'      => 'Today',
                 'last_7'     => 'Last 7 days',
+                'last_week'  => 'Last week',
                 'last_30'    => 'Last 30 days',
                 'this_month' => 'This month',
                 'last_month' => 'Last month',

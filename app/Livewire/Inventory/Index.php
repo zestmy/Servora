@@ -185,6 +185,15 @@ class Index extends Component
         [$from, $to] = match ($range) {
             'today'      => [$today, $today],
             'last_7'     => [$today->copy()->subDays(6), $today],
+            // The calendar week just gone, Monday to Sunday — not the rolling
+            // seven days above it. Both days are named explicitly rather than
+            // left to the locale's idea of where a week starts, because "last
+            // week" on a roster means one specific pair of dates and a shift
+            // that lands on the wrong side of the boundary is a real argument.
+            'last_week'  => [
+                $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY),
+                $today->copy()->subWeek()->endOfWeek(Carbon::SUNDAY),
+            ],
             'last_30'    => [$today->copy()->subDays(29), $today],
             'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
             'last_month' => [$today->copy()->subMonthNoOverflow()->startOfMonth(), $today->copy()->subMonthNoOverflow()->endOfMonth()],
@@ -449,6 +458,7 @@ class Index extends Component
         return match ($this->quickRange) {
             'today'      => 'today',
             'last_7'     => 'in the last 7 days',
+            'last_week'  => 'last week',
             'last_30'    => 'in the last 30 days',
             'this_month' => 'this month',
             'last_month' => 'last month',

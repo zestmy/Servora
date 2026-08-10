@@ -208,6 +208,49 @@ class StockManagementFilterTest extends TestCase
         $screen->assertSet('departmentFilter', (string) $this->kitchen->id);
     }
 
+    /**
+     * "Last week" is the calendar week just gone, Monday to Sunday — not the
+     * rolling seven days that sits next to it. A shift landing on the wrong
+     * side of that boundary is a real argument, so the days are pinned here.
+     */
+    public function test_last_week_runs_monday_to_sunday_of_the_week_before(): void
+    {
+        // A fixed Wednesday, so the assertion does not move with the calendar.
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-12'));
+
+        $this->screen()
+            ->call('setQuickRange', 'last_week')
+            ->assertSet('dateFrom', '2026-08-03')   // Monday
+            ->assertSet('dateTo', '2026-08-09');    // Sunday
+
+        $this->travelBack();
+    }
+
+    public function test_last_week_is_not_the_same_as_the_last_seven_days(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-12'));
+
+        // Monday of last week. Inside "last week" (3rd–9th) and outside the
+        // rolling seven days, which from Wednesday the 12th reach back only to
+        // the 6th — the two ranges overlap for most of the week, so the date
+        // has to be chosen from the part where they do not.
+        $this->purchase('2026-08-03', 120, $this->kitchen, $this->acme);
+
+        $lastWeek = $this->screen()->set('tab', 'purchases')->call('setQuickRange', 'last_week')->html();
+        $rolling  = $this->screen()->set('tab', 'purchases')->call('setQuickRange', 'last_7')->html();
+
+        $this->assertStringContainsString('RM 120.00', $lastWeek);
+
+        // Under the rolling range the purchase is not in the window — it is in
+        // the window BEFORE it, so it shows up as the comparison rather than as
+        // the total. Asserting it is absent entirely would be asserting the
+        // comparison does not work.
+        $this->assertStringContainsString('RM 0.00', $rolling);
+        $this->assertStringContainsString('Previous period: RM 120.00', $rolling);
+
+        $this->travelBack();
+    }
+
     public function test_typing_a_date_by_hand_drops_the_named_range(): void
     {
         $this->screen()
