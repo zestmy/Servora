@@ -8,249 +8,175 @@
     @endif
 
     {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="page-title">Inventory</h2>
-        <div class="flex items-center gap-2">
+    <x-page-header title="Stocks Management"
+                   eyebrow="Inventory"
+                   subtitle="Counts, wastage, staff meals, transfers and captured purchases.">
+        <x-slot:actions>
             @if ($tab === 'stock-takes')
                 @canDo('inventory.stock_takes.record')
-                <a href="{{ route('inventory.stock-takes.create') }}"
-                   class="btn-primary">
-                    + New Stock Take
-                </a>
+                    <a href="{{ route('inventory.stock-takes.create') }}" class="btn-primary">+ New Stock Take</a>
                 @endcanDo
             @elseif ($tab === 'wastage')
                 @canDo('inventory.wastage.record')
-                <a href="{{ route('inventory.wastage.create') }}"
-                   class="btn-primary">
-                    + Record Wastage
-                </a>
+                    <a href="{{ route('inventory.wastage.create') }}" class="btn-primary">+ Record Wastage</a>
                 @endcanDo
             @elseif ($tab === 'staff-meals')
                 @canDo('inventory.staff_meals.record')
-                <a href="{{ route('inventory.staff-meals.create') }}"
-                   class="btn-primary">
-                    + Record Staff Meal
-                </a>
+                    <a href="{{ route('inventory.staff-meals.create') }}" class="btn-primary">+ Record Staff Meal</a>
                 @endcanDo
             @elseif ($tab === 'transfers')
                 @canDo('inventory.transfers.record')
-                <a href="{{ route('inventory.transfers.create') }}"
-                   class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
-                    + New Transfer
-                </a>
+                    {{-- btn-primary, not a hardcoded teal: the accent is a token
+                         so that changing it is one edit in tailwind.config.js. --}}
+                    <a href="{{ route('inventory.transfers.create') }}" class="btn-primary">+ New Transfer</a>
                 @endcanDo
             @elseif ($tab === 'purchases')
                 @canDo('inventory.purchases.record')
-                <a href="{{ route('inventory.purchases.create') }}"
-                   class="btn-primary">
-                    + Record Purchase
-                </a>
+                    <a href="{{ route('inventory.purchases.create') }}" class="btn-primary">+ Record Purchase</a>
                 @endcanDo
             @endif
-        </div>
+        </x-slot:actions>
+    </x-page-header>
+
+    {{-- Tabs. A segmented control rather than five underlined buttons in five
+         different accent colours — the colour used to change with the tab,
+         which made the accent mean "which tab" instead of "this is the
+         action". --}}
+    <div class="seg mb-4 overflow-x-auto">
+        @foreach ($tabs as $key => $label)
+            <button wire:click="$set('tab', '{{ $key }}')"
+                    class="seg-item whitespace-nowrap {{ $tab === $key ? 'seg-item-on' : '' }}">
+                {{ $label }}
+            </button>
+        @endforeach
     </div>
 
-    {{-- Stats --}}
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div class="card p-5">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Stock Takes This Month</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $monthStockTakes }}</p>
-            <p class="text-xs {{ $draftStockTakes > 0 ? 'text-yellow-600 font-medium' : 'text-gray-600' }} mt-1">
-                {{ $draftStockTakes }} draft{{ $draftStockTakes !== 1 ? 's' : '' }} pending
-            </p>
-        </div>
-        <div class="card p-5">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Wastage This Month</p>
-            <p class="text-2xl font-bold text-danger-600 mt-1 tabular-nums">RM {{ number_format($monthWastageCost, 2) }}</p>
-            <p class="text-xs text-gray-600 mt-1">{{ now()->format('M Y') }}</p>
-        </div>
-        <div class="card p-5">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Staff Meals This Month</p>
-            <p class="text-2xl font-bold text-purple-600 mt-1 tabular-nums">RM {{ number_format($monthStaffMealCost, 2) }}</p>
-            <p class="text-xs text-gray-600 mt-1">{{ now()->format('M Y') }}</p>
-        </div>
-        <div class="card p-5">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Purchases This Month</p>
-            <p class="text-2xl font-bold text-emerald-600 mt-1 tabular-nums">RM {{ number_format($monthPurchaseAmount, 2) }}</p>
-            <p class="text-xs text-gray-600 mt-1">{{ now()->format('M Y') }}</p>
-        </div>
-        <div class="card p-5">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Latest Stock Value</p>
-            @if ($latestStockTake)
-                <p class="text-2xl font-bold text-brand-600 mt-1 tabular-nums">RM {{ number_format($latestStockTake->total_stock_cost, 2) }}</p>
-                <p class="text-xs text-gray-600 mt-1">{{ $latestStockTake->stock_take_date->format('d M Y') }}</p>
-            @else
-                <p class="text-2xl font-bold text-gray-500 mt-1">—</p>
-                <p class="text-xs text-gray-600 mt-1">No completed stock takes</p>
+    {{-- Stats: about the tab you are on, under the filters you have set.
+
+         Five fixed cards used to describe five different tabs at once, three of
+         them about tabs a company may never have used — so most of the row read
+         as zeros and dashes no matter what you were doing. They were also
+         hardcoded to this month and ignored every filter, so narrowing the
+         table to last week left the cards answering about the month. --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div class="stat">
+            <p class="stat-label">{{ $stats['label'] }} {{ $stats['rangeLabel'] }}</p>
+            <p class="stat-value">{{ number_format($stats['count']) }}</p>
+            @if ($stats['previousCount'] !== null)
+                @php $delta = $stats['count'] - $stats['previousCount']; @endphp
+                {{-- Deliberately uncoloured. More wastage and more purchases are
+                     the same arithmetic and opposite news, so a green "up" would
+                     be wrong half the time. The label says what is counted; the
+                     reader knows which way is good. --}}
+                <p class="text-xs text-gray-600 mt-1 tabular-nums">
+                    {{ $delta > 0 ? '▲' : ($delta < 0 ? '▼' : '—') }}
+                    {{ $delta === 0 ? 'no change' : abs($delta) . ' vs the period before' }}
+                </p>
             @endif
         </div>
-    </div>
 
-    {{-- Cost by Category Panel --}}
-    @if ($categoryBreakdown)
-        <div class="card mb-6" x-data="{}">
-            <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-700">Cost by Category</h3>
-                    <p class="text-xs text-gray-600 mt-0.5">
-                        Based on stock take: {{ $categoryBreakdown['date']->format('d M Y') }}
+        @if ($stats['moneyLabel'])
+            <div class="stat">
+                <p class="stat-label">{{ $stats['moneyLabel'] }} {{ $stats['rangeLabel'] }}</p>
+                <p class="stat-value tabular-nums">RM {{ number_format($stats['value'] ?? 0, 2) }}</p>
+                @if ($stats['previousValue'] !== null)
+                    <p class="text-xs text-gray-600 mt-1 tabular-nums">
+                        Previous period: RM {{ number_format($stats['previousValue'], 2) }}
                     </p>
-                </div>
-                <span class="text-sm font-bold text-brand-700 tabular-nums">
-                    RM {{ number_format($categoryBreakdown['total'], 2) }} total
-                </span>
+                @endif
             </div>
-            <table class="table-surface min-w-full">
-                <thead>
-                    <tr>
-                        <th class="px-5 py-2 text-left">Category</th>
-                        <th class="px-5 py-2 text-right">Stock Value (RM)</th>
-                        <th class="px-5 py-2 text-right w-24">% of Total</th>
-                        <th class="px-3 py-2 w-8"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($categoryBreakdown['groups'] as $group)
-                        @php
-                            $pct = $categoryBreakdown['total'] > 0
-                                ? ($group['total_cost'] / $categoryBreakdown['total']) * 100
-                                : 0;
-                            $hasSubs = ! empty($group['sub_breakdown']);
-                        @endphp
-                        <tr x-data="{ open: false }" class="hover:bg-gray-50 transition border-b border-gray-50">
-                            <td class="px-5 py-2.5 font-medium text-gray-800">
-                                <div class="flex items-center gap-2">
-                                    @if ($hasSubs)
-                                        <button @click="open = !open"
-                                                class="text-gray-600 hover:text-gray-900 transition">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </button>
-                                    @else
-                                        <span class="w-3.5"></span>
-                                    @endif
-                                    {{ $group['main_name'] }}
-                                </div>
-                            </td>
-                            <td class="px-5 py-2.5 text-right tabular-nums font-semibold text-gray-800">
-                                {{ number_format($group['total_cost'], 2) }}
-                            </td>
-                            <td class="px-5 py-2.5 text-right tabular-nums text-gray-500 text-xs">
-                                {{ number_format($pct, 1) }}%
-                            </td>
-                            <td></td>
-                        </tr>
-                        @if ($hasSubs)
-                            @foreach ($group['sub_breakdown'] as $sub)
-                                <tr x-show="open" x-cloak class="bg-gray-50/60 border-b border-gray-50">
-                                    <td class="pl-12 pr-5 py-2 text-gray-600">↳ {{ $sub['name'] }}</td>
-                                    <td class="px-5 py-2 text-right tabular-nums text-gray-600">
-                                        {{ number_format($sub['cost'], 2) }}
-                                    </td>
-                                    <td class="px-5 py-2 text-right tabular-nums text-gray-600 text-xs">
-                                        @php $subPct = $categoryBreakdown['total'] > 0 ? ($sub['cost'] / $categoryBreakdown['total']) * 100 : 0; @endphp
-                                        {{ number_format($subPct, 1) }}%
-                                    </td>
-                                    <td></td>
-                                </tr>
-                            @endforeach
-                        @endif
-                    @endforeach
-                </tbody>
-                <tfoot class="bg-gray-50 border-t-2 border-gray-200">
-                    <tr>
-                        <td class="px-5 py-2.5 text-sm font-semibold text-gray-700">Total</td>
-                        <td class="px-5 py-2.5 text-right tabular-nums font-bold text-gray-900">
-                            {{ number_format($categoryBreakdown['total'], 2) }}
-                        </td>
-                        <td class="px-5 py-2.5 text-right text-xs text-gray-600">100.0%</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    @endif
+        @endif
 
-    {{-- Tabs --}}
-    <div class="flex border-b border-gray-200 mb-4">
-        <button wire:click="$set('tab', 'stock-takes')"
-                class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'stock-takes' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            📋 Stock Takes
-        </button>
-        <button wire:click="$set('tab', 'wastage')"
-                class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'wastage' ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            🗑️ Wastage
-        </button>
-        <button wire:click="$set('tab', 'staff-meals')"
-                class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'staff-meals' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            🍽️ Staff Meals
-        </button>
-        <button wire:click="$set('tab', 'transfers')"
-                class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'transfers' ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            🔄 Transfers
-            @if ($inTransitCount > 0)
-                <span class="ml-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">{{ $inTransitCount }}</span>
-            @endif
-        </button>
-        <button wire:click="$set('tab', 'purchases')"
-                class="px-5 py-3 text-sm font-medium border-b-2 transition -mb-px
-                       {{ $tab === 'purchases' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            🧾 Purchases
-        </button>
+        @if ($highlight)
+            <div class="stat">
+                <p class="stat-label">{{ $highlight['label'] }}</p>
+                <p class="stat-value {{ $highlight['tone'] === 'warning' ? 'text-warning-600' : '' }}">
+                    {{ $highlight['value'] }}
+                </p>
+            </div>
+        @endif
     </div>
 
-    {{-- Filter bar --}}
-    <div class="card p-4 mb-4">
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex-1">
-                <input type="text" wire:model.live.debounce.300ms="search"
-                       placeholder="{{ $tab === 'transfers' ? 'Search transfer number…' : 'Search reference number…' }}"
-                       class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+    {{-- Filters. One strip for every tab: a filter is written once and every
+         tab that can answer it offers it. Department lives on four of the five
+         tables and every form fills it, but only Wastage ever filtered by it;
+         supplier is stored and used on Purchases and filtered nowhere. --}}
+    <div class="toolbar mb-4">
+        <div class="flex flex-wrap items-center gap-2">
+            @foreach ([
+                'today'      => 'Today',
+                'last_7'     => 'Last 7 days',
+                'last_30'    => 'Last 30 days',
+                'this_month' => 'This month',
+                'last_month' => 'Last month',
+                'all'        => 'All time',
+            ] as $key => $label)
+                <button wire:click="setQuickRange('{{ $key }}')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-full border transition
+                               {{ $quickRange === $key
+                                    ? 'bg-brand-600 text-white border-brand-600'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 hover:text-brand-700' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+
+            @if ($quickRange === '' && ($dateFrom || $dateTo))
+                <span class="badge-neutral">Custom range</span>
+            @endif
+        </div>
+
+        <div class="mt-3 flex flex-col lg:flex-row gap-3">
+            <input type="text" wire:model.live.debounce.300ms="search"
+                   placeholder="{{ $tab === 'transfers' ? 'Search transfer number…' : ($tab === 'purchases' ? 'Search reference or supplier…' : 'Search reference number…') }}"
+                   class="input flex-1" />
+
+            @if ($filterOutlets->isNotEmpty())
+                <select wire:model.live="outletFilter" class="input lg:w-44">
+                    <option value="">All branches</option>
+                    @foreach ($filterOutlets as $o)
+                        <option value="{{ $o->id }}">{{ $o->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            @if ($tabConfig['dept'] && $departments->isNotEmpty())
+                <select wire:model.live="departmentFilter" class="input lg:w-44">
+                    <option value="">All departments</option>
+                    @foreach ($departments as $d)
+                        <option value="{{ $d->id }}">{{ $d->name }}</option>
+                    @endforeach
+                    {{-- Offered explicitly: records that predate the column
+                         would otherwise be unreachable by any filter value. --}}
+                    <option value="none">— No department —</option>
+                </select>
+            @endif
+
+            @if ($tabConfig['supplier'] && $suppliers->isNotEmpty())
+                <select wire:model.live="supplierFilter" class="input lg:w-44">
+                    <option value="">All suppliers</option>
+                    @foreach ($suppliers as $sup)
+                        <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            @if ($tabConfig['status'])
+                <select wire:model.live="statusFilter" class="input lg:w-40">
+                    <option value="">All statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="in_transit">In transit</option>
+                    <option value="received">Received</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            @endif
+
+            <div class="flex items-center gap-1">
+                <input type="date" wire:model.live="dateFrom" class="input" aria-label="From date" />
+                <span class="text-xs text-gray-600">to</span>
+                <input type="date" wire:model.live="dateTo" class="input" aria-label="To date" />
             </div>
-                @if ($filterOutlets->isNotEmpty())
-                    <select wire:model.live="outletFilter"
-                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                        <option value="">All Outlets</option>
-                        @foreach ($filterOutlets as $o)
-                            <option value="{{ $o->id }}">{{ $o->name }}</option>
-                        @endforeach
-                    </select>
-                @endif
-                {{-- Wastage only: department is a column on the record, so it filters
-                     cleanly. "No department" is offered explicitly because older records
-                     predate the field and would otherwise be unreachable by filter. --}}
-                @if ($tab === 'wastage' && $wastageDepartments->isNotEmpty())
-                    <select wire:model.live="departmentFilter"
-                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                        <option value="">All Departments</option>
-                        @foreach ($wastageDepartments as $d)
-                            <option value="{{ $d->id }}">{{ $d->name }}</option>
-                        @endforeach
-                        <option value="none">— No department —</option>
-                    </select>
-                @endif
-                @if ($tab === 'transfers')
-                    <select wire:model.live="statusFilter"
-                            class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                        <option value="">All Statuses</option>
-                        <option value="draft">Draft</option>
-                        <option value="in_transit">In Transit</option>
-                        <option value="received">Received</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-                @endif
-                <div class="flex items-center gap-1">
-                    <input type="date" wire:model.live="dateFrom"
-                           class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
-                    <span class="text-gray-600 text-xs">to</span>
-                    <input type="date" wire:model.live="dateTo"
-                           class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
-                </div>
+
+            <button wire:click="resetFilters" class="btn-ghost whitespace-nowrap">Reset</button>
         </div>
     </div>
 
@@ -272,7 +198,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($stockTakes as $record)
+                    @forelse ($records as $record)
                         @php
                             $statusColor = match($record->status) {
                                 'draft'       => 'bg-gray-100 text-gray-600',
@@ -340,9 +266,9 @@
                 </tbody>
             </table>
 
-            @if (method_exists($stockTakes, 'hasPages') && $stockTakes->hasPages())
+            @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
-                    {{ $stockTakes->links() }}
+                    {{ $records->links() }}
                 </div>
             @endif
         </div>
@@ -363,7 +289,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($purchases as $record)
+                    @forelse ($records as $record)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->purchase_date->format('d M Y') }}
@@ -414,9 +340,9 @@
                 </tbody>
             </table>
 
-            @if (method_exists($purchases, 'hasPages') && $purchases->hasPages())
+            @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
-                    {{ $purchases->links() }}
+                    {{ $records->links() }}
                 </div>
             @endif
         </div>
@@ -436,7 +362,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($staffMealRecords as $record)
+                    @forelse ($records as $record)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->meal_date->format('d M Y') }}
@@ -485,14 +411,14 @@
                     @endforelse
                 </tbody>
 
-                @if ($staffMealRecords->count() > 0)
+                @if ($records->count() > 0)
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold text-gray-700">
                         <tr>
                             <td colspan="3" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
-                                Page total ({{ $staffMealRecords->count() }} records)
+                                Page total ({{ $records->count() }} records)
                             </td>
                             <td class="px-4 py-3 text-right tabular-nums text-purple-600">
-                                {{ number_format($staffMealRecords->sum('total_cost'), 2) }}
+                                {{ number_format($records->sum('total_cost'), 2) }}
                             </td>
                             <td></td>
                         </tr>
@@ -500,9 +426,9 @@
                 @endif
             </table>
 
-            @if (method_exists($staffMealRecords, 'hasPages') && $staffMealRecords->hasPages())
+            @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
-                    {{ $staffMealRecords->links() }}
+                    {{ $records->links() }}
                 </div>
             @endif
         </div>
@@ -524,7 +450,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($transfers as $transfer)
+                    @forelse ($records as $transfer)
                         @php
                             $statusColor = match($transfer->status) {
                                 'draft'      => 'bg-gray-100 text-gray-600',
@@ -587,9 +513,9 @@
                 </tbody>
             </table>
 
-            @if (method_exists($transfers, 'hasPages') && $transfers->hasPages())
+            @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
-                    {{ $transfers->links() }}
+                    {{ $records->links() }}
                 </div>
             @endif
         </div>
@@ -611,7 +537,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($wastageRecords as $record)
+                    @forelse ($records as $record)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3 font-medium text-gray-700">
                                 {{ $record->wastage_date->format('d M Y') }}
@@ -672,14 +598,14 @@
                     @endforelse
                 </tbody>
 
-                @if ($wastageRecords->count() > 0)
+                @if ($records->count() > 0)
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold text-gray-700">
                         <tr>
                             <td colspan="5" class="px-4 py-3 text-right text-xs text-gray-500 font-normal">
-                                Page total ({{ $wastageRecords->count() }} records)
+                                Page total ({{ $records->count() }} records)
                             </td>
                             <td class="px-4 py-3 text-right tabular-nums text-danger-600">
-                                {{ number_format($wastageRecords->sum('total_cost'), 2) }}
+                                {{ number_format($records->sum('total_cost'), 2) }}
                             </td>
                             <td></td>
                         </tr>
@@ -687,9 +613,9 @@
                 @endif
             </table>
 
-            @if (method_exists($wastageRecords, 'hasPages') && $wastageRecords->hasPages())
+            @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
-                    {{ $wastageRecords->links() }}
+                    {{ $records->links() }}
                 </div>
             @endif
         </div>

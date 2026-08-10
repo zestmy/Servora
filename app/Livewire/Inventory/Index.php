@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
@@ -9,8 +10,12 @@ use App\Models\PurchaseCapture;
 use App\Models\Recipe;
 use App\Models\StaffMealRecord;
 use App\Models\StockTake;
+use App\Models\Supplier;
 use App\Models\WastageRecord;
 use App\Traits\ScopesToActiveOutlet;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -18,30 +23,189 @@ class Index extends Component
 {
     use WithPagination, ScopesToActiveOutlet;
 
-    public string $tab          = 'stock-takes';
-    public string $search       = '';
-    public string $dateFrom     = '';
-    public string $dateTo       = '';
+    /**
+     * What each tab is made of.
+     *
+     * The five tabs were five near-identical blocks of query building that had
+     * drifted apart — department filtered on wastage only, though four of the
+     * five tables carry the column and every form fills it; supplier filtered
+     * nowhere, though purchases store it and use it. Describing the differences
+     * as data instead means a filter is written once and every tab that can
+     * answer it does.
+     */
+    private const TABS = [
+        'stock-takes' => [
+            'label'  => 'Stock Takes',
+            'model'  => StockTake::class,
+            'date'   => 'stock_take_date',
+            'amount' => 'total_stock_cost',
+            'money'  => 'Counted value',
+            'search' => ['reference_number'],
+            'dept'   => true,
+            'supplier' => false,
+            'status' => false,
+        ],
+        'wastage' => [
+            'label'  => 'Wastage',
+            'model'  => WastageRecord::class,
+            'date'   => 'wastage_date',
+            'amount' => 'total_cost',
+            'money'  => 'Wastage cost',
+            'search' => ['reference_number'],
+            'dept'   => true,
+            'supplier' => false,
+            'status' => false,
+        ],
+        'staff-meals' => [
+            'label'  => 'Staff Meals',
+            'model'  => StaffMealRecord::class,
+            'date'   => 'meal_date',
+            'amount' => 'total_cost',
+            'money'  => 'Staff meal cost',
+            'search' => ['reference_number'],
+            'dept'   => true,
+            'supplier' => false,
+            'status' => false,
+        ],
+        'transfers' => [
+            'label'  => 'Transfers',
+            'model'  => OutletTransfer::class,
+            'date'   => 'transfer_date',
+            'amount' => null,
+            'money'  => null,
+            'search' => ['transfer_number'],
+            'dept'   => false,
+            'supplier' => false,
+            'status' => true,
+        ],
+        'purchases' => [
+            'label'  => 'Purchases',
+            'model'  => PurchaseCapture::class,
+            'date'   => 'purchase_date',
+            'amount' => 'amount',
+            'money'  => 'Purchase value',
+            'search' => ['reference_number', 'supplier_name'],
+            'dept'   => true,
+            'supplier' => true,
+            'status' => false,
+        ],
+    ];
+
+    #[Url]
+    public string $tab = 'stock-takes';
+
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public string $dateFrom = '';
+
+    #[Url]
+    public string $dateTo = '';
+
+    /**
+     * Named range behind the two date boxes.
+     *
+     * Empty means the dates were typed by hand. Mirrors Audit > Index, which
+     * had the only implementation of this in the product.
+     */
+    #[Url]
+    public string $quickRange = 'last_30';
+
+    #[Url]
     public string $statusFilter = '';
+
+    #[Url]
     public string $outletFilter = '';
-    /** Wastage tab only: narrow to one department. */
+
+    #[Url]
     public string $departmentFilter = '';
+
+    #[Url]
+    public string $supplierFilter = '';
 
     public function mount(): void
     {
         $tab = request('tab');
-        if (in_array($tab, ['stock-takes', 'wastage', 'staff-meals', 'transfers', 'purchases'], true)) {
+        if (isset(self::TABS[$tab])) {
             $this->tab = $tab;
+        }
+
+        if ($this->dateFrom === '' && $this->dateTo === '') {
+            $this->applyQuickRange($this->quickRange ?: 'last_30');
         }
     }
 
-    public function updatedTab(): void      { $this->resetPage(); $this->search = ''; $this->dateFrom = ''; $this->dateTo = ''; $this->statusFilter = ''; }
-    public function updatedStatusFilter(): void { $this->resetPage(); }
-    public function updatedOutletFilter(): void { $this->resetPage(); }
+    /**
+     * Switching tab keeps the range and the outlet, drops the rest.
+     *
+     * It used to clear the dates too, which meant answering "what did we waste
+     * last week" and then having to re-say "last week" to ask the same question
+     * of purchases. Filters that cannot apply to the new tab are cleared,
+     * because a supplier filter silently surviving onto Wastage is a filter
+     * doing nothing while looking like it is doing something.
+     */
+    public function updatedTab(): void
+    {
+        $this->resetPage();
+        $this->search = '';
+
+        if (! $this->tabConfig()['dept']) {
+            $this->departmentFilter = '';
+        }
+
+        if (! $this->tabConfig()['supplier']) {
+            $this->supplierFilter = '';
+        }
+
+        if (! $this->tabConfig()['status']) {
+            $this->statusFilter = '';
+        }
+    }
+
+    public function updatedStatusFilter(): void     { $this->resetPage(); }
+    public function updatedOutletFilter(): void     { $this->resetPage(); }
     public function updatedDepartmentFilter(): void { $this->resetPage(); }
-    public function updatedSearch(): void   { $this->resetPage(); }
-    public function updatedDateFrom(): void { $this->resetPage(); }
-    public function updatedDateTo(): void   { $this->resetPage(); }
+    public function updatedSupplierFilter(): void   { $this->resetPage(); }
+    public function updatedSearch(): void           { $this->resetPage(); }
+    public function updatedDateFrom(): void         { $this->quickRange = ''; $this->resetPage(); }
+    public function updatedDateTo(): void           { $this->quickRange = ''; $this->resetPage(); }
+
+    public function setQuickRange(string $range): void
+    {
+        $this->quickRange = $range;
+        $this->applyQuickRange($range);
+        $this->resetPage();
+    }
+
+    private function applyQuickRange(string $range): void
+    {
+        $today = Carbon::today();
+
+        [$from, $to] = match ($range) {
+            'today'      => [$today, $today],
+            'last_7'     => [$today->copy()->subDays(6), $today],
+            'last_30'    => [$today->copy()->subDays(29), $today],
+            'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
+            'last_month' => [$today->copy()->subMonthNoOverflow()->startOfMonth(), $today->copy()->subMonthNoOverflow()->endOfMonth()],
+            default      => [null, null],
+        };
+
+        $this->dateFrom = $from?->toDateString() ?? '';
+        $this->dateTo   = $to?->toDateString() ?? '';
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'outletFilter', 'departmentFilter', 'supplierFilter', 'statusFilter']);
+        $this->setQuickRange('last_30');
+    }
+
+    /** @return array<string, mixed> */
+    private function tabConfig(?string $tab = null): array
+    {
+        return self::TABS[$tab ?? $this->tab] ?? self::TABS['stock-takes'];
+    }
 
     /**
      * Deleting is now gated per document type.
@@ -149,255 +313,304 @@ class Index extends Component
         session()->flash('success', 'Prep item deleted.');
     }
 
-    public function render()
+    /**
+     * The active tab's records, filtered.
+     *
+     * Every filter is applied in ONE place, so the stats above the table cannot
+     * disagree with the table — which they did: the cards were hardcoded to
+     * whereMonth(now()) and ignored the date range, the outlet, the department
+     * and the search, so narrowing the table to last week left the cards
+     * answering about the month.
+     */
+    private function filtered(?string $from = null, ?string $to = null): Builder
     {
-        // ── Stock Takes ───────────────────────────────────────────────────
-        $stockQuery = StockTake::withCount('lines');
-        $this->scopeByOutletFilter($stockQuery, $this->outletFilter);
+        $config = $this->tabConfig();
+        $from ??= $this->dateFrom;
+        $to   ??= $this->dateTo;
+        $query  = $config['model']::query();
 
-        if ($this->search && $this->tab === 'stock-takes') {
-            $stockQuery->where('reference_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->dateFrom && $this->tab === 'stock-takes') {
-            $stockQuery->where('stock_take_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo && $this->tab === 'stock-takes') {
-            $stockQuery->where('stock_take_date', '<=', $this->dateTo);
-        }
+        // Transfers name two outlets, so they cannot use the outlet_id scope:
+        // a transfer belongs to the branch that sent it AND the one receiving.
+        if ($this->tab === 'transfers') {
+            $ids = $this->selectedOutletId($this->outletFilter)
+                ? [$this->selectedOutletId($this->outletFilter)]
+                : $this->availableOutletIds();
 
-        $stockTakes = $this->tab === 'stock-takes'
-            ? $stockQuery->orderByDesc('stock_take_date')->orderByDesc('id')->paginate(15)
-            : collect();
-
-        // ── Wastage Records ───────────────────────────────────────────────
-        // department for its column; lines only for their reasons, which is a short
-        // string each — loading them here keeps the table off one query per row.
-        $wastageQuery = WastageRecord::withCount('lines')
-            ->with(['department:id,name', 'lines:id,wastage_record_id,reason']);
-        $this->scopeByOutletFilter($wastageQuery, $this->outletFilter);
-
-        if ($this->departmentFilter !== '' && $this->tab === 'wastage') {
-            $this->departmentFilter === 'none'
-                ? $wastageQuery->whereNull('department_id')
-                : $wastageQuery->where('department_id', (int) $this->departmentFilter);
-        }
-
-        if ($this->search && $this->tab === 'wastage') {
-            $wastageQuery->where('reference_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->dateFrom && $this->tab === 'wastage') {
-            $wastageQuery->where('wastage_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo && $this->tab === 'wastage') {
-            $wastageQuery->where('wastage_date', '<=', $this->dateTo);
-        }
-
-        $wastageDepartments = $this->tab === 'wastage'
-            ? \App\Models\Department::orderBy('name')->get(['id', 'name'])
-            : collect();
-
-        $wastageRecords = $this->tab === 'wastage'
-            ? $wastageQuery->orderByDesc('wastage_date')->orderByDesc('id')->paginate(15)
-            : collect();
-
-        // ── Staff Meal Records ───────────────────────────────────────────
-        $staffMealQuery = StaffMealRecord::withCount('lines');
-        $this->scopeByOutletFilter($staffMealQuery, $this->outletFilter);
-
-        if ($this->search && $this->tab === 'staff-meals') {
-            $staffMealQuery->where('reference_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->dateFrom && $this->tab === 'staff-meals') {
-            $staffMealQuery->where('meal_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo && $this->tab === 'staff-meals') {
-            $staffMealQuery->where('meal_date', '<=', $this->dateTo);
-        }
-
-        $staffMealRecords = $this->tab === 'staff-meals'
-            ? $staffMealQuery->orderByDesc('meal_date')->orderByDesc('id')->paginate(15)
-            : collect();
-
-        // ── Transfers ────────────────────────────────────────────────────
-        // Transfers reference two outlets (from/to), so they can't use the
-        // outlet_id scope. Bound them to the user's accessible outlets, then
-        // narrow to the selected outlet when the filter is applied.
-        $selectedOutletId = $this->selectedOutletId($this->outletFilter);
-        $transferOutletIds = $selectedOutletId ? [$selectedOutletId] : $this->availableOutletIds();
-
-        $transferQuery = OutletTransfer::withCount('lines')
-            ->with(['fromOutlet', 'toOutlet']);
-
-        if (! empty($transferOutletIds)) {
-            $transferQuery->where(function ($q) use ($transferOutletIds) {
-                $q->whereIn('from_outlet_id', $transferOutletIds)
-                  ->orWhereIn('to_outlet_id', $transferOutletIds);
-            });
-        }
-
-        if ($this->statusFilter && $this->tab === 'transfers') {
-            $transferQuery->where('status', $this->statusFilter);
-        }
-        if ($this->search && $this->tab === 'transfers') {
-            $transferQuery->where('transfer_number', 'like', '%' . $this->search . '%');
-        }
-        if ($this->dateFrom && $this->tab === 'transfers') {
-            $transferQuery->where('transfer_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo && $this->tab === 'transfers') {
-            $transferQuery->where('transfer_date', '<=', $this->dateTo);
-        }
-
-        $transfers = $this->tab === 'transfers'
-            ? $transferQuery->orderByDesc('transfer_date')->orderByDesc('id')->paginate(15)
-            : collect();
-
-        // ── Purchases ─────────────────────────────────────────────────────
-        $purchaseQuery = PurchaseCapture::with(['department', 'supplier']);
-        $this->scopeByOutletFilter($purchaseQuery, $this->outletFilter);
-
-        if ($this->search && $this->tab === 'purchases') {
-            $purchaseQuery->where(function ($q) {
-                $q->where('reference_number', 'like', '%' . $this->search . '%')
-                  ->orWhere('supplier_name', 'like', '%' . $this->search . '%');
-            });
-        }
-        if ($this->dateFrom && $this->tab === 'purchases') {
-            $purchaseQuery->where('purchase_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo && $this->tab === 'purchases') {
-            $purchaseQuery->where('purchase_date', '<=', $this->dateTo);
-        }
-
-        $purchases = $this->tab === 'purchases'
-            ? $purchaseQuery->orderByDesc('purchase_date')->orderByDesc('id')->paginate(15)
-            : collect();
-
-        // ── Stats ─────────────────────────────────────────────────────────
-        $wastageStatQ = WastageRecord::whereMonth('wastage_date', now()->month)
-            ->whereYear('wastage_date', now()->year);
-        $this->scopeByOutletFilter($wastageStatQ, $this->outletFilter);
-        $monthWastageCost = $wastageStatQ->sum('total_cost');
-
-        $stStatQ = StockTake::whereMonth('stock_take_date', now()->month)
-            ->whereYear('stock_take_date', now()->year);
-        $this->scopeByOutletFilter($stStatQ, $this->outletFilter);
-        $monthStockTakes = $stStatQ->count();
-
-        $draftQ = StockTake::where('status', 'draft');
-        $this->scopeByOutletFilter($draftQ, $this->outletFilter);
-        $draftStockTakes = $draftQ->count();
-
-        $totalWastQ = WastageRecord::query();
-        $this->scopeByOutletFilter($totalWastQ, $this->outletFilter);
-        $totalWastageCost = $totalWastQ->sum('total_cost');
-
-        $staffMealStatQ = StaffMealRecord::whereMonth('meal_date', now()->month)
-            ->whereYear('meal_date', now()->year);
-        $this->scopeByOutletFilter($staffMealStatQ, $this->outletFilter);
-        $monthStaffMealCost = $staffMealStatQ->sum('total_cost');
-
-        $purchaseStatQ = PurchaseCapture::whereMonth('purchase_date', now()->month)
-            ->whereYear('purchase_date', now()->year);
-        $this->scopeByOutletFilter($purchaseStatQ, $this->outletFilter);
-        $monthPurchaseAmount = $purchaseStatQ->sum('amount');
-
-        // prepItemCount removed — prep items now under Recipes tab
-
-        $inTransitQ = OutletTransfer::where('status', 'in_transit');
-        if (! empty($transferOutletIds)) {
-            $inTransitQ->where(function ($q) use ($transferOutletIds) {
-                $q->whereIn('from_outlet_id', $transferOutletIds)->orWhereIn('to_outlet_id', $transferOutletIds);
-            });
-        }
-        $inTransitCount = $inTransitQ->count();
-
-        $latestStQ = StockTake::where('status', 'completed');
-        $this->scopeByOutletFilter($latestStQ, $this->outletFilter);
-        $latestStockTake = $latestStQ->orderByDesc('stock_take_date')
-            ->orderByDesc('id')
-            ->first(['id', 'stock_take_date', 'total_stock_cost']);
-
-        // ── Cost by Category ──────────────────────────────────────────────
-        $categoryBreakdown = null;
-
-        if ($latestStockTake) {
-            $lines = $latestStockTake->lines()
-                ->with(['ingredient.ingredientCategory.parent'])
-                ->get();
-
-            $groups = [];
-
-            foreach ($lines as $line) {
-                $lineCost   = floatval($line->actual_quantity) * floatval($line->unit_cost);
-                $ingredient = $line->ingredient;
-                $cat        = $ingredient?->ingredientCategory;
-
-                if (! $cat) {
-                    $mainKey  = '__none__';
-                    $mainName = 'Uncategorized';
-                    $subKey   = null;
-                    $subName  = null;
-                } elseif ($cat->parent_id) {
-                    // Sub-category — roll up to parent
-                    $mainKey  = (string) $cat->parent_id;
-                    $mainName = $cat->parent->name ?? 'Unknown';
-                    $subKey   = (string) $cat->id;
-                    $subName  = $cat->name;
-                } else {
-                    // Root category
-                    $mainKey  = (string) $cat->id;
-                    $mainName = $cat->name;
-                    $subKey   = null;
-                    $subName  = null;
-                }
-
-                if (! isset($groups[$mainKey])) {
-                    $groups[$mainKey] = [
-                        'main_name'    => $mainName,
-                        'total_cost'   => 0.0,
-                        'sub_breakdown' => [],
-                    ];
-                }
-
-                $groups[$mainKey]['total_cost'] += $lineCost;
-
-                if ($subKey) {
-                    if (! isset($groups[$mainKey]['sub_breakdown'][$subKey])) {
-                        $groups[$mainKey]['sub_breakdown'][$subKey] = ['name' => $subName, 'cost' => 0.0];
-                    }
-                    $groups[$mainKey]['sub_breakdown'][$subKey]['cost'] += $lineCost;
-                }
+            if (! empty($ids)) {
+                $query->where(fn ($q) => $q
+                    ->whereIn('from_outlet_id', $ids)
+                    ->orWhereIn('to_outlet_id', $ids));
             }
+        } else {
+            $this->scopeByOutletFilter($query, $this->outletFilter);
+        }
 
-            // Sort: named categories alphabetically, Uncategorized last
-            uasort($groups, function ($a, $b) {
-                if ($a['main_name'] === 'Uncategorized') return 1;
-                if ($b['main_name'] === 'Uncategorized') return -1;
-                return strcmp($a['main_name'], $b['main_name']);
+        if ($config['dept'] && $this->departmentFilter !== '') {
+            // "No department" is offered explicitly: records predating the
+            // column would otherwise be unreachable by any filter value.
+            $this->departmentFilter === 'none'
+                ? $query->whereNull('department_id')
+                : $query->where('department_id', (int) $this->departmentFilter);
+        }
+
+        if ($config['supplier'] && $this->supplierFilter !== '') {
+            $query->where('supplier_id', (int) $this->supplierFilter);
+        }
+
+        if ($config['status'] && $this->statusFilter !== '') {
+            $query->where('status', $this->statusFilter);
+        }
+
+        if ($this->search !== '') {
+            $query->where(function ($q) use ($config) {
+                foreach ($config['search'] as $i => $column) {
+                    $i === 0
+                        ? $q->where($column, 'like', '%' . $this->search . '%')
+                        : $q->orWhere($column, 'like', '%' . $this->search . '%');
+                }
             });
+        }
 
-            $categoryBreakdown = [
-                'date'   => $latestStockTake->stock_take_date,
-                'groups' => $groups,
-                'total'  => array_sum(array_column($groups, 'total_cost')),
+        if ($from !== '') {
+            $query->whereDate($config['date'], '>=', $from);
+        }
+
+        if ($to !== '') {
+            $query->whereDate($config['date'], '<=', $to);
+        }
+
+        return $query;
+    }
+
+    /**
+     * The same question asked of the period before this one.
+     *
+     * A number on its own says nothing — RM 400 of wastage is good or terrible
+     * depending on last week. Only computable when both ends of the range are
+     * known, so a hand-typed open range simply gets no comparison rather than
+     * a made-up one.
+     */
+    private function previousPeriod(): ?array
+    {
+        if ($this->dateFrom === '' || $this->dateTo === '') {
+            return null;
+        }
+
+        $from = Carbon::parse($this->dateFrom);
+        $to   = Carbon::parse($this->dateTo);
+        $days = $from->diffInDays($to) + 1;
+
+        return [
+            $from->copy()->subDays($days)->toDateString(),
+            $from->copy()->subDay()->toDateString(),
+        ];
+    }
+
+    /**
+     * Cards about the tab you are looking at, under the filters you have set.
+     *
+     * Five fixed cards used to describe five different tabs at once — three of
+     * them about tabs this company has never used, so most of the dashboard read
+     * as zeros and dashes regardless of what you were doing.
+     *
+     * @return array<string, mixed>
+     */
+    private function stats(): array
+    {
+        $config = $this->tabConfig();
+
+        $count = (clone $this->filtered())->count();
+        $value = $config['amount'] ? (float) (clone $this->filtered())->sum($config['amount']) : null;
+
+        $previousValue = null;
+        $previousCount = null;
+
+        if ($period = $this->previousPeriod()) {
+            $previousCount = $this->filtered(...$period)->count();
+            $previousValue = $config['amount']
+                ? (float) $this->filtered(...$period)->sum($config['amount'])
+                : null;
+        }
+
+        return [
+            'label'         => $config['label'],
+            'moneyLabel'    => $config['money'],
+            'count'         => $count,
+            'value'         => $value,
+            'previousCount' => $previousCount,
+            'previousValue' => $previousValue,
+            'rangeLabel'    => $this->rangeLabel(),
+        ];
+    }
+
+    /** What the cards are actually counting, in words. */
+    private function rangeLabel(): string
+    {
+        return match ($this->quickRange) {
+            'today'      => 'today',
+            'last_7'     => 'in the last 7 days',
+            'last_30'    => 'in the last 30 days',
+            'this_month' => 'this month',
+            'last_month' => 'last month',
+            'all'        => 'all time',
+            default      => $this->dateFrom !== '' || $this->dateTo !== ''
+                ? 'in the selected range'
+                : 'all time',
+        };
+    }
+
+    /**
+     * Third card: the one thing worth knowing about THIS tab.
+     *
+     * @return array{label: string, value: string, tone: string}|null
+     */
+    private function highlight(): ?array
+    {
+        if ($this->tab === 'stock-takes') {
+            $drafts = (clone $this->filtered())->where('status', 'draft')->count();
+
+            return [
+                'label' => 'Drafts pending',
+                'value' => (string) $drafts,
+                'tone'  => $drafts > 0 ? 'warning' : 'muted',
             ];
         }
 
-        $filterOutlets = $this->filterableOutlets();
-        // Per document type now, so the view can hide a delete button the user cannot
-        // actually use — the four unguarded ones used to render for everybody.
+        if ($this->tab === 'transfers') {
+            $inTransit = (clone $this->filtered())->where('status', 'in_transit')->count();
+
+            return [
+                'label' => 'In transit',
+                'value' => (string) $inTransit,
+                'tone'  => $inTransit > 0 ? 'warning' : 'muted',
+            ];
+        }
+
+        if ($this->tab === 'purchases') {
+            $top = (clone $this->filtered())
+                ->selectRaw('supplier_name, SUM(amount) AS spend')
+                ->whereNotNull('supplier_name')
+                ->groupBy('supplier_name')
+                ->orderByDesc('spend')
+                ->first();
+
+            return [
+                'label' => 'Biggest supplier',
+                'value' => $top?->supplier_name ?? '—',
+                'tone'  => 'muted',
+            ];
+        }
+
+        if (in_array($this->tab, ['wastage', 'staff-meals'], true)) {
+            $top = (clone $this->filtered())
+                ->selectRaw('department_id, SUM(total_cost) AS spend')
+                ->whereNotNull('department_id')
+                ->groupBy('department_id')
+                ->orderByDesc('spend')
+                ->first();
+
+            return [
+                'label' => $this->tab === 'wastage' ? 'Most wastage' : 'Most meals',
+                'value' => $top ? (Department::find($top->department_id)?->name ?? '—') : '—',
+                'tone'  => 'muted',
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Stock value split by category, from the most recent completed count.
+     *
+     * Only built on the Stock Takes tab. It loads every line of that count with
+     * a three-deep eager load, and it used to run on every render of every tab —
+     * including once per keystroke behind the 300ms search debounce.
+     */
+    private function categoryBreakdown(?StockTake $latest): ?array
+    {
+        if (! $latest || $this->tab !== 'stock-takes') {
+            return null;
+        }
+
+        $groups = [];
+
+        foreach ($latest->lines()->with(['ingredient.ingredientCategory.parent'])->get() as $line) {
+            $lineCost = (float) $line->actual_quantity * (float) $line->unit_cost;
+            $cat      = $line->ingredient?->ingredientCategory;
+
+            if (! $cat) {
+                [$mainKey, $mainName, $subKey, $subName] = ['__none__', 'Uncategorized', null, null];
+            } elseif ($cat->parent_id) {
+                [$mainKey, $mainName, $subKey, $subName] = [(string) $cat->parent_id, $cat->parent->name ?? 'Unknown', (string) $cat->id, $cat->name];
+            } else {
+                [$mainKey, $mainName, $subKey, $subName] = [(string) $cat->id, $cat->name, null, null];
+            }
+
+            $groups[$mainKey] ??= ['main_name' => $mainName, 'total_cost' => 0.0, 'sub_breakdown' => []];
+            $groups[$mainKey]['total_cost'] += $lineCost;
+
+            if ($subKey) {
+                $groups[$mainKey]['sub_breakdown'][$subKey] ??= ['name' => $subName, 'cost' => 0.0];
+                $groups[$mainKey]['sub_breakdown'][$subKey]['cost'] += $lineCost;
+            }
+        }
+
+        uasort($groups, function ($a, $b) {
+            if ($a['main_name'] === 'Uncategorized') return 1;
+            if ($b['main_name'] === 'Uncategorized') return -1;
+
+            return strcmp($a['main_name'], $b['main_name']);
+        });
+
+        return [
+            'date'   => $latest->stock_take_date,
+            'groups' => $groups,
+            'total'  => array_sum(array_column($groups, 'total_cost')),
+        ];
+    }
+
+    public function render()
+    {
+        $config = $this->tabConfig();
+
+        $records = $this->filtered()
+            ->when($this->tab === 'wastage', fn ($q) => $q->with(['department:id,name', 'lines:id,wastage_record_id,reason']))
+            ->when($this->tab === 'transfers', fn ($q) => $q->with(['fromOutlet', 'toOutlet']))
+            ->when($this->tab === 'purchases', fn ($q) => $q->with(['department', 'supplier']))
+            ->when($this->tab !== 'purchases', fn ($q) => $q->withCount('lines'))
+            ->orderByDesc($config['date'])
+            ->orderByDesc('id')
+            ->paginate(15);
+
+        $latestStQ = StockTake::where('status', 'completed');
+        $this->scopeByOutletFilter($latestStQ, $this->outletFilter);
+        $latestStockTake = $this->tab === 'stock-takes'
+            ? $latestStQ->orderByDesc('stock_take_date')->orderByDesc('id')->first(['id', 'stock_take_date', 'total_stock_cost'])
+            : null;
+
+        // Transfers carry no department and purchases are the only thing with a
+        // supplier, so each list is fetched only where it can be offered.
+        $departments = $config['dept'] ? Department::orderBy('name')->get(['id', 'name']) : collect();
+        $suppliers   = $config['supplier'] ? Supplier::orderBy('name')->get(['id', 'name']) : collect();
+
         $canDelete = collect(['stock_takes', 'wastage', 'transfers', 'staff_meals', 'prep_items', 'purchases'])
             ->mapWithKeys(fn (string $t) => [$t => $this->canDeleteType($t)])
             ->all();
 
-        // Kept for the stock-take and transfer rows, whose drafts stay deletable regardless.
-        $canDeleteRecords = $canDelete['stock_takes'];
-
-        return view('livewire.inventory.index', compact(
-            'stockTakes', 'wastageRecords', 'staffMealRecords', 'transfers', 'purchases',
-            'monthWastageCost', 'monthStaffMealCost', 'monthStockTakes', 'draftStockTakes', 'totalWastageCost',
-            'monthPurchaseAmount', 'inTransitCount', 'latestStockTake', 'categoryBreakdown', 'filterOutlets', 'canDeleteRecords', 'canDelete', 'wastageDepartments'
-        ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Inventory']);
+        return view('livewire.inventory.index', [
+            'records'           => $records,
+            'stats'             => $this->stats(),
+            'highlight'         => $this->highlight(),
+            'latestStockTake'   => $latestStockTake,
+            'categoryBreakdown' => $this->categoryBreakdown($latestStockTake),
+            'filterOutlets'     => $this->filterableOutlets(),
+            'departments'       => $departments,
+            'suppliers'         => $suppliers,
+            'tabs'              => collect(self::TABS)->map(fn ($c) => $c['label'])->all(),
+            'tabConfig'         => $config,
+            'canDelete'         => $canDelete,
+            // Drafts stay deletable for stock takes and transfers regardless.
+            'canDeleteRecords'  => $canDelete['stock_takes'],
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stocks Management']);
     }
 }
