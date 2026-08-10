@@ -434,8 +434,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/roster-settings', \App\Livewire\Hr\RosterSettings::class)->name('hr.roster-settings')->middleware('can:roster.settings');
     Route::get('/settings/ot-approvers', \App\Livewire\Settings\OtApprovers::class)->name('settings.ot-approvers')->middleware('can:settings.ot_approvers');
     Route::get('/settings/document-folders', \App\Livewire\Settings\DocumentFolders::class)->name('settings.document-folders')->middleware('can:hr.documents.manage');
-    Route::get('/settings/reports', \App\Livewire\Settings\ReportSubscriptions::class)->name('settings.reports')->middleware('can:reports.schedule');
-    Route::get('/settings/reports/log/{logId}/pdf', [\App\Http\Controllers\ReportPdfController::class, 'download'])->name('settings.reports.log-pdf')->middleware('can:reports.schedule');
+    Route::get('/settings/reports', \App\Livewire\Settings\ReportSubscriptions::class)->name('settings.reports')->middleware('can:reports.view');
+    Route::get('/settings/reports/log/{logId}/pdf', [\App\Http\Controllers\ReportPdfController::class, 'download'])->name('settings.reports.log-pdf')->middleware('can:reports.view');
 
     Route::get('/analytics', AnalyticsIndex::class)->name('analytics.index')->middleware(['can:reports.view', 'check.feature:analytics']);
 

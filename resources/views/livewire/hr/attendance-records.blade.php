@@ -55,11 +55,13 @@
             @endif
             {{-- Says which table, because it only touches one. Hours are a
                  quantity and "Present" is not one — see fillPresent(). --}}
+            @canDo('hr.attendance.record')
             <button wire:click="fillPresent"
                     wire:confirm="Mark every empty day on the salaried table as Present? Hourly staff are not touched."
                     class="btn-primary">
                 Fill Empty with ✓
             </button>
+            @endcanDo
         </div>
     </div>
 
@@ -126,7 +128,9 @@
         </div>
     </div>
 
-    {{-- Paint palette: pick a code, then click day cells to apply it --}}
+    {{-- Paint palette: pick a code, then click day cells to apply it. An editing tool
+         end to end, so it is absent rather than disabled without hr.attendance.record. --}}
+    @if ($this->canRecord())
     <div class="card p-3 mb-4">
         <div class="flex flex-wrap items-center gap-1.5">
             <span class="text-xs text-gray-600 uppercase tracking-wider mr-1.5">Mark as</span>
@@ -149,6 +153,18 @@
             </span>
         </div>
     </div>
+    @endif
+
+    {{-- Said plainly rather than left to be inferred from a grid that quietly does
+         nothing when clicked. --}}
+    @unless ($this->canRecord())
+        <div class="alert-info mb-4">
+            <x-icon name="info" class="h-5 w-5 shrink-0" />
+            <p>You can read the attendance record but not change it. Marking attendance,
+               filling or clearing a range and managing codes all need the
+               <span class="font-medium">Edit attendance</span> ability.</p>
+        </div>
+    @endunless
 
     {{-- Grid --}}
     <div class="card overflow-hidden mb-4"
@@ -233,12 +249,22 @@
                                 @endphp
                                 <td wire:key="c-{{ $emp->id }}-{{ $d->format('Ymd') }}"
                                     class="p-0 border-l border-gray-100 text-center">
-                                    <button wire:click="setCell({{ $emp->id }}, '{{ $d->format('Y-m-d') }}')"
-                                            title="{{ $emp->name }} · {{ $d->format('D, d M Y') }}{{ $code ? ' · ' . $code->label : '' }}"
-                                            class="w-full h-8 text-[11px] font-bold transition
-                                                   {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-danger-50/40 hover:bg-brand-50' : 'hover:bg-brand-50') }}">
-                                        {{ $code?->code }}
-                                    </button>
+                                    @if ($this->canRecord())
+                                        <button wire:click="setCell({{ $emp->id }}, '{{ $d->format('Y-m-d') }}')"
+                                                title="{{ $emp->name }} · {{ $d->format('D, d M Y') }}{{ $code ? ' · ' . $code->label : '' }}"
+                                                class="w-full h-8 text-[11px] font-bold transition
+                                                       {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-danger-50/40 hover:bg-brand-50' : 'hover:bg-brand-50') }}">
+                                            {{ $code?->code }}
+                                        </button>
+                                    @else
+                                        {{-- Same colour and letter, no hover and nothing to click:
+                                             the record reads identically, it just cannot be painted. --}}
+                                        <div title="{{ $emp->name }} · {{ $d->format('D, d M Y') }}{{ $code ? ' · ' . $code->label : '' }}"
+                                             class="w-full h-8 flex items-center justify-center text-[11px] font-bold
+                                                    {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-danger-50/40' : '') }}">
+                                            {{ $code?->code }}
+                                        </div>
+                                    @endif
                                 </td>
                             @endforeach
                             <td class="px-2 py-1.5 text-center text-xs font-semibold text-success-700 border-l-2 border-gray-200">{{ $presentCounts[$emp->id] ?? 0 }}</td>
@@ -358,13 +384,20 @@
                                     @endphp
                                     <td wire:key="hc-{{ $emp->id }}-{{ $d->format('Ymd') }}"
                                         class="p-0 border-l border-gray-100 text-center {{ $code ? $meta['tw'] : ($d->isSunday() ? 'bg-danger-50/40' : '') }}">
-                                        <input type="text" inputmode="decimal" autocomplete="off"
-                                               value="{{ $shown }}"
-                                               title="{{ $emp->name }} · {{ $d->format('D, d M Y') }} — hours, or a code such as MC"
-                                               x-on:change="$wire.setHourlyCell({{ $emp->id }}, '{{ $d->format('Y-m-d') }}', $event.target.value)"
-                                               x-on:focus="$event.target.select()"
-                                               class="w-full h-8 border-0 bg-transparent p-0 text-center text-[11px] font-semibold
-                                                      text-gray-800 focus:bg-brand-50 focus:ring-1 focus:ring-inset focus:ring-brand-500">
+                                        @if ($this->canRecord())
+                                            <input type="text" inputmode="decimal" autocomplete="off"
+                                                   value="{{ $shown }}"
+                                                   title="{{ $emp->name }} · {{ $d->format('D, d M Y') }} — hours, or a code such as MC"
+                                                   x-on:change="$wire.setHourlyCell({{ $emp->id }}, '{{ $d->format('Y-m-d') }}', $event.target.value)"
+                                                   x-on:focus="$event.target.select()"
+                                                   class="w-full h-8 border-0 bg-transparent p-0 text-center text-[11px] font-semibold
+                                                          text-gray-800 focus:bg-brand-50 focus:ring-1 focus:ring-inset focus:ring-brand-500">
+                                        @else
+                                            <div title="{{ $emp->name }} · {{ $d->format('D, d M Y') }}"
+                                                 class="w-full h-8 flex items-center justify-center text-[11px] font-semibold text-gray-800">
+                                                {{ $shown }}
+                                            </div>
+                                        @endif
                                     </td>
                                 @endforeach
                                 <td class="px-2 py-1.5 text-center text-xs font-semibold text-gray-700 border-l-2 border-gray-200">{{ $daysWorked ?: '—' }}</td>
@@ -694,6 +727,7 @@
     <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Legend</h3>
+            @canDo('hr.attendance.record')
             <button wire:click="clearRange"
                     {{-- Names the hours explicitly. This one DOES clear both
                          tables, and deleting a part-timer's month of hours is a
@@ -702,6 +736,7 @@
                     class="text-xs text-danger-500 hover:text-danger-700 underline">
                 Clear all marks in this period
             </button>
+            @endcanDo
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-1.5">
             @foreach ($activeCodes as $code)
@@ -773,10 +808,12 @@
                                     <button wire:click="openCodeCreate"
                                             class="btn-secondary btn-sm text-gray-500">Cancel</button>
                                 @endif
+                                @canDo('hr.attendance.record')
                                 <button wire:click="saveCode"
                                         class="btn-primary btn-sm">
                                     {{ $editingCodeId ? 'Update' : 'Add Code' }}
                                 </button>
+                                @endcanDo
                             </div>
                         </div>
                     </div>
@@ -801,9 +838,11 @@
                                             class="text-xs {{ $code->is_active ? 'text-warning-600 hover:text-warning-800' : 'text-success-600 hover:text-success-800' }}">
                                         {{ $code->is_active ? 'Deactivate' : 'Activate' }}
                                     </button>
+                                    @canDo('hr.attendance.record')
                                     <button wire:click="deleteCode({{ $code->id }})"
                                             wire:confirm="Delete code {{ $code->code }} ({{ $code->label }})?"
                                             class="text-xs text-danger-500 hover:text-danger-700">Delete</button>
+                                    @endcanDo
                                 @endunless
                             </div>
                         @endforeach

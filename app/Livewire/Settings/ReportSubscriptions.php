@@ -83,12 +83,16 @@ class ReportSubscriptions extends Component
 
     public function openCreate(): void
     {
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $this->resetForm();
         $this->showModal = true;
     }
 
     public function openEdit(int $id): void
     {
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $subscription = ReportSubscription::findOrFail($id);
 
         $this->editingId = $subscription->id;
@@ -171,6 +175,8 @@ class ReportSubscriptions extends Component
 
     public function openTestModal(): void
     {
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $this->testReportType = 'daily_sales';
         $this->testOutletId = null;
         $this->testEmail = Auth::user()->email;
@@ -216,6 +222,8 @@ class ReportSubscriptions extends Component
 
     public function runNow(int $subscriptionId, ReportGeneratorService $reportService): void
     {
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $subscription = ReportSubscription::findOrFail($subscriptionId);
 
         try {
@@ -238,6 +246,8 @@ class ReportSubscriptions extends Component
 
     public function resendReport(int $logId, ReportGeneratorService $reportService): void
     {
+        abort_unless(auth()->user()?->canDo('reports.schedule'), 403);
+
         $log = ReportLog::with('subscription')->findOrFail($logId);
 
         if (!$log->subscription) {

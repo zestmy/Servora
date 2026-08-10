@@ -25,6 +25,7 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
+            @canDo('reports.schedule')
             <button wire:click="openTestModal"
                     class="btn-secondary">
                 Send Test Report
@@ -33,8 +34,18 @@
                     class="btn-primary">
                 + New Subscription
             </button>
+            @endcanDo
         </div>
     </div>
+
+    {{-- Shown only WITHOUT the ability, hence the empty first branch. --}}
+    @canDo('reports.schedule')
+    @else
+    <div class="alert-info mb-6">
+        You can see what is scheduled and what has been sent, but not change it. Scheduling
+        and sending reports needs the "Schedule reports" ability.
+    </div>
+    @endcanDo
 
     {{-- Subscriptions Table --}}
     <div class="card overflow-hidden mb-8">
@@ -78,6 +89,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center">
+                                @canDo('reports.schedule')
                                 <button wire:click="toggleActive({{ $subscription->id }})" class="focus:outline-none">
                                     @if($subscription->is_active)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-700 cursor-pointer hover:bg-success-200">
@@ -89,12 +101,24 @@
                                         </span>
                                     @endif
                                 </button>
+                                @else
+                                    @if($subscription->is_active)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-700">
+                                            Active
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                            Paused
+                                        </span>
+                                    @endif
+                                @endcanDo
                             </td>
                             <td class="px-4 py-3 text-gray-500 text-xs">
                                 {{ $subscription->last_sent_at?->diffForHumans() ?? 'Never' }}
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
+                                    @canDo('reports.schedule')
                                     <button wire:click="runNow({{ $subscription->id }})"
                                             wire:loading.attr="disabled" wire:target="runNow({{ $subscription->id }})"
                                             wire:confirm="Generate and send this report now to {{ implode(', ', $subscription->getRecipientEmails()) }}?"
@@ -102,16 +126,21 @@
                                         <svg wire:loading.remove wire:target="runNow({{ $subscription->id }})" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                         <svg wire:loading wire:target="runNow({{ $subscription->id }})" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                                     </button>
+                                    @endcanDo
+                                    @canDo('reports.schedule')
                                     <button wire:click="openEdit({{ $subscription->id }})" title="Edit"
                                             class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     </button>
+                                    @endcanDo
+                                    @canDo('reports.schedule')
                                     <button wire:click="delete({{ $subscription->id }})"
                                             wire:confirm="Delete this report subscription?"
                                             title="Delete"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
+                                    @endcanDo
                                 </div>
                             </td>
                         </tr>
@@ -123,7 +152,11 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
                                     <p class="font-medium">No report subscriptions</p>
+                                    @canDo('reports.schedule')
                                     <p class="text-xs mt-1">Click <button wire:click="openCreate" class="text-brand-500 underline">+ New Subscription</button> to schedule your first automated report</p>
+                                    @else
+                                    <p class="text-xs mt-1">Nobody has scheduled an automated report yet</p>
+                                    @endcanDo
                                 </div>
                             </td>
                         </tr>
@@ -173,6 +206,7 @@
                         <td class="px-4 py-2 text-center">
                             <div class="inline-flex items-center gap-1.5">
                                 @if($log->subscription && $log->delivery_status !== 'pending')
+                                    @canDo('reports.schedule')
                                     <button wire:click="resendReport({{ $log->id }})"
                                             wire:loading.attr="disabled" wire:target="resendReport({{ $log->id }})"
                                             wire:confirm="{{ $log->delivery_status === 'skipped' ? 'This report was skipped because its data was incomplete. Send it anyway?' : 'Resend this report to ' . $log->recipient_email . '?' }}"
@@ -180,6 +214,7 @@
                                         <span wire:loading.remove wire:target="resendReport({{ $log->id }})">{{ $log->delivery_status === 'skipped' ? 'Send Now' : 'Resend' }}</span>
                                         <span wire:loading wire:target="resendReport({{ $log->id }})">Sending...</span>
                                     </button>
+                                    @endcanDo
                                 @endif
                                 @if($log->delivery_status !== 'pending')
                                     <x-download-link href="{{ route('settings.reports.log-pdf', $log->id) }}"

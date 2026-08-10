@@ -386,6 +386,19 @@ class AttendanceRecords extends Component
      * independently of hr.attendance, so a user can mark attendance without
      * seeing the money.
      */
+    /**
+     * May this person change the grid?
+     *
+     * The cells ARE the control here, so there is no button to hide — without this the
+     * grid renders as static values, the paint palette and the fill/clear actions go, and
+     * the code editor is read-only. Every write still re-checks on its own; this only
+     * stops the screen offering an edit it would then refuse.
+     */
+    public function canRecord(): bool
+    {
+        return Auth::user()?->canDo('hr.attendance.record') ?? false;
+    }
+
     protected function canViewPay(): bool
     {
         return Employee::canViewPay(Auth::user());
