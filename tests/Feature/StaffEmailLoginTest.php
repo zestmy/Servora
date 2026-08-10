@@ -180,11 +180,11 @@ class StaffEmailLoginTest extends TestCase
     }
 
     /**
-     * The switch is offered only after signing in, to the person who just did.
-     * Offering it on the way in would let anyone who can name a colleague lock
-     * that colleague out of clocking in.
+     * The switch belongs to the signed-in person, and only works once they
+     * are. Offering it on the way in would let anyone who can name a colleague
+     * lock that colleague out of clocking in.
      */
-    public function test_the_pin_switch_is_offered_only_after_an_email_sign_in(): void
+    public function test_the_pin_switch_is_made_from_inside_the_app(): void
     {
         $this->employee->setLabelPin('4821');
 
@@ -196,9 +196,9 @@ class StaffEmailLoginTest extends TestCase
         $screen->set('emailCode', Mail::sent(StaffLoginCodeMail::class)->last()->code)
             ->call('submitCode');
 
-        $screen->assertSet('offerPinSwitch', true);
-
-        $screen->call('disablePinLogin');
+        // The switch is on the account screen now, reached from inside the app.
+        \Livewire\Livewire::test(\App\Livewire\Clock\Staff\Account::class)
+            ->call('disablePinLogin');
 
         $employee = $this->employee->fresh();
 
@@ -206,6 +206,38 @@ class StaffEmailLoginTest extends TestCase
         $this->assertTrue(
             $employee->hasLabelPin(),
             'The PIN is switched off, not destroyed — a manager can turn it back on.'
+        );
+    }
+
+    /**
+     * Never leave somebody with no way in. The email route needs an address on
+     * the record; without one, switching the PIN off would lock this person out
+     * of the app they are standing in.
+     */
+    public function test_the_pin_cannot_be_switched_off_without_an_email_to_fall_back_on(): void
+    {
+        $this->employee->setLabelPin('4821');
+        $this->employee->forceFill(['email' => null])->save();
+
+        app(\App\Services\Staff\StaffSession::class)->signIn($this->employee->fresh(), 'pin');
+
+        \Livewire\Livewire::test(\App\Livewire\Clock\Staff\Account::class)->call('disablePinLogin');
+
+        $this->assertNull($this->employee->fresh()->pin_login_disabled_at);
+    }
+
+    public function test_a_switched_off_pin_can_be_switched_back_on(): void
+    {
+        $this->employee->setLabelPin('4821');
+        $this->employee->forceFill(['pin_login_disabled_at' => now()])->save();
+
+        app(\App\Services\Staff\StaffSession::class)->signIn($this->employee->fresh(), 'pin');
+
+        \Livewire\Livewire::test(\App\Livewire\Clock\Staff\Account::class)->call('enablePinLogin');
+
+        $this->assertNull(
+            $this->employee->fresh()->pin_login_disabled_at,
+            'The PIN was never deleted, so turning it back on must just work.'
         );
     }
 

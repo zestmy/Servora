@@ -73,29 +73,6 @@ class StaffEmailLoginSessionTest extends TestCase
         $this->assertGuardedPageOpens();
     }
 
-    /**
-     * The branch nobody had walked: an employee who HAS a PIN is held on the
-     * login screen to be asked about it, so their session has to survive a
-     * second request before they ever reach the app.
-     */
-    public function test_a_guarded_page_opens_after_declining_the_pin_switch(): void
-    {
-        $this->signInByEmail(withPin: true)
-            ->assertSet('offerPinSwitch', true)
-            ->call('keepPinLogin');
-
-        $this->assertGuardedPageOpens();
-    }
-
-    /**
-     * Reported symptom, reproduced: signed in, and the login page comes back.
-     *
-     * The switch offer lives only in component state on the login route, so a
-     * reload — or anything that is not clicking one of its two buttons — drops
-     * back to a login form, for somebody who is already signed in. Nothing on
-     * that screen says so, which is exactly what "it sends me back to login"
-     * looks like from the outside.
-     */
     public function test_reloading_the_login_page_while_signed_in_does_not_ask_again(): void
     {
         $this->signInByEmail(withPin: true);
@@ -108,11 +85,9 @@ class StaffEmailLoginSessionTest extends TestCase
         );
     }
 
-    public function test_a_guarded_page_opens_after_accepting_the_pin_switch(): void
+    public function test_a_pin_holder_signing_in_by_email_goes_straight_in(): void
     {
-        $this->signInByEmail(withPin: true)
-            ->assertSet('offerPinSwitch', true)
-            ->call('disablePinLogin');
+        $this->signInByEmail(withPin: true);
 
         $this->assertGuardedPageOpens();
     }

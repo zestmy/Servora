@@ -113,6 +113,11 @@ $group->group(function () {
             ->name('clock.staff.payslip');
         // Self-service leave and time off. Same PIN session as the clock —
         // the people who take leave mostly have a phone, not a manager login.
+        // Reached by tapping your own name in the header, which is where a
+        // person looks for things about themselves — the tab bar is full, and
+        // a seventh tab would drop the grid to four columns.
+        Route::get('/account', \App\Livewire\Clock\Staff\Account::class)->name('clock.staff.account');
+
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');
         Route::get('/time-off', ClockTimeOff::class)->name('clock.staff.time-off');
         // A plain form post, not a Livewire action: the control lives in the

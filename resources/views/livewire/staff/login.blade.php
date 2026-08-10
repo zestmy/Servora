@@ -25,36 +25,7 @@
         <p class="mt-0.5 text-sm text-gray-600">{{ $tagline }}</p>
     </div>
 
-    {{-- Just signed in by email, and there is still a PIN on the account.
-         Offered here rather than on the way in: turning off your own PIN is a
-         change to how you get in, so it is made by the person themselves — but
-         from a screen where they have just proved they are that person. --}}
-    @if ($offerPinSwitch)
-        <div class="panel p-5">
-            <h2 class="text-base font-semibold text-gray-900">You are signed in</h2>
-            <p class="mt-1 text-sm text-gray-600">
-                You also have a PIN for this app. Would you like to stop using it and
-                sign in by email from now on?
-            </p>
-
-            <div class="mt-5 grid gap-2">
-                <button type="button" wire:click="disablePinLogin"
-                        class="btn-primary min-h-[3.25rem] w-full justify-center">
-                    Use email only from now on
-                </button>
-                <button type="button" wire:click="keepPinLogin"
-                        class="btn-secondary min-h-[3.25rem] w-full justify-center">
-                    Keep my PIN as well
-                </button>
-            </div>
-
-            <p class="mt-3 text-xs text-gray-600">
-                Your PIN is not deleted either way — your manager can switch it back on
-                for you if you change your mind.
-            </p>
-        </div>
-
-    @elseif ($method === 'email')
+    @if ($method === 'email')
         {{-- Email route: address, then the code that lands in it. --}}
         <div class="panel p-5">
             @if (! $codeSent)

@@ -65,16 +65,21 @@ abstract class StaffLogin extends Component
 
     public string $notice = '';
 
-    /**
-     * Offered immediately after an email sign-in, and only then.
+    /*
+     * There is no PIN switch here any more.
      *
-     * Turning off your own PIN is a change to how you get in, so it asks to be
-     * made by the person themselves — but from a screen where they have just
-     * proved they are that person. Offering it on the way IN, to anyone who can
-     * name a colleague, would let a stranger lock somebody out of clocking in
-     * without ever signing in as them.
+     * It was offered on this screen right after an email sign-in, which was
+     * wrong twice over. An offer that appears once and never again is not a
+     * setting — tap past it and there was no way back to it. And asking here
+     * meant parking a SIGNED-IN person on the sign-in screen, which is what
+     * made a reload look like being thrown out.
+     *
+     * It lives on the account screen inside the app now, reached by tapping
+     * your own name. Still the employee's own decision, still made only once
+     * they have proved who they are — just somewhere they can find it twice.
+     *
+     * @see \App\Livewire\Clock\Staff\Account
      */
-    public bool $offerPinSwitch = false;
 
     /** Attempts allowed before a name is locked out briefly. */
     private const MAX_ATTEMPTS = 5;
@@ -240,44 +245,10 @@ abstract class StaffLogin extends Component
 
         $session->signIn($employee, 'email');
 
-        // Stay on the screen just long enough to offer the switch, but only to
-        // someone who actually has a PIN to turn off.
-        if ($employee->hasLabelPin() && ! $employee->pin_login_disabled_at) {
-            $this->employeeId     = $employee->id;
-            $this->offerPinSwitch = true;
-            $this->notice         = 'Signed in.';
-
-            return null;
-        }
-
         return $this->redirect($this->destination(), navigate: false);
     }
 
-    /**
-     * The employee's own decision, made having just proved who they are.
-     *
-     * Their PIN is left in place rather than cleared: to a manager, somebody who
-     * chose email must not look like somebody who was never enrolled, and
-     * changing their mind should not need a credential reissued.
-     */
-    public function disablePinLogin()
-    {
-        $employee = \App\Models\Employee::withoutGlobalScope(\App\Scopes\CompanyScope::class)
-            ->find($this->employeeId);
 
-        if (! $employee || ! $this->offerPinSwitch) {
-            return $this->redirect($this->destination(), navigate: false);
-        }
-
-        $employee->forceFill(['pin_login_disabled_at' => now()])->save();
-
-        return $this->redirect($this->destination(), navigate: false);
-    }
-
-    public function keepPinLogin()
-    {
-        return $this->redirect($this->destination(), navigate: false);
-    }
 
     /** Number pad. */
     public function press(string $digit): void
