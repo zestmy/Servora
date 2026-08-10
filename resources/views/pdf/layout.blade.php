@@ -10,7 +10,12 @@
         body, div, span, p, h1, h2, h3, h4, small, strong, img, table, thead, tbody, tfoot, tr, th, td { margin: 0; padding: 0; box-sizing: border-box; }
         @@page { margin: 12mm; }
         body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
+            /* DejaVu Sans, not Helvetica.
+               dompdf's Helvetica is one of the fourteen built-in PDF core
+               fonts and its encoding is Latin-1, so an arrow, a check mark or
+               an en dash comes out as "?" — which is what filled the AI
+               Analysis report. DejaVu ships with dompdf and covers them. */
+            font-family: 'DejaVu Sans', sans-serif;
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.5;

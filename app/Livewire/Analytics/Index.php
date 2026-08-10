@@ -189,7 +189,12 @@ class Index extends Component
 
         // Build HTML content from structured insights or fall back to markdown
         $insights = $this->insights ?? $this->parseInsightsFromText($this->responseText);
-        $htmlContent = $this->buildPdfContent($insights, $this->responseText);
+        // Sanitised on the way into the PDF, not on the way into the database:
+        // the emoji are fine on screen, where the browser has a font for them.
+        // It is only the print font that cannot draw them.
+        $htmlContent = \App\Support\PdfSafeText::clean(
+            $this->buildPdfContent($insights, $this->responseText)
+        );
 
         $pdf = Pdf::loadView('pdf.ai-analysis', compact(
             'company', 'outletName', 'periodLabel', 'analysisType', 'model', 'htmlContent'
