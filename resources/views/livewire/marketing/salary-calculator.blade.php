@@ -84,16 +84,48 @@
             @endif
         </div>
 
-        <div class="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
-                <label for="overtime" class="label">Overtime this month</label>
-                <div class="mt-1 flex items-center gap-2">
-                    <span class="text-sm text-gray-600">RM</span>
-                    <input id="overtime" type="number" min="0" step="10" wire:model.live.debounce.400ms="overtime"
-                           class="input tabular-nums" />
-                </div>
-                <p class="help mt-1">Counts for SOCSO and EIS. Never for EPF.</p>
+        {{-- Overtime by hours and kind. The Employment Act prices hours beyond
+             normal hours at 1.5x, 2x and 3x; entering ringgit hides which of
+             those was actually used, which is where disputes start. --}}
+        <div class="mt-6">
+            <span class="label">Overtime hours</span>
+
+            <div class="mt-2 grid gap-3 sm:grid-cols-3">
+                @foreach ($otTypes as $key => $type)
+                    <div>
+                        <label for="ot-{{ $key }}" class="block text-xs font-medium text-gray-600">
+                            {{ $type['label'] }}
+                            <span class="text-gray-500">&times;{{ rtrim(rtrim(number_format($type['rate'], 1), '0'), '.') }}</span>
+                        </label>
+                        <input id="ot-{{ $key }}" type="number" min="0" step="0.5"
+                               wire:model.live.debounce.400ms="otHours.{{ $key }}"
+                               class="input mt-1 tabular-nums" />
+                        <p class="help mt-1">{{ $type['note'] }}</p>
+                    </div>
+                @endforeach
             </div>
+
+            <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="hours-day" class="label">Normal hours a day</label>
+                    <input id="hours-day" type="number" min="1" max="12" step="0.5"
+                           wire:model.live.debounce.400ms="normalHoursPerDay"
+                           class="input mt-1 w-32 tabular-nums" />
+                    <p class="help mt-1">Used with 26 days a month to get the hourly rate.</p>
+                </div>
+                <div>
+                    <label for="overtime" class="label">Other overtime paid</label>
+                    <div class="mt-1 flex items-center gap-2">
+                        <span class="text-sm text-gray-600">RM</span>
+                        <input id="overtime" type="number" min="0" step="10" wire:model.live.debounce.400ms="overtime"
+                               class="input tabular-nums" />
+                    </div>
+                    <p class="help mt-1">A fixed OT allowance, or a figure straight off a payslip. Added to the hours above.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
                 <label for="service" class="label">Service charge</label>
                 <div class="mt-1 flex items-center gap-2">
@@ -169,6 +201,34 @@
                     </tbody>
                 </table>
             </div>
+
+            @if ($figures['ot_lines'])
+                <div class="mt-6 rounded-panel border border-gray-200 bg-gray-50 p-5">
+                    <h2 class="text-sm font-semibold text-gray-800">Overtime working</h2>
+                    <p class="help mt-1">
+                        Hourly rate RM {{ number_format($figures['hourly_rate'], 2) }} —
+                        RM {{ number_format($figures['ot_wages'], 2) }} over 26 days over
+                        {{ rtrim(rtrim(number_format($normalHoursPerDay, 1), '0'), '.') }} hours.
+                    </p>
+                    <ul class="mt-3 space-y-1.5">
+                        @foreach ($figures['ot_lines'] as $line)
+                            <li class="flex items-baseline justify-between gap-3 text-sm">
+                                <span class="text-gray-700">
+                                    {{ $line['label'] }} —
+                                    {{ rtrim(rtrim(number_format($line['hours'], 1), '0'), '.') }} h
+                                    &times; {{ rtrim(rtrim(number_format($line['rate'], 1), '0'), '.') }}
+                                </span>
+                                <span class="tabular-nums font-medium text-gray-800">RM {{ number_format($line['pay'], 2) }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    <p class="help mt-3">
+                        These are the statutory minimums for hours beyond normal hours. A rest day or public
+                        holiday also carries its own day's pay for the normal hours themselves — a separate
+                        entitlement, not overtime, and not included here.
+                    </p>
+                </div>
+            @endif
 
             {{-- The three bases, shown rather than assumed.
 

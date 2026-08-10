@@ -66,11 +66,47 @@ class SalaryCalculator extends Component
     public array $allowances = [];
 
     /**
-     * Overtime: SOCSO and EIS, but never EPF.
+     * Overtime rates under the Employment Act 1955.
      *
-     * A named exclusion in the EPF Act, and one of the commonest payroll
-     * mistakes in the trade — a busy month quietly overstates EPF for everyone
-     * who worked it.
+     * The multipliers are the statutory minimums for hours worked BEYOND normal
+     * hours. A rest day or holiday also carries its own day's pay for the normal
+     * hours themselves, which is a separate entitlement and not overtime — this
+     * tool prices the overtime, and the page says so rather than implying it has
+     * priced the whole day.
+     */
+    public const OT_TYPES = [
+        'normal' => [
+            'label' => 'Normal working day',
+            'rate'  => 1.5,
+            'note'  => 'Hours beyond the normal working day.',
+        ],
+        'rest_day' => [
+            'label' => 'Rest day',
+            'rate'  => 2.0,
+            'note'  => 'Hours beyond normal hours on a rest day.',
+        ],
+        'public_holiday' => [
+            'label' => 'Public holiday',
+            'rate'  => 3.0,
+            'note'  => 'Hours beyond normal hours on a public holiday.',
+        ],
+    ];
+
+    /** Days a month used to derive the ordinary rate of pay, per the Act. */
+    private const DAYS_PER_MONTH = 26;
+
+    /** @var array<string, float> hours worked, by overtime type */
+    public array $otHours = ['normal' => 0, 'rest_day' => 0, 'public_holiday' => 0];
+
+    public float $normalHoursPerDay = 8;
+
+    /**
+     * Overtime paid outside the hours above — a fixed OT allowance, or a figure
+     * somebody already has off a payslip and does not want to re-derive.
+     *
+     * Overtime of either kind is SOCSO and EIS wages but NEVER EPF: a named
+     * exclusion in the EPF Act, and one of the commonest payroll mistakes in the
+     * trade, quietly overstating EPF for everyone who worked a busy month.
      */
     public float $overtime = 0;
 
@@ -107,7 +143,6 @@ class SalaryCalculator extends Component
     {
         $d     = StatutorySetting::defaults();
         $basic = max(0.0, (float) $this->basic);
-        $ot    = max(0.0, (float) $this->overtime);
         $svc   = max(0.0, (float) $this->serviceCharge);
 
         $allowances = ['epf' => 0.0, 'socso' => 0.0, 'taxable' => 0.0, 'total' => 0.0];
@@ -124,6 +159,42 @@ class SalaryCalculator extends Component
                 }
             }
         }
+
+        /*
+         * The ordinary rate of pay, per the Employment Act: monthly wages over
+         * 26 days, then over the normal hours in a day.
+         *
+         * Built on basic PLUS FIXED ALLOWANCES, because those are the wages the
+         * employee is entitled to for their normal hours — the same base EPF
+         * uses. Basing it on bare basic understates every overtime hour for
+         * anybody on an allowance, which is most of a kitchen.
+         */
+        $otWages    = $basic + $allowances['epf'];
+        $hoursInDay = max(1.0, (float) $this->normalHoursPerDay);
+        $hourlyRate = $otWages > 0 ? $otWages / self::DAYS_PER_MONTH / $hoursInDay : 0.0;
+
+        $otLines = [];
+        $otFromHours = 0.0;
+
+        foreach (self::OT_TYPES as $key => $type) {
+            $hours = max(0.0, (float) ($this->otHours[$key] ?? 0));
+
+            if ($hours <= 0) {
+                continue;
+            }
+
+            $pay = $hours * $type['rate'] * $hourlyRate;
+            $otFromHours += $pay;
+
+            $otLines[] = [
+                'label' => $type['label'],
+                'rate'  => $type['rate'],
+                'hours' => $hours,
+                'pay'   => round($pay, 2),
+            ];
+        }
+
+        $ot = $otFromHours + max(0.0, (float) $this->overtime);
 
         $gross = $basic + $allowances['total'] + $ot + $svc;
 
@@ -180,6 +251,9 @@ class SalaryCalculator extends Component
             'basic'          => round($basic, 2),
             'allowances'     => round($allowances['total'], 2),
             'overtime'       => round($ot, 2),
+            'ot_lines'       => $otLines,
+            'hourly_rate'    => round($hourlyRate, 2),
+            'ot_wages'       => round($otWages, 2),
             'service_charge' => round($svc, 2),
             'epf_wage'       => round($epfWage, 2),
             'socso_wage'     => round($socsoWage, 2),
@@ -227,6 +301,7 @@ class SalaryCalculator extends Component
             'figures'        => $this->figures(),
             'categories'     => StatutorySetting::PCB_CATEGORIES,
             'allowanceTypes' => self::ALLOWANCE_TYPES,
+            'otTypes'        => self::OT_TYPES,
         ])->layout('layouts.marketing', [
             'title' => 'Free Salary Calculator — EPF, SOCSO, EIS & PCB',
         ]);

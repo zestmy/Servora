@@ -164,6 +164,80 @@ class SalaryCalculatorTest extends TestCase
         $this->assertGreaterThan($without['socso_employee'], $with['socso_employee']);
     }
 
+    /**
+     * The ordinary rate of pay, per the Employment Act: monthly wages over 26
+     * days, then over the normal hours in a day.
+     */
+    public function test_overtime_hours_are_priced_at_the_statutory_multipliers(): void
+    {
+        // RM 2,600 / 26 days / 8 hours = RM 12.50 an hour.
+        $f = $this->figuresFor([
+            'basic'   => 2600,
+            'otHours' => ['normal' => 4, 'rest_day' => 0, 'public_holiday' => 0],
+        ]);
+
+        $this->assertEqualsWithDelta(12.50, $f['hourly_rate'], 0.01);
+        // 4 hours at 1.5x = RM 75.00
+        $this->assertEqualsWithDelta(75.00, $f['overtime'], 0.01);
+    }
+
+    public function test_rest_day_and_public_holiday_carry_higher_multipliers(): void
+    {
+        $f = $this->figuresFor([
+            'basic'   => 2600,
+            'otHours' => ['normal' => 0, 'rest_day' => 2, 'public_holiday' => 2],
+        ]);
+
+        // 2 x 2.0 x 12.50 = 50.00, plus 2 x 3.0 x 12.50 = 75.00
+        $this->assertEqualsWithDelta(125.00, $f['overtime'], 0.01);
+    }
+
+    /**
+     * The hourly rate is built on basic PLUS fixed allowances — those are the
+     * wages owed for normal hours. Bare basic understates every overtime hour
+     * for anybody on an allowance, which is most of a kitchen.
+     */
+    public function test_a_fixed_allowance_raises_the_overtime_hourly_rate(): void
+    {
+        $bare = $this->figuresFor(['basic' => 2600, 'otHours' => ['normal' => 1]]);
+        $withAllowance = $this->figuresFor([
+            'basic' => 2600,
+            'allowances' => [['label' => 'Transport', 'amount' => 260, 'type' => 'fixed']],
+            'otHours' => ['normal' => 1],
+        ]);
+
+        $this->assertGreaterThan($bare['hourly_rate'], $withAllowance['hourly_rate']);
+
+        // A variable allowance is not wages for normal hours, so it must not.
+        $withVariable = $this->figuresFor([
+            'basic' => 2600,
+            'allowances' => [['label' => 'Incentive', 'amount' => 260, 'type' => 'variable']],
+            'otHours' => ['normal' => 1],
+        ]);
+
+        $this->assertEqualsWithDelta($bare['hourly_rate'], $withVariable['hourly_rate'], 0.01);
+    }
+
+    /** Overtime from hours is still overtime: SOCSO and EIS, never EPF. */
+    public function test_overtime_from_hours_stays_out_of_the_epf_base(): void
+    {
+        $f = $this->figuresFor(['basic' => 2600, 'otHours' => ['normal' => 8]]);
+
+        $this->assertEqualsWithDelta(2600, $f['epf_wage'], 0.01);
+        $this->assertGreaterThan(2600, $f['socso_wage']);
+    }
+
+    public function test_a_lump_sum_is_added_to_the_hours_rather_than_replacing_them(): void
+    {
+        $f = $this->figuresFor([
+            'basic'    => 2600,
+            'otHours'  => ['normal' => 4],
+            'overtime' => 100,
+        ]);
+
+        $this->assertEqualsWithDelta(175.00, $f['overtime'], 0.01);
+    }
+
     public function test_a_fixed_allowance_counts_for_everything(): void
     {
         $f = $this->figuresFor([
