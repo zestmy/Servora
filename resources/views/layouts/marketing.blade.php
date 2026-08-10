@@ -178,6 +178,7 @@
                              anything first. --}}
                         <li><a href="{{ route('tools.recipe-cost') }}" class="transition-colors hover:text-white">Recipe Cost Calculator</a></li>
                         <li><a href="{{ route('tools.food-cost') }}" class="transition-colors hover:text-white">Food Cost Calculator</a></li>
+                        <li><a href="{{ route('tools.menu-matrix') }}" class="transition-colors hover:text-white">Menu Engineering Matrix</a></li>
                     </ul>
                 </div>
 

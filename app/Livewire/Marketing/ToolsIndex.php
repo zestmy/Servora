@@ -31,6 +31,13 @@ class ToolsIndex extends Component
                         . 'charge, or what to spend, to hit the percentage you want.',
                     'icon'  => 'M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z',
                 ],
+                [
+                    'route' => 'tools.menu-matrix',
+                    'name'  => 'Menu Engineering Matrix',
+                    'blurb' => 'Put every dish against how often it sells and how much it leaves '
+                        . 'behind, and get four groups with four different instructions.',
+                    'icon'  => 'M4 4v16h16M8 16V9m4 7V5m4 11v-4',
+                ],
             ],
         ])->layout('layouts.marketing', ['title' => 'Free Tools for F&B Operators']);
     }

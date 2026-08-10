@@ -116,6 +116,8 @@ Route::get('/tools/recipe-cost-calculator', App\Livewire\Marketing\RecipeCostCal
     ->name('tools.recipe-cost');
 Route::get('/tools/food-cost-calculator', App\Livewire\Marketing\FoodCostCalculator::class)
     ->name('tools.food-cost');
+Route::get('/tools/menu-engineering-matrix', App\Livewire\Marketing\MenuEngineeringMatrix::class)
+    ->name('tools.menu-matrix');
 
 // Public video share (loginless, QR from printed SOP PDF)
 Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');
