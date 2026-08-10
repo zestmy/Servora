@@ -78,6 +78,21 @@ class StatutorySetting extends Model
         'rates_confirmed_at'         => 'datetime',
     ];
 
+    /**
+     * The seeded rates, readable without a row in the database.
+     *
+     * The public salary calculator needs them and has no company to read from.
+     * Exposing the same array rather than letting a second copy exist means a
+     * rate change lands in one place — and the copy nobody remembers to update
+     * would be the one strangers are reading.
+     *
+     * @return array<string, mixed>
+     */
+    public static function defaults(): array
+    {
+        return (new self)->getAttributes();
+    }
+
     /** MySQL does not read column defaults back after an insert. */
     protected $attributes = [
         'epf_enabled'   => true,

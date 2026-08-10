@@ -38,6 +38,13 @@ class ToolsIndex extends Component
                         . 'behind, and get four groups with four different instructions.',
                     'icon'  => 'M4 4v16h16M8 16V9m4 7V5m4 11v-4',
                 ],
+                [
+                    'route' => 'tools.salary',
+                    'name'  => 'Salary Calculator',
+                    'blurb' => 'Monthly take-home after EPF, SOCSO, EIS and PCB — and what the '
+                        . 'same person actually costs to employ.',
+                    'icon'  => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+                ],
             ],
         ])->layout('layouts.marketing', ['title' => 'Free Tools for F&B Operators']);
     }
