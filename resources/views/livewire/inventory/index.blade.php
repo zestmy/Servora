@@ -103,15 +103,7 @@
          supplier is stored and used on Purchases and filtered nowhere. --}}
     <div class="toolbar mb-4">
         <div class="flex flex-wrap items-center gap-2">
-            @foreach ([
-                'today'      => 'Today',
-                'last_7'     => 'Last 7 days',
-                'last_week'  => 'Last week',
-                'last_30'    => 'Last 30 days',
-                'this_month' => 'This month',
-                'last_month' => 'Last month',
-                'all'        => 'All time',
-            ] as $key => $label)
+            @foreach (\App\Livewire\Inventory\Index::quickRangeOptions() as $key => $label)
                 <button wire:click="setQuickRange('{{ $key }}')"
                         class="px-3 py-1.5 text-xs font-medium rounded-full border transition
                                {{ $quickRange === $key

@@ -21,7 +21,7 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use WithPagination, ScopesToActiveOutlet;
+    use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     /**
      * What each tab is made of.
@@ -103,15 +103,6 @@ class Index extends Component
     #[Url]
     public string $dateTo = '';
 
-    /**
-     * Named range behind the two date boxes.
-     *
-     * Empty means the dates were typed by hand. Mirrors Audit > Index, which
-     * had the only implementation of this in the product.
-     */
-    #[Url]
-    public string $quickRange = 'last_30';
-
     #[Url]
     public string $statusFilter = '';
 
@@ -170,39 +161,6 @@ class Index extends Component
     public function updatedSearch(): void           { $this->resetPage(); }
     public function updatedDateFrom(): void         { $this->quickRange = ''; $this->resetPage(); }
     public function updatedDateTo(): void           { $this->quickRange = ''; $this->resetPage(); }
-
-    public function setQuickRange(string $range): void
-    {
-        $this->quickRange = $range;
-        $this->applyQuickRange($range);
-        $this->resetPage();
-    }
-
-    private function applyQuickRange(string $range): void
-    {
-        $today = Carbon::today();
-
-        [$from, $to] = match ($range) {
-            'today'      => [$today, $today],
-            'last_7'     => [$today->copy()->subDays(6), $today],
-            // The calendar week just gone, Monday to Sunday — not the rolling
-            // seven days above it. Both days are named explicitly rather than
-            // left to the locale's idea of where a week starts, because "last
-            // week" on a roster means one specific pair of dates and a shift
-            // that lands on the wrong side of the boundary is a real argument.
-            'last_week'  => [
-                $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY),
-                $today->copy()->subWeek()->endOfWeek(Carbon::SUNDAY),
-            ],
-            'last_30'    => [$today->copy()->subDays(29), $today],
-            'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
-            'last_month' => [$today->copy()->subMonthNoOverflow()->startOfMonth(), $today->copy()->subMonthNoOverflow()->endOfMonth()],
-            default      => [null, null],
-        };
-
-        $this->dateFrom = $from?->toDateString() ?? '';
-        $this->dateTo   = $to?->toDateString() ?? '';
-    }
 
     public function resetFilters(): void
     {
@@ -450,23 +408,6 @@ class Index extends Component
             'previousValue' => $previousValue,
             'rangeLabel'    => $this->rangeLabel(),
         ];
-    }
-
-    /** What the cards are actually counting, in words. */
-    private function rangeLabel(): string
-    {
-        return match ($this->quickRange) {
-            'today'      => 'today',
-            'last_7'     => 'in the last 7 days',
-            'last_week'  => 'last week',
-            'last_30'    => 'in the last 30 days',
-            'this_month' => 'this month',
-            'last_month' => 'last month',
-            'all'        => 'all time',
-            default      => $this->dateFrom !== '' || $this->dateTo !== ''
-                ? 'in the selected range'
-                : 'all time',
-        };
     }
 
     /**

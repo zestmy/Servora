@@ -158,6 +158,27 @@
 
     {{-- Filters --}}
     <div class="card p-4 mb-4">
+        {{-- The same named ranges as Stock Management, from the same trait, so
+             "last week" cannot come to mean one span here and another there on
+             two screens people read side by side. --}}
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            @foreach (\App\Livewire\Purchasing\Index::quickRangeOptions() as $key => $label)
+                <button wire:click="setQuickRange('{{ $key }}')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-full border transition
+                               {{ $quickRange === $key
+                                    ? 'bg-brand-600 text-white border-brand-600'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300 hover:text-brand-700' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+
+            @if ($quickRange === '' && ($dateFrom || $dateTo))
+                <span class="badge-neutral">Custom range</span>
+            @endif
+
+            <button wire:click="resetFilters" class="btn-ghost ml-auto whitespace-nowrap">Reset</button>
+        </div>
+
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             <div class="flex-1 min-w-48">
                 <input type="text" wire:model.live.debounce.300ms="search"

@@ -21,7 +21,7 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use WithPagination, ScopesToActiveOutlet;
+    use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     public string $tab = 'pr';
 
@@ -33,24 +33,46 @@ class Index extends Component
     public string $rejectReason = '';
     public string $dateTo = '';
 
-    protected $queryString = ['tab'];
+    protected $queryString = ['tab', 'quickRange'];
 
-    public function updatedTab(): void       { $this->resetPage(); $this->resetFilters(); }
+    public function mount(): void
+    {
+        // Same default as Stock Management, so the two modules answer "recently"
+        // with the same span when somebody compares them.
+        if ($this->dateFrom === '' && $this->dateTo === '') {
+            $this->applyQuickRange($this->quickRange ?: 'last_30');
+        }
+    }
+
+    /**
+     * Switching tab keeps the period and clears the rest.
+     *
+     * It used to clear the dates too, so answering "what came in last week"
+     * and then asking the same of receipts meant re-saying "last week".
+     */
+    public function updatedTab(): void
+    {
+        $this->resetPage();
+        $this->search = '';
+        $this->statusFilter = '';
+        $this->supplierFilter = '';
+        $this->outletFilter = '';
+    }
     public function updatedSearch(): void     { $this->resetPage(); }
     public function updatedStatusFilter(): void   { $this->resetPage(); }
     public function updatedSupplierFilter(): void { $this->resetPage(); }
     public function updatedOutletFilter(): void   { $this->resetPage(); }
-    public function updatedDateFrom(): void   { $this->resetPage(); }
-    public function updatedDateTo(): void     { $this->resetPage(); }
+    // A typed date is nobody's named range any more.
+    public function updatedDateFrom(): void   { $this->quickRange = ''; $this->resetPage(); }
+    public function updatedDateTo(): void     { $this->quickRange = ''; $this->resetPage(); }
 
-    private function resetFilters(): void
+    public function resetFilters(): void
     {
         $this->search = '';
         $this->statusFilter = '';
         $this->supplierFilter = '';
         $this->outletFilter = '';
-        $this->dateFrom = '';
-        $this->dateTo = '';
+        $this->setQuickRange('last_30');
     }
 
     private function isPurchasingRole(): bool
