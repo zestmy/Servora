@@ -145,69 +145,45 @@
         </div>
 
         @if ($figures['ready'])
-            <div class="mt-8 grid gap-4 sm:grid-cols-3">
-                <div class="stat">
-                    <p class="stat-label">Gross</p>
-                    <p class="stat-value tabular-nums">RM {{ number_format($figures['gross'], 2) }}</p>
+            {{-- Laid out as a payslip, and the same partial the PDF uses — a
+                 download that differs from its preview is the download people
+                 stop trusting. --}}
+            <div class="mt-8 rounded-panel border border-gray-200 bg-white p-5 sm:p-6">
+                <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-900 pb-3">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900">Salary breakdown</h2>
+                        <p class="text-xs text-gray-600">
+                            {{ $employeeName ?: 'Estimated payslip' }} &middot; {{ now()->format('F Y') }}
+                        </p>
+                    </div>
+                    <p class="text-xs text-gray-500">Estimate &mdash; not an employer's payslip</p>
                 </div>
-                <div class="stat">
-                    <p class="stat-label">Take-home</p>
-                    <p class="stat-value tabular-nums text-brand-600">RM {{ number_format($figures['net'], 2) }}</p>
-                </div>
-                <div class="stat">
-                    <p class="stat-label">Cost to employer</p>
-                    <p class="stat-value tabular-nums">RM {{ number_format($figures['employer_cost'], 2) }}</p>
-                    <p class="text-xs text-gray-600 mt-1">gross plus the employer's share</p>
+
+                <div class="mt-4">
+                    @include('livewire.marketing.partials.payslip', [
+                        'figures' => $figures,
+                        'lines'   => $allowances,
+                    ])
                 </div>
             </div>
 
-            {{-- Both sides in one table. An employee reads the left column and
-                 an owner reads the right, and they are arguing about the same
-                 salary from opposite ends of it. --}}
-            <div class="mt-6 overflow-x-auto">
-                <table class="table-surface min-w-full">
-                    <thead>
-                        <tr>
-                            <th class="px-4 py-3 text-left">Contribution</th>
-                            <th class="px-4 py-3 text-right">Employee</th>
-                            <th class="px-4 py-3 text-right">Employer</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="px-4 py-3 font-medium text-gray-800">
-                                EPF <span class="text-xs text-gray-600">({{ rtrim(rtrim(number_format($figures['epf_rate'], 2), '0'), '.') }}% employee)</span>
-                            </td>
-                            <td class="px-4 py-3 text-right tabular-nums">RM {{ number_format($figures['epf_employee'], 2) }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">RM {{ number_format($figures['epf_employer'], 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td class="px-4 py-3 font-medium text-gray-800">SOCSO</td>
-                            <td class="px-4 py-3 text-right tabular-nums">RM {{ number_format($figures['socso_employee'], 2) }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">RM {{ number_format($figures['socso_employer'], 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td class="px-4 py-3 font-medium text-gray-800">EIS</td>
-                            <td class="px-4 py-3 text-right tabular-nums">RM {{ number_format($figures['eis_employee'], 2) }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums text-gray-600">RM {{ number_format($figures['eis_employer'], 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td class="px-4 py-3 font-medium text-gray-800">
-                                PCB <span class="text-xs text-gray-600">(estimate)</span>
-                            </td>
-                            <td class="px-4 py-3 text-right tabular-nums">RM {{ number_format($figures['pcb'], 2) }}</td>
-                            <td class="px-4 py-3 text-right text-gray-500">&mdash;</td>
-                        </tr>
-                        <tr class="bg-gray-50">
-                            <td class="px-4 py-3 font-semibold text-gray-900">Total</td>
-                            <td class="px-4 py-3 text-right font-semibold tabular-nums">RM {{ number_format($figures['deductions'], 2) }}</td>
-                            <td class="px-4 py-3 text-right font-semibold tabular-nums text-gray-700">
-                                RM {{ number_format($figures['employer_cost'] - $figures['gross'], 2) }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div class="flex-1">
+                    <label for="emp-name" class="label">Name on the copy <span class="text-gray-500">(optional)</span></label>
+                    <input id="emp-name" type="text" wire:model.live.debounce.500ms="employeeName"
+                           class="input mt-1" placeholder="e.g. Nurul binti Hassan" />
+                </div>
+                <button type="button" wire:click="downloadPdf"
+                        wire:loading.attr="disabled" wire:target="downloadPdf"
+                        class="btn-primary whitespace-nowrap">
+                    <span wire:loading.remove wire:target="downloadPdf">Download PDF</span>
+                    <span wire:loading wire:target="downloadPdf">Preparing…</span>
+                </button>
             </div>
+
+            @if ($downloadError)
+                <p class="error-text mt-2" role="alert">{{ $downloadError }}</p>
+            @endif
 
             @if ($figures['unpaid_leave'] > 0)
                 <div class="alert-warning mt-6">

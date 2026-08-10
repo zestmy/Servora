@@ -3,6 +3,8 @@
 namespace App\Livewire\Marketing;
 
 use App\Models\StatutorySetting;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
 /**
@@ -139,6 +141,63 @@ class SalaryCalculator extends Component
     public string $category = 'single';
 
     public int $children = 0;
+
+    /** Optional, for the heading of a downloaded copy. */
+    public string $employeeName = '';
+
+    public string $downloadError = '';
+
+    /** Downloads allowed per network in a day. */
+    private const PDFS_PER_DAY = 3;
+
+    /**
+     * Download the breakdown as a payslip.
+     *
+     * Limited per network rather than per address: nothing here is emailed, so
+     * there is no address to count, and the limit exists to bound rendering
+     * cost rather than to enforce anything. A shared office hitting it early is
+     * the accepted cost of not asking a stranger for their email to use a
+     * calculator.
+     */
+    public function downloadPdf()
+    {
+        $this->downloadError = '';
+
+        $figures = $this->figures();
+
+        if (! $figures['ready']) {
+            $this->downloadError = 'Enter a salary first.';
+
+            return null;
+        }
+
+        $key = 'salary-pdf:ip:' . (request()->ip() ?: 'unknown');
+
+        if (RateLimiter::tooManyAttempts($key, self::PDFS_PER_DAY)) {
+            $this->downloadError = 'That is ' . self::PDFS_PER_DAY . ' downloads today. '
+                . 'Try again tomorrow, or start a free trial for payslips for the whole team.';
+
+            return null;
+        }
+
+        // A day in seconds, written out: now()->addDay()->diffInSeconds(now())
+        // is NEGATIVE, which silently makes the limit no limit at all.
+        RateLimiter::hit($key, 86400);
+
+        $pdf = Pdf::loadView('pdf.marketing.salary-payslip', [
+            'figures'      => $figures,
+            'lines'        => $this->allowances,
+            'employeeName' => trim($this->employeeName),
+        ])->setPaper('a4', 'portrait');
+
+        $name = \Illuminate\Support\Str::slug($this->employeeName ?: 'salary-breakdown');
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            $name . '-' . now()->format('Y-m') . '.pdf',
+            ['Content-Type' => 'application/pdf']
+        );
+    }
 
     public function addAllowance(): void
     {

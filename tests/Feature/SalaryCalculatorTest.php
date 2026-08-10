@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Marketing\SalaryCalculator;
 use App\Models\StatutorySetting;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -322,6 +323,58 @@ class SalaryCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(3000, $f['epf_wage'], 0.01);
         $this->assertEqualsWithDelta(3000, $f['taxable_wage'], 0.01);
         $this->assertEqualsWithDelta(3200, $f['gross'], 0.01, 'It is still paid out, so take-home includes it.');
+    }
+
+    public function test_the_preview_is_laid_out_as_a_payslip(): void
+    {
+        Livewire::test(SalaryCalculator::class)
+            ->set('basic', 3000)
+            ->set('allowances', [['label' => 'Transport', 'amount' => 300, 'type' => 'fixed']])
+            ->assertSee('Salary breakdown')
+            ->assertSee('Earnings')
+            ->assertSee('Deductions')
+            ->assertSee('Employer contributions')
+            ->assertSee('NET PAY')
+            ->assertSee('Transport');
+    }
+
+    public function test_the_pdf_downloads_and_is_a_pdf(): void
+    {
+        RateLimiter::clear('salary-pdf:ip:127.0.0.1');
+
+        $response = Livewire::test(SalaryCalculator::class)
+            ->set('basic', 3000)
+            ->call('downloadPdf')
+            ->effects['download'] ?? null;
+
+        $this->assertNotNull($response, 'The button must actually return a file.');
+    }
+
+    public function test_three_downloads_a_day_and_then_it_stops(): void
+    {
+        RateLimiter::clear('salary-pdf:ip:127.0.0.1');
+
+        for ($i = 0; $i < 3; $i++) {
+            Livewire::test(SalaryCalculator::class)
+                ->set('basic', 3000)
+                ->call('downloadPdf')
+                ->assertSet('downloadError', '');
+        }
+
+        Livewire::test(SalaryCalculator::class)
+            ->set('basic', 3000)
+            ->call('downloadPdf')
+            ->assertSee('3 downloads today');
+    }
+
+    /** Nothing to download is a message, not an empty file. */
+    public function test_downloading_before_entering_a_salary_says_so(): void
+    {
+        RateLimiter::clear('salary-pdf:ip:127.0.0.1');
+
+        Livewire::test(SalaryCalculator::class)
+            ->call('downloadPdf')
+            ->assertSet('downloadError', 'Enter a salary first.');
     }
 
     /** People plan around this. It must not pretend to be a payslip. */
