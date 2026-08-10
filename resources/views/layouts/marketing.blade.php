@@ -169,6 +169,10 @@
                         <li><a href="{{ route('marketplace') }}" class="transition-colors hover:text-white">Marketplace</a></li>
                         <li><a href="{{ route('for-suppliers') }}" class="transition-colors hover:text-white">For Suppliers</a></li>
                         <li><a href="{{ route('referral.program') }}" class="transition-colors hover:text-white">Refer &amp; Earn</a></li>
+                        {{-- A free tool earns its place in the footer: it is the
+                             one page here somebody can use without deciding
+                             anything first. --}}
+                        <li><a href="{{ route('tools.recipe-cost') }}" class="transition-colors hover:text-white">Recipe Cost Calculator</a></li>
                     </ul>
                 </div>
 

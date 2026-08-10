@@ -110,6 +110,10 @@ Route::get('/referral', MarketingReferralProgram::class)->name('referral.program
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
 
+// Free tools. Public on purpose: useful before anything is asked for.
+Route::get('/tools/recipe-cost-calculator', App\Livewire\Marketing\RecipeCostCalculator::class)
+    ->name('tools.recipe-cost');
+
 // Public video share (loginless, QR from printed SOP PDF)
 Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');
 Route::get('/v/{token}/data', [\App\Http\Controllers\VideoShareController::class, 'data'])->name('video.share.data');

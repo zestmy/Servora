@@ -138,6 +138,10 @@
                      provenance is decoration; one with it is evidence. --}}
                 <p class="mt-2 text-center text-[11px] text-gray-500 sm:text-left">
                     Median prices paid by kitchens running on Servora &middot; updated hourly &middot; suppliers not identified
+                    &middot;
+                    <a href="{{ route('tools.recipe-cost') }}" class="text-gray-300 underline hover:text-white">
+                        cost a recipe with these prices
+                    </a>
                 </p>
             </div>
         </section>
