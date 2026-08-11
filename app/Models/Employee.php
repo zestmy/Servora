@@ -36,12 +36,23 @@ class Employee extends Model
      */
     public const SENSITIVE_PAY_ATTRIBUTES = [
         'service_points_entitlement', 'basic_salary', 'pay_type',
-        // Where someone's salary is paid is pay data as much as the amount —
-        // and a bank account number is worth protecting on its own account.
-        // The holder's name belongs here too: it is usually a family member,
-        // which is to say a third party who never consented to appearing on
-        // anybody's staff screen.
-        'bank_name', 'bank_account_no', 'bank_account_name',
+        /*
+         * BANK DETAILS ARE NOT ON THIS LIST, by decision on 2026-08-11: they
+         * moved to the Personal tab of the employee form, where the people who
+         * keep staff records current can maintain an account number without
+         * being shown the company's payroll to do it.
+         *
+         * The trade was made with the consequence stated: an account number,
+         * and a holder's name that is often a family member's, are now visible
+         * to anyone who may edit an employee. Reversing it is putting these
+         * three back:
+         *     'bank_name', 'bank_account_no', 'bank_account_name'
+         * and moving the fields back across the tabs in employee-form.blade.
+         *
+         * What has NOT changed: the employee details PDF still prints bank
+         * details only inside its Pay & Bank section, which is gated on
+         * hr.compensation, and no list or export renders them.
+         */
     ];
 
     /**

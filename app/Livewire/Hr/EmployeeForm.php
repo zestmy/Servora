@@ -207,9 +207,10 @@ class EmployeeForm extends Component
         // A picker nobody has ever opened the settings screen for is empty, and
         // an empty picker cannot record anything.
         HrOption::seedDefaults(Auth::user()->company_id);
-        if ($this->canViewPay()) {
-            Bank::seedDefaults(Auth::user()->company_id);
-        }
+        // Seeded for everybody now that the bank picker is on the Personal
+        // tab — an empty picker cannot record anything, and the field's own
+        // validation rule is built from this list.
+        Bank::seedDefaults(Auth::user()->company_id);
 
         if (! $id) {
             // Default new employees to the user's active outlet.
@@ -274,6 +275,19 @@ class EmployeeForm extends Component
                 'expires_on'   => $c->expires_on?->format('Y-m-d') ?? '',
             ])
             ->all();
+        /*
+         * Banking is hydrated for everybody, because it now lives on the
+         * Personal tab. Where a salary is PAID is not what it is: the people
+         * who keep staff records current need to fix an account number
+         * without being shown the company's entire payroll to do it. The
+         * amount, the pay type and the service points stay behind
+         * hr.compensation below.
+         */
+        $this->f_bank_name         = $emp->bank_name ?? '';
+        $this->originalBankName    = $this->f_bank_name;
+        $this->f_bank_account_no   = $emp->bank_account_no ?? '';
+        $this->f_bank_account_name = $emp->bank_account_name ?? '';
+
         // Pay fields are only hydrated for permitted users — otherwise they'd
         // ride along in the Livewire payload even with the inputs hidden.
         if ($this->canViewPay()) {
@@ -284,10 +298,6 @@ class EmployeeForm extends Component
                 ? number_format((float) $emp->basic_salary, 2, '.', '')
                 : '';
             $this->f_pay_type = $emp->pay_type ?? '';
-            $this->f_bank_name       = $emp->bank_name ?? '';
-            $this->originalBankName  = $this->f_bank_name;
-            $this->f_bank_account_no = $emp->bank_account_no ?? '';
-            $this->f_bank_account_name = $emp->bank_account_name ?? '';
 
             $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
             $this->s_epf_number   = $p->epf_number ?? '';
@@ -778,20 +788,24 @@ class EmployeeForm extends Component
             $data['pay_type'] = $this->f_basic_salary !== ''
                 ? ($this->f_pay_type ?: 'monthly')
                 : null;
-            $data['bank_name']       = $this->f_bank_name ?: null;
-            $data['bank_account_no'] = $this->f_bank_account_no ?: null;
-            // Stored only when it is genuinely a different person. Someone who
-            // types the employee's own name in — which is the obvious thing to
-            // do with a blank field labelled "account name" — should not have
-            // the record start claiming a third-party account.
-            // Uppercased on the way in, to match what the field shows and what
-            // a bulk transfer file carries. Stored that way rather than styled
-            // that way, so the CSV and the payslip do not have to remember.
-            $holder = trim($this->f_bank_account_name);
-            $data['bank_account_name'] = ($holder !== '' && mb_strtolower($holder) !== mb_strtolower(trim($this->f_name)))
-                ? Str::upper($holder)
-                : null;
         }
+
+        // Banking saves for everybody, matching where it is now asked for. It
+        // is hydrated for everybody too, so this writes back what was loaded
+        // rather than blanking a record the editor could not see.
+        $data['bank_name']       = $this->f_bank_name ?: null;
+        $data['bank_account_no'] = $this->f_bank_account_no ?: null;
+        // Stored only when it is genuinely a different person. Someone who
+        // types the employee's own name in — which is the obvious thing to
+        // do with a blank field labelled "account name" — should not have
+        // the record start claiming a third-party account.
+        // Uppercased on the way in, to match what the field shows and what
+        // a bulk transfer file carries. Stored that way rather than styled
+        // that way, so the CSV and the payslip do not have to remember.
+        $holder = trim($this->f_bank_account_name);
+        $data['bank_account_name'] = ($holder !== '' && mb_strtolower($holder) !== mb_strtolower(trim($this->f_name)))
+            ? Str::upper($holder)
+            : null;
 
         // Stored before the row is written so a failed save leaves no file
         // behind, and the one it replaces is only deleted once it has.
@@ -916,7 +930,9 @@ class EmployeeForm extends Component
         $sections   = Section::active()->ordered()->get();
         $canViewPay = $this->canViewPay();
         $canEditEmployment = $this->canEditEmployment();
-        $banks      = $canViewPay ? $this->bankOptions() : collect();
+        // Always loaded now: the picker is on the Personal tab, and its
+        // validation rule is built from this same list.
+        $banks      = $this->bankOptions();
 
         // Keyed by type so the blade asks for the list by name rather than
         // knowing which property holds which particular.

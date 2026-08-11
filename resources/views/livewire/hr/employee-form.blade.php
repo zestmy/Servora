@@ -6,12 +6,17 @@
         'personal'   => ['f_name', 'f_ic_number', 'f_date_of_birth', 'f_email', 'f_phone', 'f_phone_code',
                          'photo', 'f_gender', 'f_nationality', 'f_race', 'f_religion', 'f_marital_status',
                          'f_education_level', 'f_emergency_contact_name', 'f_emergency_contact_relationship',
-                         'f_emergency_contact_phone', 'f_emergency_contact_phone_alt', 'f_emergency_contact_address'],
+                         'f_emergency_contact_phone', 'f_emergency_contact_phone_alt', 'f_emergency_contact_address',
+                         // Where the salary is paid, not what it is.
+                         'f_bank_name', 'f_bank_account_no', 'f_bank_account_name'],
         'employment' => ['f_outlet_id', 'f_section_id', 'f_staff_id', 'f_designation', 'f_join_date',
                          'f_employment_status', 'f_employment_status_date', 'f_outsourcing_provider',
-                         'f_outsourcing_company', 'f_break_minutes', 'f_allow_byod', 'f_allow_anywhere'],
-        'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points', 'f_bank_name',
-                         'f_bank_account_no', 'f_bank_account_name'],
+                         'f_outsourcing_company', 'f_break_minutes'],
+        'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points',
+                         // Each of these decides what somebody is paid or where
+                         // it comes from, so they sit behind the same door.
+                         'f_allow_byod', 'f_allow_anywhere', 'f_overtime_as_time_off',
+                         'f_service_charge_outlet_id'],
         'statutory'  => ['s_epf_number', 's_socso_number', 's_tax_number', 's_epf_override',
                          's_pcb_category', 's_children', 's_zakat', 's_other_relief'],
         'compliance' => ['f_food_handler_cert_no', 'f_food_handler_expired_on', 'f_typhoid_valid_from',
@@ -326,6 +331,80 @@
                 <x-input-error :messages="$errors->get('f_emergency_contact_address')" class="mt-1" />
             </div>
         </div>
+
+        {{-- ── Banking ─────────────────────────────────────────────────────
+             Where the salary is paid, NOT what it is.
+
+             Moved off the Compensation tab so that somebody who keeps staff
+             records current can fix an account number without being shown the
+             company's payroll to do it. The two were only ever together
+             because payroll reads them in the same breath.
+        --}}
+        <div class="card p-5 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Banking</h3>
+                <p class="text-xs text-gray-500">Where this person's salary is paid.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Bank</label>
+                    {{-- Shown uppercase, stored verbatim.
+
+                         The seeded IBG list has the casing of the published
+                         document, which is ragged — "Affin Bank" sits three
+                         rows above "AFFIN ISLAMIC BANK BHD" — and in a
+                         dropdown that reads as a list somebody half finished
+                         editing. The VALUE stays exactly as the banks table
+                         holds it, because it is matched against that table on
+                         save and against existing employee records on load;
+                         uppercasing the value would silently orphan every
+                         bank already on file. --}}
+                    <select wire:model.live="f_bank_name" class="mt-1 w-full text-sm rounded-lg border-gray-300 uppercase">
+                        <option value="" class="normal-case">— Select bank —</option>
+                        @foreach ($banks as $bank)
+                            <option value="{{ $bank->name }}">{{ Str::upper($bank->name) }}</option>
+                        @endforeach
+                    </select>
+                    @php $pickedBank = $banks->firstWhere('name', $f_bank_name); @endphp
+                    @if ($pickedBank?->bic)
+                        <p class="mt-1 text-[11px] text-gray-500 font-mono">{{ $pickedBank->bic }}</p>
+                    @endif
+                    {{-- The bank list is company settings, which is a
+                         different permission from editing an employee. --}}
+                    @can('hr.compensation')
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            Missing one? <a href="{{ route('settings.banks') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage banks</a>
+                        </p>
+                    @endcan
+                    <x-input-error :messages="$errors->get('f_bank_name')" class="mt-1" />
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Bank Account No.</label>
+                    <input type="text" maxlength="40" wire:model="f_bank_account_no"
+                           class="mt-1 w-full text-sm rounded-lg border-gray-300 font-mono" />
+                    <p class="mt-1 text-[11px] text-gray-500">Needed for the salary payment file.</p>
+                    <x-input-error :messages="$errors->get('f_bank_account_no')" class="mt-1" />
+                </div>
+            </div>
+
+            {{-- Its own row, below the account number and not beside it, so
+                 the empty state reads as "nothing to do here" rather than as
+                 a third of a form somebody forgot to fill in. --}}
+            <div>
+                <label class="text-xs font-semibold text-gray-600">Bank Account Name</label>
+                <input type="text" maxlength="120" wire:model="f_bank_account_name"
+                       class="mt-1 w-full text-sm rounded-lg border-gray-300 uppercase"
+                       placeholder="Leave blank if the account is in {{ $f_name !== '' ? $f_name : 'the employee’s' }} own name" />
+                <p class="mt-1 text-[11px] text-gray-500">
+                    Only if the salary goes into someone else's account — a spouse's or a parent's.
+                    The bank matches this name against the account number and rejects the transfer
+                    if they disagree, so the employee's own name here would fail the payment.
+                </p>
+                <x-input-error :messages="$errors->get('f_bank_account_name')" class="mt-1" />
+            </div>
+        </div>
         </div>
 
         {{-- ── Employment ──────────────────────────────────────────────── --}}
@@ -489,93 +568,105 @@
                     roster's rest duration for each shift. Enter 0 for no break allowance at all.
                 </p>
             </div>
-
-            <div class="sm:w-1/2 sm:pr-1.5">
-                <label class="text-xs font-semibold text-gray-600">Clock in on own phone</label>
-                <select wire:model="f_allow_byod" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                    <option value="">Follow the outlet</option>
-                    <option value="yes">Always allowed</option>
-                    <option value="no">Never — kiosk only</option>
-                </select>
-                <x-input-error :messages="$errors->get('f_allow_byod')" class="mt-1" />
-                {{-- The exception, and what it is for. Left on "follow the
-                     outlet", moving that outlet onto its kiosk moves this
-                     person with it; set explicitly, it does not. --}}
-                <p class="mt-1 text-[11px] text-gray-500">
-                    At an outlet set to kiosk only, a punch from somebody's own phone is still
-                    recorded but is flagged for review. Set this to "always allowed" for the people
-                    who genuinely need a phone — area managers, drivers, offsite crews.
-                </p>
-            </div>
-
-            {{-- Sits next to the BYOD exception because the two go together in
-                 practice: the people who need their own phone are usually the
-                 same people who are nowhere near the outlet when they use it.
-                 They are still separate switches — one is about the DEVICE,
-                 the other about the PLACE — and somebody can need either
-                 without the other. --}}
-            <div class="sm:w-1/2 sm:pr-1.5">
-                <label class="text-xs font-semibold text-gray-600">Clock in from anywhere</label>
-                <label class="mt-1 flex items-start gap-2 rounded-lg border border-gray-300 px-3 py-2">
-                    <input type="checkbox" wire:model="f_allow_anywhere"
-                           class="mt-0.5 rounded border-gray-300 text-brand-600">
-                    <span class="text-sm text-gray-800">Ignore the outlet's geofence</span>
-                </label>
-                <x-input-error :messages="$errors->get('f_allow_anywhere')" class="mt-1" />
-                {{-- Says plainly what is kept as well as what is dropped, so
-                     nobody reads this as "stops recording where they are". --}}
-                <p class="mt-1 text-[11px] text-gray-500">
-                    For staff whose work is not at the outlet — area managers touring branches,
-                    drivers, offsite crews. Their punches are neither refused nor flagged for being
-                    away, and they are not asked to type a reason every time.
-                    Where they clocked in is still recorded and still visible on the punch.
-                </p>
-            </div>
-
-            <div class="sm:w-1/2 sm:pr-1.5">
-                <label class="text-xs font-semibold text-gray-600">Overtime settled as</label>
-                <label class="mt-1 flex items-start gap-2 rounded-lg border border-gray-300 px-3 py-2">
-                    <input type="checkbox" wire:model="f_overtime_as_time_off"
-                           class="mt-0.5 rounded border-gray-300 text-brand-600">
-                    <span class="text-sm text-gray-800">Time off, not payroll</span>
-                </label>
-                <x-input-error :messages="$errors->get('f_overtime_as_time_off')" class="mt-1" />
-                {{-- A default, not a lock — said plainly, because "all their OT
-                     is time off" and "OT defaults to time off" behave the same
-                     right up until an approver presses the other button. --}}
-                <p class="mt-1 text-[11px] text-gray-500">
-                    Approved overtime for this person goes to their time-off balance instead of
-                    their payslip. It is the default the approval screen and bulk approve both use;
-                    an approver can still settle a single claim to payroll. Claims already approved
-                    keep whichever way they were approved.
-                </p>
-            </div>
-
-            <div class="sm:w-1/2 sm:pr-1.5">
-                <label class="text-xs font-semibold text-gray-600">Service charge paid from</label>
-                <select wire:model="f_service_charge_outlet_id"
-                        class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                    <option value="">Their own outlet</option>
-                    @foreach ($outlets as $o)
-                        <option value="{{ $o->id }}">{{ $o->name }}</option>
-                    @endforeach
-                </select>
-                <x-input-error :messages="$errors->get('f_service_charge_outlet_id')" class="mt-1" />
-                {{-- The consequence is stated because it is not obvious and it
-                     is other people's money: this does not top somebody up
-                     from elsewhere, it MOVES them, so both pools re-price. --}}
-                <p class="mt-1 text-[11px] text-gray-500">
-                    Pays this person from another outlet's service charge pool — for someone posted
-                    to one branch but earning alongside another. They join that pool and leave their
-                    own, so RM per point changes for <strong>both</strong> outlets.
-                    Attendance, roster and clock-in are unaffected.
-                </p>
-            </div>
         </div>
 
         {{-- ── Compensation ────────────────────────────────────────────── --}}
         @if ($canViewPay)
             <div x-show="tab === 'pay'" x-cloak class="card p-5 space-y-3">
+                {{-- ── Clock-in and settlement ─────────────────────────────
+                     Kept behind the same door as pay because each of these
+                     four decides what somebody is PAID or where it comes
+                     from: two of them waive a control on the punch that
+                     becomes their hours, one sends approved overtime to a
+                     balance instead of a payslip, and the last moves a person
+                     between service charge pools.
+                --}}
+                <div class="flex flex-wrap -mx-1.5">
+                    <div class="sm:w-1/2 sm:pr-1.5">
+                    <label class="text-xs font-semibold text-gray-600">Clock in on own phone</label>
+                    <select wire:model="f_allow_byod" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">Follow the outlet</option>
+                        <option value="yes">Always allowed</option>
+                        <option value="no">Never — kiosk only</option>
+                    </select>
+                    <x-input-error :messages="$errors->get('f_allow_byod')" class="mt-1" />
+                    {{-- The exception, and what it is for. Left on "follow the
+                         outlet", moving that outlet onto its kiosk moves this
+                         person with it; set explicitly, it does not. --}}
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        At an outlet set to kiosk only, a punch from somebody's own phone is still
+                        recorded but is flagged for review. Set this to "always allowed" for the people
+                        who genuinely need a phone — area managers, drivers, offsite crews.
+                    </p>
+                </div>
+
+                {{-- Sits next to the BYOD exception because the two go together in
+                     practice: the people who need their own phone are usually the
+                     same people who are nowhere near the outlet when they use it.
+                     They are still separate switches — one is about the DEVICE,
+                     the other about the PLACE — and somebody can need either
+                     without the other. --}}
+                <div class="sm:w-1/2 sm:pr-1.5">
+                    <label class="text-xs font-semibold text-gray-600">Clock in from anywhere</label>
+                    <label class="mt-1 flex items-start gap-2 rounded-lg border border-gray-300 px-3 py-2">
+                        <input type="checkbox" wire:model="f_allow_anywhere"
+                               class="mt-0.5 rounded border-gray-300 text-brand-600">
+                        <span class="text-sm text-gray-800">Ignore the outlet's geofence</span>
+                    </label>
+                    <x-input-error :messages="$errors->get('f_allow_anywhere')" class="mt-1" />
+                    {{-- Says plainly what is kept as well as what is dropped, so
+                         nobody reads this as "stops recording where they are". --}}
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        For staff whose work is not at the outlet — area managers touring branches,
+                        drivers, offsite crews. Their punches are neither refused nor flagged for being
+                        away, and they are not asked to type a reason every time.
+                        Where they clocked in is still recorded and still visible on the punch.
+                    </p>
+                </div>
+
+                <div class="sm:w-1/2 sm:pr-1.5">
+                    <label class="text-xs font-semibold text-gray-600">Overtime settled as</label>
+                    <label class="mt-1 flex items-start gap-2 rounded-lg border border-gray-300 px-3 py-2">
+                        <input type="checkbox" wire:model="f_overtime_as_time_off"
+                               class="mt-0.5 rounded border-gray-300 text-brand-600">
+                        <span class="text-sm text-gray-800">Time off, not payroll</span>
+                    </label>
+                    <x-input-error :messages="$errors->get('f_overtime_as_time_off')" class="mt-1" />
+                    {{-- A default, not a lock — said plainly, because "all their OT
+                         is time off" and "OT defaults to time off" behave the same
+                         right up until an approver presses the other button. --}}
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        Approved overtime for this person goes to their time-off balance instead of
+                        their payslip. It is the default the approval screen and bulk approve both use;
+                        an approver can still settle a single claim to payroll. Claims already approved
+                        keep whichever way they were approved.
+                    </p>
+                </div>
+
+                <div class="sm:w-1/2 sm:pr-1.5">
+                    <label class="text-xs font-semibold text-gray-600">Service charge paid from</label>
+                    <select wire:model="f_service_charge_outlet_id"
+                            class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">Their own outlet</option>
+                        @foreach ($outlets as $o)
+                            <option value="{{ $o->id }}">{{ $o->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('f_service_charge_outlet_id')" class="mt-1" />
+                    {{-- The consequence is stated because it is not obvious and it
+                         is other people's money: this does not top somebody up
+                         from elsewhere, it MOVES them, so both pools re-price. --}}
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        Pays this person from another outlet's service charge pool — for someone posted
+                        to one branch but earning alongside another. They join that pool and leave their
+                        own, so RM per point changes for <strong>both</strong> outlets.
+                        Attendance, roster and clock-in are unaffected.
+                    </p>
+                </div>
+                </div>
+
+                <div class="pt-3 border-t border-gray-100"></div>
+
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <h3 class="text-sm font-semibold text-gray-700">Compensation</h3>
@@ -610,60 +701,6 @@
                                class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
                         <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
                     </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Bank</label>
-                        {{-- Shown uppercase, stored verbatim.
-
-                             The seeded IBG list has the casing of the published
-                             document, which is ragged — "Affin Bank" sits three
-                             rows above "AFFIN ISLAMIC BANK BHD" — and in a
-                             dropdown that reads as a list somebody half
-                             finished editing. The VALUE stays exactly as the
-                             banks table holds it, because it is matched against
-                             that table on save and against existing employee
-                             records on load; uppercasing the value would
-                             silently orphan every bank already on file. --}}
-                        <select wire:model.live="f_bank_name" class="mt-1 w-full text-sm rounded-lg border-gray-300 uppercase">
-                            <option value="" class="normal-case">— Select bank —</option>
-                            @foreach ($banks as $bank)
-                                <option value="{{ $bank->name }}">{{ Str::upper($bank->name) }}</option>
-                            @endforeach
-                        </select>
-                        @php $pickedBank = $banks->firstWhere('name', $f_bank_name); @endphp
-                        @if ($pickedBank?->bic)
-                            <p class="mt-1 text-[11px] text-gray-500 font-mono">{{ $pickedBank->bic }}</p>
-                        @endif
-                        @can('hr.compensation')
-                            <p class="mt-1 text-[11px] text-gray-500">
-                                Missing one? <a href="{{ route('settings.banks') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage banks</a>
-                            </p>
-                        @endcan
-                        <x-input-error :messages="$errors->get('f_bank_name')" class="mt-1" />
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Bank Account No.</label>
-                        <input type="text" maxlength="40" wire:model="f_bank_account_no"
-                               class="mt-1 w-full text-sm rounded-lg border-gray-300 font-mono" />
-                        <p class="mt-1 text-[11px] text-gray-500">Needed for the salary payment file.</p>
-                        <x-input-error :messages="$errors->get('f_bank_account_no')" class="mt-1" />
-                    </div>
-                </div>
-
-                {{-- Its own row, below the account number and not beside it, so
-                     the empty state reads as "nothing to do here" rather than
-                     as a third of a form somebody forgot to fill in. --}}
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">Bank Account Name</label>
-                    <input type="text" maxlength="120" wire:model="f_bank_account_name"
-                           class="mt-1 w-full text-sm rounded-lg border-gray-300 uppercase"
-                           placeholder="Leave blank if the account is in {{ $f_name !== '' ? $f_name : 'the employee’s' }} own name" />
-                    <p class="mt-1 text-[11px] text-gray-500">
-                        Only if the salary goes into someone else's account — a spouse's or a parent's.
-                        The bank matches this name against the account number and rejects the transfer
-                        if they disagree, so the employee's own name here would fail the payment.
-                    </p>
-                    <x-input-error :messages="$errors->get('f_bank_account_name')" class="mt-1" />
-                </div>
 
                 {{-- Allowances and salary revisions are DATED and go through an
                      approval, so they stay on their own screen rather than
