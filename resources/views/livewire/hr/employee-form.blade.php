@@ -64,7 +64,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-start gap-3">
             @canDo('hr.view')
-            <a data-back href="{{ route('hr.employees', $returnOutlet !== '' ? ['outlet' => $returnOutlet] : []) }}" title="Back to Employees"
+            <a data-back href="{{ route('hr.employees', $this->returnParams()) }}" title="Back to Employees"
                class="mt-0.5 p-1.5 rounded-control text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -94,7 +94,7 @@
                 </a>
             @endif
             @canDo('hr.view')
-            <a href="{{ route('hr.employees', $returnOutlet !== '' ? ['outlet' => $returnOutlet] : []) }}" class="btn-secondary">Cancel</a>
+            <a href="{{ route('hr.employees', $this->returnParams()) }}" class="btn-secondary">Cancel</a>
             @endcanDo
             <button type="submit" form="employee-form" class="btn-primary">Save</button>
         </div>
@@ -1134,7 +1134,7 @@
 
         <div class="flex items-center justify-end gap-2">
             @canDo('hr.view')
-            <a href="{{ route('hr.employees', $returnOutlet !== '' ? ['outlet' => $returnOutlet] : []) }}" class="btn-secondary">Cancel</a>
+            <a href="{{ route('hr.employees', $this->returnParams()) }}" class="btn-secondary">Cancel</a>
             @endcanDo
             <button type="submit" class="btn-primary">Save</button>
         </div>

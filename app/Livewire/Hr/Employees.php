@@ -37,11 +37,40 @@ class Employees extends Component
      *         than to your own outlet. 'all' is a real answer here — somebody
      *         who deliberately widened the list should not be narrowed again
      *         on their way back — which is why it is a string and not an id.
+     * @param  ?string  $section     the section filter, same round trip.
+     * @param  ?string  $employment  the employment filter, same round trip.
+     * @param  ?string  $status      active / inactive / '' (all).
+     *
+     * ALL FOUR DROPDOWNS COME BACK, not just the outlet. Someone working
+     * through the outsourced staff, or through the resigned ones, was being
+     * returned to a list showing everybody after each save — the record they
+     * had just edited was still there, so it read as the filter having been
+     * ignored rather than dropped. The search box is deliberately NOT carried:
+     * it is something you type to find one person, not a place in the list.
      */
-    public function mount(?string $outlet = null): void
-    {
+    public function mount(
+        ?string $outlet = null,
+        ?string $section = null,
+        ?string $employment = null,
+        ?string $status = null,
+    ): void {
         if ($outlet !== null) {
             $this->outletFilter = $outlet === 'all' ? '' : $outlet;
+        }
+
+        // 'all' is spelled out for the same reason as the outlet: an empty
+        // string in a URL is indistinguishable from the parameter being absent,
+        // and those two mean opposite things here.
+        if ($section !== null) {
+            $this->sectionFilter = $section === 'all' ? '' : $section;
+        }
+
+        if ($employment !== null) {
+            $this->employmentStatusFilter = $employment === 'all' ? '' : $employment;
+        }
+
+        if ($status !== null) {
+            $this->statusFilter = $status === 'all' ? '' : $status;
         }
 
         // Default the outlet filter to the user's active outlet so screens feel
@@ -104,6 +133,33 @@ class Employees extends Component
     public function updatingSectionFilter(): void  { $this->resetPage(); }
     public function updatingStatusFilter(): void   { $this->resetPage(); }
     public function updatingEmploymentStatusFilter(): void { $this->resetPage(); }
+
+    /**
+     * Asking for the resigned staff widens the Active/Inactive filter.
+     *
+     * A resignation whose date has passed sets the employee INACTIVE — that is
+     * what `hr:apply-resignations` does every night — so "Resigned" and the
+     * default "Active" are very nearly contradictory: the only people in both
+     * are those who have handed in notice but not yet left. Somebody choosing
+     * Resigned to see who has left was shown an almost empty list and had to
+     * discover for themselves that a second dropdown also had to be moved.
+     *
+     * It widens to All rather than switching to Inactive, because both halves
+     * are wanted: the people who have gone and the ones still working out
+     * their notice.
+     *
+     * Only from the DEFAULT. Somebody who has deliberately picked Active or
+     * Inactive is answering a narrower question, and moving their control out
+     * from under them would be the more annoying bug. The change is made to
+     * the dropdown itself rather than quietly inside the query, so the list
+     * always matches what the controls say.
+     */
+    public function updatedEmploymentStatusFilter(string $value): void
+    {
+        if ($value === 'resigned' && $this->statusFilter === 'active') {
+            $this->statusFilter = '';
+        }
+    }
 
     /**
      * Persist a drag-and-drop row order. Order lives in employees.sort_order,

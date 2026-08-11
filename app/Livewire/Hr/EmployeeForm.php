@@ -201,19 +201,35 @@ class EmployeeForm extends Component
     public bool   $f_is_active      = true;
 
     /**
-     * Which outlet the list was showing when this form was opened.
+     * WHICH LIST THIS FORM WAS OPENED FROM — all four of its dropdowns.
      *
-     * Carried through so that saving returns to that list rather than to the
-     * editor's own outlet — someone working through one branch's staff was
-     * being sent back to their own after every save, and had to re-pick the
-     * branch each time. 'all' is a value, not an absence: it means the list
-     * was deliberately widened.
+     * Carried through so that saving returns to that list rather than to a
+     * default one. It began as the outlet alone, because someone working
+     * through one branch's staff was being sent back to their own after every
+     * save; the section, employment and active filters were dropped in exactly
+     * the same way and for the same reason, which was worse to spot — the
+     * record just edited was still in the list, so it read as the filter
+     * having been ignored rather than lost.
+     *
+     * 'all' is a value, not an absence: it means the list was deliberately
+     * widened, and an empty string in a URL cannot say that.
      */
-    public string $returnOutlet = '';
+    public string $returnOutlet     = '';
+    public string $returnSection    = '';
+    public string $returnEmployment = '';
+    public string $returnStatus     = '';
 
-    public function mount(?int $id = null, ?string $outlet = null): void
-    {
-        $this->returnOutlet = $outlet ?? '';
+    public function mount(
+        ?int $id = null,
+        ?string $outlet = null,
+        ?string $section = null,
+        ?string $employment = null,
+        ?string $status = null,
+    ): void {
+        $this->returnOutlet     = $outlet ?? '';
+        $this->returnSection    = $section ?? '';
+        $this->returnEmployment = $employment ?? '';
+        $this->returnStatus     = $status ?? '';
 
         $this->f_phone_code = $this->defaultPhoneCode();
 
@@ -862,14 +878,42 @@ class EmployeeForm extends Component
         $this->redirectRoute('hr.employees', $this->returnOutletParams($emp));
     }
 
-    /** @return array<string, string> */
+    /**
+     * The list to go back to, as query parameters.
+     *
+     * Only the filters that were actually passed in are returned, so a form
+     * reached directly — from a bookmark or a link in an email — still falls
+     * back to the employee's OWN outlet rather than inventing a filter nobody
+     * chose. Landing anywhere else looks like the save did not happen.
+     *
+     * @return array<string, string>
+     */
     private function returnOutletParams(?Employee $employee = null): array
     {
-        if ($this->returnOutlet !== '') {
-            return ['outlet' => $this->returnOutlet];
+        $params = array_filter([
+            'outlet'     => $this->returnOutlet,
+            'section'    => $this->returnSection,
+            'employment' => $this->returnEmployment,
+            'status'     => $this->returnStatus,
+        ], fn ($v) => $v !== '');
+
+        if ($params !== []) {
+            return $params;
         }
 
         return $employee?->outlet_id ? ['outlet' => (string) $employee->outlet_id] : [];
+    }
+
+    /**
+     * The same list, for the Back and Cancel links in the view. Exposed as a
+     * method so those cannot drift from where Save goes — leaving by the two
+     * routes must land in the same place.
+     *
+     * @return array<string, string>
+     */
+    public function returnParams(): array
+    {
+        return $this->returnOutletParams();
     }
 
     /**

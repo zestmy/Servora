@@ -1,9 +1,16 @@
 <div>
 @php
     // Carried into the employee form and handed straight back on save, so
-    // working through one branch's staff does not bounce you to your own after
-    // every record. 'all' is a value: it means the list was widened on purpose.
-    $returnOutlet = $outletFilter !== '' ? $outletFilter : 'all';
+    // working through one branch's staff — or through the outsourced or
+    // resigned ones — does not bounce you to an unfiltered list after every
+    // record. 'all' is a value throughout: it means the list was widened on
+    // purpose, and an empty string in a URL cannot say that.
+    $returnFilters = [
+        'outlet'     => $outletFilter !== '' ? $outletFilter : 'all',
+        'section'    => $sectionFilter !== '' ? $sectionFilter : 'all',
+        'employment' => $employmentStatusFilter !== '' ? $employmentStatusFilter : 'all',
+        'status'     => $statusFilter !== '' ? $statusFilter : 'all',
+    ];
 @endphp
 
     @once
@@ -67,7 +74,7 @@
                 <span class="hidden sm:inline">Import CSV</span>
             </button>
             @canDo('hr.employees.manage')
-            <a href="{{ route('hr.employees.create', ['outlet' => $returnOutlet]) }}" class="btn-primary">
+            <a href="{{ route('hr.employees.create', $returnFilters) }}" class="btn-primary">
                 <span class="sm:hidden">+ Add</span>
                 <span class="hidden sm:inline">+ Add Employee</span>
             </a>
@@ -131,7 +138,7 @@
                 </p>
                 <div class="flex flex-wrap gap-1.5">
                     @foreach ($foodHandlerStats['missing'] as $fhEmp)
-                        <a href="{{ route('hr.employees.edit', ['id' => $fhEmp->id, 'outlet' => $returnOutlet]) }}"
+                        <a href="{{ route('hr.employees.edit', ['id' => $fhEmp->id] + $returnFilters) }}"
                            wire:key="fh-{{ $fhEmp->id }}"
                            title="{{ collect([$fhEmp->outlet?->name, $fhEmp->section?->name])->filter()->join(' · ') ?: 'Open employee' }}"
                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
@@ -234,7 +241,7 @@
                             @endphp
                             <div wire:key="comp-{{ $row['employee_id'] }}-{{ $row['document_key'] }}"
                                  class="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50">
-                                <a href="{{ route('hr.employees.edit', ['id' => $row['employee_id'], 'outlet' => $returnOutlet]) }}"
+                                <a href="{{ route('hr.employees.edit', ['id' => $row['employee_id']] + $returnFilters) }}"
                                    class="text-sm font-medium text-gray-800 hover:text-brand-600 hover:underline">
                                     {{ $row['name'] }}
                                 </a>
@@ -366,7 +373,7 @@
                             <span class="align-middle">{{ $employees->firstItem() + $loop->index }}</span>
                         </td>
                         <td class="px-4 py-3">
-                            <a href="{{ route('hr.employees.edit', ['id' => $emp->id, 'outlet' => $returnOutlet]) }}" title="Edit employee"
+                            <a href="{{ route('hr.employees.edit', ['id' => $emp->id] + $returnFilters) }}" title="Edit employee"
                                class="font-medium text-gray-800 text-left hover:text-brand-600 hover:underline">
                                 {{ $emp->name }}
                             </a>
@@ -449,7 +456,7 @@
                         </td>
                         <td class="px-4 py-3 sticky right-0 z-10 bg-white group-hover:bg-gray-50 border-l border-gray-100">
                             <div class="flex items-center justify-center gap-1">
-                                <a href="{{ route('hr.employees.edit', ['id' => $emp->id, 'outlet' => $returnOutlet]) }}"
+                                <a href="{{ route('hr.employees.edit', ['id' => $emp->id] + $returnFilters) }}"
                                    title="Edit"
                                    class="px-2 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100">
                                     Edit
