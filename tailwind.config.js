@@ -111,6 +111,34 @@ export default {
                     1: '#22a19d',
                     2: '#7c3aed',
                 },
+
+                /**
+                 * Workspace identity.
+                 *
+                 * Central Kitchen is a different place to stand than an outlet
+                 * — different stock, different orders, different screens — and
+                 * the sidebar is the only thing on screen that says which one
+                 * you are in. That signal is worth a colour.
+                 *
+                 * It was `purple-600` written straight into the kitchen
+                 * layout's markup, off the palette entirely, with the light
+                 * nav theme carrying its own hand-mixed remaps for
+                 * purple-900/40, purple-300 and purple-200. A scale, so the
+                 * accent can be picked per surface instead of per guess.
+                 *
+                 * 600 is the fill: white on it is 5.70:1, up from purple-600's
+                 * 5.38:1. 300 is the on-dark text step at 9.61:1 on gray-900,
+                 * and 700 is the on-light one at 7.10:1 on white.
+                 *
+                 * Deliberately NOT a status hue and NOT the brand teal: this
+                 * says WHERE you are, which is a third kind of meaning from
+                 * "what state is this in" and "whose product is this".
+                 */
+                workspace: {
+                    50:  '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd',
+                    400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9',
+                    800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065',
+                },
             },
 
             fontFamily: {

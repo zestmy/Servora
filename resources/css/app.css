@@ -354,6 +354,180 @@
        target and there is nothing small to aim at. */
     .list-row { @apply flex min-h-[3.5rem] w-full items-center gap-3 px-4 py-3 text-left
                        transition-colors active:bg-brand-50; }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────────
+       The navigation panel, in two themes and two workspaces.
+
+       It used to be authored dark in the markup — bg-gray-900, text-gray-300,
+       hover:bg-gray-700 written into every link — with a light "theme"
+       supplied by partials/nav-theme.blade.php: twenty-two !important rules
+       that remapped each dark utility class to a light hex.
+
+       Three things were wrong with that, and all three are structural rather
+       than cosmetic:
+
+       1. It was a global find-and-replace on grey BY CLASS NAME, which is
+          exactly what this project's own notes say never to do — the right
+          step for a grey depends entirely on the surface under it. The sheet
+          mapped .text-gray-500 to #9ca3af, which is 6.99:1 where it started
+          (on gray-900) and 2.54:1 where it landed (on white). Kitchen group
+          headers and the HR section captions failed AA in light mode because
+          of that one line, and the kitchen headers failed in dark too, at
+          3.67:1 for 10px uppercase text.
+
+       2. It only covered the classes somebody remembered to list. Any new
+          nav markup reaching for an unlisted grey silently stayed dark.
+
+       3. It hardcoded brand hex (#0b7677, #eefbf9, #0d5f61), which the
+          alias in tailwind.config.js cannot reach.
+
+       Tokens instead. The markup names a role — surface, muted text, active
+       fill — and each theme supplies the value, so a colour is decided once
+       per theme rather than once per utility class, and both themes are
+       checked at the point where the value is set.
+
+       Contrast, all measured against the surface each actually sits on:
+
+         dark   item        gray-300 on gray-900   12.04:1
+                muted       gray-400 on gray-900    6.99:1
+                caption     gray-400 on gray-900    6.99:1  (was gray-500, 3.67:1 ✗)
+                active fill white on brand-600      5.42:1
+                            white on workspace-600  5.70:1
+         light  item        gray-700 on white      10.31:1
+                muted       gray-600 on white       7.56:1
+                caption     gray-600 on white       7.56:1  (was #9ca3af, 2.54:1 ✗)
+                active fill white on brand-600      5.42:1
+                            white on workspace-600  5.70:1 */
+    .app-nav {
+        --nav-surface:      theme('colors.gray.900');
+        --nav-header:       theme('colors.gray.800');
+        --nav-fg:           #ffffff;
+        --nav-fg-item:      theme('colors.gray.300');
+        --nav-fg-muted:     theme('colors.gray.400');
+        --nav-fg-caption:   theme('colors.gray.400');
+        --nav-hover-bg:     theme('colors.gray.700');
+        --nav-hover-fg:     #ffffff;
+        --nav-border:       theme('colors.gray.700');
+        --nav-accent:       theme('colors.brand.600');
+        --nav-accent-fg:    #ffffff;
+        --nav-accent-soft:  theme('colors.brand.500');
+        --nav-scrollbar:    theme('colors.gray.700');
+
+        background-color: var(--nav-surface);
+        color: var(--nav-fg);
+    }
+
+    /* The workspace you are standing in. Central Kitchen is a different place
+       — different stock, different orders — and the sidebar is the only thing
+       on screen that says which one, so the accent carries it. */
+    .app-nav[data-workspace='kitchen'] {
+        --nav-accent:      theme('colors.workspace.600');
+        --nav-accent-soft: theme('colors.workspace.400');
+    }
+
+    /* Light. Only the tokens change; not one component rule below is
+       duplicated, which is the whole point of the exercise. */
+    .app-nav[data-nav-theme='light'] {
+        --nav-surface:      #ffffff;
+        --nav-header:       #ffffff;
+        --nav-fg:           theme('colors.gray.900');
+        --nav-fg-item:      theme('colors.gray.700');
+        --nav-fg-muted:     theme('colors.gray.600');
+        --nav-fg-caption:   theme('colors.gray.600');
+        --nav-hover-bg:     theme('colors.gray.100');
+        --nav-hover-fg:     theme('colors.gray.900');
+        --nav-border:       theme('colors.gray.200');
+        --nav-accent-soft:  theme('colors.brand.700');
+        --nav-scrollbar:    theme('colors.gray.300');
+    }
+    .app-nav[data-nav-theme='light'][data-workspace='kitchen'] {
+        --nav-accent-soft: theme('colors.workspace.700');
+    }
+
+    /* The logo strip. Stays a shade off the panel in dark so the two-tone
+       header reads, and flush white in light where a second grey would just
+       look like a seam. */
+    .nav-header { background-color: var(--nav-header); border-color: var(--nav-border); }
+
+    .nav-section {
+        @apply flex w-full items-center justify-between gap-2 rounded-control px-3 py-1.5
+               text-[10px] font-semibold uppercase tracking-widest transition-colors;
+        color: var(--nav-fg-muted);
+    }
+    .nav-section:hover { color: var(--nav-hover-fg); background-color: var(--nav-hover-bg); }
+
+    /* The sub-heading inside a group (HR's People / Pay / Scheduling). Not a
+       control, so it gets no hover and no target. */
+    .nav-caption {
+        @apply px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest;
+        color: var(--nav-fg-caption);
+    }
+
+    .nav-item {
+        @apply flex items-center gap-3 rounded-control px-3 py-2 text-sm font-medium
+               transition-colors;
+        color: var(--nav-fg-item);
+    }
+    .nav-item:hover { background-color: var(--nav-hover-bg); color: var(--nav-hover-fg); }
+    .nav-item-on,
+    .nav-item-on:hover {
+        background-color: var(--nav-accent);
+        color: var(--nav-accent-fg);
+    }
+
+    /* Child links sit under a group header, indented and a step quieter. */
+    .nav-sub {
+        @apply ml-1 block rounded-control px-3 py-1.5 text-sm font-medium transition-colors;
+        color: var(--nav-fg-item);
+    }
+    .nav-sub:hover { background-color: var(--nav-hover-bg); color: var(--nav-hover-fg); }
+    .nav-sub-on,
+    .nav-sub-on:hover {
+        background-color: var(--nav-accent);
+        color: var(--nav-accent-fg);
+    }
+
+    /* Collapsed rail. 44px targets, because the rail is the only way to
+       navigate at that width and a 32px icon is not a target. */
+    .nav-rail-btn {
+        @apply flex h-11 w-11 items-center justify-center rounded-control transition-colors;
+        color: var(--nav-fg-muted);
+    }
+    .nav-rail-btn:hover { background-color: var(--nav-hover-bg); color: var(--nav-hover-fg); }
+    .nav-rail-btn-on {
+        background-color: var(--nav-accent);
+        color: var(--nav-accent-fg);
+    }
+
+    .nav-icon-btn {
+        @apply flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-control transition-colors;
+        color: var(--nav-fg-muted);
+    }
+    .nav-icon-btn:hover { background-color: var(--nav-hover-bg); color: var(--nav-hover-fg); }
+
+    .nav-divider { border-color: var(--nav-border); }
+    .nav-muted   { color: var(--nav-fg-muted); }
+    .nav-strong  { color: var(--nav-fg); }
+
+    /* A long nav scrolls; the default scrollbar on a dark panel is a bright
+       white channel down the edge. */
+    .nav-scroll { scrollbar-width: thin; scrollbar-color: var(--nav-scrollbar) transparent; }
+    .nav-scroll::-webkit-scrollbar { width: 8px; }
+    .nav-scroll::-webkit-scrollbar-track { background: transparent; }
+    .nav-scroll::-webkit-scrollbar-thumb {
+        background-color: var(--nav-scrollbar);
+        border-radius: 9999px;
+    }
+
+    /* Keyboard-only escape hatch to the content. There was none: a keyboard
+       user tabbed through every link in an eight-group sidebar before
+       reaching the page. */
+    .skip-link {
+        @apply sr-only rounded-control bg-brand-600 px-4 py-2 text-sm font-semibold text-white;
+    }
+    .skip-link:focus {
+        @apply not-sr-only fixed left-4 top-4 z-toast;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

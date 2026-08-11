@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Helpers\PermissionRegistry;
+use App\Support\Navigation\NavMenu;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -160,24 +161,80 @@ class NavPermissionDriftTest extends TestCase
         return $drift;
     }
 
+    /**
+     * Read a menu straight out of NavMenu.
+     *
+     * Both sidebars used to be array literals inside their Blade layout, so
+     * this test regex-parsed the source — see itemsIn() above, which is still
+     * how the reports hub and the settings tiles are read. The menus are a
+     * class now, so the structure is read rather than recovered, and a key the
+     * regex could not have seen (a nested anyPermission, a trailing comment) no
+     * longer changes what the test believes.
+     *
+     * @return array<int, array{route: string, gate: ?string, any: array<int, string>}>
+     */
+    private function itemsInMenu(array $groups): array
+    {
+        $items = [];
+
+        foreach ($groups as $group) {
+            foreach ($group['items'] as $item) {
+                if (empty($item['route'])) {
+                    continue;
+                }
+
+                $items[] = [
+                    'route' => $item['route'],
+                    'gate'  => $item['permission'] ?? $item['capability'] ?? null,
+                    'any'   => $item['anyPermission'] ?? [],
+                ];
+            }
+        }
+
+        return $items;
+    }
+
     public function test_the_outlet_sidebar_never_offers_a_link_that_403s(): void
     {
-        $drift = $this->driftIn(
-            'sidebar',
-            $this->itemsIn('resources/views/layouts/app.blade.php', '$navGroups = [', '$adminNavItems = [')
-        );
+        $drift = $this->driftIn('sidebar', $this->itemsInMenu(NavMenu::outlet()));
 
         $this->assertSame([], $drift, "Sidebar links that lead to a 403:\n" . implode("\n", $drift));
     }
 
     public function test_the_kitchen_sidebar_never_offers_a_link_that_403s(): void
     {
-        $drift = $this->driftIn(
-            'kitchen sidebar',
-            $this->itemsIn('resources/views/layouts/kitchen.blade.php', '$kitchenNav = [', '@endphp')
-        );
+        $drift = $this->driftIn('kitchen sidebar', $this->itemsInMenu(NavMenu::kitchen()));
 
         $this->assertSame([], $drift, "Kitchen links that lead to a 403:\n" . implode("\n", $drift));
+    }
+
+    /**
+     * Every route a menu names must exist.
+     *
+     * Not possible before: the regex recovered route names as strings from
+     * Blade source, and a typo'd one simply produced an item the drift check
+     * skipped. Now the menu is data, a bad route name is a hard failure here
+     * rather than a 500 on whichever page renders the sidebar.
+     */
+    public function test_every_menu_route_resolves(): void
+    {
+        $menus = [
+            'outlet'  => NavMenu::outlet(),
+            'kitchen' => NavMenu::kitchen(),
+            'admin'   => NavMenu::admin(),
+        ];
+
+        $missing = [];
+
+        foreach ($menus as $name => $groups) {
+            foreach ($this->itemsInMenu($groups) as $item) {
+                if (! Route::has($item['route'])) {
+                    $missing[] = "{$name}: {$item['route']}";
+                }
+            }
+        }
+
+        $this->assertSame([], $missing, "Menu items naming a route that does not exist:\n" . implode("\n", $missing));
     }
 
     public function test_the_reports_hub_never_offers_a_report_that_403s(): void
@@ -213,25 +270,26 @@ class NavPermissionDriftTest extends TestCase
      */
     public function test_the_sidebar_resolves_permissions_through_the_gate(): void
     {
-        $blade = file_get_contents(base_path('resources/views/layouts/app.blade.php'));
-        $start = strpos($blade, '$canSee = function');
-        $filter = substr($blade, $start, strpos($blade, 'return true;', $start) - $start);
+        // One filter for both workspaces now. The kitchen sidebar used to carry
+        // its own inline check that understood only `permission` — so it could
+        // not have honoured a denial the outlet filter honoured.
+        $filter = file_get_contents(base_path('app/Support/Navigation/NavMenu.php'));
 
         $this->assertStringNotContainsString(
-            '$authUser->hasPermissionTo(',
+            '->hasPermissionTo(',
             $filter,
-            'The sidebar filter must use can(), which goes through the Gate, so denials apply and a retired ability cannot throw.'
+            'The nav filter must use can(), which goes through the Gate, so denials apply and a retired ability cannot throw.'
         );
 
-        // The coloured shortcuts above the nav are not items in any array, so
-        // the filter above never sees them — they get checked here instead.
-        $shortcuts = substr($blade, 0, $start);
-
-        $this->assertStringNotContainsString(
-            'Auth::user()->hasPermissionTo(',
-            $shortcuts,
-            'The sidebar shortcuts must use can() for the same reason as the filter.'
-        );
+        // The coloured shortcuts above the nav are not items in any menu, so
+        // the filter never sees them — they get checked here instead.
+        foreach (['layouts/app.blade.php', 'layouts/kitchen.blade.php'] as $layout) {
+            $this->assertStringNotContainsString(
+                'hasPermissionTo(',
+                file_get_contents(base_path('resources/views/' . $layout)),
+                "The {$layout} shortcuts must use can() for the same reason as the filter."
+            );
+        }
     }
 
     /**

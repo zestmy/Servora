@@ -48,11 +48,29 @@
         @keyframes page-enter { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
         .page-enter { animation: page-enter .25s ease-out both; }
     </style>
-    @include('partials.nav-theme')
+
+    {{-- The nav theme is read before first paint so the panel does not render
+         dark and then repaint light a frame later. Falls back to the OS
+         preference the first time somebody visits, rather than defaulting to
+         dark and making them find the toggle. --}}
+    <script>
+        (function () {
+            var stored = localStorage.getItem('nav_theme');
+            if (!stored) {
+                stored = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            }
+            window.__navTheme = stored;
+        })();
+    </script>
 </head>
 <body class="font-sans antialiased bg-gray-100">
 
 @include('partials.impersonation-banner')
+
+{{-- First tab stop on the page. Without it a keyboard user walked every link
+     in an eight-group sidebar before reaching the content, on every
+     navigation. --}}
+<a href="#main-content" class="skip-link">Skip to main content</a>
 
 <div x-data="{
         sidebarOpen: localStorage.getItem('sidebar') !== '0',
@@ -60,7 +78,7 @@
             this.sidebarOpen = !this.sidebarOpen;
             localStorage.setItem('sidebar', this.sidebarOpen ? '1' : '0');
         },
-        navTheme: localStorage.getItem('nav_theme') || 'dark',
+        navTheme: window.__navTheme || 'dark',
         toggleNavTheme() {
             this.navTheme = this.navTheme === 'dark' ? 'light' : 'dark';
             localStorage.setItem('nav_theme', this.navTheme);
@@ -95,412 +113,58 @@
          @click="mobileNavOpen = false"
          class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
 
-    {{-- ── Sidebar ──────────────────────────────────────────────────────── --}}
-    {{-- Mobile: off-canvas drawer (fixed, slides in). Desktop: in-flow, toggles w-64/w-16. --}}
-    <aside :class="{
-               '-translate-x-full md:translate-x-0': !mobileNavOpen,
-               'translate-x-0': mobileNavOpen,
-               'md:w-16': !sidebarOpen,
-               'md:w-64': sidebarOpen,
-           }"
-           @click="if ($event.target.closest && $event.target.closest('a')) mobileNavOpen = false"
-           :data-nav-theme="navTheme"
-           class="fixed inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-auto flex flex-col bg-gray-900 text-white flex-shrink-0 overflow-hidden transform transition-all duration-300 ease-in-out">
+    {{-- ── Sidebar ──────────────────────────────────────────────────────────
+         Was 440 lines of hand-rolled markup here, with the menu itself as an
+         array literal in the middle of it. Both moved: the structure to
+         <x-app-nav>, the menu to App\Support\Navigation\NavMenu, so the
+         kitchen layout renders the same component rather than its own
+         near-copy. --}}
+    @php
+        $navUser   = Auth::user();
+        $navGroups = $navUser->isSystemRole()
+            ? \App\Support\Navigation\NavMenu::visibleForSystemRole(\App\Support\Navigation\NavMenu::outlet())
+            : \App\Support\Navigation\NavMenu::visible(\App\Support\Navigation\NavMenu::outlet(), $navUser);
 
-        {{-- Logo + toggle --}}
-        <div class="flex items-center h-16 px-3 bg-gray-800 flex-shrink-0 gap-2">
-            <div x-show="sidebarExpanded"
-                 x-transition:enter="transition-opacity duration-200 delay-150"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-100"
-                 x-transition:leave="transition-opacity duration-75"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0"
-                 class="flex-1 overflow-hidden whitespace-nowrap">
-                <img src="/images/servora-logo-white.png" alt="Servora" class="h-11">
-            </div>
+        $navAdmin = $navUser->isSystemRole() ? \App\Support\Navigation\NavMenu::admin() : [];
+    @endphp
 
-            <button @click="toggleSidebar()"
-                    :class="sidebarOpen ? '' : 'mx-auto'"
-                    title="Toggle sidebar"
-                    class="hidden md:flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition">
-                <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
-                </svg>
-                <svg x-show="!sidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-            </button>
-        </div>
+    <x-app-nav workspace="outlet"
+               state-key="nav"
+               :groups="$navGroups"
+               :admin-groups="$navAdmin"
+               logo="/images/servora-logo-white.png"
+               logo-dark="/images/servora-logo-black.png">
 
         {{-- Top CTAs --}}
-        <div class="flex-shrink-0 space-y-1.5" :class="sidebarExpanded ? 'px-3 pt-3' : 'px-2 pt-3'">
-
+        <x-slot:top>
             {{-- Scan Invoices — Price Watcher entry point --}}
-            @if (Auth::user()->can('ingredients.import'))
+            @if ($navUser->can('ingredients.import'))
                 <a href="{{ route('ingredients.scan-document') }}"
-                   title="Scan a supplier invoice, quotation, or price list"
-                   class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
-                          {{ request()->routeIs('ingredients.scan-document') ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white hover:bg-emerald-400' }}"
-                   :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center p-2'">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a2 2 0 012-2h12a2 2 0 012 2v2M4 7h16M4 7l1 10a2 2 0 002 2h10a2 2 0 002-2l1-10M9 11h6" />
-                    </svg>
-                    <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Scan Invoices</span>
+                   class="flex items-center gap-2 rounded-control font-semibold shadow-btn transition
+                          {{ request()->routeIs('ingredients.scan-document') ? 'bg-success-700 text-white' : 'bg-success-600 text-white hover:bg-success-700' }}"
+                   :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center h-11'">
+                    <x-icon name="inbox" size="h-4 w-4" stroke="2" class="flex-shrink-0" />
+                    <span x-show="sidebarExpanded" class="whitespace-nowrap text-[11px] uppercase tracking-widest">Scan Invoices</span>
+                    <span x-show="!sidebarExpanded" class="sr-only">Scan invoices</span>
                 </a>
             @endif
 
-            {{-- Zeoniq Excel Import — Sales Zeoniq Excel import entry point --}}
-            @if (Auth::user()->can('sales.import'))
+            {{-- Zeoniq Excel Import --}}
+            @if ($navUser->can('sales.import'))
+                @php $zeoniqOn = request()->routeIs('sales.index') && request()->query('import') === 'zeoniq-excel'; @endphp
                 <a href="{{ route('sales.index') }}?import=zeoniq-excel"
-                   title="Import Zeoniq Excel"
-                   class="flex items-center gap-2 rounded-lg transition font-semibold shadow-sm
-                          {{ request()->routeIs('sales.index') && request()->query('import') === 'zeoniq-excel' ? 'bg-brand-700 text-white' : 'bg-brand-500 text-white hover:bg-brand-400' }}"
-                   :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center p-2'">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span x-show="sidebarExpanded" class="text-[11px] uppercase tracking-widest whitespace-nowrap">Zeoniq Excel</span>
+                   class="flex items-center gap-2 rounded-control font-semibold shadow-btn transition
+                          {{ $zeoniqOn ? 'bg-brand-700 text-white' : 'bg-brand-600 text-white hover:bg-brand-700' }}"
+                   :class="sidebarExpanded ? 'px-3 py-2 justify-center' : 'justify-center h-11'">
+                    <x-icon name="document" size="h-4 w-4" stroke="2" class="flex-shrink-0" />
+                    <span x-show="sidebarExpanded" class="whitespace-nowrap text-[11px] uppercase tracking-widest">Zeoniq Excel</span>
+                    <span x-show="!sidebarExpanded" class="sr-only">Import Zeoniq Excel</span>
                 </a>
             @endif
-
-        </div>
-
-        {{-- Navigation --}}
-        <nav class="flex-1 overflow-y-auto py-4 space-y-1" :class="sidebarExpanded ? 'px-3' : 'px-2'">
-            @php
-                $authUser = Auth::user();
-                $isSystemRole = $authUser->isSystemRole();
-
-                // Filter helper
-                $canSee = function($item) use ($authUser) {
-                    if (!empty($item['capability']) && !$authUser->canDo($item['capability'])) return false;
-                    // can(), not hasPermissionTo(): `can:` middleware on the route
-                    // goes through the Gate, so denials and the Super Admin bypass
-                    // apply. Spatie's own lookup skips both — a denied ability still
-                    // drew its link and 403'd on arrival — and throws on a permission
-                    // that has since been retired.
-                    if (($item['permission'] ?? null) !== null && !$authUser->can($item['permission'])) return false;
-                    // 'anyPermission': shown when the user holds ANY of them.
-                    // The per-module Settings links need this — a module's
-                    // settings are worth offering to whoever can open any one
-                    // of the screens inside them, not only to settings.view.
-                    if (!empty($item['anyPermission'])
-                        && !collect($item['anyPermission'])->contains(fn ($p) => $authUser->can($p))) return false;
-                    if (!empty($item['feature']) && $authUser->company) {
-                        if (!app(\App\Services\SubscriptionService::class)->canUseFeature($authUser->company, $item['feature'])) return false;
-                    }
-                    if (!empty($item['kitchenOnly']) && !$authUser->isKitchenUser()) return false;
-                    return true;
-                };
-
-                // Group header icons (heroicons outline paths)
-                $gicons = [
-                    'Procurement'           => '<path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>',
-                    'Inventory & Recipes'   => '<path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>',
-                    'Labels'                => '<path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.997 1.997 0 013 12V7a4 4 0 014-4z"/>',
-                    'Sales'                 => '<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>',
-                    'HR'                    => '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
-                    'Business Intelligence' => '<path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>',
-                    'Settings'              => '<path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>',
-                ];
-
-                // Grouped navigation
-                $navGroups = [
-                    [
-                        'label' => null, // No header for main
-                        'items' => [
-                            ['route' => 'dashboard', 'svg' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', 'label' => 'Dashboard', 'permission' => null],
-                        ],
-                    ],
-                    [
-                        'label' => 'Procurement',
-                        'items' => [
-                            ['route' => 'purchasing.index',          'label' => 'Orders & Requests', 'permission' => 'purchasing.view'],
-                            ['route' => 'settings.suppliers',       'label' => 'Suppliers',           'permission' => 'purchasing.suppliers.manage'],
-                            ['route' => 'settings.supplier-mapping', 'label' => 'Product Mapping',   'permission' => 'purchasing.suppliers.manage'],
-                            ['route' => 'settings.form-templates',  'label' => 'Form Templates',     'permission' => 'purchasing.suppliers.manage'],
-                            ['route' => 'settings.price-alerts',    'label' => 'Price Alerts',       'permission' => 'purchasing.suppliers.manage'],
-                            ['route' => 'settings.index', 'query' => 'module=procurement', 'label' => 'Procurement Settings',
-                             'anyPermission' => ['settings.po_approvers', 'settings.departments', 'settings.cpu']],
-                        ],
-                    ],
-                    [
-                        'label' => 'Inventory & Recipes',
-                        'items' => [
-                            ['route' => 'ingredients.index',          'label' => 'Market List',      'permission' => 'ingredients.view'],
-                            ['route' => 'settings.categories',        'label' => 'Product Categories', 'permission' => 'ingredients.manage'],
-                            ['route' => 'recipes.index',              'label' => 'Recipes',          'permission' => 'recipes.view'],
-                            ['route' => 'settings.recipe-categories', 'label' => 'Recipe Categories', 'permission' => 'recipes.manage'],
-                            ['route' => 'recipes.index',              'label' => 'Prep Items',       'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
-                            ['route' => 'settings.price-classes',     'label' => 'Price Classes',    'permission' => 'recipes.price'],
-                            ['route' => 'inventory.index',            'label' => 'Stocks Management',     'permission' => 'inventory.view'],
-                            ['route' => 'settings.par-levels',        'label' => 'Par Levels',       'permission' => 'inventory.view'],
-                            ['route' => 'ingredients.review-documents', 'label' => 'Review Documents', 'permission' => 'ingredients.import'],
-                            ['route' => 'settings.index', 'query' => 'module=kitchen-production', 'label' => 'Kitchen Settings',
-                             'anyPermission' => ['settings.kitchens']],
-                        ],
-                    ],
-                    [
-                        'label' => 'Labels',
-                        'items' => [
-                            ['route' => 'labels.print',      'label' => 'Print Labels',    'permission' => 'labels.print'],
-                            ['route' => 'labels.sets',       'label' => 'Print Sets',      'permission' => 'labels.print'],
-                            ['route' => 'labels.expiring',   'label' => 'Expiring',        'permission' => 'labels.print'],
-                            ['route' => 'labels.log',        'label' => 'Print Log',       'permission' => 'labels.view_log'],
-                            ['route' => 'labels.shelf-life', 'label' => 'Shelf Life',      'permission' => 'labels.manage'],
-                            ['route' => 'labels.templates',  'label' => 'Templates',       'permission' => 'labels.manage'],
-                            ['route' => 'labels.printers',   'label' => 'Label Printers',  'permission' => 'labels.manage'],
-                            ['route' => 'labels.settings',   'label' => 'Label Settings',  'permission' => 'labels.manage'],
-                        ],
-                    ],
-                    [
-                        'label' => 'Sales',
-                        'items' => [
-                            ['route' => 'sales.index',              'label' => 'Sales Records',  'permission' => 'sales.view'],
-                            ['route' => 'settings.sales-categories', 'label' => 'Sales Categories', 'permission' => 'sales.record'],
-                            ['route' => 'settings.sales-targets',   'label' => 'Sales Targets',  'permission' => 'sales.record'],
-                        ],
-                    ],
-                    [
-                        'label' => 'HR',
-                        // Sub-grouped by what the screen is FOR, so eleven items
-                        // stop reading as one list. Order matters: items are
-                        // rendered in sequence and the caption is emitted when
-                        // the section changes, so each section must be contiguous.
-                        'items' => [
-                            ['route' => 'hr.employees',            'label' => 'Employees',       'permission' => 'hr.view',             'section' => 'People'],
-                            ['route' => 'hr.staff-pins',           'label' => 'Staff PINs',      'permission' => 'staff.pins',          'section' => 'People'],
-
-                            ['route' => 'hr.duty-roster',          'label' => 'Duty Roster',                                            'section' => 'Scheduling'], // Viewable by all users
-                            ['route' => 'hr.shifts',               'label' => 'Shifts',          'permission' => 'roster.settings',     'section' => 'Scheduling'],
-
-                            ['route' => 'hr.attendance',           'label' => 'Attendance Record', 'permission' => 'hr.attendance',     'section' => 'Time & Attendance'],
-                            ['route' => 'hr.clock-ins',            'label' => 'Clock-Ins',       'permission' => 'hr.clock',            'section' => 'Time & Attendance'],
-                            ['route' => 'hr.overtime-claims',      'label' => 'Overtime Claims', 'permission' => 'hr.claims',           'section' => 'Time & Attendance'],
-                            ['route' => 'hr.leave',                'label' => 'Leave',           'permission' => 'hr.leave',            'section' => 'Time & Attendance'],
-                            ['route' => 'hr.time-off',             'label' => 'Time Off',        'permission' => 'hr.leave',            'section' => 'Time & Attendance'],
-
-                            ['route' => 'hr.compensation',         'label' => 'Compensation',    'permission' => 'hr.compensation',     'section' => 'Pay'],
-                            ['route' => 'hr.payroll',              'label' => 'Payroll',         'permission' => 'hr.payroll',          'section' => 'Pay'],
-                            ['route' => 'hr.payroll.ea-forms',     'label' => 'EA Forms',        'permission' => 'hr.payroll',          'section' => 'Pay'],
-                            ['route' => 'settings.labour-costs',   'label' => 'Labour Costs',    'permission' => 'hr.view',             'section' => 'Pay'],
-
-                            ['route' => 'hr.documents',            'label' => 'Documents',       'permission' => 'hr.documents.view',   'section' => 'Records & Training'],
-                            ['route' => 'settings.lms-users',      'label' => 'Training Portal', 'permission' => 'hr.view',             'section' => 'Records & Training'],
-
-                            // Straight to this module's own settings — including
-                            // Clock-In Settings, which moved there. Offered to
-                            // anyone who can open any of them, not only to
-                            // settings.view, or the person who administers pay
-                            // would have no way in.
-                            ['route' => 'settings.index', 'query' => 'module=hr-people', 'label' => 'HR Settings',
-                             // Configuration abilities only. It used to include
-                             // hr.compensation, hr.documents.manage and
-                             // hr.clock.manage, which every Chef and Branch
-                             // Manager holds — so the link was offered to almost
-                             // everybody in the company.
-                             'anyPermission' => ['settings.hr', 'settings.sections', 'settings.certifications', 'settings.ot_approvers'],
-                             'section' => 'Configure'],
-                        ],
-                    ],
-                    [
-                        'label' => 'Business Intelligence',
-                        'items' => [
-                            ['route' => 'reports.hub',     'label' => 'Reports',     'permission' => 'reports.view'],
-                            ['route' => 'analytics.index', 'label' => 'AI Analysis', 'permission' => 'reports.view', 'feature' => 'analytics'],
-                            ['route' => 'settings.calendar-events', 'label' => 'Calendar Events', 'permission' => 'reports.view'],
-                            ['route' => 'audit-logs.index', 'label' => 'Audit Logs', 'permission' => 'audit.view'],
-                            ['route' => 'settings.index', 'query' => 'module=reporting', 'label' => 'Reporting Settings',
-                             'anyPermission' => ['reports.view']],
-                        ],
-                    ],
-                    [
-                        'label' => 'Settings',
-                        'items' => [
-                            // No permission: the page shows only the modules the
-                            // user actually administers, and shows an empty state
-                            // to anyone who administers none.
-                            ['route' => 'settings.index',            'label' => 'All Settings'],
-                            ['route' => 'billing.index',             'label' => 'Billing',          'permission' => null, 'capability' => 'users.manage'],
-                            ['route' => 'referral.dashboard',        'label' => 'Refer & Earn',     'permission' => null],
-                        ],
-                    ],
-                ];
-
-                $adminNavItems = [
-                    ['route' => 'admin.users',               'icon' => '👥', 'label' => 'Users',         'permission' => null],
-                    ['route' => 'admin.companies',           'icon' => '🏢', 'label' => 'Companies',     'permission' => null],
-                    ['route' => 'company.create',            'icon' => '➕', 'label' => 'New Company',   'permission' => null],
-                    ['route' => 'admin.role-templates',      'icon' => '🛡️', 'label' => 'Role Templates', 'permission' => null],
-                    ['route' => 'admin.plans.index',         'icon' => '📦', 'label' => 'Plans',         'permission' => null],
-                    ['route' => 'admin.subscriptions.index', 'icon' => '💳', 'label' => 'Subscriptions', 'permission' => null],
-                    ['route' => 'admin.coupons',             'icon' => '🎟️', 'label' => 'Coupons',       'permission' => null],
-                    ['route' => 'admin.trials.index',        'icon' => '⏱️', 'label' => 'Trials',        'permission' => null],
-                    ['route' => 'admin.referrals.index',     'icon' => '🔗', 'label' => 'Referrals',     'permission' => null],
-                    ['route' => 'admin.company-health',      'icon' => '💚', 'label' => 'Health',        'permission' => null],
-                    ['route' => 'admin.announcements',       'icon' => '📢', 'label' => 'Announcements', 'permission' => null],
-                    ['route' => 'admin.pages',               'icon' => '📄', 'label' => 'Pages',         'permission' => null],
-                    ['route' => 'settings.api-keys',         'icon' => '🔑', 'label' => 'API Keys',      'permission' => null],
-                ];
-            @endphp
-
-            @php
-                // Find which group is active on page load
-                $activeGroupSlug = null;
-                foreach ($navGroups as $g) {
-                    if (! $g['label']) continue;
-                    $vis = $isSystemRole
-                        ? array_filter($g['items'], fn($i) => in_array($i['route'], ['dashboard']))
-                        : array_filter($g['items'], $canSee);
-                    foreach ($vis as $vi) {
-                        if (empty($vi['route'])) continue;
-                        if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*') ||
-                            ($vi['route'] === 'reports.hub' && request()->routeIs('reports.*'))) {
-                            $activeGroupSlug = Str::slug($g['label']);
-                            break 2;
-                        }
-                    }
-                }
-            @endphp
-            <div x-data="{
-                    activeGroup: '{{ $activeGroupSlug ?? '' }}' || localStorage.getItem('nav_active_group') || '',
-                    toggle(key) {
-                        this.activeGroup = this.activeGroup === key ? '' : key;
-                        localStorage.setItem('nav_active_group', this.activeGroup);
-                    }
-                 }">
-            @foreach ($navGroups as $gIdx => $group)
-                @php
-                    $visibleItems = $isSystemRole
-                        ? array_filter($group['items'], fn($i) => in_array($i['route'], ['dashboard']))
-                        : array_filter($group['items'], $canSee);
-
-                    // Check if any item in this group is active (auto-expand)
-                    $groupHasActive = false;
-                    foreach ($visibleItems as $vi) {
-                        if (empty($vi['route'])) continue;
-                        if (request()->routeIs($vi['route']) || request()->routeIs($vi['route'] . '.*')) {
-                            $groupHasActive = true; break;
-                        }
-                        if ($vi['route'] === 'reports.hub' && request()->routeIs('reports.*')) {
-                            $groupHasActive = true; break;
-                        }
-                    }
-                @endphp
-
-                @if (count($visibleItems) > 0)
-                    @if ($group['label'])
-                        {{-- Collapsible group --}}
-                        @php $groupSlug = Str::slug($group['label']); @endphp
-                        <div class="mt-2" x-show="sidebarExpanded" x-collapse>
-                            <button @click="toggle('{{ $groupSlug }}')"
-                                    class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-400 font-semibold hover:text-white transition">
-                                <span class="flex items-center gap-2">
-                                    @if (isset($gicons[$group['label']]))
-                                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">{!! $gicons[$group['label']] !!}</svg>
-                                    @endif
-                                    <span>{{ $group['label'] }}</span>
-                                </span>
-                                <svg :class="activeGroup === '{{ $groupSlug }}' && 'rotate-180'" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                            </button>
-                            <div x-show="activeGroup === '{{ $groupSlug }}'">
-                                {{-- A group may sub-divide its items with an optional
-                                     'section' key. The caption is emitted at the first
-                                     VISIBLE item of each section, so a section whose
-                                     items are all hidden by permission never leaves a
-                                     caption behind. Groups without the key are
-                                     untouched. --}}
-                                @php $lastSection = null; @endphp
-                                @foreach ($visibleItems as $item)
-                                    @if (! empty($item['section']) && $item['section'] !== $lastSection)
-                                        @php $lastSection = $item['section']; @endphp
-                                        <p class="px-4 pt-3 pb-1 ml-1 text-[9px] uppercase tracking-widest text-gray-500 font-semibold">
-                                            {{ $item['section'] }}
-                                        </p>
-                                    @endif
-                                    @if (!empty($item['comingSoon']))
-                                        <span class="block rounded-lg text-sm font-medium px-4 py-1.5 ml-1 text-gray-400 cursor-default flex items-center justify-between">
-                                            {{ $item['label'] }}
-                                            <span class="text-[9px] uppercase tracking-wider bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">Soon</span>
-                                        </span>
-                                    @else
-                                    @php
-                                        $itemUrl = route($item['route']) . (!empty($item['query']) ? '?' . $item['query'] : '');
-                                        $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
-                                        if ($item['route'] === 'reports.hub') $isActive = $isActive || request()->routeIs('reports.*');
-                                        if (!empty($item['query']) && $isActive) {
-                                            // Item has query param — only active if URL query matches
-                                            parse_str($item['query'], $qp);
-                                            $isActive = collect($qp)->every(fn($v, $k) => request()->query($k) === $v);
-                                        } elseif (empty($item['query']) && $isActive) {
-                                            // Item has NO query param — deactivate if URL has a tab param (another item owns it)
-                                            if (request()->has('tab')) $isActive = false;
-                                        }
-                                    @endphp
-                                    <a href="{{ $itemUrl }}"
-                                       title="{{ $item['label'] }}"
-                                       class="block rounded-lg text-sm font-medium transition-colors px-4 py-1.5 ml-1
-                                              {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                                        {{ $item['label'] }}
-                                    </a>
-                                    @endif
-                                @endforeach
-                            </div>
-                        </div>
-                    @else
-                        {{-- No header (Dashboard) --}}
-                        @foreach ($visibleItems as $item)
-                            @php
-                                $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*');
-                            @endphp
-                            <a href="{{ route($item['route']) }}"
-                               title="{{ $item['label'] }}"
-                               class="flex items-center gap-3 rounded-lg text-sm font-medium transition-colors py-2
-                                      {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}"
-                               :class="sidebarExpanded ? 'px-4' : 'px-2 justify-center'">
-                                @if (!empty($item['svg']))
-                                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['svg'] }}"/></svg>
-                                @elseif (!empty($item['icon']))
-                                    <span class="flex-shrink-0">{{ $item['icon'] }}</span>
-                                @endif
-                                <span x-show="sidebarExpanded" class="whitespace-nowrap">{{ $item['label'] }}</span>
-                            </a>
-                        @endforeach
-                    @endif
-                @endif
-            @endforeach
-            </div>{{-- end x-data activeGroup wrapper --}}
-
-            {{-- Admin Section (System Admin only) --}}
-            @if ($isSystemRole)
-                <div class="mt-2 pt-2 border-t border-gray-700"
-                     x-show="sidebarExpanded" x-collapse
-                     x-data="{ open: {{ request()->routeIs('admin.*') ? 'true' : 'false' }} }"
-                     x-init="let s = localStorage.getItem('nav_admin'); if (s !== null) open = s === '1'">
-                    <button @click="open = !open; localStorage.setItem('nav_admin', open ? '1' : '0')"
-                            class="w-full flex items-center justify-between px-4 py-1.5 text-[10px] uppercase tracking-widest text-gray-400 font-semibold hover:text-white transition">
-                        <span>Admin</span>
-                        <svg :class="open ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <div x-show="open">
-                        @foreach ($adminNavItems as $item)
-                            @php $isActive = request()->routeIs($item['route']) || request()->routeIs($item['route'] . '.*'); @endphp
-                            <a href="{{ route($item['route']) }}"
-                               title="{{ $item['label'] }}"
-                               class="block rounded-lg text-sm font-medium transition-colors px-4 py-1.5 ml-1
-                                      {{ $isActive ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                                {{ $item['label'] }}
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-        </nav>
+        </x-slot:top>
 
         {{-- ── Bottom: Company / Outlet / User ────────────────────────────── --}}
-        <div class="flex-shrink-0 border-t border-gray-700">
-
+        <x-slot:bottom>
             {{-- Company (expanded only) — switcher when the user belongs to multiple companies --}}
             <livewire:company-switcher />
 
@@ -508,13 +172,14 @@
             <div class="p-2">
                 <button x-ref="userBtn"
                         @click="sidebarOpen || toggleSidebar(); $nextTick(() => openUserMenu())"
-                        class="flex items-center w-full rounded-lg px-3 py-2 hover:bg-gray-800 transition gap-3"
-                        :class="sidebarExpanded ? '' : 'justify-center px-2'">
+                        class="nav-item w-full"
+                        :class="sidebarExpanded ? '' : 'justify-center px-0 h-11'"
+                        :aria-expanded="userMenuOpen.toString()">
                     @if (Auth::user()->avatar)
                         <img src="{{ \Illuminate\Support\Facades\Storage::url(Auth::user()->avatar) }}" alt=""
-                             class="flex-shrink-0 w-8 h-8 rounded-full object-cover" />
+                             class="h-8 w-8 flex-shrink-0 rounded-full object-cover" />
                     @else
-                        <div class="flex-shrink-0 w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                        <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
                             {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
                         </div>
                     @endif
@@ -525,33 +190,36 @@
                          x-transition:leave="transition-opacity duration-75"
                          x-transition:leave-start="opacity-100"
                          x-transition:leave-end="opacity-0"
-                         class="flex-1 text-left overflow-hidden">
-                        <p class="text-sm font-medium text-white truncate">{{ Auth::user()->name }}</p>
-                        <p class="text-xs text-brand-200 truncate">{{ Auth::user()->displayDesignation() }}</p>
+                         class="flex-1 overflow-hidden text-left">
+                        <p class="nav-strong truncate text-sm font-medium">{{ Auth::user()->name }}</p>
+                        <p class="nav-muted truncate text-xs">{{ Auth::user()->displayDesignation() }}</p>
                     </div>
-                    <svg x-show="sidebarExpanded" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                    </svg>
+                    <span x-show="!sidebarExpanded" class="sr-only">Open account menu</span>
+                    <x-icon name="chevron-down" size="h-4 w-4" stroke="2"
+                            class="nav-muted flex-shrink-0 rotate-180" x-show="sidebarExpanded" />
                 </button>
             </div>
-        </div>
-
-    </aside>
+        </x-slot:bottom>
+    </x-app-nav>
 
     {{-- ── Main content ─────────────────────────────────────────────────── --}}
-    <main class="flex-1 overflow-y-auto">
-        {{-- Mobile top bar (md+ hidden). Sticky to top of the scroll container. --}}
-        <div class="md:hidden sticky top-0 z-30 flex items-center h-14 px-3 bg-gray-900 text-white shadow">
+    <main id="main-content" class="flex-1 overflow-y-auto">
+        {{-- Mobile top bar (md+ hidden). Sticky to top of the scroll container.
+             Carries .app-nav so it takes the same theme tokens as the drawer it
+             opens — it was hardcoded bg-gray-900 and stayed black while the
+             panel beside it went white. --}}
+        <div class="app-nav md:hidden sticky top-0 z-sticky flex items-center h-14 px-3 shadow"
+             :data-nav-theme="navTheme" data-workspace="outlet">
             <button @click="mobileNavOpen = true"
-                    class="-ml-2 p-3 rounded text-gray-300 hover:bg-gray-800 hover:text-white"
-                    aria-label="Open menu">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                    class="nav-icon-btn -ml-1 h-11 w-11"
+                    aria-label="Open menu"
+                    aria-controls="nav-primary">
+                <x-icon name="bars" size="h-6 w-6" stroke="2" />
             </button>
-            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7">
+            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7" x-show="navTheme === 'dark'">
+            <img src="/images/servora-logo-black.png" alt="Servora" class="h-7" x-show="navTheme === 'light'" x-cloak>
             @if (! empty($title))
-                <span class="ml-auto text-sm text-gray-300 truncate max-w-[50%]">{{ $title }}</span>
+                <span class="nav-muted ml-auto truncate text-sm max-w-[50%]">{{ $title }}</span>
             @endif
         </div>
 
