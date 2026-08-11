@@ -31,12 +31,24 @@ class Employees extends Component
     public $csvFile            = null;
     public ?array $importResult = null;
 
-    public function mount(): void
+    /**
+     * @param  ?string  $outlet  which outlet to open on, carried back from the
+     *         employee form so that saving returns you where you were rather
+     *         than to your own outlet. 'all' is a real answer here — somebody
+     *         who deliberately widened the list should not be narrowed again
+     *         on their way back — which is why it is a string and not an id.
+     */
+    public function mount(?string $outlet = null): void
     {
+        if ($outlet !== null) {
+            $this->outletFilter = $outlet === 'all' ? '' : $outlet;
+        }
+
         // Default the outlet filter to the user's active outlet so screens feel
         // consistent with the rest of Servora (they only see their current
-        // outlet unless they explicitly opt into "All").
-        if ($this->outletFilter === '') {
+        // outlet unless they explicitly opt into "All"). Skipped entirely when
+        // an outlet was named above, including when it was named as "all".
+        if ($outlet === null && $this->outletFilter === '') {
             $activeOutletId = Auth::user()?->activeOutletId();
             if ($activeOutletId) $this->outletFilter = (string) $activeOutletId;
         }

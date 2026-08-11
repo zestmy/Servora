@@ -200,8 +200,21 @@ class EmployeeForm extends Component
     public string $s_other_relief = '0';
     public bool   $f_is_active      = true;
 
-    public function mount(?int $id = null): void
+    /**
+     * Which outlet the list was showing when this form was opened.
+     *
+     * Carried through so that saving returns to that list rather than to the
+     * editor's own outlet — someone working through one branch's staff was
+     * being sent back to their own after every save, and had to re-pick the
+     * branch each time. 'all' is a value, not an absence: it means the list
+     * was deliberately widened.
+     */
+    public string $returnOutlet = '';
+
+    public function mount(?int $id = null, ?string $outlet = null): void
     {
+        $this->returnOutlet = $outlet ?? '';
+
         $this->f_phone_code = $this->defaultPhoneCode();
 
         // A picker nobody has ever opened the settings screen for is empty, and
@@ -840,7 +853,23 @@ class EmployeeForm extends Component
         $this->syncCertifications($emp);
         $this->syncStatutoryProfile($emp);
 
-        $this->redirectRoute('hr.employees');
+        /*
+         * Back to the list as it was. Falling back to the employee's OWN
+         * outlet when the form was reached directly — from a bookmark, or a
+         * link in an email — because that is the list this record is on, and
+         * landing anywhere else looks like the save did not happen.
+         */
+        $this->redirectRoute('hr.employees', $this->returnOutletParams($emp));
+    }
+
+    /** @return array<string, string> */
+    private function returnOutletParams(?Employee $employee = null): array
+    {
+        if ($this->returnOutlet !== '') {
+            return ['outlet' => $this->returnOutlet];
+        }
+
+        return $employee?->outlet_id ? ['outlet' => (string) $employee->outlet_id] : [];
     }
 
     /**
