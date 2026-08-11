@@ -234,7 +234,7 @@ class AttendanceExportController extends Controller
                 $latePenalties = LatePenalties::forEmployees(
                     $user->company_id, $employees->pluck('id')->all(), $from, $to
                 );
-                $serviceCharge = ServiceChargePeriod::distribute($scRow, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints, $latePenalties);
+                $serviceCharge = ServiceChargePeriod::distribute($scRow, $scOutletId, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints, $latePenalties);
             }
         }
 

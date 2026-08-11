@@ -84,7 +84,7 @@ class ServiceChargeDistribution
             ->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
 
         return ServiceChargePeriod::distribute(
-            $row, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints,
+            $row, $outletId, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints,
             // By EMPLOYEE, not by outlet. A redirected person's punches are
             // recorded at the outlet they actually work in, so an outlet-scoped
             // lookup would search KLCC for punches that only exist at IOI and

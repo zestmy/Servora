@@ -138,6 +138,10 @@ class ServiceChargePeriod extends Model
      * $cellMap is the grid's "empId:Y-m-d" => attendance_code_id map.
      * Fallback percents apply while no pool row exists yet ($row null).
      *
+     * $poolOutletId names which pool is being split, and is REQUIRED rather
+     * than inferred from $row — null means the all-outlets pool, which is a
+     * different statement from "no row saved yet". See the note at its use.
+     *
      * $totalPoints is the distribution base: the points sum of ALL active
      * employees in the outlet scope, NOT just the (possibly section/
      * employment/search-filtered) $employees rows being displayed —
@@ -153,7 +157,7 @@ class ServiceChargePeriod extends Model
      * charge can be reduced to nothing, but it is a share of a pool, not a
      * debt, and it must never invert into money owed.
      */
-    public static function distribute(?self $row, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = []): array
+    public static function distribute(?self $row, ?int $poolOutletId, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = []): array
     {
         $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
                 || stripos($c->label, 'sick') !== false)
@@ -195,9 +199,24 @@ class ServiceChargePeriod extends Model
         $rows   = [];
         $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0,
                    'specialAmt' => 0.0, 'net' => 0.0];
-        // Which pool this is. Null is the all-outlets pool, which everybody is
-        // in by definition, so no redirection can move anyone out of it.
-        $poolOutletId = $row?->outlet_id;
+        /*
+         * Which pool this is — PASSED IN, never read off $row.
+         *
+         * It used to be $row?->outlet_id, which quietly conflated two different
+         * things: "this is the all-outlets pool" and "this outlet's pool has no
+         * amount saved yet". A pool is keyed on outlet AND period, so an outlet
+         * nobody has typed a figure into yet has no row — and every redirected
+         * employee then came back into it, because null means "everybody is in
+         * by definition".
+         *
+         * On the CK attendance grid that showed somebody paid from KLCC as an
+         * ordinary CK member, contradicting their own record. Worse, it
+         * contradicted the DIVISOR on the same screen: serviceChargeTotalPoints()
+         * has always scoped by the screen's outlet, so their points were out of
+         * the base while their row was still taking a share — the pool
+         * over-allocates, and the figures change again the moment somebody
+         * saves and a row finally exists.
+         */
 
         foreach ($employees as $emp) {
             /*

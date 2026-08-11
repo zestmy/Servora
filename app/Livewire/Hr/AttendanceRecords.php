@@ -869,7 +869,11 @@ class AttendanceRecords extends Component
 
         $serviceCharge = ($this->showServiceCharge && $canViewPay)
             ? ServiceChargePeriod::distribute(
-                $scRow, $employees, $codes, $cellMap,
+                // The pool is the one this SCREEN is showing, which is not the
+                // same as the one that happens to have been saved: an outlet
+                // with no figure typed into it yet still has its own pool, and
+                // redirected staff still belong to somebody else's.
+                $scRow, $this->serviceChargeOutletId(), $employees, $codes, $cellMap,
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
                 is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
                 $this->serviceChargeTotalPoints($scExcludedIds),

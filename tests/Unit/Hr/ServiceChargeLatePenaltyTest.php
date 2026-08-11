@@ -49,7 +49,7 @@ class ServiceChargeLatePenaltyTest extends TestCase
     public function test_no_penalties_leaves_the_split_exactly_as_before(): void
     {
         $result = ServiceChargePeriod::distribute(
-            $this->pool(1000), new Collection([$this->employee(1, 10.0)]),
+            $this->pool(1000), null, new Collection([$this->employee(1, 10.0)]),
             $this->codes(), [], 5.0, 10.0, 10.0
         );
 
@@ -63,7 +63,7 @@ class ServiceChargeLatePenaltyTest extends TestCase
     public function test_a_penalty_is_subtracted_from_the_net(): void
     {
         $result = ServiceChargePeriod::distribute(
-            $this->pool(1000), new Collection([$this->employee(1, 10.0)]),
+            $this->pool(1000), null, new Collection([$this->employee(1, 10.0)]),
             $this->codes(), [], 5.0, 10.0, 10.0,
             [1 => ['minutes' => 30, 'amount' => 15.0, 'shifts' => 2]]
         );
@@ -80,7 +80,7 @@ class ServiceChargeLatePenaltyTest extends TestCase
         // One absent day at 10% of a RM1000 gross is RM100, leaving RM900,
         // and the RM15 lateness charge comes off that.
         $result = ServiceChargePeriod::distribute(
-            $this->pool(1000), new Collection([$this->employee(1, 10.0)]),
+            $this->pool(1000), null, new Collection([$this->employee(1, 10.0)]),
             $this->codes(), ['1:2026-08-04' => 1], 5.0, 10.0, 10.0,
             [1 => ['minutes' => 30, 'amount' => 15.0, 'shifts' => 1]]
         );
@@ -98,7 +98,7 @@ class ServiceChargeLatePenaltyTest extends TestCase
         // Pool 100 over 10 points is RM10 a point, so this gross is RM100 —
         // and a RM9,999 charge is clipped to exactly that, not carried over.
         $result = ServiceChargePeriod::distribute(
-            $this->pool(100), new Collection([$this->employee(1, 10.0)]),
+            $this->pool(100), null, new Collection([$this->employee(1, 10.0)]),
             $this->codes(), [], 5.0, 10.0, 10.0,
             [1 => ['minutes' => 5000, 'amount' => 9999.0, 'shifts' => 20]]
         );
@@ -112,7 +112,7 @@ class ServiceChargeLatePenaltyTest extends TestCase
     public function test_totals_add_up_across_employees(): void
     {
         $result = ServiceChargePeriod::distribute(
-            $this->pool(1000),
+            $this->pool(1000), null,
             new Collection([$this->employee(1, 5.0), $this->employee(2, 5.0)]),
             $this->codes(), [], 5.0, 10.0, 10.0,
             [
@@ -130,7 +130,7 @@ class ServiceChargeLatePenaltyTest extends TestCase
     public function test_an_employee_with_no_penalty_row_is_untouched(): void
     {
         $result = ServiceChargePeriod::distribute(
-            $this->pool(1000),
+            $this->pool(1000), null,
             new Collection([$this->employee(1, 5.0), $this->employee(2, 5.0)]),
             $this->codes(), [], 5.0, 10.0, 10.0,
             [2 => ['minutes' => 20, 'amount' => 10.0, 'shifts' => 1]]
