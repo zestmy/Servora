@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Sales;
 
+use App\Traits\RemembersOutletFilter;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Outlet;
@@ -23,6 +24,8 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
+    use RemembersOutletFilter;
+
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     public string $search           = '';
@@ -90,6 +93,16 @@ class Index extends Component
     {
         $this->canDelete = Auth::user()->canDo('sales.delete');
         $this->bootQuickRange();
+
+        /*
+         * Come back on the outlet this screen was left on. The default below
+         * only applies when nothing was remembered: an explicit "All outlets"
+         * is stored as an empty string, and testing the string rather than
+         * whether anything was stored would overrule the choice every time.
+         */
+        if ($this->bootRememberedOutlet()) {
+            return;
+        }
 
         // Set default outlet filter to the active session outlet
         $activeOutletId = session('active_outlet_id');
@@ -478,6 +491,8 @@ class Index extends Component
 
     public function render()
     {
+        $this->rememberOutlet();
+
         // Get available outlets for dropdown (only for users with multiple outlets)
         $availableOutletIds = $this->availableOutletIds();
         $outlets = Outlet::whereIn('id', $availableOutletIds)

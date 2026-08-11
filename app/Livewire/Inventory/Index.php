@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Traits\RemembersOutletFilter;
 use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\Outlet;
@@ -21,6 +22,8 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
+    use RemembersOutletFilter;
+
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     /**
@@ -117,6 +120,9 @@ class Index extends Component
 
     public function mount(): void
     {
+        // Come back on the outlet this screen was left on.
+        $this->bootRememberedOutlet();
+
         $tab = request('tab');
         if (isset(self::TABS[$tab])) {
             $this->tab = $tab;
@@ -520,6 +526,8 @@ class Index extends Component
 
     public function render()
     {
+        $this->rememberOutlet();
+
         $config = $this->tabConfig();
 
         $records = $this->filtered()

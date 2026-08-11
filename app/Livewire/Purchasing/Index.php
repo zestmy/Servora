@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Traits\RemembersOutletFilter;
 use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
 use App\Models\PoApprover;
@@ -21,6 +22,8 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
+    use RemembersOutletFilter;
+
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
     public string $tab = 'pr';
@@ -79,6 +82,9 @@ class Index extends Component
 
     public function mount(): void
     {
+        // Come back on the outlet this screen was left on.
+        $this->bootRememberedOutlet();
+
         // Same default as Stock Management, so the two modules answer "recently"
         // with the same span when somebody compares them.
         $this->bootQuickRange();
@@ -737,6 +743,8 @@ class Index extends Component
 
     public function render()
     {
+        $this->rememberOutlet();
+
         $user = Auth::user();
         $isPurchasing = $this->isPurchasingRole();
         $isAppointed = $this->isAppointed();

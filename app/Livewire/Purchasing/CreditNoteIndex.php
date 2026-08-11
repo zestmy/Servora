@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Traits\RemembersOutletFilter;
 use App\Models\CreditNote;
 use App\Models\Supplier;
 use App\Services\CreditNoteService;
@@ -12,6 +13,14 @@ use Livewire\WithPagination;
 
 class CreditNoteIndex extends Component
 {
+    use RemembersOutletFilter;
+
+    public function mount(): void
+    {
+        // Come back on the outlet this screen was left on.
+        $this->bootRememberedOutlet();
+    }
+
     use WithPagination, ScopesToActiveOutlet;
 
     public string $search       = '';
@@ -71,6 +80,8 @@ class CreditNoteIndex extends Component
 
     public function render()
     {
+        $this->rememberOutlet();
+
         $query = CreditNote::with(['supplier', 'outlet'])
             ->withCount('lines');
 

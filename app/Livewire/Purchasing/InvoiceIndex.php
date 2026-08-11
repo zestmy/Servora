@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Traits\RemembersOutletFilter;
 use App\Models\ProcurementInvoice;
 use App\Models\Supplier;
 use App\Services\ProcurementInvoiceService;
@@ -12,6 +13,14 @@ use Livewire\WithPagination;
 
 class InvoiceIndex extends Component
 {
+    use RemembersOutletFilter;
+
+    public function mount(): void
+    {
+        // Come back on the outlet this screen was left on.
+        $this->bootRememberedOutlet();
+    }
+
     use WithPagination, ScopesToActiveOutlet;
 
     public string $search       = '';
@@ -52,6 +61,8 @@ class InvoiceIndex extends Component
 
     public function render()
     {
+        $this->rememberOutlet();
+
         $query = ProcurementInvoice::with(['outlet', 'supplier', 'stockTransferOrder'])
             ->withCount('lines');
 
