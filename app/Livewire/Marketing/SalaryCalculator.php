@@ -61,8 +61,23 @@ class SalaryCalculator extends Component
             'epf' => false, 'socso' => false, 'taxable' => false,
         ],
     ];
+    /*
+     * Untyped on purpose, all through this form.
+     *
+     * A `public float` on a property bound to a number input is a promise the
+     * BROWSER cannot keep: clearing the box to retype it sends "", Livewire
+     * assigns that to the typed property, PHP refuses, and Livewire's recovery
+     * is to UNSET the property — so the next read inside figures() lands on
+     * __get and throws PropertyNotFoundException. A 500, in the middle of
+     * filling in a form, from the most ordinary edit there is.
+     *
+     * Reported on the salary calculator on 2026-08-11 and reproduced on every
+     * float field in these tools. Ints survive it (Livewire casts "" to 0);
+     * floats do not. Every read below already casts with (float), so the type
+     * was buying nothing that the casts were not already providing.
+     */
 
-    public float $basic = 0;
+    public $basic = 0;
 
     /** @var array<int, array{label: string, amount: float, type: string}> */
     public array $allowances = [];
@@ -108,12 +123,12 @@ class SalaryCalculator extends Component
      * the wages actually payable for the month, not on the contractual figure.
      * A month with a week of unpaid leave therefore lowers all four.
      */
-    public float $unpaidLeaveDays = 0;
+    public $unpaidLeaveDays = 0;
 
     /** @var array<string, float> hours worked, by overtime type */
     public array $otHours = ['normal' => 0, 'rest_day' => 0, 'public_holiday' => 0];
 
-    public float $normalHoursPerDay = 8;
+    public $normalHoursPerDay = 8;
 
     /**
      * Overtime paid outside the hours above — a fixed OT allowance, or a figure
@@ -123,7 +138,7 @@ class SalaryCalculator extends Component
      * exclusion in the EPF Act, and one of the commonest payroll mistakes in the
      * trade, quietly overstating EPF for everyone who worked a busy month.
      */
-    public float $overtime = 0;
+    public $overtime = 0;
 
     /**
      * Service charge: taxable, but not wages for any of the three funds.
@@ -131,7 +146,7 @@ class SalaryCalculator extends Component
      * In an F&B payroll this is often the largest line after basic, so treating
      * it as wages is not a rounding error.
      */
-    public float $serviceCharge = 0;
+    public $serviceCharge = 0;
 
     public bool $isSenior = false;
 

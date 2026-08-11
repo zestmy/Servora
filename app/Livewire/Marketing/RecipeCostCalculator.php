@@ -28,11 +28,26 @@ class RecipeCostCalculator extends Component
 
     /** @var array<int, array{slug: string, name: string, unit: ?string, price: float, qty: float}> */
     public array $lines = [];
+    /*
+     * Untyped on purpose, all through this form.
+     *
+     * A `public float` on a property bound to a number input is a promise the
+     * BROWSER cannot keep: clearing the box to retype it sends "", Livewire
+     * assigns that to the typed property, PHP refuses, and Livewire's recovery
+     * is to UNSET the property — so the next read inside figures() lands on
+     * __get and throws PropertyNotFoundException. A 500, in the middle of
+     * filling in a form, from the most ordinary edit there is.
+     *
+     * Reported on the salary calculator on 2026-08-11 and reproduced on every
+     * float field in these tools. Ints survive it (Livewire casts "" to 0);
+     * floats do not. Every read below already casts with (float), so the type
+     * was buying nothing that the casts were not already providing.
+     */
 
-    public float $portions = 1;
+    public $portions = 1;
 
     /** What share of the menu price the food is meant to be. */
-    public float $targetFoodCostPct = 30;
+    public $targetFoodCostPct = 30;
 
     public string $email = '';
 
