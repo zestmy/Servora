@@ -28,6 +28,7 @@ class PayrollRunLine extends Model
         'gross', 'epf_employee', 'epf_employer', 'socso_employee', 'socso_employer',
         'eis_employee', 'eis_employer', 'pcb', 'zakat', 'hrdf_employer',
         'statutory_employee', 'statutory_employer',
+        'adjustments', 'adjustments_total',
         'net', 'employer_cost', 'components', 'ot_by_type', 'statutory_notes',
     ];
 
@@ -35,6 +36,8 @@ class PayrollRunLine extends Model
         'components'         => 'array',
         'ot_by_type'         => 'array',
         'statutory_notes'    => 'array',
+        'adjustments'        => 'array',
+        'adjustments_total'  => 'decimal:2',
         'basic'              => 'decimal:2',
         'allowances'         => 'decimal:2',
         'deductions'         => 'decimal:2',

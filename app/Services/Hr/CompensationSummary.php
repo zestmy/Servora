@@ -41,6 +41,11 @@ class CompensationSummary
 
     /**
      * @param  Builder  $employees  already scoped to the outlets wanted
+     * @param  array<int, array<int, array{label: string, amount: float, affects_statutory: bool}>>  $adjustments
+     *         One-off corrections keyed by employee id, from the payroll run
+     *         being built. Empty everywhere else: the live Compensation screen
+     *         shows a month as it stands, and a correction belongs to the run
+     *         that pays it rather than to the month in general.
      * @return array{
      *     rows: Collection,
      *     totals: array<string, float>,
@@ -48,8 +53,14 @@ class CompensationSummary
      *     settings: CompensationSetting,
      * }
      */
-    public function forMonth(Builder $employees, int $companyId, Carbon $month, ?Carbon $from = null, ?Carbon $to = null): array
-    {
+    public function forMonth(
+        Builder $employees,
+        int $companyId,
+        Carbon $month,
+        ?Carbon $from = null,
+        ?Carbon $to = null,
+        array $adjustments = [],
+    ): array {
         $settings = CompensationSetting::forCompany($companyId);
 
         // The range defaults to the company's pay CYCLE, not the calendar
@@ -181,7 +192,7 @@ class CompensationSummary
                 ->forMonth($companyId, $staff->pluck('id')->all(), $month->copy()->startOfMonth())
             : collect();
 
-        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $from, $to, $ytd, $hoursByEmployee, $daysByEmployee, $wagePeriodDays) {
+        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $from, $to, $ytd, $hoursByEmployee, $daysByEmployee, $wagePeriodDays, $adjustments) {
             /*
              * BASIC, and what basic_salary means depends on the pay type.
              *
@@ -331,14 +342,39 @@ class CompensationSummary
                 $otTotal += $amount ?? 0;
             }
 
+            /*
+             * ONE-OFF CORRECTIONS, split by how they meet the statutory rules.
+             *
+             * $adjWages changes what was EARNED this month, so it moves the
+             * EPF, SOCSO and taxable bases with it — arrears paid now are
+             * wages now, and contributions are due on them.
+             *
+             * $adjNet does not. Recovering an overpayment is the case: the
+             * contributions were computed and remitted on the inflated figure
+             * last month, so taking the money back out of this month's net is
+             * the remedy, and reducing this month's contributions as well
+             * would understate a month in which nothing was overpaid.
+             *
+             * The two are summed separately rather than netted, because they
+             * enter the payslip at different points and cancelling them first
+             * would lose that distinction.
+             */
+            $employeeAdjustments = collect($adjustments[$employee->id] ?? []);
+            $adjWages = round($employeeAdjustments->where('affects_statutory', true)->sum('amount'), 2);
+            $adjNet   = round($employeeAdjustments->where('affects_statutory', false)->sum('amount'), 2);
+
             // Statutory wages are earnings-based: a uniform deduction does not
             // reduce what EPF is owed on. Each allowance says what it counts
             // towards, because a travelling allowance is commonly outside EPF
             // and SOCSO wages while still being part of gross pay.
-            $epfWages     = round($basic + $allowancesOnly->where('epf', true)->sum('amount') + $otTotal, 2);
-            $socsoWages   = round($basic + $allowancesOnly->where('socso', true)->sum('amount') + $otTotal, 2);
-            $taxablePay   = round($basic + $allowancesOnly->where('taxable', true)->sum('amount') + $otTotal, 2);
-            $gross        = round($basic + $allowances + $otTotal, 2);
+            //
+            // Floored at zero — a correction larger than the month's earnings
+            // must not produce a NEGATIVE wage for the contribution formulas,
+            // which are not defined on one and would return nonsense.
+            $epfWages     = round(max(0, $basic + $allowancesOnly->where('epf', true)->sum('amount') + $otTotal + $adjWages), 2);
+            $socsoWages   = round(max(0, $basic + $allowancesOnly->where('socso', true)->sum('amount') + $otTotal + $adjWages), 2);
+            $taxablePay   = round(max(0, $basic + $allowancesOnly->where('taxable', true)->sum('amount') + $otTotal + $adjWages), 2);
+            $gross        = round($basic + $allowances + $otTotal + $adjWages, 2);
 
             $statutory = $calculator?->for(
                 $employee, $epfWages, $socsoWages, $taxablePay, $to, null,
@@ -371,6 +407,10 @@ class CompensationSummary
                 'ot_hours'    => round(collect($otByType)->sum('hours'), 2),
                 'ot_by_type'  => $otByType,
                 'ot_amount'   => round($otTotal, 2),
+                // Itemised, so a payslip can name each correction rather than
+                // showing a total nobody can account for.
+                'adjustments'       => $employeeAdjustments->values()->all(),
+                'adjustments_total' => round($adjWages + $adjNet, 2),
                 // Salary is unknown, so the OT figure would be a guess. Flagged
                 // rather than silently reported as zero.
                 'ot_unrated'  => $rate === null && $otRows->isNotEmpty(),
@@ -380,9 +420,17 @@ class CompensationSummary
                 'statutory'   => $statutory,
                 // Gross is what is earned; net is what reaches the bank after
                 // both the company's own deductions and the statutory ones.
+                //
+                // $adjWages is already inside $gross — it changed what was
+                // earned. $adjNet is added HERE and nowhere else, because it
+                // never was earnings: it moves the money that leaves the
+                // company without touching the wage the contributions were
+                // computed on. It is in employer_cost for the same reason —
+                // recovering an overpayment genuinely costs the company less
+                // this month.
                 'gross'       => round($gross - $deductions, 2),
-                'net'         => round($gross - $deductions - $statutory['employee_total'], 2),
-                'employer_cost' => round($gross - $deductions + $statutory['employer_total'], 2),
+                'net'         => round($gross - $deductions - $statutory['employee_total'] + $adjNet, 2),
+                'employer_cost' => round($gross - $deductions + $statutory['employer_total'] + $adjNet, 2),
             ];
         });
 

@@ -187,6 +187,22 @@
                                 <td class="amt">{{ number_format((float) $line->ot_amount, 2) }}</td>
                             </tr>
                         @endif
+                        {{-- One-off corrections, ITEMISED. A payslip that is
+                             RM500 short of what somebody expected has to say
+                             why on its face — a net figure they cannot account
+                             for is the one thing guaranteed to produce a
+                             conversation with the office. --}}
+                        @foreach (($line->adjustments ?? []) as $adj)
+                            <tr>
+                                <td>
+                                    {{ $adj['label'] ?? 'Adjustment' }}
+                                    @if (! ($adj['affects_statutory'] ?? false))
+                                        <span class="sub">after statutory deductions</span>
+                                    @endif
+                                </td>
+                                <td class="amt">{{ number_format((float) ($adj['amount'] ?? 0), 2) }}</td>
+                            </tr>
+                        @endforeach
                         @if ((float) $line->service_charge > 0)
                             @php $scd = $line->service_charge_detail ?? []; @endphp
                             <tr>

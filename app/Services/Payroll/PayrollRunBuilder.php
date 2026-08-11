@@ -121,7 +121,34 @@ class PayrollRunBuilder
             throw new \RuntimeException('The period must start before it ends.');
         }
 
-        $data = $this->summary->forMonth($employees, $companyId, $month, $from, $to);
+        /*
+         * ONE-OFF CORRECTIONS entered against this run, re-applied on every
+         * rebuild.
+         *
+         * This is why they live in their own table rather than on the lines:
+         * every line below is deleted and rebuilt, and a correction written
+         * onto one would be gone the next time somebody pressed Regenerate —
+         * which is a normal thing to do, so the run would quietly revert to
+         * the uncorrected figures.
+         *
+         * Loaded before the summary because a correction marked as WAGES has
+         * to be inside the figure EPF, SOCSO and PCB are computed from; adding
+         * it afterwards would pay the arrears and contribute nothing on them.
+         */
+        $adjustments = $existing
+            ? \App\Models\PayrollRunAdjustment::withoutGlobalScopes()
+                ->where('payroll_run_id', $existing->id)
+                ->get()
+                ->groupBy('employee_id')
+                ->map(fn ($rows) => $rows->map(fn ($a) => [
+                    'label'             => $a->label,
+                    'amount'            => $a->signedAmount(),
+                    'affects_statutory' => (bool) $a->affects_statutory,
+                ])->all())
+                ->all()
+            : [];
+
+        $data = $this->summary->forMonth($employees, $companyId, $month, $from, $to, $adjustments);
 
         $statutory = StatutorySetting::forCompany($companyId);
 
@@ -274,6 +301,11 @@ class PayrollRunBuilder
                     'deductions'         => $row['deductions'],
                     'ot_hours'           => $row['ot_hours'],
                     'ot_amount'          => $row['ot_amount'],
+                    // Copied onto the line, like every other figure here: a
+                    // payslip has to itemise its corrections years later, long
+                    // after the draft and its adjustment rows are gone.
+                    'adjustments'        => $row['adjustments'] ?? [],
+                    'adjustments_total'  => $row['adjustments_total'] ?? 0,
                     'service_charge'     => $scAmount,
                     // The working, so the payslip can show it without
                     // recomputing: points, rate, and each deduction.

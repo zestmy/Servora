@@ -29,6 +29,21 @@ class PayrollRunShow extends Component
     public string $paymentDate = '';
     public string $notes       = '';
 
+    /*
+     * One-off corrections on this run — an overpayment being recovered, a
+     * previous month's shortfall being settled. Entered here rather than on
+     * the employee's compensation screen because they belong to THIS run and
+     * nothing else; see PayrollRunAdjustment.
+     */
+    public bool    $showAdjust        = false;
+    public ?int    $adjustmentId      = null;
+    public string  $adj_employee_id   = '';
+    public string  $adj_label         = '';
+    public string  $adj_amount        = '';
+    public string  $adj_direction     = \App\Models\PayrollRunAdjustment::DEDUCTION;
+    public bool    $adj_affects_statutory = false;
+    public string  $adj_notes         = '';
+
     public function mount(string $run): void
     {
         $this->runUuid = $run;
@@ -96,6 +111,172 @@ class PayrollRunShow extends Component
 
         $this->forgetRun();
         session()->flash('success', 'Payroll regenerated from current figures.');
+    }
+
+    // ── One-off adjustments ───────────────────────────────────────────────
+
+    /**
+     * Entering a correction is part of RUNNING payroll, not of approving it.
+     *
+     * The person processing finds the overpayment and enters it; the approver
+     * sees it listed above the Approve button and signs the run off. Requiring
+     * the approver at the keyboard for a RM20 fix would collapse those two
+     * hands into one, which is the control this separation exists to keep.
+     */
+    private function assertMayAdjust(): PayrollRun
+    {
+        abort_unless(Auth::user()->can('hr.payroll'), 403);
+
+        $run = $this->run();
+
+        // Draft only. An approved run is what the company committed to paying,
+        // and a paid one is money that has already moved.
+        abort_unless($run->isEditable(), 403, 'This payroll run can no longer be changed.');
+
+        return $run;
+    }
+
+    public function openAdjust(): void
+    {
+        $this->assertMayAdjust();
+        $this->resetAdjustForm();
+        $this->showAdjust = true;
+    }
+
+    public function editAdjustment(int $id): void
+    {
+        $run = $this->assertMayAdjust();
+
+        $a = \App\Models\PayrollRunAdjustment::where('payroll_run_id', $run->id)->findOrFail($id);
+
+        $this->adjustmentId          = $a->id;
+        $this->adj_employee_id       = (string) $a->employee_id;
+        $this->adj_label             = $a->label;
+        $this->adj_amount            = (string) (float) $a->amount;
+        $this->adj_direction         = $a->direction;
+        $this->adj_affects_statutory = (bool) $a->affects_statutory;
+        $this->adj_notes             = (string) $a->notes;
+        $this->showAdjust            = true;
+    }
+
+    /**
+     * Switching direction re-suggests the statutory treatment.
+     *
+     * A recovery is normally net-only and arrears normally are not, so the
+     * field follows the direction until somebody sets it themselves — see
+     * PayrollRunAdjustment::defaultAffectsStatutory().
+     */
+    public function updatedAdjDirection(string $value): void
+    {
+        $this->adj_affects_statutory =
+            \App\Models\PayrollRunAdjustment::defaultAffectsStatutory($value);
+    }
+
+    public function saveAdjustment(): void
+    {
+        $run = $this->assertMayAdjust();
+
+        $this->validate([
+            'adj_employee_id' => 'required|integer',
+            'adj_label'       => 'required|string|max:120',
+            // Zero is not a correction, and a negative one would fight the
+            // direction field for the sign.
+            'adj_amount'      => 'required|numeric|min:0.01|max:9999999.99',
+            'adj_direction'   => 'required|in:' . implode(',', array_keys(\App\Models\PayrollRunAdjustment::DIRECTIONS)),
+            'adj_notes'       => 'nullable|string|max:255',
+        ], [], [
+            'adj_employee_id' => 'employee',
+            'adj_label'       => 'description',
+            'adj_amount'      => 'amount',
+        ]);
+
+        // The employee must actually be ON this run. Adjusting somebody who is
+        // not would create a row that silently does nothing on rebuild, and
+        // the money would appear to have been handled when it had not.
+        $onRun = $run->lines()->where('employee_id', (int) $this->adj_employee_id)->exists();
+
+        if (! $onRun) {
+            $this->addError('adj_employee_id', 'That employee is not on this payroll run.');
+            return;
+        }
+
+        $data = [
+            'company_id'        => $run->company_id,
+            'payroll_run_id'    => $run->id,
+            'employee_id'       => (int) $this->adj_employee_id,
+            'label'             => $this->adj_label,
+            'amount'            => round((float) $this->adj_amount, 2),
+            'direction'         => $this->adj_direction,
+            'affects_statutory' => $this->adj_affects_statutory,
+            'notes'             => $this->adj_notes ?: null,
+        ];
+
+        if ($this->adjustmentId) {
+            \App\Models\PayrollRunAdjustment::where('payroll_run_id', $run->id)
+                ->findOrFail($this->adjustmentId)
+                ->update($data);
+        } else {
+            \App\Models\PayrollRunAdjustment::create($data + ['created_by' => Auth::id()]);
+        }
+
+        $this->showAdjust = false;
+        $this->resetAdjustForm();
+
+        // Rebuilt immediately, so the figures on screen are the figures the
+        // adjustment produces. Leaving the run stale until somebody remembered
+        // to press Regenerate is how a correction gets approved without ever
+        // having been applied.
+        $this->rebuildAfterAdjustment('Adjustment saved and payroll recalculated.');
+    }
+
+    public function removeAdjustment(int $id): void
+    {
+        $run = $this->assertMayAdjust();
+
+        \App\Models\PayrollRunAdjustment::where('payroll_run_id', $run->id)
+            ->findOrFail($id)
+            ->delete();
+
+        $this->rebuildAfterAdjustment('Adjustment removed and payroll recalculated.');
+    }
+
+    private function rebuildAfterAdjustment(string $message): void
+    {
+        $run = $this->run();
+
+        try {
+            app(PayrollRunBuilder::class)->generate(
+                $run->company_id,
+                $this->accessibleOutletIds(),
+                $run->period_month,
+                $run->outlet_id,
+                Auth::id(),
+                null,
+                null,
+                $run->section_id,
+                $run->employment_status,
+            );
+        } catch (\RuntimeException $e) {
+            session()->flash('error', $e->getMessage());
+            return;
+        }
+
+        $this->forgetRun();
+        session()->flash('success', $message);
+    }
+
+    private function resetAdjustForm(): void
+    {
+        $this->adjustmentId          = null;
+        $this->adj_employee_id       = '';
+        $this->adj_label             = '';
+        $this->adj_amount            = '';
+        $this->adj_direction         = \App\Models\PayrollRunAdjustment::DEDUCTION;
+        $this->adj_affects_statutory = \App\Models\PayrollRunAdjustment::defaultAffectsStatutory(
+            \App\Models\PayrollRunAdjustment::DEDUCTION
+        );
+        $this->adj_notes             = '';
+        $this->resetValidation();
     }
 
     public function approve(): void
@@ -303,6 +484,25 @@ class PayrollRunShow extends Component
                 . '. Check the attendance record for this period, then regenerate.';
         }
 
+        /*
+         * A line that has gone NEGATIVE — the adjustments took more than the
+         * month paid.
+         *
+         * Not blocked and not capped. Capping would silently under-recover and
+         * hide the mistake; blocking would stop a genuine case where the whole
+         * month is legitimately swallowed. But it is nearly always a typo —
+         * 99999 for 999 — and it is the one error here that hands somebody a
+         * payslip demanding money from them, so it is named before approval
+         * with the amount that would have to be spread over later months.
+         */
+        $negative = $lines->filter(fn ($l) => (float) $l->net < 0);
+
+        if ($negative->isNotEmpty()) {
+            $warnings[] = $negative->count() . ' employee(s) have a NEGATIVE net — an adjustment is larger than the month pays: '
+                . $negative->map(fn ($l) => $l->employee_name . ' (' . number_format((float) $l->net, 2) . ')')->join('; ')
+                . '. Check the amount, or recover it over several months instead.';
+        }
+
         // Nothing on this run was computed from the rates, so the caveat about
         // them describes no figure anybody is looking at.
         if (! $run->rates_were_confirmed && $statutoryLines->isNotEmpty()) {
@@ -314,6 +514,11 @@ class PayrollRunShow extends Component
             'lines'      => $lines,
             'warnings'   => $warnings,
             'canApprove' => Auth::user()->can('hr.payroll.approve'),
+            'canAdjust'  => $run->isEditable() && Auth::user()->can('hr.payroll'),
+            'adjustments' => \App\Models\PayrollRunAdjustment::with('employee:id,name', 'createdBy:id,name')
+                ->where('payroll_run_id', $run->id)
+                ->orderBy('id')
+                ->get(),
             'audience'   => $this->emailAudience(),
             'deliveries' => PayslipDelivery::where('payroll_run_id', $run->id)
                 ->orderByDesc('id')

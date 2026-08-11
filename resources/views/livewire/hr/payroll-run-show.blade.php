@@ -100,6 +100,163 @@
         </div>
     @endif
 
+    {{-- ── One-off adjustments ──────────────────────────────────────────────
+         Above the figures and above Approve, deliberately: these are the
+         corrections somebody has to see before signing the run off, and a
+         panel below a hundred-row table is a panel nobody reads.
+
+         Listed even once the run is locked, because a payslip carrying a
+         RM500 recovery has to remain explainable after the fact. --}}
+    @if ($canAdjust || $adjustments->isNotEmpty())
+        <div class="card p-4 mb-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700">Adjustments</h3>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                        One-off corrections on this run — recovering an overpayment, settling a
+                        shortfall from a previous month. They are re-applied every time the run is
+                        regenerated, and are itemised on the payslip.
+                    </p>
+                </div>
+                @if ($canAdjust)
+                    <button wire:click="openAdjust" class="btn-secondary">Add adjustment</button>
+                @endif
+            </div>
+
+            @if ($adjustments->isNotEmpty())
+                <div class="mt-3 overflow-x-auto">
+                    <table class="table-surface min-w-[720px]">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Employee</th>
+                                <th class="px-3 py-2 text-left">Description</th>
+                                <th class="px-2 py-2 text-left">Statutory</th>
+                                <th class="px-2 py-2 text-right">Amount</th>
+                                @if ($canAdjust)<th class="px-2 py-2"></th>@endif
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($adjustments as $a)
+                                <tr wire:key="adj-{{ $a->id }}">
+                                    <td class="px-3 py-2 text-sm text-gray-800">{{ $a->employee?->name ?? '—' }}</td>
+                                    <td class="px-3 py-2 text-sm text-gray-700">
+                                        {{ $a->label }}
+                                        @if ($a->notes)
+                                            <span class="block text-[11px] text-gray-500">{{ $a->notes }}</span>
+                                        @endif
+                                        @if ($a->createdBy)
+                                            <span class="block text-[10px] text-gray-500">added by {{ $a->createdBy->name }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <span class="{{ $a->affects_statutory ? 'badge-info' : 'badge-warning' }}">
+                                            {{ $a->affects_statutory ? 'Counts as wages' : 'After statutory' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-2 py-2 text-right tabular-nums font-medium {{ $a->isAddition() ? 'text-success-700' : 'text-danger-700' }}">
+                                        {{ $a->isAddition() ? '+' : '−' }}{{ number_format((float) $a->amount, 2) }}
+                                    </td>
+                                    @if ($canAdjust)
+                                        <td class="px-2 py-2 text-right whitespace-nowrap">
+                                            <button wire:click="editAdjustment({{ $a->id }})"
+                                                    class="text-xs font-medium text-brand-600 hover:text-brand-800">Edit</button>
+                                            <button wire:click="removeAdjustment({{ $a->id }})"
+                                                    wire:confirm="Remove this adjustment and recalculate the run?"
+                                                    class="ml-3 text-xs font-medium text-danger-600 hover:text-danger-800">Remove</button>
+                                        </td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @elseif ($canAdjust)
+                <p class="mt-3 text-xs text-gray-500">None on this run.</p>
+            @endif
+        </div>
+    @endif
+
+    {{-- Add / edit an adjustment --}}
+    @if ($showAdjust)
+        <div class="card p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">
+                {{ $adjustmentId ? 'Edit adjustment' : 'Add adjustment' }}
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="label">Employee</label>
+                    <select wire:model="adj_employee_id" class="input">
+                        <option value="">— Select —</option>
+                        @foreach ($lines as $l)
+                            <option value="{{ $l->employee_id }}">{{ $l->employee_name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('adj_employee_id')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="label">Description</label>
+                    <input type="text" maxlength="120" wire:model="adj_label" class="input"
+                           placeholder="e.g. June overpayment recovery" />
+                    {{-- It is printed on the payslip, so it has to read as an
+                         explanation to the person being paid. --}}
+                    <p class="help">Shown on the payslip — write it for the employee.</p>
+                    <x-input-error :messages="$errors->get('adj_label')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="label">Direction</label>
+                    <select wire:model.live="adj_direction" class="input">
+                        @foreach (\App\Models\PayrollRunAdjustment::DIRECTIONS as $dv => $dl)
+                            <option value="{{ $dv }}">{{ $dl }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('adj_direction')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="label">Amount (RM)</label>
+                    <input type="number" step="0.01" min="0.01" wire:model="adj_amount" class="input" />
+                    <p class="help">Always positive — the direction above decides the sign.</p>
+                    <x-input-error :messages="$errors->get('adj_amount')" class="mt-1" />
+                </div>
+            </div>
+
+            {{-- The decision that changes what is remitted, so it is spelled
+                 out rather than left as a checkbox label. --}}
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <label class="flex items-start gap-2">
+                    <input type="checkbox" wire:model.live="adj_affects_statutory"
+                           class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                    <span class="text-sm text-gray-800">Counts as wages this month</span>
+                </label>
+                <p class="mt-1 text-[11px] text-gray-600">
+                    @if ($adj_affects_statutory)
+                        EPF, SOCSO, EIS and PCB will be recomputed on the adjusted figure. Right for
+                        <strong>arrears</strong> — pay underpaid now is wages now, and contributions are due on it.
+                    @else
+                        Applied after the statutory deductions, so it changes take-home only. Right for
+                        <strong>recovering an overpayment</strong> — the contributions were already remitted on
+                        last month's inflated figure, and reducing this month's as well would understate a
+                        month in which nothing was overpaid.
+                    @endif
+                </p>
+            </div>
+
+            <div class="mt-3">
+                <label class="label">Internal note (optional)</label>
+                <input type="text" maxlength="255" wire:model="adj_notes" class="input"
+                       placeholder="Not shown on the payslip" />
+                <x-input-error :messages="$errors->get('adj_notes')" class="mt-1" />
+            </div>
+
+            <div class="mt-3 flex items-center gap-2">
+                <button wire:click="saveAdjustment" wire:loading.attr="disabled" class="btn-primary">
+                    <span wire:loading.remove wire:target="saveAdjustment">Save and recalculate</span>
+                    <span wire:loading wire:target="saveAdjustment">Recalculating…</span>
+                </button>
+                <button wire:click="$set('showAdjust', false)" class="btn-ghost">Cancel</button>
+            </div>
+        </div>
+    @endif
+
     {{-- Submission and payment files. Only from an approved run: a draft can
          still be regenerated, and a submission built from figures that then
          change is the one mistake here that cannot be undone by editing. --}}
