@@ -119,6 +119,11 @@ $group->group(function () {
         Route::get('/account', \App\Livewire\Clock\Staff\Account::class)->name('clock.staff.account');
 
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');
+        // Their own MC back again — a plain controller, because Livewire
+        // answers with JSON and this is a file.
+        Route::get('/leave/{leaveRequest}/attachment', [\App\Http\Controllers\Hr\LeaveAttachmentController::class, 'mine'])
+            ->whereNumber('leaveRequest')
+            ->name('clock.staff.leave.attachment');
         Route::get('/time-off', ClockTimeOff::class)->name('clock.staff.time-off');
         // A plain form post, not a Livewire action: the control lives in the
         // layout, outside any component root, where wire:click never binds.

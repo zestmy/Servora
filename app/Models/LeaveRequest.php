@@ -33,7 +33,8 @@ class LeaveRequest extends Model
     protected $fillable = [
         'company_id', 'employee_id', 'leave_type_id', 'public_holiday_id',
         'start_date', 'end_date', 'days', 'is_half_day', 'half_day_period',
-        'reason', 'status', 'applied_by', 'approved_by', 'approved_at', 'decision_note',
+        'reason', 'attachment_path', 'attachment_name',
+        'status', 'applied_by', 'approved_by', 'approved_at', 'decision_note',
     ];
 
     protected $casts = [

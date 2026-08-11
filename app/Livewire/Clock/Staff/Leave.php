@@ -6,10 +6,12 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\PublicHoliday;
 use App\Scopes\CompanyScope;
+use App\Services\Hr\LeaveAttachment;
 use App\Services\Hr\LeaveBalance;
 use App\Services\Hr\LeaveNotifier;
 use App\Services\Hr\ReplacementHolidays;
 use Carbon\Carbon;
+use Livewire\WithFileUploads;
 
 /**
  * The employee's own leave: what they have left, and applying for it.
@@ -22,6 +24,8 @@ use Carbon\Carbon;
  */
 class Leave extends StaffComponent
 {
+    use WithFileUploads;
+
     public string $f_type   = '';
     /** Which public holiday a replacement day is being taken against. */
     public string $f_holiday = '';
@@ -31,6 +35,28 @@ class Leave extends StaffComponent
     public bool   $f_half   = false;
     public string $f_half_period = 'am';
     public string $f_reason = '';
+
+    /**
+     * The MC, photographed on the phone that is filling this form in — which
+     * is the whole reason it is offered here and not only on the HR screen.
+     *
+     * Optional: a clinic slip gets photographed when somebody is well enough
+     * to think of it, and an absence recorded late is worse than one recorded
+     * without its certificate yet.
+     */
+    public $f_attachment = null;
+
+    /**
+     * Attaching the certificate AFTER the fact.
+     *
+     * The form says the MC can follow, so it has to be able to. This is the
+     * common case rather than the edge one: the clinic slip is in a bag, the
+     * absence is recorded from bed, and the photograph happens on the way
+     * back in. $lateFor holds the request the upload belongs to.
+     */
+    public ?int $lateFor = null;
+
+    public $lateFile = null;
 
     public bool $showForm = false;
 
@@ -51,7 +77,8 @@ class Leave extends StaffComponent
     }
 
     /** The chosen type, scoped to the employee's own company by hand. */
-    private function chosenType(): ?LeaveType
+    /** Public because the form asks it whether to offer the MC upload. */
+    public function chosenType(): ?LeaveType
     {
         if ($this->f_type === '') {
             return null;
@@ -173,6 +200,7 @@ class Leave extends StaffComponent
             'f_end'    => 'required|date',
             'f_days'   => 'required|numeric|min:0.5|max:400',
             'f_reason' => 'nullable|string|max:500',
+            'f_attachment' => LeaveAttachment::rule(),
         ], [], [
             'f_type' => 'leave type', 'f_start' => 'start date',
             'f_end' => 'end date', 'f_days' => 'days',
@@ -258,10 +286,15 @@ class Leave extends StaffComponent
             'approved_at'     => $autoApprove ? now() : null,
         ]);
 
+        if ($this->f_attachment) {
+            LeaveAttachment::replace($created, $this->f_attachment);
+        }
+
         if (! $autoApprove) {
             app(LeaveNotifier::class)->submitted($created);
         }
 
+        $this->f_attachment = null;
         $this->showForm = false;
         session()->flash('success', $autoApprove
             ? 'Recorded. ' . $type->name . ' does not need approval.'
@@ -315,6 +348,47 @@ class Leave extends StaffComponent
      * asking a manager to do it, which is the sort of small errand this screen
      * exists to remove.
      */
+    public function attachTo(int $requestId): void
+    {
+        $this->lateFor  = $requestId;
+        $this->lateFile = null;
+        $this->resetErrorBag('lateFile');
+    }
+
+    public function saveLateAttachment(): void
+    {
+        $this->validate(['lateFile' => \App\Services\Hr\LeaveAttachment::rule()], [], [
+            'lateFile' => 'medical certificate',
+        ]);
+
+        if (! $this->lateFile || ! $this->lateFor) {
+            return;
+        }
+
+        $staff = $this->staff();
+
+        // Their own, and still theirs — the id came off the page and the page
+        // was rendered some time ago. Scoped by hand: no authenticated user
+        // here for CompanyScope to work from.
+        $request = LeaveRequest::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $staff->company_id)
+            ->where('employee_id', $staff->id)
+            ->find($this->lateFor);
+
+        if (! $request) {
+            $this->lateFor = null;
+
+            return;
+        }
+
+        LeaveAttachment::replace($request, $this->lateFile);
+
+        $this->lateFor  = null;
+        $this->lateFile = null;
+
+        session()->flash('success', 'Medical certificate attached.');
+    }
+
     public function cancel(int $id): void
     {
         $staff = $this->staff();

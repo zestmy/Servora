@@ -18,6 +18,7 @@ class LeaveType extends Model
     protected $fillable = [
         'company_id', 'name', 'code', 'description',
         'is_paid', 'is_claimable', 'is_replacement_holiday', 'requires_approval', 'allows_half_day',
+        'requires_attachment',
         'is_prorated', 'requires_confirmation',
         'default_days', 'carry_forward', 'carry_forward_cap',
         'colour', 'sort_order', 'is_active',
@@ -32,6 +33,9 @@ class LeaveType extends Model
         'requires_confirmation'  => 'boolean',
         'requires_approval'      => 'boolean',
         'allows_half_day'        => 'boolean',
+        // Whether the application form offers a supporting document — an MC
+        // for sick leave. Offered, not demanded: see LeaveRequest::attachment.
+        'requires_attachment'    => 'boolean',
         'carry_forward'          => 'boolean',
         'is_active'              => 'boolean',
         'default_days'           => 'decimal:1',
@@ -42,10 +46,10 @@ class LeaveType extends Model
     /** Seeded for a new company — the common Malaysian set, all editable. */
     public const STARTER_TYPES = [
         ['name' => 'Annual Leave',              'code' => 'AL',  'default_days' => 8,  'colour' => 'teal',   'carry_forward' => true],
-        ['name' => 'Medical Leave',             'code' => 'MC',  'default_days' => 14, 'colour' => 'amber'],
+        ['name' => 'Medical Leave',             'code' => 'MC',  'default_days' => 14, 'colour' => 'amber', 'requires_attachment' => true],
         // Its own entitlement rather than sick days, as the Employment Act
         // treats it. Longer and separately tracked.
-        ['name' => 'Hospitalisation Leave',     'code' => 'HL',  'default_days' => 60, 'colour' => 'blue'],
+        ['name' => 'Hospitalisation Leave',     'code' => 'HL',  'default_days' => 60, 'colour' => 'blue', 'requires_attachment' => true],
         ['name' => 'Replacement Public Holiday','code' => 'RPH', 'default_days' => 0,  'colour' => 'blue', 'is_replacement_holiday' => true],
         ['name' => 'Paternity Leave',           'code' => 'PL',  'default_days' => 7,  'colour' => 'indigo'],
         ['name' => 'Maternity Leave',           'code' => 'ML',  'default_days' => 98, 'colour' => 'pink'],

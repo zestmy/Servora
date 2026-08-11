@@ -189,6 +189,26 @@
                 <x-input-error :messages="$errors->get('a_reason')" class="mt-1" />
             </div>
 
+            {{-- Offered for the types that ask for one. Re-resolved rather
+                 than leaning on the $chosen set beside the picker above: a
+                 variable a hundred lines away is one edit from being gone. --}}
+            @php $needsDoc = $types->firstWhere('id', (int) $a_type); @endphp
+            @if ($needsDoc?->requires_attachment)
+                <div>
+                    <label class="label">Medical certificate <span class="font-normal text-gray-500">(optional)</span></label>
+                    <input type="file" wire:model="a_attachment"
+                           accept="{{ \App\Services\Hr\LeaveAttachment::accepted() }}"
+                           class="mt-1 w-full text-sm text-gray-700 file:mr-3 file:rounded-control file:border-0
+                                  file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-700" />
+                    <p class="help mt-1">
+                        Image or PDF, up to {{ \App\Services\Hr\LeaveAttachment::MAX_MB }} MB.
+                        It can be added afterwards if it has not arrived yet.
+                    </p>
+                    <div wire:loading wire:target="a_attachment" class="mt-1 text-xs text-gray-500">Uploading…</div>
+                    <x-input-error :messages="$errors->get('a_attachment')" class="mt-1" />
+                </div>
+            @endif
+
             <div class="flex justify-end gap-2">
                 <button wire:click="$set('showApply', false)" class="btn-ghost">Cancel</button>
                 <button wire:click="apply" class="btn-primary">Submit</button>
@@ -307,8 +327,17 @@
                             <td class="px-2 py-2 text-right tabular-nums text-gray-700">
                                 {{ rtrim(rtrim(number_format((float) $req->days, 1), '0'), '.') }}
                             </td>
-                            <td class="px-2 py-2 text-xs text-gray-600 max-w-[220px] truncate" title="{{ $req->reason }}">
-                                {{ $req->reason ?: '—' }}
+                            <td class="px-2 py-2 text-xs text-gray-600 max-w-[220px]">
+                                <span class="block truncate" title="{{ $req->reason }}">{{ $req->reason ?: '—' }}</span>
+                                {{-- The certificate, where the decision is made. An approver
+                                     who has to go looking for it approves without it. --}}
+                                @if ($req->attachment_path)
+                                    <a href="{{ route('hr.leave.attachment', $req) }}" target="_blank" rel="noopener"
+                                       class="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand-700 hover:text-brand-800">
+                                        <x-icon name="document" size="h-3 w-3" />
+                                        MC attached
+                                    </a>
+                                @endif
                             </td>
                             <td class="px-2 py-2">
                                 @php
@@ -349,6 +378,28 @@
                                     <button wire:click="cancel({{ $req->id }})"
                                             wire:confirm="Cancel this leave? The days go back on the balance."
                                             class="ml-3 text-xs font-medium text-gray-600 hover:text-gray-900">Cancel</button>
+                                @endif
+
+                                {{-- A certificate that arrived after the absence was
+                                     recorded, which is the ordinary case rather than
+                                     the exception. --}}
+                                @if (! $req->attachment_path && $req->leaveType?->requires_attachment
+                                     && $req->status !== \App\Models\LeaveRequest::CANCELLED)
+                                    @if ($attachFor === $req->id)
+                                        <span class="ml-3 inline-flex items-center gap-2">
+                                            <input type="file" wire:model="attachFile"
+                                                   accept="{{ \App\Services\Hr\LeaveAttachment::accepted() }}"
+                                                   class="text-xs text-gray-700 file:mr-2 file:rounded-control file:border-0
+                                                          file:bg-brand-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-brand-700" />
+                                            <button wire:click="saveAttachment"
+                                                    class="text-xs font-medium text-brand-700 hover:text-brand-800">Attach</button>
+                                            <button wire:click="$set('attachFor', null)"
+                                                    class="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                                        </span>
+                                    @else
+                                        <button wire:click="attachTo({{ $req->id }})"
+                                                class="ml-3 text-xs font-medium text-brand-600 hover:text-brand-800">+ MC</button>
+                                    @endif
                                 @endif
                             </td>
                         </tr>

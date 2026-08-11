@@ -35,6 +35,8 @@ class LeaveTypes extends Component
     public bool   $f_is_prorated           = false;
     public bool   $f_requires_confirmation = false;
     public bool   $f_requires_approval = true;
+    /** Offers an MC upload on the application form. */
+    public bool   $f_requires_attachment = false;
     public bool   $f_allows_half_day = true;
     public string $f_default_days = '0';
     public bool   $f_carry_forward = false;
@@ -71,6 +73,7 @@ class LeaveTypes extends Component
         $this->f_is_prorated           = (bool) $type->is_prorated;
         $this->f_requires_confirmation = (bool) $type->requires_confirmation;
         $this->f_requires_approval = (bool) $type->requires_approval;
+        $this->f_requires_attachment = (bool) $type->requires_attachment;
         $this->f_allows_half_day   = (bool) $type->allows_half_day;
         $this->f_default_days      = (string) (float) $type->default_days;
         $this->f_carry_forward     = (bool) $type->carry_forward;
@@ -111,6 +114,7 @@ class LeaveTypes extends Component
             'is_paid'           => $this->f_is_paid,
             'is_claimable'      => $this->f_is_claimable,
             'requires_approval' => $this->f_requires_approval,
+            'requires_attachment' => $this->f_requires_attachment,
             'allows_half_day'   => $this->f_allows_half_day,
             'default_days'      => round((float) $this->f_default_days, 1),
             'carry_forward'     => $this->f_carry_forward,
@@ -191,6 +195,7 @@ class LeaveTypes extends Component
         $this->f_is_prorated           = false;
         $this->f_requires_confirmation = false;
         $this->f_requires_approval = true;
+        $this->f_requires_attachment = false;
         $this->f_allows_half_day = true;
         $this->f_carry_forward = false;
         $this->f_colour = 'slate';

@@ -7,12 +7,14 @@ use App\Models\LeaveEntitlement;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\PublicHoliday;
+use App\Services\Hr\LeaveAttachment;
 use App\Services\Hr\LeaveBalance;
 use App\Services\Hr\LeaveNotifier;
 use App\Services\Hr\ReplacementHolidays;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 /**
@@ -23,6 +25,7 @@ use Livewire\WithPagination;
  */
 class Leave extends Component
 {
+    use WithFileUploads;
     use WithPagination;
 
     public string $year         = '';
@@ -32,6 +35,27 @@ class Leave extends Component
 
     // Apply / record leave
     public bool   $showApply    = false;
+
+    /**
+     * The medical certificate, when the chosen type asks for one.
+     *
+     * Offered rather than demanded, deliberately. A clinic hands out a paper
+     * slip and somebody photographs it that evening, or the next morning, or
+     * on Monday — refusing to record Friday's absence until the picture exists
+     * would mean the absence goes unrecorded, which is worse than a request
+     * with the document still to come. It can be added afterwards.
+     */
+    public $a_attachment = null;
+
+    /**
+     * Attaching the certificate to a request that already exists.
+     *
+     * The form promises the MC can follow, and it is often HR holding the
+     * paper slip a week after the absence was recorded from a phone.
+     */
+    public ?int $attachFor = null;
+
+    public $attachFile = null;
     public string $a_employee   = '';
     public string $a_type       = '';
     /** Which public holiday a replacement day is being taken against. */
@@ -181,6 +205,40 @@ class Leave extends Component
         $this->a_days = (string) ($from->diffInDays($to) + 1);
     }
 
+    public function attachTo(int $requestId): void
+    {
+        $this->attachFor  = $requestId;
+        $this->attachFile = null;
+        $this->resetErrorBag('attachFile');
+    }
+
+    public function saveAttachment(): void
+    {
+        $this->validate(['attachFile' => LeaveAttachment::rule()], [], [
+            'attachFile' => 'medical certificate',
+        ]);
+
+        if (! $this->attachFile || ! $this->attachFor) {
+            return;
+        }
+
+        // Outlet scope, re-checked rather than trusted from the row: the id
+        // came off a page rendered some time ago, and this writes a medical
+        // document against somebody's name.
+        $request = LeaveRequest::whereHas('employee', fn ($q) => $q
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0]))
+            ->find($this->attachFor);
+
+        abort_unless($request, 403);
+
+        LeaveAttachment::replace($request, $this->attachFile);
+
+        $this->attachFor  = null;
+        $this->attachFile = null;
+
+        session()->flash('success', 'Medical certificate attached.');
+    }
+
     public function apply(): void
     {
         $this->validate([
@@ -190,6 +248,7 @@ class Leave extends Component
             'a_end'      => 'required|date',
             'a_days'     => 'required|numeric|min:0.5|max:400',
             'a_reason'   => 'nullable|string|max:500',
+            'a_attachment' => LeaveAttachment::rule(),
         ], [], [
             'a_employee' => 'employee', 'a_type' => 'leave type',
             'a_start' => 'start date', 'a_end' => 'end date', 'a_days' => 'days',
@@ -284,10 +343,19 @@ class Leave extends Component
             'approved_at'     => $autoApprove ? now() : null,
         ]);
 
+        // Stored AFTER the row exists, because the file is filed under the
+        // request's own company and employee — and because a request saved
+        // without its certificate is still a usable record, where a file
+        // written for a row that failed to save is an orphan.
+        if ($this->a_attachment) {
+            LeaveAttachment::replace($created, $this->a_attachment);
+        }
+
         // Notify AFTER the request exists — a notification for something that
         // failed to save would be worse than none.
         $told = $autoApprove ? 0 : app(LeaveNotifier::class)->submitted($created);
 
+        $this->a_attachment = null;
         $this->showApply = false;
         session()->flash('success', $autoApprove
             ? 'Leave recorded — ' . $type->name . ' needs no approval.'

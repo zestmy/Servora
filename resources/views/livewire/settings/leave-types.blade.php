@@ -181,6 +181,16 @@
                 </label>
 
                 <label class="flex items-start gap-2">
+                    <input type="checkbox" wire:model="f_requires_attachment" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <span class="text-sm text-gray-700">Ask for a medical certificate
+                        <span class="block text-[11px] text-gray-500">
+                            Offers an upload on the application form. Optional to attach — a slip
+                            photographed on Monday should not stop Friday being recorded.
+                        </span>
+                    </span>
+                </label>
+
+                <label class="flex items-start gap-2">
                     <input type="checkbox" wire:model.live="f_carry_forward" class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                     <span class="text-sm text-gray-700">Unused days carry into next year</span>
                 </label>

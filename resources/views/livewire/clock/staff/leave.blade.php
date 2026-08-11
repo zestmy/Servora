@@ -198,6 +198,40 @@
                 <x-input-error :messages="$errors->get('f_reason')" class="mt-1" />
             </div>
 
+            {{-- The MC. Shown only for the types that ask for one, which is a
+                 per-company setting rather than a hardcoded "if it is called
+                 sick leave" — see LeaveType::requires_attachment.
+
+                 capture="environment" opens the camera straight onto the slip
+                 on a phone, which is what this screen is: the certificate is
+                 in somebody's hand and the phone is already out. --}}
+            @if ($this->chosenType()?->requires_attachment)
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">
+                        Medical certificate
+                        <span class="font-normal text-gray-500">(optional)</span>
+                    </label>
+                    <input type="file" wire:model="f_attachment" capture="environment"
+                           accept="{{ \App\Services\Hr\LeaveAttachment::accepted() }}"
+                           class="mt-1 w-full text-sm text-gray-700 file:mr-3 file:min-h-[2.5rem] file:rounded-control
+                                  file:border-0 file:bg-brand-50 file:px-3 file:text-sm file:font-medium file:text-brand-700" />
+
+                    <div wire:loading wire:target="f_attachment" class="mt-1 text-[11px] text-gray-500">
+                        Uploading…
+                    </div>
+
+                    @if ($f_attachment)
+                        <p class="mt-1 text-[11px] text-success-700">Attached — it will be sent with your application.</p>
+                    @else
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            Photograph the slip, or attach a PDF. You can add it later if you do not have it yet.
+                        </p>
+                    @endif
+
+                    <x-input-error :messages="$errors->get('f_attachment')" class="mt-1" />
+                </div>
+            @endif
+
             <div class="grid grid-cols-2 gap-2">
                 <button wire:click="$set('showForm', false)"
                         class="min-h-[2.75rem] rounded-control border border-gray-300 text-sm font-medium text-gray-700 active:bg-gray-50">
@@ -242,6 +276,42 @@
                         @endif
                         @if ($req->decision_note)
                             <p class="text-[11px] text-gray-500 mt-0.5 italic">{{ $req->decision_note }}</p>
+                        @endif
+
+                        {{-- The certificate: seen if it is there, added if it is
+                             not. The form promises it can follow, so it must. --}}
+                        @if ($req->attachment_path)
+                            <a href="{{ route('clock.staff.leave.attachment', $req->id) }}" target="_blank" rel="noopener"
+                               class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-brand-700">
+                                <x-icon name="document" size="h-3 w-3" />
+                                Medical certificate
+                            </a>
+                        @elseif ($req->leaveType?->requires_attachment && $req->status !== \App\Models\LeaveRequest::CANCELLED)
+                            @if ($lateFor === $req->id)
+                                <div class="mt-1.5">
+                                    <input type="file" wire:model="lateFile" capture="environment"
+                                           accept="{{ \App\Services\Hr\LeaveAttachment::accepted() }}"
+                                           class="w-full text-[11px] text-gray-700 file:mr-2 file:min-h-[2.25rem] file:rounded-control
+                                                  file:border-0 file:bg-brand-50 file:px-2 file:text-[11px] file:font-medium file:text-brand-700" />
+                                    <x-input-error :messages="$errors->get('lateFile')" class="mt-1" />
+                                    <div class="mt-1.5 flex gap-2">
+                                        <button wire:click="saveLateAttachment" wire:loading.attr="disabled" wire:target="lateFile,saveLateAttachment"
+                                                class="min-h-[2.25rem] flex-1 rounded-control bg-brand-600 px-2 text-[11px] font-medium text-white active:bg-brand-700 disabled:opacity-50">
+                                            <span wire:loading.remove wire:target="lateFile,saveLateAttachment">Attach</span>
+                                            <span wire:loading wire:target="lateFile,saveLateAttachment">Uploading…</span>
+                                        </button>
+                                        <button wire:click="$set('lateFor', null)"
+                                                class="min-h-[2.25rem] rounded-control border border-gray-300 px-2 text-[11px] font-medium text-gray-700">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            @else
+                                <button wire:click="attachTo({{ $req->id }})"
+                                        class="mt-1 text-[11px] font-medium text-brand-700 active:text-brand-800">
+                                    + Attach medical certificate
+                                </button>
+                            @endif
                         @endif
                     </div>
                     <div class="text-right shrink-0">

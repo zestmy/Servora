@@ -442,6 +442,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.claims');
     Route::get('/hr/leave', \App\Livewire\Hr\Leave::class)->name('hr.leave')->middleware('can:hr.leave');
     Route::get('/hr/time-off', \App\Livewire\Hr\TimeOff::class)->name('hr.time-off')->middleware('can:hr.leave');
+    // The MC behind a request. Private disk, so it is served rather than linked.
+    Route::get('/hr/leave/{leaveRequest}/attachment', [\App\Http\Controllers\Hr\LeaveAttachmentController::class, 'show'])
+        ->name('hr.leave.attachment')->middleware('can:hr.leave');
     Route::get('/hr/documents', \App\Livewire\Hr\Documents::class)->name('hr.documents')->middleware('can:hr.documents.view');
     Route::get('/hr/duty-roster', \App\Livewire\Hr\DutyRoster::class)->name('hr.duty-roster'); // Viewable by all authenticated users
     Route::get('/hr/shifts', \App\Livewire\Hr\Shifts::class)->name('hr.shifts')->middleware('can:roster.settings');
