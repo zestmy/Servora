@@ -52,11 +52,43 @@ class PayslipPdf
         ])->setPaper('a4', 'portrait');
     }
 
-    /** `payslip-siti-aminah-PR-2026-07-0001.pdf` — safe on every filesystem. */
+    /**
+     * `payslip-janane-a-p-kanapathy-pr-2026-07-0001.pdf`.
+     *
+     * A SLASH IN A FILENAME IS A 500, not a cosmetic problem: Symfony refuses
+     * to build a Content-Disposition header containing "/" or "\", so the
+     * download throws before a byte is sent. Malaysian names carry the
+     * patronymic as "A/L" and "A/P" — anak lelaki, anak perempuan — so this is
+     * an ordinary name here, not an exotic input. The payroll screen built its
+     * own filename by hand and printed nothing for those employees; it goes
+     * through this now, which is why the sanitiser lives on the service beside
+     * the document rather than in a controller.
+     */
     public function filename(PayrollRun $run, string $employeeName): string
     {
-        $safe = trim(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($employeeName)), '-');
+        return 'payslip-' . $this->safe($employeeName, 'employee')
+            . '-' . $this->safe($run->reference, 'run') . '.pdf';
+    }
 
-        return "payslip-{$safe}-{$run->reference}.pdf";
+    /** Every payslip in a run, as one file. */
+    public function runFilename(PayrollRun $run): string
+    {
+        return 'payslips-' . $this->safe($run->reference, 'run') . '.pdf';
+    }
+
+    /**
+     * Down to letters, digits and hyphens.
+     *
+     * Deliberately stricter than stripping the two characters Symfony rejects:
+     * a filename also crosses Windows, macOS and whatever the browser does with
+     * it, and a colon or a quote is a problem on one of those. The fallback
+     * matters because a name of nothing but punctuation would otherwise leave a
+     * file called "payslip--.pdf".
+     */
+    private function safe(?string $value, string $fallback): string
+    {
+        $safe = trim(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower((string) $value)), '-');
+
+        return $safe !== '' ? $safe : $fallback;
     }
 }

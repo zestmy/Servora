@@ -26,7 +26,7 @@ class PayslipController extends Controller
 
         abort_if($lines->isEmpty(), 404, 'This payroll run has no employees.');
 
-        return $this->render($run, $lines, 'payslips-' . $run->reference . '.pdf');
+        return $this->render($run, $lines, app(PayslipPdf::class)->runFilename($run));
     }
 
     /** One employee's payslip. */
@@ -38,9 +38,16 @@ class PayslipController extends Controller
         // print someone else's pay under this run's heading.
         abort_if($line->payroll_run_id !== $run->id, 404);
 
-        $name = str_replace(' ', '-', strtolower($line->employee_name));
-
-        return $this->render($run, collect([$line]), "payslip-{$name}-{$run->reference}.pdf");
+        // The filename comes from the service, which is where the sanitising
+        // lives. Built by hand here, it replaced spaces and nothing else — so
+        // an employee named "JANANE A/P KANAPATHY" produced a filename with a
+        // slash in it, and Symfony refuses to put that in a Content-Disposition
+        // header. Every payslip for those employees was a 500.
+        return $this->render(
+            $run,
+            collect([$line]),
+            app(PayslipPdf::class)->filename($run, $line->employee_name)
+        );
     }
 
     private function authorise(PayrollRun $run): void
