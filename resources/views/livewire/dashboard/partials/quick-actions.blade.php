@@ -22,7 +22,7 @@
         ]])
 --}}
 
-<h2 class="mb-4 text-sm font-semibold text-gray-900">{{ $title }}</h2>
+<x-card-title>{{ $title }}</x-card-title>
 
 <ul class="space-y-2">
     @foreach ($actions as $action)
