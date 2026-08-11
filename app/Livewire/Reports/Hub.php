@@ -73,7 +73,7 @@ class Hub extends Component
                 'reports' => [
                     // Pay data — hidden from anyone without hr.compensation, so
                     // the hub never offers a link that 403s.
-                    ['label' => 'Service Charge Payout', 'route' => 'reports.service-charge-payout', 'can' => 'hr.compensation'],
+                    ['label' => 'Service Charge Payout', 'route' => 'reports.service-charge-payout', 'can' => 'hr.attendance.service_charge'],
                 ],
             ],
             [

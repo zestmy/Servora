@@ -404,6 +404,20 @@ class AttendanceRecords extends Component
         return Employee::canViewPay(Auth::user());
     }
 
+    /**
+     * Whether the service charge panel is available.
+     *
+     * Its OWN ability, not hr.compensation. Splitting a pool needs service
+     * points and shares; it does not need anybody's basic salary, and the
+     * permission that is titled "Attendance & Service Charge" should be the
+     * one that grants it. The salary columns on this same screen stay on
+     * canViewPay() — the two questions are asked separately from here on.
+     */
+    protected function canManageServiceCharge(): bool
+    {
+        return (bool) Auth::user()?->can('hr.attendance.service_charge');
+    }
+
     /** Outlet key for the stored pool: the filtered outlet, or null for All. */
     protected function serviceChargeOutletId(): ?int
     {
@@ -530,7 +544,7 @@ class AttendanceRecords extends Component
 
     public function saveServiceCharge(): void
     {
-        abort_unless($this->canViewPay(), 403);
+        abort_unless($this->canManageServiceCharge(), 403);
 
         $this->validate([
             'scAmount'        => 'required|numeric|min:0|max:9999999999',
@@ -739,9 +753,22 @@ class AttendanceRecords extends Component
          * columns that would show it are gated on $canViewPay in the view.
          */
         if (! $this->canViewPay()) {
+            $keep = ['pay_type'];
+
+            /*
+             * Service points come back for anyone who may run the service
+             * charge, because the panel is arithmetic OVER them: stripping
+             * them would not have hidden a figure, it would have shown every
+             * share as zero and looked like a broken pool. They are the one
+             * entry on the sensitive list that is not a salary.
+             */
+            if ($this->canManageServiceCharge()) {
+                $keep[] = 'service_points_entitlement';
+            }
+
             $query->select(array_values(array_diff(
                 \Illuminate\Support\Facades\Schema::getColumnListing('employees'),
-                array_diff(Employee::SENSITIVE_PAY_ATTRIBUTES, ['pay_type'])
+                array_diff(Employee::SENSITIVE_PAY_ATTRIBUTES, $keep)
             )));
         }
 
@@ -853,6 +880,7 @@ class AttendanceRecords extends Component
         }
 
         $canViewPay = $this->canViewPay();
+        $canManageServiceCharge = $this->canManageServiceCharge();
 
         $scRow = $this->loadServiceCharge();
 
@@ -867,7 +895,7 @@ class AttendanceRecords extends Component
             $scRow->excluded_employees = $scExcludedIds ?: null;
         }
 
-        $serviceCharge = ($this->showServiceCharge && $canViewPay)
+        $serviceCharge = ($this->showServiceCharge && $canManageServiceCharge)
             ? ServiceChargePeriod::distribute(
                 // The pool is the one this SCREEN is showing, which is not the
                 // same as the one that happens to have been saved: an outlet
@@ -886,7 +914,7 @@ class AttendanceRecords extends Component
 
         // The RM-per-minute the lateness column was priced at. Shown beside it
         // so the figure can be checked without opening Clock-In Settings.
-        $lateRatePerMinute = ($this->showServiceCharge && $canViewPay)
+        $lateRatePerMinute = ($this->showServiceCharge && $canManageServiceCharge)
             ? (float) \App\Models\ClockSetting::forCompany($companyId)->late_rate_per_minute
             : 0.0;
 
@@ -896,7 +924,7 @@ class AttendanceRecords extends Component
             'outlets', 'sections', 'canViewAll',
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
-            'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay',
+            'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }

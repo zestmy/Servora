@@ -412,13 +412,32 @@ return [
                     'help'  => 'See the attendance grid, service charge distribution and exports.',
                 ],
                 // Marking someone present or absent feeds straight into payroll, so
-                // editing the grid is a separate ability from reading it. Service charge
-                // itself stays gated on hr.compensation, which is stricter again.
+                // editing the grid is a separate ability from reading it.
                 'record' => [
                     'name'  => 'hr.attendance.record',
                     'label' => 'Edit attendance',
                     'title' => 'HR — Attendance (Edit)',
                     'help'  => 'Mark attendance, fill or clear a range, reorder rows, and manage attendance codes.',
+                ],
+                /*
+                 * Service charge used to ride on hr.compensation, which reads
+                 * as caution and was in fact a contradiction: this permission
+                 * is TITLED "Attendance & Service Charge" and its help promises
+                 * the distribution, so whoever granted it was told they were
+                 * granting something the screen then withheld. An Operations
+                 * Manager who runs the roster and splits the pool had to be
+                 * given sight of every basic salary in the company to do it.
+                 *
+                 * Its own ability instead. Distributing a pool and reading
+                 * payroll are different jobs, and this is the narrower one: it
+                 * shows service points and shares, never a salary — those
+                 * columns stay on hr.compensation.
+                 */
+                'service_charge' => [
+                    'name'  => 'hr.attendance.service_charge',
+                    'label' => 'Manage service charge',
+                    'title' => 'HR — Service Charge',
+                    'help'  => 'Open the service charge panel, set the pool and distribute it, and read the payout report.',
                 ],
             ],
         ],

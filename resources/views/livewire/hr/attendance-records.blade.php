@@ -43,8 +43,9 @@
                 </svg>
                 <span class="hidden sm:inline">Manage Codes</span>
             </button>
-            {{-- Service charge exposes per-employee pay — hr.compensation only. --}}
-            @if ($canViewPay)
+            {{-- Its own ability, not hr.compensation: splitting a pool needs
+                 points and shares, never a salary. --}}
+            @if ($canManageServiceCharge)
                 <button wire:click="$toggle('showServiceCharge')"
                         class="px-2.5 md:px-3 py-2 text-sm font-medium rounded-lg transition flex items-center gap-1.5 border {{ $showServiceCharge ? 'bg-teal-600 border-teal-600 text-white hover:bg-teal-700' : 'text-teal-700 border-teal-200 hover:bg-teal-50' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

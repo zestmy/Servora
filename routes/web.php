@@ -284,8 +284,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/reports', \App\Livewire\Reports\Hub::class)->name('reports.hub')->middleware('can:reports.view');
     Route::get('/reports/cost-summary', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');
     Route::get('/reports/price-history', ReportsPriceHistory::class)->name('reports.price-history')->middleware('can:reports.view');
-    // Pay data, so hr.compensation on top of reports.view.
-    Route::get('/reports/service-charge-payout', \App\Livewire\Reports\Hr\ServiceChargePayout::class)->name('reports.service-charge-payout')->middleware(['can:reports.view', 'can:hr.compensation']);
+    // The distribution rather than the payroll, so it rides on the service
+    // charge ability rather than on salary visibility.
+    Route::get('/reports/service-charge-payout', \App\Livewire\Reports\Hr\ServiceChargePayout::class)->name('reports.service-charge-payout')->middleware(['can:reports.view', 'can:hr.attendance.service_charge']);
     // Purchase reports
     Route::get('/reports/purchase-analysis', \App\Livewire\Reports\Purchase\PurchaseAnalysis::class)->name('reports.purchase-analysis')->middleware('can:reports.view');
     Route::get('/reports/po-summary', \App\Livewire\Reports\Purchase\PoSummary::class)->name('reports.po-summary')->middleware('can:reports.view');
@@ -419,7 +420,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
     // Payout slips are pay data, so hr.compensation on top of the grid's own gate.
-    Route::get('/hr/attendance/service-charge-payout', [\App\Http\Controllers\AttendanceExportController::class, 'payout'])->name('hr.attendance.payout-pdf')->middleware(['can:hr.attendance', 'can:hr.compensation']);
+    Route::get('/hr/attendance/service-charge-payout', [\App\Http\Controllers\AttendanceExportController::class, 'payout'])->name('hr.attendance.payout-pdf')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
     // Web clock-in — the staff-facing app lives in routes/clock-staff.php;
     // these are the manager-facing review, policy and enrolment screens.
     Route::get('/hr/clock-ins', \App\Livewire\Hr\ClockEvents::class)->name('hr.clock-ins')->middleware('can:hr.clock');

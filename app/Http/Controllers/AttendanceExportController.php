@@ -43,7 +43,7 @@ class AttendanceExportController extends Controller
     {
         $data = $this->gather($request, forceServiceCharge: true);
 
-        abort_unless($data['canViewPay'], 403);
+        abort_unless($data['canManageServiceCharge'], 403);
         abort_if($data['serviceCharge'] === null, 404,
             'No service charge has been saved for this period and outlet.');
 
@@ -112,9 +112,18 @@ class AttendanceExportController extends Controller
         // the two tables a row goes on, and is a rostering fact rather than a
         // pay figure. See the same carve-out in AttendanceRecords.
         if (! Employee::canViewPay($user)) {
+            $keep = ['pay_type'];
+
+            // Service points come back for anyone who may run the service
+            // charge — the distribution is arithmetic over them. Same
+            // carve-out as the Livewire grid.
+            if ($user->can('hr.attendance.service_charge')) {
+                $keep[] = 'service_points_entitlement';
+            }
+
             $query->select(array_values(array_diff(
                 Schema::getColumnListing('employees'),
-                array_diff(Employee::SENSITIVE_PAY_ATTRIBUTES, ['pay_type'])
+                array_diff(Employee::SENSITIVE_PAY_ATTRIBUTES, $keep)
             )));
         }
 
@@ -200,12 +209,14 @@ class AttendanceExportController extends Controller
         // Optional Service Charge section: included when the grid's panel is
         // open (service_charge=1) AND a pool has been saved for this exact
         // period + outlet selection (same key as the Livewire panel).
-        // Service points and the distribution are pay data — hr.compensation
-        // only, matching the Livewire grid.
+        // The distribution rides on its own ability rather than on salary
+        // visibility, matching the Livewire grid — see the note on
+        // hr.attendance.service_charge in config/permissions.php.
         $canViewPay = Employee::canViewPay($user);
+        $canManageServiceCharge = (bool) $user->can('hr.attendance.service_charge');
 
         $serviceCharge = null;
-        if ($canViewPay && ($forceServiceCharge || $request->boolean('service_charge'))) {
+        if ($canManageServiceCharge && ($forceServiceCharge || $request->boolean('service_charge'))) {
             $scOutletId = ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true))
                 ? (int) $outletFilter : null;
             $scRow = ServiceChargePeriod::where('outlet_id', $scOutletId)
@@ -242,7 +253,7 @@ class AttendanceExportController extends Controller
             'employees', 'monthlyEmployees', 'hourlyEmployees',
             'dates', 'from', 'to', 'codesById', 'cellMap', 'hoursMap', 'hourTotals',
             'legendCodes', 'brandName', 'logoBase64', 'outletName', 'employmentLabel',
-            'serviceCharge', 'canViewPay'
+            'serviceCharge', 'canViewPay', 'canManageServiceCharge'
         );
     }
 
