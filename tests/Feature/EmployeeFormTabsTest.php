@@ -158,6 +158,62 @@ class EmployeeFormTabsTest extends TestCase
     }
 
     /**
+     * Every tab closes before the next one opens.
+     *
+     * Moving the banking fields between tabs took the closing tag of the grid
+     * they lived in with them, so the Compensation wrapper never closed and
+     * Statutory, Certifications, Documents and Activity ended up nested INSIDE
+     * it — hidden by its own x-show, and blank on screen. Nothing failed: the
+     * page rendered, Livewire saw one root element, and every field test still
+     * passed, because the markup was present and merely unreachable.
+     *
+     * This counts the divs between one tab wrapper and the next. Crude, and it
+     * is the one thing that would have caught it.
+     */
+    public function test_each_tab_closes_before_the_next_one_opens(): void
+    {
+        $html = $this->form(['hr.view', 'hr.employees.manage', 'hr.compensation'])->html();
+
+        $tabs = ['personal', 'employment', 'pay', 'statutory', 'compliance', 'documents', 'activity'];
+
+        $positions = [];
+
+        foreach ($tabs as $tab) {
+            // x-show, specifically: the tab BUTTONS carry "tab === 'pay'"
+            // too, and matching those compares slices of the tab bar with
+            // each other — which balances no matter how broken the panels
+            // below are. This test passed against the actual bug until it
+            // looked for the panel.
+            $at = strpos($html, "x-show=\"tab === '{$tab}'\"");
+
+            if ($at !== false) {
+                $positions[$tab] = $at;
+            }
+        }
+
+        $this->assertGreaterThan(4, count($positions), 'The form should render most of its tabs here.');
+
+        $keys = array_keys($positions);
+
+        foreach ($keys as $i => $tab) {
+            // The last one runs to the end of the component, where the outer
+            // wrapper closes too, so it is not comparable.
+            if (! isset($keys[$i + 1])) {
+                continue;
+            }
+
+            $slice = substr($html, $positions[$tab], $positions[$keys[$i + 1]] - $positions[$tab]);
+
+            $this->assertSame(
+                substr_count($slice, '<div'),
+                substr_count($slice, '</div>'),
+                "The '{$tab}' tab does not close before '{$keys[$i + 1]}' opens — "
+                    . 'everything after it is nested inside and renders blank.'
+            );
+        }
+    }
+
+    /**
      * The hazard of moving a field out of sight: a save from the screen that
      * no longer shows it must not reset it.
      */

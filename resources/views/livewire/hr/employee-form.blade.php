@@ -701,6 +701,7 @@
                                class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 1.50" />
                         <x-input-error :messages="$errors->get('f_service_points')" class="mt-1" />
                     </div>
+                </div>
 
                 {{-- Allowances and salary revisions are DATED and go through an
                      approval, so they stay on their own screen rather than
