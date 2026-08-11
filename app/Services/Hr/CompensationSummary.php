@@ -264,16 +264,55 @@ class CompensationSummary
                 default     => $salary,
             };
 
+            /*
+             * ALLOWANCES FOLLOW THE PART MONTH, and two things must not happen
+             * while they do.
+             *
+             * A PERCENT-OF-BASIC allowance is NOT scaled here. It is computed
+             * from $basic, which is already pro-rated, so applying the fraction
+             * again would apply it twice — a joiner on the 20th would get
+             * (12/31)² of it, about an eighth rather than a third.
+             *
+             * DEDUCTIONS ARE NOT SCALED AT ALL. An allowance is paid for being
+             * at work and belongs to the days worked; a deduction is usually a
+             * fixed obligation — a loan instalment, an advance being recovered
+             * — and shrinking it because somebody joined late would quietly
+             * under-recover the company's money and change a repayment
+             * schedule nobody agreed to move. If a particular deduction should
+             * follow the month, it is a percent-of-basic one, and that already
+             * does.
+             *
+             * Scoped to $isProrated, so this applies exactly where basic was
+             * pro-rated: the same fraction, explained by the same
+             * "12 of 31 days" line on the payslip. Daily and hourly staff are
+             * outside it for the reason their basic is — their pay already
+             * follows what they worked.
+             */
+            $monthFraction = $isProrated && $wagePeriodDays > 0
+                ? $daysEligible / $wagePeriodDays
+                : 1.0;
+
             $components = ($assignments[$employee->id] ?? collect())
                 ->filter(fn ($a) => $a->component !== null)
-                ->map(fn ($a) => [
-                    'name'     => $a->component->name,
-                    'kind'     => $a->component->kind,
-                    'amount'   => $a->component->resolveAmount((float) $a->amount, $basic),
-                    'taxable'  => (bool) $a->component->is_taxable,
-                    'epf'      => (bool) $a->component->epf_applicable,
-                    'socso'    => (bool) $a->component->socso_applicable,
-                ])
+                ->map(function ($a) use ($basic, $monthFraction) {
+                    $amount = $a->component->resolveAmount((float) $a->amount, $basic);
+
+                    $scaleable = $a->component->kind === 'allowance'
+                        && $a->component->calculation !== 'percent_basic';
+
+                    return [
+                        'name'     => $a->component->name,
+                        'kind'     => $a->component->kind,
+                        'amount'   => $scaleable ? round($amount * $monthFraction, 2) : $amount,
+                        // Said per line so a payslip can mark WHICH allowances
+                        // were reduced — a full one sitting beside a scaled one
+                        // otherwise looks like an error.
+                        'prorated' => $scaleable && $monthFraction < 1.0,
+                        'taxable'  => (bool) $a->component->is_taxable,
+                        'epf'      => (bool) $a->component->epf_applicable,
+                        'socso'    => (bool) $a->component->socso_applicable,
+                    ];
+                })
                 ->values();
 
             $allowancesOnly = $components->where('kind', 'allowance');

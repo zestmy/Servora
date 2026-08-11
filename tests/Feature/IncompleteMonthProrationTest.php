@@ -271,6 +271,94 @@ class IncompleteMonthProrationTest extends TestCase
         $this->assertNull($this->row($hourly)['paid_days'], 'Hourly reports hours, not days.');
     }
 
+    // ── Allowances follow the part month ──────────────────────────────────
+
+    private function assign(Employee $e, string $kind, string $calculation, float $amount, string $name): void
+    {
+        $component = \App\Models\PayComponent::create([
+            'company_id' => $this->company->id, 'name' => $name,
+            'kind' => $kind, 'calculation' => $calculation, 'is_active' => true,
+        ]);
+
+        \App\Models\EmployeePayComponent::create([
+            'company_id' => $this->company->id, 'employee_id' => $e->id,
+            'pay_component_id' => $component->id, 'amount' => $amount,
+            'effective_from' => '2025-01-01',
+        ]);
+    }
+
+    public function test_a_fixed_allowance_is_prorated_with_the_month(): void
+    {
+        $e = $this->employee('monthly', 3000, '2026-07-20');
+        $this->assign($e, 'allowance', 'fixed', 310, 'Meal');
+
+        $row = $this->row($e);
+
+        $this->assertEqualsWithDelta(310 * 12 / 31, $row['allowances'], 0.01);
+        $this->assertTrue($row['components'][0]['prorated'],
+            'A reduced allowance beside a full one reads as a mistake unless it says why.');
+    }
+
+    /**
+     * The trap: a percent-of-basic allowance is computed FROM the pro-rated
+     * basic, so scaling it again would apply the fraction twice — a joiner on
+     * the 20th would get (12/31)² of it, about an eighth rather than a third.
+     */
+    public function test_a_percent_of_basic_allowance_is_not_scaled_twice(): void
+    {
+        $e = $this->employee('monthly', 3000, '2026-07-20');
+        $this->assign($e, 'allowance', 'percent_basic', 10, 'Housing');
+
+        $row = $this->row($e);
+
+        $proratedBasic = 3000 * 12 / 31;
+
+        $this->assertEqualsWithDelta($proratedBasic * 0.10, $row['allowances'], 0.01);
+        $this->assertNotEqualsWithDelta($proratedBasic * 0.10 * 12 / 31, $row['allowances'], 0.01);
+        $this->assertFalse($row['components'][0]['prorated'],
+            'It follows basic rather than being scaled, so it is not marked as scaled.');
+    }
+
+    /** A loan instalment is not smaller because somebody joined late. */
+    public function test_deductions_are_not_prorated(): void
+    {
+        $e = $this->employee('monthly', 3000, '2026-07-20');
+        $this->assign($e, 'deduction', 'fixed', 200, 'Staff Loan');
+
+        $this->assertEqualsWithDelta(200, $this->row($e)['deductions'], 0.01);
+    }
+
+    public function test_a_full_month_leaves_every_allowance_whole(): void
+    {
+        $e = $this->employee('monthly', 3000);
+        $this->assign($e, 'allowance', 'fixed', 310, 'Meal');
+
+        $row = $this->row($e);
+
+        $this->assertEqualsWithDelta(310, $row['allowances'], 0.01);
+        $this->assertFalse($row['components'][0]['prorated']);
+    }
+
+    /** Their basic already follows what they worked; scaling would charge twice. */
+    public function test_daily_staff_keep_whole_allowances(): void
+    {
+        $e = $this->employee('daily', 100, '2026-07-20');
+        $this->worked($e, 20, 25);
+        $this->assign($e, 'allowance', 'fixed', 310, 'Meal');
+
+        $this->assertEqualsWithDelta(310, $this->row($e)['allowances'], 0.01);
+    }
+
+    public function test_statutory_wages_follow_the_scaled_allowances(): void
+    {
+        $e = $this->employee('monthly', 3000, '2026-07-20');
+        $this->assign($e, 'allowance', 'fixed', 310, 'Meal');
+
+        $row = $this->row($e);
+
+        $this->assertEqualsWithDelta($row['basic'] + $row['allowances'], $row['epf_wages'], 0.01);
+    }
+
     // ── How a payslip explains itself ─────────────────────────────────────
 
     public function test_a_line_can_say_why_a_part_month_was_paid(): void

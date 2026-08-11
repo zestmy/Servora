@@ -166,7 +166,15 @@
                         </tr>
                         @foreach ($allowances as $a)
                             <tr>
-                                <td>{{ $a['name'] ?? 'Allowance' }}</td>
+                                <td>
+                                    {{ $a['name'] ?? 'Allowance' }}
+                                    {{-- Marked per line, because a reduced
+                                         allowance sitting beside a full one
+                                         reads as a mistake unless it says why. --}}
+                                    @if ($a['prorated'] ?? false)
+                                        <span class="sub">part month</span>
+                                    @endif
+                                </td>
                                 <td class="amt">{{ number_format((float) ($a['amount'] ?? 0), 2) }}</td>
                             </tr>
                         @endforeach
