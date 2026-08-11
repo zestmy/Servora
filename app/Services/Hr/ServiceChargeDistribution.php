@@ -95,6 +95,105 @@ class ServiceChargeDistribution
     }
 
     /**
+     * Every pool a PAYROLL RUN covers, distributed and merged.
+     *
+     * A run may be company-wide, and forPeriod() answers about ONE pool: it
+     * matches on outlet_id, so a run with no outlet looked for a pool with no
+     * outlet. Nobody saves one of those — the attendance grid keys a pool on
+     * the outlet being viewed, so a company running two branches has two pools
+     * and a company-wide run found neither. Payroll then paid no service
+     * charge at all, silently, which on an F&B payroll is the largest line
+     * after basic.
+     *
+     * POOLS ARE NEVER ADDED TOGETHER. Each is distributed within itself and
+     * the ROWS are merged, because RM/point is a property of one pool: KLCC
+     * collecting more than IOI is exactly what the split is meant to preserve,
+     * and one combined divisor would move money between branches.
+     *
+     * @return array|null  null when the period has no pool at all.
+     */
+    public function forRun(int $companyId, array $accessibleOutletIds, Carbon $from, Carbon $to, ?int $outletId): ?array
+    {
+        // A run for one outlet is the question forPeriod already answers.
+        if ($outletId !== null) {
+            return $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, $outletId);
+        }
+
+        $pools = ServiceChargePeriod::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereDate('period_from', $from)
+            ->whereDate('period_to', $to)
+            ->get();
+
+        if ($pools->isEmpty()) {
+            return null;
+        }
+
+        /*
+         * A company-wide pool, if somebody saved one from the All outlets
+         * view, is the whole answer — its distribution already covers
+         * everybody. Taking it AND the per-outlet pools would pay the same
+         * people twice.
+         */
+        if ($pools->firstWhere('outlet_id', null)) {
+            return $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, null);
+        }
+
+        $merged  = [];
+        $perPool = [];
+
+        foreach ($pools->pluck('outlet_id')->unique() as $poolOutletId) {
+            $result = $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, (int) $poolOutletId);
+
+            if (! $result) {
+                continue;
+            }
+
+            $perPool[] = $result;
+
+            foreach ($result['rows'] as $row) {
+                $employeeId = $row['employee']->id;
+
+                // An employee belongs to exactly one pool — the one named on
+                // their record — so this cannot collide. Keyed rather than
+                // appended so that if it ever does, it is one row and not two
+                // payments.
+                $merged[$employeeId] = $row + ['perPoint' => $result['perPoint']];
+            }
+        }
+
+        if (! $merged) {
+            return null;
+        }
+
+        $rows = array_values($merged);
+
+        $sum = fn (string $key) => round(array_sum(array_map(
+            fn ($r) => (float) ($r[$key] ?? 0), $rows
+        )), 2);
+
+        return [
+            'rows'   => $rows,
+            'totals' => [
+                'gross'      => $sum('gross'),
+                'deduction'  => $sum('dedAmt'),
+                'lateAmt'    => $sum('lateAmt'),
+                'lateMins'   => (int) array_sum(array_map(fn ($r) => (int) ($r['lateMins'] ?? 0), $rows)),
+                'specialAmt' => $sum('specialAmt'),
+                'net'        => $sum('net'),
+            ],
+            /*
+             * No single RM/point across pools, and saying otherwise would be a
+             * lie a payslip then prints. Each row carries its own; this is
+             * null so a caller that wants one figure has to notice.
+             */
+            'perPoint'  => count($perPool) === 1 ? $perPool[0]['perPoint'] : null,
+            'collected' => round(array_sum(array_map(fn ($p) => (float) $p['collected'], $perPool)), 2),
+            'pools'     => $perPool,
+        ];
+    }
+
+    /**
      * Saved pools the user can see, newest first — the report picks from
      * these rather than asking anyone to remember exact dates, because a pool
      * only exists for the exact from/to it was saved against.

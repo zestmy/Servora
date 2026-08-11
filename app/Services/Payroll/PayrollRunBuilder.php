@@ -113,13 +113,20 @@ class PayrollRunBuilder
         // implementation of the same rules — but a run is a snapshot, so it
         // can copy the answer. Null when no pool was saved for this exact
         // period, which is the normal case for companies that do not levy one.
-        $serviceCharge = app(\App\Services\Hr\ServiceChargeDistribution::class)->forPeriod(
+        $serviceCharge = app(\App\Services\Hr\ServiceChargeDistribution::class)->forRun(
             $companyId, $accessibleOutletIds, $from, $to, $outletId,
         );
 
         $scByEmployee = collect($serviceCharge['rows'] ?? [])
             ->keyBy(fn ($r) => $r['employee']->id);
 
+        /*
+         * One figure only when the run covers ONE pool. A company-wide run
+         * spans several, each with its own RM/point — KLCC collecting more
+         * than IOI is the whole point of splitting them — so the per-line
+         * figure below comes off the employee's own row, and this is the
+         * fallback for the single-pool case.
+         */
         $scPerPoint = (float) ($serviceCharge['perPoint'] ?? 0);
 
         // Identity that lives outside the summary — it is payroll paperwork,
@@ -225,7 +232,7 @@ class PayrollRunBuilder
                     // recomputing: points, rate, and each deduction.
                     'service_charge_detail' => $sc ? [
                         'points'     => (float) $sc['points'],
-                        'per_point'  => $scPerPoint,
+                        'per_point'  => (float) ($sc['perPoint'] ?? $scPerPoint),
                         'gross'      => (float) $sc['gross'],
                         'attendance' => (float) $sc['dedAmt'],
                         'lateness'   => (float) $sc['lateAmt'],
