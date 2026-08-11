@@ -490,6 +490,40 @@ class Employee extends Model
         return (bool) $user?->can('hr.compensation');
     }
 
+    /**
+     * Whether this person is supplied by an outsourcing agent.
+     *
+     * The company contracts with the AGENT and pays the agent; the person is
+     * the agent's employee, normally a foreign worker on the agent's own
+     * permit. Three things follow from that, and every one of them is read
+     * through this method rather than re-testing the status string:
+     *
+     *  1. NO STATUTORY CONTRIBUTIONS. EPF, SOCSO, EIS, PCB and the HRD Corp
+     *     levy are the agent's obligation as the employer of record. See
+     *     StatutoryCalculator::for(), which exempts them outright.
+     *  2. basic_salary IS THE CONTRACT RATE — what the agent invoices for this
+     *     head, not what the person takes home. See salaryFieldLabel().
+     *  3. The bank details on the record are NOT the payment route. They are
+     *     kept because a record of a person is worth having complete, but the
+     *     money goes to the agent on the agent's invoice, outside this system.
+     */
+    public function isOutsourced(): bool
+    {
+        return $this->employment_status === 'outsourcing';
+    }
+
+    /**
+     * What to call the basic_salary field on screen.
+     *
+     * The column holds one thing but MEANS two, and the difference is who
+     * receives it. Labelling an agent's contract rate "Basic Salary" invites
+     * somebody to read it as take-home pay and to wonder why no EPF came off.
+     */
+    public function salaryFieldLabel(): string
+    {
+        return $this->isOutsourced() ? 'Agent Contract Rate' : 'Basic Salary';
+    }
+
     /** Salary formatted with its pay-type suffix, e.g. "3,000.00 / mth". */
     public function salaryLabel(): ?string
     {

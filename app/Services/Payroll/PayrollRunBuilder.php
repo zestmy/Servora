@@ -36,6 +36,8 @@ class PayrollRunBuilder
      * @param  array<int, int>  $accessibleOutletIds
      * @param  ?Carbon  $overrideFrom  An explicit period, replacing the cycle
      * @param  ?Carbon  $overrideTo    for this run only. See below.
+     * @param  ?int     $sectionId         Segment: one section only.
+     * @param  ?string  $employmentStatus  Segment: see PayrollRun::scopeEmploymentStatus().
      * @throws \RuntimeException when the run is already approved
      */
     public function generate(
@@ -46,12 +48,23 @@ class PayrollRunBuilder
         ?int $userId = null,
         ?Carbon $overrideFrom = null,
         ?Carbon $overrideTo = null,
+        ?int $sectionId = null,
+        ?string $employmentStatus = null,
     ): PayrollRun {
         $month = $month->copy()->startOfMonth();
 
+        /*
+         * Which run this IS, keyed on the whole segment rather than the outlet
+         * alone. "August, IOI, outsourcing" and "August, IOI, everybody else"
+         * are two runs of the same month and must not find each other here —
+         * before the segment was part of the key, generating the second would
+         * have rebuilt the first over the top of it.
+         */
         $existing = PayrollRun::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->where('outlet_id', $outletId)
+            ->where('section_id', $sectionId)
+            ->where('employment_status', $employmentStatus)
             ->whereDate('period_month', $month)
             ->first();
 
@@ -61,9 +74,14 @@ class PayrollRunBuilder
 
         // The employee scope the figures are computed over. A per-outlet run
         // narrows to that outlet; otherwise it is everything the user may see.
+        // The section and employment filters narrow it further, so a company
+        // can pay its outsourced heads on their own run and its own staff on
+        // another — see PayrollRun::scopeEmploymentStatus() for the vocabulary.
         $employees = Employee::query()
             ->whereIn('outlet_id', $accessibleOutletIds ?: [0])
-            ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId));
+            ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId))
+            ->when($sectionId !== null, fn ($q) => $q->where('section_id', $sectionId))
+            ->tap(fn ($q) => PayrollRun::applyEmploymentStatus($q, $employmentStatus));
 
         /*
          * The real range this month covers.
@@ -117,8 +135,26 @@ class PayrollRunBuilder
             $companyId, $accessibleOutletIds, $from, $to, $outletId,
         );
 
+        /*
+         * NARROWED TO THE PEOPLE ACTUALLY ON THIS RUN.
+         *
+         * The distribution answers "who does this pool pay", which is the
+         * whole outlet — it has to be, because RM/point is the pool divided by
+         * everybody's points and narrowing it would misprice the rate itself.
+         * A segmented run pays only part of that outlet, so the rows for
+         * everyone else have to be dropped HERE, after the rate is fixed and
+         * before anything is totalled.
+         *
+         * Without this the per-line figures stayed right (each line reads its
+         * own row) while total_service_charge and total_net silently carried
+         * the whole outlet's pool — a run of six outsourced heads showing the
+         * service charge of ninety people.
+         */
+        $onThisRun = $data['rows']->pluck('employee_id')->flip();
+
         $scByEmployee = collect($serviceCharge['rows'] ?? [])
-            ->keyBy(fn ($r) => $r['employee']->id);
+            ->keyBy(fn ($r) => $r['employee']->id)
+            ->filter(fn ($r, $employeeId) => $onThisRun->has($employeeId));
 
         /*
          * One figure only when the run covers ONE pool. A company-wide run
@@ -145,12 +181,14 @@ class PayrollRunBuilder
             ->keyBy('id');
 
         return DB::transaction(function () use (
-            $existing, $companyId, $outletId, $month, $from, $to, $data, $statutory,
+            $existing, $companyId, $outletId, $sectionId, $employmentStatus, $month, $from, $to, $data, $statutory,
             $profiles, $identity, $userId, $scByEmployee, $scPerPoint
         ) {
             $run = $existing ?: new PayrollRun([
                 'company_id'   => $companyId,
                 'outlet_id'    => $outletId,
+                'section_id'   => $sectionId,
+                'employment_status' => $employmentStatus,
                 'period_month' => $month->toDateString(),
                 'period_start' => $from->toDateString(),
                 'period_end'   => $to->toDateString(),
@@ -160,6 +198,11 @@ class PayrollRunBuilder
             $run->fill([
                 'company_id'               => $companyId,
                 'outlet_id'                => $outletId,
+                // Stored so the run says which slice of the company it paid.
+                // A run that only says "August" cannot be told apart from the
+                // one beside it that paid the other half of the same August.
+                'section_id'               => $sectionId,
+                'employment_status'        => $employmentStatus,
                 'period_month'             => $month->toDateString(),
                 // Stored explicitly, not re-derived: a run must be able to say
                 // what it actually covered even after the cycle setting moves.

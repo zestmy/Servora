@@ -175,7 +175,11 @@
     <h2 class="section">Pay &amp; Bank</h2>
     <table class="fields">
         <tr>
-            <td class="label">Basic salary</td>
+            {{-- The same column means two things depending on who is paid —
+                 see Employee::salaryFieldLabel(). This page is printed and
+                 signed, so a contract rate must not go out labelled as
+                 somebody's basic salary. --}}
+            <td class="label">{{ $employee->salaryFieldLabel() }}</td>
             <td class="value">{!! $show($employee->basic_salary ? number_format((float) $employee->basic_salary, 2) : null) !!}</td>
             <td class="label">Pay type</td><td class="value">{!! $show($employee->pay_type) !!}</td>
         </tr>
@@ -188,6 +192,14 @@
             <td class="label">Service points</td><td class="value">{!! $show($employee->service_points_entitlement) !!}</td>
         </tr>
     </table>
+    @if ($employee->isOutsourced())
+        <p style="font-size: 8pt; color: #555; margin-top: -4px;">
+            Outsourced — the figure above is the rate paid to
+            {{ $employee->outsourcing_company ?: 'the outsourcing agent' }}, not the employee's
+            take-home pay. No statutory contributions are made by this company, and payment is
+            made on the agent's invoice rather than to the account shown.
+        </p>
+    @endif
 @endif
 
 <h2 class="section">Certifications</h2>

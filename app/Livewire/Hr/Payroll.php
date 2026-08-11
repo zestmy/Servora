@@ -28,6 +28,18 @@ class Payroll extends Component
     public bool   $showNew   = false;
 
     /**
+     * The segment this run covers, beyond the outlet.
+     *
+     * Both empty means the whole company, which is what most runs are. They
+     * earn their place where a company pays part of its staff differently from
+     * the rest: outsourced heads are invoiced by an agent against a contract
+     * rate and carry no statutory contributions, so they are settled on their
+     * own day against their own document and belong on their own run.
+     */
+    public string $newSection          = '';
+    public string $newEmploymentStatus = '';
+
+    /**
      * A period for THIS run that is not the company's cycle.
      *
      * Off by default and empty until opened, so the ordinary month is one
@@ -92,6 +104,8 @@ class Payroll extends Component
         $this->validate([
             'newMonth'  => 'required|date_format:Y-m',
             'newOutlet' => 'nullable|integer',
+            'newSection' => 'nullable|integer|exists:sections,id',
+            'newEmploymentStatus' => 'nullable|in:' . implode(',', array_keys(PayrollRun::employmentSegments())),
             // Required together and only when the override is open: a range
             // with one end filled in would quietly become a cycle run.
             'newFrom'   => [$this->customPeriod ? 'required' : 'nullable', 'date'],
@@ -100,6 +114,8 @@ class Payroll extends Component
             'newMonth' => 'month',
             'newFrom'  => 'period start',
             'newTo'    => 'period end',
+            'newSection' => 'section',
+            'newEmploymentStatus' => 'employment',
         ]);
 
         $user     = Auth::user();
@@ -122,6 +138,8 @@ class Payroll extends Component
                 $user->id,
                 $this->customPeriod ? Carbon::parse($this->newFrom)->startOfDay() : null,
                 $this->customPeriod ? Carbon::parse($this->newTo)->endOfDay() : null,
+                $this->newSection !== '' ? (int) $this->newSection : null,
+                $this->newEmploymentStatus !== '' ? $this->newEmploymentStatus : null,
             );
         } catch (\RuntimeException $e) {
             $this->addError('newMonth', $e->getMessage());
@@ -133,8 +151,11 @@ class Payroll extends Component
 
         session()->flash('success', "Payroll generated for {$run->periodLabel()}"
             // Named back, because a run built over a range nobody expects is
-            // exactly the one somebody needs to be told about.
+            // exactly the one somebody needs to be told about — and the same
+            // goes for a run that covered a slice of the company rather than
+            // the whole of it.
             . ($run->hasCustomRange() ? " ({$run->rangeLabel()})" : '')
+            . ($run->isSegmented() ? " — {$run->scopeLabel()}" : '')
             . ": {$run->employee_count} employee(s).");
 
         $this->redirectRoute('hr.payroll.show', ['run' => $run->uuid], navigate: true);
@@ -172,11 +193,45 @@ class Payroll extends Component
         return \App\Models\CompensationSetting::forCompany(Auth::user()->company_id)->cycleFor($month);
     }
 
+    /**
+     * How many people the chosen segment would actually pay.
+     *
+     * Shown BEFORE generating, because a segment is easy to get wrong in a way
+     * that is invisible afterwards: picking a section that nobody in the
+     * chosen outlet belongs to produces a perfectly valid empty run, and
+     * "0 employees" on a button is a much better place to find that out than
+     * an empty payslip list.
+     *
+     * Counted through exactly the filters the builder applies, and over the
+     * same employedDuring() window, so it cannot say one number and the run
+     * produce another.
+     */
+    public function segmentHeadcount(): int
+    {
+        $range = $this->customPeriod && $this->newFrom
+            ? [Carbon::parse($this->newFrom)]
+            : $this->newMonthRange();
+
+        if (! $range) {
+            return 0;
+        }
+
+        $outletId = $this->newOutlet !== '' ? (int) $this->newOutlet : null;
+
+        return \App\Models\Employee::query()
+            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId))
+            ->when($this->newSection !== '', fn ($q) => $q->where('section_id', (int) $this->newSection))
+            ->tap(fn ($q) => PayrollRun::applyEmploymentStatus($q, $this->newEmploymentStatus ?: null))
+            ->employedDuring($range[0]->toDateString())
+            ->count();
+    }
+
     public function render()
     {
         $user = Auth::user();
 
-        $runs = PayrollRun::with('outlet:id,name', 'approvedBy:id,name')
+        $runs = PayrollRun::with('outlet:id,name', 'section:id,name', 'approvedBy:id,name')
             ->orderByDesc('period_month')
             ->orderByDesc('id')
             ->paginate(15);
@@ -190,6 +245,10 @@ class Payroll extends Component
         return view('livewire.hr.payroll', [
             'runs'     => $runs,
             'outlets'  => $outlets,
+            'sections' => \App\Models\Section::active()->ordered()->get(),
+            'segments' => PayrollRun::employmentSegments(),
+            // Only worth a query while the panel is open.
+            'headcount' => $this->showNew ? $this->segmentHeadcount() : null,
             'newRange' => $this->newMonthRange(),
             'settings' => \App\Models\CompensationSetting::forCompany($user->company_id),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Payroll']);

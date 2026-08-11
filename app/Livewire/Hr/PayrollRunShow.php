@@ -49,7 +49,7 @@ class PayrollRunShow extends Component
 
     public function run(): PayrollRun
     {
-        return $this->cachedRun ??= PayrollRun::with('outlet:id,name', 'generatedBy:id,name', 'approvedBy:id,name')
+        return $this->cachedRun ??= PayrollRun::with('outlet:id,name', 'section:id,name', 'generatedBy:id,name', 'approvedBy:id,name')
             ->where('uuid', $this->runUuid)
             ->firstOrFail();
     }
@@ -80,6 +80,14 @@ class PayrollRunShow extends Component
                 $run->period_month,
                 $run->outlet_id,
                 Auth::id(),
+                null,
+                null,
+                // Passed back, not defaulted. A segmented run regenerated
+                // without its segment would find no existing run to rebuild,
+                // create a second one over the whole outlet, and leave the
+                // company holding two runs paying overlapping people.
+                $run->section_id,
+                $run->employment_status,
             );
         } catch (\RuntimeException $e) {
             session()->flash('error', $e->getMessage());
@@ -249,7 +257,19 @@ class PayrollRunShow extends Component
             $warnings[] = $noBank->count() . ' employee(s) have no bank details — they cannot be included in a payment file.';
         }
 
-        $noIc = $lines->whereNull('ic_number');
+        /*
+         * Outsourced heads are outside every statutory check below.
+         *
+         * They appear in no submission this company files — EPF, SOCSO, EIS
+         * and PCB are the agent's — so warning that their IC is missing, or
+         * that the rates behind their (zero) contributions were unconfirmed,
+         * is a false alarm that fires on every run, every month. A warning
+         * nobody can ever clear is worse than no warning: it is what teaches
+         * people to approve past the whole list without reading it.
+         */
+        $statutoryLines = $lines->reject(fn ($l) => $l->isOutsourced());
+
+        $noIc = $statutoryLines->whereNull('ic_number');
         if ($noIc->isNotEmpty()) {
             $warnings[] = $noIc->count() . ' employee(s) have no IC number — statutory submissions require it.';
         }
@@ -280,7 +300,9 @@ class PayrollRunShow extends Component
                 . '. Check the attendance record for this period, then regenerate.';
         }
 
-        if (! $run->rates_were_confirmed) {
+        // Nothing on this run was computed from the rates, so the caveat about
+        // them describes no figure anybody is looking at.
+        if (! $run->rates_were_confirmed && $statutoryLines->isNotEmpty()) {
             $warnings[] = 'Statutory rates were not confirmed when this run was generated — EPF, SOCSO, EIS and PCB are estimates.';
         }
 

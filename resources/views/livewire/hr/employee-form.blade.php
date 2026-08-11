@@ -48,6 +48,15 @@
     // Open on the first tab carrying an error, so a failed save lands where the
     // problem is instead of on whichever tab happens to be first.
     $openTab = collect(array_keys($tabs))->first(fn ($t) => $tabErrors[$t] ?? false) ?? 'personal';
+
+    /*
+     * Read off the FORM's status rather than the saved employee's, because
+     * f_employment_status is wire:model.live: switching somebody to Outsourcing
+     * shuts the statutory section and relabels the salary field there and then,
+     * rather than after a save. The saved record answers the same question
+     * through Employee::isOutsourced(), which is what the calculation uses.
+     */
+    $isOutsourced = $f_employment_status === 'outsourcing';
 @endphp
 
 <div x-data="{ tab: @js($openTab) }">
@@ -677,9 +686,25 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="sm:col-span-2">
-                        <label class="text-xs font-semibold text-gray-600">Basic Salary</label>
+                        {{-- One column, two meanings, and the difference is who
+                             receives the money. For own staff it is what the
+                             person is paid; for an agency head it is what the
+                             AGENT invoices for them. Calling both "Basic Salary"
+                             invites somebody to read a contract rate as take-home
+                             pay and then ask why no EPF came off it. --}}
+                        <label class="text-xs font-semibold text-gray-600">
+                            {{ $isOutsourced ? 'Agent Contract Rate' : 'Basic Salary' }}
+                        </label>
                         <input type="number" step="0.01" min="0" wire:model.live="f_basic_salary"
                                class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 2500.00" />
+                        @if ($isOutsourced)
+                            <p class="mt-1 text-[11px] text-gray-600">
+                                The rate this company pays the <strong>outsourcing agent</strong> for this head —
+                                not the person's take-home pay, which is a matter between them and the agent.
+                                It is paid on the agent's invoice, so the bank details on the Personal tab are
+                                <strong>not</strong> the payment route for this person.
+                            </p>
+                        @endif
                         <x-input-error :messages="$errors->get('f_basic_salary')" class="mt-1" />
                     </div>
                     <div>
@@ -736,6 +761,45 @@
                     </div>
                     <span class="badge-warning whitespace-nowrap">restricted</span>
                 </div>
+
+                @if ($isOutsourced)
+                    {{-- Disabled, not hidden, and the difference matters.
+
+                         Hiding it would leave whoever opens this tab wondering
+                         whether the section failed to load; worse, a person
+                         moved off the agency onto the company's own books needs
+                         their EPF number to still BE here rather than to have
+                         been quietly discarded. So the values are kept and the
+                         controls are shut: nothing is written while they are
+                         outsourced, and changing their employment status back
+                         hands the whole section over intact.
+
+                         The calculation does not rely on this being disabled —
+                         StatutoryCalculator::for() exempts an outsourced
+                         employee outright, whatever these boxes say. This is
+                         the same rule shown, not the rule itself. --}}
+                    <div class="alert-info">
+                        <p class="text-sm">
+                            <strong>Not applicable — this employee is outsourced.</strong>
+                        </p>
+                        <p class="text-xs mt-1">
+                            EPF, SOCSO, EIS, PCB and the HRD Corp levy are the obligation of
+                            <strong>{{ $f_outsourcing_provider === 'others' ? ($f_outsourcing_company ?: 'the outsourcing agent') : 'Experiva' }}</strong>
+                            as the employer of record. This company pays a contract rate for the head and
+                            deducts nothing, so payroll runs these figures at zero and payslips say so.
+                        </p>
+                        <p class="text-xs mt-1">
+                            Anything already recorded below is kept and shown, but nothing here is used
+                            while this person is outsourced. Change their employment status on the
+                            <strong>Employment</strong> tab to bring this section back.
+                        </p>
+                    </div>
+                @endif
+
+                {{-- fieldset, so one `disabled` shuts every control inside it
+                     rather than thirteen @disabled attributes that can drift
+                     apart as fields are added. --}}
+                <fieldset @disabled($isOutsourced) class="space-y-4 disabled:opacity-60">
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -807,6 +871,8 @@
                         </div>
                     </div>
                 </div>
+
+                </fieldset>
             </div>
         @endif
 

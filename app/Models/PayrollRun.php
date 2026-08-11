@@ -9,7 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * One month's payroll for a company (optionally one outlet).
+ * One month's payroll for a company, optionally narrowed to a SEGMENT of it —
+ * an outlet, a section, an employment status, or any combination.
+ *
+ * Segments exist because a company does not always pay everybody the same way
+ * on the same day. Outsourced heads are settled to an agent against a contract
+ * rate with no statutory contributions at all, so they belong on their own run
+ * with their own reference rather than mixed into a batch whose bank file then
+ * has to be split by hand.
  *
  * DRAFT is the only state in which anything can change. Approving locks the
  * lines, because the figures stop being a working estimate and become what
@@ -29,8 +36,93 @@ class PayrollRun extends Model
         self::PAID     => 'Paid',
     ];
 
+    /**
+     * The employment segments a run can be built for, beyond the plain
+     * statuses on Employee::EMPLOYMENT_STATUSES.
+     *
+     * Same vocabulary as the Employees list filter, deliberately — somebody
+     * who has filtered a list to "own staff only" and then runs payroll for
+     * that segment should be choosing the same words in both places.
+     */
+    public const SEGMENT_NONE                = 'none';
+    public const SEGMENT_EXCLUDE_OUTSOURCING = 'exclude_outsourcing';
+
+    /**
+     * Every value the employment_status column accepts, with the label the
+     * screens show for it. Null (all staff) is not in here — it is the absence
+     * of a segment rather than one of them.
+     *
+     * @return array<string, string>
+     */
+    public static function employmentSegments(): array
+    {
+        return [
+            self::SEGMENT_EXCLUDE_OUTSOURCING => 'Own staff only (exclude outsourced)',
+            self::SEGMENT_NONE                => 'No employment status recorded',
+        ] + Employee::EMPLOYMENT_STATUSES;
+    }
+
+    /**
+     * Narrow an employee query to one employment segment.
+     *
+     * The single implementation, used by the builder when it computes a run
+     * and by the screens when they count who a run would cover. Two of these
+     * drifting apart would show a count that the run then does not match.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyEmploymentStatus($query, ?string $segment)
+    {
+        return match (true) {
+            $segment === null || $segment === '' => $query,
+            $segment === self::SEGMENT_NONE      => $query->whereNull('employment_status'),
+            // Staff with no status recorded are the company's own until
+            // somebody says otherwise, so they belong in "exclude outsourced"
+            // rather than falling out of both halves of the split.
+            $segment === self::SEGMENT_EXCLUDE_OUTSOURCING => $query->where(function ($q) {
+                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
+            }),
+            default => $query->where('employment_status', $segment),
+        };
+    }
+
+    /** The label for whatever segment this run was built for. */
+    public function employmentSegmentLabel(): ?string
+    {
+        if (! $this->employment_status) {
+            return null;
+        }
+
+        return static::employmentSegments()[$this->employment_status] ?? $this->employment_status;
+    }
+
+    /**
+     * What this run covered, in one line: "IOI City · Kitchen · Outsourcing".
+     *
+     * Every part that was left open is simply absent rather than spelled out
+     * as "all", so an ordinary company-wide run still reads "All outlets"
+     * instead of a row of three qualifiers saying nothing was narrowed.
+     */
+    public function scopeLabel(): string
+    {
+        $parts = array_filter([
+            $this->outlet?->name ?? 'All outlets',
+            $this->section?->name,
+            $this->employmentSegmentLabel(),
+        ]);
+
+        return implode(' · ', $parts);
+    }
+
+    /** True when the run paid a slice of the company rather than all of it. */
+    public function isSegmented(): bool
+    {
+        return $this->section_id !== null || $this->employment_status !== null;
+    }
+
     protected $fillable = [
-        'company_id', 'outlet_id', 'period_month', 'period_start', 'period_end', 'status', 'reference',
+        'company_id', 'outlet_id', 'section_id', 'employment_status',
+        'period_month', 'period_start', 'period_end', 'status', 'reference',
         'total_gross', 'total_service_charge', 'total_net', 'total_statutory_employee',
         'total_statutory_employer', 'total_employer_cost', 'employee_count',
         'generated_by', 'generated_at', 'approved_by', 'approved_at',
@@ -87,6 +179,11 @@ class PayrollRun extends Model
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
     }
 
     public function company(): BelongsTo
@@ -207,9 +304,9 @@ class PayrollRun extends Model
      * PR-2026-08-0001, unique within the company.
      *
      * Sequenced per month rather than globally so the reference says when it
-     * was for; the count is of runs already in that month, which is normally
-     * zero because of the one-run-per-month unique key and only non-zero for
-     * per-outlet runs.
+     * was for; the count is of runs already in that month, which is zero for a
+     * company that pays everybody in one batch and climbs with each further
+     * segment — per-outlet, per-section, or the outsourced heads on their own.
      */
     public static function nextReference(int $companyId, Carbon $month): string
     {

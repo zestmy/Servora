@@ -46,7 +46,7 @@
                 </div>
                 <div>
                     <label class="label">Outlet</label>
-                    <select wire:model="newOutlet" class="input">
+                    <select wire:model.live="newOutlet" class="input">
                         <option value="">All outlets (one run)</option>
                         @foreach ($outlets as $outlet)
                             <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
@@ -63,6 +63,69 @@
                     <button wire:click="$set('showNew', false)" class="btn-ghost">Cancel</button>
                 </div>
             </div>
+
+            {{-- ── Segment ──────────────────────────────────────────────────
+                 Both default to everybody, because most companies pay everybody
+                 in one batch and this row should cost them nothing to ignore.
+
+                 Where it earns its place is outsourced staff. They are the
+                 agent's employees on the agent's permit — the company buys
+                 their labour against a contract rate and settles an invoice, so
+                 they carry no EPF, SOCSO, EIS or PCB, are usually paid on a
+                 different day, and the payment goes to the agent rather than to
+                 any of the accounts on their records. Mixing them into the main
+                 run produced one bank file that had to be split by hand every
+                 month. Two runs is the fix, and this is how you ask for them. --}}
+            <div class="mt-3 pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="label">Section</label>
+                    <select wire:model.live="newSection" class="input">
+                        <option value="">All sections</option>
+                        @foreach ($sections as $section)
+                            <option value="{{ $section->id }}">{{ $section->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('newSection')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="label">Employment</label>
+                    <select wire:model.live="newEmploymentStatus" class="input">
+                        <option value="">All employment statuses</option>
+                        @foreach ($segments as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('newEmploymentStatus')" class="mt-1" />
+                </div>
+                <div class="flex items-end">
+                    {{-- The count is here rather than in a confirmation, because
+                         an empty segment generates a perfectly valid empty run
+                         and this is the last moment it is cheap to notice. --}}
+                    <p class="help pb-1">
+                        @if ($headcount === 0)
+                            <span class="text-warning-700 font-medium">No employees match this segment.</span>
+                            Check the outlet, section and employment together.
+                        @else
+                            Covers <strong>{{ $headcount }}</strong>
+                            {{ \Illuminate\Support\Str::plural('employee', $headcount ?? 0) }}.
+                            Leave both on "all" to pay everybody in one run.
+                        @endif
+                    </p>
+                </div>
+            </div>
+
+            @if ($newEmploymentStatus === 'outsourcing')
+                {{-- Said on the screen that builds the run, because it changes
+                     what the resulting bank file is FOR: not a set of salary
+                     transfers to staff, but the basis of one payment to an
+                     agent. --}}
+                <p class="mt-2 text-xs text-info-700">
+                    Outsourced staff carry <strong>no statutory contributions</strong> — EPF, SOCSO, EIS,
+                    PCB and the HRD Corp levy are the agent's, not this company's. Their salary figure is
+                    the <strong>contract rate paid to the agent</strong>, and the money goes to the agent
+                    on the agent's invoice rather than to the bank accounts on their records.
+                </p>
+            @endif
 
             {{-- The cycle-change escape hatch.
 
@@ -152,7 +215,17 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-xs font-mono text-gray-600">{{ $run->reference }}</td>
-                                <td class="px-3 py-2 text-sm text-gray-600">{{ $run->outlet?->name ?? 'All outlets' }}</td>
+                                <td class="px-3 py-2 text-sm text-gray-600">
+                                    {{ $run->outlet?->name ?? 'All outlets' }}
+                                    {{-- Two runs of the same month are only
+                                         tellable apart by their segment, so it
+                                         is on the row rather than one click in. --}}
+                                    @if ($run->isSegmented())
+                                        <span class="block text-[10px] text-gray-500">
+                                            {{ collect([$run->section?->name, $run->employmentSegmentLabel()])->filter()->implode(' · ') }}
+                                        </span>
+                                    @endif
+                                </td>
                                 <td class="px-2 py-2 text-right tabular-nums text-gray-700">{{ $run->employee_count }}</td>
                                 <td class="px-2 py-2 text-right tabular-nums text-gray-700">{{ number_format((float) $run->total_gross, 2) }}</td>
                                 <td class="px-2 py-2 text-right tabular-nums font-semibold text-brand-700">{{ number_format((float) $run->total_net, 2) }}</td>

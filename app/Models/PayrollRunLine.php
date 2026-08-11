@@ -105,12 +105,37 @@ class PayrollRunLine extends Model
      */
     public function missingForPayment(): array
     {
+        // An agency head is paid on the agent's invoice, not by transfer to
+        // any account on their record, so a blank bank field is not something
+        // missing from this line — it is the normal state of one.
+        if ($this->isOutsourced()) {
+            return [];
+        }
+
         $missing = [];
 
         if (! $this->bank_name)      { $missing[] = 'bank'; }
         if (! $this->bank_account_no) { $missing[] = 'account number'; }
 
         return $missing;
+    }
+
+    /**
+     * Whether this line was for somebody supplied by an outsourcing agent.
+     *
+     * Read off the snapshot rather than from the employee, deliberately: a
+     * line has to keep saying WHY its contributions were zero even after the
+     * person is moved onto the company's own books — or deleted, which nulls
+     * employee_id and leaves nothing to ask. The note is written by
+     * StatutoryCalculator at generation time and is that record.
+     */
+    public function isOutsourced(): bool
+    {
+        return in_array(
+            \App\Services\Payroll\StatutoryCalculator::OUTSOURCED_NOTE,
+            $this->statutory_notes ?? [],
+            true
+        );
     }
 
     /** Paid by the hour, whether or not any hours were found for the period. */

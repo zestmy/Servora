@@ -41,7 +41,16 @@
             </div>
             <div>
                 <span class="text-xs text-gray-500 block">Scope</span>
-                <span class="text-gray-800">{{ $run->outlet?->name ?? 'All outlets' }}</span>
+                <span class="text-gray-800">{{ $run->scopeLabel() }}</span>
+                {{-- A segmented run pays part of the company, so the totals on
+                     this page are part of the month's payroll and not all of
+                     it. Said once, here, rather than left to be inferred from a
+                     staff count that looks low. --}}
+                @if ($run->isSegmented())
+                    <span class="block text-[11px] text-gray-500 mt-0.5">
+                        Covers this segment only — other staff are paid on their own run.
+                    </span>
+                @endif
             </div>
             <div>
                 <span class="text-xs text-gray-500 block">Status</span>

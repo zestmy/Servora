@@ -32,6 +32,33 @@ use Carbon\Carbon;
  */
 class StatutoryCalculator
 {
+    /**
+     * A month with no statutory contribution at all, in the shape for() always
+     * returns. Every caller reads the same keys off every row, so "nothing is
+     * switched on", "nobody is enrolled" and "this person is outsourced" have
+     * to be a row of zeros rather than a missing row.
+     */
+    /**
+     * Why an outsourced employee's contributions are all zero, written onto
+     * the run line so a payslip carries the reason rather than leaving a
+     * column of noughts to be interpreted.
+     *
+     * A constant because the line is later read BACK by
+     * PayrollRunLine::isOutsourced() — that is the only record on a snapshot
+     * of why this person was exempt, and matching it on a retyped string would
+     * break the moment somebody improved the wording.
+     */
+    public const OUTSOURCED_NOTE = 'Outsourced — statutory contributions are the agent\'s, not this company\'s.';
+
+    public const NONE = [
+        'epf_employee' => 0.0, 'epf_employer' => 0.0,
+        'socso_employee' => 0.0, 'socso_employer' => 0.0,
+        'eis_employee' => 0.0, 'eis_employer' => 0.0,
+        'pcb' => 0.0, 'hrdf_employer' => 0.0, 'zakat' => 0.0,
+        'employee_total' => 0.0, 'employer_total' => 0.0,
+        'notes' => [],
+    ];
+
     public function __construct(
         private readonly StatutorySetting $settings,
     ) {}
@@ -69,6 +96,31 @@ class StatutoryCalculator
         ?array $ytd = null,
     ): array {
         $asOf    = $asOf ?? Carbon::today();
+
+        /*
+         * OUTSOURCED STAFF CONTRIBUTE NOTHING, and this is checked before the
+         * profile is even loaded.
+         *
+         * The company is not their employer of record — it buys their labour
+         * from an agent against a contract rate and settles the agent's
+         * invoice. EPF, SOCSO, EIS, PCB and the HRD Corp levy are all
+         * obligations OF AN EMPLOYER, and contributing here would file this
+         * company as one under a scheme number that belongs to the agent.
+         *
+         * Deliberately a status check and NOT a wipe of the employee's
+         * statutory profile: somebody taken off the agency onto the company's
+         * own books gets their EPF number and their settings back, rather than
+         * having to have them re-keyed from paperwork nobody kept.
+         *
+         * It overrides the per-employee switches rather than reading them,
+         * because the switches answer "does this scheme apply to this person
+         * here", and the answer for an agency head is no regardless of what is
+         * ticked. The employee form disables that section for the same reason.
+         */
+        if ($employee->isOutsourced()) {
+            return array_merge(self::NONE, ['notes' => [self::OUTSOURCED_NOTE]]);
+        }
+
         $profile = $profile ?? EmployeeStatutoryProfile::forEmployee($employee);
         $age     = $employee->date_of_birth?->diffInYears($asOf);
 
