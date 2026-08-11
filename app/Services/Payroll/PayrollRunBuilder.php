@@ -260,10 +260,14 @@ class PayrollRunBuilder
                     'socso_number'       => $profile?->socso_number,
                     'income_tax_number'  => $profile?->income_tax_number,
                     'pay_type'           => $row['pay_type'],
-                    // The working behind basic, for hourly staff. Null for
-                    // everybody else, which is what lets the payslip show it
-                    // without having to ask the pay type.
+                    // The working behind basic — hours for hourly staff, days
+                    // for daily ones, and days-of-the-wage-period for a monthly
+                    // employee on an incomplete month. Each is null for
+                    // everybody it does not describe, which is what lets the
+                    // payslip show the right one without asking the pay type.
                     'paid_hours'         => $row['paid_hours'] ?? null,
+                    'paid_days'          => $row['paid_days'] ?? null,
+                    'period_days'        => $row['period_days'] ?? null,
                     'pay_rate'           => $row['pay_rate'] ?? null,
                     'basic'              => $row['basic'],
                     'allowances'         => $row['allowances'],

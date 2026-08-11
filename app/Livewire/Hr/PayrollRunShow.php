@@ -281,7 +281,8 @@ class PayrollRunShow extends Component
         }
 
         /*
-         * An hourly employee who came out at nothing.
+         * An employee paid off the grid — by hours or by days — who came out
+         * at nothing.
          *
          * Zero is a legitimate figure — somebody who did not work this period
          * is owed nothing — but it looks identical to an attendance grid that
@@ -295,7 +296,9 @@ class PayrollRunShow extends Component
         $zeroHours = $lines->filter(fn ($l) => $l->zeroHourReason() !== null);
 
         if ($zeroHours->isNotEmpty()) {
-            $warnings[] = $zeroHours->count() . ' hourly employee(s) are being paid nothing — '
+            // "hourly" no longer covers it: daily staff are priced off the same
+            // grid and fail the same way when nobody has filled it in.
+            $warnings[] = $zeroHours->count() . ' employee(s) paid by hours or days are being paid nothing — '
                 . $zeroHours->map(fn ($l) => $l->employee_name . ' (' . $l->zeroHourReason() . ')')->join('; ')
                 . '. Check the attendance record for this period, then regenerate.';
         }

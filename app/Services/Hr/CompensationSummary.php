@@ -130,6 +130,46 @@ class CompensationSummary
             ->groupBy('employee_id')
             ->pluck('total', 'employee_id');
 
+        /*
+         * DAYS worked, for anybody paid by them. The same grid, the same
+         * reasoning, counted rather than summed.
+         *
+         * A day counts when hours were recorded against it AND they are above
+         * zero. Zero hours on a row is somebody who did not work that day —
+         * paying a day rate for it would pay for the absence.
+         */
+        $daysByEmployee = \App\Models\AttendanceRecord::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->whereIn('employee_id', $staff->pluck('id'))
+            ->where('hours', '>', 0)
+            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw('employee_id, COUNT(*) as total')
+            ->groupBy('employee_id')
+            ->pluck('total', 'employee_id');
+
+        /*
+         * THE DIVISOR FOR AN INCOMPLETE MONTH — the length of the company's
+         * NORMAL wage period for this month, not the length of this run.
+         *
+         * Employment Act 1955 s.60I prices an incomplete month as
+         *     monthly wage ÷ days of the wage period × days eligible
+         * and the wage period is the company's cycle: 31 for a calendar July,
+         * 30 for a 26th-to-25th one.
+         *
+         * Taking the RUN's length instead would be the obvious reading and is
+         * wrong in the one case this most needs to be right. A cycle change
+         * produces a stub run — 1–25 June, say — and dividing by its own 25
+         * days pays a full month's salary for 25 days of work; the next run
+         * then pays another full month, so the company pays two months for
+         * about 1.8. Dividing by the wage period pays 25/30 and the seam adds
+         * up. The numerator is narrowed to the run; the divisor never is.
+         */
+        // Rounded before casting, never truncated: diffInDays returns a float,
+        // and (int) on a 29.999999 would quietly shorten the wage period by a
+        // day — which would then overpay everybody on an incomplete month.
+        [$cycleFrom, $cycleTo] = $settings->cycleFor($month);
+        $wagePeriodDays = max(1, (int) round($cycleFrom->copy()->startOfDay()->diffInDays($cycleTo->copy()->startOfDay())) + 1);
+
         // Year to date from COMMITTED runs, for the PCB MTD formula. One query
         // for everyone rather than one per employee inside the map.
         $ytd = $calculator
@@ -141,29 +181,88 @@ class CompensationSummary
                 ->forMonth($companyId, $staff->pluck('id')->all(), $month->copy()->startOfMonth())
             : collect();
 
-        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $to, $ytd, $hoursByEmployee) {
+        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $from, $to, $ytd, $hoursByEmployee, $daysByEmployee, $wagePeriodDays) {
             /*
              * BASIC, and what basic_salary means depends on the pay type.
              *
-             * For monthly and daily staff it is the figure itself. For hourly
-             * staff it is a RATE, and the month's basic is that rate times the
-             * hours on the attendance grid. Before this it was used verbatim
-             * whatever the pay type — a part-timer on RM12/hr was paid RM12 for
-             * the month, with EPF, SOCSO, EIS and PCB all computed on RM12,
-             * because every one of those starts from this number.
+             * MONTHLY (and no pay type recorded, which behaves as monthly) —
+             * the figure itself, pro-rated when the person was not employed for
+             * the whole wage period. See below.
              *
-             * Hourly with no hours entered comes to zero, which is correct and
-             * is also why the payroll screen lists who that is before a run:
-             * zero is indistinguishable from "nobody has filled the grid in
-             * yet", and the two need very different responses.
+             * DAILY — a RATE. The month's basic is that rate times the days
+             * actually worked on the attendance grid. Before this it was used
+             * verbatim, so somebody on RM100 a day was paid RM100 for the
+             * month, with EPF, SOCSO, EIS and PCB all computed on RM100.
+             *
+             * HOURLY — a RATE, times the hours on the grid. Same fault, fixed
+             * earlier for the same reason.
+             *
+             * Daily or hourly with nothing entered comes to zero, which is
+             * correct and is also why the payroll screen lists who that is
+             * before a run: zero is indistinguishable from "nobody has filled
+             * the grid in yet", and the two need very different responses.
              */
-            $isHourly   = $employee->pay_type === 'hourly';
-            $paidHours  = $isHourly ? round((float) ($hoursByEmployee[$employee->id] ?? 0), 2) : null;
-            $hourlyRate = $isHourly && $employee->basic_salary !== null ? (float) $employee->basic_salary : null;
+            $isHourly = $employee->pay_type === 'hourly';
+            $isDaily  = $employee->pay_type === 'daily';
 
-            $basic = $isHourly
-                ? round((float) $paidHours * (float) $hourlyRate, 2)
-                : ($employee->basic_salary !== null ? (float) $employee->basic_salary : 0.0);
+            $paidHours = $isHourly ? round((float) ($hoursByEmployee[$employee->id] ?? 0), 2) : null;
+            $workedDays = $isDaily ? (int) ($daysByEmployee[$employee->id] ?? 0) : null;
+
+            // The contractual rate as it is written on the record — per hour
+            // for hourly staff, per day for daily. Null for monthly, whose
+            // basic_salary is a total rather than a rate.
+            $unitRate = ($isHourly || $isDaily) && $employee->basic_salary !== null
+                ? (float) $employee->basic_salary
+                : null;
+
+            /*
+             * PRO-RATING AN INCOMPLETE MONTH, for monthly staff only.
+             *
+             * Daily and hourly staff need none of this — they are already paid
+             * for exactly what they worked, and pro-rating on top would deduct
+             * for the same absence twice.
+             *
+             * The days counted are the overlap of THREE ranges: the period
+             * being run, the time since they joined, and the time up to their
+             * leaving date. Somebody who joined on the 20th is paid from the
+             * 20th; somebody who left on the 5th is paid to the 5th; somebody
+             * employed throughout is paid in full.
+             *
+             * Both ends are INCLUSIVE — a leaving date is the last working day,
+             * which is the same rule Employee::resignationTookEffect() applies.
+             */
+            $eligibleFrom = $employee->join_date && $employee->join_date->gt($from)
+                ? $employee->join_date->copy()->startOfDay()
+                : $from->copy()->startOfDay();
+
+            $employedUntil = $employee->employedUntil();
+            $eligibleTo = $employedUntil && $employedUntil->lt($to)
+                ? $employedUntil->copy()->startOfDay()
+                : $to->copy()->startOfDay();
+
+            // Whole days, rounded before casting for the same reason as the
+            // wage period above.
+            $daysEligible = $eligibleTo->lt($eligibleFrom)
+                ? 0
+                : (int) round($eligibleFrom->diffInDays($eligibleTo)) + 1;
+
+            /*
+             * Capped at the wage period, never above it. A run deliberately
+             * made LONGER than the cycle — two months in one period — must not
+             * quietly pay 2× basic off the back of this arithmetic; that is a
+             * decision for whoever is running it, not a side effect. Full
+             * salary is the ceiling.
+             */
+            $isMonthly     = ! $isHourly && ! $isDaily;
+            $isProrated    = $isMonthly && $daysEligible < $wagePeriodDays;
+            $salary        = $employee->basic_salary !== null ? (float) $employee->basic_salary : 0.0;
+
+            $basic = match (true) {
+                $isHourly   => round((float) $paidHours * (float) $unitRate, 2),
+                $isDaily    => round((float) $workedDays * (float) $unitRate, 2),
+                $isProrated => round($salary / $wagePeriodDays * $daysEligible, 2),
+                default     => $salary,
+            };
 
             $components = ($assignments[$employee->id] ?? collect())
                 ->filter(fn ($a) => $a->component !== null)
@@ -216,9 +315,16 @@ class CompensationSummary
                 'pay_type'    => $employee->pay_type,
                 'basic'       => $basic,
                 // The working behind `basic`, for the payslip and for anyone
-                // checking it. Null for everybody not paid by the hour.
+                // checking it. Each is null for everybody it does not describe,
+                // which is what lets the payslip show the right one without
+                // having to ask the pay type:
+                //   paid_hours + pay_rate   hourly    "37.5 h × RM12.00"
+                //   paid_days  + pay_rate   daily     "12 d × RM100.00"
+                //   paid_days  + period_days monthly  "12 / 31 days"
                 'paid_hours'  => $paidHours,
-                'pay_rate'    => $hourlyRate,
+                'paid_days'   => $isDaily ? $workedDays : ($isProrated ? $daysEligible : null),
+                'period_days' => $isProrated ? $wagePeriodDays : null,
+                'pay_rate'    => $unitRate,
                 'hourly_rate' => $rate,
                 'components'  => $components,
                 'allowances'  => $allowances,

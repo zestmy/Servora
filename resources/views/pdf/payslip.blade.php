@@ -136,13 +136,28 @@
                         <tr>
                             <td>
                                 Basic salary
-                                {{-- The working, for anybody paid by the hour.
-                                     A part-timer checking a payslip is checking
-                                     the hours, not the total — the total is the
-                                     thing they cannot verify without them. --}}
+                                {{-- The working, for anybody whose basic is not
+                                     simply their monthly figure. Somebody
+                                     checking a payslip is checking the hours,
+                                     the days, or the part-month — the total is
+                                     the thing they cannot verify without them.
+
+                                     A pro-rated month matters most here: a
+                                     joiner who receives a third of a salary
+                                     will ask why, and "12 of 31 days" answers
+                                     it on the document they are holding. --}}
                                 @if ($line->paid_hours !== null)
                                     <span class="sub">
                                         {{ rtrim(rtrim(number_format((float) $line->paid_hours, 2, '.', ''), '0'), '.') }} hrs
+                                        &times; RM {{ number_format((float) $line->pay_rate, 2) }}
+                                    </span>
+                                @elseif ($line->isProrated())
+                                    <span class="sub">
+                                        {{ $line->prorationLabel() }} employed &mdash; part month
+                                    </span>
+                                @elseif ($line->paid_days !== null)
+                                    <span class="sub">
+                                        {{ (int) $line->paid_days }} {{ \Illuminate\Support\Str::plural('day', (int) $line->paid_days) }}
                                         &times; RM {{ number_format((float) $line->pay_rate, 2) }}
                                     </span>
                                 @endif

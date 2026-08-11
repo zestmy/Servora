@@ -22,7 +22,7 @@ class PayrollRunLine extends Model
         'employee_name', 'staff_id', 'ic_number', 'designation',
         'outlet_name', 'section_name', 'bank_name', 'bank_account_no', 'bank_account_name',
         'epf_number', 'socso_number', 'income_tax_number',
-        'pay_type', 'paid_hours', 'pay_rate',
+        'pay_type', 'paid_hours', 'paid_days', 'period_days', 'pay_rate',
         'basic', 'allowances', 'deductions', 'ot_hours', 'ot_amount',
         'service_charge', 'service_charge_detail',
         'gross', 'epf_employee', 'epf_employer', 'socso_employee', 'socso_employer',
@@ -43,6 +43,9 @@ class PayrollRunLine extends Model
         'service_charge'     => 'decimal:2',
         'service_charge_detail' => 'array',
         'paid_hours'         => 'decimal:2',
+        // Counted, never fractional — unlike the hours beside them.
+        'paid_days'          => 'integer',
+        'period_days'        => 'integer',
         'pay_rate'           => 'decimal:2',
         'gross'              => 'decimal:2',
         'epf_employee'       => 'decimal:2',
@@ -144,24 +147,65 @@ class PayrollRunLine extends Model
         return $this->pay_type === 'hourly';
     }
 
+    /** Paid by the day, whether or not any days were found for the period. */
+    public function isDaily(): bool
+    {
+        return $this->pay_type === 'daily';
+    }
+
     /**
-     * Why an hourly line came out at nothing, if it did.
+     * Whether basic was reduced because the person was not employed for the
+     * whole wage period — a mid-cycle joiner or leaver, or a short run.
+     *
+     * Both figures are needed to say it: paid_days alone is also what a DAILY
+     * line carries, and those two mean different things.
+     */
+    public function isProrated(): bool
+    {
+        return $this->period_days !== null && $this->paid_days !== null;
+    }
+
+    /** e.g. "12 of 31 days", for a payslip that has to explain a part month. */
+    public function prorationLabel(): ?string
+    {
+        return $this->isProrated()
+            ? $this->paid_days . ' of ' . $this->period_days . ' days'
+            : null;
+    }
+
+    /**
+     * Why a line paid BY WHAT WAS WORKED came out at nothing, if it did.
      *
      * Zero is a legitimate answer — somebody who did not work this period is
      * owed nothing — but it is indistinguishable from a grid nobody filled in,
      * and the two want opposite responses. Naming which of the two inputs is
      * missing is the difference between "check this" and "check what".
      *
+     * Covers daily as well as hourly: a daily employee whose grid is empty is
+     * the same failure with the same two possible causes, and leaving them out
+     * would let a run pay somebody nothing without saying so.
+     *
      * Null when there is nothing to say, so callers can filter on truthiness.
      */
     public function zeroHourReason(): ?string
     {
-        if (! $this->isHourly() || (float) $this->basic > 0) {
+        if (! ($this->isHourly() || $this->isDaily()) || (float) $this->basic > 0) {
             return null;
         }
 
+        $noRate = $this->pay_rate === null || (float) $this->pay_rate <= 0;
+
+        if ($this->isDaily()) {
+            $noDays = $this->paid_days === null || (int) $this->paid_days <= 0;
+
+            return match (true) {
+                $noDays && $noRate => 'no days worked and no rate',
+                $noDays            => 'no days entered',
+                default            => 'no daily rate set',
+            };
+        }
+
         $noHours = $this->paid_hours === null || (float) $this->paid_hours <= 0;
-        $noRate  = $this->pay_rate === null || (float) $this->pay_rate <= 0;
 
         return match (true) {
             $noHours && $noRate => 'no hours and no rate',
