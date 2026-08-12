@@ -399,18 +399,30 @@
                         <td class="px-4 py-3 text-center">
                             @if ($emp->employment_status)
                                 @php
+                                    /*
+                                     * Keyed on employment status, and READ
+                                     * WITH A FALLBACK — a status added to
+                                     * Employee::EMPLOYMENT_STATUSES without a
+                                     * colour here took the whole list down
+                                     * with an undefined key, which is how
+                                     * "Internship" 500'd this screen.
+                                     *
+                                     * A missing colour should be a plain grey
+                                     * badge, not an outage.
+                                     */
                                     $esColors = [
                                         'probation'          => 'bg-warning-100 text-warning-700',
                                         'confirmed'          => 'bg-success-100 text-success-700',
                                         'extended_probation' => 'bg-orange-100 text-orange-700',
                                         'partimer'           => 'bg-purple-100 text-purple-700',
+                                        'internship'         => 'bg-brand-100 text-brand-700',
                                         'outsourcing'        => 'bg-blue-100 text-blue-700',
                                         'resigned'           => 'bg-gray-200 text-gray-700',
                                     ];
                                     $probationOverdue = in_array($emp->employment_status, ['probation', 'extended_probation'], true)
                                         && $emp->employment_status_date?->isBefore(today());
                                 @endphp
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $probationOverdue ? 'bg-danger-100 text-danger-700' : $esColors[$emp->employment_status] }}">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $probationOverdue ? 'bg-danger-100 text-danger-700' : ($esColors[$emp->employment_status] ?? 'bg-gray-100 text-gray-700') }}">
                                     {{ $emp->employmentStatusLabel() }}
                                 </span>
                                 @if ($emp->employmentStatusDetail())

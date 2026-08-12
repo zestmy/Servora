@@ -111,6 +111,7 @@
                     'confirmed'          => 'pill-green',
                     'extended_probation' => 'pill-orange',
                     'partimer'           => 'pill-blue',
+                    'internship'         => 'pill-green',
                     'outsourcing'        => 'pill-blue',
                     'resigned'           => 'pill-gray',
                 ];
