@@ -397,6 +397,18 @@
     </div>
 
     {{-- Lines --}}
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="text-sm font-semibold text-gray-700">Employees on this run</h3>
+        {{-- Offered on a DRAFT too, unlike the statutory and bank files: this
+             is the sheet somebody checks the figures on before approving, and
+             holding it back until after approval would withhold it at exactly
+             the moment it is useful. --}}
+        <a href="{{ route('hr.payroll.list-pdf', $run) }}" target="_blank" rel="noopener"
+           class="btn-secondary text-xs">
+            Download PDF
+        </a>
+    </div>
+
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table-surface min-w-[1100px]">

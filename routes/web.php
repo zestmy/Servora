@@ -417,6 +417,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/payroll/{run}/payslips', [\App\Http\Controllers\PayslipController::class, 'all'])->name('hr.payroll.payslips')->middleware('can:hr.payroll');
     Route::get('/hr/payroll/{run}/payslip/{line}', [\App\Http\Controllers\PayslipController::class, 'single'])->name('hr.payroll.payslip')->middleware('can:hr.payroll');
     Route::get('/hr/payroll/{run}/export/{type}', \App\Http\Controllers\PayrollExportController::class)->name('hr.payroll.export')->middleware('can:hr.payroll');
+    // The run's employee table as a sheet to check before approving — allowed
+    // on a draft, unlike the statutory and bank exports above.
+    Route::get('/hr/payroll/{run}/list-pdf', \App\Http\Controllers\PayrollRunListPdfController::class)->name('hr.payroll.list-pdf')->middleware('can:hr.payroll');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
     // Payout slips are pay data, so hr.compensation on top of the grid's own gate.
