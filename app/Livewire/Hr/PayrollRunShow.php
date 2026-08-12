@@ -37,6 +37,17 @@ class PayrollRunShow extends Component
      */
     public bool    $showAdjust        = false;
     public ?int    $adjustmentId      = null;
+
+    /**
+     * Narrows the employee picker, not the adjustment.
+     *
+     * A company-wide run is ninety names in a dropdown, and the corrections
+     * that come up in practice are usually aimed at one group — the agency
+     * heads, or the leavers. Same vocabulary as the Generate panel one screen
+     * back, including "own staff only", so the words mean the same thing in
+     * both places.
+     */
+    public string  $adj_employment    = '';
     public string  $adj_employee_id   = '';
     public string  $adj_label         = '';
     public string  $adj_amount        = '';
@@ -149,6 +160,11 @@ class PayrollRunShow extends Component
 
         $a = \App\Models\PayrollRunAdjustment::where('payroll_run_id', $run->id)->findOrFail($id);
 
+        // Cleared so the person being edited is always in the picker. A filter
+        // left over from a previous search could hide them, and a select whose
+        // current value is not among its options renders blank — which reads
+        // as the employee having been lost.
+        $this->adj_employment        = '';
         $this->adjustmentId          = $a->id;
         $this->adj_employee_id       = (string) $a->employee_id;
         $this->adj_label             = $a->label;
@@ -157,6 +173,60 @@ class PayrollRunShow extends Component
         $this->adj_affects_statutory = (bool) $a->affects_statutory;
         $this->adj_notes             = (string) $a->notes;
         $this->showAdjust            = true;
+    }
+
+    /**
+     * The lines the picker offers, narrowed by the employment filter.
+     *
+     * Resolved through the EMPLOYEES table rather than the lines, because a
+     * line is a snapshot and does not carry an employment status — it carries
+     * the pay, which is the point of it being a snapshot. That means the
+     * filter reads the person's standing as it is NOW, which is the right
+     * answer for "who am I looking for", even on an old run.
+     *
+     * Lines whose employee has since been deleted are dropped: employee_id is
+     * null on those, and an adjustment needs somebody to attach to.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\PayrollRunLine>
+     */
+    public function adjustmentCandidates(): \Illuminate\Support\Collection
+    {
+        $lines = $this->run()->lines()
+            ->whereNotNull('employee_id')
+            ->orderBy('employee_name')
+            ->get();
+
+        if ($this->adj_employment === '' || $lines->isEmpty()) {
+            return $lines;
+        }
+
+        $allowed = PayrollRun::applyEmploymentStatus(
+            \App\Models\Employee::query()->whereIn('id', $lines->pluck('employee_id')),
+            $this->adj_employment,
+        )->pluck('id')->flip();
+
+        return $lines->filter(fn ($l) => $allowed->has($l->employee_id))->values();
+    }
+
+    /**
+     * Changing the filter drops a selection it no longer shows.
+     *
+     * Leaving it set would let somebody pick a name, narrow the list past it,
+     * and save an adjustment against an employee who is no longer on screen —
+     * the money would go somewhere they had stopped looking.
+     */
+    public function updatedAdjEmployment(): void
+    {
+        if ($this->adj_employee_id === '') {
+            return;
+        }
+
+        $stillThere = $this->adjustmentCandidates()
+            ->contains(fn ($l) => (string) $l->employee_id === $this->adj_employee_id);
+
+        if (! $stillThere) {
+            $this->adj_employee_id = '';
+        }
     }
 
     /**
@@ -268,6 +338,7 @@ class PayrollRunShow extends Component
     private function resetAdjustForm(): void
     {
         $this->adjustmentId          = null;
+        $this->adj_employment        = '';
         $this->adj_employee_id       = '';
         $this->adj_label             = '';
         $this->adj_amount            = '';
@@ -519,6 +590,10 @@ class PayrollRunShow extends Component
                 ->where('payroll_run_id', $run->id)
                 ->orderBy('id')
                 ->get(),
+            // Only computed while the form is open — it is an extra query for
+            // a picker nobody is looking at otherwise.
+            'adjustCandidates' => $this->showAdjust ? $this->adjustmentCandidates() : collect(),
+            'employmentSegments' => PayrollRun::employmentSegments(),
             'audience'   => $this->emailAudience(),
             'deliveries' => PayslipDelivery::where('payroll_run_id', $run->id)
                 ->orderByDesc('id')

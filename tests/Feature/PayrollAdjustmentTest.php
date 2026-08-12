@@ -293,6 +293,132 @@ class PayrollAdjustmentTest extends TestCase
         $this->assertDatabaseCount('payroll_run_adjustments', 0);
     }
 
+    // ── Narrowing the employee picker ─────────────────────────────────────
+
+    /** @return array{0: Employee, 1: Employee} [agency, leaver] */
+    private function extraStaff(): array
+    {
+        $agency = Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'name' => 'BBB AGENCY', 'is_active' => true, 'join_date' => '2025-01-01',
+            'basic_salary' => 2200, 'pay_type' => 'monthly',
+            'employment_status' => 'outsourcing', 'outsourcing_company' => 'Experiva',
+        ]);
+
+        $leaver = Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'name' => 'CCC LEAVER', 'is_active' => true, 'join_date' => '2025-01-01',
+            'basic_salary' => 2500, 'pay_type' => 'monthly',
+            'employment_status' => 'resigned', 'employment_status_date' => '2026-07-25',
+        ]);
+
+        return [$agency, $leaver];
+    }
+
+    public function test_the_picker_can_be_narrowed_by_employment(): void
+    {
+        [$agency, $leaver] = $this->extraStaff();
+        $run = $this->build();
+
+        $c = Livewire::actingAs($this->user)->test(PayrollRunShow::class, ['run' => $run->uuid])
+            ->call('openAdjust');
+
+        $names = fn () => $c->instance()->adjustmentCandidates()->pluck('employee_name')->sort()->values()->all();
+
+        $this->assertSame(['AAA STAFF', 'BBB AGENCY', 'CCC LEAVER'], $names(),
+            'No filter offers everybody on the run.');
+
+        $c->set('adj_employment', 'outsourcing');
+        $this->assertSame(['BBB AGENCY'], $names());
+
+        $c->set('adj_employment', 'resigned');
+        $this->assertSame(['CCC LEAVER'], $names());
+    }
+
+    /** The option the request named, and the reason the vocabulary is shared. */
+    public function test_own_staff_only_excludes_the_outsourced(): void
+    {
+        $this->extraStaff();
+        $run = $this->build();
+
+        $c = Livewire::actingAs($this->user)->test(PayrollRunShow::class, ['run' => $run->uuid])
+            ->call('openAdjust')
+            ->set('adj_employment', PayrollRun::SEGMENT_EXCLUDE_OUTSOURCING);
+
+        $this->assertSame(
+            ['AAA STAFF', 'CCC LEAVER'],
+            $c->instance()->adjustmentCandidates()->pluck('employee_name')->sort()->values()->all()
+        );
+    }
+
+    /**
+     * Narrowing past a chosen name must drop it. Saving against somebody the
+     * picker no longer shows would send the money out of sight.
+     */
+    public function test_narrowing_past_the_chosen_employee_clears_the_selection(): void
+    {
+        [$agency] = $this->extraStaff();
+        $run = $this->build();
+
+        $c = Livewire::actingAs($this->user)->test(PayrollRunShow::class, ['run' => $run->uuid])
+            ->call('openAdjust')
+            ->set('adj_employee_id', (string) $agency->id);
+
+        // Still shown under this filter, so the selection stands.
+        $c->set('adj_employment', 'outsourcing')
+          ->assertSet('adj_employee_id', (string) $agency->id);
+
+        // Now hidden by it, so it goes.
+        $c->set('adj_employment', PayrollRun::SEGMENT_EXCLUDE_OUTSOURCING)
+          ->assertSet('adj_employee_id', '');
+    }
+
+    /** Editing must always show the person being edited, whatever was filtered. */
+    public function test_editing_clears_a_filter_that_would_hide_the_employee(): void
+    {
+        [$agency] = $this->extraStaff();
+        $run = $this->build();
+
+        $adjustment = PayrollRunAdjustment::create([
+            'company_id' => $this->company->id, 'payroll_run_id' => $run->id,
+            'employee_id' => $agency->id, 'label' => 'Agency correction', 'amount' => 100,
+            'direction' => PayrollRunAdjustment::DEDUCTION, 'affects_statutory' => false,
+        ]);
+
+        $c = Livewire::actingAs($this->user)->test(PayrollRunShow::class, ['run' => $run->uuid])
+            ->call('openAdjust')
+            ->set('adj_employment', PayrollRun::SEGMENT_EXCLUDE_OUTSOURCING)
+            ->call('editAdjustment', $adjustment->id);
+
+        $c->assertSet('adj_employment', '')
+          ->assertSet('adj_employee_id', (string) $agency->id);
+
+        $this->assertTrue(
+            $c->instance()->adjustmentCandidates()->contains(fn ($l) => $l->employee_id === $agency->id),
+            'A select whose value is not among its options renders blank.'
+        );
+    }
+
+    /** The filter is a finding aid — it must not change what gets saved. */
+    public function test_the_filter_does_not_change_the_adjustment(): void
+    {
+        [$agency] = $this->extraStaff();
+        $run = $this->build();
+
+        Livewire::actingAs($this->user)->test(PayrollRunShow::class, ['run' => $run->uuid])
+            ->call('openAdjust')
+            ->set('adj_employment', 'outsourcing')
+            ->set('adj_employee_id', (string) $agency->id)
+            ->set('adj_label', 'Agency correction')
+            ->set('adj_amount', '250')
+            ->call('saveAdjustment')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('payroll_run_adjustments', [
+            'payroll_run_id' => $run->id, 'employee_id' => $agency->id, 'amount' => 250.00,
+        ]);
+    }
+
     public function test_the_signed_amount_comes_from_the_direction_not_the_column(): void
     {
         $deduction = new PayrollRunAdjustment(['amount' => 500, 'direction' => PayrollRunAdjustment::DEDUCTION]);

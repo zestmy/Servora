@@ -183,14 +183,34 @@
                 {{ $adjustmentId ? 'Edit adjustment' : 'Add adjustment' }}
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {{-- Narrows the picker, not the adjustment. A company-wide run
+                     is ninety names in a dropdown, and the corrections that
+                     come up in practice are aimed at one group — the agency
+                     heads, or the leavers. Same options as the Generate panel
+                     so the words mean the same thing in both places. --}}
+                <div>
+                    <label class="label">Employment</label>
+                    <select wire:model.live="adj_employment" class="input">
+                        <option value="">All employment statuses</option>
+                        @foreach ($employmentSegments as $sv => $sl)
+                            <option value="{{ $sv }}">{{ $sl }}</option>
+                        @endforeach
+                    </select>
+                    <p class="help">Filters the list below — it does not change the adjustment.</p>
+                </div>
                 <div>
                     <label class="label">Employee</label>
                     <select wire:model="adj_employee_id" class="input">
                         <option value="">— Select —</option>
-                        @foreach ($lines as $l)
+                        @foreach ($adjustCandidates as $l)
                             <option value="{{ $l->employee_id }}">{{ $l->employee_name }}</option>
                         @endforeach
                     </select>
+                    @if ($adjustCandidates->isEmpty())
+                        <p class="help text-warning-700">Nobody on this run matches that employment filter.</p>
+                    @else
+                        <p class="help">{{ $adjustCandidates->count() }} of {{ $lines->count() }} on this run.</p>
+                    @endif
                     <x-input-error :messages="$errors->get('adj_employee_id')" class="mt-1" />
                 </div>
                 <div>
