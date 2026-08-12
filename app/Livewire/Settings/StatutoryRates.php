@@ -100,8 +100,7 @@ class StatutoryRates extends Component
             'epf_employee_rate_senior', 'epf_employer_rate_senior',
             'epf_employee_rate_foreign', 'epf_employer_rate_foreign', 'senior_age',
             'socso_employee_rate', 'socso_employer_rate', 'socso_employer_rate_senior', 'socso_ceiling',
-            'eis_employee_rate', 'eis_employer_rate', 'eis_ceiling',
-            'skbbk_employee_rate', 'skbbk_ceiling', 'eis_max_age',
+            'eis_employee_rate', 'eis_employer_rate', 'eis_ceiling', 'eis_max_age',
             'skbbk_employee_rate', 'skbbk_ceiling',
             'pcb_relief_individual', 'pcb_relief_epf_cap', 'pcb_relief_spouse', 'pcb_relief_child',
             'pcb_rebate_amount', 'pcb_rebate_threshold',
@@ -206,11 +205,23 @@ class StatutoryRates extends Component
             return;
         }
 
+        /*
+         * EVERY on/off switch on the screen, and the list is written out in
+         * full rather than derived, because the one that went missing from it
+         * went missing silently.
+         *
+         * `hrdf_enabled` was loaded into the form and rendered as a checkbox
+         * but never written back, so ticking HRD Corp levy and pressing Save
+         * did nothing at all — no error, the box simply came back unticked.
+         * A flag absent from here is not a compile error and not a test
+         * failure; it is a setting that cannot be changed.
+         */
         $data = [
             'epf_enabled'   => $this->epf_enabled,
             'socso_enabled' => $this->socso_enabled,
             'eis_enabled'   => $this->eis_enabled,
             'pcb_enabled'   => $this->pcb_enabled,
+            'hrdf_enabled'  => $this->hrdf_enabled,
             'skbbk_enabled' => $this->skbbk_enabled,
             'pcb_tax_bands' => $bands,
         ];
@@ -221,6 +232,7 @@ class StatutoryRates extends Component
             'epf_employee_rate_foreign', 'epf_employer_rate_foreign',
             'socso_employee_rate', 'socso_employer_rate', 'socso_employer_rate_senior', 'socso_ceiling',
             'eis_employee_rate', 'eis_employer_rate', 'eis_ceiling',
+            'skbbk_employee_rate', 'skbbk_ceiling',
             'pcb_relief_individual', 'pcb_relief_epf_cap', 'pcb_relief_spouse', 'pcb_relief_child',
             'pcb_rebate_amount', 'pcb_rebate_threshold',
         ] as $field) {
