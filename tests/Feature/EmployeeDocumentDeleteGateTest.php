@@ -174,9 +174,50 @@ class EmployeeDocumentDeleteGateTest extends TestCase
     }
 
     /**
-     * The backfill rule: nobody loses a capability the moment this deploys.
-     * A permission that silently strips access is the worse failure — the
-     * button just stops being there and nothing says why.
+     * The decision the backfill existed to make possible: deleting paperwork
+     * is irreversible, so it sits with the admin roles.
+     *
+     * Asserted per role rather than as a whole list, because the roles that
+     * SHOULD hold it differ between environments and pinning the full set here
+     * would fail on any database seeded in a different order.
+     */
+    public function test_hr_and_business_manager_cannot_delete_documents(): void
+    {
+        $target = \Spatie\Permission\Models\Permission::where('name', self::ABILITY)->first();
+        $this->assertNotNull($target);
+
+        foreach (['HR Manager', 'Business Manager'] as $roleName) {
+            $roleId = \Illuminate\Support\Facades\DB::table('roles')->where('name', $roleName)->value('id');
+
+            if (! $roleId) {
+                continue;   // not every environment seeds every role
+            }
+
+            $this->assertFalse(
+                \Illuminate\Support\Facades\DB::table('role_has_permissions')
+                    ->where('permission_id', $target->id)->where('role_id', $roleId)->exists(),
+                "$roleName must not be able to delete employee documents."
+            );
+
+            // And they keep everything else — the gate moved one action, not a job.
+            $manageId = \Illuminate\Support\Facades\DB::table('permissions')
+                ->where('name', 'hr.employees.manage')->value('id');
+
+            $this->assertTrue(
+                \Illuminate\Support\Facades\DB::table('role_has_permissions')
+                    ->where('permission_id', $manageId)->where('role_id', $roleId)->exists(),
+                "$roleName must still be able to add and edit staff."
+            );
+        }
+    }
+
+    /**
+     * The backfill rule: nobody loses a capability the moment the ability is
+     * introduced. A permission that silently strips access is the worse
+     * failure — the button just stops being there and nothing says why.
+     *
+     * Measured against the roles the backfill actually targeted, minus the two
+     * later revoked by an explicit decision.
      */
     public function test_the_backfill_gave_it_to_everyone_who_could_already_delete(): void
     {
@@ -186,11 +227,20 @@ class EmployeeDocumentDeleteGateTest extends TestCase
         $this->assertNotNull($manage, 'hr.employees.manage must exist for the backfill to key off.');
         $this->assertNotNull($target, 'The migration must create the ability.');
 
-        $manageRoles = \Illuminate\Support\Facades\DB::table('role_has_permissions')
-            ->where('permission_id', $manage->id)->pluck('role_id')->sort()->values()->all();
+        // The two taken back off by an explicit decision, so this measures the
+        // backfill rather than re-asserting the revocation above.
+        $revoked = \Illuminate\Support\Facades\DB::table('roles')
+            ->whereIn('name', ['HR Manager', 'Business Manager'])->pluck('id');
+
+        $expected = \Illuminate\Support\Facades\DB::table('role_has_permissions')
+            ->where('permission_id', $manage->id)->pluck('role_id')
+            ->reject(fn ($id) => $revoked->contains($id))
+            ->sort()->values()->all();
+
         $targetRoles = \Illuminate\Support\Facades\DB::table('role_has_permissions')
             ->where('permission_id', $target->id)->pluck('role_id')->sort()->values()->all();
 
-        $this->assertSame($manageRoles, $targetRoles);
+        $this->assertSame($expected, $targetRoles,
+            'Every other role that can edit staff kept the ability it already had in practice.');
     }
 }
