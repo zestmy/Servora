@@ -669,8 +669,26 @@ class EmployeeForm extends Component
         session()->flash('doc_success', 'Document uploaded.');
     }
 
+    /**
+     * Whether this user may remove a scan from the record.
+     *
+     * Its own ability rather than riding on "can edit staff": the file is
+     * deleted from disk by the model's `deleted` hook, so there is no undo and
+     * nothing to restore from. Uploading and viewing stay open to anyone who
+     * can edit an employee — it is only the irreversible half that is gated.
+     */
+    public function canDeleteDocuments(): bool
+    {
+        return (bool) Auth::user()?->can('hr.employees.documents.delete');
+    }
+
     public function deleteDocument(int $id): void
     {
+        // Checked here and not only in the view. Hiding the button stops the
+        // accident; this stops the forged Livewire call, and only one of those
+        // is a security boundary.
+        abort_unless($this->canDeleteDocuments(), 403, 'You may not delete employee documents.');
+
         $this->authorisedEmployee();
 
         // The model's deleted hook removes the file — see EmployeeDocument.

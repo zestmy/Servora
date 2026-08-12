@@ -1113,9 +1113,18 @@
                                         <a href="{{ route('hr.employee-documents.download', $doc) }}"
                                            class="text-xs font-medium text-gray-600 hover:text-gray-900">Download</a>
                                         @endcanDo
+                                        {{-- Behind its own ability. Deleting takes
+                                             the file off disk with no undo, so it
+                                             is not something "can edit staff"
+                                             should carry — see
+                                             hr.employees.documents.delete. The
+                                             server checks it too; this only stops
+                                             the accident. --}}
+                                        @canDo('hr.employees.documents.delete')
                                         <button type="button" wire:click="deleteDocument({{ $doc->id }})"
                                                 wire:confirm="Delete this document? The file is removed for good."
                                                 class="text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
+                                        @endcanDo
                                     </li>
                                 @endforeach
                             </ul>

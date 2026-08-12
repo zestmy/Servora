@@ -382,6 +382,28 @@ return [
                     'title' => 'HR — Employees (Delete)',
                     'help'  => 'Delete an employee record.',
                 ],
+                /*
+                 * Removing a scan is not the same act as uploading one, and it is
+                 * the only irreversible thing on the Documents tab: the model's
+                 * deleted hook removes the file from disk, deliberately, because
+                 * leaving orphaned IC scans behind would make a delete a lie.
+                 * There is no undo and no recycle bin, so somebody who files
+                 * paperwork all day does not also need the ability to destroy it.
+                 *
+                 * Separate from hr.employees.delete, which removes the PERSON.
+                 * Whoever may delete a whole employee record can obviously
+                 * dispose of their documents with it, but the reverse does not
+                 * follow — clearing a superseded typhoid card is routine, and
+                 * deleting a member of staff is not.
+                 */
+                'documents_delete' => [
+                    'name'  => 'hr.employees.documents.delete',
+                    'label' => 'Delete uploaded documents',
+                    'title' => 'HR — Employee Documents (Delete)',
+                    'help'  => 'Remove a scan from an employee record. The file is deleted from '
+                             . 'storage and cannot be recovered. Uploading and viewing stay with '
+                             . 'anyone who can edit staff.',
+                ],
                 // Someone's standing — probation, confirmation, resignation, whether they
                 // are still active — is a different order of information from where they
                 // work and what they are called. It sits behind its own ability for the
