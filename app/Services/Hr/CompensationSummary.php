@@ -466,6 +466,8 @@ class CompensationSummary
                 'eis_employee'   => round($rows->sum(fn ($r) => $r['statutory']['eis_employee']), 2),
                 'eis_employer'   => round($rows->sum(fn ($r) => $r['statutory']['eis_employer']), 2),
                 'pcb'            => round($rows->sum(fn ($r) => $r['statutory']['pcb']), 2),
+                // Employee-only, so it has no employer twin in this list.
+                'skbbk'          => round($rows->sum(fn ($r) => $r['statutory']['skbbk'] ?? 0), 2),
                 'hrdf_employer'  => round($rows->sum(fn ($r) => $r['statutory']['hrdf_employer'] ?? 0), 2),
                 'statutory_employee' => round($rows->sum(fn ($r) => $r['statutory']['employee_total']), 2),
                 'statutory_employer' => round($rows->sum(fn ($r) => $r['statutory']['employer_total']), 2),

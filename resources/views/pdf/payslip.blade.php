@@ -71,6 +71,10 @@
             (float) $line->socso_employee > 0 ? ['SOCSO',        (float) $line->socso_employee] : null,
             (float) $line->eis_employee   > 0 ? ['EIS (SIP)',    (float) $line->eis_employee]   : null,
             (float) $line->pcb            > 0 ? ['PCB (MTD)',    (float) $line->pcb]            : null,
+            // SKBBK / LINDUNG 24 Jam. Named in full on the payslip because it
+            // is new, employee-paid in full, and the first thing somebody will
+            // query when their net drops.
+            (float) $line->skbbk          > 0 ? ['SKBBK (LINDUNG 24 Jam)', (float) $line->skbbk] : null,
         ]));
     @endphp
     <div class="slip">

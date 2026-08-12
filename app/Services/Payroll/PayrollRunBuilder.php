@@ -326,6 +326,7 @@ class PayrollRunBuilder
                     'eis_employee'       => $row['statutory']['eis_employee'],
                     'eis_employer'       => $row['statutory']['eis_employer'],
                     'pcb'                => $row['statutory']['pcb'],
+                    'skbbk'              => $row['statutory']['skbbk'] ?? 0,
                     'hrdf_employer'      => $row['statutory']['hrdf_employer'] ?? 0,
                     'zakat'              => $row['statutory']['zakat'] ?? 0,
                     'statutory_employee' => $row['statutory']['employee_total'],
@@ -377,6 +378,11 @@ class PayrollRunBuilder
             'eis_employee_rate'      => (float) $s->eis_employee_rate,
             'eis_employer_rate'      => (float) $s->eis_employer_rate,
             'eis_ceiling'            => (float) $s->eis_ceiling,
+            // Recorded so a run can still be explained after PERKESO moves the
+            // SKBBK rate on to its next phase.
+            'skbbk_enabled'          => (bool) $s->skbbk_enabled,
+            'skbbk_employee_rate'    => (float) $s->skbbk_employee_rate,
+            'skbbk_ceiling'          => (float) $s->skbbk_ceiling,
             'confirmed_at'           => $s->rates_confirmed_at?->toDateTimeString(),
         ];
     }

@@ -204,6 +204,14 @@ class EmployeeForm extends Component
     public bool   $s_epf          = true;
     public bool   $s_socso        = true;
     public bool   $s_eis          = true;
+
+    /*
+     * SKBBK is three-state, not a tick — see
+     * EmployeeStatutoryProfile::contributesToSkbbk(). '' means nobody has
+     * recorded a decision and the rule applies (mandatory for a foreign
+     * worker, not taken from a local); 'yes' and 'no' are decisions on record.
+     */
+    public string $s_skbbk        = '';
     public bool   $s_hrdf         = true;
     public bool   $s_pcb          = true;
     public string $s_epf_override = '';
@@ -355,6 +363,7 @@ class EmployeeForm extends Component
             $this->s_epf          = (bool) $p->epf_enabled;
             $this->s_socso        = (bool) $p->socso_enabled;
             $this->s_eis          = (bool) $p->eis_enabled;
+            $this->s_skbbk        = $p->skbbk_enabled === null ? '' : ($p->skbbk_enabled ? 'yes' : 'no');
             $this->s_hrdf         = (bool) $p->hrdf_enabled;
             $this->s_pcb          = (bool) $p->pcb_enabled;
             $this->s_epf_override = $p->epf_employee_rate_override !== null
@@ -987,6 +996,10 @@ class EmployeeForm extends Component
                 'epf_enabled'       => $this->s_epf,
                 'socso_enabled'     => $this->s_socso,
                 'eis_enabled'       => $this->s_eis,
+                // Null is preserved deliberately: "not asked yet" and "opted
+                // out" are different facts, and only one has a signed
+                // liability release behind it.
+                'skbbk_enabled'     => $this->s_skbbk === '' ? null : ($this->s_skbbk === 'yes'),
                 'hrdf_enabled'      => $this->s_hrdf,
                 'pcb_enabled'       => $this->s_pcb,
                 'epf_employee_rate_override' => $this->s_epf_override !== ''

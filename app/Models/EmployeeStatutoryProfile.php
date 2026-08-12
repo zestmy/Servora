@@ -21,6 +21,9 @@ class EmployeeStatutoryProfile extends Model
         'socso_enabled'  => 'boolean',
         'eis_enabled'    => 'boolean',
         'pcb_enabled'    => 'boolean',
+        // NOT defaulted below, unlike the others: null is a real state here.
+        // See contributesToSkbbk().
+        'skbbk_enabled'  => 'boolean',
         'epf_employee_rate_override' => 'decimal:2',
         'children'            => 'integer',
         'monthly_zakat'       => 'decimal:2',
@@ -38,6 +41,30 @@ class EmployeeStatutoryProfile extends Model
         'monthly_zakat' => 0,
         'annual_other_relief' => 0,
     ];
+
+    /**
+     * Whether SKBBK (LINDUNG 24 Jam) is deducted from this person.
+     *
+     * The scheme launched mandatory on 1 June 2026, then a Cabinet decision on
+     * 10 July let LOCAL employees opt out from 14 July by filing a liability
+     * release. FOREIGN workers stayed mandatory under immigration provisions.
+     * So the answer depends on the person, and `skbbk_enabled` has three
+     * states rather than two:
+     *
+     *   true   they contribute — a local who chose to stay in
+     *   false  they do not — an opt-out, with a release on file
+     *   null   nobody has recorded a decision, so the rule decides:
+     *          a foreign worker contributes, a local does not
+     *
+     * The null default errs towards NOT deducting from a local. Taking money
+     * from somebody who opted out is harder to undo than missing a
+     * contribution from somebody who meant to stay in — the first needs a
+     * refund and an apology, the second needs a tick.
+     */
+    public function contributesToSkbbk(): bool
+    {
+        return $this->skbbk_enabled ?? ! $this->is_malaysian;
+    }
 
     protected static function booted(): void
     {

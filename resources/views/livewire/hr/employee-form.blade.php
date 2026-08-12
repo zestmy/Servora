@@ -911,6 +911,31 @@
                         <label class="inline-flex items-center gap-2" title="HRD Corp levy — paid by the employer, never deducted from this employee"><input type="checkbox" wire:model="s_hrdf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">HRDF</span></label>
                         <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_pcb" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">PCB</span></label>
                     </div>
+
+                    {{-- SKBBK is a SELECT, not a tick, because it has three
+                         answers and only two of them are decisions.
+
+                         Mandatory for foreign workers; voluntary for locals
+                         since 14 July 2026, when they could opt out by filing
+                         a liability release. "Not recorded" and "opted out"
+                         look identical on a payslip — both deduct nothing —
+                         but only one has a signed release behind it, and a
+                         tickbox would collapse them into each other. --}}
+                    <div class="sm:w-2/3 pt-1">
+                        <label class="text-xs font-semibold text-gray-600">
+                            SKBBK — LINDUNG 24 Jam
+                        </label>
+                        <select wire:model="s_skbbk" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                            <option value="">Follow the rule — {{ $s_is_malaysian ? 'not deducted (local, voluntary)' : 'deducted (foreign worker, mandatory)' }}</option>
+                            <option value="yes">Yes — contributes</option>
+                            <option value="no">No — opted out, release on file</option>
+                        </select>
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            Paid entirely by the employee; there is no employer share. Mandatory for
+                            foreign workers. Voluntary for locals since 14 July 2026 — set
+                            <strong>Yes</strong> for a local who chose to stay in.
+                        </p>
+                    </div>
                     <div class="sm:w-1/2">
                         <label class="text-xs font-semibold text-gray-600">EPF employee rate override (%)</label>
                         <input type="number" step="0.01" min="0" max="100" wire:model="s_epf_override"

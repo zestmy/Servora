@@ -58,6 +58,7 @@ class StatutoryCalculator
         'socso_employee' => 0.0, 'socso_employer' => 0.0,
         'eis_employee' => 0.0, 'eis_employer' => 0.0,
         'pcb' => 0.0, 'hrdf_employer' => 0.0, 'zakat' => 0.0,
+        'skbbk' => 0.0,
         'employee_total' => 0.0, 'employer_total' => 0.0,
         'notes' => [],
     ];
@@ -145,6 +146,9 @@ class StatutoryCalculator
             // Deducted through payroll and reported in Part D of the EA form,
             // so it is returned rather than only used inside the PCB working.
             'zakat' => 0.0,
+            // SKBBK / LINDUNG 24 Jam. Employee-only, so it has no employer
+            // twin — the mirror image of hrdf_employer above.
+            'skbbk' => 0.0,
         ];
 
         // Age decides the EPF, SOCSO and EIS rate. Without a date of birth the
@@ -187,6 +191,37 @@ class StatutoryCalculator
             }
         }
 
+        /*
+         * SKBBK — Skim Kemalangan Bukan Bencana Kerja, "LINDUNG 24 Jam".
+         *
+         * PERKESO cover for accidents OUTSIDE work, from 1 June 2026. The
+         * EMPLOYEE PAYS ALL OF IT — PERKESO's wording is "caruman ditanggung
+         * sepenuhnya oleh pekerja" — so there is no employer figure here and
+         * nothing reaches employer_total. It is HRD Corp in reverse.
+         *
+         * WHO CONTRIBUTES is not a company-wide answer. A Cabinet decision on
+         * 10 July 2026 let LOCAL employees opt out from 14 July by filing a
+         * liability release; FOREIGN workers remain mandatory. So the default
+         * is taken from the person, not the setting — see
+         * EmployeeStatutoryProfile::contributesToSkbbk().
+         *
+         * A percentage of capped wages rather than the published band table,
+         * the same approximation this class already makes for SOCSO and EIS
+         * and warns about at the top. Reconcile against PERKESO before filing.
+         */
+        if ($this->settings->skbbk_enabled && $profile->contributesToSkbbk()) {
+            $result['skbbk'] = $this->skbbk($socsoWages);
+
+            if ($profile->skbbk_enabled === null && ! $profile->is_malaysian) {
+                $notes[] = 'SKBBK deducted — mandatory for foreign employees.';
+            }
+        } elseif ($this->settings->skbbk_enabled && $profile->is_malaysian && $profile->skbbk_enabled === null) {
+            // Said out loud rather than left as a silent zero: a local who
+            // never opted in looks identical on a payslip to one who opted
+            // out, and only one of those has a signed release behind it.
+            $notes[] = 'SKBBK not deducted — voluntary for local employees and not opted in.';
+        }
+
         // HRD Corp levy: employer only, charged on the employee's wages.
         // Malaysian employees only by default — the levy is on the local
         // workforce, and a foreign worker is normally outside it.
@@ -203,8 +238,11 @@ class StatutoryCalculator
         // deduction would be wrong in the way people notice.
         // Zakat is NOT added here: it is already netted off inside the PCB
         // figure, and counting it again would deduct it twice.
+        // SKBBK belongs here and nowhere else: it is deducted from the
+        // employee and the employer contributes nothing towards it.
         $result['employee_total'] = round(
-            $result['epf_employee'] + $result['socso_employee'] + $result['eis_employee'] + $result['pcb'], 2
+            $result['epf_employee'] + $result['socso_employee'] + $result['eis_employee']
+            + $result['pcb'] + $result['skbbk'], 2
         );
         $result['employer_total'] = round(
             $result['epf_employer'] + $result['socso_employer'] + $result['eis_employer']
@@ -279,6 +317,22 @@ class StatutoryCalculator
             round($insured * (float) $this->settings->socso_employee_rate / 100, 2),
             round($insured * (float) $this->settings->socso_employer_rate / 100, 2),
         ];
+    }
+
+    /**
+     * SKBBK, on wages capped at its own ceiling. Employee side only.
+     *
+     * Its own ceiling rather than SOCSO's: they happen to both be RM6,000
+     * today, and reusing one for the other would silently break the day
+     * PERKESO moves either.
+     */
+    private function skbbk(float $wages): float
+    {
+        $insured = min(max($wages, 0), (float) $this->settings->skbbk_ceiling);
+
+        return $insured <= 0
+            ? 0.0
+            : round($insured * (float) $this->settings->skbbk_employee_rate / 100, 2);
     }
 
     /** EIS, on the same capped wage, both sides at the same rate. */

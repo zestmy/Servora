@@ -49,6 +49,7 @@ class StatutorySetting extends Model
         'eis_enabled'   => 'boolean',
         'pcb_enabled'   => 'boolean',
         'hrdf_enabled'  => 'boolean',
+        'skbbk_enabled' => 'boolean',
         'hrdf_employer_rate' => 'decimal:2',
         'hrdf_ceiling'       => 'decimal:2',
         'epf_employee_rate'          => 'decimal:2',
@@ -66,6 +67,8 @@ class StatutorySetting extends Model
         'eis_employee_rate'          => 'decimal:2',
         'eis_employer_rate'          => 'decimal:2',
         'eis_ceiling'                => 'decimal:2',
+        'skbbk_employee_rate'        => 'decimal:2',
+        'skbbk_ceiling'              => 'decimal:2',
         'pcb_tax_bands'              => 'array',
         'pcb_relief_individual'      => 'decimal:2',
         'pcb_relief_epf_cap'         => 'decimal:2',
@@ -115,6 +118,9 @@ class StatutorySetting extends Model
         'eis_employee_rate'          => 0.20,
         'eis_employer_rate'          => 0.20,
         'eis_ceiling'                => 6000.00,
+        // Phase 1 of the SKBBK schedule, in force from June 2026.
+        'skbbk_employee_rate'        => 0.75,
+        'skbbk_ceiling'              => 6000.00,
         'eis_max_age'                => 60,
         // 1% is the mandatory tier (10+ employees); 0.5% the optional 5–9 one.
         'hrdf_employer_rate'         => 1.00,
@@ -162,7 +168,7 @@ class StatutorySetting extends Model
     public function anyEnabled(): bool
     {
         return $this->epf_enabled || $this->socso_enabled || $this->eis_enabled
-            || $this->pcb_enabled || $this->hrdf_enabled;
+            || $this->pcb_enabled || $this->hrdf_enabled || $this->skbbk_enabled;
     }
 
     /**

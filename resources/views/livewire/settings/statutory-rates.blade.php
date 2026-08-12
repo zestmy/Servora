@@ -189,6 +189,45 @@
                 </div>
             </div>
 
+            {{-- SKBBK. Its own card and no employer column, because unlike
+                 every scheme beside it the employee pays the whole thing. --}}
+            <div class="card p-5">
+                <label class="flex items-center gap-2 mb-1">
+                    <input type="checkbox" wire:model="skbbk_enabled" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    <span class="text-sm font-semibold text-gray-700">SKBBK — LINDUNG 24 Jam</span>
+                </label>
+                <p class="text-xs text-gray-600 mb-3">
+                    PERKESO cover for accidents outside work, from 1 June 2026.
+                    <strong>Paid entirely by the employee</strong> — there is no employer share.
+                    Mandatory for foreign workers; voluntary for locals since 14 July 2026, so each
+                    local who stayed in is ticked on their own <strong>Statutory</strong> tab.
+                </p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Employee %</label>
+                        <input type="number" step="0.01" wire:model="skbbk_employee_rate" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        {{-- The rate is phased, so it WILL need changing. Said
+                             here rather than hard-coded to a calendar, which
+                             would silently deduct the wrong percentage the
+                             month a phase turned over. --}}
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            0.75% in the first two years, then 1.0%, then 1.25% from year six.
+                            Check the current phase against PERKESO.
+                        </p>
+                        <x-input-error :messages="$errors->get('skbbk_employee_rate')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Insured wage ceiling</label>
+                        <input type="number" step="0.01" wire:model="skbbk_ceiling" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            Computed as a percentage of capped wages, like SOCSO and EIS above —
+                            within sen of PERKESO's band table, not identical to it.
+                        </p>
+                        <x-input-error :messages="$errors->get('skbbk_ceiling')" class="mt-1" />
+                    </div>
+                </div>
+            </div>
+
             <div class="card p-5">
                 <label class="flex items-center gap-2 mb-3">
                     <input type="checkbox" wire:model="eis_enabled" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />

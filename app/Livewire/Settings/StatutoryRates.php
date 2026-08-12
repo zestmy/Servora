@@ -24,6 +24,15 @@ class StatutoryRates extends Component
     public bool $pcb_enabled   = false;
     public bool $hrdf_enabled  = false;
 
+    /*
+     * SKBBK / LINDUNG 24 Jam. Off by default: a company has to decide it is in
+     * the scheme, and switching a statutory deduction on for everybody by
+     * default is not a decision software should make.
+     */
+    public bool   $skbbk_enabled       = false;
+    public string $skbbk_employee_rate = '';
+    public string $skbbk_ceiling       = '';
+
     public string $hrdf_employer_rate = '';
     public string $hrdf_ceiling       = '';
 
@@ -72,6 +81,7 @@ class StatutoryRates extends Component
 
         foreach ([
             'epf_enabled', 'socso_enabled', 'eis_enabled', 'pcb_enabled', 'hrdf_enabled',
+            'skbbk_enabled',
         ] as $flag) {
             $this->{$flag} = (bool) $s->{$flag};
         }
@@ -90,7 +100,9 @@ class StatutoryRates extends Component
             'epf_employee_rate_senior', 'epf_employer_rate_senior',
             'epf_employee_rate_foreign', 'epf_employer_rate_foreign', 'senior_age',
             'socso_employee_rate', 'socso_employer_rate', 'socso_employer_rate_senior', 'socso_ceiling',
-            'eis_employee_rate', 'eis_employer_rate', 'eis_ceiling', 'eis_max_age',
+            'eis_employee_rate', 'eis_employer_rate', 'eis_ceiling',
+            'skbbk_employee_rate', 'skbbk_ceiling', 'eis_max_age',
+            'skbbk_employee_rate', 'skbbk_ceiling',
             'pcb_relief_individual', 'pcb_relief_epf_cap', 'pcb_relief_spouse', 'pcb_relief_child',
             'pcb_rebate_amount', 'pcb_rebate_threshold',
         ] as $field) {
@@ -123,6 +135,9 @@ class StatutoryRates extends Component
 
             'eis_employee_rate' => $rate, 'eis_employer_rate' => $rate,
             'eis_ceiling' => 'required|numeric|min:0|max:1000000',
+            // No employer side to validate — the employee pays all of SKBBK.
+            'skbbk_employee_rate' => 'required|numeric|min:0|max:100',
+            'skbbk_ceiling'       => 'required|numeric|min:0|max:1000000',
             'eis_max_age' => 'required|integer|min:40|max:100',
 
             'hrdf_employer_rate' => $rate,
@@ -196,6 +211,7 @@ class StatutoryRates extends Component
             'socso_enabled' => $this->socso_enabled,
             'eis_enabled'   => $this->eis_enabled,
             'pcb_enabled'   => $this->pcb_enabled,
+            'skbbk_enabled' => $this->skbbk_enabled,
             'pcb_tax_bands' => $bands,
         ];
 
