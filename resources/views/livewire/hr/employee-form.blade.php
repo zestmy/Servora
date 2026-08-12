@@ -57,6 +57,15 @@
      * through Employee::isOutsourced(), which is what the calculation uses.
      */
     $isOutsourced = $f_employment_status === 'outsourcing';
+    $isIntern     = $f_employment_status === 'internship';
+
+    /*
+     * Both end up outside statutory, for different reasons — the agent is the
+     * employer of record in one case, and an internship is paid by stipend in
+     * the other. See Employee::hasNoStatutoryContribution(), which is what the
+     * calculation actually uses.
+     */
+    $noStatutory = $isOutsourced || $isIntern;
 @endphp
 
 <div x-data="{ tab: @js($openTab) }">
@@ -704,6 +713,17 @@
                                 It is paid on the agent's invoice, so the bank details on the Personal tab are
                                 <strong>not</strong> the payment route for this person.
                             </p>
+                        @elseif ($isIntern)
+                            {{-- Said where the figure is entered, because it is
+                                 the figure: for an intern this is the whole of
+                                 what is paid before overtime and allowances,
+                                 with nothing coming off it. --}}
+                            <p class="mt-1 text-[11px] text-gray-600">
+                                The intern's stipend. They are paid this <strong>plus overtime and any
+                                allowance</strong>, with nothing deducted — no statutory contributions and
+                                no company deductions. Paid directly to them, so the bank details on the
+                                Personal tab do apply.
+                            </p>
                         @endif
                         <x-input-error :messages="$errors->get('f_basic_salary')" class="mt-1" />
                     </div>
@@ -762,35 +782,47 @@
                     <span class="badge-warning whitespace-nowrap">restricted</span>
                 </div>
 
-                @if ($isOutsourced)
+                @if ($noStatutory)
                     {{-- Disabled, not hidden, and the difference matters.
 
                          Hiding it would leave whoever opens this tab wondering
                          whether the section failed to load; worse, a person
-                         moved off the agency onto the company's own books needs
-                         their EPF number to still BE here rather than to have
-                         been quietly discarded. So the values are kept and the
-                         controls are shut: nothing is written while they are
-                         outsourced, and changing their employment status back
-                         hands the whole section over intact.
+                         moved off the agency — or an intern taken onto the
+                         books — needs their EPF number to still BE here rather
+                         than to have been quietly discarded. So the values are
+                         kept and the controls are shut: nothing is written
+                         while the status applies, and changing it back hands
+                         the whole section over intact.
 
                          The calculation does not rely on this being disabled —
-                         StatutoryCalculator::for() exempts an outsourced
-                         employee outright, whatever these boxes say. This is
-                         the same rule shown, not the rule itself. --}}
+                         StatutoryCalculator::for() exempts these employees
+                         outright, whatever these boxes say. This is the same
+                         rule shown, not the rule itself. --}}
                     <div class="alert-info">
                         <p class="text-sm">
-                            <strong>Not applicable — this employee is outsourced.</strong>
+                            <strong>
+                                Not applicable — this employee is
+                                {{ $isIntern ? 'on an internship' : 'outsourced' }}.
+                            </strong>
                         </p>
-                        <p class="text-xs mt-1">
-                            EPF, SOCSO, EIS, PCB and the HRD Corp levy are the obligation of
-                            <strong>{{ $f_outsourcing_provider === 'others' ? ($f_outsourcing_company ?: 'the outsourcing agent') : 'Experiva' }}</strong>
-                            as the employer of record. This company pays a contract rate for the head and
-                            deducts nothing, so payroll runs these figures at zero and payslips say so.
-                        </p>
+                        @if ($isIntern)
+                            <p class="text-xs mt-1">
+                                An internship is paid as basic plus overtime and any allowance, with
+                                <strong>nothing deducted</strong> — no EPF, SOCSO, EIS, PCB or HRD Corp levy,
+                                and no company deductions either. Payroll runs these figures at zero and
+                                payslips say so.
+                            </p>
+                        @else
+                            <p class="text-xs mt-1">
+                                EPF, SOCSO, EIS, PCB and the HRD Corp levy are the obligation of
+                                <strong>{{ $f_outsourcing_provider === 'others' ? ($f_outsourcing_company ?: 'the outsourcing agent') : 'Experiva' }}</strong>
+                                as the employer of record. This company pays a contract rate for the head and
+                                deducts nothing, so payroll runs these figures at zero and payslips say so.
+                            </p>
+                        @endif
                         <p class="text-xs mt-1">
                             Anything already recorded below is kept and shown, but nothing here is used
-                            while this person is outsourced. Change their employment status on the
+                            while this status applies. Change their employment status on the
                             <strong>Employment</strong> tab to bring this section back.
                         </p>
                     </div>
@@ -799,7 +831,7 @@
                 {{-- fieldset, so one `disabled` shuts every control inside it
                      rather than thirteen @disabled attributes that can drift
                      apart as fields are added. --}}
-                <fieldset @disabled($isOutsourced) class="space-y-4 disabled:opacity-60">
+                <fieldset @disabled($noStatutory) class="space-y-4 disabled:opacity-60">
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>

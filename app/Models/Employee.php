@@ -270,6 +270,7 @@ class Employee extends Model
         'confirmed'          => 'Confirmed',
         'extended_probation' => 'Extended Probation',
         'partimer'           => 'Partimer',
+        'internship'         => 'Internship',
         'outsourcing'        => 'Outsourcing',
         'resigned'           => 'Resigned',
     ];
@@ -286,6 +287,10 @@ class Employee extends Model
         'probation'          => 'Probation — Until',
         'confirmed'          => 'Confirmed — On',
         'extended_probation' => 'Probation Extended — Until',
+        // An internship is a fixed term by definition, and the date somebody
+        // actually needs is when it ENDS — that is the day the placement has
+        // to be reviewed, extended, or converted to a real contract.
+        'internship'         => 'Internship — Until',
         'resigned'           => 'Resigned — On',
     ];
 
@@ -586,6 +591,60 @@ class Employee extends Model
     public function isOutsourced(): bool
     {
         return $this->employment_status === 'outsourcing';
+    }
+
+    /**
+     * Whether this person is on a fixed-term internship.
+     *
+     * An intern is paid a stipend and nothing else is taken off it. They are
+     * paid DIRECTLY, unlike an agency head, so their bank details matter and
+     * their salary field keeps its ordinary name — the two statuses differ in
+     * who receives the money even though both end up outside statutory.
+     */
+    public function isIntern(): bool
+    {
+        return $this->employment_status === 'internship';
+    }
+
+    /**
+     * Whether this company makes no statutory contribution for this person.
+     *
+     * Two very different reasons land here, which is why it is one method
+     * rather than two checks repeated at every call site:
+     *
+     *   OUTSOURCED — the agent is the employer of record, so EPF, SOCSO, EIS,
+     *   PCB and the HRD Corp levy are the agent's obligation and paying them
+     *   here would file this company under somebody else's scheme number.
+     *
+     *   INTERNSHIP — a placement paid by stipend, which this company has
+     *   decided sits outside its contributions.
+     *
+     * A DELIBERATE POLICY SWITCH, NOT A READING OF THE LAW. Malaysian rules
+     * differ by scheme — PERKESO in particular does reach many interns — so if
+     * an internship here should contribute to SOCSO, the honest fix is to take
+     * 'internship' out of this method rather than to work around it further
+     * down. It is stated in one place so that decision is a one-line change.
+     */
+    public function hasNoStatutoryContribution(): bool
+    {
+        return $this->isOutsourced() || $this->isIntern();
+    }
+
+    /**
+     * Whether the company's own allowance/deduction lines may take money OFF
+     * this person's pay.
+     *
+     * Interns are basic plus overtime plus any allowance, and nothing
+     * subtracted. A stipend is already the whole of what was agreed, so a
+     * uniform charge or a loan repayment against it is not something this
+     * company does — and a deduction quietly appearing on an intern's payslip
+     * is the kind of thing nobody notices until they ask why they were short.
+     *
+     * ALLOWANCES ARE UNAFFECTED. Only the deduction side is switched off.
+     */
+    public function takesPayrollDeductions(): bool
+    {
+        return ! $this->isIntern();
     }
 
     /**

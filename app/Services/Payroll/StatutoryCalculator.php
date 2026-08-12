@@ -50,6 +50,9 @@ class StatutoryCalculator
      */
     public const OUTSOURCED_NOTE = 'Outsourced — statutory contributions are the agent\'s, not this company\'s.';
 
+    /** The same zeros, a different reason. See Employee::isIntern(). */
+    public const INTERN_NOTE = 'Internship — no statutory contributions are made for this placement.';
+
     public const NONE = [
         'epf_employee' => 0.0, 'epf_employer' => 0.0,
         'socso_employee' => 0.0, 'socso_employer' => 0.0,
@@ -98,27 +101,33 @@ class StatutoryCalculator
         $asOf    = $asOf ?? Carbon::today();
 
         /*
-         * OUTSOURCED STAFF CONTRIBUTE NOTHING, and this is checked before the
-         * profile is even loaded.
+         * SOME STAFF CONTRIBUTE NOTHING, and this is checked before the
+         * profile is even loaded. Two reasons, both in
+         * Employee::hasNoStatutoryContribution():
          *
-         * The company is not their employer of record — it buys their labour
-         * from an agent against a contract rate and settles the agent's
-         * invoice. EPF, SOCSO, EIS, PCB and the HRD Corp levy are all
-         * obligations OF AN EMPLOYER, and contributing here would file this
-         * company as one under a scheme number that belongs to the agent.
+         *   OUTSOURCED — the company is not their employer of record. It buys
+         *   their labour from an agent and settles the agent's invoice, so EPF,
+         *   SOCSO, EIS, PCB and the HRD Corp levy are all obligations of an
+         *   employer this company is not, and contributing would file it under
+         *   a scheme number belonging to the agent.
+         *
+         *   INTERNSHIP — a placement paid by stipend, which this company has
+         *   decided sits outside its contributions.
          *
          * Deliberately a status check and NOT a wipe of the employee's
-         * statutory profile: somebody taken off the agency onto the company's
-         * own books gets their EPF number and their settings back, rather than
-         * having to have them re-keyed from paperwork nobody kept.
+         * statutory profile: somebody taken off the agency, or an intern hired
+         * onto the books, gets their EPF number and settings back rather than
+         * having them re-keyed from paperwork nobody kept.
          *
          * It overrides the per-employee switches rather than reading them,
          * because the switches answer "does this scheme apply to this person
-         * here", and the answer for an agency head is no regardless of what is
-         * ticked. The employee form disables that section for the same reason.
+         * here", and the answer is no regardless of what is ticked. The
+         * employee form disables that section for the same reason.
          */
-        if ($employee->isOutsourced()) {
-            return array_merge(self::NONE, ['notes' => [self::OUTSOURCED_NOTE]]);
+        if ($employee->hasNoStatutoryContribution()) {
+            return array_merge(self::NONE, [
+                'notes' => [$employee->isIntern() ? self::INTERN_NOTE : self::OUTSOURCED_NOTE],
+            ]);
         }
 
         $profile = $profile ?? EmployeeStatutoryProfile::forEmployee($employee);

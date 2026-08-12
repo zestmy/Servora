@@ -303,8 +303,24 @@ class CompensationSummary
                 ? $daysEligible / $wagePeriodDays
                 : 1.0;
 
+            /*
+             * INTERNS ARE BASIC PLUS OVERTIME PLUS ANY ALLOWANCE, AND NOTHING
+             * TAKEN OFF.
+             *
+             * Dropped here rather than zeroed further down, so a deduction an
+             * intern does not pay never appears on their payslip at all — a
+             * line reading "Uniform 0.00" invites the question of whether it
+             * was meant to charge and failed.
+             *
+             * Allowances are untouched: only the deduction side is switched
+             * off. See Employee::takesPayrollDeductions().
+             */
             $components = ($assignments[$employee->id] ?? collect())
                 ->filter(fn ($a) => $a->component !== null)
+                ->when(
+                    ! $employee->takesPayrollDeductions(),
+                    fn ($lines) => $lines->filter(fn ($a) => $a->component->kind !== 'deduction'),
+                )
                 ->map(function ($a) use ($basic, $monthFraction) {
                     $amount = $a->component->resolveAmount((float) $a->amount, $basic);
 
