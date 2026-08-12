@@ -535,6 +535,40 @@ class PayrollRunShow extends Component
         ];
     }
 
+    /**
+     * What one service point was worth on this run.
+     *
+     * RM/point is the pool divided by everybody's points, so it is the figure
+     * staff actually check — "I have two points, so I should have got twice
+     * what a one-point colleague did". It is snapshotted per line at
+     * generation time, which is why it is read back off the lines rather than
+     * recomputed from a pool that may since have been edited.
+     *
+     * A COMPANY-WIDE RUN SPANS SEVERAL POOLS, each with its own rate — KLCC
+     * collecting more than IOI is the entire reason they are separate — so
+     * there is no single answer and this returns null rather than picking one
+     * outlet's rate and presenting it as the run's. A tiny spread is treated
+     * as one rate: rounding a pool across a few dozen people leaves sen-level
+     * differences that are noise, not two different rates.
+     *
+     * @param  \Illuminate\Support\Collection  $lines
+     */
+    private function servicePointValue($lines): ?float
+    {
+        $rates = $lines
+            ->map(fn ($l) => (float) ($l->service_charge_detail['per_point'] ?? 0))
+            ->filter(fn ($r) => $r > 0)
+            ->values();
+
+        if ($rates->isEmpty()) {
+            return null;
+        }
+
+        return round($rates->max() - $rates->min(), 2) <= 0.01
+            ? round($rates->first(), 2)
+            : null;
+    }
+
     public function render()
     {
         $run   = $this->run();
@@ -664,6 +698,7 @@ class PayrollRunShow extends Component
             'exportCounts' => $run->isApproved()
                 ? app(\App\Services\Payroll\PayrollExports::class)->rowCounts($run)
                 : [],
+            'perPoint' => $this->servicePointValue($lines),
             'canApprove' => Auth::user()->can('hr.payroll.approve'),
             'canAdjust'  => $run->isEditable() && Auth::user()->can('hr.payroll'),
             'adjustments' => \App\Models\PayrollRunAdjustment::with('employee:id,name', 'createdBy:id,name')

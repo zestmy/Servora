@@ -33,9 +33,29 @@
             <p class="text-xs text-gray-600 mt-0.5">Submit and manage staff overtime claims</p>
         </div>
         <div class="flex items-center gap-2">
+            {{-- TWO STATEMENTS, on purpose.
+
+                 "Print Approved" is the signed-and-filed document and always
+                 means approved claims for a date range; people rely on it
+                 meaning exactly that, so it was left alone.
+
+                 "Print Filtered" answers the other question — print what I am
+                 looking at — including statuses the approved-only document
+                 will never show: the pending queue, the rejected ones, or
+                 everything at once. Same per-employee layout either way.
+
+                 A plain link rather than a modal: the filters have already
+                 been chosen on the screen behind it, and asking for them
+                 again in a dialog is asking twice. --}}
+            <a href="{{ route('hr.ot-claims.filtered-pdf', $this->currentFilter()->toQuery()) }}"
+               target="_blank" rel="noopener"
+               class="btn-secondary"
+               title="Statement for exactly what this list is showing, including its status filter.">
+                Print Filtered
+            </a>
             <button wire:click="openPdfModal"
                     class="btn-secondary">
-                Print PDF
+                Print Approved
             </button>
             <button wire:click="openSummaryModal"
                     class="btn-secondary">

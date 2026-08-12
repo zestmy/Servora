@@ -349,11 +349,30 @@
                 <div class="stat">
                     <span class="stat-label">Service charge</span>
                     <span class="stat-value">{{ number_format((float) $run->total_service_charge, 2) }}</span>
+                    {{-- RM per point is the figure staff actually check — "I
+                         have two points, so I should have had twice what a
+                         one-point colleague did" — and without it the pool
+                         total answers nobody's question.
+
+                         Absent on a run spanning several outlets, because each
+                         pool has its own rate and showing one of them as the
+                         run's would be wrong for everybody else. --}}
+                    @if ($perPoint !== null)
+                        <span class="text-sm font-semibold text-gray-700 -mt-0.5">
+                            RM {{ number_format($perPoint, 2) }} per point
+                        </span>
+                    @endif
                     {{-- Said plainly because it is the one figure here that is
                          not the company's money — it is collected from
                          customers and passes through, which is exactly why it
                          is absent from cost to company below. --}}
-                    <span class="stat-meta">Each person's share of the pool, after attendance deductions. Collected from customers, so it is paid on top and is not a company cost.</span>
+                    <span class="stat-meta">
+                        Each person's share of the pool, after attendance deductions. Collected from
+                        customers, so it is paid on top and is not a company cost.
+                        @if ($perPoint === null)
+                            This run spans outlets with different pools, so there is no single rate per point.
+                        @endif
+                    </span>
                 </div>
             @endif
 

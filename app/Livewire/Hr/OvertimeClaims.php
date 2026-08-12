@@ -184,15 +184,24 @@ class OvertimeClaims extends Component
      */
     protected function applyEmploymentStatus($query, string $column = 'employment_status'): void
     {
-        if ($this->employmentStatusFilter === 'none') {
-            $query->whereNull($column);
-        } elseif ($this->employmentStatusFilter === 'exclude_outsourcing') {
-            $query->where(function ($q) use ($column) {
-                $q->whereNull($column)->orWhere($column, '!=', 'outsourcing');
-            });
-        } elseif ($this->employmentStatusFilter !== '') {
-            $query->where($column, $this->employmentStatusFilter);
-        }
+        $this->currentFilter()->applyEmploymentStatus($query, $column);
+    }
+
+    /**
+     * This screen's filters as one object, shared with the filtered PDF so the
+     * export cannot narrow differently from the list it reproduces.
+     */
+    public function currentFilter(): \App\Services\Hr\OtClaimFilter
+    {
+        return \App\Services\Hr\OtClaimFilter::fromScreen(
+            $this->statusFilter,
+            $this->dateFrom,
+            $this->dateTo,
+            $this->employeeFilter,
+            $this->sectionFilter,
+            $this->employmentStatusFilter,
+            $this->outletFilter,
+        );
     }
 
     public function sortBy(string $field): void
@@ -489,42 +498,23 @@ class OvertimeClaims extends Component
         $outlets = \App\Models\Outlet::whereIn('id', $availableOutletIds)->orderBy('name')->get();
         $multiOutlet = count($availableOutletIds) > 1;
 
-        // Narrow scope when outlet filter is active
-        $scopedOutletIds = ($this->outletFilter && in_array((int) $this->outletFilter, $availableOutletIds))
-            ? [(int) $this->outletFilter]
-            : $availableOutletIds;
+        $scopedOutletIds = $this->currentFilter()->outletScope($availableOutletIds);
 
-        // Filter by EMPLOYEE's outlet, not claim's outlet (claim.outlet_id may be incorrect for old records)
-        $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet'])
-            ->whereIn('employee_id', function ($sub) use ($scopedOutletIds) {
-                $sub->select('id')->from('employees')
-                    ->whereIn('outlet_id', $scopedOutletIds ?: [0]);
-            });
+        /*
+         * Every filter — including the outlet scope and the employee/claim
+         * distinction — is applied through OtClaimFilter, because the filtered
+         * PDF applies the SAME object. A document headed "matches your current
+         * filter" that quietly used different rules would be worse than no
+         * document: somebody signs it believing it is the list they were
+         * looking at.
+         *
+         * Claims are matched on the EMPLOYEE's outlet rather than the claim's,
+         * which on older records is not reliably where the person works. That
+         * rule now lives in the filter object with the rest of them.
+         */
+        $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet']);
 
-        if ($this->statusFilter) {
-            $query->where('status', $this->statusFilter);
-        }
-        if ($this->dateFrom) {
-            $query->where('claim_date', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $query->where('claim_date', '<=', $this->dateTo);
-        }
-        if ($this->employeeFilter) {
-            $query->where('employee_id', $this->employeeFilter);
-        }
-        if ($this->sectionFilter) {
-            $query->whereIn('employee_id', function ($sub) {
-                $sub->select('id')->from('employees')
-                    ->where('section_id', (int) $this->sectionFilter);
-            });
-        }
-        if ($this->employmentStatusFilter !== '') {
-            $query->whereIn('employee_id', function ($sub) {
-                $sub->select('id')->from('employees');
-                $this->applyEmploymentStatus($sub);
-            });
-        }
+        $this->currentFilter()->apply($query, $availableOutletIds);
 
         // Sorting
         if ($this->sortField === 'employee') {

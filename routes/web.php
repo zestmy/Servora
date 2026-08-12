@@ -440,6 +440,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/overtime-claims', \App\Livewire\Hr\OvertimeClaims::class)->name('hr.overtime-claims')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/pdf/{employee}', \App\Http\Controllers\OtClaimPdfController::class)->name('hr.ot-claims.pdf')->middleware('can:hr.claims');
     Route::get('/hr/overtime-claims/summary-pdf', \App\Http\Controllers\OtClaimSummaryPdfController::class)->name('hr.ot-claims.summary-pdf')->middleware('can:hr.claims');
+    // The statement for whatever the screen is currently filtered to, beside
+    // the approved-only export rather than replacing it — see the controller.
+    Route::get('/hr/overtime-claims/filtered-pdf', \App\Http\Controllers\OtClaimFilteredPdfController::class)->name('hr.ot-claims.filtered-pdf')->middleware('can:hr.claims');
     Route::get('/hr/leave', \App\Livewire\Hr\Leave::class)->name('hr.leave')->middleware('can:hr.leave');
     Route::get('/hr/time-off', \App\Livewire\Hr\TimeOff::class)->name('hr.time-off')->middleware('can:hr.leave');
     // The MC behind a request. Private disk, so it is served rather than linked.
