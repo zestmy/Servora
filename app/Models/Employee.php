@@ -359,9 +359,85 @@ class Employee extends Model
         'pin_login_disabled_at'      => 'datetime',
     ];
 
+    /**
+     * Paths collected while the row still exists, removed once it is gone.
+     *
+     * Not an attribute — it never touches the database. It only has to survive
+     * between the `deleting` and `deleted` hooks on one instance.
+     *
+     * @var array<int, string>
+     */
+    public array $filesToPurge = [];
+
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        /*
+         * DELETING AN EMPLOYEE MUST TAKE THEIR FILES WITH THEM.
+         *
+         * Four tables hang files off an employee — scanned paperwork, their
+         * photograph, face enrolment images and clock-in selfies — and every
+         * one of those foreign keys is `cascadeOnDelete()`. That cascade
+         * happens in MySQL, and MySQL does not raise Eloquent events, so the
+         * `deleted` hook on EmployeeDocument that removes its file NEVER RAN
+         * on this path. The rows vanished and the files stayed: IC scans and
+         * passports left on disk with nothing in the database pointing at
+         * them, so nothing in the product could ever find them again.
+         *
+         * That is exactly the failure EmployeeDocument's own hook exists to
+         * prevent — "the file is the record" — reached by the one route that
+         * bypassed it.
+         *
+         * Collected in `deleting` and removed in `deleted`, and the split is
+         * the point: the paths can only be read while the rows are still
+         * there, but the files must not be destroyed until the delete has
+         * actually succeeded. Doing both before would leave somebody with no
+         * documents and an employee record still on file if the delete then
+         * failed.
+         */
+        static::deleting(function (self $employee) {
+            $employee->filesToPurge = $employee->ownedFilePaths();
+        });
+
+        static::deleted(function (self $employee) {
+            // Batched: a long-serving employee has a selfie per punch, which
+            // is thousands of paths after a few years.
+            foreach (array_chunk($employee->filesToPurge, 200) as $chunk) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($chunk);
+            }
+
+            $employee->filesToPurge = [];
+        });
+    }
+
+    /**
+     * Every file on disk that belongs to this employee and nobody else.
+     *
+     * Read without the company scope on purpose. A path missed here becomes a
+     * permanent orphan — there is no row left to find it from afterwards — so
+     * this must not depend on which company happens to be active on the
+     * session doing the deleting.
+     *
+     * @return array<int, string>
+     */
+    public function ownedFilePaths(): array
+    {
+        $paths = collect([$this->photo_path]);
+
+        $paths = $paths
+            ->merge(EmployeeDocument::withoutGlobalScopes()
+                ->where('employee_id', $this->id)->pluck('file_path'))
+            ->merge(EmployeeFaceDescriptor::withoutGlobalScopes()
+                ->where('employee_id', $this->id)->pluck('photo_path'))
+            ->merge(ClockEvent::withoutGlobalScopes()
+                ->where('employee_id', $this->id)->pluck('selfie_path'));
+
+        return $paths
+            ->filter(fn ($p) => filled($p))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function company(): BelongsTo
