@@ -471,7 +471,17 @@
                             </td>
                             <td class="px-4 py-3 text-gray-700">
                                 {{ $claim->employee?->name ?? '—' }}
-                                <p class="text-[10px] text-gray-600">by {{ $claim->submitter?->name }}</p>
+                                {{-- Who raised it AND when. A claim disputed
+                                     weeks later is argued over the timing as
+                                     much as the hours — "this went in after the
+                                     shift had already been paid" — and a name
+                                     with no time cannot answer that. --}}
+                                <p class="text-[10px] text-gray-600">
+                                    by {{ $claim->submitter?->name ?? 'unknown' }}
+                                    @if ($claim->created_at)
+                                        on {{ $claim->created_at->format('d M Y, g:ia') }}
+                                    @endif
+                                </p>
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
                                 {{ substr($claim->ot_time_start, 0, 5) }} – {{ substr($claim->ot_time_end, 0, 5) }}

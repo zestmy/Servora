@@ -320,21 +320,60 @@
         </div>
     </div>
 
-    {{-- Totals --}}
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
-        <div class="stat"><span class="stat-label">Staff</span><span class="stat-value">{{ $run->employee_count }}</span></div>
-        <div class="stat"><span class="stat-label">Gross</span><span class="stat-value">{{ number_format((float) $run->total_gross, 2) }}</span></div>
-        @if ((float) $run->total_service_charge > 0)
+    {{-- Totals.
+
+         Every one of these is a different question and three of them are close
+         enough in size to be mistaken for each other — gross, net and cost to
+         company sit within a few thousand ringgit and mean entirely different
+         things. So each says what it is underneath the figure, in the terms
+         somebody checking a payroll would use.
+
+         Laid out three across rather than five: at five, the sixth tile
+         wrapped onto a row of its own and read as an afterthought, and there
+         was no room for a line of explanation under any of them. --}}
+    <div class="card p-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
             <div class="stat">
-                <span class="stat-label">Service charge</span>
-                <span class="stat-value">{{ number_format((float) $run->total_service_charge, 2) }}</span>
+                <span class="stat-label">Staff</span>
+                <span class="stat-value">{{ $run->employee_count }}</span>
+                <span class="stat-meta">People paid on this run.</span>
             </div>
-        @endif
-        <div class="stat"><span class="stat-label">Statutory (staff)</span><span class="stat-value">{{ number_format((float) $run->total_statutory_employee, 2) }}</span></div>
-        <div class="stat"><span class="stat-label">Net pay</span><span class="stat-value text-brand-700">{{ number_format((float) $run->total_net, 2) }}</span></div>
-        <div class="stat">
-            <span class="stat-label">Cost to company</span>
-            <span class="stat-value">{{ number_format((float) $run->total_employer_cost, 2) }}</span>
+
+            <div class="stat">
+                <span class="stat-label">Gross</span>
+                <span class="stat-value">{{ number_format((float) $run->total_gross, 2) }}</span>
+                <span class="stat-meta">Basic, allowances and overtime, less company deductions. Before statutory.</span>
+            </div>
+
+            @if ((float) $run->total_service_charge > 0)
+                <div class="stat">
+                    <span class="stat-label">Service charge</span>
+                    <span class="stat-value">{{ number_format((float) $run->total_service_charge, 2) }}</span>
+                    {{-- Said plainly because it is the one figure here that is
+                         not the company's money — it is collected from
+                         customers and passes through, which is exactly why it
+                         is absent from cost to company below. --}}
+                    <span class="stat-meta">Each person's share of the pool, after attendance deductions. Collected from customers, so it is paid on top and is not a company cost.</span>
+                </div>
+            @endif
+
+            <div class="stat">
+                <span class="stat-label">Statutory (staff)</span>
+                <span class="stat-value">{{ number_format((float) $run->total_statutory_employee, 2) }}</span>
+                <span class="stat-meta">The employee's own EPF, SOCSO, EIS and PCB — deducted from their pay, not added to it.</span>
+            </div>
+
+            <div class="stat">
+                <span class="stat-label">Net pay</span>
+                <span class="stat-value text-brand-700">{{ number_format((float) $run->total_net, 2) }}</span>
+                <span class="stat-meta">What actually reaches staff: gross less their statutory, plus any service charge. This is the amount the payment file pays.</span>
+            </div>
+
+            <div class="stat">
+                <span class="stat-label">Cost to company</span>
+                <span class="stat-value">{{ number_format((float) $run->total_employer_cost, 2) }}</span>
+                <span class="stat-meta">Gross plus the <strong>employer's</strong> contributions ({{ number_format((float) $run->total_statutory_employer, 2) }}). Excludes service charge.</span>
+            </div>
         </div>
     </div>
 
