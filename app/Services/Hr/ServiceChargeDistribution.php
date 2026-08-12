@@ -60,7 +60,7 @@ class ServiceChargeDistribution
                     ->when($outletId !== null, fn ($q) => $q->orWhere('service_charge_outlet_id', $outletId));
             })
             ->forServiceChargeOutlet($outletId)
-            ->employedDuring($from->toDateString())
+            ->employedDuring($from->toDateString(), $to->toDateString())
             ->inListOrder()
             ->get();
 

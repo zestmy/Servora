@@ -519,9 +519,9 @@ class Employee extends Model
      * from the very month their final pay depends on. They drop off by
      * themselves once the period being viewed starts after they left.
      */
-    public function scopeEmployedDuring($query, $from)
+    public function scopeEmployedDuring($query, $from, $to = null)
     {
-        return $query->where(function ($q) use ($from) {
+        $query->where(function ($q) use ($from) {
             $q->where('employees.is_active', true)
               ->orWhere(function ($r) use ($from) {
                   $r->where('employees.employment_status', 'resigned')
@@ -529,6 +529,34 @@ class Employee extends Model
                     ->whereDate('employees.employment_status_date', '>=', $from);
               });
         });
+
+        /*
+         * AND NOT SOMEBODY WHO HAD NOT STARTED YET.
+         *
+         * The active/resigned test above answers "have they left", and on its
+         * own it let anybody currently on the books into any period, however
+         * far back. Six August hires were sitting in a 1–25 July service
+         * charge pool: they had no points yet so nothing was mispaid, but the
+         * moment one was given points they would have taken a share of a
+         * period they did not work — and diluted everybody else's, because
+         * RM/point is the pool over the total points.
+         *
+         * A NULL join date is included rather than excluded. It means the date
+         * was never recorded, not that the person started after the period,
+         * and dropping somebody off a payroll over a blank field is the worse
+         * failure of the two.
+         *
+         * Optional so callers that genuinely mean "anybody on the books" keep
+         * their behaviour; every period-scoped caller passes the end date.
+         */
+        if ($to !== null) {
+            $query->where(function ($q) use ($to) {
+                $q->whereNull('employees.join_date')
+                  ->orWhereDate('employees.join_date', '<=', $to);
+            });
+        }
+
+        return $query;
     }
 
     /** True when the employment status is resigned, whatever the date. */

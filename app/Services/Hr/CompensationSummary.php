@@ -85,7 +85,7 @@ class CompensationSummary
         // Staff who were employed for any part of the month: a leaver is still
         // owed for the days they worked, which is the point of the period.
         $staff = (clone $employees)
-            ->employedDuring($from->toDateString())
+            ->employedDuring($from->toDateString(), $to->toDateString())
             ->with('outlet:id,name', 'section:id,name')
             ->orderBy('name')
             ->get();

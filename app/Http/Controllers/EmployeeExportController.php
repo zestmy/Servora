@@ -90,14 +90,37 @@ class EmployeeExportController extends Controller
      */
     private function photoDataUri(Employee $employee): ?string
     {
-        if (blank($employee->photo_path) || ! Storage::disk('public')->exists($employee->photo_path)) {
+        if (blank($employee->photo_path)) {
             return null;
         }
 
-        $contents = Storage::disk('public')->get($employee->photo_path);
-        $mime     = Storage::disk('public')->mimeType($employee->photo_path) ?: 'image/jpeg';
+        /*
+         * THE PRIVATE DISK FIRST, because that is where staff photographs
+         * actually live — EmployeeForm stores them under employee-photos/ on
+         * `local`, deliberately, since a photograph of a member of staff is
+         * not something to serve from a public URL.
+         *
+         * This read `public` only, so every photograph failed to appear and
+         * failed SILENTLY: Storage::exists() on the wrong disk is false, the
+         * method returned null, and the template rendered its empty frame as
+         * though the employee simply had no photo. Thirteen records had one.
+         *
+         * Both disks are tried rather than one being named, for the same
+         * reason PurgesStoredFiles searches: a hard-coded disk is a bug that
+         * shows up as nothing happening.
+         */
+        foreach (['local', 'public'] as $disk) {
+            if (! Storage::disk($disk)->exists($employee->photo_path)) {
+                continue;
+            }
 
-        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+            $contents = Storage::disk($disk)->get($employee->photo_path);
+            $mime     = Storage::disk($disk)->mimeType($employee->photo_path) ?: 'image/jpeg';
+
+            return 'data:' . $mime . ';base64,' . base64_encode($contents);
+        }
+
+        return null;
     }
 
     public function excel(Request $request)

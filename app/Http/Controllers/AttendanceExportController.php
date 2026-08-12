@@ -103,7 +103,7 @@ class AttendanceExportController extends Controller
         // the exported period, so the PDF matches what was on screen.
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
-            ->employedDuring($from->toDateString())
+            ->employedDuring($from->toDateString(), $to->toDateString())
             ->orderByRaw('sort_order IS NULL')
             ->orderBy('sort_order')
             ->orderBy('name');
@@ -236,7 +236,7 @@ class AttendanceExportController extends Controller
                 // must leave the divisor as well as the rows.
                 $totalPoints = (float) $scRow->excludeFrom(
                     Employee::whereIn('outlet_id', $accessible ?: [0])
-                        ->employedDuring($from->toDateString())
+                        ->employedDuring($from->toDateString(), $to->toDateString())
                         ->forServiceChargeOutlet($scOutletId)
                 )->sum('service_points_entitlement');
                 // Per employee, not per outlet: a redirected person's punches

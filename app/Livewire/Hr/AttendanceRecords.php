@@ -513,14 +513,18 @@ class AttendanceRecords extends Component
         // shrink the divisor, inflate RM/point and allocate more than the pool
         // holds. The two must be drawn from the same set of people — which is
         // also why the pool's exclusions come off here, not just off the rows.
-        [$periodFrom] = $this->period();
+        // Both ends: the end date is what keeps somebody hired AFTER the
+        // period out of its divisor. Six August joiners were sitting in a
+        // 1–25 July pool, and the day one of them is given points they would
+        // dilute a period they did not work.
+        [$periodFrom, $periodTo] = $this->period();
 
         // Scoped by who this POOL pays, not by who works at the outlet. A
         // person redirected to another outlet's pool takes no share here, so
         // their points must leave the divisor too — otherwise the pool
         // under-allocates and everybody else is quietly short-changed.
         $query = Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
-            ->employedDuring($periodFrom->toDateString())
+            ->employedDuring($periodFrom->toDateString(), $periodTo->toDateString())
             ->forServiceChargeOutlet($this->outletFilter !== '' ? (int) $this->outletFilter : null);
 
         // Resolved by the caller and passed in, so the divisor and the rows
@@ -733,11 +737,11 @@ class AttendanceRecords extends Component
 
         // Active staff plus anyone who resigned during (or after the start of)
         // the visible period — their final days still need marking.
-        [$periodFrom] = $this->period();
+        [$periodFrom, $periodTo] = $this->period();
 
         $query = Employee::with(['outlet', 'section'])
             ->whereIn('outlet_id', $accessible ?: [0])
-            ->employedDuring($periodFrom->toDateString())
+            ->employedDuring($periodFrom->toDateString(), $periodTo->toDateString())
             ->inListOrder();
 
         /*

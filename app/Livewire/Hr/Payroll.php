@@ -223,7 +223,7 @@ class Payroll extends Component
             ->when($outletId !== null, fn ($q) => $q->where('outlet_id', $outletId))
             ->when($this->newSection !== '', fn ($q) => $q->where('section_id', (int) $this->newSection))
             ->tap(fn ($q) => PayrollRun::applyEmploymentStatus($q, $this->newEmploymentStatus ?: null))
-            ->employedDuring($range[0]->toDateString())
+            ->employedDuring($range[0]->toDateString(), ($range[1] ?? $range[0])->toDateString())
             ->count();
     }
 
