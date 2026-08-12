@@ -41,6 +41,19 @@ class EmployeeForm extends Component
     public string $f_email          = '';
     public string $f_phone_code     = '';
     public string $f_phone          = '';
+
+    /**
+     * Where they live, and where post goes if that is somewhere else.
+     *
+     * `f_mailing_same` is a control, not a column. It is checked whenever
+     * mailing_address is null, and ticking it clears the field on save — the
+     * database keeps one fact ("post goes here, or nowhere different") rather
+     * than a flag and an address that can contradict each other.
+     */
+    public string $f_home_address    = '';
+    public bool   $f_mailing_same    = true;
+    public string $f_mailing_address = '';
+
     public string $f_join_date      = '';
     public string $f_ic_number      = '';
     public string $f_date_of_birth  = '';
@@ -261,6 +274,12 @@ class EmployeeForm extends Component
         $this->f_designation   = $emp->designation ?? '';
         $this->f_email         = $emp->email ?? '';
         [$this->f_phone_code, $this->f_phone] = $this->splitPhone($emp->phone);
+
+        $this->f_home_address    = $emp->home_address ?? '';
+        // Null means "same as home", so the box is ticked and the second
+        // field stays empty rather than echoing the home address back.
+        $this->f_mailing_same    = blank($emp->mailing_address);
+        $this->f_mailing_address = $emp->mailing_address ?? '';
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
         $this->f_ic_number     = $emp->ic_number ?? '';
         $this->f_date_of_birth = $emp->date_of_birth?->format('Y-m-d') ?? '';
@@ -445,6 +464,11 @@ class EmployeeForm extends Component
             'f_email'          => 'nullable|email|max:255',
             'f_phone_code'     => 'nullable|in:' . implode(',', array_values(Employee::PHONE_COUNTRY_CODES)),
             'f_phone'          => 'nullable|string|max:50',
+            'f_home_address'   => 'nullable|string|max:500',
+            // Required only when they have said post goes elsewhere —
+            // otherwise unticking the box and saving a blank would quietly
+            // mean "same as home" again, which is not what was asked for.
+            'f_mailing_address' => [$this->f_mailing_same ? 'nullable' : 'required', 'string', 'max:500'],
             'f_join_date'      => 'nullable|date',
             'f_ic_number'      => 'nullable|string|max:20',
             'f_date_of_birth'  => 'nullable|date|before:today',
@@ -745,6 +769,11 @@ class EmployeeForm extends Component
             'phone'         => trim($this->f_phone)
                 ? trim(($this->f_phone_code ?: $this->defaultPhoneCode()) . ' ' . trim($this->f_phone))
                 : null,
+            'home_address'  => trim($this->f_home_address) ?: null,
+            // Null whenever post goes to the home address — see the migration
+            // for why there is no separate "same as home" column to keep in
+            // step with this one.
+            'mailing_address' => $this->f_mailing_same ? null : (trim($this->f_mailing_address) ?: null),
             'ic_number'     => $this->f_ic_number ?: null,
             'date_of_birth' => $this->f_date_of_birth ?: null,
             'emergency_contact_name'      => $this->f_emergency_contact_name ?: null,

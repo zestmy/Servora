@@ -13,7 +13,7 @@ class Employee extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'section_id', 'staff_id',
         'name', 'designation',
-        'email', 'phone', 'is_active',
+        'email', 'phone', 'home_address', 'mailing_address', 'is_active',
         'join_date', 'date_of_birth', 'food_handler_certified', 'food_handler_cert_no', 'food_handler_expired_on',
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
         'employment_status', 'employment_status_date', 'outsourcing_company',
@@ -54,6 +54,28 @@ class Employee extends Model
          * hr.compensation, and no list or export renders them.
          */
     ];
+
+    /**
+     * Where to post something to this employee.
+     *
+     * `mailing_address` is null whenever post goes to the home address, which
+     * is the ordinary case — so this is the only place that decides, and no
+     * caller has to remember the rule. Anything printed or posted asks for
+     * this rather than reading either column directly.
+     */
+    public function mailingAddress(): ?string
+    {
+        return filled($this->mailing_address)
+            ? (string) $this->mailing_address
+            : ($this->home_address ?: null);
+    }
+
+    /** Whether post goes somewhere other than where they live. */
+    public function postsElsewhere(): bool
+    {
+        return filled($this->mailing_address)
+            && trim((string) $this->mailing_address) !== trim((string) $this->home_address);
+    }
 
     /**
      * The name to put on a salary transfer.

@@ -138,6 +138,19 @@
         <td class="label">Mobile</td><td class="value">{!! $show($employee->phone) !!}</td>
         <td class="label">Email</td><td class="value">{!! $show($employee->email) !!}</td>
     </tr>
+    <tr>
+        <td class="label">Home address</td>
+        <td class="value" colspan="3">{!! $show($employee->home_address) !!}</td>
+    </tr>
+    {{-- Printed only when post genuinely goes elsewhere. Repeating the home
+         address under a second heading would make every record look as though
+         it had two, which is the confusion this field exists to remove. --}}
+    @if ($employee->postsElsewhere())
+        <tr>
+            <td class="label">Mailing address</td>
+            <td class="value" colspan="3">{!! $show($employee->mailing_address) !!}</td>
+        </tr>
+    @endif
 </table>
 
 <h2 class="section">Employment</h2>

@@ -4,6 +4,7 @@
     // not save with nothing visibly wrong on it.
     $tabFields = [
         'personal'   => ['f_name', 'f_ic_number', 'f_date_of_birth', 'f_email', 'f_phone', 'f_phone_code',
+                         'f_home_address', 'f_mailing_address',
                          'photo', 'f_gender', 'f_nationality', 'f_race', 'f_religion', 'f_marital_status',
                          'f_education_level', 'f_emergency_contact_name', 'f_emergency_contact_relationship',
                          'f_emergency_contact_phone', 'f_emergency_contact_phone_alt', 'f_emergency_contact_address',
@@ -296,6 +297,51 @@
                     @canDo('settings.hr')<a href="{{ route('settings.employee-particulars') }}" class="text-brand-600 hover:text-brand-800 font-medium">Manage these lists</a>@endcanDo
                 </p>
             </div>
+        </div>
+
+        {{-- Address. Its own card because it is two related answers, not one
+             field: where they live, and — only when it differs — where post
+             actually goes. Anything that has to be sent to an employee, an EA
+             form or a letter of employment, reads the second one. --}}
+        <div class="card p-5 space-y-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Address</h3>
+                <p class="text-xs text-gray-500">Where they live, and where to post things.</p>
+            </div>
+
+            <div>
+                <label class="text-xs font-semibold text-gray-600">Home Address</label>
+                <textarea rows="3" maxlength="500" wire:model="f_home_address"
+                          placeholder="Unit / street, taman, postcode, town, state"
+                          class="mt-1 w-full text-sm rounded-lg border-gray-300"></textarea>
+                <x-input-error :messages="$errors->get('f_home_address')" class="mt-1" />
+            </div>
+
+            {{-- .live so the second field appears the moment the box is
+                 cleared, rather than after a save. --}}
+            <label class="inline-flex items-center gap-2">
+                <input type="checkbox" wire:model.live="f_mailing_same"
+                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                <span class="text-sm text-gray-700">Mailing address is the same as home</span>
+            </label>
+
+            @unless ($f_mailing_same)
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">
+                        Mailing Address <span class="text-danger-500">*</span>
+                    </label>
+                    <textarea rows="3" maxlength="500" wire:model="f_mailing_address"
+                              placeholder="Where post should go instead"
+                              class="mt-1 w-full text-sm rounded-lg border-gray-300"></textarea>
+                    {{-- Says which one wins, because two addresses on a record
+                         with no stated precedence is how a letter goes to the
+                         wrong one. --}}
+                    <p class="mt-1 text-[11px] text-gray-600">
+                        Anything posted to this employee goes here rather than to their home address.
+                    </p>
+                    <x-input-error :messages="$errors->get('f_mailing_address')" class="mt-1" />
+                </div>
+            @endunless
         </div>
 
         {{-- Emergency contact. Its own card: it is the block somebody reads in
