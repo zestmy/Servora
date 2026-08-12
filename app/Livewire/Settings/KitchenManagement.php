@@ -6,12 +6,15 @@ use App\Models\CentralKitchen;
 use App\Models\Outlet;
 use App\Models\ProductionOrder;
 use App\Models\User;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class KitchenManagement extends Component
 {
+    use ValidatesCompanyOutlet;
+
     public bool $showForm = false;
     public ?int $editId   = null;
 
@@ -42,14 +45,24 @@ class KitchenManagement extends Component
         return [
             'name'             => 'required|string|max:255',
             'code'             => 'nullable|string|max:20',
-            'outlet_id'        => 'nullable|exists:outlets,id',
+            /*
+             * The base outlet is written straight onto the kitchen, and then
+             * every assigned kitchen user is inserted into outlet_user for it.
+             * With a bare `exists:outlets,id` — which bypasses CompanyScope —
+             * naming another tenant's outlet here would have handed this
+             * company's users membership of it. The served-outlet writes below
+             * are already company-scoped in SQL; this one was not.
+             */
+            'outlet_id'        => ['nullable', $this->outletExistsRule()],
             'address'          => 'nullable|string',
             'contact_person'   => 'nullable|string|max:100',
             'email'            => 'nullable|email|max:255',
             'phone'            => 'nullable|string|max:30',
             'is_active'        => 'boolean',
             'servedOutletIds'  => 'array',
-            'servedOutletIds.*' => 'exists:outlets,id',
+            // Belt and braces — the assignment queries below already filter on
+            // company_id, so a foreign id is dropped rather than written.
+            'servedOutletIds.*' => [$this->outletExistsRule()],
         ];
     }
 

@@ -5,12 +5,15 @@ namespace App\Livewire\Settings;
 use App\Models\CentralPurchasingUnit;
 use App\Models\Outlet;
 use App\Models\User;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class CpuManagement extends Component
 {
+    use ValidatesCompanyOutlet;
+
     public bool $showForm = false;
     public ?int $editId   = null;
 
@@ -38,7 +41,9 @@ class CpuManagement extends Component
             'delivery_mode'     => 'required|in:via_cpu,direct_to_outlet',
             'is_active'         => 'boolean',
             'servedOutletIds'   => 'array',
-            'servedOutletIds.*' => 'exists:outlets,id',
+            // Belt and braces — the assignment queries below already filter on
+            // company_id, so a foreign id is dropped rather than written.
+            'servedOutletIds.*' => [$this->outletExistsRule()],
         ];
     }
 

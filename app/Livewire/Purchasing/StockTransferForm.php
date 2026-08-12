@@ -9,11 +9,15 @@ use App\Models\PurchaseOrder;
 use App\Models\TaxRate;
 use App\Models\UnitOfMeasure;
 use App\Services\StockTransferService;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class StockTransferForm extends Component
 {
+    use ValidatesCompanyOutlet;
+
     public ?int $stoId = null;
 
     /** Creating a transfer is gated; amending an existing one rides on order amendment. */
@@ -40,8 +44,16 @@ class StockTransferForm extends Component
     protected function rules(): array
     {
         return [
-            'cpu_id'                    => 'required|exists:central_purchasing_units,id',
-            'to_outlet_id'              => 'required|exists:outlets,id',
+            /*
+             * Both ends scoped to the company. The dropdowns already list only
+             * this company's CPUs and outlets, but a <select> is not a control
+             * — `exists:...` queries the table directly and so bypasses
+             * CompanyScope, and this value is written to the transfer.
+             */
+            'cpu_id'                    => ['required', Rule::exists('central_purchasing_units', 'id')
+                                                ->where('company_id', Auth::user()->company_id)
+                                                ->whereNull('deleted_at')],
+            'to_outlet_id'              => ['required', $this->outletExistsRule()],
             'transfer_date'             => 'required|date',
             'lines'                     => 'required|array|min:1',
             'lines.*.ingredient_id'     => 'required|exists:ingredients,id',

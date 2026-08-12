@@ -13,6 +13,7 @@ use App\Models\Recipe;
 use App\Models\ShelfLifeRule;
 use App\Services\LabelPrintService;
 use App\Services\Labels\LabelQrService;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -27,6 +28,8 @@ use Livewire\Component;
  */
 class Sets extends Component
 {
+    use ValidatesCompanyOutlet;
+
     public ?int $outletId = null;
 
     public ?int $editingSetId = null;
@@ -110,7 +113,7 @@ class Sets extends Component
         $this->validate([
             'name'        => 'required|string|max:100',
             'description' => 'nullable|string|max:200',
-            'outletId'    => 'required|integer|exists:outlets,id',
+            'outletId'    => ['required', 'integer', $this->outletExistsRule()],
         ]);
 
         // Only states we actually know about, and null rather than an empty
@@ -194,7 +197,7 @@ class Sets extends Component
             [
                 'importTemplateId' => 'required|integer|exists:form_templates,id',
                 'importName'       => 'required_if:importTarget,new|nullable|string|max:100',
-                'outletId'         => 'required|integer|exists:outlets,id',
+                'outletId'         => ['required', 'integer', $this->outletExistsRule()],
             ],
             ['importTemplateId.required' => 'Choose a template to import.']
         );

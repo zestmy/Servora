@@ -8,6 +8,7 @@ use App\Models\ProductionOrder;
 use App\Models\ProductionRecipe;
 use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -15,6 +16,8 @@ use Livewire\Component;
 
 class ProductionOrderForm extends Component
 {
+    use ValidatesCompanyOutlet;
+
     public ?int $orderId = null;
 
     public string $orderNumber = '';
@@ -59,8 +62,23 @@ class ProductionOrderForm extends Component
             'lines.*.production_recipe_id' => 'nullable|exists:production_recipes,id',
             'lines.*.planned_quantity' => 'required|numeric|min:0.0001',
             'lines.*.uom_id'          => 'required|exists:units_of_measure,id',
-            // Destination outlets are limited to ones this user can reach.
-            'lines.*.to_outlet_id'    => ['nullable', 'integer', Rule::in(Auth::user()->accessibleOutletIds())],
+            /*
+             * ANY OUTLET IN THE COMPANY, not just ones this user can reach.
+             *
+             * This was Rule::in(accessibleOutletIds()), and in kitchen mode
+             * that list is the kitchen's own outlet and nothing else. Which is
+             * the one destination dispatchToOutlets() throws away — it skips
+             * a line whose destination is the outlet the kitchen transfers
+             * FROM. So the only option the dropdown offered was the one that
+             * did nothing: the order saved, the batch completed, and the
+             * transfer was silently never raised.
+             *
+             * A kitchen produces FOR branches it does not work in; that is
+             * what a central kitchen is. The executor already agreed — it
+             * accepts any outlet in the company and refuses the rest. Only the
+             * picker disagreed.
+             */
+            'lines.*.to_outlet_id'    => ['nullable', 'integer', $this->outletExistsRule()],
         ];
     }
 
@@ -69,7 +87,7 @@ class ProductionOrderForm extends Component
         return [
             'kitchen_id.required'              => 'Please select a kitchen.',
             'kitchen_id.in'                    => 'You do not have access to the selected kitchen.',
-            'lines.*.to_outlet_id.in'          => 'You do not have access to the selected destination outlet.',
+            'lines.*.to_outlet_id.exists'      => 'That destination outlet is not one of this company\'s outlets.',
             'lines.required'                   => 'Add at least one recipe line.',
             'lines.min'                        => 'Add at least one recipe line.',
             'lines.*.planned_quantity.min'     => 'Quantity must be greater than zero.',
@@ -232,11 +250,58 @@ class ProductionOrderForm extends Component
         $this->redirectRoute('kitchen.index');
     }
 
+    /**
+     * Where a finished batch can be sent.
+     *
+     * Every active outlet in the company, because a central kitchen exists to
+     * supply branches its staff are not attached to. Scoping this to the
+     * user's own outlets left a kitchen user with one entry — the kitchen
+     * itself — which is the single destination the executor discards.
+     *
+     * Two things are deliberately not left to the plain "active outlets" query:
+     *
+     * - The kitchen's OWN base outlet is dropped. Stock produced there is
+     *   already there; dispatchToOutlets() skips it, and "None" is how you say
+     *   "keep it in the kitchen". Offering it is offering a no-op.
+     * - Outlets already named on a line are added back even if since
+     *   deactivated, so opening an old order does not quietly blank a
+     *   destination the moment it is saved again.
+     *
+     * @param  \Illuminate\Support\Collection<int, CentralKitchen>  $kitchens
+     */
+    private function destinationOutlets($kitchens)
+    {
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->get();
+
+        $chosen = collect($this->lines)->pluck('to_outlet_id')
+            ->filter()->map(fn ($id) => (int) $id)->unique();
+
+        if ($chosen->isNotEmpty()) {
+            $missing = $chosen->diff($outlets->pluck('id')->map(fn ($id) => (int) $id));
+            if ($missing->isNotEmpty()) {
+                $outlets = $outlets->concat(
+                    Outlet::where('company_id', Auth::user()->company_id)
+                        ->whereIn('id', $missing)->get()
+                );
+            }
+        }
+
+        // Never the kitchen's own outlet — unless a line already names it, in
+        // which case hiding it would make an existing order unreadable.
+        $base = (int) ($kitchens->firstWhere('id', $this->kitchen_id)?->outlet_id ?? 0);
+        if ($base && ! $chosen->contains($base)) {
+            $outlets = $outlets->reject(fn ($o) => (int) $o->id === $base);
+        }
+
+        return $outlets->sortBy('name')->values();
+    }
+
     public function render()
     {
         $kitchens = CentralKitchen::active()->orderBy('name')->get();
-        $outlets  = Auth::user()->accessibleOutlets()
-            ->where('is_active', true)->orderBy('name')->get();
+        $outlets  = $this->destinationOutlets($kitchens);
         $uoms     = UnitOfMeasure::orderBy('name')->get();
 
         // Both sources are searchable. Production recipes lead — they're the

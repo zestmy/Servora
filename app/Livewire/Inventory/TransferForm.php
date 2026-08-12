@@ -6,12 +6,14 @@ use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
 use App\Traits\ScopesToActiveOutlet;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class TransferForm extends Component
 {
     use ScopesToActiveOutlet;
+    use ValidatesCompanyOutlet;
 
     public ?int $transferId = null;
 
@@ -45,14 +47,6 @@ class TransferForm extends Component
             'lines.*.quantity'  => 'required|numeric|min:0.0001',
             'lines.*.unit_cost' => 'required|numeric|min:0',
         ];
-    }
-
-    /** An outlet id that belongs to this company and is still active. */
-    private function outletExistsRule(): \Illuminate\Validation\Rules\Exists
-    {
-        return \Illuminate\Validation\Rule::exists('outlets', 'id')
-            ->where('company_id', Auth::user()->company_id)
-            ->whereNull('deleted_at');
     }
 
     protected function messages(): array

@@ -9,7 +9,9 @@ use App\Models\Outlet;
 use App\Services\LabelRenderService;
 use App\Services\Labels\DefaultTemplates;
 use App\Services\Labels\PrintNodeClient;
+use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -23,6 +25,8 @@ use Livewire\Component;
  */
 class Printers extends Component
 {
+    use ValidatesCompanyOutlet;
+
     public bool $showModal = false;
 
     public ?int $editingId = null;
@@ -59,11 +63,13 @@ class Printers extends Component
     protected function rules(): array
     {
         return [
-            'outlet_id'           => 'required|integer|exists:outlets,id',
+            'outlet_id'           => ['required', 'integer', $this->outletExistsRule()],
             'name'                => 'required|string|max:100',
             'width_mm'            => 'required|numeric|min:10|max:300',
             'height_mm'           => 'required|numeric|min:10|max:300',
-            'default_template_id' => 'nullable|integer|exists:label_templates,id',
+            // Same class of hole, one line down: a template is company-owned.
+            'default_template_id' => ['nullable', 'integer',
+                Rule::exists('label_templates', 'id')->where('company_id', Auth::user()->company_id)],
             // Bounded: an offset this large means the wrong stock size is
             // configured, and shifting content won't save it.
             'offset_x_mm'         => 'required|numeric|min:-20|max:20',
