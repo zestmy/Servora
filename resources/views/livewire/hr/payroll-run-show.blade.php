@@ -295,15 +295,25 @@
             </div>
             @if ($run->isApproved())
                 <div class="flex flex-wrap gap-2">
-                    @foreach ([
-                        'bank'  => 'Salary payment',
-                        'cp39'  => 'PCB (CP39)',
-                        'epf'   => 'EPF (KWSP)',
-                        'socso' => 'SOCSO &amp; EIS',
-                    ] as $type => $label)
-                        <a href="{{ route('hr.payroll.export', [$run, $type]) }}" class="btn-secondary text-xs">
-                            {!! $label !!}
-                        </a>
+                    {{-- Each listing omits the people it has nothing to say
+                         about, so a run where nobody paid PCB produces an empty
+                         CP39 — common in this industry, where most staff earn
+                         under the tax threshold. The count is shown and the
+                         empty ones are not clickable, because offering a button
+                         that then fails is what made this look broken. --}}
+                    @foreach (\App\Services\Payroll\PayrollExports::TYPES as $type => $label)
+                        @php $rows = $exportCounts[$type] ?? null; @endphp
+
+                        @if ($rows === 0)
+                            <span class="btn-secondary text-xs opacity-50 cursor-not-allowed"
+                                  title="No employee on this run has a figure for {{ $label }}.">
+                                {{ $label }} — none
+                            </span>
+                        @else
+                            <a href="{{ route('hr.payroll.export', [$run, $type]) }}" class="btn-secondary text-xs">
+                                {{ $label }}@if ($rows) <span class="text-gray-500">({{ $rows }})</span>@endif
+                            </a>
+                        @endif
                     @endforeach
                 </div>
             @endif

@@ -24,6 +24,39 @@ use Illuminate\Support\Collection;
  */
 class PayrollExports
 {
+    /** Every listing this service can produce, and what to call it on screen. */
+    public const TYPES = [
+        'bank'  => 'Salary payment',
+        'cp39'  => 'PCB (CP39)',
+        'epf'   => 'EPF (KWSP)',
+        'socso' => 'SOCSO & EIS',
+    ];
+
+    /**
+     * How many rows each listing would actually contain.
+     *
+     * Built by running the exports themselves rather than by re-testing their
+     * filters, so the number on the screen cannot disagree with the file. Each
+     * listing omits the people it has nothing to say about — CP39 skips anyone
+     * who paid no tax, the bank file skips anyone with no account — and a run
+     * where NOBODY has a figure produces an empty listing, which is a real
+     * answer rather than an error.
+     *
+     * That case is why this exists: offering a button that then fails is worse
+     * than saying up front that there is nothing behind it.
+     *
+     * @return array<string, int>
+     */
+    public function rowCounts(PayrollRun $run): array
+    {
+        return [
+            'bank'  => count($this->bankPayment($run)['rows']),
+            'cp39'  => count($this->cp39($run)['rows']),
+            'epf'   => count($this->epf($run)['rows']),
+            'socso' => count($this->socso($run)['rows']),
+        ];
+    }
+
     /**
      * PCB — the fields LHDN's CP39 asks for, one row per employee who paid tax.
      *

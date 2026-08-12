@@ -327,6 +327,52 @@ class Index extends Component
         }
     }
 
+    /**
+     * Whether this user may delete a DRAFT purchasing document.
+     *
+     * A draft is not nothing — somebody typed it — but deleting one is not the
+     * destructive cleanup that `purchasing.delete` exists for either, which is
+     * why drafts were left deliberately easier to remove than cancelled or
+     * rejected records. What was missing was any floor at all: `delete()`
+     * checked outlet access and the draft status and nothing else, so an
+     * account holding only `purchasing.view` — read-only, by its own help text
+     * — could destroy a colleague's draft order. `deletePr()` had the same
+     * hole on its draft branch.
+     *
+     * The floor is AUTHORSHIP OF THAT DOCUMENT TYPE: if you may raise or amend
+     * an order you may bin a draft one, and likewise for requests. That keeps
+     * the intent the code already had — "drafts stay deletable by their
+     * requester" — while excluding people who can only look. It deliberately
+     * does NOT require `purchasing.delete`, which would take draft cleanup
+     * away from the very people who create drafts all day.
+     *
+     * Delete capability and system roles pass regardless, as everywhere else
+     * in this component.
+     */
+    private function mayDeleteDraft(string $createAbility, string $editAbility): bool
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->isSystemRole()
+            || $user->canDo('purchasing.delete')
+            || $user->canDo($createAbility)
+            || $user->canDo($editAbility);
+    }
+
+    private function mayDeleteDraftPo(): bool
+    {
+        return $this->mayDeleteDraft('purchasing.orders.create', 'purchasing.orders.edit');
+    }
+
+    private function mayDeleteDraftPr(): bool
+    {
+        return $this->mayDeleteDraft('purchasing.requests.create', 'purchasing.requests.edit');
+    }
+
     public function deletePr(int $id): void
     {
         $user = Auth::user();
@@ -349,6 +395,13 @@ class Index extends Component
             && ! $user->isSystemRole()
             && ! $user->canDo('purchasing.delete')) {
             session()->flash('error', 'You do not have permission to delete records.');
+            return;
+        }
+
+        // The draft branch had no check of its own, so read-only access was
+        // enough to remove somebody else's request. See mayDeleteDraft().
+        if ($pr->status === 'draft' && ! $this->mayDeleteDraftPr()) {
+            session()->flash('error', 'You do not have permission to delete purchase requests.');
             return;
         }
 
@@ -469,14 +522,30 @@ class Index extends Component
     public function delete(int $id): void
     {
         $po = PurchaseOrder::findOrFail($id);
+
         if (! Auth::user()->canAccessOutlet($po->outlet_id)) {
             session()->flash('error', 'You do not have access to this outlet.');
             return;
         }
-        if ($po->status === 'draft') {
-            $po->delete();
-            session()->flash('success', 'Purchase order deleted.');
+
+        // Re-checked here and not only on the button: a Livewire action is its
+        // own request to /livewire/update, so a hidden button is not a check.
+        if (! $this->mayDeleteDraftPo()) {
+            session()->flash('error', 'You do not have permission to delete purchase orders.');
+            return;
         }
+
+        // Anything past draft is committed spend and is cancelled or rolled
+        // back rather than deleted — rollbackPo() is that door, behind
+        // purchasing.delete. Said out loud, because pressing Delete and
+        // watching nothing happen reads as the app being broken.
+        if ($po->status !== 'draft') {
+            session()->flash('error', 'Only a draft purchase order can be deleted. Cancel or roll back this one instead.');
+            return;
+        }
+
+        $po->delete();
+        session()->flash('success', 'Purchase order deleted.');
     }
 
     /**
@@ -823,6 +892,12 @@ class Index extends Component
             'isSystemAdmin'      => $isSystemAdmin,
             'canRollbackPo'      => $canRollbackPo,
             'canDeleteRecords'   => $canRollbackPo,
+            // Draft deletion sits below canDeleteRecords on purpose — see
+            // mayDeleteDraft(). Passed so the button matches what the action
+            // will actually allow, rather than offering something that then
+            // refuses.
+            'canDeleteDraftPo'   => $this->mayDeleteDraftPo(),
+            'canDeleteDraftPr'   => $this->mayDeleteDraftPr(),
             'cpuMode'            => $cpuMode,
             'isCpuUser'          => $isCpuUser,
             'isPrApprover'       => $isPrApprover,

@@ -495,6 +495,46 @@ class PayrollRunShow extends Component
         session()->flash('success', $audience['sendable']->count() . ' payslip(s) queued for sending.');
     }
 
+    /**
+     * Overtime claimed inside this run's period that nobody has decided on.
+     *
+     * Scoped to the employees ON THE RUN, not the whole company: a segmented
+     * run pays part of the outlet, and a claim belonging to somebody it does
+     * not cover is not this run's problem to report.
+     *
+     * Rejected and approved claims are both settled answers and are left out —
+     * approved ones are already in the figures, rejected ones are meant to be
+     * absent. Only the undecided are a surprise.
+     *
+     * @return array{submitted: int, draft: int, names: string}
+     */
+    private function pendingOvertime(PayrollRun $run): array
+    {
+        $employeeIds = $run->lines()->whereNotNull('employee_id')->pluck('employee_id');
+
+        if ($employeeIds->isEmpty() || ! $run->period_start || ! $run->period_end) {
+            return ['submitted' => 0, 'draft' => 0, 'names' => ''];
+        }
+
+        $claims = \App\Models\OvertimeClaim::withoutGlobalScopes()
+            ->whereIn('employee_id', $employeeIds)
+            ->whereIn('status', ['submitted', 'draft'])
+            ->whereBetween('claim_date', [$run->period_start, $run->period_end])
+            ->with('employee:id,name')
+            ->get();
+
+        $submitted = $claims->where('status', 'submitted');
+
+        return [
+            'submitted' => $submitted->count(),
+            'draft'     => $claims->where('status', 'draft')->count(),
+            // The names are the actionable part — "12 claims" sends somebody
+            // hunting through the whole approval queue.
+            'names' => $submitted->map(fn ($c) => $c->employee?->name)
+                ->filter()->unique()->sort()->values()->join(', '),
+        ];
+    }
+
     public function render()
     {
         $run   = $this->run();
@@ -574,6 +614,40 @@ class PayrollRunShow extends Component
                 . '. Check the amount, or recover it over several months instead.';
         }
 
+        /*
+         * OVERTIME STILL WAITING FOR A DECISION IN THIS PERIOD.
+         *
+         * CompensationSummary pays APPROVED claims only, which is correct — an
+         * unapproved claim is not yet an amount owed. The failure is that it
+         * does so SILENTLY: a claim sitting in someone's approval queue is
+         * simply absent from the run, so payroll is approved, the month closes,
+         * and the employee is short with nothing anywhere saying why.
+         *
+         * Found on live data while this was being written: the approved July
+         * run had twelve submitted claims and one draft inside its period, none
+         * of them paid and none of them mentioned.
+         *
+         * Named before approval because that is the moment it is still free to
+         * fix — approve the claims, regenerate, and they are in. Afterwards
+         * they have to be carried to next month as an adjustment.
+         *
+         * Submitted and draft are counted separately because they need
+         * different people: a submitted claim is waiting for an APPROVER, while
+         * a draft is still with the employee and nobody else can move it.
+         */
+        $pendingOt = $this->pendingOvertime($run);
+
+        if ($pendingOt['submitted'] > 0) {
+            $warnings[] = $pendingOt['submitted'] . ' overtime claim(s) in this period are still awaiting approval and are NOT in this run: '
+                . $pendingOt['names']
+                . '. Approve them and regenerate, or they will have to be paid next month.';
+        }
+
+        if ($pendingOt['draft'] > 0) {
+            $warnings[] = $pendingOt['draft'] . ' overtime claim(s) in this period are still a draft with the employee, '
+                . 'so they cannot be approved or paid in this run.';
+        }
+
         // Nothing on this run was computed from the rates, so the caveat about
         // them describes no figure anybody is looking at.
         if (! $run->rates_were_confirmed && $statutoryLines->isNotEmpty()) {
@@ -584,6 +658,12 @@ class PayrollRunShow extends Component
             'run'        => $run,
             'lines'      => $lines,
             'warnings'   => $warnings,
+            // How many rows each listing would hold, so a button with nothing
+            // behind it says so instead of failing when pressed. Only worth
+            // the work once the run is approved, which is when they appear.
+            'exportCounts' => $run->isApproved()
+                ? app(\App\Services\Payroll\PayrollExports::class)->rowCounts($run)
+                : [],
             'canApprove' => Auth::user()->can('hr.payroll.approve'),
             'canAdjust'  => $run->isEditable() && Auth::user()->can('hr.payroll'),
             'adjustments' => \App\Models\PayrollRunAdjustment::with('employee:id,name', 'createdBy:id,name')

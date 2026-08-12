@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PayrollRun;
 use App\Services\Payroll\PayrollExports;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -16,13 +17,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PayrollExportController extends Controller
 {
-    private const TYPES = ['cp39', 'epf', 'socso', 'bank'];
-
-    public function __invoke(PayrollRun $run, string $type): StreamedResponse
+    public function __invoke(PayrollRun $run, string $type): StreamedResponse|RedirectResponse
     {
         abort_unless(Auth::user()?->can('hr.payroll'), 403);
         abort_unless($run->company_id === Auth::user()->company_id, 404);
-        abort_unless(in_array($type, self::TYPES, true), 404);
+        abort_unless(array_key_exists($type, PayrollExports::TYPES), 404);
 
         abort_unless(
             $run->isApproved(),
@@ -39,7 +38,25 @@ class PayrollExportController extends Controller
             'bank'  => $exports->bankPayment($run),
         };
 
-        abort_if($data['rows'] === [], 404, 'Nothing to export: no employee in this run has a figure for it.');
+        /*
+         * AN EMPTY LISTING IS NOT A MISSING PAGE.
+         *
+         * This used to `abort(404)`, and the message went with it: a browser
+         * renders a 404 as its own "not found" page, so somebody clicking
+         * "PCB (CP39)" on a run where nobody earned enough to pay tax — which
+         * is most runs in this industry — was told the page did not exist.
+         * Reported exactly that way, as a broken button.
+         *
+         * A run where no one paid PCB is a correct and common answer, so it is
+         * said in words, on the screen they came from, naming the figure that
+         * is missing rather than the file that is not there.
+         */
+        if ($data['rows'] === []) {
+            return back()->with('error', sprintf(
+                'Nothing to export for %s: no employee on this run has a figure for it.',
+                PayrollExports::TYPES[$type],
+            ));
+        }
 
         return $this->csv($data);
     }
