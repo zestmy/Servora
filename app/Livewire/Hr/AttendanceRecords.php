@@ -618,7 +618,68 @@ class AttendanceRecords extends Component
             ]
         );
 
-        session()->flash('success', 'Service charge saved for this period.');
+        /*
+         * "Save & Calculate" now SAVES the calculation.
+         *
+         * Before this only the pool was stored and the split was worked out
+         * afresh on every view, so a period closed at RM556 a point read
+         * RM574 the next day because one service point had left the divisor in
+         * between — nobody having touched the pool. The figures are kept here
+         * and everything else reads them back.
+         *
+         * After the row is written, so the new amount and percentages are what
+         * gets calculated rather than the ones being replaced.
+         */
+        [$scFrom, $scTo] = $this->period();
+
+        app(\App\Services\Hr\ServiceChargeDistribution::class)->freeze(
+            Auth::user()->company_id,
+            $this->accessibleOutletIds(),
+            $scFrom,
+            $scTo,
+            $this->serviceChargeOutletId(),
+            Auth::id(),
+        );
+
+        session()->flash('success', 'Service charge saved and calculated. These figures are now fixed for this period.');
+    }
+
+    /**
+     * Work the split out again against today's staff, and keep the new answer.
+     *
+     * The deliberate way past a frozen period, for when the pool genuinely
+     * should move — somebody was hired, points were corrected, an exclusion
+     * was wrong. Separate from Save so that opening the screen, or editing a
+     * name, can never re-price a period that has been signed off.
+     *
+     * APPROVED PAYROLL RUNS ARE NOT TOUCHED. A run copies each person's
+     * service charge onto its own line when generated and an approved run
+     * cannot be regenerated, so recalculating here cannot reach back into
+     * money the company has already committed to. A draft run WILL pick the
+     * new figures up the next time it is regenerated, which is the point of
+     * it still being a draft.
+     */
+    public function recalculateServiceCharge(): void
+    {
+        abort_unless($this->canManageServiceCharge(), 403);
+
+        [$from, $to] = $this->period();
+
+        $result = app(\App\Services\Hr\ServiceChargeDistribution::class)->freeze(
+            Auth::user()->company_id,
+            $this->accessibleOutletIds(),
+            $from,
+            $to,
+            $this->serviceChargeOutletId(),
+            Auth::id(),
+        );
+
+        session()->flash(
+            $result ? 'success' : 'error',
+            $result
+                ? 'Service charge recalculated against current staff. Approved payroll runs are unaffected.'
+                : 'There is no service charge pool saved for this period to recalculate.',
+        );
     }
 
     // ── Manage codes ───────────────────────────────────────────────────────

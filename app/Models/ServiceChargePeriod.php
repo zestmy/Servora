@@ -17,6 +17,7 @@ class ServiceChargePeriod extends Model
         'company_id', 'outlet_id', 'period_from', 'period_to',
         'amount', 'retention_percent', 'mc_percent', 'abs_percent',
         'fund_allocations', 'special_deductions', 'excluded_employees',
+        'distribution', 'calculated_at', 'calculated_by',
     ];
 
     protected $casts = [
@@ -29,7 +30,132 @@ class ServiceChargePeriod extends Model
         'fund_allocations'   => 'array',
         'special_deductions' => 'array',
         'excluded_employees' => 'array',
+        'distribution'       => 'array',
+        'calculated_at'      => 'datetime',
     ];
+
+    public function calculatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'calculated_by');
+    }
+
+    /** Whether this period's split has been calculated and kept. */
+    public function isFrozen(): bool
+    {
+        return filled($this->distribution) && $this->calculated_at !== null;
+    }
+
+    /**
+     * Reduce a live distribution to what is worth keeping.
+     *
+     * FIGURES, NOT PEOPLE. Rows are keyed by employee id and hold only money
+     * and points; the name, section and outlet are looked up live when this is
+     * rendered again. A rename should show the new name — what must not move
+     * is what somebody was paid.
+     *
+     * @param  array<string, mixed>  $computed  the return of distribute()
+     * @return array<string, mixed>
+     */
+    public static function snapshotOf(array $computed): array
+    {
+        return [
+            'rows' => collect($computed['rows'])
+                ->mapWithKeys(fn ($r) => [(string) $r['employee']->id => [
+                    'excluded'    => (bool) $r['excluded'],
+                    'elsewhere'   => (bool) $r['elsewhere'],
+                    'points'      => (float) $r['points'],
+                    'mcDays'      => (int) $r['mcDays'],
+                    'absDays'     => (int) $r['absDays'],
+                    'dedPct'      => (float) $r['dedPct'],
+                    'gross'       => (float) $r['gross'],
+                    'dedAmt'      => (float) $r['dedAmt'],
+                    'lateMins'    => (int) $r['lateMins'],
+                    'lateAmt'     => (float) $r['lateAmt'],
+                    'specialAmt'  => (float) $r['specialAmt'],
+                    'specialNote' => $r['specialNote'],
+                    'net'         => (float) $r['net'],
+                ]])
+                ->all(),
+            'totals'        => $computed['totals'],
+            'staffPoints'   => $computed['staffPoints'],
+            'fundPoints'    => $computed['fundPoints'],
+            'totalPoints'   => $computed['totalPoints'],
+            'funds'         => $computed['funds'],
+            'collected'     => $computed['collected'],
+            'retentionPct'  => $computed['retentionPct'],
+            'retentionAmt'  => $computed['retentionAmt'],
+            'distributable' => $computed['distributable'],
+            'allocated'     => $computed['allocated'],
+            'perPoint'      => $computed['perPoint'],
+            'mcPct'         => $computed['mcPct'],
+            'absPct'        => $computed['absPct'],
+        ];
+    }
+
+    /**
+     * The kept split, rebuilt in the shape distribute() returns.
+     *
+     * Every employee handed in gets a row, so the table looks the same as it
+     * always did. Somebody who was not in the calculation — hired since, or
+     * moved into this outlet since — gets a row of zeros flagged `notInPool`,
+     * rather than being silently absent or, worse, quietly given a share of a
+     * pool that was divided without them.
+     *
+     * The TOTALS come from the snapshot, never re-summed from the rows on
+     * screen: they are what the pool actually paid, and a total that drifts
+     * because the row list changed is the whole bug this exists to stop.
+     *
+     * @param  \Illuminate\Support\Collection  $employees
+     * @return array<string, mixed>
+     */
+    public function frozenDistribution($employees): array
+    {
+        $snapshot = $this->distribution;
+        $stored   = $snapshot['rows'] ?? [];
+
+        $rows = $employees->map(function ($emp) use ($stored) {
+            $r = $stored[(string) $emp->id] ?? null;
+
+            if ($r === null) {
+                return [
+                    'employee' => $emp, 'excluded' => true, 'elsewhere' => false,
+                    'points' => 0.0, 'mcDays' => 0, 'absDays' => 0, 'dedPct' => 0.0,
+                    'gross' => 0.0, 'dedAmt' => 0.0, 'lateMins' => 0, 'lateAmt' => 0.0,
+                    'specialAmt' => 0.0, 'specialNote' => null, 'net' => 0.0,
+                    // The reason the row is empty, so a screen can say
+                    // "not in this calculation" rather than "excluded".
+                    'notInPool' => true,
+                ];
+            }
+
+            return $r + ['employee' => $emp, 'notInPool' => false];
+        })->values()->all();
+
+        return [
+            'row'           => $this,
+            'rows'          => $rows,
+            'totals'        => $snapshot['totals'],
+            'staffPoints'   => $snapshot['staffPoints'],
+            'fundPoints'    => $snapshot['fundPoints'],
+            'totalPoints'   => $snapshot['totalPoints'],
+            'funds'         => $snapshot['funds'],
+            'collected'     => $snapshot['collected'],
+            'retentionPct'  => $snapshot['retentionPct'],
+            'retentionAmt'  => $snapshot['retentionAmt'],
+            'distributable' => $snapshot['distributable'],
+            'allocated'     => $snapshot['allocated'],
+            'perPoint'      => $snapshot['perPoint'],
+            'mcPct'         => $snapshot['mcPct'],
+            'absPct'        => $snapshot['absPct'],
+            'hasLate'       => ($snapshot['totals']['lateAmt'] ?? 0) > 0 || ($snapshot['totals']['lateMins'] ?? 0) > 0,
+            'hasSpecial'    => ($snapshot['totals']['specialAmt'] ?? 0) > 0,
+            'hasExcluded'   => collect($rows)->contains('excluded', true),
+            // So a screen can say when it was fixed and by whom.
+            'frozen'        => true,
+            'calculatedAt'  => $this->calculated_at,
+            'calculatedBy'  => $this->calculatedBy?->name,
+        ];
+    }
 
     /** MySQL does not read column defaults back after an insert. */
     protected $attributes = [
@@ -157,8 +283,28 @@ class ServiceChargePeriod extends Model
      * charge can be reduced to nothing, but it is a share of a pool, not a
      * debt, and it must never invert into money owed.
      */
-    public static function distribute(?self $row, ?int $poolOutletId, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = []): array
+    public static function distribute(?self $row, ?int $poolOutletId, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = [], bool $recalculate = false): array
     {
+        /*
+         * A CALCULATED PERIOD RETURNS WHAT IT WAS CALCULATED AS.
+         *
+         * This is the fix for a pool that re-priced itself after it had been
+         * closed: only the amount was ever stored, so the split was recomputed
+         * from current staff on every view and any edit to an employee moved
+         * everybody's share. One point leaving the divisor took RM/point from
+         * 556 to 574 on a period that had already been signed off.
+         *
+         * Placed here rather than at the three call sites — the grid, the
+         * export and the payroll builder — so none of them can forget, and so
+         * they cannot disagree with each other about what a period paid.
+         *
+         * $recalculate is the explicit way through, for the button that says
+         * so. Nothing recalculates by accident.
+         */
+        if (! $recalculate && $row?->isFrozen()) {
+            return $row->frozenDistribution($employees);
+        }
+
         $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
                 || stripos($c->label, 'sick') !== false)
             ->pluck('id')->all();

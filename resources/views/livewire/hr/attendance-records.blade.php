@@ -466,6 +466,19 @@
                         class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
                     Save &amp; Calculate
                 </button>
+
+                {{-- A calculated period keeps its figures, so the way to move
+                     them is to say so. Without this the only route back would
+                     be re-saving the pool, and somebody would find it by
+                     accident — which is exactly how a signed-off period used
+                     to re-price itself. --}}
+                @if ($serviceCharge['frozen'] ?? false)
+                    <button wire:click="recalculateServiceCharge"
+                            wire:confirm="Recalculate this period against current staff? The figures will change if anyone has joined, left, or had their points edited. Approved payroll runs are not affected."
+                            class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition">
+                        Recalculate
+                    </button>
+                @endif
                 @if ($serviceCharge['row'])
                     @canDo('hr.compensation')
                     <x-download-link :href="route('hr.attendance.payout-pdf', [
@@ -506,6 +519,20 @@
                         <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
                             RM {{ number_format($serviceCharge['perPoint']) }} / point
                         </span>
+                        {{-- Says the figures are FIXED, and when they were
+                             fixed. Without it there is nothing on screen to
+                             distinguish a calculated period from one being
+                             recomputed live, which is what made a changed
+                             number look like a bug rather than a recalculation. --}}
+                        @if ($serviceCharge['frozen'] ?? false)
+                            <span class="px-2.5 py-1 rounded-full bg-success-50 text-success-700"
+                                  title="These figures were calculated and kept. They will not change when staff records change.">
+                                Calculated {{ $serviceCharge['calculatedAt']?->format('d M Y, g:ia') }}
+                                @if ($serviceCharge['calculatedBy'])
+                                    by {{ $serviceCharge['calculatedBy'] }}
+                                @endif
+                            </span>
+                        @endif
                     </div>
                 @endif
             </div>

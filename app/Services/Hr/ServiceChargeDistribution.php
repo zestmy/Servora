@@ -20,10 +20,44 @@ use Carbon\Carbon;
 class ServiceChargeDistribution
 {
     /**
+     * Work the split out afresh and KEEP it on the period.
+     *
+     * This is what "Save & Calculate" now means. Before it, only the pool
+     * amount was stored and the split was recomputed from current staff every
+     * time anybody opened the screen — so a period calculated at RM556 a point
+     * read RM574 the following day because one service point had left the
+     * divisor in between. Nobody had touched the pool.
+     *
+     * Called explicitly and only from a button that says so. Everything else
+     * reads the kept figures; see ServiceChargePeriod::distribute().
+     *
+     * @return array|null  the fresh distribution, or null if no pool exists.
+     */
+    public function freeze(int $companyId, array $accessibleOutletIds, Carbon $from, Carbon $to, ?int $outletId, ?int $userId): ?array
+    {
+        $computed = $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, $outletId, recalculate: true);
+
+        if ($computed === null) {
+            return null;
+        }
+
+        $row = $computed['row'];
+
+        $row->forceFill([
+            'distribution'  => ServiceChargePeriod::snapshotOf($computed),
+            'calculated_at' => now(),
+            'calculated_by' => $userId,
+        ])->save();
+
+        return $computed;
+    }
+
+    /**
+     * @param  bool  $recalculate  ignore a kept split and work it out again.
      * @return array|null  null when no pool has been saved for this exact
      *                     period and outlet — a pool is keyed on both.
      */
-    public function forPeriod(int $companyId, array $accessibleOutletIds, Carbon $from, Carbon $to, ?int $outletId): ?array
+    public function forPeriod(int $companyId, array $accessibleOutletIds, Carbon $from, Carbon $to, ?int $outletId, bool $recalculate = false): ?array
     {
         $row = ServiceChargePeriod::withoutGlobalScopes()
             ->where('company_id', $companyId)
@@ -91,6 +125,7 @@ class ServiceChargeDistribution
             // quietly return nothing — handing them a pool share with their
             // lateness charge silently dropped.
             LatePenalties::forEmployees($companyId, $employees->pluck('id')->all(), $from, $to),
+            $recalculate,
         );
     }
 
