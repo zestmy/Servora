@@ -29,12 +29,30 @@ class TransferForm extends Component
     {
         return [
             'transfer_date'     => 'required|date',
-            'from_outlet_id'    => 'required|exists:outlets,id',
-            'to_outlet_id'      => 'required|exists:outlets,id|different:from_outlet_id',
+            /*
+             * SCOPED TO THE COMPANY, not just "an outlet that exists".
+             *
+             * `exists:outlets,id` alone accepts any id in the table, including
+             * another tenant's. The source was covered anyway because save()
+             * re-checks canAccessOutlet() on it, but the DESTINATION had no
+             * such check — so a forged value could have pushed stock into
+             * another company's outlet. A select box is not a control; the
+             * rule is.
+             */
+            'from_outlet_id'    => ['required', $this->outletExistsRule()],
+            'to_outlet_id'      => ['required', 'different:from_outlet_id', $this->outletExistsRule()],
             'lines'             => 'required|array|min:1',
             'lines.*.quantity'  => 'required|numeric|min:0.0001',
             'lines.*.unit_cost' => 'required|numeric|min:0',
         ];
+    }
+
+    /** An outlet id that belongs to this company and is still active. */
+    private function outletExistsRule(): \Illuminate\Validation\Rules\Exists
+    {
+        return \Illuminate\Validation\Rule::exists('outlets', 'id')
+            ->where('company_id', Auth::user()->company_id)
+            ->whereNull('deleted_at');
     }
 
     protected function messages(): array
@@ -261,11 +279,33 @@ class TransferForm extends Component
                 ->get();
         }
 
-        // A transfer spans TWO outlets, so this deliberately uses the full
-        // accessible list rather than availableOutletIds() — that narrows to
-        // the kitchen's own outlet in kitchen mode, which would leave no valid
-        // destination and make kitchen-to-outlet transfers impossible.
-        $outlets = Outlet::whereIn('id', Auth::user()->accessibleOutletIds())
+        /*
+         * TWO LISTS, because the two ends of a transfer ask different
+         * questions.
+         *
+         * SOURCE is what you may take stock OUT of, so it stays scoped to the
+         * outlets you can access — and save() re-checks it, because taking
+         * stock off a branch you cannot see is not something to allow from a
+         * select box.
+         *
+         * DESTINATION is where you may send it, and that is every active
+         * outlet in the company. Sharing one list is what broke this: a
+         * central kitchen user is attached only to the kitchen's own outlet,
+         * so the accessible list was one entry, the source defaulted to it,
+         * and the destination select — which excludes the source — rendered
+         * EMPTY. A kitchen exists precisely to send stock to branches it is
+         * not itself attached to.
+         *
+         * It matches the rule already applied when opening an existing
+         * transfer, which admits anyone who can see EITHER end: a transfer
+         * legitimately spans an outlet you do not otherwise work in.
+         */
+        $sourceOutlets = Outlet::whereIn('id', Auth::user()->accessibleOutletIds())
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $destinationOutlets = Outlet::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -274,7 +314,7 @@ class TransferForm extends Component
         $isDraft   = $this->status === 'draft';
 
         return view('livewire.inventory.transfer-form', compact(
-            'ingredientResults', 'outlets', 'totalCost', 'isDraft'
+            'ingredientResults', 'sourceOutlets', 'destinationOutlets', 'totalCost', 'isDraft'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 

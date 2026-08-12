@@ -66,7 +66,7 @@
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                                 {{ !$isDraft ? 'disabled' : '' }}>
                             <option value="">Select source outlet…</option>
-                            @foreach ($outlets as $outlet)
+                            @foreach ($sourceOutlets as $outlet)
                                 <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                             @endforeach
                         </select>
@@ -78,7 +78,12 @@
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                                 {{ !$isDraft ? 'disabled' : '' }}>
                             <option value="">Select destination outlet…</option>
-                            @foreach ($outlets as $outlet)
+                            {{-- Every active outlet in the company, not just
+                                 the ones you work in: a central kitchen sends
+                                 stock to branches it is not attached to, and
+                                 sharing the source list left this select
+                                 empty for kitchen users. --}}
+                            @foreach ($destinationOutlets as $outlet)
                                 @if ((string) $outlet->id !== $from_outlet_id)
                                     <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                                 @endif
