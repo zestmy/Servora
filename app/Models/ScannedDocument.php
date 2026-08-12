@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ScannedDocument extends Model
 {
+    use PurgesStoredFiles;
+
     protected $fillable = [
         'company_id', 'uploaded_by',
         'original_filename', 'file_path', 'mime_type', 'size_bytes',
@@ -27,6 +30,11 @@ class ScannedDocument extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        // Held on the PRIVATE disk under a per-company folder because these
+        // are supplier invoices and delivery notes, so an orphan here is a
+        // tenant's paperwork left on the server with nothing pointing at it.
+        static::deleted(fn (self $doc) => $doc->purgeOwnedFile('file_path'));
     }
 
     public function company(): BelongsTo

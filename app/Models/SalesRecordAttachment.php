@@ -2,15 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 class SalesRecordAttachment extends Model
 {
+    use PurgesStoredFiles;
+
     protected $fillable = [
         'sales_record_id', 'file_name', 'file_path', 'mime_type', 'file_size',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleted(fn (self $attachment) => $attachment->purgeOwnedFile('file_path'));
+    }
 
     public function salesRecord(): BelongsTo
     {

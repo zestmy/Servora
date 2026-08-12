@@ -2,13 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, PurgesStoredFiles;
+
+    protected static function booted(): void
+    {
+        // The rendered PDF is a copy of the invoice, not the invoice itself —
+        // but it is still a billing document with a customer's details on it,
+        // and leaving it served from the public disk after the row has gone
+        // is a file nobody can find and nobody will ever remove.
+        static::deleted(fn (self $invoice) => $invoice->purgeOwnedFile('pdf_path'));
+    }
 
     protected $fillable = [
         'company_id', 'payment_id', 'invoice_number', 'amount', 'tax_amount',

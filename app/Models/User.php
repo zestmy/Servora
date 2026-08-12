@@ -12,7 +12,14 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, \App\Models\Concerns\PurgesStoredFiles;
+
+    protected static function booted(): void
+    {
+        // A deleted account should not leave its photograph being served from
+        // the public disk with nothing left that knows whose face it is.
+        static::deleted(fn (self $user) => $user->purgeOwnedFile('avatar'));
+    }
 
     /**
      * Spatie's permission check, aliased so denials can wrap it — see

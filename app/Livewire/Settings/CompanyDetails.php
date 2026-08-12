@@ -101,9 +101,25 @@ class CompanyDetails extends Component
         ];
 
         if ($this->logo) {
+            /*
+             * The OLD logo goes with the new one.
+             *
+             * Replacing a logo stores a fresh file and overwrites the column,
+             * so before this the previous one stayed on the public disk with
+             * nothing pointing at it — invisible to the product and therefore
+             * permanent. Three had accumulated that way. It is an UPDATE leak,
+             * not a delete one, which is why the model's `deleted` hook never
+             * caught it.
+             */
+            $previous = $company->logo;
+
             $path = $this->logo->store('company-logos', 'public');
             $data['logo'] = $path;
             $this->currentLogo = $path;
+
+            if (filled($previous) && $previous !== $path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($previous);
+            }
         }
 
         $company->update($data);

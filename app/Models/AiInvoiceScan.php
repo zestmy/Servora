@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AiInvoiceScan extends Model
 {
+    use PurgesStoredFiles;
+
     protected $fillable = [
         'company_id', 'uploaded_by',
         'original_file_path', 'original_file_name',
@@ -26,6 +29,8 @@ class AiInvoiceScan extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        static::deleted(fn (self $scan) => $scan->purgeOwnedFile('original_file_path'));
     }
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }

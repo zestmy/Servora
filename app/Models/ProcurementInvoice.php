@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Carbon;
 
 class ProcurementInvoice extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, PurgesStoredFiles, SoftDeletes;
 
     protected $fillable = [
         'company_id', 'outlet_id', 'supplier_id',
@@ -36,6 +37,11 @@ class ProcurementInvoice extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        // forceDeleted, not deleted: this soft-deletes, so a removed invoice
+        // can come back and must come back with its scan attached. See
+        // ClockEvent for the same rule and the same reasoning.
+        static::forceDeleted(fn (self $invoice) => $invoice->purgeOwnedFile('original_file_path'));
     }
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class LeaveRequest extends Model
 {
-    use SoftDeletes;
+    use PurgesStoredFiles, SoftDeletes;
 
     public const PENDING   = 'pending';
     public const APPROVED  = 'approved';
@@ -48,6 +49,20 @@ class LeaveRequest extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        /*
+         * The attachment on a leave request is usually a medical certificate,
+         * which makes it the most sensitive file in this sweep — health
+         * information about a named employee. An orphan here is that document
+         * sitting on the server with nothing pointing at it: it cannot be
+         * found, cannot be produced on a data request, and will never be
+         * deleted by anything.
+         *
+         * forceDeleted rather than deleted, because this soft-deletes and a
+         * withdrawn request can be restored — with its certificate still
+         * attached, or the restore is worthless.
+         */
+        static::forceDeleted(fn (self $request) => $request->purgeOwnedFile('attachment_path'));
     }
 
     public function employee(): BelongsTo
